@@ -1,0 +1,300 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Journal Entry Report - MyTravelPanel{% endblock %}
+
+{% block page_title %}Journal Entry Report 日记账分录报表{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #333;
+    }
+
+    .report-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .report-table th {
+        background-color: #343a40;
+        color: white;
+        font-weight: 600;
+        padding: 12px 15px;
+        white-space: nowrap;
+    }
+
+    .report-table td {
+        padding: 10px 15px;
+        vertical-align: middle;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .report-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .journal-no {
+        font-family: monospace;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .amount-cell {
+        text-align: right;
+        font-family: monospace;
+        font-size: 0.95em;
+    }
+
+    .debit-amount { color: #1976d2; }
+    .credit-amount { color: #388e3c; }
+
+    .total-row {
+        background-color: #343a40 !important;
+        color: white;
+        font-weight: bold;
+    }
+
+    .total-row td {
+        border-bottom: none;
+        padding: 12px 15px;
+    }
+
+    /* Entry Type Badges */
+    .badge-invoice { background-color: #17a2b8; }
+    .badge-receipt { background-color: #28a745; }
+    .badge-eo { background-color: #dc3545; }
+    .badge-manual { background-color: #6c757d; }
+
+    .entry-type-badge {
+        font-size: 0.8em;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-weight: 500;
+    }
+
+    .reference-link {
+        color: #495057;
+        text-decoration: none;
+    }
+    .reference-link:hover {
+        color: #007bff;
+        text-decoration: underline;
+    }
+
+    .btn-export {
+        margin-left: 10px;
+    }
+
+    @media print {
+        .filter-section { display: none !important; }
+        .no-print { display: none !important; }
+        .report-table { box-shadow: none; }
+        .report-table th { background-color: #f8f9fa !important; color: #333 !important; }
+        .total-row { background-color: #e9ecef !important; color: #333 !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Filter Section 筛选区域 -->
+    <div class="filter-section">
+        <form class="row g-3 align-items-end" method="GET">
+            <div class="col-md-2">
+                <label class="form-label">Start Date 开始日期</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">End Date 结束日期</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Entry Type 分录类型</label>
+                <select class="form-select" name="source_type">
+                    <option value="">All Types 全部</option>
+                    <option value="invoice" {% if current_source_type == 'invoice' %}selected{% endif %}>Invoice 发票</option>
+                    <option value="receipt" {% if current_source_type == 'receipt' %}selected{% endif %}>Receipt 收款</option>
+                    <option value="eo" {% if current_source_type == 'eo' %}selected{% endif %}>EO Payment 付款</option>
+                    <option value="manual" {% if current_source_type == 'manual' %}selected{% endif %}>Manual 手工</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Generate 生成
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-export" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print 打印
+                </button>
+                <button type="button" class="btn btn-outline-success btn-export" onclick="exportToCSV()">
+                    <i class="fas fa-file-csv"></i> Export CSV 导出
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Report Header 报表标题 -->
+    <div class="report-header">
+        <div>
+            <h3 class="mb-1">Journal Entry Report 日记账分录报表</h3>
+            <p class="text-muted mb-0">Period 期间: {{ start_date }} to {{ end_date }}</p>
+        </div>
+        <div>
+            {% if entries|length == 0 %}
+            <button class="btn btn-warning btn-sm me-2" onclick="generateFromBusiness()">
+                <i class="fas fa-magic"></i> Generate from Business Data 从业务数据生成
+            </button>
+            {% endif %}
+            <span class="text-muted"><small>Total Entries 总计: {{ entries|length }}</small></span>
+        </div>
+    </div>
+
+    <!-- Report Table 报表表格 -->
+    <div class="report-table">
+        <table class="table mb-0" id="journalTable">
+            <thead>
+                <tr>
+                    <th width="10%">Entry Type 类型</th>
+                    <th width="10%">Date 日期</th>
+                    <th width="12%">Journal No 分录号</th>
+                    <th width="28%">Description 描述</th>
+                    <th width="15%">Reference 参考</th>
+                    <th width="12%" class="text-end">Debit 借方</th>
+                    <th width="12%" class="text-end">Credit 贷方</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>
+                        <span class="badge entry-type-badge badge-{{ entry.source_type }}">
+                            {% if entry.source_type == 'invoice' %}Invoice
+                            {% elif entry.source_type == 'receipt' %}Receipt
+                            {% elif entry.source_type == 'eo' %}EO Payment
+                            {% elif entry.source_type == 'manual' %}Manual
+                            {% else %}{{ entry.source_type }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>{{ entry.entry_date.strftime('%Y-%m-%d') if entry.entry_date else '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=entry.id) }}"
+                           class="journal-no">{{ entry.entry_number }}</a>
+                    </td>
+                    <td>{{ entry.description or '-' }}</td>
+                    <td>
+                        {% if entry.source_number %}
+                            <span class="reference-link">{{ entry.source_number }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="amount-cell debit-amount">
+                        {% if entry.total_debit and entry.total_debit > 0 %}
+                            {{ '{:,.2f}'.format(entry.total_debit|float) }}
+                        {% endif %}
+                    </td>
+                    <td class="amount-cell credit-amount">
+                        {% if entry.total_credit and entry.total_credit > 0 %}
+                            {{ '{:,.2f}'.format(entry.total_credit|float) }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                        No journal entries found for this period 该期间无日记账分录
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if entries %}
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="5" class="text-end"><strong>Period Total 期间合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_debit|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_credit|float) }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<script>
+function generateFromBusiness() {
+    if (confirm('This will generate journal entries from existing Invoice/Receipt/EO data.\n\nContinue?')) {
+        fetch('{{ url_for("ledger_routes.generate_journal_from_business") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+
+function exportToCSV() {
+    const table = document.getElementById('journalTable');
+    const rows = table.querySelectorAll('tbody tr, thead tr');
+    let csv = [];
+
+    // Header
+    csv.push('Entry Type,Date,Journal No,Description,Reference,Debit,Credit');
+
+    // Data rows
+    const dataRows = table.querySelectorAll('tbody tr');
+    dataRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 7) {
+            const entryType = cells[0].textContent.trim();
+            const date = cells[1].textContent.trim();
+            const journalNo = cells[2].textContent.trim();
+            const description = cells[3].textContent.trim().replace(/"/g, '""');
+            const reference = cells[4].textContent.trim();
+            const debit = cells[5].textContent.trim().replace(/,/g, '');
+            const credit = cells[6].textContent.trim().replace(/,/g, '');
+
+            csv.push(`"${entryType}","${date}","${journalNo}","${description}","${reference}",${debit || 0},${credit || 0}`);
+        }
+    });
+
+    // Create and download
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `journal_entries_{{ start_date }}_to_{{ end_date }}.csv`;
+    link.click();
+}
+</script>
+{% endblock %}

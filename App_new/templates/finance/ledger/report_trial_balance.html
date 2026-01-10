@@ -1,183 +1,427 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Trial Balance - MyTravelPanel{% endblock %}
+{% block title %}Trial Balance Listing - MyTravelPanel{% endblock %}
 
-{% block page_title %}Trial Balance{% endblock %}
+{% block page_title %}Trial Balance Listing 试算平衡表{% endblock %}
 
 {% block extra_css %}
 <style>
     .report-container {
-        max-width: 1000px;
+        max-width: 1500px;
         margin: 0 auto;
         padding: 20px;
     }
 
-    .report-header {
-        text-align: center;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #333;
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    .report-header h2 {
+    /* 报表样式 */
+    .report-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .report-header .company-name {
+        font-size: 1.4em;
+        font-weight: bold;
+        color: #004080;
         margin-bottom: 5px;
     }
 
-    .report-date {
-        color: #666;
+    .report-header .report-title {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-period {
         font-size: 0.95em;
+        color: #666;
     }
 
-    .filter-section {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 20px;
-    }
-
-    .report-table {
+    .report-table-container {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        overflow: hidden;
+        overflow-x: auto;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85em;
+        min-width: 1300px;
+        table-layout: fixed;
     }
 
     .report-table th {
-        background-color: #343a40;
-        color: white;
+        background-color: #e8e8e8;
+        color: #333;
+        padding: 8px 10px;
         font-weight: 600;
+        text-align: center;
+        border-bottom: 2px solid #ccc;
+        white-space: nowrap;
     }
 
-    .report-table .account-code {
-        font-family: monospace;
+
+    .report-table td {
+        padding: 6px 10px;
+        border-bottom: 1px solid #eee;
     }
 
-    .total-row {
-        font-weight: bold;
-        background-color: #e9ecef;
-        font-size: 1.05em;
-    }
-
-    .balance-row {
-        font-weight: bold;
-    }
-
-    .balance-ok {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .balance-error {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-
-    .amount-cell {
+    .report-table .text-right {
         text-align: right;
+    }
+
+    .report-table .text-left {
+        text-align: left;
+    }
+
+    /* 账户代码 */
+    .account-code {
         font-family: monospace;
+        color: #004080;
+        font-weight: 500;
     }
 
-    .print-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
+    /* 金额列 */
+    .amount-cell {
+        font-family: 'Courier New', monospace;
+        text-align: right;
+        white-space: nowrap;
     }
 
+    /* 汇总行 */
+    .total-row td {
+        font-weight: bold;
+        background-color: #f5f5f5;
+        border-top: 2px solid #999;
+        padding: 10px;
+    }
+
+    /* 报表底部 */
+    .report-footer {
+        font-size: 0.8em;
+        color: #666;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+    }
+
+    /* 打印样式 */
     @media print {
-        .filter-section, .print-btn, .navbar, .sidebar {
-            display: none !important;
+        /* 隐藏导航和侧边栏 */
+        .navbar { display: none !important; }
+        #sidebar, .sidebar { display: none !important; }
+        .sidebar-overlay { display: none !important; }
+        .breadcrumb { display: none !important; }
+        nav[aria-label="breadcrumb"] { display: none !important; }
+
+        /* 隐藏页面标题区域（使用报表自己的标题） */
+        .d-flex.border-bottom { display: none !important; }
+
+        /* 隐藏筛选区域和打印按钮 */
+        .filter-section { display: none !important; }
+        .no-print { display: none !important; }
+
+        /* 主内容区域全宽 */
+        main, .col-md-10, .col-lg-11 {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: 0 0 100% !important;
         }
+
+        .container-fluid { padding: 0 !important; }
+        .row { margin: 0 !important; }
+
+        /* 报表容器样式 */
         .report-container {
             max-width: 100%;
+            padding: 0;
             margin: 0;
-            padding: 10px;
+        }
+        .report-table-container {
+            box-shadow: none;
+            overflow: visible !important;
+        }
+
+        /* 表格适应打印宽度 */
+        .report-table {
+            font-size: 8pt !important;
+            min-width: auto !important;
+            width: 100% !important;
+            table-layout: auto !important;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: 4px 6px !important;
+            white-space: normal !important;
+            word-wrap: break-word !important;
+        }
+
+        .report-table th {
+            font-size: 7pt !important;
+            background-color: #e8e8e8 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* 金额列保持不换行 */
+        .report-table .amount-cell {
+            white-space: nowrap !important;
+            font-size: 8pt !important;
+        }
+
+        /* 报表头部紧凑 */
+        .report-header {
+            padding: 8px !important;
+            margin-bottom: 10px !important;
+        }
+        .report-header .company-name { font-size: 12pt !important; }
+        .report-header .report-title { font-size: 10pt !important; }
+        .report-header .report-period { font-size: 8pt !important; }
+
+        /* 保持表头颜色 */
+        .report-table th[style*="background:#d0d0d0"] {
+            background-color: #d0d0d0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .report-table th[style*="background:#c5e1a5"] {
+            background-color: #c5e1a5 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .report-table th[style*="background:#b3e5fc"] {
+            background-color: #b3e5fc !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* colgroup 在打印时不使用固定宽度 */
+        colgroup col {
+            width: auto !important;
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 0.8cm;
         }
     }
+
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="report-container">
     <!-- Filter -->
-    <div class="filter-section">
-        <form class="row g-3" method="GET">
-            <div class="col-md-4">
-                <label class="form-label">As of Date</label>
-                <input type="date" class="form-control" name="as_of_date" value="{{ as_of_date }}">
+    <div class="filter-section no-print">
+        <form class="row g-3 align-items-end" method="GET">
+            <div class="col-md-3">
+                <label class="form-label">Start Date 开始日期</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">End Date 结束日期</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-6">
                 <button type="submit" class="btn btn-primary me-2">
-                    <i class="fas fa-sync"></i> Generate
+                    <i class="fas fa-search"></i> Generate 生成
                 </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print
+                <button type="button" class="btn btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print 打印
                 </button>
+                {% if trial_balance %}
+                <button type="button" class="btn btn-outline-success" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Export 导出
+                </button>
+                {% endif %}
             </div>
         </form>
     </div>
 
     <!-- Report Header -->
     <div class="report-header">
-        <h2>Trial Balance</h2>
-        <p class="report-date">As of: {{ as_of_date }}</p>
+        <div class="company-name">{{ company_name }}</div>
+        <div class="report-title">Trial Balance Listing 试算平衡表</div>
+        <div class="report-period">
+            For the Period From {{ start_date }} to {{ end_date }} 期间
+        </div>
     </div>
 
+    {% if trial_balance %}
     <!-- Report Table -->
-    <div class="report-table">
-        <table class="table mb-0">
+    <div class="report-table-container">
+        <table class="report-table" id="reportTable">
+            <colgroup>
+                <col style="width:12%">
+                <col style="width:22%">
+                <col style="width:11%">
+                <col style="width:11%">
+                <col style="width:11%">
+                <col style="width:11%">
+                <col style="width:11%">
+                <col style="width:11%">
+            </colgroup>
             <thead>
+                <!-- 单行表头 -->
                 <tr>
-                    <th width="15%">Code</th>
-                    <th width="35%">Account Name</th>
-                    <th width="20%">Chinese Name</th>
-                    <th width="15%" class="text-end">Debit</th>
-                    <th width="15%" class="text-end">Credit</th>
+                    <th>Account Code 科目代码</th>
+                    <th class="text-left">Account Name 科目名称</th>
+                    <th style="background:#d0d0d0; border-left:2px solid #999">Opening Debit 期初借方</th>
+                    <th style="background:#d0d0d0">Opening Credit 期初贷方</th>
+                    <th style="background:#c5e1a5; border-left:2px solid #999">Current Debit 本期借方</th>
+                    <th style="background:#c5e1a5">Current Credit 本期贷方</th>
+                    <th style="background:#b3e5fc; border-left:2px solid #999">YTD Debit 本年借方</th>
+                    <th style="background:#b3e5fc">YTD Credit 本年贷方</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in trial_balance %}
                 <tr>
                     <td class="account-code">{{ item.code }}</td>
-                    <td>{{ item.name }}</td>
-                    <td class="text-muted">{{ item.name_cn or '-' }}</td>
-                    <td class="amount-cell">
-                        {% if item.debit > 0 %}{{ '{:,.2f}'.format(item.debit|float) }}{% endif %}
+                    <td class="text-left">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <!-- Opening Balance -->
+                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                        {% if item.opening_debit > 0 %}{{ '{:,.2f}'.format(item.opening_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">
-                        {% if item.credit > 0 %}{{ '{:,.2f}'.format(item.credit|float) }}{% endif %}
+                        {% if item.opening_credit > 0 %}{{ '{:,.2f}'.format(item.opening_credit|float) }}{% endif %}
                     </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
-                        No data available. Please ensure accounts have posted journal entries.
+                    <!-- Current Period -->
+                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                        {% if item.current_debit > 0 %}{{ '{:,.2f}'.format(item.current_debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if item.current_credit > 0 %}{{ '{:,.2f}'.format(item.current_credit|float) }}{% endif %}
+                    </td>
+                    <!-- Year To Date -->
+                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                        {% if item.ytd_debit > 0 %}{{ '{:,.2f}'.format(item.ytd_debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if item.ytd_credit > 0 %}{{ '{:,.2f}'.format(item.ytd_credit|float) }}{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr class="total-row">
-                    <td colspan="3" class="text-end">Total:</td>
-                    <td class="amount-cell">{{ '{:,.2f}'.format(total_debit|float) }}</td>
-                    <td class="amount-cell">{{ '{:,.2f}'.format(total_credit|float) }}</td>
-                </tr>
-                <tr class="balance-row {% if is_balanced %}balance-ok{% else %}balance-error{% endif %}">
-                    <td colspan="3" class="text-end">Balance Status:</td>
-                    <td colspan="2" class="text-center">
-                        {% if is_balanced %}
-                        <i class="fas fa-check-circle"></i> BALANCED
-                        {% else %}
-                        <i class="fas fa-exclamation-triangle"></i> NOT BALANCED
-                        (Difference: {{ '{:,.2f}'.format((total_debit - total_credit)|float) }})
-                        {% endif %}
+                    <td colspan="2" class="text-right">Total 合计:</td>
+                    <!-- Opening Balance Totals -->
+                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                        {% if totals.opening_debit > 0 %}{{ '{:,.2f}'.format(totals.opening_debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if totals.opening_credit > 0 %}{{ '{:,.2f}'.format(totals.opening_credit|float) }}{% endif %}
+                    </td>
+                    <!-- Current Period Totals -->
+                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                        {% if totals.current_debit > 0 %}{{ '{:,.2f}'.format(totals.current_debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if totals.current_credit > 0 %}{{ '{:,.2f}'.format(totals.current_credit|float) }}{% endif %}
+                    </td>
+                    <!-- Year To Date Totals -->
+                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                        {% if totals.ytd_debit > 0 %}{{ '{:,.2f}'.format(totals.ytd_debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if totals.ytd_credit > 0 %}{{ '{:,.2f}'.format(totals.ytd_credit|float) }}{% endif %}
                     </td>
                 </tr>
             </tfoot>
         </table>
     </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <span>{{ now().strftime('%d%b%Y %H:%M:%S') if now is defined else '' }}</span>
+        <span>Page 页码: 1 / 1</span>
+    </div>
+
+    {% else %}
+    <!-- No Data -->
+    <div class="text-center py-5" style="background: white; border-radius: 8px;">
+        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+        <h4>No Data Found 无数据</h4>
+        <p class="text-muted">No transactions found for the selected period. 所选期间没有找到交易记录。</p>
+        <button class="btn btn-warning mt-2 no-print" onclick="generateFromBusiness()">
+            <i class="fas fa-magic"></i> Generate from Business Data 从业务数据生成
+        </button>
+    </div>
+    {% endif %}
 </div>
 
-<button class="btn btn-primary print-btn" onclick="window.print()">
-    <i class="fas fa-print"></i>
-</button>
+<script>
+function generateFromBusiness() {
+    if (confirm('Generate journal entries from existing Invoice/Receipt/EO data?\n从现有发票/收款/付款数据生成日记账分录？')) {
+        fetch('{{ url_for("ledger_routes.generate_journal_from_business") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+
+function exportToExcel() {
+    const table = document.getElementById('reportTable');
+    let csv = 'Account Code 科目代码,Account Name 科目名称,Opening Debit 期初借方,Opening Credit 期初贷方,Current Debit 本期借方,Current Credit 本期贷方,YTD Debit 本年借方,YTD Credit 本年贷方\n';
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 8) {
+            const values = [];
+            cells.forEach((cell, idx) => {
+                let val = cell.textContent.trim().replace(/"/g, '""').replace(/,/g, '');
+                values.push(`"${val}"`);
+            });
+            csv += values.join(',') + '\n';
+        }
+    });
+
+    // Add totals
+    const footRow = table.querySelector('tfoot tr');
+    if (footRow) {
+        const cells = footRow.querySelectorAll('td');
+        csv += '"","","Total 合计"';
+        for (let i = 1; i < cells.length; i++) {
+            let val = cells[i].textContent.trim().replace(/"/g, '""').replace(/,/g, '');
+            csv += `,"${val}"`;
+        }
+        csv += '\n';
+    }
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'trial_balance_{{ start_date }}_to_{{ end_date }}.csv';
+    link.click();
+}
+</script>
 {% endblock %}

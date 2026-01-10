@@ -375,14 +375,30 @@ def exchange_order_pay():
             eo.pay_amount = round(eo_pay_amount, 2)
             eo.status = 'paid'
             success_count += 1
-        
+
+            # 自动创建日记账分录（借：成本费用，贷：银行存款）
+            try:
+                from App_new.finance.models.journal_entry import JournalEntry
+                journal_entry = JournalEntry.create_from_eo(
+                    eo,
+                    user=current_user.username if current_user else None
+                )
+                if journal_entry and journal_entry.lines:
+                    db.session.add(journal_entry)
+                    # 自动过账
+                    journal_entry.post(user=current_user.username if current_user else None)
+            except Exception as je_error:
+                # 日记账创建失败不影响EO付款
+                import logging
+                logging.getLogger(__name__).warning(f"创建Exchange Order日记账失败: {str(je_error)}")
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'Successfully paid {success_count} EO(s), Payment No: {payment_no}'
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -642,12 +658,28 @@ def batch_pay_submit():
             eo.pay_amount = round(eo_pay_amount, 2)
             eo.status = 'paid'
             success_count += 1
-        
+
+            # 自动创建日记账分录（借：成本费用，贷：银行存款）
+            try:
+                from App_new.finance.models.journal_entry import JournalEntry
+                journal_entry = JournalEntry.create_from_eo(
+                    eo,
+                    user=current_user.username if current_user else None
+                )
+                if journal_entry and journal_entry.lines:
+                    db.session.add(journal_entry)
+                    # 自动过账
+                    journal_entry.post(user=current_user.username if current_user else None)
+            except Exception as je_error:
+                # 日记账创建失败不影响EO付款
+                import logging
+                logging.getLogger(__name__).warning(f"创建批量EO付款日记账失败: {str(je_error)}")
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
-            'message': f'成功付款 {success_count} 个EO，付款编号：{payment_no}'
+            'message': f'成功付款 {success_count} 个EO，付款编号：{payment_no}，已生成相应日记账'
         })
         
     except Exception as e:
@@ -699,12 +731,33 @@ def pay_eo(eo_id):
         eo.pay_amount = pay_amount
         eo.payment_remarks = payment_remarks
         eo.status = 'paid'
-        
+
+        # 自动创建日记账分录（借：成本费用，贷：银行存款）
+        journal_entry = None
+        try:
+            from App_new.finance.models.journal_entry import JournalEntry
+            journal_entry = JournalEntry.create_from_eo(
+                eo,
+                user=current_user.username if current_user else None
+            )
+            if journal_entry and journal_entry.lines:
+                db.session.add(journal_entry)
+                # 自动过账
+                journal_entry.post(user=current_user.username if current_user else None)
+        except Exception as je_error:
+            # 日记账创建失败不影响EO付款
+            import logging
+            logging.getLogger(__name__).warning(f"创建EO付款日记账失败: {str(je_error)}")
+
         db.session.commit()
-        
+
+        message = f'EO {eo.eo_number} 付款成功'
+        if journal_entry:
+            message += f'，已生成日记账 {journal_entry.entry_number}'
+
         return jsonify({
-            'success': True, 
-            'message': f'EO {eo.eo_number} 付款成功'
+            'success': True,
+            'message': message
         })
         
     except Exception as e:

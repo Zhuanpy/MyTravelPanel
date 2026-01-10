@@ -2,7 +2,7 @@
 
 {% block title %}Balance Sheet - MyTravelPanel{% endblock %}
 
-{% block page_title %}Balance Sheet{% endblock %}
+{% block page_title %}Balance Sheet 资产负债表{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -12,89 +12,185 @@
         padding: 20px;
     }
 
-    .report-header {
-        text-align: center;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #333;
-    }
-
     .filter-section {
         background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
+        padding: 15px 20px;
+        border-radius: 8px;
         margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    .bs-layout {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
+    /* 报表头部样式 */
+    .report-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    .section-card {
+    .report-header .company-name {
+        font-size: 1.4em;
+        font-weight: bold;
+        color: #004080;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-title {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-date {
+        font-size: 0.95em;
+        color: #666;
+    }
+
+    /* 报表表格样式 */
+    .bs-table-container {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         overflow: hidden;
+        margin-bottom: 20px;
     }
 
-    .section-header {
-        padding: 12px 20px;
+    .bs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+    }
+
+    .bs-table th {
+        background-color: #e8e8e8;
+        color: #333;
+        padding: 10px 12px;
         font-weight: 600;
-        font-size: 1.1em;
-        color: white;
+        text-align: left;
+        border-bottom: 2px solid #ccc;
     }
 
-    .asset-header { background-color: #1976d2; }
-    .liability-header { background-color: #c2185b; }
-    .equity-header { background-color: #388e3c; }
-
-    .section-body {
-        padding: 0;
-        min-height: 150px;
-    }
-
-    .item-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 20px;
-        border-bottom: 1px solid #eee;
-    }
-
-    .item-code {
-        font-family: monospace;
-        color: #6c757d;
-        margin-right: 10px;
-        width: 50px;
-    }
-
-    .item-name {
-        flex: 1;
-    }
-
-    .item-amount {
-        font-family: monospace;
-        font-weight: 500;
-        min-width: 100px;
+    .bs-table th.text-right {
         text-align: right;
     }
 
-    .subtotal-row {
-        background-color: #f8f9fa;
-        font-weight: bold;
-        padding: 12px 20px;
-        display: flex;
-        justify-content: space-between;
+    .bs-table td {
+        padding: 8px 12px;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
     }
 
-    .balance-check {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 20px;
-        border-radius: 8px;
-        font-size: 1.2em;
+    /* 分类标题行 */
+    .section-header td {
+        background-color: #f5f5f5;
         font-weight: bold;
+        color: #333;
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    /* 子分类标题行 */
+    .subsection-header td {
+        background-color: #fafafa;
+        font-weight: 600;
+        color: #555;
+        padding: 10px 12px 10px 24px;
+        border-bottom: 1px solid #eee;
+    }
+
+    /* 账户代码 */
+    .account-code {
+        font-family: monospace;
+        color: #666;
+        width: 100px;
+    }
+
+    /* 账户名称缩进 */
+    .account-name {
+        padding-left: 36px !important;
+    }
+
+    /* 金额列 */
+    .amount-cell {
+        text-align: right;
+        font-family: 'Courier New', monospace;
+        white-space: nowrap;
+    }
+
+    /* 小计行 */
+    .subtotal-row td {
+        font-weight: 600;
+        background-color: #f8f9fa;
+        border-top: 1px solid #ddd;
+    }
+
+    /* 合计行 */
+    .total-row td {
+        font-weight: bold;
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
+    }
+
+    .total-row .amount-cell {
+        color: #333;
+    }
+
+    /* 资产合计行 */
+    .total-assets-row td {
+        font-weight: bold;
+        background-color: #e3f2fd;
+        color: #1565c0;
+        border-top: 2px solid #2196f3;
+    }
+
+    /* 负债合计行 */
+    .total-liabilities-row td {
+        font-weight: bold;
+        background-color: #fce4ec;
+        color: #c2185b;
+        border-top: 1px solid #f48fb1;
+    }
+
+    /* 资本合计行 */
+    .total-capital-row td {
+        font-weight: bold;
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        border-top: 1px solid #81c784;
+    }
+
+    /* 负债+资本合计行 */
+    .grand-total-row td {
+        font-weight: bold;
+        background-color: #fff3e0;
+        color: #e65100;
+        border-top: 2px solid #ff9800;
+        border-bottom: 3px double #ff9800;
+    }
+
+    /* 净利润行 */
+    .net-income-row td {
+        font-style: italic;
+        color: #1976d2;
+    }
+
+    /* 空行分隔 */
+    .spacer-row td {
+        height: 15px;
+        border: none;
+        background: white;
+    }
+
+    /* 平衡检查行 */
+    .balance-check {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-top: 20px;
     }
 
     .balance-ok {
@@ -107,145 +203,287 @@
         color: #721c24;
     }
 
-    .right-column {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-
+    /* 打印样式 */
     @media print {
-        .filter-section { display: none !important; }
-        .bs-layout { grid-template-columns: 1fr 1fr; }
-    }
+        /* 隐藏导航和侧边栏 */
+        .navbar { display: none !important; }
+        #sidebar, .sidebar { display: none !important; }
+        .sidebar-overlay { display: none !important; }
+        .breadcrumb { display: none !important; }
+        nav[aria-label="breadcrumb"] { display: none !important; }
 
-    @media (max-width: 768px) {
-        .bs-layout { grid-template-columns: 1fr; }
+        /* 隐藏页面标题区域 */
+        .d-flex.border-bottom { display: none !important; }
+
+        /* 隐藏筛选区域 */
+        .filter-section { display: none !important; }
+        .no-print { display: none !important; }
+
+        /* 主内容区域全宽 */
+        main, .col-md-10, .col-lg-11 {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: 0 0 100% !important;
+        }
+
+        .container-fluid { padding: 0 !important; }
+        .row { margin: 0 !important; }
+
+        /* 报表容器样式 */
+        .report-container { max-width: 100%; padding: 0; margin: 0; }
+        .bs-table-container { box-shadow: none; }
+        .bs-table { font-size: 9pt; }
+        .bs-table th {
+            background-color: #e8e8e8 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .section-header td {
+            background-color: #f5f5f5 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .total-assets-row td {
+            background-color: #e3f2fd !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .total-liabilities-row td {
+            background-color: #fce4ec !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .total-capital-row td {
+            background-color: #e8f5e9 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .grand-total-row td {
+            background-color: #fff3e0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        @page { size: portrait; margin: 1cm; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="report-container">
-    <!-- Filter -->
-    <div class="filter-section">
-        <form class="row g-3" method="GET">
-            <div class="col-md-4">
-                <label class="form-label">As of Date</label>
+    <!-- Filter 筛选 -->
+    <div class="filter-section no-print">
+        <form class="row g-3 align-items-end" method="GET">
+            <div class="col-md-3">
+                <label class="form-label">As of Date 截止日期</label>
                 <input type="date" class="form-control" name="as_of_date" value="{{ as_of_date }}">
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-6">
                 <button type="submit" class="btn btn-primary me-2">
-                    <i class="fas fa-sync"></i> Generate
+                    <i class="fas fa-sync"></i> Generate 生成
                 </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print
+                <button type="button" class="btn btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print 打印
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="exportToCSV()">
+                    <i class="fas fa-file-csv"></i> Export 导出
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Report Header -->
+    <!-- Report Header 报表标题 -->
     <div class="report-header">
-        <h2>Balance Sheet</h2>
-        <p class="text-muted">As of: {{ as_of_date }}</p>
+        <div class="company-name">{{ company_name }}</div>
+        <div class="report-title">Balance Sheet</div>
+        <div class="report-date">
+            As at {{ as_of_date }} (By Company)
+        </div>
     </div>
 
-    <!-- Balance Sheet Layout -->
-    <div class="bs-layout">
-        <!-- Assets (Left) -->
-        <div class="section-card">
-            <div class="section-header asset-header">
-                <i class="fas fa-building me-2"></i>Assets
-            </div>
-            <div class="section-body">
+    <!-- Balance Sheet Table 资产负债表 -->
+    <div class="bs-table-container">
+        <table class="bs-table" id="bsTable">
+            <thead>
+                <tr>
+                    <th width="15%">Account Code</th>
+                    <th width="45%">Account Name</th>
+                    <th width="20%" class="text-right">Current Period</th>
+                    <th width="20%" class="text-right">Year To Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- ============ ASSETS 资产 ============ -->
+                <tr class="section-header">
+                    <td colspan="4">ASSETS 资产</td>
+                </tr>
+                <tr class="subsection-header">
+                    <td colspan="4">Current Assets 流动资产</td>
+                </tr>
                 {% for item in asset_items %}
-                <div class="item-row">
-                    <span class="item-code">{{ item.code }}</span>
-                    <span class="item-name">{{ item.name }}</span>
-                    <span class="item-amount">{{ '{:,.2f}'.format(item.amount|float) }}</span>
-                </div>
+                <tr>
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
                 {% else %}
-                <div class="item-row text-muted">
-                    <span>No assets recorded</span>
-                </div>
+                <tr>
+                    <td></td>
+                    <td class="account-name text-muted">No assets recorded 无资产记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
                 {% endfor %}
-            </div>
-            <div class="subtotal-row">
-                <span>Total Assets</span>
-                <span>{{ '{:,.2f}'.format(total_assets|float) }}</span>
-            </div>
-        </div>
+                <tr class="subtotal-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Current Assets 流动资产合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_assets_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_assets_ytd|float) }}</td>
+                </tr>
+                <tr class="total-assets-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Assets 资产合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_assets_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_assets_ytd|float) }}</td>
+                </tr>
 
-        <!-- Liabilities & Equity (Right) -->
-        <div class="right-column">
-            <!-- Liabilities -->
-            <div class="section-card">
-                <div class="section-header liability-header">
-                    <i class="fas fa-hand-holding-usd me-2"></i>Liabilities
-                </div>
-                <div class="section-body">
-                    {% for item in liability_items %}
-                    <div class="item-row">
-                        <span class="item-code">{{ item.code }}</span>
-                        <span class="item-name">{{ item.name }}</span>
-                        <span class="item-amount">{{ '{:,.2f}'.format(item.amount|float) }}</span>
-                    </div>
-                    {% else %}
-                    <div class="item-row text-muted">
-                        <span>No liabilities recorded</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="subtotal-row">
-                    <span>Total Liabilities</span>
-                    <span>{{ '{:,.2f}'.format(total_liabilities|float) }}</span>
-                </div>
-            </div>
+                <!-- 空行 -->
+                <tr class="spacer-row"><td colspan="4"></td></tr>
 
-            <!-- Equity -->
-            <div class="section-card">
-                <div class="section-header equity-header">
-                    <i class="fas fa-chart-pie me-2"></i>Equity
-                </div>
-                <div class="section-body">
-                    {% for item in equity_items %}
-                    <div class="item-row">
-                        <span class="item-code">{{ item.code }}</span>
-                        <span class="item-name">{{ item.name }}</span>
-                        <span class="item-amount">{{ '{:,.2f}'.format(item.amount|float) }}</span>
-                    </div>
-                    {% else %}
-                    <div class="item-row text-muted">
-                        <span>No equity recorded</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="subtotal-row">
-                    <span>Total Equity</span>
-                    <span>{{ '{:,.2f}'.format(total_equity|float) }}</span>
-                </div>
-            </div>
+                <!-- ============ LIABILITIES AND CAPITAL 负债和资本 ============ -->
+                <tr class="section-header">
+                    <td colspan="4">LIABILITIES AND CAPITAL 负债和资本</td>
+                </tr>
+                <tr class="subsection-header">
+                    <td colspan="4">Current Liabilities 流动负债</td>
+                </tr>
+                {% for item in liability_items %}
+                <tr>
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td></td>
+                    <td class="account-name text-muted">No liabilities recorded 无负债记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+                {% endfor %}
+                <tr class="subtotal-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Current Liabilities 流动负债合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_liabilities_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_liabilities_ytd|float) }}</td>
+                </tr>
+                <tr class="total-liabilities-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Liabilities 负债合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_liabilities_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_liabilities_ytd|float) }}</td>
+                </tr>
 
-            <!-- Total L+E -->
-            <div class="section-card">
-                <div class="subtotal-row" style="background-color: #343a40; color: white;">
-                    <span>Total Liabilities + Equity</span>
-                    <span>{{ '{:,.2f}'.format((total_liabilities + total_equity)|float) }}</span>
-                </div>
-            </div>
-        </div>
+                <!-- 空行 -->
+                <tr class="spacer-row"><td colspan="4"></td></tr>
 
-        <!-- Balance Check -->
-        <div class="balance-check {% if is_balanced %}balance-ok{% else %}balance-error{% endif %}">
-            {% if is_balanced %}
-            <i class="fas fa-check-circle me-2"></i>
-            BALANCED: Assets = Liabilities + Equity
-            {% else %}
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            NOT BALANCED
-            (Difference: {{ '{:,.2f}'.format((total_assets - total_liabilities - total_equity)|float) }})
-            {% endif %}
-        </div>
+                <!-- ============ CAPITAL 资本 ============ -->
+                <tr class="subsection-header">
+                    <td colspan="4">Capital 资本</td>
+                </tr>
+                {% for item in capital_items %}
+                <tr>
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td></td>
+                    <td class="account-name text-muted">No capital recorded 无资本记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+                {% endfor %}
+                <!-- Net Income 净利润 -->
+                <tr class="net-income-row">
+                    <td></td>
+                    <td class="account-name">Net Income 净利润</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(net_income_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(net_income_ytd|float) }}</td>
+                </tr>
+                <tr class="total-capital-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Capital 资本合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_capital_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_capital_ytd|float) }}</td>
+                </tr>
+
+                <!-- 空行 -->
+                <tr class="spacer-row"><td colspan="4"></td></tr>
+
+                <!-- ============ TOTAL LIABILITIES + CAPITAL ============ -->
+                <tr class="grand-total-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Liabilities Capital 负债+资本合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_liab_capital_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_liab_capital_ytd|float) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Balance Check 平衡检查 -->
+    <div class="balance-check {% if is_balanced %}balance-ok{% else %}balance-error{% endif %}">
+        {% if is_balanced %}
+        <i class="fas fa-check-circle me-2"></i>
+        BALANCED 已平衡: Total Assets = Total Liabilities + Capital
+        {% else %}
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        NOT BALANCED 不平衡
+        (Difference 差额: {{ '{:,.2f}'.format((total_assets_ytd - total_liab_capital_ytd)|float) }})
+        {% endif %}
+    </div>
+
+    <!-- Report Footer 报表底部 -->
+    <div class="text-muted small text-end mt-3">
+        Generated at: {{ now().strftime('%d %b %Y %H:%M:%S') if now is defined else '' }}
     </div>
 </div>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('bsTable');
+    let csv = ['Account Code,Account Name,Current Period,Year To Date'];
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        if (row.classList.contains('spacer-row')) return;
+
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const code = cells[0].textContent.trim();
+            const name = cells[1].textContent.trim().replace(/"/g, '""');
+            const current = cells[2].textContent.trim().replace(/,/g, '') || '0';
+            const ytd = cells[3].textContent.trim().replace(/,/g, '') || '0';
+
+            csv.push(`"${code}","${name}",${current},${ytd}`);
+        } else if (cells.length === 1) {
+            // Section header
+            const header = cells[0].textContent.trim().replace(/"/g, '""');
+            csv.push(`"","${header}","",""`);
+        }
+    });
+
+    const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'balance_sheet_{{ as_of_date }}.csv';
+    link.click();
+}
+</script>
 {% endblock %}

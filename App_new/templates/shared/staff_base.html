@@ -93,8 +93,19 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
                                 <i class="fas fa-receipt me-2"></i>收据列表
                             </a></li>
+                        </ul>
+                    </li>
+                    <!-- Ledger 独立菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="ledgerDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-book-open"></i> Ledger
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.ledger_home') }}">
+                                <i class="fas fa-home me-2"></i>Ledger Home
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Ledger</h6></li>
+                            <li><h6 class="dropdown-header">Setup</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.chart_of_accounts') }}">
                                 <i class="fas fa-sitemap me-2"></i>Chart of Accounts
                             </a></li>
@@ -105,6 +116,9 @@
                             <li><h6 class="dropdown-header">Reports</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_ledger') }}">
                                 <i class="fas fa-file-alt me-2"></i>Ledger Listing
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_journal_entries') }}">
+                                <i class="fas fa-table me-2"></i>Journal Entry Report
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_trial_balance') }}">
                                 <i class="fas fa-balance-scale me-2"></i>Trial Balance

@@ -244,19 +244,21 @@
         font-weight: 500;
     }
 
-    .status-badge.draft {
-        background: #f1f5f9;
-        color: #64748b;
-    }
-
-    .status-badge.sent {
+    /* 发票状态 */
+    .status-badge.confirmed {
         background: #dbeafe;
         color: #2563eb;
     }
 
-    .status-badge.paid {
-        background: #dcfce7;
-        color: #16a34a;
+    .status-badge.cancelled {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    /* 付款状态 */
+    .status-badge.unpaid {
+        background: #fee2e2;
+        color: #dc2626;
     }
 
     .status-badge.partial_paid {
@@ -264,14 +266,9 @@
         color: #d97706;
     }
 
-    .status-badge.overdue {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-
-    .status-badge.cancelled {
-        background: #f1f5f9;
-        color: #94a3b8;
+    .status-badge.paid {
+        background: #dcfce7;
+        color: #16a34a;
     }
 
     .customer-info {
@@ -437,16 +434,16 @@
         </div>
     </div>
 
-    <!-- 快速筛选 -->
+    <!-- 快速筛选（按付款状态） -->
     <div class="quick-filters">
         <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}"
-           class="quick-filter {% if not current_filters.status %}active{% endif %}">All</a>
-        <a href="{{ url_for('business_projects.project_invoice.invoice_list', status='sent') }}"
-           class="quick-filter {% if current_filters.status == 'sent' %}active{% endif %}">Unpaid</a>
-        <a href="{{ url_for('business_projects.project_invoice.invoice_list', status='partial_paid') }}"
-           class="quick-filter {% if current_filters.status == 'partial_paid' %}active{% endif %}">Partial Paid</a>
-        <a href="{{ url_for('business_projects.project_invoice.invoice_list', status='paid') }}"
-           class="quick-filter {% if current_filters.status == 'paid' %}active{% endif %}">Paid</a>
+           class="quick-filter {% if not current_filters.payment_status %}active{% endif %}">All</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list', payment_status='unpaid') }}"
+           class="quick-filter {% if current_filters.payment_status == 'unpaid' %}active{% endif %}">Unpaid</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list', payment_status='partial_paid') }}"
+           class="quick-filter {% if current_filters.payment_status == 'partial_paid' %}active{% endif %}">Partial Paid</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list', payment_status='paid') }}"
+           class="quick-filter {% if current_filters.payment_status == 'paid' %}active{% endif %}">Paid</a>
     </div>
 
     <!-- 筛选区域 -->
@@ -461,7 +458,15 @@
                 <input type="date" name="end_date" value="{{ current_filters.end_date or '' }}">
             </div>
             <div class="filter-group">
-                <label>Status</label>
+                <label>Payment Status</label>
+                <select name="payment_status">
+                    {% for value, label in payment_statuses %}
+                    <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Invoice Status</label>
                 <select name="status">
                     {% for value, label in statuses %}
                     <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
@@ -545,8 +550,8 @@
                         {{ "%.2f"|format(invoice.unpaid_amount or 0) }}
                     </td>
                     <td>
-                        <span class="status-badge {{ invoice.status }}">
-                            {{ invoice.status_display }}
+                        <span class="status-badge {{ invoice.payment_status }}">
+                            {{ invoice.payment_status_display }}
                         </span>
                     </td>
                     <td>
@@ -575,14 +580,14 @@
             </div>
             <div class="pagination-nav">
                 {% if pagination.has_prev %}
-                <a href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
+                <a href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
                     <i class="fas fa-chevron-left"></i>
                 </a>
                 {% endif %}
 
                 {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
-                        <a href="?page={{ page_num }}&status={{ current_filters.status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}"
+                        <a href="?page={{ page_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}"
                            class="{% if page_num == pagination.page %}active{% endif %}">
                             {{ page_num }}
                         </a>
@@ -592,7 +597,7 @@
                 {% endfor %}
 
                 {% if pagination.has_next %}
-                <a href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
+                <a href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}">
                     <i class="fas fa-chevron-right"></i>
                 </a>
                 {% endif %}

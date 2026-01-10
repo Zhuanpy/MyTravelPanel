@@ -127,39 +127,82 @@ class ChartOfAccount(db.Model):
 
     @classmethod
     def init_default_accounts(cls):
-        """初始化默认科目表"""
+        """初始化默认科目表 - 旅行社业务"""
         default_accounts = [
-            # 资产类 (1xxx)
+            # ==================== 资产类 (1xxx) ====================
             {'code': '1000', 'name': 'Assets', 'name_cn': '资产', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 1, 'is_system': True},
-            {'code': '1001', 'name': 'Cash', 'name_cn': '现金', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
-            {'code': '1002', 'name': 'Bank', 'name_cn': '银行存款', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            # 现金和银行
+            {'code': '1001', 'name': 'Cash on Hand', 'name_cn': '库存现金', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            {'code': '1002', 'name': 'Bank - SGD', 'name_cn': '银行存款-新币', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            {'code': '1003', 'name': 'Bank - USD', 'name_cn': '银行存款-美元', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            {'code': '1004', 'name': 'Bank - CNY', 'name_cn': '银行存款-人民币', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            # 应收账款
             {'code': '1100', 'name': 'Accounts Receivable', 'name_cn': '应收账款', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            {'code': '1101', 'name': 'AR - Corporate', 'name_cn': '应收-公司客户', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 3, 'parent_code': '1100', 'is_system': False},
+            {'code': '1102', 'name': 'AR - Individual', 'name_cn': '应收-个人客户', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 3, 'parent_code': '1100', 'is_system': False},
+            # 预付账款
+            {'code': '1200', 'name': 'Prepayments', 'name_cn': '预付账款', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 2, 'parent_code': '1000', 'is_system': True},
+            {'code': '1201', 'name': 'Prepaid - Airlines', 'name_cn': '预付-航空公司', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 3, 'parent_code': '1200', 'is_system': False},
+            {'code': '1202', 'name': 'Prepaid - Hotels', 'name_cn': '预付-酒店', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 3, 'parent_code': '1200', 'is_system': False},
+            {'code': '1203', 'name': 'Prepaid - Suppliers', 'name_cn': '预付-供应商', 'account_type': 'asset', 'balance_direction': 'debit', 'level': 3, 'parent_code': '1200', 'is_system': False},
 
-            # 负债类 (2xxx)
+            # ==================== 负债类 (2xxx) ====================
             {'code': '2000', 'name': 'Liabilities', 'name_cn': '负债', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 1, 'is_system': True},
+            # 应付账款
             {'code': '2100', 'name': 'Accounts Payable', 'name_cn': '应付账款', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 2, 'parent_code': '2000', 'is_system': True},
+            {'code': '2101', 'name': 'AP - Airlines', 'name_cn': '应付-航空公司', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 3, 'parent_code': '2100', 'is_system': False},
+            {'code': '2102', 'name': 'AP - Hotels', 'name_cn': '应付-酒店', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 3, 'parent_code': '2100', 'is_system': False},
+            {'code': '2103', 'name': 'AP - Tour Operators', 'name_cn': '应付-地接社', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 3, 'parent_code': '2100', 'is_system': False},
+            {'code': '2104', 'name': 'AP - Visa Agents', 'name_cn': '应付-签证代理', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 3, 'parent_code': '2100', 'is_system': False},
+            {'code': '2105', 'name': 'AP - Transport', 'name_cn': '应付-用车服务', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 3, 'parent_code': '2100', 'is_system': False},
+            # 预收账款
+            {'code': '2200', 'name': 'Deposits Received', 'name_cn': '预收账款', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 2, 'parent_code': '2000', 'is_system': True},
+            # 其他应付
+            {'code': '2300', 'name': 'Other Payables', 'name_cn': '其他应付款', 'account_type': 'liability', 'balance_direction': 'credit', 'level': 2, 'parent_code': '2000', 'is_system': True},
 
-            # 权益类 (3xxx)
-            {'code': '3000', 'name': 'Equity', 'name_cn': '权益', 'account_type': 'equity', 'balance_direction': 'credit', 'level': 1, 'is_system': True},
-            {'code': '3100', 'name': 'Retained Earnings', 'name_cn': '留存收益', 'account_type': 'equity', 'balance_direction': 'credit', 'level': 2, 'parent_code': '3000', 'is_system': True},
+            # ==================== 权益类 (3xxx) ====================
+            {'code': '3000', 'name': 'Equity', 'name_cn': '所有者权益', 'account_type': 'equity', 'balance_direction': 'credit', 'level': 1, 'is_system': True},
+            {'code': '3100', 'name': 'Share Capital', 'name_cn': '股本', 'account_type': 'equity', 'balance_direction': 'credit', 'level': 2, 'parent_code': '3000', 'is_system': True},
+            {'code': '3200', 'name': 'Retained Earnings', 'name_cn': '留存收益', 'account_type': 'equity', 'balance_direction': 'credit', 'level': 2, 'parent_code': '3000', 'is_system': True},
 
-            # 收入类 (4xxx)
-            {'code': '4000', 'name': 'Income', 'name_cn': '收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 1, 'is_system': True},
+            # ==================== 收入类 (4xxx) ====================
+            {'code': '4000', 'name': 'Revenue', 'name_cn': '营业收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 1, 'is_system': True},
+            # 销售收入
             {'code': '4100', 'name': 'Sales Revenue', 'name_cn': '销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 2, 'parent_code': '4000', 'is_system': True},
-            {'code': '4101', 'name': 'Flight Sales', 'name_cn': '机票销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': True},
-            {'code': '4102', 'name': 'Tour Sales', 'name_cn': '旅游销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': True},
-            {'code': '4103', 'name': 'Visa Sales', 'name_cn': '签证销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': True},
-            {'code': '4104', 'name': 'Hotel Sales', 'name_cn': '酒店销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': True},
-            {'code': '4105', 'name': 'Other Sales', 'name_cn': '其他销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': True},
+            {'code': '4101', 'name': 'Flight Ticket Sales', 'name_cn': '机票销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            {'code': '4102', 'name': 'Tour Package Sales', 'name_cn': '旅游产品销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            {'code': '4103', 'name': 'Visa Service Revenue', 'name_cn': '签证服务收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            {'code': '4104', 'name': 'Hotel Booking Revenue', 'name_cn': '酒店预订收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            {'code': '4105', 'name': 'Transport Revenue', 'name_cn': '用车服务收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            {'code': '4106', 'name': 'Insurance Revenue', 'name_cn': '保险销售收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            {'code': '4109', 'name': 'Other Service Revenue', 'name_cn': '其他服务收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 3, 'parent_code': '4100', 'is_system': False},
+            # 佣金收入
+            {'code': '4200', 'name': 'Commission Income', 'name_cn': '佣金收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 2, 'parent_code': '4000', 'is_system': True},
+            # 其他收入
+            {'code': '4900', 'name': 'Other Income', 'name_cn': '其他收入', 'account_type': 'income', 'balance_direction': 'credit', 'level': 2, 'parent_code': '4000', 'is_system': True},
 
-            # 费用类 (5xxx)
-            {'code': '5000', 'name': 'Expenses', 'name_cn': '费用', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 1, 'is_system': True},
-            {'code': '5100', 'name': 'Cost of Sales', 'name_cn': '销售成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '5000', 'is_system': True},
-            {'code': '5101', 'name': 'Flight Cost', 'name_cn': '机票成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': True},
-            {'code': '5102', 'name': 'Tour Cost', 'name_cn': '旅游成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': True},
-            {'code': '5103', 'name': 'Visa Cost', 'name_cn': '签证成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': True},
-            {'code': '5104', 'name': 'Hotel Cost', 'name_cn': '酒店成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': True},
-            {'code': '5105', 'name': 'Other Cost', 'name_cn': '其他成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': True},
+            # ==================== 成本类 (5xxx) ====================
+            {'code': '5000', 'name': 'Cost of Sales', 'name_cn': '营业成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 1, 'is_system': True},
+            # 直接成本
+            {'code': '5100', 'name': 'Direct Costs', 'name_cn': '直接成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '5000', 'is_system': True},
+            {'code': '5101', 'name': 'Flight Ticket Cost', 'name_cn': '机票成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+            {'code': '5102', 'name': 'Tour Package Cost', 'name_cn': '旅游产品成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+            {'code': '5103', 'name': 'Visa Service Cost', 'name_cn': '签证服务成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+            {'code': '5104', 'name': 'Hotel Booking Cost', 'name_cn': '酒店预订成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+            {'code': '5105', 'name': 'Transport Cost', 'name_cn': '用车服务成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+            {'code': '5106', 'name': 'Insurance Cost', 'name_cn': '保险成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+            {'code': '5109', 'name': 'Other Service Cost', 'name_cn': '其他服务成本', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 3, 'parent_code': '5100', 'is_system': False},
+
+            # ==================== 运营费用类 (6xxx) ====================
+            {'code': '6000', 'name': 'Operating Expenses', 'name_cn': '营业费用', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 1, 'is_system': True},
+            {'code': '6100', 'name': 'Salary & Wages', 'name_cn': '工资薪金', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6200', 'name': 'Rent Expense', 'name_cn': '租金费用', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6300', 'name': 'Utilities', 'name_cn': '水电费', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6400', 'name': 'Marketing & Advertising', 'name_cn': '市场推广费', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6500', 'name': 'Office Supplies', 'name_cn': '办公用品', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6600', 'name': 'Bank Charges', 'name_cn': '银行手续费', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6700', 'name': 'Depreciation', 'name_cn': '折旧费用', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
+            {'code': '6900', 'name': 'Other Expenses', 'name_cn': '其他费用', 'account_type': 'expense', 'balance_direction': 'debit', 'level': 2, 'parent_code': '6000', 'is_system': False},
         ]
 
         # 第一轮：创建所有科目（不设置parent_id）

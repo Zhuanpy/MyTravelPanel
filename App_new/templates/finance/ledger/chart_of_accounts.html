@@ -2,7 +2,7 @@
 
 {% block title %}Chart of Accounts - MyTravelPanel{% endblock %}
 
-{% block page_title %}Chart of Accounts{% endblock %}
+{% block page_title %}Chart of Accounts 会计科目表{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
@@ -93,13 +93,13 @@
 {% block content %}
 <div class="coa-container">
     <div class="coa-header">
-        <h2>Chart of Accounts</h2>
+        <h2>Chart of Accounts 会计科目表</h2>
         <div>
             <button class="btn btn-outline-secondary" onclick="initDefaultAccounts()">
-                <i class="fas fa-magic"></i> Initialize Defaults
+                <i class="fas fa-magic"></i> Initialize 初始化
             </button>
             <a href="{{ url_for('ledger_routes.chart_of_accounts_add') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Add Account
+                <i class="fas fa-plus"></i> Add Account 添加科目
             </a>
         </div>
     </div>
@@ -108,27 +108,27 @@
     <div class="type-tabs">
         <a href="{{ url_for('ledger_routes.chart_of_accounts') }}"
            class="type-tab {% if not current_type %}active{% endif %}" style="background-color: #f8f9fa; color: #495057;">
-            All ({{ accounts|length }})
+            All 全部 ({{ accounts|length }})
         </a>
         <a href="{{ url_for('ledger_routes.chart_of_accounts', type='asset') }}"
            class="type-tab asset {% if current_type == 'asset' %}active{% endif %}">
-            Asset ({{ type_stats.get('asset', 0) }})
+            Asset 资产 ({{ type_stats.get('asset', 0) }})
         </a>
         <a href="{{ url_for('ledger_routes.chart_of_accounts', type='liability') }}"
            class="type-tab liability {% if current_type == 'liability' %}active{% endif %}">
-            Liability ({{ type_stats.get('liability', 0) }})
+            Liability 负债 ({{ type_stats.get('liability', 0) }})
         </a>
         <a href="{{ url_for('ledger_routes.chart_of_accounts', type='equity') }}"
            class="type-tab equity {% if current_type == 'equity' %}active{% endif %}">
-            Equity ({{ type_stats.get('equity', 0) }})
+            Equity 权益 ({{ type_stats.get('equity', 0) }})
         </a>
         <a href="{{ url_for('ledger_routes.chart_of_accounts', type='income') }}"
            class="type-tab income {% if current_type == 'income' %}active{% endif %}">
-            Income ({{ type_stats.get('income', 0) }})
+            Income 收入 ({{ type_stats.get('income', 0) }})
         </a>
         <a href="{{ url_for('ledger_routes.chart_of_accounts', type='expense') }}"
            class="type-tab expense {% if current_type == 'expense' %}active{% endif %}">
-            Expense ({{ type_stats.get('expense', 0) }})
+            Expense 费用 ({{ type_stats.get('expense', 0) }})
         </a>
     </div>
 
@@ -137,14 +137,14 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th width="12%">Code</th>
-                    <th width="25%">Name</th>
-                    <th width="15%">Chinese Name</th>
-                    <th width="12%">Type</th>
-                    <th width="10%">Direction</th>
-                    <th width="8%">Currency</th>
-                    <th width="8%">Status</th>
-                    <th width="10%">Actions</th>
+                    <th width="12%">Code 代码</th>
+                    <th width="25%">Name 名称</th>
+                    <th width="15%">Chinese Name 中文名</th>
+                    <th width="12%">Type 类型</th>
+                    <th width="10%">Direction 方向</th>
+                    <th width="8%">Currency 币种</th>
+                    <th width="8%">Status 状态</th>
+                    <th width="10%">Actions 操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -165,25 +165,31 @@
                     <td class="text-muted">{{ account.name_cn or '-' }}</td>
                     <td>
                         <span class="badge badge-{{ account.account_type }}">
-                            {{ account.account_type|capitalize }}
+                            {% if account.account_type == 'asset' %}Asset 资产
+                            {% elif account.account_type == 'liability' %}Liability 负债
+                            {% elif account.account_type == 'equity' %}Equity 权益
+                            {% elif account.account_type == 'income' %}Income 收入
+                            {% elif account.account_type == 'expense' %}Expense 费用
+                            {% else %}{{ account.account_type|capitalize }}
+                            {% endif %}
                         </span>
                     </td>
                     <td>
                         {% if account.balance_direction == 'debit' %}
-                            <span class="text-primary"><i class="fas fa-arrow-left"></i> Debit</span>
+                            <span class="text-primary"><i class="fas fa-arrow-left"></i> Debit 借</span>
                         {% else %}
-                            <span class="text-success"><i class="fas fa-arrow-right"></i> Credit</span>
+                            <span class="text-success"><i class="fas fa-arrow-right"></i> Credit 贷</span>
                         {% endif %}
                     </td>
                     <td>{{ account.currency }}</td>
                     <td>
                         {% if account.is_system %}
-                            <span class="badge system-badge">System</span>
+                            <span class="badge system-badge">System 系统</span>
                         {% endif %}
                         {% if account.is_active %}
-                            <span class="badge bg-success">Active</span>
+                            <span class="badge bg-success">Active 启用</span>
                         {% else %}
-                            <span class="badge bg-secondary">Inactive</span>
+                            <span class="badge bg-secondary">Inactive 停用</span>
                         {% endif %}
                     </td>
                     <td>

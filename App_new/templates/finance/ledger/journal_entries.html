@@ -2,7 +2,7 @@
 
 {% block title %}Journal Entries - MyTravelPanel{% endblock %}
 
-{% block page_title %}Journal Entries{% endblock %}
+{% block page_title %}Journal Entries 日记账分录{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
@@ -61,43 +61,43 @@
 {% block content %}
 <div class="je-container">
     <div class="je-header">
-        <h2>Journal Entries</h2>
+        <h2>Journal Entries 日记账分录</h2>
         <a href="{{ url_for('ledger_routes.journal_entry_add') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> New Entry
+            <i class="fas fa-plus"></i> New Entry 新建分录
         </a>
     </div>
 
     <!-- Filters -->
     <div class="je-filters">
         <div>
-            <label class="form-label">Source Type</label>
+            <label class="form-label">Source Type 来源类型</label>
             <select class="form-select" id="sourceTypeFilter" onchange="applyFilters()">
-                <option value="">All Types</option>
-                <option value="invoice" {% if current_source_type == 'invoice' %}selected{% endif %}>Invoice</option>
-                <option value="receipt" {% if current_source_type == 'receipt' %}selected{% endif %}>Receipt</option>
-                <option value="eo" {% if current_source_type == 'eo' %}selected{% endif %}>EO</option>
-                <option value="manual" {% if current_source_type == 'manual' %}selected{% endif %}>Manual</option>
+                <option value="">All Types 全部</option>
+                <option value="invoice" {% if current_source_type == 'invoice' %}selected{% endif %}>Invoice 发票</option>
+                <option value="receipt" {% if current_source_type == 'receipt' %}selected{% endif %}>Receipt 收款</option>
+                <option value="eo" {% if current_source_type == 'eo' %}selected{% endif %}>EO 付款</option>
+                <option value="manual" {% if current_source_type == 'manual' %}selected{% endif %}>Manual 手工</option>
             </select>
         </div>
         <div>
-            <label class="form-label">Status</label>
+            <label class="form-label">Status 状态</label>
             <select class="form-select" id="statusFilter" onchange="applyFilters()">
-                <option value="">All Status</option>
-                <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>Draft</option>
-                <option value="posted" {% if current_status == 'posted' %}selected{% endif %}>Posted</option>
-                <option value="reversed" {% if current_status == 'reversed' %}selected{% endif %}>Reversed</option>
+                <option value="">All Status 全部</option>
+                <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>Draft 草稿</option>
+                <option value="posted" {% if current_status == 'posted' %}selected{% endif %}>Posted 已过账</option>
+                <option value="reversed" {% if current_status == 'reversed' %}selected{% endif %}>Reversed 已冲销</option>
             </select>
         </div>
         <div>
-            <label class="form-label">Start Date</label>
+            <label class="form-label">Start Date 开始日期</label>
             <input type="date" class="form-control" id="startDate" value="{{ start_date }}" onchange="applyFilters()">
         </div>
         <div>
-            <label class="form-label">End Date</label>
+            <label class="form-label">End Date 结束日期</label>
             <input type="date" class="form-control" id="endDate" value="{{ end_date }}" onchange="applyFilters()">
         </div>
         <div class="d-flex align-items-end">
-            <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
+            <button class="btn btn-secondary" onclick="clearFilters()">Clear 清除</button>
         </div>
     </div>
 
@@ -106,14 +106,14 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th width="12%">Entry No.</th>
-                    <th width="10%">Date</th>
-                    <th width="10%">Source</th>
-                    <th width="12%">Source No.</th>
-                    <th width="25%">Description</th>
-                    <th width="10%">Amount</th>
-                    <th width="8%">Status</th>
-                    <th width="13%">Actions</th>
+                    <th width="12%">Entry No. 分录号</th>
+                    <th width="10%">Date 日期</th>
+                    <th width="10%">Source 来源</th>
+                    <th width="12%">Source No. 来源单号</th>
+                    <th width="25%">Description 描述</th>
+                    <th width="10%">Amount 金额</th>
+                    <th width="8%">Status 状态</th>
+                    <th width="13%">Actions 操作</th>
                 </tr>
             </thead>
             <tbody>

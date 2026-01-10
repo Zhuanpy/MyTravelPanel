@@ -2,40 +2,49 @@
 
 {% block title %}Ledger Listing - MyTravelPanel{% endblock %}
 
-{% block page_title %}Ledger Listing{% endblock %}
+{% block page_title %}Ledger Listing 分类账{% endblock %}
 
 {% block extra_css %}
 <style>
     .report-container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 20px;
     }
 
     .filter-section {
         background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
+        padding: 15px 20px;
+        border-radius: 8px;
         margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .account-info {
-        background: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
         border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        padding: 20px 25px;
         margin-bottom: 20px;
     }
 
     .account-code {
         font-family: monospace;
-        font-size: 1.5em;
-        color: #1976d2;
+        font-size: 1.8em;
+        font-weight: bold;
     }
 
     .account-name {
-        font-size: 1.3em;
+        font-size: 1.4em;
         font-weight: 600;
+    }
+
+    .account-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.85em;
     }
 
     .ledger-table {
@@ -48,16 +57,24 @@
     .ledger-table th {
         background-color: #343a40;
         color: white;
+        padding: 12px 15px;
+        font-weight: 600;
+    }
+
+    .ledger-table td {
+        padding: 10px 15px;
+        vertical-align: middle;
     }
 
     .ledger-table .amount-cell {
         text-align: right;
-        font-family: monospace;
+        font-family: 'Courier New', monospace;
+        font-size: 0.95em;
     }
 
     .opening-row {
         background-color: #e3f2fd;
-        font-weight: 500;
+        font-weight: 600;
     }
 
     .closing-row {
@@ -68,15 +85,61 @@
     .entry-link {
         font-family: monospace;
         text-decoration: none;
+        color: #1976d2;
+    }
+    .entry-link:hover {
+        text-decoration: underline;
     }
 
-    .debit-amount { color: #1976d2; }
-    .credit-amount { color: #388e3c; }
+    .debit-amount { color: #1976d2; font-weight: 500; }
+    .credit-amount { color: #388e3c; font-weight: 500; }
     .balance-positive { color: #1976d2; }
     .balance-negative { color: #dc3545; }
 
+    .summary-cards {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .summary-card {
+        flex: 1;
+        background: white;
+        border-radius: 8px;
+        padding: 15px 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .summary-card .label {
+        font-size: 0.85em;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+
+    .summary-card .value {
+        font-size: 1.4em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+
+    .summary-card.debit .value { color: #1976d2; }
+    .summary-card.credit .value { color: #388e3c; }
+    .summary-card.balance .value { color: #333; }
+
+    .no-data-box {
+        background: white;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
     @media print {
         .filter-section { display: none !important; }
+        .no-print { display: none !important; }
+        .ledger-table { box-shadow: none; }
+        .account-info { background: #f8f9fa !important; color: #333 !important; }
     }
 </style>
 {% endblock %}
@@ -85,38 +148,54 @@
 <div class="report-container">
     <!-- Filter -->
     <div class="filter-section">
-        <form class="row g-3" method="GET">
+        <form class="row g-3 align-items-end" method="GET">
             <div class="col-md-4">
-                <label class="form-label">Account</label>
+                <label class="form-label">Account 科目</label>
                 <select class="form-select" name="account_id" required>
-                    <option value="">-- Select Account --</option>
+                    <option value="">-- Select Account 选择科目 --</option>
                     {% for account in accounts %}
                     <option value="{{ account.id }}" {% if selected_account and selected_account.id == account.id %}selected{% endif %}>
-                        {{ account.code }} - {{ account.name }}
+                        {{ account.code }} - {{ account.name }} ({{ account.name_cn or '-' }})
                     </option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Start Date</label>
+                <label class="form-label">Start Date 开始日期</label>
                 <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label">End Date</label>
+                <label class="form-label">End Date 结束日期</label>
                 <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-4">
                 <button type="submit" class="btn btn-primary me-2">
-                    <i class="fas fa-sync"></i> Generate
+                    <i class="fas fa-search"></i> Generate 生成
                 </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print
+                <button type="button" class="btn btn-outline-secondary me-2 no-print" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print 打印
                 </button>
+                {% if selected_account and ledger_data %}
+                <button type="button" class="btn btn-outline-success no-print" onclick="exportToCSV()">
+                    <i class="fas fa-file-csv"></i> Export 导出
+                </button>
+                {% endif %}
             </div>
         </form>
     </div>
 
-    {% if selected_account %}
+    {% if accounts|length == 0 %}
+    <!-- No Accounts -->
+    <div class="no-data-box">
+        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+        <h4>No Chart of Accounts Found</h4>
+        <p class="text-muted mb-3">Please initialize the chart of accounts first.</p>
+        <button class="btn btn-primary" onclick="initAccounts()">
+            <i class="fas fa-magic"></i> Initialize Default Accounts
+        </button>
+    </div>
+
+    {% elif selected_account %}
     <!-- Account Info -->
     <div class="account-info">
         <div class="row align-items-center">
@@ -124,28 +203,56 @@
                 <span class="account-code">{{ selected_account.code }}</span>
                 <span class="account-name ms-3">{{ selected_account.name }}</span>
                 {% if selected_account.name_cn %}
-                <span class="text-muted ms-2">({{ selected_account.name_cn }})</span>
+                <span class="ms-2" style="opacity: 0.8;">({{ selected_account.name_cn }})</span>
                 {% endif %}
             </div>
             <div class="col-md-4 text-end">
-                <span class="badge bg-{{ selected_account.account_type }}">{{ selected_account.account_type|capitalize }}</span>
-                <span class="badge bg-secondary">{{ selected_account.balance_direction|capitalize }}</span>
+                <span class="account-badge">{{ selected_account.account_type|capitalize }}</span>
+                <span class="account-badge ms-2">{{ selected_account.balance_direction|capitalize }}</span>
             </div>
         </div>
     </div>
 
+    <!-- Summary Cards -->
+    {% if ledger_data %}
+    {% set total_debit = ledger_data|map(attribute='debit')|select('number')|sum %}
+    {% set total_credit = ledger_data|map(attribute='credit')|select('number')|sum %}
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="label">Opening Balance 期初余额</div>
+            <div class="value {% if opening_balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+                {{ '{:,.2f}'.format(opening_balance|float) }}
+            </div>
+        </div>
+        <div class="summary-card debit">
+            <div class="label">Total Debit 借方合计</div>
+            <div class="value">{{ '{:,.2f}'.format(total_debit|float) }}</div>
+        </div>
+        <div class="summary-card credit">
+            <div class="label">Total Credit 贷方合计</div>
+            <div class="value">{{ '{:,.2f}'.format(total_credit|float) }}</div>
+        </div>
+        <div class="summary-card balance">
+            <div class="label">Closing Balance 期末余额</div>
+            <div class="value {% if ledger_data[-1].balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+                {{ '{:,.2f}'.format(ledger_data[-1].balance|float) }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Ledger Table -->
     <div class="ledger-table">
-        <table class="table mb-0">
+        <table class="table mb-0" id="ledgerTable">
             <thead>
                 <tr>
                     <th width="12%">Date</th>
                     <th width="15%">Entry No.</th>
-                    <th width="28%">Description</th>
-                    <th width="15%">Memo</th>
-                    <th width="10%" class="text-end">Debit</th>
-                    <th width="10%" class="text-end">Credit</th>
-                    <th width="10%" class="text-end">Balance</th>
+                    <th width="25%">Description</th>
+                    <th width="13%">Memo</th>
+                    <th width="12%" class="text-end">Debit</th>
+                    <th width="12%" class="text-end">Credit</th>
+                    <th width="11%" class="text-end">Balance</th>
                 </tr>
             </thead>
             <tbody>
@@ -153,7 +260,7 @@
                 <tr class="opening-row">
                     <td>{{ start_date or 'Beginning' }}</td>
                     <td>-</td>
-                    <td colspan="3">Opening Balance</td>
+                    <td colspan="3"><strong>Opening Balance</strong></td>
                     <td class="amount-cell {% if opening_balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
                         {{ '{:,.2f}'.format(opening_balance|float) }}
                     </td>
@@ -163,12 +270,12 @@
                 <tr>
                     <td>{{ item.date.strftime('%Y-%m-%d') if item.date else '-' }}</td>
                     <td>
-                        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=1) }}" class="entry-link">
+                        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=item.entry_id) }}" class="entry-link">
                             {{ item.entry_number }}
                         </a>
                     </td>
                     <td>{{ item.description or '-' }}</td>
-                    <td class="text-muted">{{ item.memo or '-' }}</td>
+                    <td class="text-muted small">{{ item.memo or '-' }}</td>
                     <td class="amount-cell debit-amount">
                         {% if item.debit and item.debit > 0 %}{{ '{:,.2f}'.format(item.debit|float) }}{% endif %}
                     </td>
@@ -182,7 +289,12 @@
                 {% else %}
                 <tr>
                     <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox mb-2" style="font-size: 2em;"></i><br>
                         No transactions found for this period
+                        <br><br>
+                        <button class="btn btn-warning btn-sm no-print" onclick="generateFromBusiness()">
+                            <i class="fas fa-magic"></i> Generate from Business Data
+                        </button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -192,7 +304,7 @@
                 <tr class="closing-row">
                     <td>{{ end_date or 'Ending' }}</td>
                     <td>-</td>
-                    <td colspan="3">Closing Balance</td>
+                    <td colspan="3"><strong>Closing Balance</strong></td>
                     <td class="amount-cell {% if ledger_data[-1].balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
                         {{ '{:,.2f}'.format(ledger_data[-1].balance|float) }}
                     </td>
@@ -201,11 +313,79 @@
             </tbody>
         </table>
     </div>
+
     {% else %}
-    <div class="text-center text-muted py-5">
-        <i class="fas fa-search fa-3x mb-3"></i>
-        <p>Please select an account to view the ledger</p>
+    <!-- No Account Selected -->
+    <div class="no-data-box">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h4>Select an Account</h4>
+        <p class="text-muted">Please select an account from the dropdown above to view the ledger.</p>
     </div>
     {% endif %}
 </div>
+
+<script>
+function initAccounts() {
+    if (confirm('Initialize default chart of accounts?')) {
+        fetch('{{ url_for("ledger_routes.chart_of_accounts_init") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Accounts initialized successfully!');
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+
+function generateFromBusiness() {
+    if (confirm('Generate journal entries from existing Invoice/Receipt/EO data?')) {
+        fetch('{{ url_for("ledger_routes.generate_journal_from_business") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+
+function exportToCSV() {
+    const table = document.getElementById('ledgerTable');
+    let csv = ['Date,Entry No,Description,Memo,Debit,Credit,Balance'];
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 7) {
+            const date = cells[0].textContent.trim();
+            const entryNo = cells[1].textContent.trim();
+            const desc = cells[2].textContent.trim().replace(/"/g, '""');
+            const memo = cells[3].textContent.trim().replace(/"/g, '""');
+            const debit = cells[4].textContent.trim().replace(/,/g, '') || '0';
+            const credit = cells[5].textContent.trim().replace(/,/g, '') || '0';
+            const balance = cells[6].textContent.trim().replace(/,/g, '') || '0';
+
+            csv.push(`"${date}","${entryNo}","${desc}","${memo}",${debit},${credit},${balance}`);
+        }
+    });
+
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'ledger_{{ selected_account.code if selected_account else "report" }}_{{ start_date }}_to_{{ end_date }}.csv';
+    link.click();
+}
+</script>
 {% endblock %}

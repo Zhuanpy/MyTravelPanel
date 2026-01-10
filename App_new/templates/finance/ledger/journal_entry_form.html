@@ -66,15 +66,15 @@
 <div class="je-form-container">
     <div class="je-form-card">
         <form id="journalEntryForm">
-            <!-- Header Info -->
+            <!-- Header Info 基本信息 -->
             <div class="row">
                 <div class="col-md-3 mb-3">
-                    <label class="form-label">Entry Date <span class="text-danger">*</span></label>
+                    <label class="form-label">Entry Date 日期 <span class="text-danger">*</span></label>
                     <input type="date" class="form-control" name="entry_date" id="entry_date"
                            value="{{ today }}" required>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label class="form-label">Currency</label>
+                    <label class="form-label">Currency 币种</label>
                     <select class="form-select" name="currency" id="currency">
                         <option value="SGD">SGD</option>
                         <option value="USD">USD</option>
@@ -82,32 +82,32 @@
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">Description 描述</label>
                     <input type="text" class="form-control" name="description" id="description"
-                           placeholder="Entry description...">
+                           placeholder="Entry description 分录描述...">
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-md-12 mb-3">
-                    <label class="form-label">Remarks</label>
+                    <label class="form-label">Remarks 备注</label>
                     <textarea class="form-control" name="remarks" id="remarks" rows="2"
-                              placeholder="Optional remarks..."></textarea>
+                              placeholder="Optional remarks 可选备注..."></textarea>
                 </div>
             </div>
 
-            <!-- Entry Lines -->
+            <!-- Entry Lines 分录行 -->
             <div class="lines-section">
-                <h5><i class="fas fa-list text-primary me-2"></i>Entry Lines</h5>
+                <h5><i class="fas fa-list text-primary me-2"></i>Entry Lines 分录行</h5>
 
                 <table class="table lines-table" id="linesTable">
                     <thead>
                         <tr>
                             <th width="5%">#</th>
-                            <th width="35%">Account</th>
-                            <th width="20%">Memo</th>
-                            <th width="15%">Debit</th>
-                            <th width="15%">Credit</th>
+                            <th width="35%">Account 科目</th>
+                            <th width="20%">Memo 摘要</th>
+                            <th width="15%">Debit 借方</th>
+                            <th width="15%">Credit 贷方</th>
                             <th width="10%"></th>
                         </tr>
                     </thead>
@@ -116,13 +116,13 @@
                             <td>1</td>
                             <td>
                                 <select class="form-select account-select" name="account_1" required>
-                                    <option value="">-- Select Account --</option>
+                                    <option value="">-- Select Account 选择科目 --</option>
                                     {% for account in accounts %}
                                     <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
-                            <td><input type="text" class="form-control" name="memo_1" placeholder="Memo"></td>
+                            <td><input type="text" class="form-control" name="memo_1" placeholder="Memo 摘要"></td>
                             <td><input type="number" class="form-control debit-input" name="debit_1" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
                             <td><input type="number" class="form-control credit-input" name="credit_1" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
                             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLine(this)"><i class="fas fa-times"></i></button></td>
@@ -131,13 +131,13 @@
                             <td>2</td>
                             <td>
                                 <select class="form-select account-select" name="account_2" required>
-                                    <option value="">-- Select Account --</option>
+                                    <option value="">-- Select Account 选择科目 --</option>
                                     {% for account in accounts %}
                                     <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
-                            <td><input type="text" class="form-control" name="memo_2" placeholder="Memo"></td>
+                            <td><input type="text" class="form-control" name="memo_2" placeholder="Memo 摘要"></td>
                             <td><input type="number" class="form-control debit-input" name="debit_2" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
                             <td><input type="number" class="form-control credit-input" name="credit_2" step="0.01" min="0" placeholder="0.00" onchange="updateTotals()"></td>
                             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLine(this)"><i class="fas fa-times"></i></button></td>
@@ -145,7 +145,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="total-row">
-                            <td colspan="3" class="text-end">Total:</td>
+                            <td colspan="3" class="text-end">Total 合计:</td>
                             <td class="text-end" id="totalDebit">0.00</td>
                             <td class="text-end" id="totalCredit">0.00</td>
                             <td></td>
@@ -154,25 +154,25 @@
                 </table>
 
                 <button type="button" class="btn btn-outline-primary add-line-btn" onclick="addLine()">
-                    <i class="fas fa-plus"></i> Add Line
+                    <i class="fas fa-plus"></i> Add Line 添加行
                 </button>
 
                 <div class="balance-indicator" id="balanceIndicator">
-                    <i class="fas fa-check-circle"></i> Balanced
+                    <i class="fas fa-check-circle"></i> Balanced 已平衡
                 </div>
             </div>
 
-            <!-- Actions -->
+            <!-- Actions 操作 -->
             <div class="d-flex justify-content-between mt-4">
                 <a href="{{ url_for('ledger_routes.journal_entries') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Cancel
+                    <i class="fas fa-arrow-left"></i> Cancel 取消
                 </a>
                 <div>
                     <button type="button" class="btn btn-secondary" onclick="saveAsDraft()">
-                        <i class="fas fa-save"></i> Save as Draft
+                        <i class="fas fa-save"></i> Save as Draft 保存草稿
                     </button>
                     <button type="button" class="btn btn-success" onclick="saveAndPost()">
-                        <i class="fas fa-check"></i> Save & Post
+                        <i class="fas fa-check"></i> Save & Post 保存并过账
                     </button>
                 </div>
             </div>

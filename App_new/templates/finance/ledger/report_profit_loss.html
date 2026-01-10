@@ -1,226 +1,405 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Profit and Loss - MyTravelPanel{% endblock %}
+{% block title %}Profit and Loss Statement - MyTravelPanel{% endblock %}
 
-{% block page_title %}Profit and Loss Statement{% endblock %}
+{% block page_title %}Profit and Loss Statement 损益表{% endblock %}
 
 {% block extra_css %}
 <style>
     .report-container {
-        max-width: 900px;
+        max-width: 1000px;
         margin: 0 auto;
         padding: 20px;
     }
 
-    .report-header {
-        text-align: center;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #333;
-    }
-
-    .report-period {
-        color: #666;
-        font-size: 0.95em;
-    }
-
     .filter-section {
         background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
+        padding: 15px 20px;
+        border-radius: 8px;
         margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    .section-card {
+    /* 报表头部样式 */
+    .report-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .report-header .company-name {
+        font-size: 1.4em;
+        font-weight: bold;
+        color: #004080;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-title {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-period {
+        font-size: 0.95em;
+        color: #666;
+    }
+
+    /* 报表表格样式 */
+    .pnl-table-container {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
         overflow: hidden;
+        margin-bottom: 20px;
     }
 
-    .section-header {
-        padding: 12px 20px;
+    .pnl-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+    }
+
+    .pnl-table th {
+        background-color: #e8e8e8;
+        color: #333;
+        padding: 10px 12px;
         font-weight: 600;
-        font-size: 1.1em;
+        text-align: left;
+        border-bottom: 2px solid #ccc;
     }
 
-    .income-header {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .expense-header {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-
-    .section-body {
-        padding: 0;
-    }
-
-    .item-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 20px;
-        border-bottom: 1px solid #eee;
-    }
-
-    .item-row:last-child {
-        border-bottom: none;
-    }
-
-    .item-name {
-        flex: 1;
-    }
-
-    .item-code {
-        font-family: monospace;
-        color: #6c757d;
-        margin-right: 15px;
-        width: 60px;
-    }
-
-    .item-amount {
-        font-family: monospace;
-        font-weight: 500;
-        min-width: 120px;
+    .pnl-table th.text-right {
         text-align: right;
     }
 
-    .subtotal-row {
-        background-color: #f8f9fa;
+    .pnl-table td {
+        padding: 8px 12px;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+    }
+
+    /* 分类标题行 */
+    .section-header td {
+        background-color: #f5f5f5;
         font-weight: bold;
-        padding: 12px 20px;
+        color: #333;
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
     }
 
-    .net-profit-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 8px;
-        padding: 25px;
-        text-align: center;
-        margin-top: 20px;
+    /* 父级科目行 */
+    .parent-row td {
+        font-weight: 600;
+        color: #333;
     }
 
-    .net-profit-label {
-        font-size: 1.1em;
-        margin-bottom: 10px;
-        opacity: 0.9;
+    /* 子级科目缩进 */
+    .child-row .account-name {
+        padding-left: 30px;
     }
 
-    .net-profit-amount {
-        font-size: 2.5em;
-        font-weight: bold;
+    /* 账户代码 */
+    .account-code {
         font-family: monospace;
+        color: #666;
+        width: 100px;
     }
 
-    .net-profit-positive {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    /* 金额列 */
+    .amount-cell {
+        text-align: right;
+        font-family: 'Courier New', monospace;
+        white-space: nowrap;
     }
 
-    .net-profit-negative {
-        background: linear-gradient(135deg, #e53935 0%, #e35d5b 100%);
+    /* 合计行 */
+    .total-row td {
+        font-weight: bold;
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
     }
 
+    .total-row .amount-cell {
+        color: #333;
+    }
+
+    /* 毛利润行 */
+    .gross-profit-row td {
+        font-weight: bold;
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        border-top: 2px solid #4caf50;
+    }
+
+    /* 净利润行 */
+    .net-profit-row td {
+        font-weight: bold;
+        background-color: #e3f2fd;
+        color: #1565c0;
+        border-top: 2px solid #2196f3;
+    }
+
+    /* 税后净利润行 */
+    .net-after-tax-row td {
+        font-weight: bold;
+        background-color: #fff3e0;
+        color: #e65100;
+        border-top: 2px solid #ff9800;
+        border-bottom: 3px double #ff9800;
+    }
+
+    /* 空行分隔 */
+    .spacer-row td {
+        height: 15px;
+        border: none;
+        background: white;
+    }
+
+    /* 打印样式 */
     @media print {
-        .filter-section, .navbar, .sidebar {
-            display: none !important;
-        }
+        .filter-section { display: none !important; }
+        .no-print { display: none !important; }
+        .report-container { max-width: 100%; padding: 0; }
+        .pnl-table-container { box-shadow: none; }
+        .pnl-table { font-size: 9pt; }
+        .pnl-table th { background-color: #e8e8e8 !important; -webkit-print-color-adjust: exact; }
+        .section-header td { background-color: #f5f5f5 !important; -webkit-print-color-adjust: exact; }
+        .gross-profit-row td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact; }
+        .net-profit-row td { background-color: #e3f2fd !important; -webkit-print-color-adjust: exact; }
+        .net-after-tax-row td { background-color: #fff3e0 !important; -webkit-print-color-adjust: exact; }
+        @page { size: portrait; margin: 1cm; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="report-container">
-    <!-- Filter -->
-    <div class="filter-section">
-        <form class="row g-3" method="GET">
+    <!-- Filter 筛选 -->
+    <div class="filter-section no-print">
+        <form class="row g-3 align-items-end" method="GET">
             <div class="col-md-3">
-                <label class="form-label">Start Date</label>
+                <label class="form-label">Start Date 开始日期</label>
                 <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label">End Date</label>
+                <label class="form-label">End Date 结束日期</label>
                 <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-6">
                 <button type="submit" class="btn btn-primary me-2">
-                    <i class="fas fa-sync"></i> Generate
+                    <i class="fas fa-sync"></i> Generate 生成
                 </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print
+                <button type="button" class="btn btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print 打印
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="exportToCSV()">
+                    <i class="fas fa-file-csv"></i> Export 导出
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Report Header -->
+    <!-- Report Header 报表标题 -->
     <div class="report-header">
-        <h2>Profit and Loss Statement</h2>
-        <p class="report-period">Period: {{ start_date }} to {{ end_date }}</p>
-    </div>
-
-    <!-- Income Section -->
-    <div class="section-card">
-        <div class="section-header income-header">
-            <i class="fas fa-arrow-up me-2"></i>Income
-        </div>
-        <div class="section-body">
-            {% for item in income_items %}
-            <div class="item-row">
-                <span class="item-code">{{ item.code }}</span>
-                <span class="item-name">{{ item.name }} {% if item.name_cn %}({{ item.name_cn }}){% endif %}</span>
-                <span class="item-amount text-success">{{ '{:,.2f}'.format(item.amount|float) }}</span>
-            </div>
-            {% else %}
-            <div class="item-row text-muted">
-                <span>No income recorded</span>
-            </div>
-            {% endfor %}
-        </div>
-        <div class="subtotal-row d-flex justify-content-between">
-            <span>Total Income</span>
-            <span class="text-success">{{ '{:,.2f}'.format(total_income|float) }}</span>
+        <div class="company-name">{{ company_name }}</div>
+        <div class="report-title">Profit and Loss Statement</div>
+        <div class="report-period">
+            For the Period From {{ start_date }} to {{ end_date }} (By Company)
         </div>
     </div>
 
-    <!-- Expense Section -->
-    <div class="section-card">
-        <div class="section-header expense-header">
-            <i class="fas fa-arrow-down me-2"></i>Expenses
-        </div>
-        <div class="section-body">
-            {% for item in expense_items %}
-            <div class="item-row">
-                <span class="item-code">{{ item.code }}</span>
-                <span class="item-name">{{ item.name }} {% if item.name_cn %}({{ item.name_cn }}){% endif %}</span>
-                <span class="item-amount text-danger">{{ '{:,.2f}'.format(item.amount|float) }}</span>
-            </div>
-            {% else %}
-            <div class="item-row text-muted">
-                <span>No expenses recorded</span>
-            </div>
-            {% endfor %}
-        </div>
-        <div class="subtotal-row d-flex justify-content-between">
-            <span>Total Expenses</span>
-            <span class="text-danger">{{ '{:,.2f}'.format(total_expense|float) }}</span>
-        </div>
+    <!-- P&L Table 损益表 -->
+    <div class="pnl-table-container">
+        <table class="pnl-table" id="pnlTable">
+            <thead>
+                <tr>
+                    <th width="15%">Account Code</th>
+                    <th width="45%">Account Name</th>
+                    <th width="20%" class="text-right">Current Period</th>
+                    <th width="20%" class="text-right">Year To Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- ============ REVENUE 收入 ============ -->
+                <tr class="section-header">
+                    <td colspan="4">REVENUE 收入</td>
+                </tr>
+                {% for item in revenue_items %}
+                <tr class="{% if item.level == 1 %}parent-row{% else %}child-row{% endif %}">
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td></td>
+                    <td class="text-muted">No revenue recorded 无收入记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Revenue 收入合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_revenue_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_revenue_ytd|float) }}</td>
+                </tr>
+
+                <!-- 空行 -->
+                <tr class="spacer-row"><td colspan="4"></td></tr>
+
+                <!-- ============ COST OF SALES 销售成本 ============ -->
+                <tr class="section-header">
+                    <td colspan="4">COST OF SALES 销售成本</td>
+                </tr>
+                {% for item in cos_items %}
+                <tr class="{% if item.level == 1 %}parent-row{% else %}child-row{% endif %}">
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td></td>
+                    <td class="text-muted">No cost of sales recorded 无销售成本记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Cost Of Sales 销售成本合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_cos_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_cos_ytd|float) }}</td>
+                </tr>
+
+                <!-- 毛利润 -->
+                <tr class="gross-profit-row">
+                    <td></td>
+                    <td class="text-end"><strong>Gross Profit 毛利润:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(gross_profit_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(gross_profit_ytd|float) }}</td>
+                </tr>
+
+                <!-- 空行 -->
+                <tr class="spacer-row"><td colspan="4"></td></tr>
+
+                <!-- ============ COSTS AND EXPENSES 费用 ============ -->
+                <tr class="section-header">
+                    <td colspan="4">COSTS AND EXPENSES 费用</td>
+                </tr>
+                {% for item in expenses_items %}
+                <tr class="{% if item.level == 1 %}parent-row{% else %}child-row{% endif %}">
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td></td>
+                    <td class="text-muted">No expenses recorded 无费用记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Costs and Expenses 费用合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_expenses_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_expenses_ytd|float) }}</td>
+                </tr>
+
+                <!-- 净利润(税前) -->
+                <tr class="net-profit-row">
+                    <td></td>
+                    <td class="text-end"><strong>Nett/Profit Loss 净利润:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(net_profit_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(net_profit_ytd|float) }}</td>
+                </tr>
+
+                <!-- 空行 -->
+                <tr class="spacer-row"><td colspan="4"></td></tr>
+
+                <!-- ============ TAXATION 税务 ============ -->
+                <tr class="section-header">
+                    <td colspan="4">TAXATION 税务</td>
+                </tr>
+                {% for item in tax_items %}
+                <tr class="{% if item.level == 1 %}parent-row{% else %}child-row{% endif %}">
+                    <td class="account-code">{{ item.code }}</td>
+                    <td class="account-name">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.current_period|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(item.year_to_date|float) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td></td>
+                    <td class="text-muted">No taxation recorded 无税务记录</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td></td>
+                    <td class="text-end"><strong>Total Taxation 税务合计:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_tax_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(total_tax_ytd|float) }}</td>
+                </tr>
+
+                <!-- 税后净利润 -->
+                <tr class="net-after-tax-row">
+                    <td></td>
+                    <td class="text-end"><strong>Nett/Profit Loss After Taxation 税后净利润:</strong></td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(net_profit_after_tax_current|float) }}</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(net_profit_after_tax_ytd|float) }}</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
-    <!-- Net Profit -->
-    <div class="net-profit-card {% if net_profit >= 0 %}net-profit-positive{% else %}net-profit-negative{% endif %}">
-        <div class="net-profit-label">
-            {% if net_profit >= 0 %}Net Profit{% else %}Net Loss{% endif %}
-        </div>
-        <div class="net-profit-amount">
-            {% if net_profit >= 0 %}
-            {{ '{:,.2f}'.format(net_profit|float) }}
-            {% else %}
-            ({{ '{:,.2f}'.format((net_profit * -1)|float) }})
-            {% endif %}
-        </div>
+    <!-- Report Footer 报表底部 -->
+    <div class="text-muted small text-end">
+        Generated at: {{ now().strftime('%d %b %Y %H:%M:%S') if now is defined else '' }}
     </div>
 </div>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('pnlTable');
+    let csv = ['Account Code,Account Name,Current Period,Year To Date'];
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        if (row.classList.contains('spacer-row')) return;
+
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const code = cells[0].textContent.trim();
+            const name = cells[1].textContent.trim().replace(/"/g, '""');
+            const current = cells[2].textContent.trim().replace(/,/g, '') || '0';
+            const ytd = cells[3].textContent.trim().replace(/,/g, '') || '0';
+
+            csv.push(`"${code}","${name}",${current},${ytd}`);
+        } else if (cells.length === 1) {
+            // Section header
+            const header = cells[0].textContent.trim().replace(/"/g, '""');
+            csv.push(`"","${header}","",""`);
+        }
+    });
+
+    const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'profit_and_loss_{{ start_date }}_to_{{ end_date }}.csv';
+    link.click();
+}
+</script>
 {% endblock %}

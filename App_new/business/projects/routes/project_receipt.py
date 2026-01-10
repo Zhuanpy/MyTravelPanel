@@ -71,6 +71,23 @@ def create_receipt(ref_id):
             # 先提交收款记录，然后更新REF的付款状态
             db.session.flush()  # 刷新session，获取receipt.id
 
+            # 自动创建日记账分录（借：银行存款，贷：应收账款）
+            try:
+                from App_new.finance.models.journal_entry import JournalEntry
+                from flask_login import current_user
+                journal_entry = JournalEntry.create_from_receipt(
+                    receipt,
+                    user=current_user.username if current_user else None
+                )
+                if journal_entry and journal_entry.lines:
+                    db.session.add(journal_entry)
+                    # 自动过账
+                    journal_entry.post(user=current_user.username if current_user else None)
+            except Exception as je_error:
+                # 日记账创建失败不影响收款记录
+                import logging
+                logging.getLogger(__name__).warning(f"创建收款日记账失败: {str(je_error)}")
+
             # 重新查询REF以获取最新的收款记录
             ref = ProjectRef.query.get(ref_id)
 
@@ -497,10 +514,26 @@ def create_header_receipt(header_id):
             project_receipt.extra_info = json.dumps(distribution_info)
             
             db.session.add(project_receipt)
-            
+
             # 先提交收款记录
             db.session.flush()
-            
+
+            # 自动创建日记账分录（借：银行存款，贷：应收账款）
+            try:
+                from App_new.finance.models.journal_entry import JournalEntry
+                journal_entry = JournalEntry.create_from_receipt(
+                    project_receipt,
+                    user=current_user.username if current_user else None
+                )
+                if journal_entry and journal_entry.lines:
+                    db.session.add(journal_entry)
+                    # 自动过账
+                    journal_entry.post(user=current_user.username if current_user else None)
+            except Exception as je_error:
+                # 日记账创建失败不影响收款记录
+                import logging
+                logging.getLogger(__name__).warning(f"创建项目收款日记账失败: {str(je_error)}")
+
             # 更新各个REF的付款状态
             for ref in header.refs:
                 if ref.selling_price:
@@ -1028,6 +1061,22 @@ def receipt_by_company():
                     db.session.add(receipt)
                     db.session.flush()
 
+                    # 自动创建日记账分录（借：银行存款，贷：应收账款）
+                    try:
+                        from App_new.finance.models.journal_entry import JournalEntry
+                        journal_entry = JournalEntry.create_from_receipt(
+                            receipt,
+                            user=current_user.username if current_user else None
+                        )
+                        if journal_entry and journal_entry.lines:
+                            db.session.add(journal_entry)
+                            # 自动过账
+                            journal_entry.post(user=current_user.username if current_user else None)
+                    except Exception as je_error:
+                        # 日记账创建失败不影响收款记录
+                        import logging
+                        logging.getLogger(__name__).warning(f"创建公司收款日记账失败: {str(je_error)}")
+
                     # 创建分配记录
                     for invoice_id, allocated_amount in distribution_result['allocations'].items():
                         allocation = ReceiptInvoiceAllocation(
@@ -1195,6 +1244,22 @@ def create_company_receipt(company_id):
 
             db.session.add(receipt)
             db.session.flush()
+
+            # 自动创建日记账分录（借：银行存款，贷：应收账款）
+            try:
+                from App_new.finance.models.journal_entry import JournalEntry
+                journal_entry = JournalEntry.create_from_receipt(
+                    receipt,
+                    user=current_user.username if current_user else None
+                )
+                if journal_entry and journal_entry.lines:
+                    db.session.add(journal_entry)
+                    # 自动过账
+                    journal_entry.post(user=current_user.username if current_user else None)
+            except Exception as je_error:
+                # 日记账创建失败不影响收款记录
+                import logging
+                logging.getLogger(__name__).warning(f"创建公司收款日记账失败: {str(je_error)}")
 
             # 创建分配记录
             for invoice_id, allocated_amount in distribution_result['allocations'].items():

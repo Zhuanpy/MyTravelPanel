@@ -44,61 +44,61 @@
 <div class="form-container">
     <div class="form-card">
         <form id="accountForm" method="POST">
-            <!-- Basic Info -->
+            <!-- Basic Info 基本信息 -->
             <div class="form-section">
-                <h5 class="section-title"><i class="fas fa-info-circle text-primary me-2"></i>Basic Information</h5>
+                <h5 class="section-title"><i class="fas fa-info-circle text-primary me-2"></i>Basic Information 基本信息</h5>
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Account Code <span class="text-danger">*</span></label>
+                        <label class="form-label">Account Code 科目代码 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="code" id="code"
                                value="{{ account.code if account else '' }}"
                                {% if account and account.is_system %}readonly{% endif %}
                                required placeholder="e.g., 1001">
-                        <small class="text-muted">Unique code for this account</small>
+                        <small class="text-muted">Unique code for this account 科目唯一代码</small>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <label class="form-label">Name 名称 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="name" id="name"
                                value="{{ account.name if account else '' }}" required
                                placeholder="e.g., Cash">
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Chinese Name</label>
+                        <label class="form-label">Chinese Name 中文名</label>
                         <input type="text" class="form-control" name="name_cn" id="name_cn"
                                value="{{ account.name_cn if account else '' }}"
-                               placeholder="e.g., ">
+                               placeholder="e.g., 现金">
                     </div>
                 </div>
             </div>
 
-            <!-- Account Type -->
+            <!-- Account Type 科目类型 -->
             <div class="form-section">
-                <h5 class="section-title"><i class="fas fa-tags text-success me-2"></i>Account Type</h5>
+                <h5 class="section-title"><i class="fas fa-tags text-success me-2"></i>Account Type 科目类型</h5>
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Type <span class="text-danger">*</span></label>
+                        <label class="form-label">Type 类型 <span class="text-danger">*</span></label>
                         <select class="form-select" name="account_type" id="account_type"
                                 {% if account and account.is_system %}disabled{% endif %} required>
-                            <option value="">-- Select Type --</option>
-                            <option value="asset" {% if account and account.account_type == 'asset' %}selected{% endif %}>Asset</option>
-                            <option value="liability" {% if account and account.account_type == 'liability' %}selected{% endif %}>Liability</option>
-                            <option value="equity" {% if account and account.account_type == 'equity' %}selected{% endif %}>Equity</option>
-                            <option value="income" {% if account and account.account_type == 'income' %}selected{% endif %}>Income</option>
-                            <option value="expense" {% if account and account.account_type == 'expense' %}selected{% endif %}>Expense</option>
+                            <option value="">-- Select Type 选择类型 --</option>
+                            <option value="asset" {% if account and account.account_type == 'asset' %}selected{% endif %}>Asset 资产</option>
+                            <option value="liability" {% if account and account.account_type == 'liability' %}selected{% endif %}>Liability 负债</option>
+                            <option value="equity" {% if account and account.account_type == 'equity' %}selected{% endif %}>Equity 权益</option>
+                            <option value="income" {% if account and account.account_type == 'income' %}selected{% endif %}>Income 收入</option>
+                            <option value="expense" {% if account and account.account_type == 'expense' %}selected{% endif %}>Expense 费用</option>
                         </select>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Balance Direction <span class="text-danger">*</span></label>
+                        <label class="form-label">Balance Direction 余额方向 <span class="text-danger">*</span></label>
                         <select class="form-select" name="balance_direction" id="balance_direction"
                                 {% if account and account.is_system %}disabled{% endif %} required>
-                            <option value="">-- Select Direction --</option>
-                            <option value="debit" {% if account and account.balance_direction == 'debit' %}selected{% endif %}>Debit</option>
-                            <option value="credit" {% if account and account.balance_direction == 'credit' %}selected{% endif %}>Credit</option>
+                            <option value="">-- Select Direction 选择方向 --</option>
+                            <option value="debit" {% if account and account.balance_direction == 'debit' %}selected{% endif %}>Debit 借方</option>
+                            <option value="credit" {% if account and account.balance_direction == 'credit' %}selected{% endif %}>Credit 贷方</option>
                         </select>
-                        <small class="text-muted">Normal balance side</small>
+                        <small class="text-muted">Normal balance side 正常余额方向</small>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Currency</label>
+                        <label class="form-label">Currency 币种</label>
                         <select class="form-select" name="currency" id="currency">
                             <option value="SGD" {% if not account or account.currency == 'SGD' %}selected{% endif %}>SGD</option>
                             <option value="USD" {% if account and account.currency == 'USD' %}selected{% endif %}>USD</option>
@@ -108,14 +108,14 @@
                 </div>
             </div>
 
-            <!-- Hierarchy -->
+            <!-- Hierarchy 层级结构 -->
             <div class="form-section">
-                <h5 class="section-title"><i class="fas fa-sitemap text-info me-2"></i>Hierarchy</h5>
+                <h5 class="section-title"><i class="fas fa-sitemap text-info me-2"></i>Hierarchy 层级结构</h5>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Parent Account</label>
+                        <label class="form-label">Parent Account 上级科目</label>
                         <select class="form-select" name="parent_id" id="parent_id">
-                            <option value="">-- No Parent (Top Level) --</option>
+                            <option value="">-- No Parent (Top Level) 无上级(顶级) --</option>
                             {% for pa in parent_accounts %}
                             <option value="{{ pa.id }}" {% if account and account.parent_id == pa.id %}selected{% endif %}>
                                 {{ pa.code }} - {{ pa.name }}
@@ -124,46 +124,46 @@
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Level</label>
+                        <label class="form-label">Level 级别</label>
                         <select class="form-select" name="level" id="level">
-                            <option value="1" {% if not account or account.level == 1 %}selected{% endif %}>Level 1 (Top)</option>
-                            <option value="2" {% if account and account.level == 2 %}selected{% endif %}>Level 2</option>
-                            <option value="3" {% if account and account.level == 3 %}selected{% endif %}>Level 3</option>
-                            <option value="4" {% if account and account.level == 4 %}selected{% endif %}>Level 4</option>
+                            <option value="1" {% if not account or account.level == 1 %}selected{% endif %}>Level 1 (Top) 一级(顶级)</option>
+                            <option value="2" {% if account and account.level == 2 %}selected{% endif %}>Level 2 二级</option>
+                            <option value="3" {% if account and account.level == 3 %}selected{% endif %}>Level 3 三级</option>
+                            <option value="4" {% if account and account.level == 4 %}selected{% endif %}>Level 4 四级</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Options -->
+            <!-- Options 选项 -->
             <div class="form-section">
-                <h5 class="section-title"><i class="fas fa-cog text-secondary me-2"></i>Options</h5>
+                <h5 class="section-title"><i class="fas fa-cog text-secondary me-2"></i>Options 选项</h5>
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="allow_manual_entry" id="allow_manual_entry"
                                    {% if not account or account.allow_manual_entry %}checked{% endif %}>
                             <label class="form-check-label" for="allow_manual_entry">
-                                Allow Manual Entry
+                                Allow Manual Entry 允许手工录入
                             </label>
-                            <small class="text-muted d-block">Allow this account in manual journal entries</small>
+                            <small class="text-muted d-block">Allow this account in manual journal entries 允许在手工分录中使用此科目</small>
                         </div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Description</label>
+                        <label class="form-label">Description 描述</label>
                         <textarea class="form-control" name="description" id="description" rows="2"
-                                  placeholder="Optional description...">{{ account.description if account else '' }}</textarea>
+                                  placeholder="Optional description 可选描述...">{{ account.description if account else '' }}</textarea>
                     </div>
                 </div>
             </div>
 
-            <!-- Actions -->
+            <!-- Actions 操作 -->
             <div class="d-flex justify-content-between">
                 <a href="{{ url_for('ledger_routes.chart_of_accounts') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Back
+                    <i class="fas fa-arrow-left"></i> Back 返回
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Account
+                    <i class="fas fa-save"></i> Save Account 保存科目
                 </button>
             </div>
         </form>

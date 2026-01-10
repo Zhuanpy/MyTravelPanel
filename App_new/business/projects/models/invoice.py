@@ -31,9 +31,13 @@ class ProjectInvoice(db.Model):
     customer_phone = db.Column(db.String(50), nullable=True, comment='客户电话')
     customer_address = db.Column(db.Text, nullable=True, comment='客户地址')
 
-    # 状态信息
-    status = db.Column(db.Enum('draft', 'sent', 'paid', 'partial_paid', 'overdue', 'cancelled'),
-                       default='draft', nullable=False, comment='发票状态')
+    # 发票状态：confirmed-已确认, cancelled-已取消
+    status = db.Column(db.Enum('confirmed', 'cancelled'),
+                       default='confirmed', nullable=False, comment='发票状态')
+
+    # 付款状态：unpaid-未付款, partial_paid-部分付款, paid-已付款
+    payment_status = db.Column(db.Enum('unpaid', 'partial_paid', 'paid'),
+                               default='unpaid', nullable=False, comment='付款状态')
     paid_amount = db.Column(db.Numeric(10, 2), default=0, nullable=False, comment='已付金额')
 
     # 关联的REF（JSON格式存储，一张发票可对应多个REF）
@@ -76,6 +80,7 @@ class ProjectInvoice(db.Model):
             'customer_phone': self.customer_phone,
             'customer_address': self.customer_address,
             'status': self.status,
+            'payment_status': self.payment_status,
             'paid_amount': float(self.paid_amount) if self.paid_amount else 0,
             'ref_ids': json.loads(self.ref_ids) if self.ref_ids else [],
             'invoice_items': json.loads(self.invoice_items) if self.invoice_items else [],
@@ -125,16 +130,22 @@ class ProjectInvoice(db.Model):
 
     @property
     def status_display(self):
-        """状态显示文本"""
+        """发票状态显示文本"""
         status_map = {
-            'draft': '草稿',
-            'sent': 'Unpaid',
-            'paid': 'Paid',
-            'partial_paid': 'Partial Paid',
-            'overdue': 'Overdue',
+            'confirmed': 'Confirmed',
             'cancelled': 'Cancelled'
         }
         return status_map.get(self.status, self.status)
+
+    @property
+    def payment_status_display(self):
+        """付款状态显示文本"""
+        status_map = {
+            'unpaid': 'Unpaid',
+            'partial_paid': 'Partial Paid',
+            'paid': 'Paid'
+        }
+        return status_map.get(self.payment_status, self.payment_status)
 
     @property
     def unpaid_amount(self):
@@ -144,7 +155,7 @@ class ProjectInvoice(db.Model):
     @property
     def is_overdue(self):
         """检查是否逾期"""
-        if self.status in ['paid', 'cancelled']:
+        if self.status == 'cancelled' or self.payment_status == 'paid':
             return False
         if self.due_date and self.due_date < datetime.now().date():
             return True
@@ -173,20 +184,19 @@ class ProjectInvoice(db.Model):
             return []
 
     def update_payment_status(self):
-        """根据已付金额更新发票状态"""
+        """根据已付金额更新付款状态"""
         if self.status == 'cancelled':
             return
-        
+
         amount = float(self.amount or 0)
         paid = float(self.paid_amount or 0)
-        
+
         if paid >= amount:
-            self.status = 'paid'
+            self.payment_status = 'paid'
         elif paid > 0:
-            self.status = 'partial_paid'
-        elif self.is_overdue:
-            self.status = 'overdue'
-        # 其他状态保持不变
+            self.payment_status = 'partial_paid'
+        else:
+            self.payment_status = 'unpaid'
 
     @classmethod
     def get_header_total_invoiced(cls, header_id):
@@ -233,10 +243,11 @@ class ProjectInvoice(db.Model):
         if not header_ids:
             return []
 
-        # 查找这些项目的未付发票
+        # 查找这些项目的未付发票（已确认且未全额付款）
         invoices = cls.query.filter(
             cls.header_id.in_(header_ids),
-            cls.status.in_(['sent', 'partial_paid', 'overdue'])
+            cls.status == 'confirmed',
+            cls.payment_status.in_(['unpaid', 'partial_paid'])
         ).order_by(cls.invoice_date.asc()).all()
 
         return invoices

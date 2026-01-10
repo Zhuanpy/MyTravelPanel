@@ -12,9 +12,13 @@ from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.invoice_forms import ProjectInvoiceForm, InvoicePaymentForm
 from App_new.utils.decorators import staff_only, admin_only
+from App_new.finance.models.journal_entry import JournalEntry
 from datetime import datetime
 import json
 import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_invoice = Blueprint('project_invoice', __name__)
 
@@ -62,7 +66,7 @@ def create_invoice(header_id):
                 if not form.amount.data:
                     form.amount.data = total_amount
             
-            # 创建发票
+            # 创建发票（直接为 confirmed 状态）
             invoice = ProjectInvoice(
                 invoice_number=invoice_number,
                 header_id=header.id,
@@ -79,13 +83,14 @@ def create_invoice(header_id):
                 ref_ids=json.dumps(selected_ref_ids) if selected_ref_ids else None,
                 remarks=form.remarks.data,
                 terms=form.terms.data,
-                status='draft',
+                status='confirmed',
+                payment_status='unpaid',
                 created_by=current_user.username if current_user else None
             )
-            
+
             db.session.add(invoice)
             db.session.flush()
-            
+
             # 如果选择了REF，创建发票明细项
             if selected_ref_ids:
                 for ref_id in selected_ref_ids:
@@ -100,7 +105,17 @@ def create_invoice(header_id):
                             total_price=ref.selling_price or 0
                         )
                         db.session.add(item)
-            
+
+            # 自动生成日记账分录
+            try:
+                journal_entry = JournalEntry.create_from_invoice(invoice, user=current_user.username)
+                if journal_entry and journal_entry.lines:
+                    db.session.add(journal_entry)
+                    db.session.flush()
+                    journal_entry.post(user=current_user.username)
+            except Exception as je:
+                logger.warning(f"发票 {invoice.invoice_number} 生成日记账失败: {str(je)}")
+
             db.session.commit()
             flash('发票创建成功', 'success')
             return redirect(url_for('business_projects.project_invoice.header_invoices', header_id=header.id))
@@ -598,7 +613,7 @@ def quick_create_invoice(header_id):
             from datetime import date
             invoice_date = date.today()
         
-        # 创建发票
+        # 创建发票（直接为 confirmed 状态）
         invoice = ProjectInvoice(
             invoice_number=invoice_number,
             header_id=header_id,
@@ -614,13 +629,14 @@ def quick_create_invoice(header_id):
                 f"TR: {data.get('tr_no')}" if data.get('tr_no') else None,
                 f"Purpose: {data.get('purpose')}" if data.get('purpose') else None
             ])),
-            status='draft',
+            status='confirmed',
+            payment_status='unpaid',
             created_by=current_user.username if current_user else None
         )
-        
+
         db.session.add(invoice)
         db.session.flush()
-        
+
         # 创建发票明细
         for ref_data in refs_data:
             ref_id = ref_data.get('ref_id')
@@ -637,7 +653,17 @@ def quick_create_invoice(header_id):
                         remarks=f"Gross: {ref_data.get('gross', 0)}, Disc: {ref_data.get('discount', 0)}, Tax: {ref_data.get('tax', 0)}"
                     )
                     db.session.add(item)
-        
+
+        # 自动生成日记账分录
+        try:
+            journal_entry = JournalEntry.create_from_invoice(invoice, user=current_user.username)
+            if journal_entry and journal_entry.lines:
+                db.session.add(journal_entry)
+                db.session.flush()
+                journal_entry.post(user=current_user.username)
+        except Exception as je:
+            logger.warning(f"发票 {invoice.invoice_number} 生成日记账失败: {str(je)}")
+
         db.session.commit()
         
         return jsonify({
@@ -735,19 +761,41 @@ def find_invoice_by_number():
 @staff_only
 @csrf.exempt
 def send_invoice(invoice_id):
-    """发送发票（更新状态为已发送）"""
+    """确认发票并自动生成日记账"""
     invoice = ProjectInvoice.query.get_or_404(invoice_id)
-    
+
     try:
-        invoice.status = 'sent'
-        invoice.sent_at = datetime.utcnow()
+        # 发票已默认为 confirmed 状态，此处确保状态正确
+        invoice.status = 'confirmed'
+
+        # 自动创建日记账分录（借：应收账款，贷：销售收入）
+        journal_entry = None
+        try:
+            from App_new.finance.models.journal_entry import JournalEntry
+            journal_entry = JournalEntry.create_from_invoice(
+                invoice,
+                user=current_user.username if current_user else None
+            )
+            if journal_entry and journal_entry.lines:
+                db.session.add(journal_entry)
+                # 自动过账
+                journal_entry.post(user=current_user.username if current_user else None)
+        except Exception as je_error:
+            # 日记账创建失败不影响发票发送
+            import logging
+            logging.getLogger(__name__).warning(f"创建发票日记账失败: {str(je_error)}")
+
         db.session.commit()
-        
+
+        message = '发票已标记为已发送'
+        if journal_entry:
+            message += f'，已生成日记账 {journal_entry.entry_number}'
+
         return jsonify({
             'success': True,
-            'message': '发票已标记为已发送'
+            'message': message
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -860,6 +908,7 @@ def invoice_list():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 25, type=int)
         status = request.args.get('status', '').strip()
+        payment_status = request.args.get('payment_status', '').strip()
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
         date_range = request.args.get('date_range', '').strip()
@@ -881,9 +930,11 @@ def invoice_list():
         )
         
         filters = []
-        
+
         if status:
             filters.append(ProjectInvoice.status == status)
+        if payment_status:
+            filters.append(ProjectInvoice.payment_status == payment_status)
         if invoice_type:
             filters.append(ProjectInvoice.invoice_type == invoice_type)
         if currency:
@@ -980,17 +1031,25 @@ def invoice_list():
                 'customer_company': inv.customer_company,
                 'status': inv.status,
                 'status_display': inv.status_display,
+                'payment_status': inv.payment_status,
+                'payment_status_display': inv.payment_status_display,
                 'is_overdue': inv.is_overdue,
                 'created_at': inv.created_at
             })
         
-        # 状态选项
+        # 状态选项（发票状态）
         statuses = [
             ('', 'All'),
-            ('sent', 'Unpaid'),
-            ('partial_paid', 'Partial Paid'),
-            ('paid', 'Paid'),
+            ('confirmed', 'Confirmed'),
             ('cancelled', 'Cancelled')
+        ]
+
+        # 付款状态选项
+        payment_statuses = [
+            ('', 'All'),
+            ('unpaid', 'Unpaid'),
+            ('partial_paid', 'Partial Paid'),
+            ('paid', 'Paid')
         ]
         
         # 发票类型选项
@@ -1021,10 +1080,12 @@ def invoice_list():
                              invoices=items,
                              pagination=pagination,
                              statuses=statuses,
+                             payment_statuses=payment_statuses,
                              invoice_types=invoice_types,
                              summary=summary,
                              current_filters={
                                  'status': status,
+                                 'payment_status': payment_status,
                                  'invoice_type': invoice_type,
                                  'currency': currency,
                                  'date_range': date_range,

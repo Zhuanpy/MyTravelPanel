@@ -1,0 +1,497 @@
+{% extends "staff_base.html" %}
+
+{% block title %}General Ledger Listing - MyTravelPanel{% endblock %}
+
+{% block page_title %}General Ledger Listing 总账明细表{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* 报表样式 - 模拟参考图片 */
+    .report-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .report-header .company-name {
+        font-size: 1.4em;
+        font-weight: bold;
+        color: #004080;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-title {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .report-header .report-period {
+        font-size: 0.95em;
+        color: #666;
+    }
+
+    .ledger-table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .ledger-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85em;
+    }
+
+    .ledger-table th {
+        background-color: #e8e8e8;
+        color: #333;
+        padding: 8px 6px;
+        font-weight: 600;
+        text-align: left;
+        border-bottom: 2px solid #ccc;
+        white-space: nowrap;
+    }
+
+    .ledger-table td {
+        padding: 6px;
+        vertical-align: top;
+        border-bottom: 1px solid #eee;
+    }
+
+    .ledger-table .text-right {
+        text-align: right;
+    }
+
+    .ledger-table .text-center {
+        text-align: center;
+    }
+
+    /* 账户行 */
+    .account-row td {
+        background-color: #f0f7ff;
+        font-weight: bold;
+        color: #004080;
+        padding: 10px 6px;
+        border-bottom: 1px solid #cce0ff;
+    }
+
+    .account-code {
+        font-family: monospace;
+        font-size: 1.1em;
+    }
+
+    .account-name {
+        font-size: 0.95em;
+        text-transform: uppercase;
+    }
+
+    /* Beginning Balance 行 */
+    .beginning-balance-row td {
+        color: #004080;
+    }
+
+    /* 交易行 */
+    .transaction-row td {
+        color: #333;
+    }
+
+    .transaction-row:hover td {
+        background-color: #f8f9fa;
+    }
+
+    /* Summary 行 */
+    .summary-row td {
+        border-top: 1px solid #ddd;
+        padding-top: 8px;
+    }
+
+    .trans-count {
+        text-align: center;
+        color: #666;
+    }
+
+    .current-period-row td {
+        font-weight: 500;
+    }
+
+    .ending-balance-row td {
+        font-weight: bold;
+        color: #004080;
+        border-bottom: 2px solid #cce0ff;
+        padding-bottom: 10px;
+    }
+
+    /* 金额列 */
+    .amount-cell {
+        font-family: 'Courier New', monospace;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .amount-positive { color: #000; }
+    .amount-negative { color: #dc3545; }
+
+    /* 蓝色文字 */
+    .text-blue { color: #004080; }
+
+    /* 链接样式 */
+    .ref-link {
+        color: #004080;
+        text-decoration: none;
+    }
+    .ref-link:hover {
+        text-decoration: underline;
+    }
+
+    /* 报表底部 */
+    .report-footer {
+        font-size: 0.8em;
+        color: #666;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    /* 空行间隔 */
+    .spacer-row td {
+        height: 15px;
+        border: none;
+        background: white;
+    }
+
+    /* 打印样式 */
+    @media print {
+        /* 隐藏导航和侧边栏 */
+        .navbar { display: none !important; }
+        #sidebar, .sidebar { display: none !important; }
+        .sidebar-overlay { display: none !important; }
+        .breadcrumb { display: none !important; }
+        nav[aria-label="breadcrumb"] { display: none !important; }
+
+        /* 隐藏页面标题区域 */
+        .d-flex.border-bottom { display: none !important; }
+
+        /* 隐藏筛选区域 */
+        .filter-section { display: none !important; }
+        .no-print { display: none !important; }
+
+        /* 主内容区域全宽 */
+        main, .col-md-10, .col-lg-11 {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: 0 0 100% !important;
+        }
+
+        .container-fluid { padding: 0 !important; }
+        .row { margin: 0 !important; }
+
+        /* 报表容器样式 */
+        .report-container { max-width: 100%; padding: 0; margin: 0; }
+        .ledger-table-container { box-shadow: none; }
+        .ledger-table { font-size: 9pt; }
+        .ledger-table th {
+            background-color: #e8e8e8 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .account-row td {
+            background-color: #f0f7ff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        @page { size: landscape; margin: 1cm; }
+    }
+
+    /* 列宽 */
+    .col-account { width: 8%; }
+    .col-date { width: 8%; }
+    .col-ref { width: 10%; }
+    .col-jrnl { width: 6%; }
+    .col-subsidiary { width: 14%; }
+    .col-desc1 { width: 14%; }
+    .col-desc2 { width: 12%; }
+    .col-fx { width: 5%; }
+    .col-debit { width: 8%; }
+    .col-credit { width: 8%; }
+    .col-balance { width: 8%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Filter -->
+    <div class="filter-section no-print">
+        <form class="row g-3 align-items-end" method="GET">
+            <div class="col-md-3">
+                <label class="form-label">Start Date 开始日期</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">End Date 结束日期</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-6">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search"></i> Generate 生成
+                </button>
+                <button type="button" class="btn btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print 打印
+                </button>
+                {% if ledger_data %}
+                <button type="button" class="btn btn-outline-success" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Export 导出
+                </button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="company-name">{{ company_name }}</div>
+        <div class="report-title">General Ledger Listing</div>
+        <div class="report-period">
+            For the Period From {{ start_date }} to {{ end_date }} 期间
+        </div>
+    </div>
+
+    {% if ledger_data %}
+    <!-- Ledger Table -->
+    <div class="ledger-table-container">
+        <table class="ledger-table" id="ledgerTable">
+            <thead>
+                <tr>
+                    <th class="col-account">Account ID 科目编码</th>
+                    <th class="col-date">Date 日期</th>
+                    <th class="col-ref">Ref 参考</th>
+                    <th class="col-jrnl">Jrnl No. 凭证号</th>
+                    <th class="col-subsidiary">Subsidiary Name 辅助名称</th>
+                    <th class="col-desc1">Description 1 描述1</th>
+                    <th class="col-desc2">Description 描述</th>
+                    <th class="col-fx text-right">FX Rate 汇率</th>
+                    <th class="col-debit text-right">Debit 借方</th>
+                    <th class="col-credit text-right">Credit 贷方</th>
+                    <th class="col-balance text-right">Balance 余额</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in ledger_data %}
+                <!-- Account Header Row -->
+                <tr class="account-row">
+                    <td class="account-code">{{ item.account.code }}</td>
+                    <td colspan="10" class="account-name">{{ item.account.name }}</td>
+                </tr>
+
+                <!-- Beginning Balance -->
+                <tr class="beginning-balance-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-blue">Beginning Balance 期初余额</td>
+                    <td class="amount-cell {% if item.opening_balance < 0 %}amount-negative{% endif %}">
+                        {{ '{:,.2f}'.format(item.opening_balance|float) }}
+                    </td>
+                </tr>
+
+                <!-- Transactions -->
+                {% for trans in item.transactions %}
+                <tr class="transaction-row">
+                    <td></td>
+                    <td>{{ trans.date.strftime('%d/%m/%Y') if trans.date else '' }}</td>
+                    <td>
+                        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=trans.entry_id) }}" class="ref-link">
+                            {{ trans.ref }}
+                        </a>
+                    </td>
+                    <td>{{ trans.jrnl_no[-4:] if trans.jrnl_no else '' }}</td>
+                    <td class="text-blue">{{ trans.subsidiary_name }}</td>
+                    <td>{{ trans.description1 }}</td>
+                    <td>{{ trans.description2 }}</td>
+                    <td class="amount-cell">{{ '{:.2f}'.format(trans.fx_rate) }}</td>
+                    <td class="amount-cell">
+                        {% if trans.debit and trans.debit > 0 %}{{ '{:,.2f}'.format(trans.debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if trans.credit and trans.credit > 0 %}{{ '{:,.2f}'.format(trans.credit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell {% if trans.balance < 0 %}amount-negative{% endif %}">
+                        {{ '{:,.2f}'.format(trans.balance|float) }}
+                    </td>
+                </tr>
+                {% endfor %}
+
+                <!-- No of Trans -->
+                <tr class="summary-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="trans-count">No of Trans 交易数: {{ item.trans_count }}</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+
+                <!-- Current Period Change -->
+                <tr class="current-period-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="amount-cell">
+                        {% if item.period_debit > 0 %}{{ '{:,.2f}'.format(item.period_debit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if item.period_credit > 0 %}{{ '{:,.2f}'.format(item.period_credit|float) }}{% endif %}
+                    </td>
+                    <td class="amount-cell {% if item.period_change < 0 %}amount-negative{% endif %}">
+                        {{ '{:,.2f}'.format(item.period_change|float) }}
+                    </td>
+                </tr>
+
+                <!-- Current Period Chg Label -->
+                <tr class="summary-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-blue">Current Period Chg 当期变动</td>
+                    <td></td>
+                </tr>
+
+                <!-- Ending Balance -->
+                <tr class="ending-balance-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-blue">Ending Balance 期末余额</td>
+                    <td class="amount-cell {% if item.ending_balance < 0 %}amount-negative{% endif %}">
+                        {{ '{:,.2f}'.format(item.ending_balance|float) }}
+                    </td>
+                </tr>
+
+                <!-- Spacer between accounts -->
+                {% if not loop.last %}
+                <tr class="spacer-row"><td colspan="11"></td></tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <span>{{ now().strftime('%d%b%Y %H:%M:%S') if now is defined else '' }}</span>
+        <span>Page 页码: 1 / 1</span>
+    </div>
+
+    {% else %}
+    <!-- No Data -->
+    <div class="text-center py-5" style="background: white; border-radius: 8px;">
+        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+        <h4>No Data Found 无数据</h4>
+        <p class="text-muted">No transactions found for the selected period. 所选期间没有找到交易记录。</p>
+        <button class="btn btn-warning mt-2 no-print" onclick="generateFromBusiness()">
+            <i class="fas fa-magic"></i> Generate from Business Data 从业务数据生成
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function generateFromBusiness() {
+    if (confirm('Generate journal entries from existing Invoice/Receipt/EO data?\n从现有发票/收款/付款数据生成日记账分录？')) {
+        fetch('{{ url_for("ledger_routes.generate_journal_from_business") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+
+function exportToExcel() {
+    const table = document.getElementById('ledgerTable');
+    let csv = 'Account ID 科目编码,Date 日期,Ref 参考,Jrnl No. 凭证号,Subsidiary Name 辅助名称,Description 1 描述1,Description 描述,FX Rate 汇率,Debit 借方,Credit 贷方,Balance 余额\n';
+
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        if (row.classList.contains('spacer-row')) return;
+
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 11) {
+            const values = [];
+            cells.forEach((cell, idx) => {
+                let val = cell.textContent.trim().replace(/"/g, '""').replace(/,/g, '');
+                if (idx >= 8 && idx <= 10) {
+                    // 数值列
+                    val = val || '0';
+                }
+                values.push(`"${val}"`);
+            });
+            csv += values.join(',') + '\n';
+        }
+    });
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'general_ledger_listing_{{ start_date }}_to_{{ end_date }}.csv';
+    link.click();
+}
+</script>
+{% endblock %}

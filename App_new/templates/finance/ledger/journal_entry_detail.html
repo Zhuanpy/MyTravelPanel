@@ -2,7 +2,7 @@
 
 {% block title %}Journal Entry {{ entry.entry_number }} - MyTravelPanel{% endblock %}
 
-{% block page_title %}Journal Entry Detail{% endblock %}
+{% block page_title %}Journal Entry Detail 分录详情{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -68,21 +68,21 @@
 
 {% block content %}
 <div class="je-detail-container">
-    <!-- Header -->
+    <!-- Header 顶部操作 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <a href="{{ url_for('ledger_routes.journal_entries') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-arrow-left"></i> Back to List
+                <i class="fas fa-arrow-left"></i> Back to List 返回列表
             </a>
         </div>
         <div>
             {% if entry.status == 'draft' %}
             <button class="btn btn-success" onclick="postEntry({{ entry.id }})">
-                <i class="fas fa-check"></i> Post Entry
+                <i class="fas fa-check"></i> Post Entry 过账
             </button>
             {% elif entry.status == 'posted' %}
             <button class="btn btn-warning" onclick="reverseEntry({{ entry.id }})">
-                <i class="fas fa-undo"></i> Reverse Entry
+                <i class="fas fa-undo"></i> Reverse Entry 冲销
             </button>
             {% endif %}
         </div>
@@ -101,38 +101,38 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="info-row">
-                        <span class="info-label">Entry Date:</span>
+                        <span class="info-label">Entry Date 日期:</span>
                         <span class="info-value">{{ entry.entry_date.strftime('%Y-%m-%d') if entry.entry_date else '-' }}</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Source Type:</span>
+                        <span class="info-label">Source Type 来源类型:</span>
                         <span class="info-value">{{ entry.source_type_display }}</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Source No.:</span>
+                        <span class="info-label">Source No. 来源单号:</span>
                         <span class="info-value">{{ entry.source_number or '-' }}</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Currency:</span>
+                        <span class="info-label">Currency 币种:</span>
                         <span class="info-value">{{ entry.currency }}</span>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="info-row">
-                        <span class="info-label">Created By:</span>
+                        <span class="info-label">Created By 创建人:</span>
                         <span class="info-value">{{ entry.created_by or '-' }}</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Created At:</span>
+                        <span class="info-label">Created At 创建时间:</span>
                         <span class="info-value">{{ entry.created_at.strftime('%Y-%m-%d %H:%M') if entry.created_at else '-' }}</span>
                     </div>
                     {% if entry.status == 'posted' %}
                     <div class="info-row">
-                        <span class="info-label">Posted By:</span>
+                        <span class="info-label">Posted By 过账人:</span>
                         <span class="info-value">{{ entry.posted_by or '-' }}</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Posted At:</span>
+                        <span class="info-label">Posted At 过账时间:</span>
                         <span class="info-value">{{ entry.posted_at.strftime('%Y-%m-%d %H:%M') if entry.posted_at else '-' }}</span>
                     </div>
                     {% endif %}
@@ -140,34 +140,34 @@
             </div>
             {% if entry.description %}
             <div class="info-row mt-3">
-                <span class="info-label">Description:</span>
+                <span class="info-label">Description 描述:</span>
                 <span class="info-value">{{ entry.description }}</span>
             </div>
             {% endif %}
             {% if entry.remarks %}
             <div class="info-row">
-                <span class="info-label">Remarks:</span>
+                <span class="info-label">Remarks 备注:</span>
                 <span class="info-value">{{ entry.remarks }}</span>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Entry Lines -->
+    <!-- Entry Lines 分录行 -->
     <div class="je-card">
         <div class="je-card-header">
-            <h5 class="mb-0"><i class="fas fa-list text-success me-2"></i>Entry Lines</h5>
+            <h5 class="mb-0"><i class="fas fa-list text-success me-2"></i>Entry Lines 分录行</h5>
         </div>
         <div class="je-card-body p-0">
             <table class="table lines-table mb-0">
                 <thead>
                     <tr>
                         <th width="5%">#</th>
-                        <th width="15%">Account Code</th>
-                        <th width="25%">Account Name</th>
-                        <th width="20%">Memo</th>
-                        <th width="15%" class="text-end">Debit</th>
-                        <th width="15%" class="text-end">Credit</th>
+                        <th width="15%">Account Code 科目代码</th>
+                        <th width="25%">Account Name 科目名称</th>
+                        <th width="20%">Memo 摘要</th>
+                        <th width="15%" class="text-end">Debit 借方</th>
+                        <th width="15%" class="text-end">Credit 贷方</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -192,17 +192,17 @@
                 </tbody>
                 <tfoot>
                     <tr class="total-row">
-                        <td colspan="4" class="text-end">Total:</td>
+                        <td colspan="4" class="text-end">Total 合计:</td>
                         <td class="text-end amount-debit">{{ '{:,.2f}'.format(entry.total_debit|float) }}</td>
                         <td class="text-end amount-credit">{{ '{:,.2f}'.format(entry.total_credit|float) }}</td>
                     </tr>
                     <tr>
-                        <td colspan="4" class="text-end">Balance:</td>
+                        <td colspan="4" class="text-end">Balance 平衡:</td>
                         <td colspan="2" class="text-center {% if entry.is_balanced %}balance-ok{% else %}balance-error{% endif %}">
                             {% if entry.is_balanced %}
-                            <i class="fas fa-check-circle"></i> Balanced
+                            <i class="fas fa-check-circle"></i> Balanced 已平衡
                             {% else %}
-                            <i class="fas fa-exclamation-circle"></i> Not Balanced (Diff: {{ '{:,.2f}'.format((entry.total_debit - entry.total_credit)|float) }})
+                            <i class="fas fa-exclamation-circle"></i> Not Balanced 不平衡 (Diff 差额: {{ '{:,.2f}'.format((entry.total_debit - entry.total_credit)|float) }})
                             {% endif %}
                         </td>
                     </tr>
@@ -214,9 +214,9 @@
     {% if entry.reversed_entry_id %}
     <div class="alert alert-warning">
         <i class="fas fa-info-circle"></i>
-        This entry has been reversed. See:
+        This entry has been reversed. 此分录已被冲销。 See 查看:
         <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=entry.reversed_entry_id) }}">
-            Reversing Entry
+            Reversing Entry 冲销分录
         </a>
     </div>
     {% endif %}
