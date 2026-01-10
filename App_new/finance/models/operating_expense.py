@@ -50,20 +50,24 @@ class OperatingExpense(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
 
-    # 关联关系 - 使用字符串形式指定外键，避免循环引用问题
+    # 关联关系 - 使用 primaryjoin 显式指定连接条件
     expense_account = db.relationship(
         'ChartOfAccount',
-        foreign_keys='OperatingExpense.expense_account_id',
-        backref=db.backref('expense_records', lazy='dynamic')
+        primaryjoin='OperatingExpense.expense_account_id == ChartOfAccount.id',
+        foreign_keys=[expense_account_id],
+        lazy='joined'
     )
     bank_account = db.relationship(
         'ChartOfAccount',
-        foreign_keys='OperatingExpense.bank_account_id',
-        backref=db.backref('bank_expense_records', lazy='dynamic')
+        primaryjoin='OperatingExpense.bank_account_id == ChartOfAccount.id',
+        foreign_keys=[bank_account_id],
+        lazy='joined'
     )
     journal_entry = db.relationship(
         'JournalEntry',
-        backref=db.backref('operating_expense_record', uselist=False)
+        primaryjoin='OperatingExpense.journal_entry_id == JournalEntry.id',
+        foreign_keys=[journal_entry_id],
+        lazy='joined'
     )
 
     def __repr__(self):
