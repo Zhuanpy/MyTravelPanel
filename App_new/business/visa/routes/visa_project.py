@@ -657,14 +657,25 @@ def create_project_links(project_id):
         # 创建或获取项目主表（HID）
         header = None
         if not project.header_id:
+            # 获取"个人"公司记录
+            from App_new.business.projects.models.project import CustomerCompany
+            personal_company = CustomerCompany.query.filter_by(company_code='PERSONAL').first()
+            if not personal_company:
+                personal_company = CustomerCompany.query.filter_by(company_name='个人').first()
+            if not personal_company:
+                return jsonify({
+                    'success': False,
+                    'message': '未找到"个人"客户公司记录，请先在系统中创建'
+                }), 400
+
             # 生成HID
             hid = ProjectHeader.generate_hid()
-            
+
             # 创建项目主表
             header = ProjectHeader(
                 hid=hid,
                 desc=f"{project.applicant_name} {project.visa_type}签证项目",
-                company_id=None,  # 设置为NULL，表示个人客户
+                company_id=personal_company.id,  # 使用"个人"公司ID
                 contact=project.contact_name or project.applicant_name,
                 staff_name=staff_name or project.applicant_name,  # 使用选择的员工姓名作为经办人姓名
                 leader_name=leader_name or staff_name or project.applicant_name,  # 使用选择的员工姓名作为负责人姓名

@@ -13,6 +13,7 @@ from App_new.exts import db
 import random
 import string
 import json
+import re
 
 flights_booking = Blueprint('flights_booking', __name__, url_prefix='/flights_booking')
 
@@ -83,19 +84,15 @@ def submit_order():
         # 2. 自动生成HID和REF
         print("开始生成HID和REF...")
         
-        # 获取或创建"个人"公司记录
+        # 获取"个人"公司记录（通过 company_code 查询）
         from App_new.business.projects.models.project import CustomerCompany
-        personal_company = CustomerCompany.query.filter_by(company_name='个人').first()
+        personal_company = CustomerCompany.query.filter_by(company_code='PERSONAL').first()
         if not personal_company:
-            personal_company = CustomerCompany(
-                company_name='个人',
-                company_code='PERSONAL',
-                contact_person='系统',
-                status='active',
-                created_by='系统'
-            )
-            db.session.add(personal_company)
-            db.session.flush()  # 获取ID
+            # 如果没有找到，尝试通过名称查询
+            personal_company = CustomerCompany.query.filter_by(company_name='个人').first()
+        if not personal_company:
+            flash('未找到"个人"客户公司记录，请先在系统中创建', 'error')
+            return redirect(url_for('flights_booking.create_order'))
         
         # 创建项目主表（HID）
         hid = ProjectHeader.generate_hid()
@@ -214,34 +211,62 @@ def submit_order():
             return f"{date_str} {'-'.join(route_parts)}"
 
         # 生成 detailed_description：分行格式
-        def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_times):
+        def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_times, cabin_codes_list, arr_times):
             """
-            生成详细描述（分行）：
-            CX714 12AUG Singapore-Hong Kong
-            CX735 15AUG Hong Kong-Singapore
+            生成详细描述（航空公司 Itin 格式）：
+            TR 156 02/04/2026 SINGAPORE-SHENYANG  Y  HK  02:50 09:40
+            TR 157 17/04/2026 SHENYANG-SINGAPORE  Y  HK  10:55 17:45
             """
             lines = []
 
-            for flight_num, dep, arr, dep_time in zip(flight_nums, dep_airports, arr_airports, dep_times):
+            for i, (flight_num, dep, arr, dep_time) in enumerate(zip(flight_nums, dep_airports, arr_airports, dep_times)):
                 if not dep or not arr:
                     continue
 
-                # 格式化日期
+                # 解析出发时间（日期和时间）
                 try:
                     try:
                         dt = datetime.strptime(dep_time, '%Y-%m-%dT%H:%M')
                     except ValueError:
                         dt = datetime.strptime(dep_time, '%Y-%m-%d %H:%M')
-                    formatted_date = dt.strftime('%d%b').upper()
+                    formatted_date = dt.strftime('%d/%m/%Y')
+                    dep_time_str = dt.strftime('%H:%M')
                 except (ValueError, TypeError):
                     formatted_date = ''
+                    dep_time_str = ''
 
-                # 获取城市英文名
-                dep_city = get_city_name_en(dep)
-                arr_city = get_city_name_en(arr)
+                # 解析到达时间
+                arr_time_str = ''
+                if i < len(arr_times) and arr_times[i]:
+                    try:
+                        try:
+                            arr_dt = datetime.strptime(arr_times[i], '%Y-%m-%dT%H:%M')
+                        except ValueError:
+                            arr_dt = datetime.strptime(arr_times[i], '%Y-%m-%d %H:%M')
+                        arr_time_str = arr_dt.strftime('%H:%M')
+                    except (ValueError, TypeError):
+                        arr_time_str = ''
 
-                flight_num = (flight_num or '').upper()
-                lines.append(f"{flight_num} {formatted_date} {dep_city}-{arr_city}".strip())
+                # 获取城市英文名并转大写
+                dep_city = get_city_name_en(dep).upper()
+                arr_city = get_city_name_en(arr).upper()
+
+                # 格式化航班号：在航空公司代码和数字之间添加空格
+                flight_num = (flight_num or '').upper().strip()
+                match = re.match(r'^([A-Z]{2,3})(\d+)$', flight_num)
+                if match:
+                    flight_num = f"{match.group(1)} {match.group(2)}"
+
+                # 获取舱位代码
+                cabin = cabin_codes_list[i].upper() if i < len(cabin_codes_list) and cabin_codes_list[i] else 'Y'
+
+                # 状态 HK = Holds Confirmed（已确认）
+                status = 'HK'
+                route = f"{dep_city}-{arr_city}"
+
+                # 格式化：航班号 日期 航线 舱位 状态 出发时间 到达时间
+                line_content = f"{flight_num} {formatted_date} {route}  {cabin}  {status}  {dep_time_str} {arr_time_str}"
+                lines.append(line_content)
 
             return '\n'.join(lines) if lines else '机票订单'
 
@@ -253,11 +278,14 @@ def submit_order():
         dep_airports_list = request.form.getlist('departure_airport[]')
         arr_airports_list = request.form.getlist('arrival_airport[]')
         dep_times_list = request.form.getlist('departure_time[]')
+        arr_times_list = request.form.getlist('arrival_time[]')
         flight_nums_list = request.form.getlist('flight_number[]')
+        cabin_codes_list = request.form.getlist('cabin_code[]')
 
         ref_description = generate_flight_description(dep_airports_list, arr_airports_list, dep_times_list)
         ref_detailed_description = generate_flight_detailed_description(
-            flight_nums_list, dep_airports_list, arr_airports_list, dep_times_list
+            flight_nums_list, dep_airports_list, arr_airports_list, dep_times_list,
+            cabin_codes_list, arr_times_list
         )
 
         project_ref = ProjectRef(
@@ -355,7 +383,33 @@ def submit_order():
                 except (ValueError, IndexError) as e:
                     print(f"乘客 {i} 处理错误: {e}")
                     continue
-        
+
+        # 统计各类型乘客数量并设置 extra_info
+        adult_qty = 0
+        child_qty = 0
+        infant_qty = 0
+        for i, name in enumerate(passenger_names):
+            if name:
+                pax_type = passenger_types[i] if i < len(passenger_types) and passenger_types[i] else 'adult'
+                if pax_type == 'adult':
+                    adult_qty += 1
+                elif pax_type == 'child':
+                    child_qty += 1
+                elif pax_type == 'infant':
+                    infant_qty += 1
+
+        extra_info = {
+            'pax_names_display': ', '.join([name for name in passenger_names if name]),
+            'departure_date': departure_dates[0] if departure_dates and departure_dates[0] else '',
+            'leader_name': passenger_names[0] if passenger_names else '',
+            'flight_route': ref_description,
+            'total_passengers': len([name for name in passenger_names if name]),
+            'adult_qty': adult_qty,
+            'child_qty': child_qty,
+            'infant_qty': infant_qty
+        }
+        project_ref.extra_info = json.dumps(extra_info)
+
         # 3. 创建订单主表记录
         passenger_names = request.form.getlist('passenger_name[]')
         if not passenger_names:

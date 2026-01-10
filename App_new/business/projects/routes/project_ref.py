@@ -20,6 +20,7 @@ from App_new.utils.permissions import can_access_project
 from datetime import datetime
 import traceback
 import json
+import re
 
 project_ref = Blueprint('project_ref', __name__)
 
@@ -340,37 +341,59 @@ def submit_flight_ref():
             return f"{date_str} {'-'.join(route_parts)}"
 
         # 生成 detailed_description：分行格式
-        def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_dates):
+        def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_dates,
+                                                  cabin_codes_list, dep_times, arr_times):
             """
-            生成详细描述（分行）：
-            CX714 12AUG Singapore-Hong Kong
-            CX735 15AUG Hong Kong-Singapore
+            生成详细描述（航空公司 Itin 格式）：
+            TR 156 02/04/2026 SINGAPORE-SHENYANG  Y  HK  02:50 09:40
+            TR 157 17/04/2026 SHENYANG-SINGAPORE  Y  HK  10:55 17:45
             """
             lines = []
 
-            for flight_num, dep, arr, dep_date in zip(flight_nums, dep_airports, arr_airports, dep_dates):
+            for i, (flight_num, dep, arr, dep_date) in enumerate(zip(flight_nums, dep_airports, arr_airports, dep_dates)):
                 if not dep or not arr:
                     continue
 
-                # 格式化日期
+                # 格式化日期为 DD/MM/YYYY
                 try:
-                    formatted_date = datetime.strptime(dep_date, '%Y-%m-%d').strftime('%d%b').upper()
+                    formatted_date = datetime.strptime(dep_date, '%Y-%m-%d').strftime('%d/%m/%Y')
                 except (ValueError, TypeError):
                     formatted_date = dep_date or ''
 
-                # 获取城市英文名
-                dep_city = get_city_name_en(dep)
-                arr_city = get_city_name_en(arr)
+                # 获取城市英文名并转大写
+                dep_city = get_city_name_en(dep).upper()
+                arr_city = get_city_name_en(arr).upper()
 
-                flight_num = (flight_num or '').upper()
-                lines.append(f"{flight_num} {formatted_date} {dep_city}-{arr_city}".strip())
+                # 格式化航班号：在航空公司代码和数字之间添加空格
+                flight_num = (flight_num or '').upper().strip()
+                # 分离航空公司代码和航班数字（假设前2-3位是航空公司代码）
+                match = re.match(r'^([A-Z]{2,3})(\d+)$', flight_num)
+                if match:
+                    flight_num = f"{match.group(1)} {match.group(2)}"
+
+                # 获取舱位代码
+                cabin = cabin_codes_list[i].upper() if i < len(cabin_codes_list) and cabin_codes_list[i] else 'Y'
+
+                # 获取出发和到达时间
+                dep_time_str = dep_times[i] if i < len(dep_times) and dep_times[i] else ''
+                arr_time_str = arr_times[i] if i < len(arr_times) and arr_times[i] else ''
+
+                # 构建行内容
+                # 状态 HK = Holds Confirmed（已确认）
+                status = 'HK'
+                route = f"{dep_city}-{arr_city}"
+
+                # 格式化：航班号 日期 航线 舱位 状态 出发时间 到达时间
+                line_content = f"{flight_num} {formatted_date} {route}  {cabin}  {status}  {dep_time_str} {arr_time_str}"
+                lines.append(line_content)
 
             return '\n'.join(lines) if lines else '机票订单'
 
         # 生成并更新描述
         ref.description = generate_flight_description(departure_airports, arrival_airports, departure_dates)
         ref.detailed_description = generate_flight_detailed_description(
-            flight_numbers, departure_airports, arrival_airports, departure_dates
+            flight_numbers, departure_airports, arrival_airports, departure_dates,
+            cabin_codes, departure_times, arrival_times
         )
 
         # 删除现有航段
@@ -421,13 +444,30 @@ def submit_flight_ref():
                 # 记录错误但继续处理其他航段
                 continue
 
+        # 统计各类型乘客数量
+        adult_qty = 0
+        child_qty = 0
+        infant_qty = 0
+        for i, name in enumerate(passenger_names):
+            if name:
+                pax_type = passenger_types[i] if i < len(passenger_types) else 'adult'
+                if pax_type == 'adult':
+                    adult_qty += 1
+                elif pax_type == 'child':
+                    child_qty += 1
+                elif pax_type == 'infant':
+                    infant_qty += 1
+
         # 同步到extra_info，便于发票统一打印
         extra_info = {
             'pax_names_display': ', '.join([name for name in passenger_names if name]),  # 乘客姓名列表
             'departure_date': departure_dates[0] if departure_dates and departure_dates[0] else '',  # 第一个航段的出发日期
             'leader_name': request.form.get('leader_name', passenger_names[0] if passenger_names else ''),
             'flight_route': ref.description,  # 航线描述
-            'total_passengers': len([name for name in passenger_names if name])
+            'total_passengers': len([name for name in passenger_names if name]),
+            'adult_qty': adult_qty,
+            'child_qty': child_qty,
+            'infant_qty': infant_qty
         }
         ref.extra_info = json.dumps(extra_info)
 

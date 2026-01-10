@@ -207,6 +207,20 @@ def delete_header(header_id):
                 flash('项目不存在或已删除', 'success')
                 return redirect(url_for('business_projects.list.list_projects'))
 
+        # 删除所有相关的发票及其明细项
+        from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
+        invoices = ProjectInvoice.query.filter_by(header_id=header_id).all()
+        for invoice in invoices:
+            # 先删除发票明细项
+            InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
+            db.session.delete(invoice)
+
+        # 删除所有相关的收款记录
+        from App_new.business.projects.models.receipt import ProjectReceipt
+        receipts = ProjectReceipt.query.filter_by(header_id=header_id).all()
+        for receipt in receipts:
+            db.session.delete(receipt)
+
         # 删除所有相关的EO（通过REF关联）
         from App_new.business.projects.models.ref import ProjectRef
         from App_new.business.projects.models.eo import ProjectEO

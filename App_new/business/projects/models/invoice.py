@@ -95,27 +95,23 @@ class ProjectInvoice(db.Model):
 
     @classmethod
     def generate_invoice_number(cls):
-        """生成发票编号"""
-        # 格式: INV + 年月日 + 3位序号, 例如: INV20240702001
-        today = datetime.now().strftime('%Y%m%d')
-        prefix = f'INV{today}'
+        """生成发票编号，从10000开始递增"""
+        from sqlalchemy import func, text
 
-        # 查找今天最后一个发票编号
+        # 查找最大的纯数字发票编号（使用MySQL的REGEXP）
         last_invoice = cls.query.filter(
-            cls.invoice_number.like(f'{prefix}%')
-        ).order_by(cls.invoice_number.desc()).first()
+            cls.invoice_number.op('REGEXP')('^[0-9]+$')
+        ).order_by(func.cast(cls.invoice_number, db.Integer).desc()).first()
 
         if last_invoice:
-            # 提取序号部分
             try:
-                last_number = int(last_invoice.invoice_number[-3:])
-                new_number = str(last_number + 1).zfill(3)
+                last_number = int(last_invoice.invoice_number)
+                return str(last_number + 1)
             except ValueError:
-                new_number = '001'
-        else:
-            new_number = '001'
+                pass
 
-        return f'{prefix}{new_number}'
+        # 如果没有纯数字编号，从10000开始
+        return '10000'
 
     @property
     def invoice_type_display(self):
