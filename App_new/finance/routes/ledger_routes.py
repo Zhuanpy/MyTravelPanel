@@ -1482,3 +1482,276 @@ def report_journal_entries():
                            start_date=start_date,
                            end_date=end_date,
                            current_source_type=source_type)
+
+
+# ==================== 运营费用 Operating Expense ====================
+
+@ledger_blue.route('/operating-expenses')
+@login_required
+@staff_only
+def operating_expense_list():
+    """运营费用列表"""
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    status = request.args.get('status', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+
+    query = OperatingExpense.query
+
+    if status:
+        query = query.filter_by(status=status)
+    if start_date:
+        query = query.filter(OperatingExpense.expense_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+    if end_date:
+        query = query.filter(OperatingExpense.expense_date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+
+    expenses = query.order_by(OperatingExpense.expense_date.desc(), OperatingExpense.id.desc()).all()
+
+    # 统计
+    stats = {
+        'total': OperatingExpense.query.count(),
+        'draft': OperatingExpense.query.filter_by(status='draft').count(),
+        'confirmed': OperatingExpense.query.filter_by(status='confirmed').count(),
+        'paid': OperatingExpense.query.filter_by(status='paid').count(),
+    }
+
+    # 获取费用科目列表（用于筛选）
+    expense_accounts = ChartOfAccount.query.filter_by(
+        account_type='expense', is_active=True
+    ).order_by(ChartOfAccount.code).all()
+
+    return render_template('finance/ledger/operating_expense_list.html',
+                           expenses=expenses,
+                           stats=stats,
+                           expense_accounts=expense_accounts,
+                           current_status=status,
+                           start_date=start_date,
+                           end_date=end_date)
+
+
+@ledger_blue.route('/operating-expenses/add', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def operating_expense_add():
+    """添加运营费用"""
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    if request.method == 'POST':
+        data = request.get_json()
+
+        try:
+            # 生成编号
+            expense_number = OperatingExpense.generate_expense_number()
+
+            expense = OperatingExpense(
+                expense_number=expense_number,
+                expense_date=datetime.strptime(data['expense_date'], '%Y-%m-%d').date(),
+                expense_account_id=int(data['expense_account_id']),
+                amount=Decimal(str(data['amount'])),
+                currency=data.get('currency', 'SGD'),
+                payment_method=data.get('payment_method', 'bank_transfer'),
+                bank_account_id=int(data['bank_account_id']) if data.get('bank_account_id') else None,
+                payment_reference=data.get('payment_reference', ''),
+                payee_name=data.get('payee_name', ''),
+                payee_account=data.get('payee_account', ''),
+                description=data['description'],
+                remarks=data.get('remarks', ''),
+                status='draft',
+                created_by=current_user.email if current_user else 'system'
+            )
+
+            db.session.add(expense)
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': '费用单创建成功', 'expense_id': expense.id})
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"创建运营费用失败: {e}")
+            return jsonify({'success': False, 'message': str(e)})
+
+    # GET 请求 - 显示表单
+    # 获取费用科目
+    expense_accounts = ChartOfAccount.query.filter_by(
+        account_type='expense', is_active=True
+    ).order_by(ChartOfAccount.code).all()
+
+    # 获取银行/现金科目
+    bank_accounts = ChartOfAccount.query.filter(
+        ChartOfAccount.account_type == 'asset',
+        ChartOfAccount.is_active == True,
+        ChartOfAccount.code.like('1%')  # 资产类
+    ).order_by(ChartOfAccount.code).all()
+
+    return render_template('finance/ledger/operating_expense_form.html',
+                           expense=None,
+                           expense_accounts=expense_accounts,
+                           bank_accounts=bank_accounts,
+                           form_title='Add Operating Expense 添加运营费用',
+                           today=date.today().isoformat())
+
+
+@ledger_blue.route('/operating-expenses/<int:expense_id>')
+@login_required
+@staff_only
+def operating_expense_detail(expense_id):
+    """运营费用详情"""
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    expense = OperatingExpense.query.get_or_404(expense_id)
+    return render_template('finance/ledger/operating_expense_detail.html', expense=expense)
+
+
+@ledger_blue.route('/operating-expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def operating_expense_edit(expense_id):
+    """编辑运营费用"""
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    expense = OperatingExpense.query.get_or_404(expense_id)
+
+    if expense.status not in ['draft']:
+        flash('只能编辑草稿状态的费用单', 'warning')
+        return redirect(url_for('ledger_routes.operating_expense_detail', expense_id=expense_id))
+
+    if request.method == 'POST':
+        data = request.get_json()
+
+        try:
+            expense.expense_date = datetime.strptime(data['expense_date'], '%Y-%m-%d').date()
+            expense.expense_account_id = int(data['expense_account_id'])
+            expense.amount = Decimal(str(data['amount']))
+            expense.currency = data.get('currency', 'SGD')
+            expense.payment_method = data.get('payment_method', 'bank_transfer')
+            expense.bank_account_id = int(data['bank_account_id']) if data.get('bank_account_id') else None
+            expense.payment_reference = data.get('payment_reference', '')
+            expense.payee_name = data.get('payee_name', '')
+            expense.payee_account = data.get('payee_account', '')
+            expense.description = data['description']
+            expense.remarks = data.get('remarks', '')
+
+            db.session.commit()
+            return jsonify({'success': True, 'message': '费用单更新成功'})
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"更新运营费用失败: {e}")
+            return jsonify({'success': False, 'message': str(e)})
+
+    # GET 请求
+    expense_accounts = ChartOfAccount.query.filter_by(
+        account_type='expense', is_active=True
+    ).order_by(ChartOfAccount.code).all()
+
+    bank_accounts = ChartOfAccount.query.filter(
+        ChartOfAccount.account_type == 'asset',
+        ChartOfAccount.is_active == True,
+        ChartOfAccount.code.like('1%')
+    ).order_by(ChartOfAccount.code).all()
+
+    return render_template('finance/ledger/operating_expense_form.html',
+                           expense=expense,
+                           expense_accounts=expense_accounts,
+                           bank_accounts=bank_accounts,
+                           form_title='Edit Operating Expense 编辑运营费用',
+                           today=date.today().isoformat())
+
+
+@ledger_blue.route('/operating-expenses/<int:expense_id>/confirm', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def operating_expense_confirm(expense_id):
+    """确认运营费用（生成日记账分录）"""
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    expense = OperatingExpense.query.get_or_404(expense_id)
+
+    if expense.status != 'draft':
+        return jsonify({'success': False, 'message': '只能确认草稿状态的费用单'})
+
+    try:
+        # 生成日记账分录
+        entry_number = JournalEntry.generate_entry_number()
+
+        journal_entry = JournalEntry(
+            entry_number=entry_number,
+            entry_date=expense.expense_date,
+            source_type='operating_expense',
+            source_id=expense.id,
+            source_number=expense.expense_number,
+            description=f'Operating Expense - {expense.description}',
+            currency=expense.currency,
+            status='posted',
+            posted_at=datetime.utcnow(),
+            posted_by=current_user.email if current_user else 'system',
+            created_by=current_user.email if current_user else 'system'
+        )
+
+        # 借：费用科目
+        debit_line = JournalEntryLine(
+            line_no=1,
+            account_id=expense.expense_account_id,
+            debit=expense.amount,
+            credit=Decimal('0'),
+            memo=expense.description
+        )
+        journal_entry.lines.append(debit_line)
+
+        # 贷：银行/现金科目
+        if expense.bank_account_id:
+            credit_account_id = expense.bank_account_id
+        else:
+            # 默认使用银行科目 1002
+            default_bank = ChartOfAccount.query.filter_by(code='1002').first()
+            credit_account_id = default_bank.id if default_bank else expense.bank_account_id
+
+        credit_line = JournalEntryLine(
+            line_no=2,
+            account_id=credit_account_id,
+            debit=Decimal('0'),
+            credit=expense.amount,
+            memo=f'Payment for {expense.description}'
+        )
+        journal_entry.lines.append(credit_line)
+
+        journal_entry.total_amount = expense.amount
+
+        db.session.add(journal_entry)
+
+        # 更新费用单状态
+        expense.status = 'paid'
+        expense.journal_entry_id = journal_entry.id
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '费用单已确认并生成日记账分录'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"确认运营费用失败: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@ledger_blue.route('/operating-expenses/<int:expense_id>/cancel', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def operating_expense_cancel(expense_id):
+    """取消运营费用"""
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    expense = OperatingExpense.query.get_or_404(expense_id)
+
+    if expense.status == 'cancelled':
+        return jsonify({'success': False, 'message': '费用单已取消'})
+
+    try:
+        expense.status = 'cancelled'
+        db.session.commit()
+        return jsonify({'success': True, 'message': '费用单已取消'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})

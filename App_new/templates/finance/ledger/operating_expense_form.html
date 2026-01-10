@@ -1,0 +1,281 @@
+{% extends "staff_base.html" %}
+
+{% block title %}{{ form_title }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}{{ form_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .expense-form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .expense-form-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 25px;
+    }
+
+    .section-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .section-title i {
+        color: #007bff;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="expense-form-container">
+    <div class="expense-form-card">
+        <form id="expenseForm">
+            <!-- 基本信息 -->
+            <div class="section-title">
+                <i class="fas fa-info-circle"></i>Basic Information 基本信息
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Expense Date 费用日期 <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="expense_date" id="expense_date"
+                           value="{{ expense.expense_date.isoformat() if expense and expense.expense_date else today }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Expense Account 费用科目 <span class="text-danger">*</span></label>
+                    <select class="form-select" name="expense_account_id" id="expense_account_id" required>
+                        <option value="">-- Select Account 选择科目 --</option>
+                        {% for account in expense_accounts %}
+                        <option value="{{ account.id }}"
+                                {% if expense and expense.expense_account_id == account.id %}selected{% endif %}>
+                            {{ account.code }} - {{ account.name }}{% if account.name_cn %} ({{ account.name_cn }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Currency 货币</label>
+                    <select class="form-select" name="currency" id="currency">
+                        <option value="SGD" {% if not expense or expense.currency == 'SGD' %}selected{% endif %}>SGD</option>
+                        <option value="USD" {% if expense and expense.currency == 'USD' %}selected{% endif %}>USD</option>
+                        <option value="CNY" {% if expense and expense.currency == 'CNY' %}selected{% endif %}>CNY</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Amount 金额 <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" name="amount" id="amount"
+                           step="0.01" min="0" placeholder="0.00"
+                           value="{{ expense.amount if expense else '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Description 费用描述 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="description" id="description"
+                           placeholder="e.g. Office rent for January 一月份办公室租金"
+                           value="{{ expense.description if expense else '' }}" required>
+                </div>
+            </div>
+
+            <!-- 付款信息 -->
+            <div class="section-title mt-4">
+                <i class="fas fa-credit-card"></i>Payment Information 付款信息
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Payment Method 付款方式</label>
+                    <select class="form-select" name="payment_method" id="payment_method">
+                        <option value="bank_transfer" {% if not expense or expense.payment_method == 'bank_transfer' %}selected{% endif %}>Bank Transfer 银行转账</option>
+                        <option value="cash" {% if expense and expense.payment_method == 'cash' %}selected{% endif %}>Cash 现金</option>
+                        <option value="cheque" {% if expense and expense.payment_method == 'cheque' %}selected{% endif %}>Cheque 支票</option>
+                        <option value="credit_card" {% if expense and expense.payment_method == 'credit_card' %}selected{% endif %}>Credit Card 信用卡</option>
+                        <option value="other" {% if expense and expense.payment_method == 'other' %}selected{% endif %}>Other 其他</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Bank Account 付款账户</label>
+                    <select class="form-select" name="bank_account_id" id="bank_account_id">
+                        <option value="">-- Select Account 选择账户 --</option>
+                        {% for account in bank_accounts %}
+                        <option value="{{ account.id }}"
+                                {% if expense and expense.bank_account_id == account.id %}selected{% endif %}>
+                            {{ account.code }} - {{ account.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Payment Reference 付款参考号</label>
+                    <input type="text" class="form-control" name="payment_reference" id="payment_reference"
+                           placeholder="e.g. TT-202601100001"
+                           value="{{ expense.payment_reference if expense else '' }}">
+                </div>
+            </div>
+
+            <!-- 收款方信息 -->
+            <div class="section-title mt-4">
+                <i class="fas fa-user"></i>Payee Information 收款方信息
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Payee Name 收款方名称</label>
+                    <input type="text" class="form-control" name="payee_name" id="payee_name"
+                           placeholder="e.g. ABC Property Pte Ltd"
+                           value="{{ expense.payee_name if expense else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Payee Account 收款方账号</label>
+                    <input type="text" class="form-control" name="payee_account" id="payee_account"
+                           placeholder="e.g. 123-456-789"
+                           value="{{ expense.payee_account if expense else '' }}">
+                </div>
+            </div>
+
+            <!-- 备注 -->
+            <div class="section-title mt-4">
+                <i class="fas fa-sticky-note"></i>Remarks 备注
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-12">
+                    <textarea class="form-control" name="remarks" id="remarks" rows="3"
+                              placeholder="Optional remarks 可选备注...">{{ expense.remarks if expense else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                <a href="{{ url_for('ledger_routes.operating_expense_list') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Cancel 取消
+                </a>
+                <div>
+                    <button type="button" class="btn btn-primary" onclick="saveExpense()">
+                        <i class="fas fa-save"></i> Save 保存
+                    </button>
+                    {% if not expense %}
+                    <button type="button" class="btn btn-success" onclick="saveAndConfirm()">
+                        <i class="fas fa-check"></i> Save & Confirm 保存并确认
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function collectFormData() {
+    return {
+        expense_date: document.getElementById('expense_date').value,
+        expense_account_id: document.getElementById('expense_account_id').value,
+        amount: document.getElementById('amount').value,
+        currency: document.getElementById('currency').value,
+        payment_method: document.getElementById('payment_method').value,
+        bank_account_id: document.getElementById('bank_account_id').value,
+        payment_reference: document.getElementById('payment_reference').value,
+        payee_name: document.getElementById('payee_name').value,
+        payee_account: document.getElementById('payee_account').value,
+        description: document.getElementById('description').value,
+        remarks: document.getElementById('remarks').value
+    };
+}
+
+function validateForm() {
+    const data = collectFormData();
+    if (!data.expense_date) {
+        alert('请选择费用日期');
+        return false;
+    }
+    if (!data.expense_account_id) {
+        alert('请选择费用科目');
+        return false;
+    }
+    if (!data.amount || parseFloat(data.amount) <= 0) {
+        alert('请输入有效金额');
+        return false;
+    }
+    if (!data.description) {
+        alert('请输入费用描述');
+        return false;
+    }
+    return true;
+}
+
+function saveExpense() {
+    if (!validateForm()) return;
+
+    const data = collectFormData();
+    const url = {% if expense %}'{{ url_for("ledger_routes.operating_expense_edit", expense_id=expense.id) }}'{% else %}'{{ url_for("ledger_routes.operating_expense_add") }}'{% endif %};
+
+    fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            {% if expense %}
+            window.location.href = '{{ url_for("ledger_routes.operating_expense_detail", expense_id=expense.id) }}';
+            {% else %}
+            window.location.href = `/ledger/operating-expenses/${result.expense_id}`;
+            {% endif %}
+        } else {
+            alert('Failed: ' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+
+function saveAndConfirm() {
+    if (!validateForm()) return;
+
+    const data = collectFormData();
+
+    // 先保存
+    fetch('{{ url_for("ledger_routes.operating_expense_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // 再确认
+            return fetch(`/ledger/operating-expenses/${result.expense_id}/confirm`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }).then(r => r.json()).then(confirmResult => {
+                if (confirmResult.success) {
+                    alert('费用单已保存并确认！');
+                    window.location.href = `/ledger/operating-expenses/${result.expense_id}`;
+                } else {
+                    alert('保存成功但确认失败: ' + confirmResult.message);
+                    window.location.href = `/ledger/operating-expenses/${result.expense_id}`;
+                }
+            });
+        } else {
+            alert('保存失败: ' + result.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
+{% endblock %}

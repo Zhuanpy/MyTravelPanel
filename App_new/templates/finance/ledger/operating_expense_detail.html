@@ -1,0 +1,275 @@
+{% extends "staff_base.html" %}
+
+{% block title %}{{ expense.expense_number }} - Operating Expense{% endblock %}
+
+{% block page_title %}Operating Expense Detail 运营费用详情{% endblock %}
+
+{% block extra_css %}
+<style>
+    .expense-detail-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .expense-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+
+    .expense-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 20px;
+    }
+
+    .expense-number {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .expense-status {
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .status-draft { background-color: #fff3cd; color: #856404; }
+    .status-confirmed { background-color: #d1ecf1; color: #0c5460; }
+    .status-paid { background-color: #d4edda; color: #155724; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+
+    .info-section {
+        margin-bottom: 25px;
+    }
+
+    .info-section h5 {
+        font-size: 1em;
+        font-weight: 600;
+        color: #666;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .info-section h5 i {
+        color: #007bff;
+        margin-right: 8px;
+    }
+
+    .info-row {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: 1px solid #f5f5f5;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        width: 180px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .info-value {
+        flex: 1;
+        color: #333;
+    }
+
+    .amount-display {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #28a745;
+    }
+
+    .journal-link {
+        background-color: #e3f2fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .journal-link a {
+        color: #1976d2;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="expense-detail-container">
+    <!-- Header Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('ledger_routes.operating_expense_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List 返回列表
+        </a>
+        <div>
+            {% if expense.status == 'draft' %}
+            <a href="{{ url_for('ledger_routes.operating_expense_edit', expense_id=expense.id) }}"
+               class="btn btn-secondary">
+                <i class="fas fa-edit"></i> Edit 编辑
+            </a>
+            <button type="button" class="btn btn-success" onclick="confirmExpense()">
+                <i class="fas fa-check"></i> Confirm 确认
+            </button>
+            <button type="button" class="btn btn-danger" onclick="cancelExpense()">
+                <i class="fas fa-times"></i> Cancel 取消
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="expense-card">
+        <!-- Header -->
+        <div class="expense-header">
+            <div>
+                <div class="expense-number">{{ expense.expense_number }}</div>
+                <div class="text-muted">{{ expense.expense_date.strftime('%Y-%m-%d') if expense.expense_date else '-' }}</div>
+            </div>
+            <div class="text-end">
+                <span class="expense-status status-{{ expense.status }}">
+                    {{ expense.status_display }}
+                </span>
+                <div class="amount-display mt-2">{{ expense.formatted_amount }}</div>
+            </div>
+        </div>
+
+        <!-- Expense Info -->
+        <div class="info-section">
+            <h5><i class="fas fa-info-circle"></i>Expense Information 费用信息</h5>
+            <div class="info-row">
+                <div class="info-label">Expense Account 费用科目:</div>
+                <div class="info-value">
+                    <span class="text-primary">{{ expense.expense_account.code }}</span>
+                    {{ expense.expense_account.name }}
+                    {% if expense.expense_account.name_cn %}({{ expense.expense_account.name_cn }}){% endif %}
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Description 描述:</div>
+                <div class="info-value">{{ expense.description }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Amount 金额:</div>
+                <div class="info-value"><strong>{{ expense.formatted_amount }}</strong></div>
+            </div>
+        </div>
+
+        <!-- Payment Info -->
+        <div class="info-section">
+            <h5><i class="fas fa-credit-card"></i>Payment Information 付款信息</h5>
+            <div class="info-row">
+                <div class="info-label">Payment Method 付款方式:</div>
+                <div class="info-value">{{ expense.payment_method_display }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Bank Account 付款账户:</div>
+                <div class="info-value">
+                    {% if expense.bank_account %}
+                    {{ expense.bank_account.code }} - {{ expense.bank_account.name }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Payment Reference 付款参考号:</div>
+                <div class="info-value">{{ expense.payment_reference or '-' }}</div>
+            </div>
+        </div>
+
+        <!-- Payee Info -->
+        <div class="info-section">
+            <h5><i class="fas fa-user"></i>Payee Information 收款方信息</h5>
+            <div class="info-row">
+                <div class="info-label">Payee Name 收款方名称:</div>
+                <div class="info-value">{{ expense.payee_name or '-' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Payee Account 收款方账号:</div>
+                <div class="info-value">{{ expense.payee_account or '-' }}</div>
+            </div>
+        </div>
+
+        <!-- Remarks -->
+        {% if expense.remarks %}
+        <div class="info-section">
+            <h5><i class="fas fa-sticky-note"></i>Remarks 备注</h5>
+            <div class="p-3 bg-light rounded">{{ expense.remarks }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Journal Entry Link -->
+        {% if expense.journal_entry_id %}
+        <div class="journal-link">
+            <i class="fas fa-book text-primary me-2"></i>
+            <strong>Journal Entry 日记账分录:</strong>
+            <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=expense.journal_entry_id) }}">
+                {{ expense.journal_entry.entry_number if expense.journal_entry else '#' + expense.journal_entry_id|string }}
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Meta Info -->
+        <div class="info-section mt-4 pt-3 border-top">
+            <div class="row text-muted small">
+                <div class="col-md-6">
+                    <div>Created 创建: {{ expense.created_at.strftime('%Y-%m-%d %H:%M') if expense.created_at else '-' }}</div>
+                    <div>Created by 创建人: {{ expense.created_by or '-' }}</div>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div>Updated 更新: {{ expense.updated_at.strftime('%Y-%m-%d %H:%M') if expense.updated_at else '-' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmExpense() {
+    if (confirm('确认此费用单？确认后将生成日记账分录。\nConfirm this expense? A journal entry will be created.')) {
+        fetch('{{ url_for("ledger_routes.operating_expense_confirm", expense_id=expense.id) }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+
+function cancelExpense() {
+    if (confirm('确定要取消此费用单吗？\nAre you sure you want to cancel this expense?')) {
+        fetch('{{ url_for("ledger_routes.operating_expense_cancel", expense_id=expense.id) }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

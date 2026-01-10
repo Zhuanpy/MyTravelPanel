@@ -1,0 +1,228 @@
+{% extends "staff_base.html" %}
+
+{% block title %}Operating Expenses - MyTravelPanel{% endblock %}
+
+{% block page_title %}Operating Expenses 运营费用{% endblock %}
+
+{% block extra_css %}
+<style>
+    .expense-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .stats-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        flex: 1;
+        background: white;
+        border-radius: 8px;
+        padding: 15px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .stat-card .stat-label {
+        font-size: 0.85em;
+        color: #666;
+    }
+
+    .stat-card.total { border-top: 3px solid #6c757d; }
+    .stat-card.draft { border-top: 3px solid #ffc107; }
+    .stat-card.confirmed { border-top: 3px solid #17a2b8; }
+    .stat-card.paid { border-top: 3px solid #28a745; }
+
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .expense-table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .expense-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+
+    .status-draft { background-color: #fff3cd; color: #856404; }
+    .status-confirmed { background-color: #d1ecf1; color: #0c5460; }
+    .status-paid { background-color: #d4edda; color: #155724; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="expense-container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Operating Expenses 运营费用</h2>
+            <p class="text-muted mb-0">管理日常运营支出（租金、工资、水电等）</p>
+        </div>
+        <a href="{{ url_for('ledger_routes.operating_expense_add') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Expense 添加费用
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card total">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">Total 总计</div>
+        </div>
+        <div class="stat-card draft">
+            <div class="stat-value">{{ stats.draft }}</div>
+            <div class="stat-label">Draft 草稿</div>
+        </div>
+        <div class="stat-card confirmed">
+            <div class="stat-value">{{ stats.confirmed }}</div>
+            <div class="stat-label">Confirmed 已确认</div>
+        </div>
+        <div class="stat-card paid">
+            <div class="stat-value">{{ stats.paid }}</div>
+            <div class="stat-label">Paid 已付款</div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-section">
+        <form class="row g-3 align-items-end" method="GET">
+            <div class="col-md-2">
+                <label class="form-label">Status 状态</label>
+                <select class="form-select" name="status">
+                    <option value="">All 全部</option>
+                    <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>Draft 草稿</option>
+                    <option value="confirmed" {% if current_status == 'confirmed' %}selected{% endif %}>Confirmed 已确认</option>
+                    <option value="paid" {% if current_status == 'paid' %}selected{% endif %}>Paid 已付款</option>
+                    <option value="cancelled" {% if current_status == 'cancelled' %}selected{% endif %}>Cancelled 已取消</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Start Date 开始日期</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">End Date 结束日期</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Filter 筛选
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="expense-table-container">
+        <table class="table table-hover expense-table mb-0">
+            <thead>
+                <tr>
+                    <th>Expense No. 费用单号</th>
+                    <th>Date 日期</th>
+                    <th>Account 科目</th>
+                    <th>Description 描述</th>
+                    <th>Payee 收款方</th>
+                    <th class="text-end">Amount 金额</th>
+                    <th>Status 状态</th>
+                    <th>Actions 操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('ledger_routes.operating_expense_detail', expense_id=expense.id) }}">
+                            {{ expense.expense_number }}
+                        </a>
+                    </td>
+                    <td>{{ expense.expense_date.strftime('%Y-%m-%d') if expense.expense_date else '-' }}</td>
+                    <td>
+                        <span class="text-muted">{{ expense.expense_account.code }}</span>
+                        {{ expense.expense_account.name if expense.expense_account else '-' }}
+                    </td>
+                    <td>{{ expense.description[:30] }}{% if expense.description|length > 30 %}...{% endif %}</td>
+                    <td>{{ expense.payee_name or '-' }}</td>
+                    <td class="text-end">{{ expense.formatted_amount }}</td>
+                    <td>
+                        <span class="status-badge status-{{ expense.status }}">
+                            {{ expense.status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('ledger_routes.operating_expense_detail', expense_id=expense.id) }}"
+                               class="btn btn-outline-primary" title="View 查看">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if expense.status == 'draft' %}
+                            <a href="{{ url_for('ledger_routes.operating_expense_edit', expense_id=expense.id) }}"
+                               class="btn btn-outline-secondary" title="Edit 编辑">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-success"
+                                    onclick="confirmExpense({{ expense.id }})" title="Confirm 确认">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                        No expenses found 没有找到费用记录
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function confirmExpense(id) {
+    if (confirm('确认此费用单？确认后将生成日记账分录。')) {
+        fetch(`/ledger/operating-expenses/${id}/confirm`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed: ' + data.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

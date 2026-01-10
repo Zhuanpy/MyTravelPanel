@@ -10,6 +10,9 @@ from .statement import BankStatement, BankTransaction, SupplierStatement, Suppli
 from .chart_of_account import ChartOfAccount
 from .journal_entry import JournalEntry, JournalEntryLine
 
+# 运营费用模型
+from .operating_expense import OperatingExpense
+
 __all__ = [
     # 收款相关模型
     # 对账相关模型
@@ -21,4 +24,6 @@ __all__ = [
     'ChartOfAccount',
     'JournalEntry',
     'JournalEntryLine',
+    # 运营费用
+    'OperatingExpense',
 ]
