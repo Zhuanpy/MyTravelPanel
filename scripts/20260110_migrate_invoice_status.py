@@ -1,102 +1,109 @@
 # -*- coding: utf-8 -*-
 """
-独立发票状态迁移脚本 - 不依赖 Flask 应用
-直接运行: py scripts/migrate_invoice_standalone.py
+发票状态迁移脚本 - 使用 Flask 应用配置
 """
 
-import pymysql
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 数据库配置
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': '***REMOVED***',
-    'database': 'travelindustry',
-    'charset': 'utf8mb4'
-}
+from App_new import create_app
+from App_new.exts import db
+from sqlalchemy import text
+
 
 def run_migration():
     print('=' * 50)
-    print('发票状态迁移 (独立脚本)')
+    print('发票状态迁移')
     print('=' * 50)
-
-    conn = pymysql.connect(**DB_CONFIG)
-    cursor = conn.cursor()
 
     try:
         # 0. 检查当前状态
         print('\n0. 检查当前数据状态...')
-        cursor.execute("SELECT status, COUNT(*) FROM project_invoices GROUP BY status")
-        rows = cursor.fetchall()
+        result = db.session.execute(text("SELECT status, COUNT(*) FROM project_invoices GROUP BY status"))
+        rows = result.fetchall()
         print('   当前 status 分布:')
         for row in rows:
             print(f'     {row[0]}: {row[1]} 条')
 
-        # 1. 先恢复 status 列为包含所有值的 ENUM（临时）
-        print('\n1. 临时扩展 status ENUM 类型...')
-        try:
-            cursor.execute(
-                "ALTER TABLE project_invoices MODIFY COLUMN status ENUM('draft', 'sent', 'paid', 'partial_paid', 'overdue', 'cancelled', 'confirmed') DEFAULT 'confirmed' NOT NULL"
-            )
-            conn.commit()
-            print('   status 列已扩展')
-        except Exception as e:
-            print(f'   警告: {e}')
+        # 1. 检查 payment_status 列是否存在
+        print('\n1. 检查 payment_status 列...')
+        check_sql = """
+        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'project_invoices'
+        AND COLUMN_NAME = 'payment_status'
+        """
+        result = db.session.execute(text(check_sql))
+        has_payment_status = result.fetchone() is not None
 
-        # 2. 添加 payment_status 列
-        print('\n2. 添加 payment_status 列...')
-        try:
-            cursor.execute(
+        if not has_payment_status:
+            print('   添加 payment_status 列...')
+            db.session.execute(text(
                 "ALTER TABLE project_invoices ADD COLUMN payment_status ENUM('unpaid', 'partial_paid', 'paid') DEFAULT 'unpaid' NOT NULL AFTER status"
-            )
-            conn.commit()
-            print('   payment_status 列已添加')
-        except pymysql.err.OperationalError as e:
-            if 'Duplicate column' in str(e):
-                print('   payment_status 列已存在')
-            else:
-                raise e
+            ))
+            db.session.commit()
+            print('   -> payment_status 列已添加')
+        else:
+            print('   -> payment_status 列已存在')
 
-        # 3. 迁移现有数据的 payment_status
-        print('\n3. 迁移 payment_status 数据...')
+        # 2. 检查当前 status 列的 ENUM 值
+        print('\n2. 检查 status 列的 ENUM 值...')
+        check_enum_sql = """
+        SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'project_invoices'
+        AND COLUMN_NAME = 'status'
+        """
+        result = db.session.execute(text(check_enum_sql))
+        enum_type = result.fetchone()[0]
+        print(f'   当前 status 类型: {enum_type}')
 
-        # draft, sent, overdue -> 设置 payment_status 为 unpaid
-        cursor.execute("UPDATE project_invoices SET payment_status='unpaid' WHERE status IN ('draft', 'sent', 'overdue')")
-        print(f'   设置 unpaid: {cursor.rowcount} 条')
+        # 如果 status 包含旧的值，需要迁移
+        if 'draft' in enum_type or 'sent' in enum_type or 'paid' in enum_type or 'overdue' in enum_type:
+            print('\n3. 迁移 payment_status 数据...')
 
-        # partial_paid -> 设置 payment_status 为 partial_paid
-        cursor.execute("UPDATE project_invoices SET payment_status='partial_paid' WHERE status='partial_paid'")
-        print(f'   设置 partial_paid: {cursor.rowcount} 条')
+            # 临时扩展 ENUM 类型（如果需要）
+            if 'confirmed' not in enum_type:
+                db.session.execute(text(
+                    "ALTER TABLE project_invoices MODIFY COLUMN status ENUM('draft', 'sent', 'paid', 'partial_paid', 'overdue', 'cancelled', 'confirmed') DEFAULT 'confirmed' NOT NULL"
+                ))
+                db.session.commit()
 
-        # paid -> 设置 payment_status 为 paid
-        cursor.execute("UPDATE project_invoices SET payment_status='paid' WHERE status='paid'")
-        print(f'   设置 paid: {cursor.rowcount} 条')
+            # draft, sent, overdue -> unpaid
+            result = db.session.execute(text("UPDATE project_invoices SET payment_status='unpaid' WHERE status IN ('draft', 'sent', 'overdue')"))
+            print(f'   设置 unpaid: {result.rowcount} 条')
 
-        conn.commit()
-        print('   payment_status 迁移完成')
+            # partial_paid -> partial_paid
+            result = db.session.execute(text("UPDATE project_invoices SET payment_status='partial_paid' WHERE status='partial_paid'"))
+            print(f'   设置 partial_paid: {result.rowcount} 条')
 
-        # 4. 将所有非 cancelled 的 status 改为 confirmed
-        print('\n4. 更新 status 值为 confirmed...')
-        cursor.execute("UPDATE project_invoices SET status='confirmed' WHERE status NOT IN ('confirmed', 'cancelled')")
-        print(f'   更新为 confirmed: {cursor.rowcount} 条')
-        conn.commit()
+            # paid -> paid
+            result = db.session.execute(text("UPDATE project_invoices SET payment_status='paid' WHERE status='paid'"))
+            print(f'   设置 paid: {result.rowcount} 条')
 
-        # 5. 修改 status 列的 ENUM 类型为最终版本
-        print('\n5. 修改 status 列为最终 ENUM 类型...')
-        try:
-            cursor.execute(
+            db.session.commit()
+
+            # 4. 将所有非 cancelled 的 status 改为 confirmed
+            print('\n4. 更新 status 值为 confirmed...')
+            result = db.session.execute(text("UPDATE project_invoices SET status='confirmed' WHERE status NOT IN ('confirmed', 'cancelled')"))
+            print(f'   更新为 confirmed: {result.rowcount} 条')
+            db.session.commit()
+
+            # 5. 修改 status 列的 ENUM 类型为最终版本
+            print('\n5. 修改 status 列为最终 ENUM 类型...')
+            db.session.execute(text(
                 "ALTER TABLE project_invoices MODIFY COLUMN status ENUM('confirmed', 'cancelled') DEFAULT 'confirmed' NOT NULL"
-            )
-            conn.commit()
-            print('   status 列已更新为新的 ENUM 类型')
-        except Exception as e:
-            print(f'   警告: {e}')
+            ))
+            db.session.commit()
+            print('   -> status 列已更新')
+        else:
+            print('\n3. status 列已经是新格式，跳过迁移')
 
         # 6. 验证结果
         print('\n6. 验证结果...')
-        cursor.execute('SELECT status, payment_status, COUNT(*) as cnt FROM project_invoices GROUP BY status, payment_status')
-        rows = cursor.fetchall()
+        result = db.session.execute(text('SELECT status, payment_status, COUNT(*) as cnt FROM project_invoices GROUP BY status, payment_status'))
+        rows = result.fetchall()
         print('   当前状态分布:')
         for row in rows:
             print(f'     status={row[0]}, payment_status={row[1]}: {row[2]} 条')
@@ -107,11 +114,11 @@ def run_migration():
 
     except Exception as e:
         print(f'\n错误: {e}')
-        conn.rollback()
+        db.session.rollback()
         raise
-    finally:
-        cursor.close()
-        conn.close()
+
 
 if __name__ == '__main__':
-    run_migration()
+    app = create_app()
+    with app.app_context():
+        run_migration()
