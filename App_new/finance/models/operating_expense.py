@@ -50,10 +50,21 @@ class OperatingExpense(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
 
-    # 关联关系
-    expense_account = db.relationship('ChartOfAccount', foreign_keys=[expense_account_id], backref='operating_expenses')
-    bank_account = db.relationship('ChartOfAccount', foreign_keys=[bank_account_id])
-    journal_entry = db.relationship('JournalEntry', backref='operating_expense')
+    # 关联关系 - 使用字符串形式指定外键，避免循环引用问题
+    expense_account = db.relationship(
+        'ChartOfAccount',
+        foreign_keys='OperatingExpense.expense_account_id',
+        backref=db.backref('expense_records', lazy='dynamic')
+    )
+    bank_account = db.relationship(
+        'ChartOfAccount',
+        foreign_keys='OperatingExpense.bank_account_id',
+        backref=db.backref('bank_expense_records', lazy='dynamic')
+    )
+    journal_entry = db.relationship(
+        'JournalEntry',
+        backref=db.backref('operating_expense_record', uselist=False)
+    )
 
     def __repr__(self):
         return f'<OperatingExpense {self.expense_number}: {self.amount} {self.currency}>'
