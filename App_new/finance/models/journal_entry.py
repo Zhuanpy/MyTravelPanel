@@ -347,6 +347,64 @@ class JournalEntry(db.Model):
         entry.total_amount = eo.pay_amount
         return entry
 
+    @classmethod
+    def create_from_eo_with_prepayment(cls, eo, prepayment_account_id, user=None):
+        """从EO付款创建分录（使用预付账款）
+        借: 成本费用
+        贷: 预付账款
+        """
+        from .chart_of_account import ChartOfAccount
+
+        if not eo.pay_amount:
+            return None
+
+        entry = cls(
+            entry_number=cls._generate_entry_number(),
+            entry_date=eo.paid_date or date.today(),
+            source_type='eo',
+            source_id=eo.id,
+            source_number=eo.eo_number,
+            header_id=eo.ref.header_id if eo.ref else None,
+            description=f'EO Payment (Prepayment) {eo.eo_number}',
+            currency=eo.ref.currency if eo.ref else 'SGD',
+            created_by=user
+        )
+
+        # 成本费用 (借)
+        cost_account = ChartOfAccount.get_by_code('5100')  # 默认销售成本
+        if cost_account:
+            entry.lines.append(JournalEntryLine(
+                line_no=1,
+                account_id=cost_account.id,
+                debit=eo.pay_amount,
+                credit=Decimal('0'),
+                memo=f'Cost for EO {eo.eo_number}'
+            ))
+
+        # 预付账款 (贷) - 使用传入的预付账款科目
+        if prepayment_account_id:
+            entry.lines.append(JournalEntryLine(
+                line_no=2,
+                account_id=prepayment_account_id,
+                debit=Decimal('0'),
+                credit=eo.pay_amount,
+                memo=f'Prepayment used for EO {eo.eo_number}'
+            ))
+        else:
+            # 如果没有指定预付账款科目，使用默认的1201
+            prepayment_account = ChartOfAccount.get_by_code('1201')
+            if prepayment_account:
+                entry.lines.append(JournalEntryLine(
+                    line_no=2,
+                    account_id=prepayment_account.id,
+                    debit=Decimal('0'),
+                    credit=eo.pay_amount,
+                    memo=f'Prepayment used for EO {eo.eo_number}'
+                ))
+
+        entry.total_amount = eo.pay_amount
+        return entry
+
 
 class JournalEntryLine(db.Model):
     """日记账分录明细"""

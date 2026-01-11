@@ -700,20 +700,20 @@ def pay_eo(eo_id):
     """付款给供应商"""
     try:
         eo = ProjectEO.query.get_or_404(eo_id)
-        
+
         # 员工等级权限检查
         from App_new.business.projects.models.project import ProjectHeader
         header = ProjectHeader.query.get(eo.ref.header_id)
         if header and not can_access_project(header, current_user):
             return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
-        
+
         # 检查状态
         if eo.status == 'void':
             return jsonify({'success': False, 'message': '此EO已作废，无法付款'}), 400
-        
+
         if eo.status == 'paid':
             return jsonify({'success': False, 'message': '此EO已付款'}), 400
-        
+
         # 获取请求数据
         data = request.get_json()
         payment_no = data.get('payment_no')
@@ -721,13 +721,51 @@ def pay_eo(eo_id):
         paid_date_str = data.get('paid_date')
         pay_amount = data.get('pay_amount')
         payment_remarks = data.get('payment_remarks', '')
+        payment_source = data.get('payment_source', 'bank')  # bank 或 prepayment
+        prepayment_id = data.get('prepayment_id')
 
         if not payment_no or not paid_date_str or pay_amount is None:
             return jsonify({'success': False, 'message': '请填写完整的付款信息'}), 400
 
         # 解析日期
         from datetime import datetime
+        from decimal import Decimal
         paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
+        pay_amount_decimal = Decimal(str(pay_amount))
+
+        # 如果使用预付账款付款
+        prepayment_usage = None
+        if payment_source == 'prepayment':
+            if not prepayment_id:
+                return jsonify({'success': False, 'message': '请选择预付账款'}), 400
+
+            from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+            prepayment = SupplierPrepayment.query.get(prepayment_id)
+
+            if not prepayment:
+                return jsonify({'success': False, 'message': '预付账款不存在'}), 400
+
+            if prepayment.status not in ('confirmed', 'partial_used'):
+                return jsonify({'success': False, 'message': '该预付账款状态不允许使用'}), 400
+
+            if pay_amount_decimal > prepayment.balance_amount:
+                return jsonify({'success': False, 'message': f'付款金额超过预付余额 {prepayment.balance_amount}'}), 400
+
+            # 创建预付款使用记录
+            prepayment_usage = PrepaymentUsage(
+                prepayment_id=prepayment_id,
+                eo_id=eo.id,
+                amount=pay_amount_decimal,
+                usage_date=paid_date,
+                description=f'EO付款 {eo.eo_number}',
+                status='confirmed',
+                created_by=current_user.username if current_user else None
+            )
+            db.session.add(prepayment_usage)
+
+            # 扣减预付余额
+            prepayment.balance_amount -= pay_amount_decimal
+            prepayment.update_status()
 
         # 更新付款信息
         eo.payment_no = payment_no
@@ -737,18 +775,30 @@ def pay_eo(eo_id):
         eo.payment_remarks = payment_remarks
         eo.status = 'paid'
 
-        # 自动创建日记账分录（借：成本费用，贷：银行存款）
+        # 自动创建日记账分录
         journal_entry = None
         try:
             from App_new.finance.models.journal_entry import JournalEntry
-            journal_entry = JournalEntry.create_from_eo(
-                eo,
-                user=current_user.username if current_user else None
-            )
+            if payment_source == 'prepayment' and prepayment:
+                # 使用预付款：借-成本费用 贷-预付账款
+                journal_entry = JournalEntry.create_from_eo_with_prepayment(
+                    eo,
+                    prepayment_account_id=prepayment.prepayment_account_id,
+                    user=current_user.username if current_user else None
+                )
+            else:
+                # 银行付款：借-成本费用 贷-银行存款
+                journal_entry = JournalEntry.create_from_eo(
+                    eo,
+                    user=current_user.username if current_user else None
+                )
             if journal_entry and journal_entry.lines:
                 db.session.add(journal_entry)
                 # 自动过账
                 journal_entry.post(user=current_user.username if current_user else None)
+                # 关联日记账到预付款使用记录
+                if prepayment_usage:
+                    prepayment_usage.journal_entry_id = journal_entry.id
         except Exception as je_error:
             # 日记账创建失败不影响EO付款
             import logging
@@ -757,6 +807,8 @@ def pay_eo(eo_id):
         db.session.commit()
 
         message = f'EO {eo.eo_number} 付款成功'
+        if payment_source == 'prepayment':
+            message += f'（使用预付账款）'
         if journal_entry:
             message += f'，已生成日记账 {journal_entry.entry_number}'
 
@@ -764,7 +816,7 @@ def pay_eo(eo_id):
             'success': True,
             'message': message
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

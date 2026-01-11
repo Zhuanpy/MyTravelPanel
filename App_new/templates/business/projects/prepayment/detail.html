@@ -154,10 +154,16 @@
                                 <td class="text-end text-danger">-{{ "%.2f"|format(usage.amount) }}</td>
                                 <td>{{ usage.description or '-' }}</td>
                                 <td>
-                                    {% if usage.eo_id %}
-                                    <span class="badge bg-info">EO #{{ usage.eo_id }}</span>
-                                    {% elif usage.ref_id %}
-                                    <span class="badge bg-primary">REF #{{ usage.ref_id }}</span>
+                                    {% if usage.eo_id and usage.eo %}
+                                    <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=usage.eo_id) }}"
+                                       class="badge bg-info text-decoration-none">
+                                        {{ usage.eo.eo_number }}
+                                    </a>
+                                    {% elif usage.ref_id and usage.ref %}
+                                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=usage.ref_id) }}"
+                                       class="badge bg-primary text-decoration-none">
+                                        {{ usage.ref.ref_number }}
+                                    </a>
                                     {% else %}
                                     <span class="text-muted">-</span>
                                     {% endif %}

@@ -380,6 +380,28 @@
                 </div>
                 <hr class="my-2">
                 <div class="row g-2">
+                    <!-- 付款方式选择 -->
+                    <div class="col-12">
+                        <label class="form-label small mb-1">付款方式</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="payment_source" id="source_bank" value="bank" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="source_bank">
+                                <i class="fas fa-university me-1"></i>银行转账
+                            </label>
+                            <input type="radio" class="btn-check" name="payment_source" id="source_prepayment" value="prepayment">
+                            <label class="btn btn-outline-secondary btn-sm" for="source_prepayment">
+                                <i class="fas fa-wallet me-1"></i>预付账款
+                            </label>
+                        </div>
+                    </div>
+                    <!-- 预付账款选择（默认隐藏） -->
+                    <div class="col-12" id="prepayment_section" style="display:none;">
+                        <label class="form-label small mb-1">选择预付账款 *</label>
+                        <select class="form-select form-select-sm" id="prepayment_id">
+                            <option value="">-- 加载中... --</option>
+                        </select>
+                        <div class="small text-muted mt-1" id="prepayment_balance_info"></div>
+                    </div>
                     <div class="col-6">
                         <label class="form-label small mb-1">付款编号 *</label>
                         <div class="input-group input-group-sm">
@@ -414,14 +436,78 @@
 </div>
 
 <script>
+const supplierId = {{ eo.ref.supplier_id if eo.ref and eo.ref.supplier_id else 0 }};
+let prepaymentData = [];
+
 function generatePaymentNo() {
     fetch('{{ url_for("business_projects.project_eo.generate_payment_no") }}')
     .then(r => r.json()).then(d => { if(d.success) document.getElementById('payment_no').value = d.payment_no; });
 }
 
+// 加载供应商的预付账款
+function loadPrepayments() {
+    if (!supplierId) {
+        document.getElementById('prepayment_id').innerHTML = '<option value="">该供应商无预付账款</option>';
+        return;
+    }
+    fetch(`/projects/prepayment/api/supplier/${supplierId}/prepayments`)
+    .then(r => r.json())
+    .then(data => {
+        prepaymentData = data.data || [];
+        const select = document.getElementById('prepayment_id');
+        if (prepaymentData.length === 0) {
+            select.innerHTML = '<option value="">该供应商无可用预付账款</option>';
+            document.getElementById('prepayment_balance_info').textContent = '';
+        } else {
+            let options = '<option value="">-- 请选择 --</option>';
+            prepaymentData.forEach(p => {
+                options += `<option value="${p.id}">${p.prepayment_number} - 余额 ${p.balance_amount.toFixed(2)} ${p.currency}</option>`;
+            });
+            select.innerHTML = options;
+            document.getElementById('prepayment_balance_info').textContent =
+                `该供应商共有 ${prepaymentData.length} 笔预付款，总余额 ${data.total_balance.toFixed(2)}`;
+        }
+    })
+    .catch(err => {
+        document.getElementById('prepayment_id').innerHTML = '<option value="">加载失败</option>';
+    });
+}
+
+// 付款方式切换
+document.querySelectorAll('input[name="payment_source"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const section = document.getElementById('prepayment_section');
+        if (this.value === 'prepayment') {
+            section.style.display = 'block';
+            loadPrepayments();
+        } else {
+            section.style.display = 'none';
+        }
+    });
+});
+
+// 预付账款选择时显示余额
+document.getElementById('prepayment_id')?.addEventListener('change', function() {
+    const selected = prepaymentData.find(p => p.id == this.value);
+    if (selected) {
+        const payAmount = document.getElementById('pay_amount');
+        // 如果付款金额大于预付余额，提示
+        if (parseFloat(payAmount.value) > selected.balance_amount) {
+            document.getElementById('prepayment_balance_info').innerHTML =
+                `<span class="text-danger">付款金额超过预付余额 ${selected.balance_amount.toFixed(2)}！</span>`;
+        } else {
+            document.getElementById('prepayment_balance_info').textContent =
+                `可用余额: ${selected.balance_amount.toFixed(2)} ${selected.currency}`;
+        }
+    }
+});
+
 document.getElementById('payModal')?.addEventListener('show.bs.modal', function() {
     if(!document.getElementById('payment_no').value) generatePaymentNo();
     if(!document.getElementById('paid_date').value) document.getElementById('paid_date').value = new Date().toISOString().split('T')[0];
+    // 重置付款方式为银行转账
+    document.getElementById('source_bank').checked = true;
+    document.getElementById('prepayment_section').style.display = 'none';
 });
 
 function voidEO() {
@@ -433,13 +519,31 @@ function voidEO() {
 }
 
 function submitPayment() {
+    const paymentSource = document.querySelector('input[name="payment_source"]:checked').value;
     const d = {
         payment_no: document.getElementById('payment_no').value,
         payment_voucher_no: document.getElementById('payment_voucher_no').value,
         paid_date: document.getElementById('paid_date').value,
         pay_amount: parseFloat(document.getElementById('pay_amount').value),
-        payment_remarks: document.getElementById('payment_remarks').value
+        payment_remarks: document.getElementById('payment_remarks').value,
+        payment_source: paymentSource
     };
+
+    // 如果使用预付账款，需要选择预付账款
+    if (paymentSource === 'prepayment') {
+        d.prepayment_id = parseInt(document.getElementById('prepayment_id').value);
+        if (!d.prepayment_id) {
+            alert('请选择预付账款');
+            return;
+        }
+        // 检查余额是否足够
+        const selected = prepaymentData.find(p => p.id == d.prepayment_id);
+        if (selected && d.pay_amount > selected.balance_amount) {
+            alert(`付款金额超过预付余额 ${selected.balance_amount.toFixed(2)}！`);
+            return;
+        }
+    }
+
     if(!d.payment_no||!d.paid_date||!d.pay_amount){alert('请填写完整');return;}
     fetch('{{ url_for("business_projects.project_eo.pay_eo", eo_id=eo.id) }}', {
         method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token() }}'}, body:JSON.stringify(d)
