@@ -8,7 +8,6 @@ Supplier 别名保留用于向后兼容
 
 # 基础模型
 from .account import Account
-from .Accountsmodels import SupplierData
 from .business_types import BusinessType
 
 # Supplier 兼容层 - 实际指向 CustomerCompany
@@ -27,7 +26,6 @@ from .Utilsmodels import Todo, TodoChecklist, TodoChecklistItem
 __all__ = [
     # 基础模型
     'Account',
-    'SupplierData',
     'BusinessType',
     # 供应商兼容层（实际是 CustomerCompany）
     'Supplier',

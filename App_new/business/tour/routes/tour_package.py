@@ -7,7 +7,7 @@ from App_new.utils.decorators import staff_only
 from sqlalchemy.exc import SQLAlchemyError
 from App_new.exts import db
 from App_new.business.projects.forms.ProductForm import ProductForm
-from App_new.shared.models.Accountsmodels import SupplierData
+from App_new.business.projects.models.project import CustomerCompany
 from ..models.Packagemodels import Product, ProductCity
 from App_new.config import Config
 from pathlib import Path
@@ -381,7 +381,8 @@ def show_supplier_info(supplier_name=None):
     supplier_name = supplier_name or request.form.get('supplier_name')
     supplier = None
     if supplier_name:
-        supplier = SupplierData.query.filter_by(name=supplier_name).first()
+        # 使用 CustomerCompany 查询供应商（is_supplier=True）
+        supplier = CustomerCompany.query.filter_by(name=supplier_name, is_supplier=True).first()
     return render_template('shared/supplier/supplier_detail.html', supplier=supplier, supplier_name=supplier_name)
 
 
@@ -389,7 +390,8 @@ def show_supplier_info(supplier_name=None):
 @staff_only
 @package_blue.route('/edit_supplier_info/<supplier_name>', methods=['GET', 'POST'])
 def edit_supplier_info(supplier_name):
-    supplier = SupplierData.query.filter_by(name=supplier_name).first()
+    # 使用 CustomerCompany 查询供应商
+    supplier = CustomerCompany.query.filter_by(name=supplier_name, is_supplier=True).first()
     if not supplier:
         flash(f"供应商 '{supplier_name}' 不存在。", 'error')
         return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier_name))
@@ -425,18 +427,32 @@ def add_supplier_info(supplier_name):
         status = request.form.get('status')
         country = request.form.get('country')
         region = request.form.get('region')
-        rating = request.form.get('rating')
         notes = request.form.get('notes')
         if not address:
             flash('名称和地址是必填项', 'error')
             return redirect(url_for('package_routes.add_supplier_info', supplier_name=supplier_name))
-        new_supplier =SupplierData()
-        new_supplier.add_supplier(name=supplier_name, address=address,
-                                  contact_person=contact_person, contact_info=contact_info,
-                                  status=status, country=country,
-                                  region=region, rating=rating, notes=notes)
-        flash('新供应商添加成功！', 'success')
-        return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier_name))
+        try:
+            # 使用 CustomerCompany 创建新供应商
+            new_supplier = CustomerCompany(
+                name=supplier_name,
+                address=address,
+                contact_person=contact_person,
+                contact_info=contact_info,
+                status=status or 'active',
+                country=country,
+                region=region,
+                remarks=notes,
+                is_customer=False,
+                is_supplier=True
+            )
+            db.session.add(new_supplier)
+            db.session.commit()
+            flash('新供应商添加成功！', 'success')
+            return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier_name))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'添加失败：{str(e)}', 'error')
+            return redirect(url_for('package_routes.add_supplier_info', supplier_name=supplier_name))
     return render_template('shared/supplier/supplier_add.html', supplier_name=supplier_name)
 
 
