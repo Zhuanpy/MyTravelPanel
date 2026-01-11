@@ -1,0 +1,195 @@
+{% extends 'staff_base.html' %}
+{% block title %}预付账款管理{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
+<style>
+    .summary-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .summary-card .summary-item {
+        text-align: center;
+        padding: 10px;
+    }
+    .summary-card .summary-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .summary-card .summary-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    .progress-bar-usage {
+        height: 8px;
+        border-radius: 4px;
+    }
+    .badge-draft { background-color: #6c757d; }
+    .badge-confirmed { background-color: #28a745; }
+    .badge-partial_used { background-color: #17a2b8; }
+    .badge-consumed { background-color: #ffc107; color: #212529; }
+    .badge-cancelled { background-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">
+            <i class="fas fa-wallet me-2"></i>预付账款管理
+        </h4>
+        <a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>新增充值
+        </a>
+    </div>
+
+    <!-- 汇总卡片 -->
+    <div class="summary-card">
+        <div class="row">
+            <div class="col-md-4 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(total_amount) }}</div>
+                <div class="summary-label">总充值金额 (SGD)</div>
+            </div>
+            <div class="col-md-4 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(total_used) }}</div>
+                <div class="summary-label">已使用金额</div>
+            </div>
+            <div class="col-md-4 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(total_balance) }}</div>
+                <div class="summary-label">剩余可用</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="card mb-4">
+        <div class="card-body py-2">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <select name="supplier_id" class="form-select form-select-sm">
+                        <option value="">全部供应商</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.supplier_id }}" {% if selected_supplier_id == supplier.supplier_id %}selected{% endif %}>
+                            {{ supplier.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">全部状态</option>
+                        <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="confirmed" {% if selected_status == 'confirmed' %}selected{% endif %}>已确认</option>
+                        <option value="partial_used" {% if selected_status == 'partial_used' %}selected{% endif %}>部分使用</option>
+                        <option value="consumed" {% if selected_status == 'consumed' %}selected{% endif %}>已用完</option>
+                        <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>已取消</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-filter me-1"></i>筛选
+                    </button>
+                    <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 预付账款列表 -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>编号</th>
+                        <th>供应商</th>
+                        <th class="text-end">充值金额</th>
+                        <th class="text-end">已使用</th>
+                        <th class="text-end">剩余</th>
+                        <th>使用进度</th>
+                        <th>充值日期</th>
+                        <th>支付方式</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in prepayments %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=p.id) }}">
+                                {{ p.prepayment_number }}
+                            </a>
+                        </td>
+                        <td>{{ p.supplier.name if p.supplier else '-' }}</td>
+                        <td class="text-end">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
+                        <td class="text-end">{{ "%.2f"|format(p.used_amount) }}</td>
+                        <td class="text-end fw-bold">{{ "%.2f"|format(p.balance_amount) }}</td>
+                        <td style="width: 120px;">
+                            <div class="progress progress-bar-usage">
+                                <div class="progress-bar bg-info" style="width: {{ p.usage_percentage }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ p.usage_percentage }}%</small>
+                        </td>
+                        <td>{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '-' }}</td>
+                        <td>{{ p.payment_method_display }}</td>
+                        <td>
+                            <span class="badge badge-{{ p.status }}">{{ p.status_display }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=p.id) }}"
+                                   class="btn btn-outline-primary" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if p.status == 'draft' %}
+                                <button type="button" class="btn btn-outline-success"
+                                        onclick="confirmPrepayment({{ p.id }})" title="确认">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p class="mb-0">暂无预付账款记录</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmPrepayment(id) {
+    if (!confirm('确认此预付账款？确认后将生成会计分录。')) return;
+
+    fetch(`/projects/prepayment/${id}/confirm`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('操作失败: ' + data.message);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+</script>
+{% endblock %}
