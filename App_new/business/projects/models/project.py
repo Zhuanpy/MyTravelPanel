@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 class CustomerCompany(db.Model):
-    """客户公司模型"""
+    """公司模型 - 统一管理客户和供应商"""
     __tablename__ = 'customer_companies'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -28,12 +28,24 @@ class CustomerCompany(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
     legal_person = db.Column(db.String(100))
-    
+
     # 集团/关联标签（用于标识同一集团下的多个公司，如 BAONENG, ALIBABA 等）
     group_name = db.Column(db.String(100), nullable=True, comment='集团/关联标签')
 
+    # ========== 公司角色标识 ==========
+    is_customer = db.Column(db.Boolean, default=True, nullable=False, comment='是否为客户')
+    is_supplier = db.Column(db.Boolean, default=False, nullable=False, comment='是否为供应商')
+
+    # ========== 供应商专属字段 ==========
+    supplier_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=True, comment='供应商类型ID')
+    country = db.Column(db.String(50), nullable=True, comment='国家')
+    city = db.Column(db.String(50), nullable=True, comment='城市')
+    region = db.Column(db.String(50), nullable=True, comment='地区')
+
     # 关联项目
     projects = db.relationship('ProjectHeader', backref='company', lazy='dynamic')
+    # 供应商类型关联
+    supplier_type = db.relationship('BusinessType', foreign_keys=[supplier_type_id])
 
     def __repr__(self):
         return f'<CustomerCompany {self.company_name}>'
@@ -43,6 +55,23 @@ class CustomerCompany(db.Model):
         self.click_count = (self.click_count or 0) + 1
         self.last_clicked_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
+
+    @property
+    def supplier_type_display(self):
+        """获取供应商类型的显示名称"""
+        if self.supplier_type:
+            return self.supplier_type.name
+        return None
+
+    @property
+    def role_display(self):
+        """获取公司角色显示"""
+        roles = []
+        if self.is_customer:
+            roles.append('客户')
+        if self.is_supplier:
+            roles.append('供应商')
+        return ' / '.join(roles) if roles else '未设置'
 
     def to_dict(self):
         """转换为字典格式"""
@@ -65,7 +94,16 @@ class CustomerCompany(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
-            'group_name': self.group_name
+            'group_name': self.group_name,
+            # 新增字段
+            'is_customer': self.is_customer,
+            'is_supplier': self.is_supplier,
+            'supplier_type_id': self.supplier_type_id,
+            'supplier_type_display': self.supplier_type_display,
+            'country': self.country,
+            'city': self.city,
+            'region': self.region,
+            'role_display': self.role_display
         }
 
 

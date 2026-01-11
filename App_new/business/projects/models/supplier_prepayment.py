@@ -16,8 +16,9 @@ class SupplierPrepayment(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     prepayment_number = db.Column(db.String(30), unique=True, nullable=False, comment='预付编号')
 
-    # 关联供应商
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=False, comment='供应商ID')
+    # 关联公司（原 supplier_id，迁移后使用 company_id）
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID(废弃)')
+    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='公司ID')
 
     # 预付信息
     amount = db.Column(db.Numeric(12, 2), nullable=False, comment='充值金额')
@@ -56,9 +57,19 @@ class SupplierPrepayment(db.Model):
 
     # 关联关系
     supplier = db.relationship('Supplier', backref=db.backref('prepayments', lazy='dynamic'))
+    company = db.relationship('CustomerCompany', backref=db.backref('prepayments', lazy='dynamic'))
     bank_account = db.relationship('ChartOfAccount', foreign_keys=[bank_account_id])
     prepayment_account = db.relationship('ChartOfAccount', foreign_keys=[prepayment_account_id])
     usages = db.relationship('PrepaymentUsage', backref='prepayment', cascade='all, delete-orphan', lazy='dynamic')
+
+    @property
+    def company_name(self):
+        """获取公司名称（兼容新旧字段）"""
+        if self.company:
+            return self.company.company_name
+        elif self.supplier:
+            return self.supplier.name
+        return None
 
     def __repr__(self):
         return f'<SupplierPrepayment {self.prepayment_number}: {self.amount} {self.currency}>'

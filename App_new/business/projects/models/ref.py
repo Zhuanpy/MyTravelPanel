@@ -19,8 +19,9 @@ class ProjectRef(db.Model):
     ref_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=False, comment='REF类型ID')
     
 
-    # 供应商信息
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID')
+    # 供应商/公司信息（迁移后使用 company_id）
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID(废弃)')
+    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='供应商公司ID')
 
     # 价格信息
     selling_price = db.Column(db.Numeric(10, 2), nullable=True, comment='销售价格')
@@ -45,7 +46,17 @@ class ProjectRef(db.Model):
     eos = db.relationship('ProjectEO', back_populates='ref', cascade='all, delete-orphan', uselist=False)
     ref_type = db.relationship('BusinessType', backref='refs')
     supplier = db.relationship('Supplier', backref='refs')
+    supplier_company = db.relationship('CustomerCompany', backref='supplier_refs', foreign_keys=[company_id])
     items = db.relationship('RefOrderItem', backref='ref', cascade='all, delete-orphan')
+
+    @property
+    def supplier_name(self):
+        """获取供应商名称（兼容新旧字段）"""
+        if self.supplier_company:
+            return self.supplier_company.company_name
+        elif self.supplier:
+            return self.supplier.name
+        return None
 
     # 机票相关关联关系
     # flight_passengers = db.relationship('ProjectFlightPassenger', backref='ref', cascade='all, delete-orphan')  # 暂时注释掉
