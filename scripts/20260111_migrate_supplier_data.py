@@ -118,9 +118,9 @@ def main():
         skipped = 0
 
         for supplier in suppliers:
-            # 检查是否已存在同名公司
+            # 检查是否已存在同名公司（使用 company_name 列）
             cursor.execute("""
-                SELECT id FROM customer_companies WHERE name = %s
+                SELECT id FROM customer_companies WHERE company_name = %s
             """, (supplier['name'],))
             existing = cursor.fetchone()
 
@@ -137,11 +137,15 @@ def main():
                 print(f"  - 跳过（已存在）: {supplier['name']}")
             else:
                 # 不存在，插入新记录
+                # 字段映射：
+                # supplier_data.name → customer_companies.company_name
+                # supplier_data.contact_info → customer_companies.contact_phone
+                # supplier_data.notes → customer_companies.remarks
                 cursor.execute("""
                     INSERT INTO customer_companies
-                    (name, address, contact_person, contact_info, status, country, region,
-                     is_customer, is_supplier, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 1, %s)
+                    (company_name, address, contact_person, contact_phone, status, country, region,
+                     remarks, is_customer, is_supplier, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 0, 1, %s)
                 """, (
                     supplier['name'],
                     supplier.get('address'),
@@ -150,6 +154,7 @@ def main():
                     supplier.get('status', 'active'),
                     supplier.get('country'),
                     supplier.get('region'),
+                    supplier.get('notes'),
                     supplier.get('create_date')
                 ))
                 migrated += 1

@@ -381,8 +381,8 @@ def show_supplier_info(supplier_name=None):
     supplier_name = supplier_name or request.form.get('supplier_name')
     supplier = None
     if supplier_name:
-        # 使用 CustomerCompany 查询供应商（is_supplier=True）
-        supplier = CustomerCompany.query.filter_by(name=supplier_name, is_supplier=True).first()
+        # 使用 CustomerCompany 查询供应商（company_name 字段，is_supplier=True）
+        supplier = CustomerCompany.query.filter_by(company_name=supplier_name, is_supplier=True).first()
     return render_template('shared/supplier/supplier_detail.html', supplier=supplier, supplier_name=supplier_name)
 
 
@@ -390,24 +390,24 @@ def show_supplier_info(supplier_name=None):
 @staff_only
 @package_blue.route('/edit_supplier_info/<supplier_name>', methods=['GET', 'POST'])
 def edit_supplier_info(supplier_name):
-    # 使用 CustomerCompany 查询供应商
-    supplier = CustomerCompany.query.filter_by(name=supplier_name, is_supplier=True).first()
+    # 使用 CustomerCompany 查询供应商（company_name 字段）
+    supplier = CustomerCompany.query.filter_by(company_name=supplier_name, is_supplier=True).first()
     if not supplier:
         flash(f"供应商 '{supplier_name}' 不存在。", 'error')
         return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier_name))
     if request.method == 'POST':
         try:
+            # CustomerCompany 字段映射
             supplier.address = request.form.get('address', supplier.address)
             supplier.contact_person = request.form.get('contact_person', supplier.contact_person)
-            supplier.contact_info = request.form.get('contact_info', supplier.contact_info)
+            supplier.contact_phone = request.form.get('contact_info', supplier.contact_phone)
             supplier.status = request.form.get('status', supplier.status)
             supplier.country = request.form.get('country', supplier.country)
             supplier.region = request.form.get('region', supplier.region)
-            supplier.rating = request.form.get('rating', supplier.rating)
-            supplier.notes = request.form.get('notes', supplier.notes)
+            supplier.remarks = request.form.get('notes', supplier.remarks)
             db.session.commit()
             flash(f"供应商 '{supplier_name}' 信息已成功更新。", 'success')
-            return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier.name))
+            return redirect(url_for('package_routes.show_supplier_info', supplier_name=supplier.company_name))
         except Exception as e:
             db.session.rollback()
             flash(f"更新失败：{str(e)}", 'error')
@@ -432,12 +432,12 @@ def add_supplier_info(supplier_name):
             flash('名称和地址是必填项', 'error')
             return redirect(url_for('package_routes.add_supplier_info', supplier_name=supplier_name))
         try:
-            # 使用 CustomerCompany 创建新供应商
+            # 使用 CustomerCompany 创建新供应商（使用正确的字段名）
             new_supplier = CustomerCompany(
-                name=supplier_name,
+                company_name=supplier_name,
                 address=address,
                 contact_person=contact_person,
-                contact_info=contact_info,
+                contact_phone=contact_info,
                 status=status or 'active',
                 country=country,
                 region=region,
