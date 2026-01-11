@@ -508,7 +508,8 @@ def import_all_models():
         # 共享
         try:
             from .shared.models.business_types import BusinessType, BusinessTypeExtension, BusinessTypeRelation
-            from .shared.models.Suppliers import Supplier
+            # Supplier 已合并到 CustomerCompany，保留导入用于向后兼容
+            from .shared.models.Suppliers import Supplier  # 这是 CustomerCompany 的别名
             from .shared.models.Utilsmodels import Todo, TodoChecklist, TodoChecklistItem
         except Exception:
             pass

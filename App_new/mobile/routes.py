@@ -488,11 +488,14 @@ def athina_code():
 @login_required
 def flight_order_create():
     """移动端创建机票订单"""
-    from App_new.shared.models.Suppliers import Supplier
+    from App_new.business.projects.models.project import CustomerCompany
     from App_new.shared.models.business_types import BusinessType
 
     # 获取供应商列表
-    suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.status == 'active'
+    ).order_by(CustomerCompany.company_name).all()
     supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
 
     return render_template('mobile/flight_order_create.html',

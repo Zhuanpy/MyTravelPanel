@@ -41,7 +41,7 @@
             </a>
             <div>
                 <h4 class="mb-0">{{ prepayment.prepayment_number }}</h4>
-                <small class="text-muted">{{ prepayment.supplier.name if prepayment.supplier else '-' }}</small>
+                <small class="text-muted">{{ prepayment.supplier.company_name if prepayment.supplier else '-' }}</small>
             </div>
         </div>
         <div>
@@ -100,7 +100,7 @@
             <div class="row">
                 <div class="col-md-2">
                     <small class="text-muted">供应商</small>
-                    <div class="fw-bold">{{ prepayment.supplier.name if prepayment.supplier else '-' }}</div>
+                    <div class="fw-bold">{{ prepayment.supplier.company_name if prepayment.supplier else '-' }}</div>
                 </div>
                 <div class="col-md-2">
                     <small class="text-muted">充值日期</small>

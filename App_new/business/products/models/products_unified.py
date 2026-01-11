@@ -130,7 +130,7 @@ class ProductsUnified(db.Model):
     tags = db.Column(db.Text, comment='标签JSON数组')
 
     # ========== 供应商 ==========
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), index=True, comment='供应商ID')
+    supplier_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), index=True, comment='供应商公司ID')
 
     # ========== 地理位置 ==========
     country = db.Column(db.String(100), index=True, comment='国家')
@@ -177,7 +177,7 @@ class ProductsUnified(db.Model):
     updated_by = db.Column(db.String(100), comment='更新人')
 
     # ========== 关联关系 ==========
-    supplier = db.relationship('Supplier', backref=db.backref('unified_products', lazy='dynamic'))
+    supplier = db.relationship('CustomerCompany', backref=db.backref('unified_products', lazy='dynamic'), foreign_keys=[supplier_id])
     prices = db.relationship('ProductsPrice', backref='product', lazy='dynamic', cascade='all, delete-orphan')
     rules = db.relationship('ProductsRule', backref='product', lazy='dynamic', cascade='all, delete-orphan')
 

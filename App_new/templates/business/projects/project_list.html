@@ -417,12 +417,11 @@
                                     <i class="fas fa-check-circle"></i> 已结算
                                 </span>
                                 {% elif stats.can_settle %}
-                                <button type="button" class="btn btn-sm btn-warning settle-project"
-                                        data-project-id="{{ project.id }}"
-                                        data-project-hid="{{ project.hid }}"
-                                        title="点击确认结算">
+                                <a href="{{ url_for('business_projects.settlement.settlement_list', search=project.hid) }}"
+                                   class="btn btn-sm btn-warning"
+                                   title="点击进入结算页面">
                                     <i class="fas fa-coins"></i> 可结算
-                                </button>
+                                </a>
                                 {% else %}
                                 <span class="badge bg-secondary" title="REF: {{ stats.invoiced_ref_count }}/{{ stats.ref_count }} 有发票&#10;EO: {{ stats.paid_eo_count }}/{{ stats.eo_count }} 已付款&#10;余额: S${{ '%.2f'|format(balance) }}">
                                     <i class="fas fa-hourglass-half"></i> 未完成

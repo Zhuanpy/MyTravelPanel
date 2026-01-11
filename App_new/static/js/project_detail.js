@@ -677,10 +677,13 @@ class ProjectDetailManager {
 
             if (response.success) {
                 this.showMessage('EO编号生成成功', 'success');
-                
+
+                // 先获取行引用（在替换按钮之前）
+                const row = button.closest('tr');
+
                 // 局部更新：将按钮替换为EO编号链接
                 if (response.eo_number && response.eo_id) {
-                    const eoUrl = `/projects/eo/detail/${response.eo_id}`;
+                    const eoUrl = `/projects/eo/${response.eo_id}`;
                     const td = button.closest('td');
                     if (td) {
                         td.innerHTML = `
@@ -688,6 +691,14 @@ class ProjectDetailManager {
                                 <span class="badge bg-info">${response.eo_number}</span>
                             </a>
                         `;
+                    }
+                }
+
+                // 隐藏该REF的删除按钮（生成EO后不能删除）
+                if (row) {
+                    const deleteBtn = row.querySelector('a.btn-danger[title="删除REF"]');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = 'none';
                     }
                 }
             } else {

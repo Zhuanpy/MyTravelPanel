@@ -308,7 +308,7 @@
                 </thead>
                 <tbody>
                 {% for ref in header.refs %}
-                    <tr>
+                    <tr data-ref-id="{{ ref.id }}">
                         <td class="tw-max-w-[140px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if header.is_settled %}
                                 {# 已结算状态：只显示REF编号文本，不可点击编辑 #}
@@ -425,21 +425,14 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.name if ref.supplier else '-' }}">{{ ref.supplier.name if ref.supplier else '-' }}</td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <div class="action-buttons">
-                                <!-- 查看收款记录按钮 -->
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.company_name if ref.supplier else '-' }}">{{ ref.supplier.company_name if ref.supplier else '-' }}</td>
+                        <td style="white-space: nowrap;">
+                            <div style="display: flex; gap: 4px; align-items: center;">
                                 {% if ref.receipts %}
-                                    <a href="{{ url_for('business_projects.project_ref.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看收款记录">
-                                        <i class="fas fa-list"></i>
-                                    </a>
+                                <a href="{{ url_for('business_projects.project_ref.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看收款记录"><i class="fas fa-list"></i></a>
                                 {% endif %}
-                                
-                                <!-- 如果已生成EO或有收款记录（包括项目级别分配）或已结算，则隐藏删除按钮 -->
                                 {% if ref.can_delete and not header.is_settled %}
-                                    <a href="{{ url_for('business_projects.project_ref.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                <a href="{{ url_for('business_projects.project_ref.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF"><i class="fas fa-trash"></i></a>
                                 {% endif %}
                             </div>
                         </td>
@@ -1060,11 +1053,20 @@ function calculateInvoiceTotals() {
     // 数据已是只读，不需要重新计算
 }
 
+// 防重复提交标志
+let isGeneratingInvoice = false;
+
 function generateInvoice() {
+    // 防重复点击
+    if (isGeneratingInvoice) {
+        alert('发票正在生成中，请勿重复点击');
+        return;
+    }
+
     // 收集选中的REF（跳过已有发票的）
     const selectedRefs = [];
     const skippedRefs = [];
-    
+
     document.querySelectorAll('#invoiceRefTable tr').forEach(row => {
         const checkbox = row.querySelector('.inv-checkbox');
         if (checkbox && checkbox.checked && !checkbox.disabled) {
@@ -1116,6 +1118,14 @@ function generateInvoice() {
         refs: selectedRefs
     };
     
+    // 设置防重复标志并禁用按钮
+    isGeneratingInvoice = true;
+    const submitBtn = document.querySelector('#invoiceModal .btn-success');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+    }
+
     // 发送请求生成发票
     fetch(`/projects/invoice/header/${window.headerId}/quick-create`, {
         method: 'POST',
@@ -1143,6 +1153,14 @@ function generateInvoice() {
                         invNumberInput.value = result.invoice_number;
                     }
                 }
+                // 隐藏主表格中该REF的删除按钮（生成发票后不能删除）
+                const mainTableRow = document.querySelector(`table tr[data-ref-id="${ref.ref_id}"]`);
+                if (mainTableRow) {
+                    const deleteBtn = mainTableRow.querySelector('a.btn-danger[title="删除REF"]');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = 'none';
+                    }
+                }
             });
             // 关闭模态框并刷新页面
             setTimeout(() => {
@@ -1156,6 +1174,15 @@ function generateInvoice() {
     .catch(error => {
         console.error('生成发票失败:', error);
         alert('生成发票失败，请稍后重试');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        isGeneratingInvoice = false;
+        const submitBtn = document.querySelector('#invoiceModal .btn-success');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-file-invoice"></i> 生成发票';
+        }
     });
 }
 

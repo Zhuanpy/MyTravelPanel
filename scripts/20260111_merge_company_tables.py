@@ -35,20 +35,20 @@ def run_migration():
             print("\n[步骤1] 添加新字段到 customer_companies 表...")
 
             new_columns = [
-                ("is_customer", "BIT DEFAULT 1 NOT NULL"),
-                ("is_supplier", "BIT DEFAULT 0 NOT NULL"),
+                ("is_customer", "TINYINT(1) DEFAULT 1 NOT NULL"),
+                ("is_supplier", "TINYINT(1) DEFAULT 0 NOT NULL"),
                 ("supplier_type_id", "INT NULL"),
-                ("country", "NVARCHAR(50) NULL"),
-                ("city", "NVARCHAR(50) NULL"),
-                ("region", "NVARCHAR(50) NULL"),
+                ("country", "VARCHAR(50) NULL"),
+                ("city", "VARCHAR(50) NULL"),
+                ("region", "VARCHAR(50) NULL"),
             ]
 
             for col_name, col_def in new_columns:
                 try:
-                    conn.execute(text(f"ALTER TABLE customer_companies ADD {col_name} {col_def}"))
+                    conn.execute(text(f"ALTER TABLE customer_companies ADD COLUMN {col_name} {col_def}"))
                     print(f"  + 添加字段: {col_name}")
                 except Exception as e:
-                    if "already exists" in str(e).lower() or "duplicate" in str(e).lower() or "Column names" in str(e):
+                    if "duplicate" in str(e).lower() or "already exists" in str(e).lower():
                         print(f"  - 字段已存在: {col_name}")
                     else:
                         print(f"  ! 添加字段失败 {col_name}: {e}")
@@ -66,11 +66,10 @@ def run_migration():
             print("\n[步骤3] 创建 supplier_id → company_id 映射表...")
             try:
                 conn.execute(text("""
-                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'supplier_company_mapping')
-                    CREATE TABLE supplier_company_mapping (
+                    CREATE TABLE IF NOT EXISTS supplier_company_mapping (
                         supplier_id INT PRIMARY KEY,
                         company_id INT NOT NULL,
-                        migrated_at DATETIME DEFAULT GETDATE()
+                        migrated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                     )
                 """))
                 print("  + 映射表创建成功")
@@ -124,12 +123,11 @@ def run_migration():
                     print(f"    合并: {supplier_name} → ID {company_id}")
                 else:
                     # 新建：创建新的公司记录
-                    result = conn.execute(text("""
+                    conn.execute(text("""
                         INSERT INTO customer_companies
                         (company_name, contact_person, contact_phone, contact_email, address,
                          status, remarks, click_count, created_at, is_customer, is_supplier,
                          supplier_type_id, country, city, region)
-                        OUTPUT INSERTED.id
                         VALUES
                         (:name, :contact_person, :phone, :email, :address,
                          :status, :notes, :click_count, :created_at, 0, 1,
@@ -149,6 +147,8 @@ def run_migration():
                         "city": supplier[8],
                         "region": supplier[9]
                     })
+                    # 获取刚插入的ID
+                    result = conn.execute(text("SELECT LAST_INSERT_ID()"))
                     company_id = result.fetchone()[0]
                     created_count += 1
                     print(f"    新建: {supplier_name} → ID {company_id}")
@@ -177,15 +177,15 @@ def run_migration():
             try:
                 # 先添加 company_id 列（如果不存在）
                 try:
-                    conn.execute(text("ALTER TABLE project_refs ADD company_id INT NULL"))
+                    conn.execute(text("ALTER TABLE project_refs ADD COLUMN company_id INT NULL"))
                     print("    + 添加 project_refs.company_id 列")
                 except:
                     pass
 
                 result = conn.execute(text("""
-                    UPDATE r SET r.company_id = m.company_id
-                    FROM project_refs r
+                    UPDATE project_refs r
                     INNER JOIN supplier_company_mapping m ON r.supplier_id = m.supplier_id
+                    SET r.company_id = m.company_id
                     WHERE r.company_id IS NULL
                 """))
                 print(f"    更新了 {result.rowcount} 条 project_refs 记录")
@@ -196,15 +196,15 @@ def run_migration():
             print("  更新 supplier_prepayments.supplier_id...")
             try:
                 try:
-                    conn.execute(text("ALTER TABLE supplier_prepayments ADD company_id INT NULL"))
+                    conn.execute(text("ALTER TABLE supplier_prepayments ADD COLUMN company_id INT NULL"))
                     print("    + 添加 supplier_prepayments.company_id 列")
                 except:
                     pass
 
                 result = conn.execute(text("""
-                    UPDATE p SET p.company_id = m.company_id
-                    FROM supplier_prepayments p
+                    UPDATE supplier_prepayments p
                     INNER JOIN supplier_company_mapping m ON p.supplier_id = m.supplier_id
+                    SET p.company_id = m.company_id
                     WHERE p.company_id IS NULL
                 """))
                 print(f"    更新了 {result.rowcount} 条 supplier_prepayments 记录")
@@ -215,15 +215,15 @@ def run_migration():
             print("  更新 supplier_statements.supplier_id...")
             try:
                 try:
-                    conn.execute(text("ALTER TABLE supplier_statements ADD company_id INT NULL"))
+                    conn.execute(text("ALTER TABLE supplier_statements ADD COLUMN company_id INT NULL"))
                     print("    + 添加 supplier_statements.company_id 列")
                 except:
                     pass
 
                 result = conn.execute(text("""
-                    UPDATE s SET s.company_id = m.company_id
-                    FROM supplier_statements s
+                    UPDATE supplier_statements s
                     INNER JOIN supplier_company_mapping m ON s.supplier_id = m.supplier_id
+                    SET s.company_id = m.company_id
                     WHERE s.company_id IS NULL
                 """))
                 print(f"    更新了 {result.rowcount} 条 supplier_statements 记录")
@@ -234,15 +234,15 @@ def run_migration():
             print("  更新 accounts.supplier_id...")
             try:
                 try:
-                    conn.execute(text("ALTER TABLE accounts ADD company_id INT NULL"))
+                    conn.execute(text("ALTER TABLE accounts ADD COLUMN company_id INT NULL"))
                     print("    + 添加 accounts.company_id 列")
                 except:
                     pass
 
                 result = conn.execute(text("""
-                    UPDATE a SET a.company_id = m.company_id
-                    FROM accounts a
+                    UPDATE accounts a
                     INNER JOIN supplier_company_mapping m ON a.supplier_id = m.supplier_id
+                    SET a.company_id = m.company_id
                     WHERE a.company_id IS NULL
                 """))
                 print(f"    更新了 {result.rowcount} 条 accounts 记录")
@@ -288,14 +288,14 @@ def show_statistics():
                 COUNT(*) as total,
                 SUM(CASE WHEN is_customer = 1 AND is_supplier = 0 THEN 1 ELSE 0 END) as customers_only,
                 SUM(CASE WHEN is_customer = 0 AND is_supplier = 1 THEN 1 ELSE 0 END) as suppliers_only,
-                SUM(CASE WHEN is_customer = 1 AND is_supplier = 1 THEN 1 ELSE 0 END) as both
+                SUM(CASE WHEN is_customer = 1 AND is_supplier = 1 THEN 1 ELSE 0 END) as both_roles
             FROM customer_companies
         """)).fetchone()
 
         print(f"\n公司总数: {result[0]}")
-        print(f"  - 仅客户: {result[1]}")
-        print(f"  - 仅供应商: {result[2]}")
-        print(f"  - 客户+供应商: {result[3]}")
+        print(f"  - 仅客户: {result[1] or 0}")
+        print(f"  - 仅供应商: {result[2] or 0}")
+        print(f"  - 客户+供应商: {result[3] or 0}")
 
         # 映射表统计
         try:

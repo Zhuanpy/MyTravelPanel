@@ -34,7 +34,11 @@ def create_header():
             
             # 如果负责人姓名为空，自动使用经办人姓名
             leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
-            
+
+            # 获取经办人信息，用于设置操作员和业务员
+            staff_id = current_user.id if current_user.is_authenticated else None
+            staff_name = form.staff_name.data
+
             header = ProjectHeader(
                 hid=hid,
                 desc=form.desc.data,
@@ -42,9 +46,13 @@ def create_header():
                 limit=form.limit.data,
                 contact=form.contact.data,
                 dept=form.dept.data,
-                staff_id=current_user.id if current_user.is_authenticated else None,
-                staff_name=form.staff_name.data,
+                staff_id=staff_id,
+                staff_name=staff_name,
                 leader_name=leader_name,
+                operator_ids=str(staff_id) if staff_id else None,  # 操作员默认为经办人
+                operator_names=staff_name,  # 操作员姓名默认为经办人
+                salesperson_ids=str(staff_id) if staff_id else None,  # 业务员默认为经办人
+                salesperson_names=staff_name,  # 业务员姓名默认为经办人
                 currency=form.currency.data,
                 type=form.type.data,
                 status=form.status.data,

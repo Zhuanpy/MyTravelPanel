@@ -158,7 +158,7 @@
             <span class="status-badge status-void">已作废</span>
             {% elif eo.status == 'cancelled' %}
             <span class="status-badge status-cancelled">已取消</span>
-            {% elif eo.status == 'paid' or eo.pay_amount %}
+            {% elif eo.status == 'paid' or eo.pay_amount is not none %}
             <span class="status-badge status-paid">已付款</span>
             {% elif eo.status == 'confirmed' %}
             <span class="status-badge status-confirmed">已确认</span>
@@ -167,10 +167,10 @@
             {% endif %}
         </h1>
         <div class="d-flex gap-2">
-            {% if eo.status != 'void' and eo.status != 'cancelled' and not eo.pay_amount %}
-            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#payModal">
-                <i class="fas fa-dollar-sign"></i> 付款
-            </button>
+            {% if eo.status != 'void' and eo.status != 'cancelled' and eo.pay_amount is none %}
+            <a href="{{ url_for('business_projects.project_eo.batch_pay', supplier=eo.ref.supplier_id if eo.ref and eo.ref.supplier_id else '') }}" class="btn btn-success btn-sm">
+                <i class="fas fa-money-check-alt"></i> 去付款
+            </a>
             <button class="btn btn-outline-danger btn-sm" onclick="voidEO()">
                 <i class="fas fa-ban"></i> 作废
             </button>
@@ -191,7 +191,7 @@
         </a>
         {% endif %}
         {% if eo.ref and eo.ref.supplier %}
-        <span class="quick-nav-item"><i class="fas fa-building"></i> {{ eo.ref.supplier.name }}</span>
+        <span class="quick-nav-item"><i class="fas fa-building"></i> {{ eo.ref.supplier.company_name }}</span>
         {% endif %}
         {% if eo.ref and eo.ref.ref_type %}
         <span class="quick-nav-item"><span class="tag tag-blue">{{ eo.ref.ref_type.name }}</span></span>
@@ -238,7 +238,7 @@
         <div class="panel-title">
             <i class="fas fa-dollar-sign"></i> 金额 & 付款
             <span class="ms-auto">
-                {% if eo.pay_amount %}
+                {% if eo.pay_amount is not none %}
                 <span class="tag tag-green">已付款</span>
                 {% else %}
                 <span class="tag tag-yellow">待付款</span>
@@ -359,195 +359,25 @@
     {% endif %}
 </div>
 
-<!-- 付款模态框 -->
-<div class="modal fade" id="payModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white py-2">
-                <h6 class="modal-title"><i class="fas fa-dollar-sign me-2"></i>付款</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-2">
-                    <div class="col-6">
-                        <small class="text-muted">供应商</small>
-                        <div class="fw-bold">{{ eo.ref.supplier.name if eo.ref and eo.ref.supplier else '-' }}</div>
-                    </div>
-                    <div class="col-6">
-                        <small class="text-muted">应付金额</small>
-                        <div class="fw-bold text-primary">{{ eo.ref.currency if eo.ref else 'SGD' }} {{ '%.2f'|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float) }}</div>
-                    </div>
-                </div>
-                <hr class="my-2">
-                <div class="row g-2">
-                    <!-- 付款方式选择 -->
-                    <div class="col-12">
-                        <label class="form-label small mb-1">付款方式</label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="payment_source" id="source_bank" value="bank" checked>
-                            <label class="btn btn-outline-secondary btn-sm" for="source_bank">
-                                <i class="fas fa-university me-1"></i>银行转账
-                            </label>
-                            <input type="radio" class="btn-check" name="payment_source" id="source_prepayment" value="prepayment">
-                            <label class="btn btn-outline-secondary btn-sm" for="source_prepayment">
-                                <i class="fas fa-wallet me-1"></i>预付账款
-                            </label>
-                        </div>
-                    </div>
-                    <!-- 预付账款选择（默认隐藏） -->
-                    <div class="col-12" id="prepayment_section" style="display:none;">
-                        <label class="form-label small mb-1">选择预付账款 *</label>
-                        <select class="form-select form-select-sm" id="prepayment_id">
-                            <option value="">-- 加载中... --</option>
-                        </select>
-                        <div class="small text-muted mt-1" id="prepayment_balance_info"></div>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label small mb-1">付款编号 *</label>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" id="payment_no" required>
-                            <button class="btn btn-outline-secondary" type="button" onclick="generatePaymentNo()"><i class="fas fa-sync-alt"></i></button>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label small mb-1">凭证号</label>
-                        <input type="text" class="form-control form-control-sm" id="payment_voucher_no">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label small mb-1">付款日期 *</label>
-                        <input type="date" class="form-control form-control-sm" id="paid_date" required>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label small mb-1">付款金额 *</label>
-                        <input type="number" class="form-control form-control-sm" id="pay_amount" step="0.01" value="{{ '%.2f'|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float) }}" required>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label small mb-1">备注</label>
-                        <textarea class="form-control form-control-sm" id="payment_remarks" rows="2"></textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-success btn-sm" onclick="submitPayment()">确认付款</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
-const supplierId = {{ eo.ref.supplier_id if eo.ref and eo.ref.supplier_id else 0 }};
-let prepaymentData = [];
-
-function generatePaymentNo() {
-    fetch('{{ url_for("business_projects.project_eo.generate_payment_no") }}')
-    .then(r => r.json()).then(d => { if(d.success) document.getElementById('payment_no').value = d.payment_no; });
-}
-
-// 加载供应商的预付账款
-function loadPrepayments() {
-    if (!supplierId) {
-        document.getElementById('prepayment_id').innerHTML = '<option value="">该供应商无预付账款</option>';
-        return;
-    }
-    fetch(`/projects/prepayment/api/supplier/${supplierId}/prepayments`)
-    .then(r => r.json())
-    .then(data => {
-        prepaymentData = data.data || [];
-        const select = document.getElementById('prepayment_id');
-        if (prepaymentData.length === 0) {
-            select.innerHTML = '<option value="">该供应商无可用预付账款</option>';
-            document.getElementById('prepayment_balance_info').textContent = '';
-        } else {
-            let options = '<option value="">-- 请选择 --</option>';
-            prepaymentData.forEach(p => {
-                options += `<option value="${p.id}">${p.prepayment_number} - 余额 ${p.balance_amount.toFixed(2)} ${p.currency}</option>`;
-            });
-            select.innerHTML = options;
-            document.getElementById('prepayment_balance_info').textContent =
-                `该供应商共有 ${prepaymentData.length} 笔预付款，总余额 ${data.total_balance.toFixed(2)}`;
-        }
-    })
-    .catch(err => {
-        document.getElementById('prepayment_id').innerHTML = '<option value="">加载失败</option>';
-    });
-}
-
-// 付款方式切换
-document.querySelectorAll('input[name="payment_source"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const section = document.getElementById('prepayment_section');
-        if (this.value === 'prepayment') {
-            section.style.display = 'block';
-            loadPrepayments();
-        } else {
-            section.style.display = 'none';
-        }
-    });
-});
-
-// 预付账款选择时显示余额
-document.getElementById('prepayment_id')?.addEventListener('change', function() {
-    const selected = prepaymentData.find(p => p.id == this.value);
-    if (selected) {
-        const payAmount = document.getElementById('pay_amount');
-        // 如果付款金额大于预付余额，提示
-        if (parseFloat(payAmount.value) > selected.balance_amount) {
-            document.getElementById('prepayment_balance_info').innerHTML =
-                `<span class="text-danger">付款金额超过预付余额 ${selected.balance_amount.toFixed(2)}！</span>`;
-        } else {
-            document.getElementById('prepayment_balance_info').textContent =
-                `可用余额: ${selected.balance_amount.toFixed(2)} ${selected.currency}`;
-        }
-    }
-});
-
-document.getElementById('payModal')?.addEventListener('show.bs.modal', function() {
-    if(!document.getElementById('payment_no').value) generatePaymentNo();
-    if(!document.getElementById('paid_date').value) document.getElementById('paid_date').value = new Date().toISOString().split('T')[0];
-    // 重置付款方式为银行转账
-    document.getElementById('source_bank').checked = true;
-    document.getElementById('prepayment_section').style.display = 'none';
-});
-
 function voidEO() {
     if(confirm('确定作废此EO?')) {
         fetch('{{ url_for("business_projects.project_eo.void_eo", eo_id=eo.id) }}', {
             method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token() }}'}
-        }).then(r=>r.json()).then(d=>{ if(d.success){alert('已作废');location.reload();}else alert(d.message); });
+        }).then(r=>r.json()).then(d=>{
+            if(d.success){
+                alert('已作废');
+                // 返回项目详情页面
+                {% if eo.ref and eo.ref.header %}
+                window.location.href = '{{ url_for("business_projects.detail.project_detail", project_id=eo.ref.header.id) }}';
+                {% else %}
+                location.reload();
+                {% endif %}
+            } else {
+                alert(d.message);
+            }
+        });
     }
-}
-
-function submitPayment() {
-    const paymentSource = document.querySelector('input[name="payment_source"]:checked').value;
-    const d = {
-        payment_no: document.getElementById('payment_no').value,
-        payment_voucher_no: document.getElementById('payment_voucher_no').value,
-        paid_date: document.getElementById('paid_date').value,
-        pay_amount: parseFloat(document.getElementById('pay_amount').value),
-        payment_remarks: document.getElementById('payment_remarks').value,
-        payment_source: paymentSource
-    };
-
-    // 如果使用预付账款，需要选择预付账款
-    if (paymentSource === 'prepayment') {
-        d.prepayment_id = parseInt(document.getElementById('prepayment_id').value);
-        if (!d.prepayment_id) {
-            alert('请选择预付账款');
-            return;
-        }
-        // 检查余额是否足够
-        const selected = prepaymentData.find(p => p.id == d.prepayment_id);
-        if (selected && d.pay_amount > selected.balance_amount) {
-            alert(`付款金额超过预付余额 ${selected.balance_amount.toFixed(2)}！`);
-            return;
-        }
-    }
-
-    if(!d.payment_no||!d.paid_date||!d.pay_amount){alert('请填写完整');return;}
-    fetch('{{ url_for("business_projects.project_eo.pay_eo", eo_id=eo.id) }}', {
-        method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token() }}'}, body:JSON.stringify(d)
-    }).then(r=>r.json()).then(d=>{ if(d.success){alert('付款成功');location.reload();}else alert(d.message); });
 }
 </script>
 {% endblock %}

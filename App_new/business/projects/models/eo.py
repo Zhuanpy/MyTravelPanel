@@ -22,6 +22,7 @@ class ProjectEO(db.Model):
     tax = db.Column(db.Numeric(10, 2), nullable=True, default=0, comment='税费')
     
     # 付款信息（付给供应商）
+    payment_record_id = db.Column(db.Integer, db.ForeignKey('supplier_payments.id'), nullable=True, comment='付款记录ID')
     payment_no = db.Column(db.String(50), nullable=True, comment='付款编号')
     payment_voucher_no = db.Column(db.String(50), nullable=True, comment='付款凭证号')
     paid_date = db.Column(db.Date, nullable=True, comment='付款日期')

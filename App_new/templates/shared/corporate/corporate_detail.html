@@ -36,273 +36,345 @@
             {% endif %}
         {% endwith %}
         
-        <div class="visa-grid-responsive" style="grid-template-columns: 2fr 1fr;">
-            <div>
-                <div class="visa-card">
-                    <div class="visa-card-header">
-                        <h3><i class="fas fa-info-circle"></i> 基本信息</h3>
-                    </div>
-                <div class="visa-card-body">
-                    <div class="visa-grid-2">
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #3b82f6;">
-                                <i class="fas fa-building"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>公司名称</h6>
-                                <p>{{ company.company_name }}</p>
-                            </div>
-                        </div>
-                        
-                        {% if company.company_code %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #10b981;">
-                                <i class="fas fa-barcode"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>公司代码</h6>
-                                <p>{{ company.company_code }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if company.contact_person %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #f59e0b;">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>联系人</h6>
-                                <p>{{ company.contact_person }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if company.contact_phone %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #06b6d4;">
-                                <i class="fas fa-phone"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>联系电话</h6>
-                                <p>{{ company.contact_phone }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if company.contact_email %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #8b5cf6;">
-                                <i class="fas fa-envelope"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>联系邮箱</h6>
-                                <p>{{ company.contact_email }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if company.industry %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #ec4899;">
-                                <i class="fas fa-industry"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>行业</h6>
-                                <p>
-                                    {% set industry_map = {
-                                        'technology': '科技',
-                                        'finance': '金融',
-                                        'manufacturing': '制造业',
-                                        'healthcare': '医疗健康',
-                                        'education': '教育',
-                                        'retail': '零售',
-                                        'tourism': '旅游',
-                                        'real_estate': '房地产',
-                                        'consulting': '咨询',
-                                        'other': '其他'
-                                    } %}
-                                    {{ industry_map.get(company.industry, company.industry) }}
-                                </p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if company.company_size %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #6366f1;">
-                                <i class="fas fa-chart-bar"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>公司规模</h6>
-                                <p>
-                                    {% set size_map = {
-                                        'startup': '初创公司',
-                                        'small': '小型公司',
-                                        'medium': '中型公司',
-                                        'large': '大型公司',
-                                        'enterprise': '企业级'
-                                    } %}
-                                    {{ size_map.get(company.company_size, company.company_size) }}
-                                </p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        {% if company.credit_limit %}
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #10b981;">
-                                <i class="fas fa-dollar-sign"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>信用额度</h6>
-                                <p>{{ company.currency }} {{ "{:,.2f}".format(company.credit_limit) }}</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        <div class="info-item">
-                            <div class="info-icon" style="background: {% if company.status == 'active' %}#10b981{% elif company.status == 'suspended' %}#f59e0b{% else %}#6b7280{% endif %};">
-                                <i class="fas fa-toggle-{{ 'on' if company.status == 'active' else 'off' }}"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>状态</h6>
-                                <p>
-                                    {% if company.status == 'active' %}
-                                        <span class="visa-badge visa-badge-success">活跃</span>
-                                    {% elif company.status == 'inactive' %}
-                                        <span class="visa-badge" style="background: #e5e7eb; color: #6b7280;">非活跃</span>
-                                    {% elif company.status == 'suspended' %}
-                                        <span class="visa-badge visa-badge-warning">暂停</span>
-                                    {% endif %}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div class="info-item">
-                            <div class="info-icon" style="background: #06b6d4;">
-                                <i class="fas fa-mouse-pointer"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>访问次数</h6>
-                                <p>
-                                    <span class="visa-badge visa-badge-info">{{ company.click_count or 0 }}</span>
-                                    {% if company.last_clicked_at %}
-                                        <br><small style="color: #94a3b8; font-size: 0.75rem;">最后访问：{{ company.last_clicked_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                                    {% endif %}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {% if company.address %}
-                    <div class="visa-mt-3" style="padding-top: 1rem; border-top: 1px solid #e2e8f0;">
-                        <div class="info-item" style="border-left: 4px solid #3b82f6;">
-                            <div class="info-icon" style="background: #3b82f6;">
-                                <i class="fas fa-map-marker-alt"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>公司地址</h6>
-                                <p style="color: #64748b;">{{ company.address }}</p>
-                            </div>
-                        </div>
-                    </div>
+        <!-- 基本信息卡片 -->
+        <div class="visa-card visa-mb-3">
+            <div class="visa-card-header">
+                <h3><i class="fas fa-info-circle"></i> 基本信息</h3>
+                <div>
+                    <!-- 公司角色标识 -->
+                    {% if company.is_customer %}
+                        <span class="visa-badge" style="background: #3b82f6; color: white; margin-right: 0.25rem;">
+                            <i class="fas fa-user-tie"></i> 客户
+                        </span>
                     {% endif %}
-                    
-                    {% if company.remarks %}
-                    <div class="visa-mt-3">
-                        <div class="info-item" style="border-left: 4px solid #f59e0b;">
-                            <div class="info-icon" style="background: #f59e0b;">
-                                <i class="fas fa-sticky-note"></i>
-                            </div>
-                            <div class="info-content">
-                                <h6>备注</h6>
-                                <p style="color: #64748b; white-space: pre-wrap; word-wrap: break-word;">{{ company.remarks }}</p>
-                            </div>
-                        </div>
-                    </div>
+                    {% if company.is_supplier %}
+                        <span class="visa-badge" style="background: #10b981; color: white; margin-right: 0.25rem;">
+                            <i class="fas fa-truck"></i> 供应商
+                        </span>
                     {% endif %}
-                </div>
+                    <span class="visa-badge visa-badge-info" style="margin-right: 0.5rem;">
+                        <i class="fas fa-mouse-pointer"></i> {{ company.click_count or 0 }} 次访问
+                    </span>
+                    {% if company.status == 'active' %}
+                        <span class="visa-badge visa-badge-success">活跃</span>
+                    {% elif company.status == 'inactive' %}
+                        <span class="visa-badge" style="background: #e5e7eb; color: #6b7280;">非活跃</span>
+                    {% elif company.status == 'suspended' %}
+                        <span class="visa-badge visa-badge-warning">暂停</span>
+                    {% endif %}
                 </div>
             </div>
-            
-            <div>
-                <!-- 统计卡片 -->
-                <div class="visa-card visa-mb-3">
-                    <div class="visa-card-header">
-                        <h3><i class="fas fa-chart-line"></i> 统计信息</h3>
+            <div class="visa-card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #3b82f6;">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>公司名称</h6>
+                            <p>{{ company.company_name }}</p>
+                        </div>
                     </div>
-                    <div class="visa-card-body">
-                    <div class="stat-item visa-mb-3">
-                        <div class="stat-number" style="color: #3b82f6;">
+
+                    {% if company.company_code %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #10b981;">
+                            <i class="fas fa-barcode"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>公司代码</h6>
+                            <p>{{ company.company_code }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if company.contact_person %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #f59e0b;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>联系人</h6>
+                            <p>{{ company.contact_person }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if company.contact_phone %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #06b6d4;">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>联系电话</h6>
+                            <p>{{ company.contact_phone }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if company.contact_email %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #8b5cf6;">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>联系邮箱</h6>
+                            <p>{{ company.contact_email }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if company.industry %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #ec4899;">
+                            <i class="fas fa-industry"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>行业</h6>
+                            <p>
+                                {% set industry_map = {
+                                    'technology': '科技',
+                                    'finance': '金融',
+                                    'manufacturing': '制造业',
+                                    'healthcare': '医疗健康',
+                                    'education': '教育',
+                                    'retail': '零售',
+                                    'tourism': '旅游',
+                                    'real_estate': '房地产',
+                                    'consulting': '咨询',
+                                    'other': '其他'
+                                } %}
+                                {{ industry_map.get(company.industry, company.industry) }}
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if company.company_size %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #6366f1;">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>公司规模</h6>
+                            <p>
+                                {% set size_map = {
+                                    'startup': '初创公司',
+                                    'small': '小型公司',
+                                    'medium': '中型公司',
+                                    'large': '大型公司',
+                                    'enterprise': '企业级'
+                                } %}
+                                {{ size_map.get(company.company_size, company.company_size) }}
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if company.credit_limit %}
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #10b981;">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>信用额度</h6>
+                            <p>{{ company.currency }} {{ "{:,.2f}".format(company.credit_limit) }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #3b82f6;">
                             <i class="fas fa-calendar-plus"></i>
                         </div>
-                        <div class="stat-label">创建时间</div>
-                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                            {{ company.created_at.strftime('%Y-%m-%d %H:%M') if company.created_at else '-' }}
+                        <div class="info-content">
+                            <h6>创建时间</h6>
+                            <p>{{ company.created_at.strftime('%Y-%m-%d %H:%M') if company.created_at else '-' }}</p>
                         </div>
                     </div>
-                    
-                    <div class="stat-item visa-mb-3">
-                        <div class="stat-number" style="color: #10b981;">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="stat-label">最后更新</div>
-                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                            {{ company.updated_at.strftime('%Y-%m-%d %H:%M') if company.updated_at else '-' }}
-                        </div>
-                    </div>
-                    
+
                     {% if company.created_by %}
-                    <div class="stat-item">
-                        <div class="stat-number" style="color: #f59e0b;">
+                    <div class="info-item">
+                        <div class="info-icon" style="background: #f59e0b;">
                             <i class="fas fa-user-tag"></i>
                         </div>
-                        <div class="stat-label">创建人</div>
-                        <div style="font-size: 0.875rem; color: #64748b; margin-top: 0.25rem;">
-                            {{ company.created_by }}
+                        <div class="info-content">
+                            <h6>创建人</h6>
+                            <p>{{ company.created_by }}</p>
                         </div>
                     </div>
                     {% endif %}
+                </div>
+
+                {% if company.address %}
+                <div class="visa-mt-3" style="padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                    <div class="info-item" style="border-left: 4px solid #3b82f6;">
+                        <div class="info-icon" style="background: #3b82f6;">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>公司地址</h6>
+                            <p style="color: #64748b;">{{ company.address }}</p>
+                        </div>
                     </div>
                 </div>
-                
-                <!-- 关联项目卡片 -->
-                <div class="visa-card">
-                    <div class="visa-card-header">
-                        <h3><i class="fas fa-project-diagram"></i> 关联项目</h3>
-                        <span class="visa-badge visa-badge-primary">
-                            {{ company.projects.count() }}
+                {% endif %}
+
+                {% if company.remarks %}
+                <div class="visa-mt-3">
+                    <div class="info-item" style="border-left: 4px solid #f59e0b;">
+                        <div class="info-icon" style="background: #f59e0b;">
+                            <i class="fas fa-sticky-note"></i>
+                        </div>
+                        <div class="info-content">
+                            <h6>备注</h6>
+                            <p style="color: #64748b; white-space: pre-wrap; word-wrap: break-word;">{{ company.remarks }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 预付账款卡片 -->
+        {% if company.is_supplier %}
+        <div class="visa-card visa-mb-3">
+            <div class="visa-card-header">
+                <h3><i class="fas fa-wallet"></i> 预付账款</h3>
+                <div>
+                    <button type="button" class="visa-btn visa-btn-sm visa-btn-success" onclick="showInitialBalanceModal()">
+                        <i class="fas fa-plus"></i> 设置初始余额
+                    </button>
+                    {% if prepayment_stats %}
+                    <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}?supplier_id={{ company.id }}"
+                       class="visa-btn visa-btn-sm visa-btn-primary" style="margin-left: 0.25rem;">
+                        <i class="fas fa-external-link-alt"></i> 查看全部
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="visa-card-body">
+                {% if prepayment_stats %}
+                <!-- 统计概览 - 横向三栏 -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                    <div style="padding: 1.25rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 0.5rem; color: white; text-align: center;">
+                        <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.25rem;">已充值</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">
+                            {{ "{:,.2f}".format(prepayment_stats.total_recharged) }}
+                        </div>
+                    </div>
+                    <div style="padding: 1.25rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 0.5rem; color: white; text-align: center;">
+                        <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.25rem;">已使用</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">
+                            {{ "{:,.2f}".format(prepayment_stats.total_used) }}
+                        </div>
+                    </div>
+                    <div style="padding: 1.25rem; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 0.5rem; color: white; text-align: center;">
+                        <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.25rem;">余额</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">
+                            {{ "{:,.2f}".format(prepayment_stats.total_balance) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 使用情况进度条 -->
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem;">
+                        <span>使用进度</span>
+                        <span>
+                            {% if prepayment_stats.total_recharged > 0 %}
+                            {{ "{:.1f}".format((prepayment_stats.total_used / prepayment_stats.total_recharged) * 100) }}%
+                            {% else %}
+                            0%
+                            {% endif %}
                         </span>
                     </div>
-                    <div class="visa-card-body">
-                    {% if company.projects.count() > 0 %}
-                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            {% for project in company.projects.limit(5).all() %}
-                            <div style="padding: 0.75rem; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0.375rem;">
-                                <a href="{{ url_for('business_projects.project_header.header_detail', header_id=project.id) }}" 
-                                   class="visa-btn-link visa-btn-link-primary" style="font-weight: 600;">
-                                    {{ project.hid }} - {{ project.desc }}
-                                </a>
-                                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">
-                                    <i class="fas fa-calendar"></i> {{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% if company.projects.count() > 5 %}
-                        <div class="visa-mt-2 visa-text-center">
-                            <small style="color: #94a3b8;">还有 {{ company.projects.count() - 5 }} 个项目未显示</small>
-                        </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="visa-loading" style="padding: 2rem;">
-                            <i class="fas fa-inbox"></i>
-                            <p style="margin-top: 0.5rem;">暂无关联项目</p>
-                        </div>
-                    {% endif %}
+                    <div style="height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden;">
+                        {% set usage_percent = (prepayment_stats.total_used / prepayment_stats.total_recharged * 100) if prepayment_stats.total_recharged > 0 else 0 %}
+                        <div style="height: 100%; width: {{ usage_percent }}%; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444); border-radius: 5px; transition: width 0.3s;"></div>
                     </div>
                 </div>
+
+                <!-- 最近充值记录 -->
+                {% if prepayment_records %}
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem; font-weight: 500;">最近充值记录</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                                <th style="padding: 0.75rem; text-align: left; color: #64748b; font-weight: 500;">编号</th>
+                                <th style="padding: 0.75rem; text-align: left; color: #64748b; font-weight: 500;">日期</th>
+                                <th style="padding: 0.75rem; text-align: right; color: #64748b; font-weight: 500;">充值金额</th>
+                                <th style="padding: 0.75rem; text-align: right; color: #64748b; font-weight: 500;">余额</th>
+                                <th style="padding: 0.75rem; text-align: center; color: #64748b; font-weight: 500;">状态</th>
+                                <th style="padding: 0.75rem; text-align: left; color: #64748b; font-weight: 500;">备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in prepayment_records %}
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 0.75rem; color: #334155; font-weight: 500;">{{ record.prepayment_number }}</td>
+                                <td style="padding: 0.75rem; color: #64748b;">{{ record.payment_date.strftime('%Y-%m-%d') if record.payment_date else '-' }}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #10b981; font-weight: 600;">+{{ "{:,.2f}".format(record.amount) }}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #3b82f6; font-weight: 600;">{{ "{:,.2f}".format(record.balance_amount) }}</td>
+                                <td style="padding: 0.75rem; text-align: center;">
+                                    <span class="visa-badge {% if record.status == 'confirmed' %}visa-badge-success{% elif record.status == 'partial_used' %}visa-badge-warning{% elif record.status == 'consumed' %}visa-badge-secondary{% else %}visa-badge-info{% endif %}" style="font-size: 0.7rem;">
+                                        {{ record.status_display }}
+                                    </span>
+                                </td>
+                                <td style="padding: 0.75rem; color: #94a3b8; font-size: 0.8rem;">{{ record.remarks or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+                {% else %}
+                <!-- 无预付数据时显示 -->
+                <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <i class="fas fa-wallet" style="font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p style="margin-bottom: 1rem;">暂无预付账款记录</p>
+                    <p style="font-size: 0.85rem;">点击上方"设置初始余额"按钮添加初始余额</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 关联项目卡片 -->
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h3><i class="fas fa-project-diagram"></i> 关联项目</h3>
+                <span class="visa-badge visa-badge-primary">
+                    {{ company.projects.count() }}
+                </span>
+            </div>
+            <div class="visa-card-body">
+            {% if company.projects.count() > 0 %}
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem;">
+                    {% for project in company.projects.limit(10).all() %}
+                    <div style="padding: 0.75rem; background: #f8fafc; border-left: 3px solid #3b82f6; border-radius: 0.375rem;">
+                        <a href="{{ url_for('business_projects.project_header.header_detail', header_id=project.id) }}"
+                           class="visa-btn-link visa-btn-link-primary" style="font-weight: 600;">
+                            {{ project.hid }} - {{ project.desc }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">
+                            <i class="fas fa-calendar"></i> {{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if company.projects.count() > 10 %}
+                <div class="visa-mt-2 visa-text-center">
+                    <small style="color: #94a3b8;">还有 {{ company.projects.count() - 10 }} 个项目未显示</small>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="visa-loading" style="padding: 2rem;">
+                    <i class="fas fa-inbox"></i>
+                    <p style="margin-top: 0.5rem;">暂无关联项目</p>
+                </div>
+            {% endif %}
             </div>
         </div>
     </div>
@@ -348,6 +420,103 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
+// 显示设置初始余额模态框
+function showInitialBalanceModal() {
+    document.getElementById('initialBalanceModal').style.display = 'flex';
+    document.getElementById('initialBalanceAmount').focus();
+}
+
+// 关闭模态框
+function closeInitialBalanceModal() {
+    document.getElementById('initialBalanceModal').style.display = 'none';
+    document.getElementById('initialBalanceAmount').value = '';
+    document.getElementById('initialBalanceRemarks').value = '';
+}
+
+// 提交初始余额
+function submitInitialBalance() {
+    const amount = document.getElementById('initialBalanceAmount').value;
+    const remarks = document.getElementById('initialBalanceRemarks').value;
+
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('请输入有效的金额');
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitInitialBalanceBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+    fetch('{{ url_for("corporate.create_initial_balance", company_id=company.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            amount: parseFloat(amount),
+            remarks: remarks || 'Initial Balance'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeInitialBalanceModal();
+            // 刷新页面显示新数据
+            window.location.reload();
+        } else {
+            alert('创建失败: ' + data.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> 确认';
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> 确认';
+    });
+}
+
+// 点击模态框外部关闭
+document.getElementById('initialBalanceModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeInitialBalanceModal();
+    }
+});
 </script>
+
+<!-- 设置初始余额模态框 -->
+<div id="initialBalanceModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; border-radius: 0.5rem; padding: 1.5rem; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b;">
+                <i class="fas fa-wallet" style="color: #10b981;"></i> 设置初始余额
+            </h3>
+            <button type="button" onclick="closeInitialBalanceModal()" style="background: none; border: none; font-size: 1.25rem; color: #94a3b8; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">金额 (SGD) *</label>
+            <input type="number" id="initialBalanceAmount" step="0.01" min="0" placeholder="输入初始余额金额"
+                   style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.375rem; font-size: 1rem;">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">备注</label>
+            <input type="text" id="initialBalanceRemarks" placeholder="Initial Balance" value="Initial Balance"
+                   style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.375rem; font-size: 1rem;">
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+            <button type="button" onclick="closeInitialBalanceModal()" class="visa-btn visa-btn-secondary">
+                取消
+            </button>
+            <button type="button" id="submitInitialBalanceBtn" onclick="submitInitialBalance()" class="visa-btn visa-btn-success">
+                <i class="fas fa-check"></i> 确认
+            </button>
+        </div>
+    </div>
+</div>
 
 {% endblock %} 

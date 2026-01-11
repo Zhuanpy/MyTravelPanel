@@ -226,7 +226,7 @@
             </tr>
             <tr>
                 <th>供应商</th>
-                <td>{{ ref.supplier.name if ref.supplier else '未指定' }}</td>
+                <td>{{ ref.supplier.company_name if ref.supplier else '未指定' }}</td>
                 <th>状态</th>
                 <td>
                     <span class="status-badge status-{{ ref.status }}">

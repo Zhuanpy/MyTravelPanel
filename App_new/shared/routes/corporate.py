@@ -18,14 +18,22 @@ corporate = Blueprint('corporate', __name__)
 @login_required
 @staff_only
 def list_companies():
-    """客户公司列表"""
+    """公司列表（支持客户/供应商角色筛选）"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     group_name_filter = request.args.get('group_name', '')
-    
+    role = request.args.get('role', '')  # customer, supplier, all
+
     query = CustomerCompany.query
-    
+
+    # 角色筛选
+    if role == 'customer':
+        query = query.filter(CustomerCompany.is_customer == True)
+    elif role == 'supplier':
+        query = query.filter(CustomerCompany.is_supplier == True)
+    # role == 'all' 或空则显示全部
+
     if search:
         query = query.filter(
             or_(
@@ -34,10 +42,10 @@ def list_companies():
                 CustomerCompany.company_code.ilike(f'%{search}%')
             )
         )
-    
+
     if status:
         query = query.filter(CustomerCompany.status == status)
-    
+
     # 集团/关联标签筛选
     if group_name_filter:
         if group_name_filter == 'has_group':
@@ -54,19 +62,25 @@ def list_companies():
             )
         else:
             query = query.filter(CustomerCompany.group_name == group_name_filter)
-    
+
     # 按点击次数降序排列，点击次数相同时按创建时间降序排列
     companies = query.order_by(
         CustomerCompany.click_count.desc(),
         CustomerCompany.created_at.desc()
     ).paginate(page=page, per_page=20, error_out=False)
-    
+
     # 获取所有已使用的集团/关联标签，用于筛选下拉列表
     group_names = get_existing_group_names()
-    
-    return render_template('shared/corporate/corporate_list.html', 
-                           companies=companies, 
-                           group_names=group_names)
+
+    # 获取供应商类型列表（用于筛选）
+    from App_new.shared.models.business_types import BusinessType
+    supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+
+    return render_template('shared/corporate/corporate_list.html',
+                           companies=companies,
+                           group_names=group_names,
+                           supplier_types=supplier_types,
+                           current_role=role)
 
 @corporate.route('/api/click/<int:company_id>', methods=['POST'])
 @csrf.exempt
@@ -103,17 +117,29 @@ def get_existing_group_names():
 @login_required
 @staff_only
 def create_company():
-    """创建客户公司"""
+    """创建公司（客户/供应商）"""
     form = CustomerCompanyForm()
-    
+
+    # 获取供应商类型列表
+    from App_new.shared.models.business_types import BusinessType
+    supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+
     if form.validate_on_submit():
         try:
             # 设置创建时间：如果表单中有值则使用表单值，否则使用当前时间
             created_at = form.created_at.data if form.created_at.data else datetime.utcnow()
-            
+
             # 处理集团/关联标签（自动转大写）
             group_name = form.group_name.data.strip().upper() if form.group_name.data else None
-            
+
+            # 获取角色标识
+            is_customer = request.form.get('is_customer') == 'on'
+            is_supplier = request.form.get('is_supplier') == 'on'
+
+            # 至少选择一个角色
+            if not is_customer and not is_supplier:
+                is_customer = True
+
             company = CustomerCompany(
                 company_name=form.company_name.data.upper() if form.company_name.data else '',
                 company_code=form.company_code.data,
@@ -129,7 +155,14 @@ def create_company():
                 remarks=form.remarks.data,
                 created_at=created_at,
                 created_by=current_user.username if current_user.is_authenticated else 'system',
-                group_name=group_name
+                group_name=group_name,
+                # 新增字段
+                is_customer=is_customer,
+                is_supplier=is_supplier,
+                supplier_type_id=request.form.get('supplier_type_id', type=int) or None,
+                country=request.form.get('country', '').strip() or None,
+                city=request.form.get('city', '').strip() or None,
+                region=request.form.get('region', '').strip() or None
             )
             db.session.add(company)
             db.session.commit()
@@ -138,7 +171,7 @@ def create_company():
         except Exception as e:
             db.session.rollback()
             error_msg = str(e)
-            
+
             # 检查是否是重复公司名称错误
             if "Duplicate entry" in error_msg and "company_name" in error_msg:
                 company_name = form.company_name.data
@@ -149,8 +182,12 @@ def create_company():
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
-    
-    return render_template('shared/corporate/corporate_form.html', form=form, company=None, existing_group_names=get_existing_group_names())
+
+    return render_template('shared/corporate/corporate_form.html',
+                           form=form,
+                           company=None,
+                           existing_group_names=get_existing_group_names(),
+                           supplier_types=supplier_types)
 
 @corporate.route('/<int:company_id>')
 @login_required
@@ -158,37 +195,173 @@ def create_company():
 def company_detail(company_id):
     """客户公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
-    
+
     # 记录访问详情页面的点击次数
     company.increment_click_count()
     db.session.commit()
-    
-    return render_template('shared/corporate/corporate_detail.html', company=company)
+
+    # 查询预付账款信息（只要有数据就显示）
+    prepayment_stats = None
+    prepayment_records = []
+
+    from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+
+    # 查询该公司的所有已确认预付记录
+    prepayments = SupplierPrepayment.query.filter(
+        SupplierPrepayment.supplier_id == company_id,
+        SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed'])
+    ).all()
+
+    # 如果有预付数据，计算统计
+    if prepayments:
+        total_recharged = sum(float(p.amount) for p in prepayments)
+        total_balance = sum(float(p.balance_amount) for p in prepayments)
+        total_used = total_recharged - total_balance
+
+        prepayment_stats = {
+            'total_recharged': total_recharged,
+            'total_used': total_used,
+            'total_balance': total_balance,
+            'count': len(prepayments)
+        }
+
+        # 获取最近5条预付记录
+        prepayment_records = SupplierPrepayment.query.filter(
+            SupplierPrepayment.supplier_id == company_id
+        ).order_by(SupplierPrepayment.created_at.desc()).limit(5).all()
+
+    return render_template('shared/corporate/corporate_detail.html',
+                           company=company,
+                           prepayment_stats=prepayment_stats,
+                           prepayment_records=prepayment_records)
+
+
+@corporate.route('/<int:company_id>/initial-balance', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def create_initial_balance(company_id):
+    """创建初始余额预付记录"""
+    try:
+        company = CustomerCompany.query.get_or_404(company_id)
+
+        data = request.get_json()
+        amount = data.get('amount')
+        remarks = data.get('remarks', 'Initial Balance')
+
+        if not amount or float(amount) <= 0:
+            return jsonify({'success': False, 'message': '金额必须大于0'}), 400
+
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+        from datetime import date
+
+        # 生成预付编号
+        prepayment_number = SupplierPrepayment.generate_prepayment_number()
+
+        # 创建预付记录
+        prepayment = SupplierPrepayment(
+            prepayment_number=prepayment_number,
+            supplier_id=company_id,
+            amount=float(amount),
+            balance_amount=float(amount),  # 初始余额 = 充值金额
+            currency='SGD',
+            payment_date=date.today(),
+            payment_method='other',
+            status='confirmed',  # 初始余额直接确认
+            remarks=remarks,
+            created_by=current_user.username if current_user.is_authenticated else 'system'
+        )
+
+        db.session.add(prepayment)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '初始余额设置成功',
+            'prepayment_id': prepayment.id,
+            'prepayment_number': prepayment.prepayment_number
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/prepayments')
+@login_required
+@staff_only
+def get_company_prepayments(company_id):
+    """获取公司的预付账款列表"""
+    try:
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+
+        # 获取公司信息
+        company = CustomerCompany.query.get(company_id)
+        supplier_name = company.company_name if company else ''
+
+        # 查询该公司的有效预付记录（按时间升序，用于 FIFO）
+        prepayments = SupplierPrepayment.query.filter(
+            SupplierPrepayment.supplier_id == company_id,
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+            SupplierPrepayment.balance_amount > 0
+        ).order_by(SupplierPrepayment.created_at.asc()).all()
+
+        # 计算总余额
+        total_balance = sum(float(p.balance_amount) for p in prepayments)
+
+        return jsonify({
+            'success': True,
+            'prepayments': [p.to_dict() for p in prepayments],
+            'supplier_name': supplier_name,
+            'total_balance': total_balance
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @corporate.route('/<int:company_id>/edit', methods=['GET', 'POST'])
 @login_required
 @staff_only
 def edit_company(company_id):
-    """编辑客户公司"""
+    """编辑公司（客户/供应商）"""
     company = CustomerCompany.query.get_or_404(company_id)
     form = CustomerCompanyForm(obj=company)
-    
+
+    # 获取供应商类型列表
+    from App_new.shared.models.business_types import BusinessType
+    supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+
     if form.validate_on_submit():
         try:
             form.populate_obj(company)
             # 确保公司名称为大写
             if company.company_name:
                 company.company_name = company.company_name.upper()
-            
+
             # 处理集团/关联标签（自动转大写）
             if company.group_name:
                 company.group_name = company.group_name.strip().upper()
-            
+
             # 如果没有设置创建时间，自动设置为今天
             if not company.created_at:
                 company.created_at = datetime.utcnow()
-            
+
+            # 更新角色标识
+            company.is_customer = request.form.get('is_customer') == 'on'
+            company.is_supplier = request.form.get('is_supplier') == 'on'
+
+            # 至少选择一个角色
+            if not company.is_customer and not company.is_supplier:
+                company.is_customer = True
+
+            # 更新供应商专属字段
+            company.supplier_type_id = request.form.get('supplier_type_id', type=int) or None
+            company.country = request.form.get('country', '').strip() or None
+            company.city = request.form.get('city', '').strip() or None
+            company.region = request.form.get('region', '').strip() or None
+
             db.session.commit()
+            flash('公司更新成功！', 'success')
             return redirect(url_for('corporate.list_companies'))
         except Exception as e:
             db.session.rollback()
@@ -197,8 +370,12 @@ def edit_company(company_id):
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'error')
-    
-    return render_template('shared/corporate/corporate_form.html', form=form, company=company, existing_group_names=get_existing_group_names())
+
+    return render_template('shared/corporate/corporate_form.html',
+                           form=form,
+                           company=company,
+                           existing_group_names=get_existing_group_names(),
+                           supplier_types=supplier_types)
 
 @corporate.route('/<int:company_id>/delete', methods=['POST'])
 @login_required

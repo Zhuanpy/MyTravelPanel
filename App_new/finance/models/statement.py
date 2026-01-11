@@ -220,7 +220,7 @@ class SupplierStatement(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     statement_number = db.Column(db.String(50), unique=True, nullable=False, comment='对账单号')
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=False, comment='供应商ID')
+    supplier_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=False, comment='供应商公司ID')
     
     # 对账期间
     statement_date = db.Column(db.Date, nullable=False, comment='对账日期')
@@ -244,7 +244,7 @@ class SupplierStatement(db.Model):
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
 
     # 关联关系
-    # supplier = db.relationship('Supplier', backref='statements')  # 暂时注释掉，避免循环导入
+    supplier = db.relationship('CustomerCompany', backref='statements', foreign_keys=[supplier_id])
     items = db.relationship('SupplierStatementItem', backref='statement', cascade='all, delete-orphan')
 
     def __repr__(self):

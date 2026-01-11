@@ -1,60 +1,60 @@
+# -*- coding: utf-8 -*-
+"""
+供应商路由 - 已合并到公司管理
+此文件保留用于向后兼容，所有供应商路由重定向到 corporate 蓝图
+"""
+
 from flask import Blueprint, render_template, request, redirect, url_for
 from App_new.exts import db
-from App_new.shared.models.Suppliers import Supplier
+from App_new.business.projects.models.project import CustomerCompany
 
 # 创建蓝图
-supplier = Blueprint('supplier', __name__)
+supplier = Blueprint('finance_supplier', __name__)
+
 
 @supplier.route('/')
 def suppliers():
-    suppliers = Supplier.query.all()
-    return render_template('shared/supplier/supplier_list.html', suppliers=suppliers)
+    """供应商列表 -> 重定向到公司列表（供应商筛选）"""
+    return redirect(url_for('corporate.list_companies', role='supplier'))
 
 
 @supplier.route('/supplier/<int:supplier_id>', methods=['GET'])
 def view_supplier(supplier_id):
-    # 获取供应商的详细信息
-    supplier = Supplier.query.get_or_404(supplier_id)
-    return render_template('shared/supplier/supplier_detail.html', supplier=supplier)
+    """查看供应商 -> 重定向到公司详情"""
+    company = CustomerCompany.query.filter(
+        CustomerCompany.id == supplier_id,
+        CustomerCompany.is_supplier == True
+    ).first()
+    if company:
+        return redirect(url_for('corporate.company_detail', company_id=company.id))
+    return redirect(url_for('corporate.list_companies', role='supplier'))
 
 
 @supplier.route('/add', methods=['GET', 'POST'])
 def add_supplier():
-    if request.method == 'POST':
-        new_supplier = Supplier(
-            name=request.form['name'],
-            contact_person=request.form.get('contact_person'),
-            phone=request.form.get('phone'),
-            email=request.form.get('email'),
-            address=request.form.get('address'),
-            country=request.form.get('country'),
-            region=request.form.get('city'),
-            status=request.form.get('status')
-        )
-        db.session.add(new_supplier)
-        db.session.commit()
-        return redirect(url_for('supplier.suppliers'))
-    return render_template('shared/supplier/supplier_add.html')
+    """添加供应商 -> 重定向到公司创建页面"""
+    return redirect(url_for('corporate.create_company'))
+
 
 @supplier.route('/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
-    supplier = Supplier.query.get_or_404(supplier_id)
-    if request.method == 'POST':
-        supplier.name = request.form['name']
-        supplier.contact_person = request.form.get('contact_person')
-        supplier.phone = request.form.get('phone')
-        supplier.email = request.form.get('email')
-        supplier.address = request.form.get('address')
-        supplier.country = request.form.get('country')
-        supplier.city = request.form.get('city')
-        supplier.status = request.form.get('status')
-        db.session.commit()
-        return redirect(url_for('suppliers'))
-    return render_template('shared/supplier/supplier_edit.html', supplier=supplier)
+    """编辑供应商 -> 重定向到公司编辑页面"""
+    company = CustomerCompany.query.filter(
+        CustomerCompany.id == supplier_id,
+        CustomerCompany.is_supplier == True
+    ).first()
+    if company:
+        return redirect(url_for('corporate.edit_company', company_id=company.id))
+    return redirect(url_for('corporate.list_companies', role='supplier'))
+
 
 @supplier.route('/delete/<int:supplier_id>')
 def delete_supplier(supplier_id):
-    supplier = Supplier.query.get_or_404(supplier_id)
-    db.session.delete(supplier)
-    db.session.commit()
-    return redirect(url_for('supplier.suppliers'))
+    """删除供应商 -> 重定向到公司删除"""
+    company = CustomerCompany.query.filter(
+        CustomerCompany.id == supplier_id,
+        CustomerCompany.is_supplier == True
+    ).first()
+    if company:
+        return redirect(url_for('corporate.delete_company', company_id=company.id))
+    return redirect(url_for('corporate.list_companies', role='supplier'))

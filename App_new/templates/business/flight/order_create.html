@@ -61,9 +61,9 @@
             </div>
         </div>
 
-        <!-- Supplier -->
+        <!-- Supplier & Staff -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-truck me-2"></i>供应商</div>
+            <div class="section-title"><i class="fas fa-truck me-2"></i>供应商 & 人员</div>
             <div class="row g-2">
                 <div class="col-3">
                     <label class="form-label small mb-1">供应商类型</label>
@@ -74,14 +74,22 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-9">
+                <div class="col-5">
                     <label class="form-label small mb-1">供应商名称</label>
                     <select class="form-select form-select-sm" name="supplier_id" id="supplier_name" required>
                         <option value="">-- 请选择 --</option>
                         {% for supplier in suppliers %}
-                        <option value="{{ supplier.supplier_id }}" data-type="{{ supplier.supplier_type_code or '' }}">{{ supplier.name }}</option>
+                        <option value="{{ supplier.id }}" data-type="{{ supplier.supplier_type_code or '' }}">{{ supplier.name }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-2">
+                    <label class="form-label small mb-1">操作员</label>
+                    <input type="text" class="form-control form-control-sm" name="operator" placeholder="操作员姓名" value="{{ current_user.profile.get_full_name() if current_user and current_user.profile else '' }}">
+                </div>
+                <div class="col-2">
+                    <label class="form-label small mb-1">业务员</label>
+                    <input type="text" class="form-control form-control-sm" name="salesman" placeholder="业务员姓名">
                 </div>
             </div>
         </div>

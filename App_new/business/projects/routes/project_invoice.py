@@ -592,12 +592,35 @@ def quick_create_invoice(header_id):
     try:
         data = request.get_json()
         header = ProjectHeader.query.get_or_404(header_id)
-        
+
         # 获取选中的REF
         refs_data = data.get('refs', [])
         if not refs_data:
             return jsonify({'success': False, 'message': '请至少选择一个REF'})
-        
+
+        # 防重复提交：检查10秒内是否已经为相同REF创建了发票
+        from datetime import datetime, timedelta
+        ref_ids_to_check = sorted([ref.get('ref_id') for ref in refs_data])
+        ref_ids_json = json.dumps(ref_ids_to_check)
+
+        recent_invoice = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id == header_id,
+            ProjectInvoice.status != 'cancelled',
+            ProjectInvoice.created_at >= datetime.utcnow() - timedelta(seconds=10)
+        ).first()
+
+        if recent_invoice:
+            # 检查REF是否相同
+            try:
+                existing_ref_ids = sorted(json.loads(recent_invoice.ref_ids or '[]'))
+                if existing_ref_ids == ref_ids_to_check:
+                    return jsonify({
+                        'success': False,
+                        'message': f'发票 {recent_invoice.invoice_number} 刚刚已创建，请勿重复提交'
+                    })
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         # 计算总金额
         total_amount = sum(ref.get('total', 0) for ref in refs_data)
         

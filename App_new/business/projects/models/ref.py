@@ -19,9 +19,8 @@ class ProjectRef(db.Model):
     ref_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=False, comment='REF类型ID')
     
 
-    # 供应商/公司信息（迁移后使用 company_id）
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID(废弃)')
-    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='供应商公司ID')
+    # 供应商/公司信息
+    supplier_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='供应商公司ID')
 
     # 价格信息
     selling_price = db.Column(db.Numeric(10, 2), nullable=True, comment='销售价格')
@@ -45,17 +44,14 @@ class ProjectRef(db.Model):
     # 关联关系 - 一个REF只能有一个EO
     eos = db.relationship('ProjectEO', back_populates='ref', cascade='all, delete-orphan', uselist=False)
     ref_type = db.relationship('BusinessType', backref='refs')
-    supplier = db.relationship('Supplier', backref='refs')
-    supplier_company = db.relationship('CustomerCompany', backref='supplier_refs', foreign_keys=[company_id])
+    supplier = db.relationship('CustomerCompany', backref='refs', foreign_keys=[supplier_id])
     items = db.relationship('RefOrderItem', backref='ref', cascade='all, delete-orphan')
 
     @property
     def supplier_name(self):
-        """获取供应商名称（兼容新旧字段）"""
-        if self.supplier_company:
-            return self.supplier_company.company_name
-        elif self.supplier:
-            return self.supplier.name
+        """获取供应商名称"""
+        if self.supplier:
+            return self.supplier.company_name
         return None
 
     # 机票相关关联关系
@@ -204,6 +200,106 @@ class ProjectRef(db.Model):
                 except (json.JSONDecodeError, TypeError):
                     pass
         return result
+
+    def has_paid_eo(self):
+        """检查是否有已付款的EO"""
+        if self.eos and self.eos.status == 'paid':
+            return True
+        return False
+
+    def adjust_prepayment_for_cost_change(self, old_cost):
+        """当cost_price变化时调整预付账款使用记录
+
+        Args:
+            old_cost: 变更前的成本价格
+
+        Returns:
+            str: 调整信息消息，如果没有调整则返回空字符串
+        """
+        from decimal import Decimal
+        from .supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+        from App_new.exts import db
+
+        # 如果没有EO，无需调整
+        if not self.eos:
+            return ''
+
+        # 如果EO已付款或已作废，不能调整
+        if self.eos.status in ('paid', 'void'):
+            return ''
+
+        # 如果没有供应商或成本，无需调整
+        if not self.supplier_id or not self.cost_price:
+            return ''
+
+        # 查找pending的预付使用记录
+        pending_usage = PrepaymentUsage.query.filter_by(
+            eo_id=self.eos.id,
+            status='pending'
+        ).first()
+
+        old_cost_decimal = Decimal(str(old_cost)) if old_cost else Decimal('0')
+        new_cost_decimal = Decimal(str(self.cost_price)) if self.cost_price else Decimal('0')
+
+        # 如果没有pending使用记录，且新成本 > 0，则创建新记录
+        if not pending_usage:
+            if new_cost_decimal > 0:
+                # 查找该供应商的可用预付账款
+                prepayment = SupplierPrepayment.query.filter(
+                    SupplierPrepayment.supplier_id == self.supplier_id,
+                    SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+                    SupplierPrepayment.balance_amount > 0
+                ).order_by(SupplierPrepayment.created_at.asc()).first()
+
+                if prepayment and prepayment.balance_amount >= new_cost_decimal:
+                    # 创建预付使用记录
+                    usage = PrepaymentUsage(
+                        prepayment_id=prepayment.id,
+                        eo_id=self.eos.id,
+                        ref_id=self.id,
+                        amount=new_cost_decimal,
+                        usage_date=db.func.current_date(),
+                        status='pending',
+                        description=f'REF编辑自动扣减 - {self.eos.eo_number}'
+                    )
+                    db.session.add(usage)
+
+                    # 扣减预付余额
+                    prepayment.balance_amount -= new_cost_decimal
+                    prepayment.update_status()
+
+                    return f'已自动扣减预付账款 {new_cost_decimal}'
+            return ''
+
+        # 有pending记录，计算差额
+        cost_diff = new_cost_decimal - old_cost_decimal
+
+        if cost_diff == 0:
+            return ''
+
+        # 获取关联的预付账款
+        prepayment = SupplierPrepayment.query.get(pending_usage.prepayment_id)
+        if not prepayment:
+            return ''
+
+        # 如果成本增加，检查余额是否足够
+        if cost_diff > 0 and cost_diff > prepayment.balance_amount:
+            # 余额不足，仅扣减到余额为0
+            actual_increase = prepayment.balance_amount
+            pending_usage.amount += actual_increase
+            prepayment.balance_amount = Decimal('0')
+            prepayment.update_status()
+            return f'预付账款余额不足，已调整 {actual_increase}（成本增加 {cost_diff}）'
+
+        # 正常调整
+        pending_usage.amount = new_cost_decimal
+        prepayment.balance_amount -= cost_diff  # 如果是减少，则cost_diff为负，相当于增加余额
+        prepayment.update_status()
+
+        if cost_diff > 0:
+            return f'预付账款已增加扣减 {cost_diff}'
+        else:
+            return f'预付账款已退还 {abs(cost_diff)}'
 
     @classmethod
     def generate_ref_number(cls, project_hid=None):

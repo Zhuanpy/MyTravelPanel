@@ -18,7 +18,7 @@ from openpyxl.utils import get_column_letter
 
 from App_new.exts import db, csrf
 from App_new.business.tour.models.Packagemodels import Product, ProductItinerary, ProductPriceVariant
-from App_new.shared.models.Suppliers import Supplier
+from App_new.business.projects.models.project import CustomerCompany
 from App_new.utils.decorators import staff_only
 
 # 创建蓝图
@@ -226,7 +226,7 @@ def product_list():
     today = date.today()
     for product in products:
         if product.supplier:
-            product.supplier_display_name = product.supplier.name
+            product.supplier_display_name = product.supplier.company_name
         else:
             product.supplier_display_name = '未指定供应商'
         
@@ -253,9 +253,10 @@ def product_list():
         BusinessType.is_active == True
     ).all()]
     
-    suppliers = Supplier.query.filter(
-        Supplier.supplier_type_id.in_(tour_type_ids) if tour_type_ids else False
-    ).order_by(Supplier.name).all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.supplier_type_id.in_(tour_type_ids) if tour_type_ids else True
+    ).order_by(CustomerCompany.company_name).all()
 
     # 从 ProductCity 表获取国家列表
     from App_new.business.tour.models.Packagemodels import ProductCity
@@ -467,9 +468,10 @@ def add_product():
         BusinessType.is_active == True
     ).all()]
     
-    suppliers = Supplier.query.filter(
-        Supplier.supplier_type_id.in_(tour_type_ids) if tour_type_ids else False
-    ).order_by(Supplier.name).all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.supplier_type_id.in_(tour_type_ids) if tour_type_ids else True
+    ).order_by(CustomerCompany.company_name).all()
 
     # 获取城市列表
     from App_new.business.tour.models.Packagemodels import ProductCity
@@ -1060,9 +1062,10 @@ def edit_product(product_id):
         BusinessType.is_active == True
     ).all()]
     
-    suppliers = Supplier.query.filter(
-        Supplier.supplier_type_id.in_(tour_type_ids) if tour_type_ids else False
-    ).order_by(Supplier.name).all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.supplier_type_id.in_(tour_type_ids) if tour_type_ids else True
+    ).order_by(CustomerCompany.company_name).all()
 
     itineraries = ProductItinerary.query.filter_by(product_id=product_id).order_by(ProductItinerary.day_number).all()
     price_variants = ProductPriceVariant.query.filter_by(product_id=product_id).all()
@@ -1380,7 +1383,7 @@ def export_excel():
         for product in products:
             data.append({
                 'ID': product.id,
-                '供应商': product.supplier.name if product.supplier else '',
+                '供应商': product.supplier.company_name if product.supplier else '',
                 '产品编号': product.product_code or '',
                 '产品名称': product.product_name,
                 '产品类型': product.product_type or '',
@@ -1465,7 +1468,10 @@ def import_excel():
             try:
                 supplier = None
                 if pd.notna(row.get('供应商')):
-                    supplier = Supplier.query.filter_by(name=str(row['供应商']).strip()).first()
+                    supplier = CustomerCompany.query.filter(
+                        CustomerCompany.company_name == str(row['供应商']).strip(),
+                        CustomerCompany.is_supplier == True
+                    ).first()
 
                 product = None
                 if pd.notna(row.get('ID')):
@@ -1497,7 +1503,7 @@ def import_excel():
                 product_code = product_code_raw if product_code_raw else gen_code('tour')
 
                 product_data = {
-                    'supplier_id': supplier.supplier_id if supplier else None,
+                    'supplier_id': supplier.id if supplier else None,
                     'product_code': product_code,
                     'product_name': str(row['产品名称']).strip(),
                     'product_type': str(row['产品类型']).strip() if pd.notna(row.get('产品类型')) else None,

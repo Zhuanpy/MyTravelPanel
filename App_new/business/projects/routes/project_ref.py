@@ -11,7 +11,7 @@ from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment
 from App_new.business.flight.models.models import AirportData
 from App_new.exts import csrf, db
-from App_new.shared.models.Suppliers import Supplier
+from App_new.business.projects.models.project import CustomerCompany
 from App_new.business.visa.models.Visamodels import VisaCountries
 from App_new.shared.models.business_types import BusinessType
 from App_new.business.projects.forms.ref_forms import ProjectRefForm
@@ -121,7 +121,7 @@ def create_ref(header_id):
         
         # 获取业务类型和供应商数据
         business_types = BusinessType.query.all()
-        suppliers = Supplier.query.all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
         
         # 设置默认REF类型为"其他"
         other_business_type = BusinessType.query.filter_by(name='其他').first()
@@ -189,7 +189,7 @@ def create_flight_ref(header_id):
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
     # 获取供应商数据
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     # 动态获取供应商类型（从 BusinessType 表）
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
@@ -210,6 +210,15 @@ def submit_flight_ref():
         # 如果是编辑现有REF
         if ref_id:
             ref = ProjectRef.query.get_or_404(ref_id)
+
+            # 检查是否有已付款的EO
+            if ref.has_paid_eo():
+                flash('此REF的EO已付款，不能编辑', 'error')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+
+            # 记录旧的成本价格（用于调整预付账款）
+            old_cost = ref.cost_price
+
             # 更新REF基本信息
             ref.description = '机票订单'
             ref.detailed_description = '机票订单'
@@ -471,7 +480,15 @@ def submit_flight_ref():
         }
         ref.extra_info = json.dumps(extra_info)
 
+        # 如果是编辑，调整预付账款（如果cost_price变化）
+        prepayment_msg = ''
+        if ref_id:
+            prepayment_msg = ref.adjust_prepayment_for_cost_change(old_cost)
+
         db.session.commit()
+
+        if prepayment_msg:
+            flash(f'机票REF保存成功！{prepayment_msg}', 'success')
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
     except Exception as e:
@@ -504,7 +521,7 @@ def create_hotel_ref(header_id):
             flash('请先在人员名单中添加人员后再创建REF', 'warning')
             return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
-        suppliers = Supplier.query.all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
         
         # 获取项目人员列表
@@ -695,7 +712,7 @@ def edit_hotel_ref(ref_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     # GET请求 - 显示编辑页面
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
     
     # 获取项目人员列表
@@ -762,7 +779,7 @@ def create_visa_ref(header_id):
     
             # 获取供应商数据（按名称排序）
         from sqlalchemy import func
-        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
@@ -1010,7 +1027,7 @@ def create_tour_ref(header_id):
 
         # GET请求 - 显示创建页面
         from sqlalchemy import func
-        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目成员
@@ -1161,7 +1178,7 @@ def create_insurance_ref(header_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
         # 获取供应商数据
-        suppliers = Supplier.query.all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目成员
@@ -1293,7 +1310,7 @@ def create_transport_ref(header_id):
 
         # 获取供应商数据（按名称排序）
         from sqlalchemy import func
-        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目人员列表
@@ -1498,7 +1515,7 @@ def edit_transport_ref(ref_id):
 
     # 获取供应商数据（按名称排序）
     from sqlalchemy import func
-    suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 解析交通专属信息
@@ -1556,7 +1573,7 @@ def edit_flight_ref(ref_id):
             eo_paid = True
 
     # 获取供应商数据
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     # 动态获取供应商类型（从 BusinessType 表）
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
@@ -1600,7 +1617,7 @@ def hotel_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = Supplier.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
     supplier_name = supplier.name if supplier else None
     
     return render_template('business/projects/project_ref/hotel_ref_detail.html', 
@@ -1626,7 +1643,7 @@ def visa_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = Supplier.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
     supplier_name = supplier.name if supplier else None
     
     return render_template('business/projects/project_ref/visa_ref_detail.html', 
@@ -1716,7 +1733,7 @@ def edit_visa_ref(ref_id):
     
     # 获取供应商数据（按名称排序）
     from sqlalchemy import func
-    suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 获取所有国家数据
@@ -1784,7 +1801,7 @@ def tour_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = Supplier.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
     supplier_name = supplier.name if supplier else None
     
     return render_template('business/projects/project_ref/tour_ref_detail.html', 
@@ -1802,7 +1819,7 @@ def insurance_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = Supplier.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
     supplier_name = supplier.name if supplier else None
     
     return render_template('business/projects/project_ref/insurance_ref_detail.html', 
@@ -1820,7 +1837,7 @@ def transport_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = Supplier.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
     supplier_name = supplier.name if supplier else None
     
     return render_template('business/projects/project_ref/transport_ref_detail.html', 
@@ -1849,7 +1866,7 @@ def create_attraction_ref(header_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
         # 获取供应商数据
-        suppliers = Supplier.query.all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目人员列表
@@ -2051,7 +2068,7 @@ def edit_attraction_ref(ref_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
 
     # 获取供应商数据
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 解析景点专属信息
@@ -2109,7 +2126,7 @@ def attraction_ref_detail(ref_id):
     # 获取供应商名称
     supplier_name = ''
     if ref.supplier_id:
-        supplier = Supplier.query.get(ref.supplier_id)
+        supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id)
         if supplier:
             supplier_name = supplier.name
 
@@ -2267,7 +2284,7 @@ def create_other_ref(header_id):
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
 
         # GET请求 - 显示创建页面
-        suppliers = Supplier.query.all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
         supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
         # 获取项目人员列表
@@ -2355,7 +2372,7 @@ def edit_other_ref(ref_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
 
     # 获取供应商数据与项目头信息
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
     header = ProjectHeader.query.get(ref.header_id)
 
@@ -2473,7 +2490,7 @@ def edit_insurance_ref(ref_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
 
     # 获取供应商数据
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 获取项目成员
@@ -2585,7 +2602,7 @@ def edit_tour_ref(ref_id):
     # 获取供应商数据
     from sqlalchemy import func
     header = ProjectHeader.query.get(ref.header_id)
-    suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
     # 获取项目成员
@@ -2897,7 +2914,7 @@ def ref_list():
         
         # 获取筛选选项数据
         business_types = BusinessType.query.order_by(BusinessType.name).all()
-        suppliers = Supplier.query.order_by(Supplier.name).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(CustomerCompany.company_name).all()
         
         # 计算筛选结果数量
         filtered_count = pagination.total if any([business_type, status, supplier_id, leader_name, date_range, min_price, max_price, keyword]) else None
@@ -3014,9 +3031,17 @@ def edit_ref(ref_id):
     # 如果没有匹配的类型，继续使用通用编辑页面（向后兼容）
     if request.method == 'POST':
         try:
+            # 检查是否有已付款的EO
+            if ref.has_paid_eo():
+                flash('此REF的EO已付款，不能编辑', 'error')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+
+            # 记录旧的成本价格（用于调整预付账款）
+            old_cost = ref.cost_price
+
             # 调试：打印所有表单数据
             print(f"DEBUG: All form data: {dict(request.form)}")
-            
+
             # 更新REF数据
             ref.description = request.form.get('description', 'REF服务')
             ref.detailed_description = ref.description  # 详细描述自动同步描述内容
@@ -3026,12 +3051,12 @@ def edit_ref(ref_id):
             print(f"DEBUG: ref.supplier_id after update: {ref.supplier_id}")
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            
+
             # 处理日期字段，空字符串转换为None
-            
+
             ref.status = request.form.get('status') or 'draft'
             ref.remarks = request.form.get('remarks', '')
-            
+
             # 处理出行人信息
             passenger_names = request.form.get('passenger_names', '')
             if passenger_names:
@@ -3047,12 +3072,15 @@ def edit_ref(ref_id):
                         passenger_type='adult'  # 默认为成人
                     )
                     db.session.add(passenger)
-            
-            # 注意：EO的金额现在直接从REF的cost_price获取，无需同步
-            
+
+            # 调整预付账款（如果cost_price变化）
+            prepayment_msg = ref.adjust_prepayment_for_cost_change(old_cost)
+
             # 提交数据库更改
             db.session.commit()
-            
+
+            if prepayment_msg:
+                flash(f'REF更新成功！{prepayment_msg}', 'success')
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
             
         except Exception as e:
@@ -3061,7 +3089,7 @@ def edit_ref(ref_id):
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
     
     # 获取供应商数据和项目头部信息
-    suppliers = Supplier.query.all()
+    suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
     header = ProjectHeader.query.get(ref.header_id)
     
     # 创建表单对象用于编辑模式

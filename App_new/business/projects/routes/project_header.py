@@ -62,6 +62,10 @@ def edit_header(header_id):
     header = ProjectHeader.query.get_or_404(header_id)
     form = ProjectHeaderForm(obj=header)
 
+    # 处理company_id显示：None表示"个人"，需要转换为0才能正确显示在下拉框中
+    if header.company_id is None:
+        form.company_id.data = 0  # 显示"个人"
+
     # 获取第一个REF的描述（用于desc为空时的默认值）
     first_ref = ProjectRef.query.filter_by(header_id=header_id).order_by(ProjectRef.id.asc()).first()
     first_ref_name = first_ref.description if first_ref and first_ref.description else None
@@ -148,8 +152,11 @@ def edit_header(header_id):
                             break
                 header.operator_names = ','.join(op_names)
             else:
-                header.operator_ids = None
-                header.operator_names = None
+                # 如果没有选择操作员ID，保留原有的姓名（可能是手动输入的）
+                # 只有当原来也没有姓名时才清空
+                if not header.operator_names:
+                    header.operator_ids = None
+                    header.operator_names = None
 
             if salesperson_ids:
                 header.salesperson_ids = ','.join(salesperson_ids)
@@ -162,8 +169,11 @@ def edit_header(header_id):
                             break
                 header.salesperson_names = ','.join(sp_names)
             else:
-                header.salesperson_ids = None
-                header.salesperson_names = None
+                # 如果没有选择业务员ID，保留原有的姓名（可能是手动输入的）
+                # 只有当原来也没有姓名时才清空
+                if not header.salesperson_names:
+                    header.salesperson_ids = None
+                    header.salesperson_names = None
 
             db.session.commit()
 

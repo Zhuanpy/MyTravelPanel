@@ -1,5 +1,5 @@
 {% extends "staff_base.html" %}
-{% block title %}{{ '编辑公司 - ' + company.company_name if company else '新增客户公司' }} - MyTravelPanel{% endblock %}
+{% block title %}{{ '编辑公司 - ' + company.company_name if company else '新增公司' }} - MyTravelPanel{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -14,10 +14,10 @@
                     {% if company %}
                         <i class="fas fa-edit"></i> 编辑公司 - {{ company.company_name }}
                     {% else %}
-                        <i class="fas fa-building"></i> 新增客户公司
+                        <i class="fas fa-building"></i> 新增公司
                     {% endif %}
                 </h1>
-                <p class="visa-text-muted">{{ '修改客户公司信息' if company else '添加新的客户公司信息' }}</p>
+                <p class="visa-text-muted">{{ '修改公司信息' if company else '添加新的公司信息' }}</p>
             </div>
             <div class="visa-flex visa-gap-2">
                 {% if company %}
@@ -52,7 +52,38 @@
             <div class="visa-card-body">
                 <form method="post" action="{{ url_for('corporate.edit_company', company_id=company.id) if company else url_for('corporate.create_company') }}">
                     {{ form.hidden_tag() }}
-                    
+
+                    <!-- 公司角色选择 -->
+                    <div class="visa-card visa-mb-4" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <div class="visa-card-body" style="padding: 1rem;">
+                            <div class="visa-flex visa-gap-4" style="align-items: center;">
+                                <span style="font-weight: 600; color: #475569; margin-right: 1rem;">
+                                    <i class="fas fa-user-tag"></i> 公司角色:
+                                </span>
+                                <label style="display: flex; align-items: center; cursor: pointer; gap: 0.5rem;">
+                                    <input type="checkbox" name="is_customer" id="is_customer"
+                                           style="width: 18px; height: 18px;"
+                                           {{ 'checked' if (company and company.is_customer) or not company }}>
+                                    <span style="color: #2563eb;">
+                                        <i class="fas fa-user-tie"></i> 客户
+                                    </span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer; gap: 0.5rem;">
+                                    <input type="checkbox" name="is_supplier" id="is_supplier"
+                                           style="width: 18px; height: 18px;"
+                                           onchange="toggleSupplierFields()"
+                                           {{ 'checked' if company and company.is_supplier }}>
+                                    <span style="color: #d97706;">
+                                        <i class="fas fa-truck"></i> 供应商
+                                    </span>
+                                </label>
+                                <small style="color: #94a3b8; margin-left: 1rem;">
+                                    (至少选择一个角色，可同时选择)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 第一行：公司名称*、公司代码、行业、公司规模 -->
                     <div class="visa-grid-4">
                         <div class="visa-form-group">
@@ -184,6 +215,51 @@
                         </div>
                     </div>
 
+                    <!-- 供应商专属字段 -->
+                    <div id="supplierFields" style="display: {{ 'block' if company and company.is_supplier else 'none' }};">
+                        <div class="visa-card visa-mb-4" style="background: #fffbeb; border: 1px solid #fcd34d;">
+                            <div class="visa-card-header" style="background: #fef3c7; padding: 0.75rem 1rem;">
+                                <h4 style="margin: 0; font-size: 1rem; color: #92400e;">
+                                    <i class="fas fa-truck"></i> 供应商信息
+                                </h4>
+                            </div>
+                            <div class="visa-card-body" style="padding: 1rem;">
+                                <div class="visa-grid-4">
+                                    <div class="visa-form-group">
+                                        <label class="visa-form-label">供应商类型</label>
+                                        <select name="supplier_type_id" class="visa-form-select">
+                                            <option value="">-- 选择类型 --</option>
+                                            {% for st in supplier_types %}
+                                            <option value="{{ st.id }}"
+                                                    {{ 'selected' if company and company.supplier_type_id == st.id }}>
+                                                {{ st.name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label class="visa-form-label">国家</label>
+                                        <input type="text" name="country" class="visa-form-control"
+                                               placeholder="如: Singapore"
+                                               value="{{ company.country if company else '' }}">
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label class="visa-form-label">城市</label>
+                                        <input type="text" name="city" class="visa-form-control"
+                                               placeholder="如: Singapore"
+                                               value="{{ company.city if company else '' }}">
+                                    </div>
+                                    <div class="visa-form-group">
+                                        <label class="visa-form-label">地区</label>
+                                        <input type="text" name="region" class="visa-form-control"
+                                               placeholder="如: Southeast Asia"
+                                               value="{{ company.region if company else '' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 公司地址 -->
                     <div class="visa-form-group">
                         <label class="visa-form-label">{{ form.address.label.text }}</label>
@@ -269,6 +345,22 @@
         {% endif %}
     </div>
 </div>
+
+<!-- 供应商字段切换脚本 -->
+<script>
+function toggleSupplierFields() {
+    const isSupplier = document.getElementById('is_supplier').checked;
+    const supplierFields = document.getElementById('supplierFields');
+    if (supplierFields) {
+        supplierFields.style.display = isSupplier ? 'block' : 'none';
+    }
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    toggleSupplierFields();
+});
+</script>
 
 {% if company %}
 <!-- 添加/编辑联系人模态框 -->

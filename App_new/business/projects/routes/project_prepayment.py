@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from App_new.exts import db, csrf
 from App_new.utils.decorators import staff_only, admin_only
 from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
-from App_new.shared.models.Suppliers import Supplier
+from App_new.business.projects.models.project import CustomerCompany
 from App_new.finance.models.chart_of_account import ChartOfAccount
 from App_new.finance.models.journal_entry import JournalEntry, JournalEntryLine
 from datetime import datetime, date
@@ -40,7 +40,10 @@ def list_prepayments():
     prepayments = query.order_by(SupplierPrepayment.created_at.desc()).all()
 
     # 获取供应商列表（用于筛选）
-    suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.status == 'active'
+    ).order_by(CustomerCompany.company_name).all()
 
     # 计算汇总
     total_amount = sum(p.amount for p in prepayments)
@@ -65,7 +68,10 @@ def create_prepayment():
     """创建预付账款"""
     if request.method == 'GET':
         # 获取供应商列表
-        suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
+        suppliers = CustomerCompany.query.filter(
+            CustomerCompany.is_supplier == True,
+            CustomerCompany.status == 'active'
+        ).order_by(CustomerCompany.company_name).all()
 
         # 获取银行账户科目（1000-1099）
         bank_accounts = ChartOfAccount.query.filter(
@@ -362,16 +368,16 @@ def get_prepayment_summary():
 
     # 按供应商汇总
     summary = db.session.query(
-        Supplier.supplier_id,
-        Supplier.name,
+        CustomerCompany.id,
+        CustomerCompany.company_name,
         func.sum(SupplierPrepayment.amount).label('total_amount'),
         func.sum(SupplierPrepayment.balance_amount).label('total_balance')
     ).join(
-        SupplierPrepayment, Supplier.supplier_id == SupplierPrepayment.supplier_id
+        SupplierPrepayment, CustomerCompany.id == SupplierPrepayment.supplier_id
     ).filter(
         SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed'])
     ).group_by(
-        Supplier.supplier_id, Supplier.name
+        CustomerCompany.id, CustomerCompany.company_name
     ).all()
 
     result = []
@@ -379,8 +385,8 @@ def get_prepayment_summary():
         total_amount = float(item.total_amount or 0)
         total_balance = float(item.total_balance or 0)
         result.append({
-            'supplier_id': item.supplier_id,
-            'supplier_name': item.name,
+            'supplier_id': item.id,
+            'supplier_name': item.company_name,
             'total_amount': total_amount,
             'total_balance': total_balance,
             'total_used': total_amount - total_balance

@@ -41,11 +41,11 @@ class Account(db.Model):
     # 创建者用户ID（用于私有权限判断）
     created_by = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='创建者用户ID')
     
-    # 供应商关联字段 - 一个账号可以属于一个供应商或没有供应商
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='关联的供应商ID')
-    
+    # 供应商关联字段 - 一个账号可以属于一个公司（供应商）
+    supplier_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='关联的公司ID')
+
     # 关联关系
-    supplier = db.relationship('Supplier', backref='accounts', foreign_keys=[supplier_id])
+    supplier = db.relationship('CustomerCompany', backref='accounts', foreign_keys=[supplier_id])
     
     @property
     def creator(self):
@@ -100,7 +100,7 @@ class Account(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'click_count': self.click_count,
             'supplier_id': self.supplier_id,
-            'supplier_name': self.supplier.name if self.supplier else None,
+            'supplier_name': self.supplier.company_name if self.supplier else None,
             'access_level': self.access_level or ACCESS_LEVEL_PRIVATE,
             'access_level_display': access_level_display,
             'created_by': self.created_by,

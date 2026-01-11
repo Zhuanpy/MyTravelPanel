@@ -372,6 +372,13 @@ def header_receipts(header_id):
 def create_header_receipt(header_id):
     """创建项目级别收款记录"""
     header = ProjectHeader.query.get_or_404(header_id)
+
+    # 检查是否还有未收款金额
+    unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
+    if unpaid_amount <= 0:
+        flash('该项目已无未收款金额，无法创建新收款记录', 'warning')
+        return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
+
     form = ProjectLevelReceiptForm()
 
     # 动态生成未付款发票选择选项
@@ -382,11 +389,11 @@ def create_header_receipt(header_id):
     ).order_by(ProjectInvoice.invoice_date).all()
 
     for invoice in invoices:
-        unpaid_amount = invoice.unpaid_amount
-        if unpaid_amount > 0:
+        inv_unpaid = invoice.unpaid_amount
+        if inv_unpaid > 0:
             unpaid_invoices.append((
                 invoice.id,
-                f"{invoice.invoice_number} - {invoice.customer_name or '客户'} (未收款: {invoice.currency or 'SGD'} {unpaid_amount:.2f})"
+                f"{invoice.invoice_number} - {invoice.customer_name or '客户'} (未收款: {invoice.currency or 'SGD'} {inv_unpaid:.2f})"
             ))
 
     form.selected_invoices.choices = unpaid_invoices
@@ -503,18 +510,27 @@ def create_header_receipt(header_id):
                     'total_unpaid': total_unpaid
                 }
             
-            if not distribution_result['success']:
+            if not distribution_result.get('success', True) and distribution_result.get('message'):
                 flash(distribution_result['message'], 'error')
                 return render_template('business/projects/project_receipt/create_header_receipt.html',
                                      form=form,
                                      header=header,
                                      receipt_number=receipt_number,
                                      unpaid_amount=unpaid_amount)
-            
+
+            # 将 distribution 数组转换为 allocations 字典格式
+            distribution_list = distribution_result.get('distribution', [])
+            allocations = {}
+            for dist_item in distribution_list:
+                inv_id = dist_item.get('invoice_id')
+                alloc_amount = dist_item.get('amount', 0)
+                if inv_id and alloc_amount > 0:
+                    allocations[inv_id] = alloc_amount
+
             # 使用分配中的第一张发票作为主关联发票
             first_invoice_id = None
-            if distribution_result['distribution']:
-                first_invoice_id = distribution_result['distribution'][0].get('invoice_id')
+            if allocations:
+                first_invoice_id = list(allocations.keys())[0]
 
             # 创建项目级别收款记录
             project_receipt = ProjectReceipt(
@@ -539,9 +555,9 @@ def create_header_receipt(header_id):
             # 在extra_info中存储分配信息
             distribution_info = {
                 'distribution_method': distribution_method,
-                'distribution': distribution_result['distribution'],
+                'allocations': allocations,
                 'total_amount': amount,
-                'remaining_amount': distribution_result['remaining_amount'],
+                'remaining_amount': distribution_result.get('remaining_amount', 0),
                 'selected_invoices': form.selected_invoices.data if distribution_method == 'manual' else None
             }
             project_receipt.extra_info = json.dumps(distribution_info)
@@ -568,10 +584,8 @@ def create_header_receipt(header_id):
                 logging.getLogger(__name__).warning(f"创建项目收款日记账失败: {str(je_error)}")
 
             # 更新分配到的每张发票的已付金额
-            for dist_item in distribution_result['distribution']:
-                inv_id = dist_item.get('invoice_id')
-                if inv_id:
-                    ProjectReceipt.update_invoice_paid_amount(inv_id)
+            for inv_id in allocations.keys():
+                ProjectReceipt.update_invoice_paid_amount(inv_id)
 
             # 更新各个REF的付款状态（基于发票付款情况）
             for ref in header.refs:
@@ -669,17 +683,17 @@ def edit_header_receipt(header_id, receipt_id):
 @login_required
 @staff_only
 def delete_header_receipt(header_id, receipt_id):
-    """删除项目级别收款记录"""
+    """删除收款记录（支持项目级别和REF级别）"""
     receipt = ProjectReceipt.query.filter_by(
         id=receipt_id,
-        header_id=header_id,
-        ref_id=None
+        header_id=header_id
     ).first_or_404()
 
     invoice_id = receipt.invoice_id  # 保存发票ID用于更新
+    ref_id = receipt.ref_id  # 保存REF ID
 
     try:
-        # 删除项目级别收款记录
+        # 删除收款记录
         db.session.delete(receipt)
         db.session.flush()
 
@@ -701,6 +715,7 @@ def delete_header_receipt(header_id, receipt_id):
             ProjectReceipt.update_invoice_paid_amount(invoice_id)
 
         db.session.commit()
+        flash('收款记录删除成功！', 'success')
 
     except Exception as e:
         db.session.rollback()

@@ -73,6 +73,38 @@ class CustomerCompany(db.Model):
             roles.append('供应商')
         return ' / '.join(roles) if roles else '未设置'
 
+    @property
+    def name(self):
+        """向后兼容：返回公司名称（原 Supplier.name）"""
+        return self.company_name
+
+    @property
+    def name_en(self):
+        """向后兼容：返回公司名称（英文）"""
+        return self.company_name
+
+    @property
+    def phone(self):
+        """向后兼容：返回联系电话（原 Supplier.phone）"""
+        return self.contact_phone
+
+    @property
+    def email(self):
+        """向后兼容：返回联系邮箱（原 Supplier.email）"""
+        return self.contact_email
+
+    @property
+    def notes(self):
+        """向后兼容：返回备注（原 Supplier.notes）"""
+        return self.remarks
+
+    @property
+    def supplier_type_code(self):
+        """获取供应商类型代码"""
+        if self.supplier_type:
+            return self.supplier_type.code
+        return None
+
     def to_dict(self):
         """转换为字典格式"""
         return {

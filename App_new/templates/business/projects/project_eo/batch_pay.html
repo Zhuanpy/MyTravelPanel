@@ -6,39 +6,44 @@
 
 {% block content %}
 <style>
-    .eo-table { font-size: 0.8rem; table-layout: fixed; }
-    .eo-table th { background: #343a40; color: #fff; font-weight: 500; white-space: nowrap; padding: 6px 8px; }
-    .eo-table td { padding: 5px 8px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .eo-table .badge { font-size: 0.7rem; }
+    .batch-pay-container { max-width: 1100px; margin: 0 auto; padding: 0 15px; }
+    .eo-table { font-size: 0.75rem; table-layout: auto; }
+    .eo-table th { background: #343a40; color: #fff; font-weight: 500; white-space: nowrap; padding: 4px 6px; }
+    .eo-table td { padding: 3px 6px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .eo-table .badge { font-size: 0.65rem; padding: 2px 5px; }
     .amount-col { text-align: right; font-family: monospace; }
-    .pax-col { max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .filter-row { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
-    .filter-row .form-control, .filter-row .form-select { height: 32px; font-size: 0.85rem; padding: 4px 8px; }
-    .filter-row .btn { height: 32px; padding: 4px 12px; font-size: 0.85rem; }
+    .pax-col { max-width: 80px; }
+    .filter-row { background: #f8f9fa; padding: 8px 10px; border-radius: 5px; margin-bottom: 10px; }
+    .filter-row .form-control, .filter-row .form-select { height: 28px; font-size: 0.8rem; padding: 2px 6px; }
+    .filter-row .btn { height: 28px; padding: 2px 10px; font-size: 0.8rem; }
     .selected-row { background-color: #e8f5e9 !important; }
-    .summary-card { background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: left; }
-    .summary-card h5 { color: #1565c0; margin-bottom: 10px; text-align: left; }
-    .summary-card > div { text-align: left; }
-    .pay-form-card { background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; padding: 15px; text-align: left; }
-    .pay-form-card h5 { color: #e65100; margin-bottom: 15px; text-align: left; }
-    .pay-form-card .form-label { text-align: left; }
-    .pay-form-card .form-control, .pay-form-card .input-group { text-align: left; }
-    .pay-form-card .form-control { text-align: left !important; }
-    .pay-form-card input[type="text"], 
-    .pay-form-card input[type="date"], 
-    .pay-form-card input[type="number"], 
-    .pay-form-card textarea { text-align: left !important; }
-    .pay-form-card small { text-align: left; display: block; }
-    .total-amount { font-size: 1.5rem; font-weight: bold; color: #2e7d32; display: inline-block; }
+    .summary-card { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 5px; padding: 8px 12px; margin-bottom: 10px; }
+    .summary-card h6 { color: #1565c0; margin-bottom: 0; font-size: 0.85rem; }
+    .total-amount { font-size: 1.2rem; font-weight: bold; color: #2e7d32; }
+    .pay-form-card { background: #fff3e0; border: 1px solid #ff9800; border-radius: 5px; padding: 10px 12px; }
+    .pay-form-card h6 { color: #e65100; margin-bottom: 8px; font-size: 0.85rem; }
+    .pay-form-card .form-label { font-size: 0.75rem; margin-bottom: 2px; }
+    .pay-form-card .form-control { font-size: 0.8rem; padding: 4px 8px; height: 30px; }
+    .pay-form-card .input-group-text { font-size: 0.75rem; padding: 4px 6px; }
+    .pay-form-card .btn { font-size: 0.8rem; padding: 4px 8px; }
+    .pay-form-card .form-check-label { font-size: 0.75rem; }
+    .pay-form-card .alert { font-size: 0.75rem; padding: 4px 8px; }
+    .card-header { padding: 6px 10px !important; font-size: 0.85rem; }
+    .card-footer { padding: 6px 10px !important; }
 </style>
 
-<div class="container-fluid">
+<div class="batch-pay-container">
     <!-- 标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="fas fa-money-check-alt text-success"></i> 批量付款给供应商</h5>
-        <a href="{{ url_for('business_projects.project_eo.eo_list') }}" class="btn btn-sm btn-secondary">
-            <i class="fas fa-arrow-left"></i> 返回EO列表
-        </a>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0"><i class="fas fa-money-check-alt text-success"></i> 批量付款给供应商</h6>
+        <div>
+            <a href="{{ url_for('business_projects.project_payment.list_payments') }}" class="btn btn-sm btn-outline-primary py-0 px-2 me-1" style="font-size:0.75rem;">
+                <i class="fas fa-list-alt"></i> 付款记录
+            </a>
+            <a href="{{ url_for('business_projects.project_eo.eo_list') }}" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem;">
+                <i class="fas fa-arrow-left"></i> 返回
+            </a>
+        </div>
     </div>
 
     <!-- 筛选 -->
@@ -59,7 +64,7 @@
                 <select class="form-select" name="supplier" onchange="this.form.submit()">
                     <option value="">供应商</option>
                     {% for supplier in suppliers %}
-                    <option value="{{ supplier.supplier_id }}" {% if current_filters.supplier == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
+                    <option value="{{ supplier.id }}" {% if current_filters.supplier == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -79,169 +84,182 @@
         </form>
     </div>
 
-    <div class="row">
-        <!-- 左侧：EO列表 -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-list"></i> 待付款EO列表 <span class="badge bg-info">{{ eos|length }}</span></span>
-                    <div>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">全选</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">取消全选</button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover eo-table mb-0" id="eoTable">
-                            <thead style="position: sticky; top: 0; z-index: 1;">
-                                <tr>
-                                    <th style="width: 30px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
-                                    <th style="width: 75px;">EO Date</th>
-                                    <th style="width: 65px;">EO No</th>
-                                    <th style="width: 40px;">Curr</th>
-                                    <th style="width: 65px;" class="amount-col">Cost</th>
-                                    <th style="width: 60px;">HID</th>
-                                    <th style="width: 55px;">REF</th>
-                                    <th style="width: 50px;">Type</th>
-                                    <th style="width: 80px;">Supplier</th>
-                                    <th style="width: 70px;">Pax</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for eo in eos %}
-                                <tr data-eo-id="{{ eo.id }}" data-amount="{{ eo.cost_price or 0 }}" data-currency="{{ eo.currency or 'SGD' }}">
-                                    <td class="text-center">
-                                        <input type="checkbox" class="eo-checkbox" value="{{ eo.id }}" onchange="updateSelection()">
-                                    </td>
-                                    <td>{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</td>
-                                    <td><span class="badge bg-primary">{{ eo.eo_number }}</span></td>
-                                    <td>{{ eo.currency or 'SGD' }}</td>
-                                    <td class="amount-col">{{ "%.2f"|format(eo.cost_price|float) if eo.cost_price else '-' }}</td>
-                                    <td>
-                                        {% if eo.project_id and eo.project_hid %}
-                                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.project_id) }}" 
-                                           class="text-primary text-decoration-none fw-bold" 
-                                           target="_blank" 
-                                           title="点击查看项目详情">
-                                            {{ eo.project_hid }}
-                                        </a>
-                                        {% else %}
-                                        -
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ eo.ref_number or '-' }}</td>
-                                    <td><span class="badge bg-info">{{ eo.ref_type_name or '-' }}</span></td>
-                                    <td title="{{ eo.supplier_name or '-' }}">{{ eo.supplier_name or '-' }}</td>
-                                    <td class="pax-col" title="{{ eo.pax_names or '-' }}">{{ eo.pax_names or '-' }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- 分页组件 -->
-                {% if pagination and pagination.pages > 1 %}
-                <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
-                    <div class="text-muted small">
-                        共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.pages }} 页
-                    </div>
-                    <nav>
-                        <ul class="pagination pagination-sm mb-0">
-                            {% if pagination.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.prev_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
-                                    <i class="fas fa-chevron-left"></i>
+    <!-- EO列表 -->
+    <div class="card mb-2">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-list"></i> 待付款EO <span class="badge bg-info">{{ eos|length }}</span></span>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="selectAll()" style="font-size:0.7rem;">全选</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="deselectAll()" style="font-size:0.7rem;">取消</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 650px; overflow-y: auto;">
+                <table class="table table-bordered table-hover eo-table mb-0" id="eoTable">
+                    <thead style="position: sticky; top: 0; z-index: 1;">
+                        <tr>
+                            <th style="width: 25px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+                            <th>Date</th>
+                            <th>EO No</th>
+                            <th>Curr</th>
+                            <th class="amount-col">Cost</th>
+                            <th>HID</th>
+                            <th>REF</th>
+                            <th>Type</th>
+                            <th>Supplier</th>
+                            <th>Pax</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eo in eos %}
+                        <tr data-eo-id="{{ eo.id }}" data-amount="{{ eo.cost_price or 0 }}" data-currency="{{ eo.currency or 'SGD' }}" data-supplier-id="{{ eo.supplier_id or '' }}">
+                            <td class="text-center">
+                                <input type="checkbox" class="eo-checkbox" value="{{ eo.id }}" onchange="updateSelection()">
+                            </td>
+                            <td>{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</td>
+                            <td><span class="badge bg-primary">{{ eo.eo_number }}</span></td>
+                            <td>{{ eo.currency or 'SGD' }}</td>
+                            <td class="amount-col">{{ "%.2f"|format(eo.cost_price|float) if eo.cost_price else '-' }}</td>
+                            <td>
+                                {% if eo.project_id and eo.project_hid %}
+                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.project_id) }}"
+                                   class="text-primary text-decoration-none fw-bold"
+                                   target="_blank"
+                                   title="点击查看项目详情">
+                                    {{ eo.project_hid }}
                                 </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
-                            {% endif %}
-                            
-                            {% for p in range(1, pagination.pages + 1) %}
-                                {% if p == pagination.page %}
-                                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-                                {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=p, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">{{ p }}</a>
-                                </li>
-                                {% elif p == 2 or p == pagination.pages - 1 %}
-                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% else %}
+                                -
                                 {% endif %}
-                            {% endfor %}
-                            
-                            {% if pagination.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.next_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                </div>
-                {% endif %}
+                            </td>
+                            <td>{{ eo.ref_number or '-' }}</td>
+                            <td><span class="badge bg-info">{{ eo.ref_type_name or '-' }}</span></td>
+                            <td title="{{ eo.supplier_name or '-' }}">{{ eo.supplier_name or '-' }}</td>
+                            <td class="pax-col" title="{{ eo.pax_names or '-' }}">{{ eo.pax_names or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-        
-        <!-- 右侧：付款表单 -->
-        <div class="col-md-4">
-            <!-- 已选汇总 -->
-            <div class="summary-card">
-                <h5><i class="fas fa-calculator"></i> 已选汇总</h5>
-                <div class="mb-2">
-                    <span>已选EO数量：</span>
-                    <span id="selectedCount" class="fw-bold">0</span>
-                </div>
-                <div>
-                    <span>应付总金额：</span>
-                    <span id="totalAmount" class="total-amount">SGD 0.00</span>
-                </div>
+
+        <!-- 分页组件 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center py-2">
+            <div class="text-muted small">
+                共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.pages }} 页
             </div>
-            
-            <!-- 付款表单 -->
-            <div class="pay-form-card">
-                <h5><i class="fas fa-credit-card"></i> 付款信息</h5>
-                <form id="batchPayForm">
-                    <div class="mb-3">
-                        <label class="form-label">付款编号 <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="payment_no" name="payment_no" placeholder="自动生成..." required>
-                            <button type="button" class="btn btn-outline-secondary" onclick="generatePaymentNo()" title="重新生成">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.prev_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
+                    {% endif %}
+
+                    {% for p in range(1, pagination.pages + 1) %}
+                        {% if p == pagination.page %}
+                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                        {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=p, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">{{ p }}</a>
+                        </li>
+                        {% elif p == 2 or p == pagination.pages - 1 %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.next_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 已选汇总 -->
+    <div class="summary-card">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-calculator"></i> 已选汇总</h6>
+            <div>
+                <span class="me-3" style="font-size:0.85rem;">已选：<span id="selectedCount" class="fw-bold">0</span> 笔</span>
+                <span style="font-size:0.85rem;">应付：<span id="totalAmount" class="total-amount">SGD 0.00</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 付款表单 -->
+    <div class="pay-form-card">
+        <h6><i class="fas fa-credit-card"></i> 付款信息</h6>
+        <form id="batchPayForm">
+            <div class="row g-2">
+                <div class="col">
+                    <label class="form-label">付款编号 <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="payment_no" name="payment_no" placeholder="自动生成" required>
+                        <button type="button" class="btn btn-outline-secondary" onclick="generatePaymentNo()" title="重新生成">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col">
+                    <label class="form-label">凭证号</label>
+                    <input type="text" class="form-control" id="payment_voucher_no" name="payment_voucher_no" placeholder="银行凭证">
+                </div>
+                <div class="col">
+                    <label class="form-label">付款日期 <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="paid_date" name="paid_date" value="{{ today }}" required>
+                </div>
+                <div class="col">
+                    <label class="form-label">金额 <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">SGD</span>
+                        <input type="number" class="form-control" id="pay_amount" name="pay_amount" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                </div>
+                <div class="col">
+                    <label class="form-label">来源</label>
+                    <div class="pt-1">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="payment_source" id="source_bank" value="bank" {% if not current_filters.supplier %}checked{% endif %} onchange="togglePrepaymentSelect()">
+                            <label class="form-check-label" for="source_bank">银行</label>
                         </div>
-                        <small class="text-muted">付款编号已自动生成，可手动修改或点击刷新按钮重新生成</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">付款凭证号 (Payment Voucher)</label>
-                        <input type="text" class="form-control" id="payment_voucher_no" name="payment_voucher_no" placeholder="银行转账凭证号...">
-                        <small class="text-muted">银行转账凭证号或支票号码</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">付款日期 <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="paid_date" name="paid_date" value="{{ today }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">付款总金额 <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">SGD</span>
-                            <input type="number" class="form-control" id="pay_amount" name="pay_amount" step="0.01" min="0" placeholder="0.00" required>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="payment_source" id="source_prepayment" value="prepayment" {% if current_filters.supplier %}checked{% endif %} onchange="togglePrepaymentSelect()">
+                            <label class="form-check-label" for="source_prepayment">预付</label>
                         </div>
-                        <small class="text-muted">默认按成本金额填充，可手动修改</small>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">备注</label>
-                        <textarea class="form-control" id="remarks" name="remarks" rows="2" placeholder="付款备注（可选）"></textarea>
-                    </div>
-                    <button type="button" class="btn btn-success w-100" onclick="submitBatchPayment()" id="submitBtn" disabled>
-                        <i class="fas fa-check"></i> 确认批量付款
+                </div>
+                <div class="col">
+                    <label class="form-label">备注</label>
+                    <input type="text" class="form-control" id="remarks" name="remarks" placeholder="可选">
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button type="button" class="btn btn-success" onclick="submitBatchPayment()" id="submitBtn" disabled>
+                        <i class="fas fa-check"></i> 确认付款
                     </button>
-                </form>
+                </div>
             </div>
-        </div>
+            <div class="row mt-2" id="prepaymentInfoDiv" style="display: {% if current_filters.supplier %}block{% else %}none{% endif %};">
+                <div class="col-12">
+                    <div class="alert alert-info mb-0" id="prepaymentBalanceInfo">
+                        <i class="fas fa-wallet me-1"></i>
+                        <span id="prepaymentBalanceText">请先选择同一供应商的EO</span>
+                    </div>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -268,9 +286,15 @@ function generatePaymentNo() {
     });
 }
 
-// 页面加载时自动生成付款编号
+// 页面加载时自动生成付款编号，并加载预付账款信息（如果已筛选供应商）
 document.addEventListener('DOMContentLoaded', function() {
     generatePaymentNo();
+
+    // 如果已筛选供应商，自动加载预付账款余额信息
+    {% if current_filters.supplier %}
+    currentSupplierId = '{{ current_filters.supplier }}';
+    loadPrepaymentBalance(currentSupplierId);
+    {% endif %}
 });
 
 function toggleAll(checkbox) {
@@ -297,11 +321,14 @@ function deselectAll() {
     toggleAll(document.getElementById('checkAll'));
 }
 
+let currentSupplierId = null;
+
 function updateSelection() {
     selectedEOs = [];
     let totalAmount = 0;
     let currency = 'SGD';
-    
+    let supplierIds = new Set();
+
     const checkboxes = document.querySelectorAll('.eo-checkbox:checked');
     checkboxes.forEach(cb => {
         const row = cb.closest('tr');
@@ -309,23 +336,88 @@ function updateSelection() {
         const eoId = parseInt(cb.value);
         const amount = parseFloat(row.dataset.amount) || 0;
         currency = row.dataset.currency || 'SGD';
-        
+        const supplierId = row.dataset.supplierId;
+
         selectedEOs.push(eoId);
         totalAmount += amount;
+        if (supplierId) supplierIds.add(supplierId);
     });
-    
+
     // 更新未选中的行
     document.querySelectorAll('.eo-checkbox:not(:checked)').forEach(cb => {
         cb.closest('tr').classList.remove('selected-row');
     });
-    
+
     // 更新汇总
     document.getElementById('selectedCount').textContent = selectedEOs.length;
     document.getElementById('totalAmount').textContent = currency + ' ' + totalAmount.toFixed(2);
     document.getElementById('pay_amount').value = totalAmount.toFixed(2);
-    
+
     // 更新提交按钮状态
     document.getElementById('submitBtn').disabled = selectedEOs.length === 0;
+
+    // 检查是否是同一供应商，更新预付账款信息
+    if (supplierIds.size === 1) {
+        currentSupplierId = Array.from(supplierIds)[0];
+        loadPrepaymentBalance(currentSupplierId);
+    } else {
+        currentSupplierId = null;
+        resetPrepaymentInfo();
+    }
+}
+
+let currentPrepaymentBalance = 0;
+let currentSupplierName = '';
+
+function togglePrepaymentSelect() {
+    const isPrepayment = document.getElementById('source_prepayment').checked;
+    document.getElementById('prepaymentInfoDiv').style.display = isPrepayment ? 'block' : 'none';
+    if (isPrepayment && currentSupplierId) {
+        loadPrepaymentBalance(currentSupplierId);
+    }
+}
+
+function loadPrepaymentBalance(supplierId) {
+    fetch(`/company/${supplierId}/prepayments`)
+        .then(response => response.json())
+        .then(data => {
+            const infoDiv = document.getElementById('prepaymentBalanceInfo');
+            const textSpan = document.getElementById('prepaymentBalanceText');
+
+            if (data.success && data.prepayments && data.prepayments.length > 0) {
+                // 使用 API 返回的总余额和供应商名称
+                currentPrepaymentBalance = data.total_balance || 0;
+                currentSupplierName = data.supplier_name || '';
+
+                // 显示预付账款列表信息
+                let prepaymentInfo = `<strong>${currentSupplierName}</strong> 可用预付余额: <strong class="text-success">SGD ${currentPrepaymentBalance.toFixed(2)}</strong>`;
+                if (data.prepayments.length > 1) {
+                    prepaymentInfo += `<br><small class="text-muted">共 ${data.prepayments.length} 笔预付账款，将按充值时间顺序自动抵扣</small>`;
+                }
+                textSpan.innerHTML = prepaymentInfo;
+                infoDiv.classList.remove('alert-warning', 'alert-danger');
+                infoDiv.classList.add('alert-info');
+            } else {
+                currentPrepaymentBalance = 0;
+                currentSupplierName = data.supplier_name || '';
+                textSpan.innerHTML = '<span class="text-danger">该供应商无可用预付账款</span>';
+                infoDiv.classList.remove('alert-info');
+                infoDiv.classList.add('alert-warning');
+            }
+        })
+        .catch(error => {
+            console.error('加载预付账款失败:', error);
+            resetPrepaymentInfo();
+        });
+}
+
+function resetPrepaymentInfo() {
+    currentPrepaymentBalance = 0;
+    currentSupplierName = '';
+    const textSpan = document.getElementById('prepaymentBalanceText');
+    textSpan.textContent = '请先选择同一供应商的EO';
+    document.getElementById('prepaymentBalanceInfo').classList.remove('alert-warning', 'alert-danger');
+    document.getElementById('prepaymentBalanceInfo').classList.add('alert-info');
 }
 
 function submitBatchPayment() {
@@ -339,13 +431,35 @@ function submitBatchPayment() {
     const paid_date = document.getElementById('paid_date').value;
     const pay_amount = document.getElementById('pay_amount').value;
     const remarks = document.getElementById('remarks').value;
+    const payment_source = document.querySelector('input[name="payment_source"]:checked').value;
 
     if (!payment_no || !paid_date || !pay_amount) {
         alert('请填写完整的付款信息');
         return;
     }
 
-    if (confirm(`确认为 ${selectedEOs.length} 个EO付款，总金额 SGD ${parseFloat(pay_amount).toFixed(2)}？`)) {
+    // 如果选择预付账款，验证余额是否足够
+    if (payment_source === 'prepayment') {
+        if (!currentSupplierId) {
+            alert('请选择同一供应商的EO');
+            return;
+        }
+        if (currentPrepaymentBalance <= 0) {
+            alert('该供应商无可用预付账款');
+            return;
+        }
+        if (parseFloat(pay_amount) > currentPrepaymentBalance) {
+            alert(`付款金额 (${pay_amount}) 超过供应商预付余额 (${currentPrepaymentBalance.toFixed(2)})`);
+            return;
+        }
+    }
+
+    let confirmMsg = `确认为 ${selectedEOs.length} 个EO付款，总金额 SGD ${parseFloat(pay_amount).toFixed(2)}？`;
+    if (payment_source === 'prepayment') {
+        confirmMsg += `\n\n将从 ${currentSupplierName} 的预付账款中按时间顺序自动抵消。`;
+    }
+
+    if (confirm(confirmMsg)) {
         fetch('{{ url_for("business_projects.project_eo.batch_pay_submit") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -355,7 +469,9 @@ function submitBatchPayment() {
                 payment_voucher_no: payment_voucher_no,
                 paid_date: paid_date,
                 pay_amount: parseFloat(pay_amount),
-                remarks: remarks
+                remarks: remarks,
+                payment_source: payment_source,
+                supplier_id: currentSupplierId ? parseInt(currentSupplierId) : null
             })
         })
         .then(response => response.json())

@@ -31,6 +31,12 @@
     .badge-partial_used { background-color: #17a2b8; }
     .badge-consumed { background-color: #ffc107; color: #212529; }
     .badge-cancelled { background-color: #dc3545; }
+    .usage-row { background-color: #f8f9fa; }
+    .usage-table { font-size: 0.85rem; margin-bottom: 0; }
+    .usage-table th { background-color: #e9ecef; font-weight: 500; }
+    .toggle-btn { cursor: pointer; }
+    .toggle-btn i { transition: transform 0.2s; }
+    .toggle-btn.expanded i { transform: rotate(90deg); }
 </style>
 {% endblock %}
 
@@ -72,8 +78,8 @@
                     <select name="supplier_id" class="form-select form-select-sm">
                         <option value="">全部供应商</option>
                         {% for supplier in suppliers %}
-                        <option value="{{ supplier.supplier_id }}" {% if selected_supplier_id == supplier.supplier_id %}selected{% endif %}>
-                            {{ supplier.name }}
+                        <option value="{{ supplier.id }}" {% if selected_supplier_id == supplier.id %}selected{% endif %}>
+                            {{ supplier.company_name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -106,6 +112,7 @@
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th style="width: 30px;"></th>
                         <th>编号</th>
                         <th>供应商</th>
                         <th class="text-end">充值金额</th>
@@ -121,12 +128,19 @@
                 <tbody>
                     {% for p in prepayments %}
                     <tr>
+                        <td class="text-center">
+                            {% if p.usages.count() > 0 %}
+                            <span class="toggle-btn" onclick="toggleUsages({{ p.id }}, this)" title="展开/收起使用记录">
+                                <i class="fas fa-chevron-right"></i>
+                            </span>
+                            {% endif %}
+                        </td>
                         <td>
                             <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=p.id) }}">
                                 {{ p.prepayment_number }}
                             </a>
                         </td>
-                        <td>{{ p.supplier.name if p.supplier else '-' }}</td>
+                        <td>{{ p.supplier.company_name if p.supplier else '-' }}</td>
                         <td class="text-end">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
                         <td class="text-end">{{ "%.2f"|format(p.used_amount) }}</td>
                         <td class="text-end fw-bold">{{ "%.2f"|format(p.balance_amount) }}</td>
@@ -156,15 +170,84 @@
                             </div>
                         </td>
                     </tr>
+                    <!-- EO使用记录展开行 -->
+                    {% if p.usages.count() > 0 %}
+                    <tr id="usage-row-{{ p.id }}" class="usage-row" style="display: none;">
+                        <td colspan="11" class="p-0">
+                            <div class="p-3">
+                                <h6 class="mb-2"><i class="fas fa-list me-1"></i>EO使用记录 ({{ p.usages.count() }})</h6>
+                                <table class="table table-sm table-bordered usage-table">
+                                    <thead>
+                                        <tr>
+                                            <th>EO编号</th>
+                                            <th>REF编号</th>
+                                            <th>HID</th>
+                                            <th class="text-end">金额</th>
+                                            <th>使用日期</th>
+                                            <th>状态</th>
+                                            <th>说明</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for u in p.usages %}
+                                        <tr>
+                                            <td>
+                                                {% if u.eo %}
+                                                <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=u.eo.id) }}">
+                                                    {{ u.eo.eo_number }}
+                                                </a>
+                                                {% else %}-{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if u.ref %}
+                                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=u.ref.id) }}">
+                                                    {{ u.ref.ref_number }}
+                                                </a>
+                                                {% else %}-{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if u.ref and u.ref.header %}
+                                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=u.ref.header.id) }}">
+                                                    {{ u.ref.header.hid }}
+                                                </a>
+                                                {% else %}-{% endif %}
+                                            </td>
+                                            <td class="text-end">{{ "%.2f"|format(u.amount) }}</td>
+                                            <td>{{ u.usage_date.strftime('%Y-%m-%d') if u.usage_date else '-' }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ 'warning' if u.status == 'pending' else 'success' if u.status == 'confirmed' else 'secondary' }}">
+                                                    {{ '待确认' if u.status == 'pending' else '已确认' if u.status == 'confirmed' else '已冲销' if u.status == 'reversed' else u.status }}
+                                                </span>
+                                            </td>
+                                            <td>{{ u.description or '-' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center py-4 text-muted">
+                        <td colspan="11" class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
                             <p class="mb-0">暂无预付账款记录</p>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                {% if prepayments %}
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="3" class="text-end">合计：</td>
+                        <td class="text-end">{{ "%.2f"|format(total_amount) }}</td>
+                        <td class="text-end">{{ "%.2f"|format(total_used) }}</td>
+                        <td class="text-end text-primary">{{ "%.2f"|format(total_balance) }}</td>
+                        <td colspan="5"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
         </div>
     </div>
@@ -190,6 +273,19 @@ function confirmPrepayment(id) {
         }
     })
     .catch(err => alert('请求失败: ' + err));
+}
+
+function toggleUsages(prepaymentId, btn) {
+    const row = document.getElementById('usage-row-' + prepaymentId);
+    if (row) {
+        if (row.style.display === 'none') {
+            row.style.display = 'table-row';
+            btn.classList.add('expanded');
+        } else {
+            row.style.display = 'none';
+            btn.classList.remove('expanded');
+        }
+    }
 }
 </script>
 {% endblock %}

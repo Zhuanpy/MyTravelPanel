@@ -33,6 +33,9 @@
             <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-sm btn-success me-1">
                 <i class="fas fa-money-check-alt"></i> 批量付款
             </a>
+            <a href="{{ url_for('business_projects.project_payment.list_payments') }}" class="btn btn-sm btn-outline-info me-1">
+                <i class="fas fa-list-alt"></i> 付款记录
+            </a>
             <button type="button" class="btn btn-sm btn-outline-success" onclick="exportToExcel()">
                 <i class="fas fa-download"></i> 导出
             </button>
@@ -67,7 +70,7 @@
                 <select class="form-select" name="supplier">
                     <option value="">供应商</option>
                     {% for supplier in suppliers %}
-                    <option value="{{ supplier.supplier_id }}" {% if current_filters.supplier == supplier.supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
+                    <option value="{{ supplier.id }}" {% if current_filters.supplier == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -110,12 +113,18 @@
                     <th>Paid Date</th>
                     <th class="amount-col">Pay Amt</th>
                     <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for eo in eos %}
                 <tr>
-                    <td><span class="badge bg-primary">{{ eo.eo_number }}</span></td>
+                    <td>
+                        <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}"
+                           class="badge bg-primary text-decoration-none" title="查看EO详情">
+                            {{ eo.eo_number }}
+                        </a>
+                    </td>
                     <td>{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</td>
                     <td>
                         {% if eo.project_id and eo.project_hid %}
@@ -156,6 +165,25 @@
                     <td>{{ eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '-' }}</td>
                     <td class="amount-col">{{ "%.2f"|format(eo.pay_amount|float) if eo.pay_amount else '-' }}</td>
                     <td><span class="badge status-{{ eo.status }}">{{ eo.status_display }}</span></td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}"
+                               class="btn btn-outline-primary btn-sm" title="查看">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if eo.status == 'confirmed' %}
+                            <a href="{{ url_for('business_projects.project_eo.exchange_order') }}?keyword={{ eo.eo_number }}"
+                               class="btn btn-outline-success btn-sm" title="付款">
+                                <i class="fas fa-dollar-sign"></i>
+                            </a>
+                            {% elif eo.status == 'paid' %}
+                            <button type="button" class="btn btn-outline-warning btn-sm"
+                                    onclick="cancelPayment({{ eo.id }}, '{{ eo.eo_number }}')" title="取消付款">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -187,15 +215,43 @@
 </div>
 
 <script>
+function cancelPayment(eoId, eoNumber) {
+    if(!confirm(`确定要取消 ${eoNumber} 的付款吗？\n\n取消后：\n- EO状态将恢复为"已确认"\n- 付款信息将被清除\n- 如使用了预付账款，余额将恢复`)) {
+        return;
+    }
+    fetch(`/projects/eo/${eoId}/cancel_payment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            alert('付款已取消');
+            location.reload();
+        } else {
+            alert(d.message || '取消失败');
+        }
+    })
+    .catch(err => {
+        alert('请求失败: ' + err);
+    });
+}
+
 function exportToExcel() {
     var headers = ['EO No','EO Date','HID','REF','Invoice','Type','Supplier','Company','Pax','Curr','Cost','Tax','Disc','Payment No','Paid Date','Pay Amt','Status'];
     var csv = headers.join(',') + '\n';
-    
+
     $('#eoTable tbody tr').each(function() {
         var row = [];
-        $(this).find('td').each(function() {
-            var text = $(this).text().trim().replace(/"/g, '""');
-            row.push('"' + text + '"');
+        $(this).find('td').each(function(index) {
+            // 跳过最后一列（Actions）
+            if (index < 17) {
+                var text = $(this).text().trim().replace(/"/g, '""');
+                row.push('"' + text + '"');
+            }
         });
         csv += row.join(',') + '\n';
     });

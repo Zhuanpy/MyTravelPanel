@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from ..models.models import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
-from App_new.shared.models.Suppliers import Supplier
+from App_new.business.projects.models.project import CustomerCompany
 from App_new.business.visa.models.Visamodels import VisaCountries
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
@@ -43,11 +43,14 @@ def generate_order_number():
 def create_order():
     """创建订单页面"""
     # 获取所有活跃的供应商
-    suppliers = Supplier.query.filter_by(status='active').all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.status == 'active'
+    ).order_by(CustomerCompany.company_name).all()
     # 从 BusinessType 表获取供应商类型列表
     from App_new.shared.models.business_types import BusinessType
     supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
-    return render_template('business/flight/order_create.html', 
+    return render_template('business/flight/order_create.html',
                          suppliers=suppliers,
                          supplier_types=supplier_types)
 
@@ -96,13 +99,27 @@ def submit_order():
         
         # 创建项目主表（HID）
         hid = ProjectHeader.generate_hid()
+        # 获取经办人信息
+        staff_id_value = current_user.id if current_user else None
+        staff_name_value = current_user.profile.get_full_name() if current_user and current_user.profile and current_user.profile.get_full_name() != "未设置姓名" else (current_user.profile.first_name if current_user and current_user.profile else '系统')
+        # 获取操作员和业务员，默认使用经办人
+        operator_name = request.form.get('operator', '').strip() or staff_name_value
+        salesman_name = request.form.get('salesman', '').strip() or staff_name_value
+        # 如果操作员/业务员使用的是经办人，则同时设置ID
+        operator_id = str(staff_id_value) if operator_name == staff_name_value and staff_id_value else None
+        salesperson_id = str(staff_id_value) if salesman_name == staff_name_value and staff_id_value else None
+
         project_header = ProjectHeader(
             hid=hid,
             desc=f"机票订单 - {contact_name} - {first_departure_airport}>{last_arrival_airport}",
             company_id=personal_company.id,  # 自动设置为"个人"公司
             contact=contact_name,
-            staff_id=current_user.id if current_user else None,
-            staff_name=current_user.profile.get_full_name() if current_user and current_user.profile and current_user.profile.get_full_name() != "未设置姓名" else (current_user.profile.first_name if current_user and current_user.profile else '系统'),
+            staff_id=staff_id_value,
+            staff_name=staff_name_value,
+            operator_ids=operator_id,  # 操作员ID（默认为经办人ID）
+            operator_names=operator_name,  # 操作员姓名（默认为经办人）
+            salesperson_ids=salesperson_id,  # 业务员ID（默认为经办人ID）
+            salesperson_names=salesman_name,  # 业务员姓名（默认为经办人）
             currency='SGD',  # 默认货币
             type='flight',
             status='active',
@@ -398,6 +415,10 @@ def submit_order():
                 elif pax_type == 'infant':
                     infant_qty += 1
 
+        # 获取操作员和业务员
+        operator_name = request.form.get('operator', '')
+        salesman_name = request.form.get('salesman', '')
+
         extra_info = {
             'pax_names_display': ', '.join([name for name in passenger_names if name]),
             'departure_date': departure_dates[0] if departure_dates and departure_dates[0] else '',
@@ -406,7 +427,9 @@ def submit_order():
             'total_passengers': len([name for name in passenger_names if name]),
             'adult_qty': adult_qty,
             'child_qty': child_qty,
-            'infant_qty': infant_qty
+            'infant_qty': infant_qty,
+            'operator': operator_name,
+            'salesman': salesman_name
         }
         project_ref.extra_info = json.dumps(extra_info)
 
@@ -419,8 +442,8 @@ def submit_order():
         supplier_name_value = None
         if selected_supplier_id:
             try:
-                supplier_obj = Supplier.query.get(int(selected_supplier_id))
-                supplier_name_value = supplier_obj.name if supplier_obj else None
+                supplier_obj = CustomerCompany.query.get(int(selected_supplier_id))
+                supplier_name_value = supplier_obj.company_name if supplier_obj else None
             except Exception:
                 supplier_name_value = None
 
@@ -443,6 +466,7 @@ def submit_order():
             status='pending',
             order_status='pending',
             payment_status=selected_payment_status,
+            operator=operator_name,  # 操作员
             remarks=request.form.get('remarks', '')
         )
         
@@ -562,8 +586,11 @@ def submit_order():
         print(f"订单创建失败: {str(e)}")  # 调试日志
         # 回填用户已填写的数据，避免选择项丢失
         try:
-            suppliers = Supplier.query.filter_by(status='active').all()
-            supplier_types = Supplier.get_supplier_types()
+            suppliers = CustomerCompany.query.filter(
+                CustomerCompany.is_supplier == True,
+                CustomerCompany.status == 'active'
+            ).order_by(CustomerCompany.company_name).all()
+            supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
         except Exception:
             suppliers = []
             supplier_types = []
@@ -765,7 +792,10 @@ def order_list():
         query = query.filter(ProjectRef.supplier.has(name=supplier_name))
 
     # 获取所有活跃的供应商列表供筛选使用
-    suppliers = Supplier.query.filter_by(status='active').all()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.status == 'active'
+    ).order_by(CustomerCompany.company_name).all()
 
     # 按创建时间倒序排序并分页
     results = query.order_by(ProjectRef.created_at.desc()).paginate(
@@ -853,8 +883,11 @@ def edit_order(order_id):
     header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
 
     # 获取供应商列表与类型
-    suppliers = Supplier.query.filter_by(status='active').all()
-    supplier_types = Supplier.get_supplier_types()
+    suppliers = CustomerCompany.query.filter(
+        CustomerCompany.is_supplier == True,
+        CustomerCompany.status == 'active'
+    ).order_by(CustomerCompany.company_name).all()
+    supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
 
     if request.method == 'POST':
         try:
@@ -868,7 +901,10 @@ def edit_order(order_id):
             # 供应商更新（按名称选择）
             supplier_name = request.form.get('supplier_name')
             if supplier_name:
-                supplier = Supplier.query.filter_by(name=supplier_name).first()
+                supplier = CustomerCompany.query.filter(
+                    CustomerCompany.company_name == supplier_name,
+                    CustomerCompany.is_supplier == True
+                ).first()
                 if supplier:
                     ref.supplier_id = supplier.id
 

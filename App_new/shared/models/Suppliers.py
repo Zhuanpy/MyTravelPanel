@@ -1,113 +1,80 @@
-from ...exts import db  # 确保你已正确导入 db 对象
+# -*- coding: utf-8 -*-
+"""
+供应商模型兼容层
+原 Supplier 模型已合并到 CustomerCompany，此文件保留用于兼容旧代码
+所有新代码应直接使用 CustomerCompany 模型
+"""
+
+from App_new.business.projects.models.project import CustomerCompany
+from App_new.shared.models.business_types import BusinessType
+
+# 兼容别名 - 新代码请直接使用 CustomerCompany
+Supplier = CustomerCompany
+
+
+def get_suppliers():
+    """获取所有供应商（is_supplier=True 的公司）"""
+    return CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
+
+
+def get_supplier_by_id(supplier_id):
+    """
+    通过 ID 获取供应商
+    注意：现在使用 company_id，旧的 supplier_id 需要通过映射表查询
+    """
+    # 先尝试直接通过 company_id 查询
+    company = CustomerCompany.query.filter(
+        CustomerCompany.id == supplier_id,
+        CustomerCompany.is_supplier == True
+    ).first()
+
+    if company:
+        return company
+
+    # 如果没找到，尝试通过映射表查询（兼容旧的 supplier_id）
+    from App_new.exts import db
+    from sqlalchemy import text
+
+    try:
+        result = db.session.execute(text(
+            'SELECT company_id FROM supplier_company_mapping WHERE supplier_id = :sid'
+        ), {'sid': supplier_id}).fetchone()
+
+        if result:
+            return CustomerCompany.query.get(result[0])
+    except:
+        pass
+
+    return None
+
+
+def get_supplier_type_choices():
+    """获取供应商类型选项"""
+    business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+    return [(bt.id, bt.name) for bt in business_types]
+
+
+def get_supplier_types():
+    """获取供应商类型代码列表"""
+    business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
+    return [bt.code for bt in business_types]
+
+
+# 保留旧的子模型定义（如果表仍存在）
+# 这些模型暂时保留，但不再使用 suppliers 表的外键
+
+from ...exts import db
 from datetime import datetime
-
-class Supplier(db.Model):
-    """供应商表"""
-    __tablename__ = 'suppliers'
-
-    supplier_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), nullable=False)
-    supplier_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=True, comment='供应商类型ID')
-    contact_person = db.Column(db.String(100))
-    phone = db.Column(db.String(20))
-    email = db.Column(db.String(255))
-    address = db.Column(db.Text)
-    country = db.Column(db.String(50))
-    city = db.Column(db.String(50))
-    region = db.Column(db.String(50))
-    status = db.Column(db.Enum('active', 'inactive'), default='active')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    click_count = db.Column(db.Integer, default=0, comment='点击次数')
-    notes = db.Column(db.Text)
-
-    # 关联关系
-    supplier_type = db.relationship('BusinessType', foreign_keys=[supplier_type_id], backref='suppliers')
-    services = db.relationship('SupplierService', backref='supplier', cascade="all, delete-orphan")
-    contracts = db.relationship('SupplierContract', backref='supplier', cascade="all, delete-orphan")
-    payments = db.relationship('SupplierPayment', backref='supplier', cascade="all, delete-orphan")
-    # accounts 关联通过 Account 模型的 backref 自动创建
-
-    def to_dict(self, include_accounts=False):
-        """将供应商对象转换为字典，用于JSON序列化
-        
-        Args:
-            include_accounts: 是否包含关联的账号信息
-        """
-        result = {
-            'supplier_id': self.supplier_id,
-            'name': self.name,
-            'supplier_type_id': self.supplier_type_id,
-            'supplier_type': self.supplier_type.code if self.supplier_type else None,
-            'supplier_type_display': self.supplier_type_display,
-            'contact_person': self.contact_person,
-            'phone': self.phone,
-            'email': self.email,
-            'address': self.address,
-            'country': self.country,
-            'city': self.city,
-            'region': self.region,
-            'status': self.status,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
-            'click_count': self.click_count,
-            'notes': self.notes
-        }
-        
-        # 添加关联账号数量
-        if hasattr(self, 'accounts'):
-            result['accounts_count'] = len(self.accounts) if self.accounts else 0
-            
-            # 如果需要包含详细账号信息
-            if include_accounts:
-                result['accounts'] = [
-                    {
-                        'id': acc.id,
-                        'platform': acc.platform,
-                        'username': acc.username,
-                        'category': acc.category,
-                        'owner': acc.owner
-                    } for acc in self.accounts
-                ] if self.accounts else []
-        
-        return result
-
-    @classmethod
-    def get_supplier_type_choices(cls):
-        """从 business_types 表获取供应商类型选项"""
-        from .business_types import BusinessType
-        business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
-        return [(bt.id, bt.name) for bt in business_types]
-
-    @classmethod
-    def get_supplier_types(cls):
-        """从 business_types 表获取供应商类型代码列表"""
-        from .business_types import BusinessType
-        business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
-        return [bt.code for bt in business_types]
-
-    @property
-    def supplier_type_display(self):
-        """获取供应商类型的显示名称"""
-        if self.supplier_type:
-            return self.supplier_type.name
-        return '未设置'
-    
-    @property
-    def supplier_type_code(self):
-        """获取供应商类型的代码（兼容旧代码）"""
-        if self.supplier_type:
-            return self.supplier_type.code
-        return None
-
 
 
 class SupplierService(db.Model):
-    """供应商服务表"""
+    """供应商服务表（已废弃，保留兼容）"""
     __tablename__ = 'supplier_services'
+    __table_args__ = {'extend_existing': True}
 
     service_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=False)
+    supplier_id = db.Column(db.Integer, nullable=True)  # 不再使用外键
+    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True)
     service_type = db.Column(db.Enum('hotel', 'transport', 'ticket', 'tour', 'other'), nullable=False)
     service_name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
@@ -116,13 +83,13 @@ class SupplierService(db.Model):
     status = db.Column(db.Enum('available', 'unavailable'), default='available')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # 关联价格信息
-    prices = db.relationship('SupplierPrice', backref='service', cascade="all, delete-orphan")
+    company = db.relationship('CustomerCompany', foreign_keys=[company_id], overlaps="services")
 
 
 class SupplierPrice(db.Model):
-    """供应商价格表"""
+    """供应商价格表（已废弃，保留兼容）"""
     __tablename__ = 'supplier_prices'
+    __table_args__ = {'extend_existing': True}
 
     price_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     service_id = db.Column(db.Integer, db.ForeignKey('supplier_services.service_id'), nullable=False)
@@ -135,11 +102,13 @@ class SupplierPrice(db.Model):
 
 
 class SupplierContract(db.Model):
-    """供应商合同表"""
+    """供应商合同表（已废弃，保留兼容）"""
     __tablename__ = 'supplier_contracts'
+    __table_args__ = {'extend_existing': True}
 
     contract_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=False)
+    supplier_id = db.Column(db.Integer, nullable=True)  # 不再使用外键
+    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True)
     contract_number = db.Column(db.String(50), nullable=False, unique=True)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
@@ -147,20 +116,9 @@ class SupplierContract(db.Model):
     status = db.Column(db.Enum('active', 'expired', 'pending'), default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # 关联付款信息
-    payments = db.relationship('SupplierPayment', backref='contract', cascade="all, delete-orphan")
+    company = db.relationship('CustomerCompany', foreign_keys=[company_id], overlaps="contracts")
 
 
-class SupplierPayment(db.Model):
-    """供应商付款表"""
-    __tablename__ = 'supplier_payments'
-
-    payment_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=False)
-    contract_id = db.Column(db.Integer, db.ForeignKey('supplier_contracts.contract_id'), nullable=False)
-    amount = db.Column(db.Numeric(10, 2), nullable=False)
-    currency = db.Column(db.String(10), default='USD')
-    payment_date = db.Column(db.Date, nullable=False)
-    payment_method = db.Column(db.Enum('bank_transfer', 'credit_card', 'cash', 'paypal'), nullable=False)
-    status = db.Column(db.Enum('paid', 'pending', 'failed'), default='pending')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+# SupplierPayment 模型已迁移到 App_new/business/projects/models/supplier_payment.py
+# 使用新的 SupplierPayment 模型：
+# from App_new.business.projects.models.supplier_payment import SupplierPayment

@@ -1,5 +1,5 @@
 {% extends "staff_base.html" %}
-{% block title %}客户公司管理 - MyTravelPanel{% endblock %}
+{% block title %}公司管理 - MyTravelPanel{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -8,9 +8,25 @@
 
 <div class="visa-container-lg">
     <h1 class="visa-page-title">
-        <i class="fas fa-building"></i> 客户公司管理
+        <i class="fas fa-building"></i> 公司管理
     </h1>
-    <p class="visa-text-center visa-text-muted visa-mb-3">管理客户公司信息和联系方式</p>
+    <p class="visa-text-center visa-text-muted visa-mb-3">管理客户和供应商公司信息</p>
+
+    <!-- 角色筛选标签 -->
+    <div class="visa-flex-center visa-gap-2 visa-mb-4">
+        <a href="{{ url_for('corporate.list_companies', role='', status=request.args.get('status'), group_name=request.args.get('group_name'), search=request.args.get('search')) }}"
+           class="visa-btn {{ 'visa-btn-primary' if current_role == '' or current_role is none else 'visa-btn-outline-primary' }}">
+            <i class="fas fa-building"></i> 全部公司
+        </a>
+        <a href="{{ url_for('corporate.list_companies', role='customer', status=request.args.get('status'), group_name=request.args.get('group_name'), search=request.args.get('search')) }}"
+           class="visa-btn {{ 'visa-btn-primary' if current_role == 'customer' else 'visa-btn-outline-primary' }}">
+            <i class="fas fa-user-tie"></i> 客户
+        </a>
+        <a href="{{ url_for('corporate.list_companies', role='supplier', status=request.args.get('status'), group_name=request.args.get('group_name'), search=request.args.get('search')) }}"
+           class="visa-btn {{ 'visa-btn-primary' if current_role == 'supplier' else 'visa-btn-outline-primary' }}">
+            <i class="fas fa-truck"></i> 供应商
+        </a>
+    </div>
     
     <!-- 操作按钮区域 -->
     <div class="visa-flex-end visa-gap-2 visa-mb-4">
@@ -97,12 +113,11 @@
                         <thead>
                             <tr>
                                 <th>公司名称</th>
+                                <th>角色</th>
                                 <th>集团/关联</th>
                                 <th>公司代码</th>
                                 <th>联系人</th>
                                 <th>联系电话</th>
-                                <th>行业</th>
-                                <th>规模</th>
                                 <th>状态</th>
                                 <th>点击次数</th>
                                 <th>创建时间</th>
@@ -113,11 +128,26 @@
                             {% for company in companies.items %}
                             <tr>
                                 <td>
-                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" 
-                                       class="text-decoration-none company-link" 
+                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
+                                       class="text-decoration-none company-link"
                                        data-company-id="{{ company.id }}">
                                         {{ company.company_name }}
                                     </a>
+                                </td>
+                                <td>
+                                    {% if company.is_customer and company.is_supplier %}
+                                        <span class="visa-badge" style="background: #ddd6fe; color: #7c3aed;">
+                                            <i class="fas fa-exchange-alt" style="font-size: 0.65rem;"></i> 双重
+                                        </span>
+                                    {% elif company.is_supplier %}
+                                        <span class="visa-badge" style="background: #fef3c7; color: #d97706;">
+                                            <i class="fas fa-truck" style="font-size: 0.65rem;"></i> 供应商
+                                        </span>
+                                    {% else %}
+                                        <span class="visa-badge" style="background: #dbeafe; color: #2563eb;">
+                                            <i class="fas fa-user-tie" style="font-size: 0.65rem;"></i> 客户
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if company.group_name %}
@@ -132,39 +162,6 @@
                                 <td>{{ company.company_code or '-' }}</td>
                                 <td>{{ company.contact_person or '-' }}</td>
                                 <td>{{ company.contact_phone or '-' }}</td>
-                                <td>
-                                    {% if company.industry %}
-                                        {% set industry_map = {
-                                            'technology': '科技',
-                                            'finance': '金融',
-                                            'manufacturing': '制造业',
-                                            'healthcare': '医疗健康',
-                                            'education': '教育',
-                                            'retail': '零售',
-                                            'tourism': '旅游',
-                                            'real_estate': '房地产',
-                                            'consulting': '咨询',
-                                            'other': '其他'
-                                        } %}
-                                        {{ industry_map.get(company.industry, company.industry) }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if company.company_size %}
-                                        {% set size_map = {
-                                            'startup': '初创公司',
-                                            'small': '小型公司',
-                                            'medium': '中型公司',
-                                            'large': '大型公司',
-                                            'enterprise': '企业级'
-                                        } %}
-                                        {{ size_map.get(company.company_size, company.company_size) }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
                                 <td>
                                     {% if company.status == 'active' %}
                                         <span class="visa-badge visa-badge-success">活跃</span>
@@ -209,15 +206,15 @@
                 {% if companies.pages > 1 %}
                 <div class="visa-pagination">
                     {% if companies.has_prev %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role')) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     {% endif %}
-                    
+
                     {% for page_num in companies.iter_pages() %}
                         {% if page_num %}
                             {% if page_num != companies.page %}
-                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name')) }}">
+                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role')) }}">
                                     {{ page_num }}
                                 </a>
                             {% else %}
@@ -227,9 +224,9 @@
                             <span class="visa-pagination-btn" disabled>...</span>
                         {% endif %}
                     {% endfor %}
-                    
+
                     {% if companies.has_next %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role')) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     {% endif %}

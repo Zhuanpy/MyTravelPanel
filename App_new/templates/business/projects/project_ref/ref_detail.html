@@ -97,13 +97,13 @@
             </tr>
             <tr>
                 <th>供应商</th>
-                <td>{{ ref.supplier.name if ref.supplier else '未设定' }}</td>
+                <td>{{ ref.supplier.company_name if ref.supplier else '未设定' }}</td>
                 <th>供应商联系人</th>
                 <td>{{ ref.supplier.contact_person if ref.supplier and ref.supplier.contact_person else '未设定' }}</td>
             </tr>
             <tr>
                 <th>供应商电话</th>
-                <td>{{ ref.supplier.phone if ref.supplier and ref.supplier.phone else '未设定' }}</td>
+                <td>{{ ref.supplier.contact_phone if ref.supplier and ref.supplier.contact_phone else '未设定' }}</td>
                 <th>货币</th>
                 <td>{{ ref.currency or 'SGD' }}</td>
             </tr>

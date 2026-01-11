@@ -9,14 +9,14 @@ from datetime import datetime
 import pandas as pd
 from io import BytesIO
 from App_new.shared.models.account import (
-    Account, 
+    Account,
     ACCESS_LEVEL_CHOICES,
     ACCESS_LEVEL_PRIVATE,
     ACCESS_LEVEL_LEVEL_1,
     ACCESS_LEVEL_LEVEL_2,
     ACCESS_LEVEL_PUBLIC
 )
-from App_new.shared.models.Suppliers import Supplier
+from App_new.business.projects.models.project import CustomerCompany
 
 # 创建蓝图
 account_routes = Blueprint('account_routes', __name__)
@@ -292,7 +292,7 @@ def get_accounts():
             'created_at': account.created_at.isoformat() if account.created_at else None,
             'updated_at': account.updated_at.isoformat() if account.updated_at else None,
             'supplier_id': account.supplier_id,
-            'supplier_name': account.supplier.name if account.supplier else None,
+            'supplier_name': account.supplier.company_name if account.supplier else None,
             'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
                 'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
                 'can_edit': can_edit,
@@ -347,7 +347,7 @@ def get_account(account_id):
                 'created_at': account.created_at.isoformat() if account.created_at else None,
                 'updated_at': account.updated_at.isoformat() if account.updated_at else None,
                 'supplier_id': account.supplier_id,
-                'supplier_name': account.supplier.name if account.supplier else None,
+                'supplier_name': account.supplier.company_name if account.supplier else None,
                 'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
                 'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
                 'can_edit': can_edit,
@@ -389,7 +389,7 @@ def create_account():
         if supplier_id is not None:
             try:
                 supplier_id = int(supplier_id)
-                supplier = Supplier.query.get(supplier_id)
+                supplier = CustomerCompany.query.get(supplier_id)
                 if not supplier:
                     return jsonify({
                         'success': False,
@@ -515,7 +515,7 @@ def update_account(account_id):
                 # 验证供应商是否存在
                 try:
                     supplier_id = int(supplier_id)
-                    supplier = Supplier.query.get(supplier_id)
+                    supplier = CustomerCompany.query.get(supplier_id)
                     if not supplier:
                         return jsonify({
                             'success': False,
@@ -876,19 +876,22 @@ def get_suppliers():
     """获取供应商列表，用于账号管理页面的下拉选择"""
     try:
         logger.info("Fetching suppliers for account management")
-        
+
         # 获取所有活跃的供应商
-        suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
+        suppliers = CustomerCompany.query.filter(
+            CustomerCompany.is_supplier == True,
+            CustomerCompany.status == 'active'
+        ).order_by(CustomerCompany.company_name).all()
         logger.info(f"Found {len(suppliers)} active suppliers")
-        
+
         suppliers_data = [{
-            'supplier_id': supplier.supplier_id,
-            'name': supplier.name,
-            'supplier_type': supplier.supplier_type_code,
-            'supplier_type_display': supplier.supplier_type_display,
+            'supplier_id': supplier.id,
+            'name': supplier.company_name,
+            'supplier_type': supplier.supplier_type.code if supplier.supplier_type else None,
+            'supplier_type_display': supplier.supplier_type.name if supplier.supplier_type else None,
             'country': supplier.country
         } for supplier in suppliers]
-        
+
         logger.info(f"Returning {len(suppliers_data)} suppliers to frontend")
         return jsonify({
             'success': True,

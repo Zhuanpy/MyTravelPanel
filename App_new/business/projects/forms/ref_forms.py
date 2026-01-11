@@ -102,15 +102,17 @@ class ProjectRefForm(FlaskForm):
         """动态加载下拉选项（使用新架构模型）"""
         try:
             from App_new.shared.models.business_types import BusinessType
-            from App_new.shared.models.Suppliers import Supplier
+            from App_new.business.projects.models.project import CustomerCompany
 
             # 加载业务类型
             business_types = BusinessType.query.all()
             self.ref_type_id.choices = [(bt.id, bt.name) for bt in business_types] or [(1, '默认类型')]
 
-            # 加载供应商
-            suppliers = Supplier.query.all()
-            self.supplier_id.choices = [(0, '请选择供应商')] + [(s.supplier_id, s.name) for s in suppliers]
+            # 加载供应商（is_supplier=True 的公司）
+            suppliers = CustomerCompany.query.filter(
+                CustomerCompany.is_supplier == True
+            ).order_by(CustomerCompany.company_name).all()
+            self.supplier_id.choices = [(0, '请选择供应商')] + [(s.id, s.company_name) for s in suppliers]
 
         except Exception:
             # 兜底：避免页面崩溃

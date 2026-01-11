@@ -11,8 +11,8 @@ class Product(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     
-    # 供应商关联
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID')
+    # 供应商关联（指向 customer_companies 表）
+    supplier_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='供应商公司ID')
     
     # 产品编号和名称
     product_code = db.Column(db.String(50), unique=True, nullable=True, comment='产品编号')
@@ -77,7 +77,7 @@ class Product(db.Model):
     created_by = db.Column(db.String(100), nullable=True, comment='创建人')
     
     # 关联关系
-    supplier = db.relationship('Supplier', backref=db.backref('travel_products', lazy='dynamic'), foreign_keys=[supplier_id])
+    supplier = db.relationship('CustomerCompany', backref=db.backref('travel_products', lazy='dynamic'), foreign_keys=[supplier_id])
     parent_product = db.relationship('Product', remote_side=[id], backref='versions', foreign_keys=[parent_product_id])
     city = db.relationship('ProductCity', backref=db.backref('products', lazy='dynamic'), foreign_keys=[city_id])
     

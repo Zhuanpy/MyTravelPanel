@@ -16,9 +16,8 @@ class SupplierPrepayment(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     prepayment_number = db.Column(db.String(30), unique=True, nullable=False, comment='预付编号')
 
-    # 关联公司（原 supplier_id，迁移后使用 company_id）
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.supplier_id'), nullable=True, comment='供应商ID(废弃)')
-    company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='公司ID')
+    # 关联公司（supplier_id 重命名为指向 customer_companies）
+    supplier_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='供应商公司ID')
 
     # 预付信息
     amount = db.Column(db.Numeric(12, 2), nullable=False, comment='充值金额')
@@ -56,19 +55,16 @@ class SupplierPrepayment(db.Model):
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
 
     # 关联关系
-    supplier = db.relationship('Supplier', backref=db.backref('prepayments', lazy='dynamic'))
-    company = db.relationship('CustomerCompany', backref=db.backref('prepayments', lazy='dynamic'))
+    supplier = db.relationship('CustomerCompany', foreign_keys=[supplier_id], backref=db.backref('prepayments', lazy='dynamic'))
     bank_account = db.relationship('ChartOfAccount', foreign_keys=[bank_account_id])
     prepayment_account = db.relationship('ChartOfAccount', foreign_keys=[prepayment_account_id])
     usages = db.relationship('PrepaymentUsage', backref='prepayment', cascade='all, delete-orphan', lazy='dynamic')
 
     @property
     def company_name(self):
-        """获取公司名称（兼容新旧字段）"""
-        if self.company:
-            return self.company.company_name
-        elif self.supplier:
-            return self.supplier.name
+        """获取公司名称"""
+        if self.supplier:
+            return self.supplier.company_name
         return None
 
     def __repr__(self):
@@ -134,15 +130,16 @@ class SupplierPrepayment(db.Model):
 
     def update_status(self):
         """根据余额更新状态"""
-        if self.status == 'cancelled':
+        if self.status in ('cancelled', 'draft'):
             return
 
         if self.balance_amount <= 0:
             self.status = 'consumed'
         elif self.balance_amount < self.amount:
             self.status = 'partial_used'
-        elif self.status == 'confirmed':
-            pass  # 保持已确认状态
+        elif self.balance_amount == self.amount:
+            # 余额完全恢复，状态回到confirmed
+            self.status = 'confirmed'
 
     def use_amount(self, amount):
         """
@@ -169,7 +166,7 @@ class SupplierPrepayment(db.Model):
             'id': self.id,
             'prepayment_number': self.prepayment_number,
             'supplier_id': self.supplier_id,
-            'supplier_name': self.supplier.name if self.supplier else None,
+            'supplier_name': self.supplier.company_name if self.supplier else None,
             'amount': float(self.amount),
             'balance_amount': float(self.balance_amount),
             'used_amount': float(self.used_amount),

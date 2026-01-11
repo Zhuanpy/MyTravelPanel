@@ -10,7 +10,7 @@ from flask import Blueprint
 projects_bp = Blueprint('business_projects', __name__, url_prefix='/projects')
 
 # 导入路由
-from .routes import project_list, project_detail, project_create, project_edit, project_header, project_ref, project_eo, project_receipt, project_invoice, project_members, project_home, project_settlement, project_prepayment
+from .routes import project_list, project_detail, project_create, project_edit, project_header, project_ref, project_eo, project_receipt, project_invoice, project_members, project_home, project_settlement, project_prepayment, project_payment
 
 # 注册路由
 projects_bp.register_blueprint(project_home.project_home)  # 首页，无前缀
@@ -26,5 +26,6 @@ projects_bp.register_blueprint(project_invoice.project_invoice, url_prefix='/inv
 projects_bp.register_blueprint(project_members.project_members_bp)
 projects_bp.register_blueprint(project_settlement.bp, url_prefix='/settlement')
 projects_bp.register_blueprint(project_prepayment.project_prepayment)  # 预付账款，已包含 url_prefix='/prepayment'
+projects_bp.register_blueprint(project_payment.project_payment)  # 付款记录，已包含 url_prefix='/payment'
 
 __all__ = ['projects_bp']

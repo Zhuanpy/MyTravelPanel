@@ -247,12 +247,12 @@ def list_projects():
                 ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
                 ).group_by(ProjectRef.header_id).subquery()
 
-                # 子查询：每个项目已付款的EO数量
+                # 子查询：每个项目已付款的EO数量（pay_amount不为空即视为已付款）
                 paid_eo_subq = db.session.query(
                     ProjectRef.header_id,
                     db.func.count(ProjectEO.id).label('paid_count')
                 ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
-                ).filter(ProjectEO.pay_amount > 0
+                ).filter(ProjectEO.pay_amount.isnot(None)
                 ).group_by(ProjectRef.header_id).subquery()
 
                 # 4. Balance = 0
@@ -421,48 +421,20 @@ def list_projects():
                     db.func.sum(ProjectRef.cost_price).label('total_cost')
                 ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                 
-                # 批量查询收款数据 - 需要区分普通收款和按公司收款
-                # 1. 普通收款（ref_id不为空 或 extra_info中有distribution）
-                regular_receipts = db.session.query(
+                # 批量查询收款数据 - 简化为统计所有已确认收款
+                # 不再区分收款类型，直接按 header_id 汇总所有已确认收款
+                receipts_query = db.session.query(
                     ProjectReceipt.header_id,
                     db.func.sum(ProjectReceipt.amount).label('total_received')
                 ).filter(
                     ProjectReceipt.header_id.in_(project_ids),
-                    ProjectReceipt.status == 'confirmed',
-                    db.or_(
-                        ProjectReceipt.ref_id.isnot(None),
-                        ProjectReceipt.extra_info.like('%"distribution"%')
-                    )
+                    ProjectReceipt.status == 'confirmed'
                 ).group_by(ProjectReceipt.header_id).all()
 
-                # 2. 按公司收款 - 从分配表获取每个项目的实际分配金额
-                # 注意：只统计没有 ref_id 且没有 distribution 的收款，避免重复计算
-                from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
-                from App_new.business.projects.models.invoice import ProjectInvoice
-                invoice_allocated = db.session.query(
-                    ProjectInvoice.header_id,
-                    db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
-                ).join(
-                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
-                ).join(
-                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-                ).filter(
-                    ProjectInvoice.header_id.in_(project_ids),
-                    ProjectReceipt.status == 'confirmed',
-                    # 排除已在普通收款中计算过的收款（有ref_id或有distribution的）
-                    ProjectReceipt.ref_id.is_(None),
-                    db.not_(ProjectReceipt.extra_info.like('%"distribution"%'))
-                ).group_by(ProjectInvoice.header_id).all()
-
-                # 合并两种收款方式的数据
+                # 转换为字典
                 receipts_data = {}
-                for r in regular_receipts:
+                for r in receipts_query:
                     receipts_data[r.header_id] = float(r.total_received or 0)
-                for a in invoice_allocated:
-                    if a.header_id in receipts_data:
-                        receipts_data[a.header_id] += float(a.total_allocated or 0)
-                    else:
-                        receipts_data[a.header_id] = float(a.total_allocated or 0)
                 
                 # 检查项目是否有EO或receipt
                 from App_new.business.projects.models.eo import ProjectEO
@@ -507,13 +479,13 @@ def list_projects():
                 ).group_by(ProjectRef.header_id).all()
                 eo_count_dict = {r.header_id: r.eo_count for r in eo_counts}
 
-                # 4. 每个项目已付款的 EO 数量（pay_amount > 0）
+                # 4. 每个项目已付款的 EO 数量（pay_amount不为空即视为已付款）
                 eo_paid_counts = db.session.query(
                     ProjectRef.header_id,
                     db.func.count(ProjectEO.id).label('paid_eo_count')
                 ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
                     ProjectRef.header_id.in_(project_ids),
-                    ProjectEO.pay_amount > 0
+                    ProjectEO.pay_amount.isnot(None)
                 ).group_by(ProjectRef.header_id).all()
                 paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
 
@@ -734,46 +706,19 @@ def list_projects():
                         db.func.sum(ProjectRef.cost_price).label('total_cost')
                     ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                     
-                    # 批量查询收款数据 - 需要区分普通收款和按公司收款
-                    # 1. 普通收款
-                    regular_receipts = db.session.query(
+                    # 批量查询收款数据 - 简化为统计所有已确认收款
+                    receipts_query = db.session.query(
                         ProjectReceipt.header_id,
                         db.func.sum(ProjectReceipt.amount).label('total_received')
                     ).filter(
                         ProjectReceipt.header_id.in_(project_ids),
-                        ProjectReceipt.status == 'confirmed',
-                        db.or_(
-                            ProjectReceipt.ref_id.isnot(None),
-                            ProjectReceipt.extra_info.like('%"distribution"%')
-                        )
+                        ProjectReceipt.status == 'confirmed'
                     ).group_by(ProjectReceipt.header_id).all()
 
-                    # 2. 按公司收款 - 从分配表获取
-                    # 注意：只统计没有 ref_id 且没有 distribution 的收款，避免重复计算
-                    invoice_allocated = db.session.query(
-                        ProjectInvoice.header_id,
-                        db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
-                    ).join(
-                        ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
-                    ).join(
-                        ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-                    ).filter(
-                        ProjectInvoice.header_id.in_(project_ids),
-                        ProjectReceipt.status == 'confirmed',
-                        # 排除已在普通收款中计算过的收款
-                        ProjectReceipt.ref_id.is_(None),
-                        db.not_(ProjectReceipt.extra_info.like('%"distribution"%'))
-                    ).group_by(ProjectInvoice.header_id).all()
-
-                    # 合并数据
+                    # 转换为字典
                     receipts_data = {}
-                    for r in regular_receipts:
+                    for r in receipts_query:
                         receipts_data[r.header_id] = float(r.total_received or 0)
-                    for a in invoice_allocated:
-                        if a.header_id in receipts_data:
-                            receipts_data[a.header_id] += float(a.total_allocated or 0)
-                        else:
-                            receipts_data[a.header_id] = float(a.total_allocated or 0)
 
                     # 检查项目是否有EO或receipt
                     from App_new.business.projects.models.eo import ProjectEO
@@ -825,7 +770,7 @@ def list_projects():
                         db.func.count(ProjectEO.id).label('paid_eo_count')
                     ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
                         ProjectRef.header_id.in_(project_ids),
-                        ProjectEO.pay_amount > 0
+                        ProjectEO.pay_amount.isnot(None)
                     ).group_by(ProjectRef.header_id).all()
                     paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
 
@@ -1206,49 +1151,19 @@ def export_excel():
                 db.func.sum(ProjectRef.cost_price).label('total_cost')
             ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
             
-            # 批量查询收款数据 - 区分普通收款和按公司收款
-            from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
-            from App_new.business.projects.models.invoice import ProjectInvoice
-
-            # 1. 普通收款
-            regular_receipts = db.session.query(
+            # 批量查询收款数据 - 简化为统计所有已确认收款
+            receipts_query = db.session.query(
                 ProjectReceipt.header_id,
                 db.func.sum(ProjectReceipt.amount).label('total_received')
             ).filter(
                 ProjectReceipt.header_id.in_(project_ids),
-                ProjectReceipt.status == 'confirmed',
-                db.or_(
-                    ProjectReceipt.ref_id.isnot(None),
-                    ProjectReceipt.extra_info.like('%"distribution"%')
-                )
+                ProjectReceipt.status == 'confirmed'
             ).group_by(ProjectReceipt.header_id).all()
 
-            # 2. 按公司收款 - 从分配表获取
-            # 注意：只统计没有 ref_id 且没有 distribution 的收款，避免重复计算
-            invoice_allocated = db.session.query(
-                ProjectInvoice.header_id,
-                db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
-            ).join(
-                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
-            ).join(
-                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-            ).filter(
-                ProjectInvoice.header_id.in_(project_ids),
-                ProjectReceipt.status == 'confirmed',
-                # 排除已在普通收款中计算过的收款
-                ProjectReceipt.ref_id.is_(None),
-                db.not_(ProjectReceipt.extra_info.like('%"distribution"%'))
-            ).group_by(ProjectInvoice.header_id).all()
-
-            # 合并数据
+            # 转换为字典
             receipts_data = {}
-            for r in regular_receipts:
+            for r in receipts_query:
                 receipts_data[r.header_id] = float(r.total_received or 0)
-            for a in invoice_allocated:
-                if a.header_id in receipts_data:
-                    receipts_data[a.header_id] += float(a.total_allocated or 0)
-                else:
-                    receipts_data[a.header_id] = float(a.total_allocated or 0)
 
             for project_id in project_ids:
                 ref_info = next((r for r in refs_data if r.header_id == project_id), None)

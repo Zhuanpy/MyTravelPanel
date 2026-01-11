@@ -38,8 +38,47 @@ def create_eo(ref_id):
                 status=form.status.data
             )
             db.session.add(eo)
+            db.session.flush()  # 获取EO的ID
+
+            # 自动预扣预付账款（如果供应商有可用预付账款）
+            prepayment_message = ''
+            if ref.supplier_id and ref.cost_price:
+                from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+                from decimal import Decimal
+                from datetime import date
+
+                # 查找该供应商可用的预付账款（按创建时间排序，使用最早的）
+                prepayment = SupplierPrepayment.query.filter(
+                    SupplierPrepayment.supplier_id == ref.supplier_id,
+                    SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+                    SupplierPrepayment.balance_amount > 0
+                ).order_by(SupplierPrepayment.created_at.asc()).first()
+
+                if prepayment:
+                    cost_amount = Decimal(str(ref.cost_price))
+                    # 如果预付余额足够，使用预付账款
+                    if prepayment.balance_amount >= cost_amount:
+                        # 创建预付使用记录（状态直接为confirmed，创建EO即扣减）
+                        usage = PrepaymentUsage(
+                            prepayment_id=prepayment.id,
+                            eo_id=eo.id,
+                            ref_id=ref.id,
+                            amount=cost_amount,
+                            usage_date=date.today(),
+                            description=f'EO创建扣减 {eo_number}',
+                            status='confirmed',
+                            created_by=current_user.username if current_user else None
+                        )
+                        db.session.add(usage)
+
+                        # 扣减预付余额
+                        prepayment.balance_amount -= cost_amount
+                        prepayment.update_status()
+
+                        prepayment_message = f'，已从预付账款扣减 {cost_amount}'
+
             db.session.commit()
-            flash('EO子明细创建成功！', 'success')
+            flash(f'EO子明细创建成功！{prepayment_message}', 'success')
             return redirect(url_for('project_ref.ref_detail', ref_id=ref.id))
         except Exception as e:
             db.session.rollback()
@@ -86,13 +125,17 @@ def update_eo(eo_id):
     """更新EO信息"""
     try:
         eo = ProjectEO.query.get_or_404(eo_id)
-        
+
         # 员工等级权限检查
         from App_new.business.projects.models.project import ProjectHeader
         header = ProjectHeader.query.get(eo.ref.header_id)
         if header and not can_access_project(header, current_user):
             return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
-        
+
+        # 已付款的EO不能编辑
+        if eo.status == 'paid':
+            return jsonify({'success': False, 'message': '已付款的EO不能编辑'}), 400
+
         # 获取JSON数据
         data = request.get_json()
         if not data:
@@ -156,25 +199,28 @@ def exchange_order():
     """Exchange Order 付款页面 - 类似旧系统的付款管理界面"""
     try:
         from sqlalchemy import and_, or_, desc
+        from sqlalchemy.orm import aliased
         from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
-        from App_new.shared.models.Suppliers import Supplier
         from App_new.shared.models.business_types import BusinessType
         from datetime import date
-        
+
+        # 创建别名：SupplierCompany 用于供应商，CustomerCompany 用于客户
+        SupplierCompany = aliased(CustomerCompany, name='supplier_company')
+
         # 获取筛选参数
         supplier_id = request.args.get('supplier', None, type=int)
         date_filter_by = request.args.get('date_filter_by', 'eo_date')
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
-        
+
         # 分页参数
         page = request.args.get('page', 1, type=int)
-        per_page = 25  # 每页显示30条
-        
+        per_page = 25  # 每页显示25条
+
         # 构建查询 - 查询未付款的EO（confirmed状态）
         query = db.session.query(
             ProjectEO,
-            Supplier.name.label('supplier_name'),
+            SupplierCompany.company_name.label('supplier_name'),
             BusinessType.name.label('ref_type_name'),
             ProjectRef.ref_number.label('ref_number'),
             ProjectRef.description.label('description'),
@@ -186,7 +232,7 @@ def exchange_order():
         ).join(
             BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
         ).join(
-            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+            SupplierCompany, ProjectRef.supplier_id == SupplierCompany.id, isouter=True
         ).join(
             ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
         ).join(
@@ -268,7 +314,7 @@ def exchange_order():
         
         # 获取供应商列表（按名称排序，不区分大小写）
         from sqlalchemy import func
-        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
 
         return render_template('business/projects/project_eo/exchange_order.html',
                              eos=eos,
@@ -297,26 +343,41 @@ def generate_payment_no():
     """生成付款编号"""
     try:
         from datetime import datetime
+        from App_new.business.projects.models.supplier_payment import SupplierPayment
+
         # 格式：PAY-YYYYMMDD-XXX
         today = datetime.now().strftime('%Y%m%d')
         prefix = f'PAY-{today}-'
-        
-        # 查找今天最后一个付款编号
+
+        max_num = 0
+
+        # 检查 ProjectEO 表中今天最后一个付款编号
         last_eo = ProjectEO.query.filter(
             ProjectEO.payment_no.like(f'{prefix}%')
         ).order_by(ProjectEO.payment_no.desc()).first()
-        
+
         if last_eo and last_eo.payment_no:
             try:
-                last_num = int(last_eo.payment_no.split('-')[-1])
-                new_num = last_num + 1
+                eo_num = int(last_eo.payment_no.split('-')[-1])
+                max_num = max(max_num, eo_num)
             except:
-                new_num = 1
-        else:
-            new_num = 1
-        
+                pass
+
+        # 检查 SupplierPayment 表中今天最后一个付款编号
+        last_payment = SupplierPayment.query.filter(
+            SupplierPayment.payment_no.like(f'{prefix}%')
+        ).order_by(SupplierPayment.payment_no.desc()).first()
+
+        if last_payment and last_payment.payment_no:
+            try:
+                payment_num = int(last_payment.payment_no.split('-')[-1])
+                max_num = max(max_num, payment_num)
+            except:
+                pass
+
+        new_num = max_num + 1
         payment_no = f'{prefix}{str(new_num).zfill(3)}'
-        
+
         return jsonify({
             'success': True,
             'payment_no': payment_no
@@ -445,37 +506,41 @@ def batch_pay():
     """批量付款页面 - 显示待付款的EO列表"""
     try:
         from sqlalchemy import and_, or_, desc
+        from sqlalchemy.orm import aliased
         from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
-        from App_new.shared.models.Suppliers import Supplier
         from App_new.shared.models.business_types import BusinessType
         from datetime import date
-        
+
+        # 创建别名：SupplierCompany 用于供应商，CustomerCompany 用于客户
+        SupplierCompany = aliased(CustomerCompany, name='supplier_company')
+
         # 获取筛选参数
         supplier_type = request.args.get('supplier_type', '')
         supplier_id = request.args.get('supplier', None, type=int)
         keyword = request.args.get('keyword', '')
         start_date = request.args.get('start_date', '')
         end_date = request.args.get('end_date', '')
-        
+
         # 分页参数
         page = request.args.get('page', 1, type=int)
         per_page = 25  # 每页显示25条
-        
+
         # 构建查询 - 只查询未付款的EO（confirmed状态）
         query = db.session.query(
             ProjectEO,
-            Supplier.name.label('supplier_name'),
+            SupplierCompany.company_name.label('supplier_name'),
             BusinessType.name.label('ref_type_name'),
             ProjectRef.ref_number.label('ref_number'),
             ProjectRef.header_id.label('project_id'),
             ProjectHeader.hid.label('project_hid'),
-            CustomerCompany.company_name.label('company_name')
+            CustomerCompany.company_name.label('company_name'),
+            ProjectRef.supplier_id.label('supplier_id')
         ).join(
             ProjectRef, ProjectEO.ref_id == ProjectRef.id, isouter=True
         ).join(
             BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
         ).join(
-            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+            SupplierCompany, ProjectRef.supplier_id == SupplierCompany.id, isouter=True
         ).join(
             ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
         ).join(
@@ -546,7 +611,7 @@ def batch_pay():
         
         # 处理数据
         eos = []
-        for eo, supplier_name, ref_type_name, ref_number, project_id, project_hid, company_name in results:
+        for eo, supplier_name, ref_type_name, ref_number, project_id, project_hid, company_name, ref_supplier_id in results:
             # 获取乘客姓名 - 支持所有类型的REF
             pax_names = ''
             if eo.ref:
@@ -561,16 +626,17 @@ def batch_pay():
                             pax_names = extra_data.get('pax_name', '')
                     except (json.JSONDecodeError, TypeError):
                         pass
-                
+
                 # 方法2: 从批量查询结果获取乘客姓名
                 if not pax_names and eo.ref_id in passengers_by_ref:
                     pax_names = ', '.join(passengers_by_ref[eo.ref_id])
-            
+
             eos.append({
                 'id': eo.id,
                 'eo_number': eo.eo_number,
                 'ref_id': eo.ref_id,
                 'ref_number': ref_number or '',
+                'supplier_id': ref_supplier_id,
                 'supplier_name': supplier_name or '',
                 'ref_type_name': ref_type_name or '',
                 'project_id': project_id,
@@ -584,7 +650,7 @@ def batch_pay():
         
         # 获取供应商列表（按名称排序，不区分大小写）
         from sqlalchemy import func
-        suppliers = Supplier.query.order_by(func.lower(Supplier.name)).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
 
         return render_template('business/projects/project_eo/batch_pay.html',
                              eos=eos,
@@ -611,7 +677,7 @@ def batch_pay():
 @login_required
 @staff_only
 def batch_pay_submit():
-    """批量付款提交"""
+    """批量付款提交 - 支持按供应商自动选择预付账款（FIFO），创建付款记录"""
     try:
         data = request.get_json()
         eo_ids = data.get('eo_ids', [])
@@ -620,55 +686,210 @@ def batch_pay_submit():
         paid_date_str = data.get('paid_date')
         total_pay_amount = data.get('pay_amount')
         remarks = data.get('remarks', '')
-        
+        payment_source = data.get('payment_source', 'bank')  # bank 或 prepayment
+        supplier_id = data.get('supplier_id')  # 供应商ID（使用预付账款时需要）
+
         if not eo_ids:
             return jsonify({'success': False, 'message': '请选择要付款的EO'}), 400
-        
+
         if not payment_no or not paid_date_str or total_pay_amount is None:
             return jsonify({'success': False, 'message': '请填写完整的付款信息'}), 400
-        
+
         # 解析日期
         from datetime import datetime
+        from decimal import Decimal
         paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
-        
+        total_pay_amount_decimal = Decimal(str(total_pay_amount))
+
         # 查询所有选中的EO
         eos = ProjectEO.query.filter(ProjectEO.id.in_(eo_ids)).all()
-        
+
         if len(eos) != len(eo_ids):
             return jsonify({'success': False, 'message': '部分EO不存在'}), 400
-        
+
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+        from App_new.business.projects.models.supplier_payment import SupplierPayment
+
+        # 统计所有EO已有的预付使用记录（confirmed或pending状态）
+        existing_usage_total = Decimal('0')
+        for eo in eos:
+            if eo.status not in ['void', 'paid']:
+                existing_usage = PrepaymentUsage.query.filter(
+                    PrepaymentUsage.eo_id == eo.id,
+                    PrepaymentUsage.status.in_(['pending', 'confirmed'])
+                ).first()
+                if existing_usage:
+                    existing_usage_total += existing_usage.amount
+
+        # 获取供应商的可用预付账款列表（FIFO排序）
+        available_prepayments = []
+        prepayment_amount_used = Decimal('0')
+        if payment_source == 'prepayment':
+            if not supplier_id:
+                return jsonify({'success': False, 'message': '请选择同一供应商的EO'}), 400
+
+            # 按创建时间升序获取可用预付账款（FIFO）
+            available_prepayments = SupplierPrepayment.query.filter(
+                SupplierPrepayment.supplier_id == supplier_id,
+                SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+                SupplierPrepayment.balance_amount > 0
+            ).order_by(SupplierPrepayment.created_at.asc()).all()
+
+            if not available_prepayments:
+                return jsonify({'success': False, 'message': '该供应商无可用预付账款'}), 400
+
+            # 计算总可用余额（已有使用记录的金额不需要重新扣减）
+            total_available = sum(p.balance_amount for p in available_prepayments) + existing_usage_total
+            if total_pay_amount_decimal > total_available:
+                return jsonify({'success': False, 'message': f'付款金额 {total_pay_amount} 超过可用预付余额 {total_available}'}), 400
+
+        # 如果没有指定 supplier_id，尝试从 EO 获取
+        if not supplier_id:
+            # 尝试从第一个 EO 的 REF 获取供应商
+            for eo in eos:
+                if eo.ref and eo.ref.supplier_id:
+                    supplier_id = eo.ref.supplier_id
+                    break
+
+        # 创建付款记录
+        # 如果使用预付账款，prepayment_amount = total_amount
+        prepayment_amount = total_pay_amount_decimal if payment_source == 'prepayment' else Decimal('0')
+        payment_record = SupplierPayment(
+            payment_no=payment_no,
+            supplier_id=supplier_id,
+            payment_date=paid_date,
+            total_amount=total_pay_amount_decimal,
+            currency='SGD',
+            payment_source=payment_source,
+            payment_voucher_no=payment_voucher_no if payment_voucher_no else None,
+            prepayment_amount=prepayment_amount,
+            eo_count=len([eo for eo in eos if eo.status not in ['void', 'paid']]),
+            status='confirmed',
+            remarks=remarks,
+            created_by=current_user.username if current_user else None
+        )
+        db.session.add(payment_record)
+        db.session.flush()  # 获取 payment_record.id
+
         # 计算每个EO的付款金额（按比例分配）
         total_cost = sum(float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0 for eo in eos)
-        
+
         success_count = 0
+        remaining_to_pay = total_pay_amount_decimal  # 剩余需要扣减的金额
+        prepayment_index = 0  # 当前使用的预付账款索引
+
         for eo in eos:
             # 检查状态
             if eo.status in ['void', 'paid']:
                 continue
-            
+
             # 计算该EO的付款金额（按比例）
             eo_cost = float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
             if total_cost > 0:
-                eo_pay_amount = (eo_cost / total_cost) * total_pay_amount
+                eo_pay_amount = (eo_cost / total_cost) * float(total_pay_amount)
             else:
-                eo_pay_amount = total_pay_amount / len(eos)
-            
+                eo_pay_amount = float(total_pay_amount) / len(eos)
+
+            eo_pay_amount = round(eo_pay_amount, 2)
+            eo_pay_amount_decimal = Decimal(str(eo_pay_amount))
+
             # 更新付款信息
+            eo.payment_record_id = payment_record.id  # 关联付款记录
             eo.payment_no = payment_no
             eo.payment_voucher_no = payment_voucher_no
             eo.paid_date = paid_date
-            eo.pay_amount = round(eo_pay_amount, 2)
+            eo.pay_amount = eo_pay_amount
             eo.payment_remarks = remarks
             eo.status = 'paid'
             success_count += 1
 
-            # 自动创建日记账分录（借：成本费用，贷：银行存款）
+            # 检查是否有已存在的预付使用记录（pending或confirmed）
+            existing_usage = PrepaymentUsage.query.filter(
+                PrepaymentUsage.eo_id == eo.id,
+                PrepaymentUsage.status.in_(['pending', 'confirmed'])
+            ).first()
+
+            if payment_source == 'prepayment' and available_prepayments:
+                # 如果已有confirmed的使用记录，不需要再创建，只需更新描述
+                if existing_usage and existing_usage.status == 'confirmed':
+                    existing_usage.description = f'EO付款确认 {eo.eo_number} ({payment_no})'
+                    prepayment_amount_used += existing_usage.amount
+                    remaining_to_pay -= eo_pay_amount_decimal
+                    continue  # 跳过后续的扣减逻辑
+
+                # 处理已有的pending记录（兼容旧数据）
+                if existing_usage and existing_usage.status == 'pending':
+                    # 退还原预付账款余额
+                    old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
+                    if old_prepayment:
+                        old_prepayment.balance_amount += existing_usage.amount
+                        old_prepayment.update_status()
+                    existing_usage.status = 'reversed'
+                    existing_usage.description = f'批量付款重新分配'
+
+                # 按FIFO从预付账款中扣减
+                amount_to_deduct = eo_pay_amount_decimal
+                while amount_to_deduct > 0 and prepayment_index < len(available_prepayments):
+                    current_prepayment = available_prepayments[prepayment_index]
+
+                    # 计算可从当前预付账款扣减的金额
+                    deduct_amount = min(amount_to_deduct, current_prepayment.balance_amount)
+
+                    if deduct_amount > 0:
+                        # 创建预付使用记录
+                        new_usage = PrepaymentUsage(
+                            prepayment_id=current_prepayment.id,
+                            eo_id=eo.id,
+                            ref_id=eo.ref_id,
+                            amount=deduct_amount,
+                            usage_date=paid_date,
+                            description=f'批量EO付款 {eo.eo_number} ({payment_no})',
+                            status='confirmed',
+                            created_by=current_user.username if current_user else None
+                        )
+                        db.session.add(new_usage)
+
+                        # 扣减预付余额
+                        current_prepayment.balance_amount -= deduct_amount
+                        current_prepayment.update_status()
+
+                        prepayment_amount_used += deduct_amount
+                        amount_to_deduct -= deduct_amount
+
+                    # 如果当前预付账款余额用完，移到下一个
+                    if current_prepayment.balance_amount <= 0:
+                        prepayment_index += 1
+
+                remaining_to_pay -= eo_pay_amount_decimal
+
+            else:
+                # 使用银行付款，如果有预付使用记录需要退还（pending或confirmed）
+                if existing_usage:
+                    old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
+                    if old_prepayment:
+                        old_prepayment.balance_amount += existing_usage.amount
+                        old_prepayment.update_status()
+                    existing_usage.status = 'reversed'
+                    existing_usage.description = f'批量付款改用银行付款'
+
+            # 自动创建日记账分录
             try:
                 from App_new.finance.models.journal_entry import JournalEntry
-                journal_entry = JournalEntry.create_from_eo(
-                    eo,
-                    user=current_user.username if current_user else None
-                )
+                if payment_source == 'prepayment' and available_prepayments:
+                    # 使用预付款：借-成本费用 贷-预付账款
+                    # 使用第一个预付账款的科目ID
+                    prepayment_account_id = available_prepayments[0].prepayment_account_id
+                    journal_entry = JournalEntry.create_from_eo_with_prepayment(
+                        eo,
+                        prepayment_account_id=prepayment_account_id,
+                        user=current_user.username if current_user else None
+                    )
+                else:
+                    # 银行付款：借-成本费用 贷-银行存款
+                    journal_entry = JournalEntry.create_from_eo(
+                        eo,
+                        user=current_user.username if current_user else None
+                    )
                 if journal_entry and journal_entry.lines:
                     db.session.add(journal_entry)
                     # 自动过账
@@ -678,13 +899,25 @@ def batch_pay_submit():
                 import logging
                 logging.getLogger(__name__).warning(f"创建批量EO付款日记账失败: {str(je_error)}")
 
+        # 更新付款记录的预付账款使用金额和实际 EO 数量
+        payment_record.prepayment_amount = prepayment_amount_used
+        payment_record.eo_count = success_count
+
         db.session.commit()
+
+        # 构建返回消息
+        message = f'成功付款 {success_count} 个EO，付款编号：{payment_no}'
+        if payment_source == 'prepayment' and available_prepayments:
+            # 计算剩余总余额
+            total_remaining = sum(p.balance_amount for p in available_prepayments)
+            message += f'（使用预付账款，剩余总余额：{total_remaining}）'
 
         return jsonify({
             'success': True,
-            'message': f'成功付款 {success_count} 个EO，付款编号：{payment_no}，已生成相应日记账'
+            'message': message,
+            'payment_id': payment_record.id
         })
-        
+
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -733,13 +966,20 @@ def pay_eo(eo_id):
         paid_date = datetime.strptime(paid_date_str, '%Y-%m-%d').date()
         pay_amount_decimal = Decimal(str(pay_amount))
 
-        # 如果使用预付账款付款
+        # 处理预付账款
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+
+        # 检查是否有已存在的预付使用记录（EO创建时自动生成的，现在状态为confirmed）
+        existing_usage = PrepaymentUsage.query.filter(
+            PrepaymentUsage.eo_id == eo.id,
+            PrepaymentUsage.status.in_(['pending', 'confirmed'])
+        ).first()
+
         prepayment_usage = None
         if payment_source == 'prepayment':
             if not prepayment_id:
                 return jsonify({'success': False, 'message': '请选择预付账款'}), 400
 
-            from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
             prepayment = SupplierPrepayment.query.get(prepayment_id)
 
             if not prepayment:
@@ -748,24 +988,66 @@ def pay_eo(eo_id):
             if prepayment.status not in ('confirmed', 'partial_used'):
                 return jsonify({'success': False, 'message': '该预付账款状态不允许使用'}), 400
 
-            if pay_amount_decimal > prepayment.balance_amount:
-                return jsonify({'success': False, 'message': f'付款金额超过预付余额 {prepayment.balance_amount}'}), 400
+            if existing_usage and existing_usage.prepayment_id == prepayment_id:
+                # 使用同一个预付账款，更新现有记录
+                if existing_usage.status == 'confirmed':
+                    # 已经是confirmed状态，只需更新描述
+                    existing_usage.description = f'EO付款确认 {eo.eo_number}'
+                    prepayment_usage = existing_usage
+                else:
+                    # pending状态，调整金额差额
+                    amount_diff = pay_amount_decimal - existing_usage.amount
+                    if amount_diff > prepayment.balance_amount:
+                        return jsonify({'success': False, 'message': f'付款金额超过预付余额 {prepayment.balance_amount + existing_usage.amount}'}), 400
 
-            # 创建预付款使用记录
-            prepayment_usage = PrepaymentUsage(
-                prepayment_id=prepayment_id,
-                eo_id=eo.id,
-                amount=pay_amount_decimal,
-                usage_date=paid_date,
-                description=f'EO付款 {eo.eo_number}',
-                status='confirmed',
-                created_by=current_user.username if current_user else None
-            )
-            db.session.add(prepayment_usage)
+                    # 调整预付余额（差额）
+                    prepayment.balance_amount -= amount_diff
+                    prepayment.update_status()
 
-            # 扣减预付余额
-            prepayment.balance_amount -= pay_amount_decimal
-            prepayment.update_status()
+                    # 更新使用记录为confirmed
+                    existing_usage.amount = pay_amount_decimal
+                    existing_usage.usage_date = paid_date
+                    existing_usage.status = 'confirmed'
+                    existing_usage.description = f'EO付款确认 {eo.eo_number}'
+                    prepayment_usage = existing_usage
+            else:
+                # 使用不同的预付账款
+                if pay_amount_decimal > prepayment.balance_amount:
+                    return jsonify({'success': False, 'message': f'付款金额超过预付余额 {prepayment.balance_amount}'}), 400
+
+                # 如果有已存在的使用记录，先退还（reversed）
+                if existing_usage:
+                    old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
+                    if old_prepayment:
+                        old_prepayment.balance_amount += existing_usage.amount
+                        old_prepayment.update_status()
+                    existing_usage.status = 'reversed'
+                    existing_usage.description = f'已切换预付账款'
+
+                # 创建新的预付款使用记录
+                prepayment_usage = PrepaymentUsage(
+                    prepayment_id=prepayment_id,
+                    eo_id=eo.id,
+                    amount=pay_amount_decimal,
+                    usage_date=paid_date,
+                    description=f'EO付款 {eo.eo_number}',
+                    status='confirmed',
+                    created_by=current_user.username if current_user else None
+                )
+                db.session.add(prepayment_usage)
+
+                # 扣减预付余额
+                prepayment.balance_amount -= pay_amount_decimal
+                prepayment.update_status()
+        else:
+            # 使用银行付款，如果有预付使用记录需要退还
+            if existing_usage:
+                old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
+                if old_prepayment:
+                    old_prepayment.balance_amount += existing_usage.amount
+                    old_prepayment.update_status()
+                existing_usage.status = 'reversed'
+                existing_usage.description = f'改用银行付款'
 
         # 更新付款信息
         eo.payment_no = payment_no
@@ -830,7 +1112,7 @@ def void_eo(eo_id):
     """作废EO"""
     try:
         eo = ProjectEO.query.get_or_404(eo_id)
-        
+
         # 员工等级权限检查
         from App_new.business.projects.models.project import ProjectHeader
         header = ProjectHeader.query.get(eo.ref.header_id)
@@ -840,15 +1122,116 @@ def void_eo(eo_id):
         # 检查是否已经作废
         if eo.status == 'void':
             return jsonify({'success': False, 'message': '此EO已经作废'}), 400
-        
+
+        # 恢复预付账款余额（如果有使用，包括pending和confirmed状态）
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+        prepayment_usages = PrepaymentUsage.query.filter(
+            PrepaymentUsage.eo_id == eo.id,
+            PrepaymentUsage.status.in_(['confirmed', 'pending'])
+        ).all()
+
+        for usage in prepayment_usages:
+            # 恢复预付账款余额
+            prepayment = SupplierPrepayment.query.get(usage.prepayment_id)
+            if prepayment:
+                prepayment.balance_amount += usage.amount
+                prepayment.update_status()
+
+            # 标记使用记录为已冲销
+            usage.status = 'reversed'
+            usage.description = f'EO作废冲销 - {eo.eo_number}'
+
         # 更新状态为作废
         eo.status = 'void'
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': f'EO {eo.eo_number} 已作废'})
-        
+
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@project_eo.route('/<int:eo_id>/cancel_payment', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def cancel_payment(eo_id):
+    """取消EO付款"""
+    try:
+        eo = ProjectEO.query.get_or_404(eo_id)
+
+        # 员工等级权限检查
+        from App_new.business.projects.models.project import ProjectHeader
+        header = ProjectHeader.query.get(eo.ref.header_id)
+        if header and not can_access_project(header, current_user):
+            return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
+
+        # 检查是否已付款
+        if eo.status != 'paid' and not eo.pay_amount:
+            return jsonify({'success': False, 'message': '此EO未付款，无需取消'}), 400
+
+        # 检查是否已作废
+        if eo.status == 'void':
+            return jsonify({'success': False, 'message': '此EO已作废'}), 400
+
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+        from decimal import Decimal
+
+        # 注意：取消付款时，预付使用记录保持 confirmed 状态
+        # 因为 EO 还存在，预付账款仍然被占用
+        # 只有作废 EO 时才会返还预付账款
+
+        # 处理日记账（如有）
+        journal_reversed = False
+        prepayment_usages = PrepaymentUsage.query.filter(
+            PrepaymentUsage.eo_id == eo.id,
+            PrepaymentUsage.status == 'confirmed'
+        ).all()
+        for usage in prepayment_usages:
+            if usage.journal_entry_id:
+                from App_new.finance.models.journal_entry import JournalEntry
+                journal = JournalEntry.query.get(usage.journal_entry_id)
+                if journal and journal.status == 'posted':
+                    # 创建冲销分录
+                    try:
+                        reversal = journal.reverse(
+                            reason=f'取消EO付款 {eo.eo_number}',
+                            user=current_user.username if current_user else None
+                        )
+                        if reversal:
+                            db.session.add(reversal)
+                            journal_reversed = True
+                    except Exception as je_err:
+                        import logging
+                        logging.getLogger(__name__).warning(f"冲销日记账失败: {str(je_err)}")
+
+        # 清除付款信息
+        old_payment_no = eo.payment_no
+        eo.payment_no = None
+        eo.payment_voucher_no = None
+        eo.paid_date = None
+        eo.pay_amount = None
+        eo.payment_remarks = None
+        eo.status = 'confirmed'
+
+        db.session.commit()
+
+        message = f'EO {eo.eo_number} 付款已取消'
+        if prepayment_usages:
+            message += '（预付账款仍被占用，作废EO时才会释放）'
+        if journal_reversed:
+            message += '，日记账已冲销'
+
+        return jsonify({
+            'success': True,
+            'message': message
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -870,40 +1253,99 @@ def quick_create_eo(ref_id):
                 'message': '您没有权限访问此项目'
             }), 403
         
-        # 检查REF是否已经有有效的EO (排除已作废的)
+        # 检查REF是否已经有EO
         db.session.expire_all()  # 刷新会话，确保获取最新数据
-        existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).filter(ProjectEO.status != 'void').first()
+        existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
+
+        is_reactivated = False
         if existing_eo:
-            print(f"DEBUG: REF {ref.id} (ref_number: {ref.ref_number}) 已经存在EO {existing_eo.eo_number} (id: {existing_eo.id})")
-            return jsonify({
-                'success': False,
-                'message': f'此REF已存在EO编号 {existing_eo.eo_number}，无法重复创建'
-            }), 400
-        
-        print(f"DEBUG: REF {ref.id} 没有EO记录，准备创建...")
-        
-        # 创建EO
-        eo = ProjectEO(
-            ref_id=ref.id,
-            external_system=None,
-            external_status=None,
-            external_reference=None,
-            status='confirmed'
-        )
-        
-        # 先保存获取ID
-        db.session.add(eo)
-        db.session.flush()  # 获取ID但不提交
-        
-        # 使用ID生成EO编号
-        eo.eo_number = f'E{str(eo.id).zfill(3)}'
-        
+            if existing_eo.status == 'void':
+                # 已作废的EO，重新激活
+                print(f"DEBUG: REF {ref.id} 存在已作废的EO {existing_eo.eo_number}，重新激活")
+                existing_eo.status = 'confirmed'
+                existing_eo.payment_no = None
+                existing_eo.payment_voucher_no = None
+                existing_eo.paid_date = None
+                existing_eo.pay_amount = None
+                existing_eo.payment_remarks = None
+                eo = existing_eo
+                is_reactivated = True
+            else:
+                # 有效的EO，不能重复创建
+                print(f"DEBUG: REF {ref.id} (ref_number: {ref.ref_number}) 已经存在EO {existing_eo.eo_number} (id: {existing_eo.id})")
+                return jsonify({
+                    'success': False,
+                    'message': f'此REF已存在EO编号 {existing_eo.eo_number}，无法重复创建'
+                }), 400
+        else:
+            print(f"DEBUG: REF {ref.id} 没有EO记录，准备创建...")
+
+            # 创建EO
+            eo = ProjectEO(
+                ref_id=ref.id,
+                external_system=None,
+                external_status=None,
+                external_reference=None,
+                status='confirmed'
+            )
+
+            # 先保存获取ID
+            db.session.add(eo)
+            db.session.flush()  # 获取ID但不提交
+
+            # 使用ID生成EO编号
+            eo.eo_number = f'E{str(eo.id).zfill(3)}'
+
+        # 自动扣减预付账款（如有）
+        prepayment_msg = ''
+        if ref.supplier_id and ref.cost_price:
+            from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+            from decimal import Decimal
+
+            cost_amount = Decimal(str(ref.cost_price))
+
+            # 检查是否已有使用记录（pending或confirmed）
+            existing_usage = PrepaymentUsage.query.filter(
+                PrepaymentUsage.eo_id == eo.id,
+                PrepaymentUsage.status.in_(['pending', 'confirmed'])
+            ).first()
+
+            if not existing_usage:
+                # 查找该供应商的可用预付账款
+                prepayment = SupplierPrepayment.query.filter(
+                    SupplierPrepayment.supplier_id == ref.supplier_id,
+                    SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+                    SupplierPrepayment.balance_amount > 0
+                ).order_by(SupplierPrepayment.created_at.asc()).first()
+
+                if prepayment and prepayment.balance_amount >= cost_amount:
+                    # 创建预付使用记录（confirmed状态，创建EO即扣减）
+                    usage = PrepaymentUsage(
+                        prepayment_id=prepayment.id,
+                        eo_id=eo.id,
+                        ref_id=ref.id,
+                        amount=cost_amount,
+                        usage_date=db.func.current_date(),
+                        status='confirmed',
+                        description=f'EO创建扣减 - {eo.eo_number}',
+                        created_by=current_user.username if current_user else None
+                    )
+                    db.session.add(usage)
+
+                    # 扣减预付余额
+                    prepayment.balance_amount -= cost_amount
+                    prepayment.update_status()
+
+                    prepayment_msg = f'，已扣减预付账款 {cost_amount}'
+                    print(f"DEBUG: 自动扣减预付账款 {prepayment.prepayment_number} 金额 {cost_amount}")
+
         # 提交事务
         db.session.commit()
-        
+
+        action = '重新激活' if is_reactivated else '创建'
         return jsonify({
             'success': True,
-            'message': f'EO {eo.eo_number} 创建成功！',
+            'message': f'EO {eo.eo_number} {action}成功！{prepayment_msg}',
             'eo_number': eo.eo_number,
             'eo_id': eo.id
         })
@@ -946,11 +1388,14 @@ def eo_list():
     """EO列表页面 - 支持筛选、搜索和分页"""
     try:
         from sqlalchemy import and_, or_, desc, asc
+        from sqlalchemy.orm import aliased
         from datetime import datetime, timedelta
         from App_new.business.projects.models.ref import ProjectRef
         from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
-        from App_new.shared.models.Suppliers import Supplier
-        
+
+        # 创建别名：SupplierCompany 用于供应商，CustomerCompany 用于客户
+        SupplierCompany = aliased(CustomerCompany, name='supplier_company')
+
         # 获取筛选参数
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 25, type=int)
@@ -965,12 +1410,12 @@ def eo_list():
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
         has_invoice = request.args.get('has_invoice', '')  # 筛选有无发票
-        
+
         # 构建查询
         from App_new.shared.models.business_types import BusinessType
         query = db.session.query(
             ProjectEO,
-            Supplier.name.label('supplier_name'),
+            SupplierCompany.company_name.label('supplier_name'),
             BusinessType.name.label('ref_type_name'),
             ProjectRef.description.label('ref_description'),
             ProjectRef.detailed_description.label('ref_detailed_description'),
@@ -984,7 +1429,7 @@ def eo_list():
         ).join(
             BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
         ).join(
-            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+            SupplierCompany, ProjectRef.supplier_id == SupplierCompany.id, isouter=True
         ).join(
             ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
         ).join(
@@ -1225,7 +1670,7 @@ def eo_list():
             eos.append(eo_dict)
         
         # 获取筛选选项数据
-        suppliers = Supplier.query.order_by(Supplier.name).all()
+        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(CustomerCompany.company_name).all()
         
         # 计算筛选结果数量
         filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice]) else None
