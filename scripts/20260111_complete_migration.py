@@ -2,26 +2,78 @@
 # -*- coding: utf-8 -*-
 """
 完整数据库迁移脚本
-直接使用 pymysql，不依赖 Flask
+自动从项目配置读取数据库连接信息
 
 使用方法:
+    cd /var/www/MyTravelPanel
+    source venv/bin/activate
     python scripts/20260111_complete_migration.py
 """
 
 import pymysql
 import sys
+import os
 
-# ============================================
-# 数据库配置 - 请修改为服务器实际配置
-# ============================================
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',  # 在这里填入数据库密码
-    'database': 'mytravel',
-    'charset': 'utf8mb4'
-}
-# ============================================
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def get_db_config():
+    """从项目配置文件读取数据库配置"""
+    try:
+        from App_new.config import Config
+
+        # 解析 SQLALCHEMY_DATABASE_URI
+        # 格式: mysql+pymysql://user:password@host:port/database?charset=utf8mb4
+        uri = Config.SQLALCHEMY_DATABASE_URI
+
+        # 提取连接信息
+        # 去掉 mysql+pymysql://
+        uri = uri.replace('mysql+pymysql://', '')
+
+        # 分离用户密码和主机
+        if '@' in uri:
+            user_pass, host_db = uri.split('@', 1)
+        else:
+            raise ValueError("无法解析数据库URI")
+
+        # 解析用户名和密码
+        if ':' in user_pass:
+            user, password = user_pass.split(':', 1)
+        else:
+            user = user_pass
+            password = ''
+
+        # 解析主机和数据库
+        if '/' in host_db:
+            host_port, db_rest = host_db.split('/', 1)
+        else:
+            raise ValueError("无法解析数据库名")
+
+        # 解析主机和端口
+        if ':' in host_port:
+            host, port = host_port.split(':')
+        else:
+            host = host_port
+            port = '3306'
+
+        # 解析数据库名（去掉查询参数）
+        if '?' in db_rest:
+            database = db_rest.split('?')[0]
+        else:
+            database = db_rest
+
+        return {
+            'host': host,
+            'port': int(port),
+            'user': user,
+            'password': password,
+            'database': database,
+            'charset': 'utf8mb4'
+        }
+    except Exception as e:
+        print(f"✗ 读取配置失败: {e}")
+        print("请检查 App_new/config.py 中的数据库配置")
+        sys.exit(1)
 
 
 def main():
@@ -29,17 +81,20 @@ def main():
     print("MyTravelPanel 数据库迁移")
     print("=" * 50)
 
+    # 获取数据库配置
+    db_config = get_db_config()
+    print(f"数据库: {db_config['user']}@{db_config['host']}/{db_config['database']}")
+
     # 连接数据库
     try:
-        conn = pymysql.connect(**DB_CONFIG)
+        conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
-        print(f"✓ 已连接到数据库: {DB_CONFIG['database']}")
+        print("✓ 数据库连接成功")
     except Exception as e:
         print(f"✗ 数据库连接失败: {e}")
-        print("\n请检查 DB_CONFIG 配置是否正确")
         sys.exit(1)
 
-    db_name = DB_CONFIG['database']
+    db_name = db_config['database']
 
     # 定义需要添加的列
     columns_to_add = [
@@ -120,7 +175,8 @@ def main():
     conn.close()
 
     print("\n" + "=" * 50)
-    print("迁移完成！请重启 Flask 应用")
+    print("迁移完成！请重启 Flask 应用:")
+    print("  sudo systemctl restart mytravel")
     print("=" * 50)
 
 
