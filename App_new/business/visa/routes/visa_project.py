@@ -390,12 +390,11 @@ def generate_form_for_project(project_id):
                 'message': f'项目信息不完整，请确保以下字段已填写: {", ".join(missing_fields)}'
             }), 400
         
-        # 生成表格的逻辑
-        project_name = f"{project.visa_type}_{project.hid_or_serial}_{project.applicant_name}"
-        visa_folder = f"{project_name}_{project.singapore_status}"
+        # 生成表格的逻辑 - 直接使用数据库中保存的项目文件夹名称
+        visa_folder = project.project_folder_name
         from App_new.config import Config
         static_path = Config.PROJECT_ROOT / "App_new" / "static"
-        
+
         # 检查项目文件夹是否存在
         visa_project_path = Config.VISA_PROJECTS_PATH
         form_path = visa_project_path / visa_folder
@@ -2336,15 +2335,17 @@ def upload_project_file(project_id):
         # 获取文件信息
         original_filename = file.filename
         file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
-        
+
         # 创建上传目录
         upload_folder = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'visa_projects', str(project_id))
         os.makedirs(upload_folder, exist_ok=True)
-        
-        # 生成唯一文件名
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        safe_filename = secure_filename(original_filename)
-        new_filename = f"{timestamp}_{safe_filename}"
+
+        # 生成唯一文件名 - 使用UUID确保文件名唯一，避免中文文件名导致的覆盖问题
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')  # 包含微秒
+        # 使用 UUID + 时间戳 + 扩展名，确保文件名绝对唯一
+        new_filename = f"{timestamp}_{unique_id}.{file_ext}" if file_ext else f"{timestamp}_{unique_id}"
         file_path = os.path.join(upload_folder, new_filename)
         
         # 保存文件
