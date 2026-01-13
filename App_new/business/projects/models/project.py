@@ -351,6 +351,21 @@ class ProjectHeader(db.Model):
     
     # 注意：CustomerCompany模型中已经定义了 backref='company'，这里不需要重复定义
 
+    @property
+    def display_desc(self):
+        """
+        获取显示用的项目描述
+        如果 desc 是 "-" 或空，则使用第一个 REF 的 description
+        """
+        if not self.desc or self.desc.strip() in ['-', '']:
+            # 获取第一个 REF 的 description
+            if self.refs:
+                first_ref = self.refs[0] if isinstance(self.refs, list) else self.refs.first()
+                if first_ref and first_ref.description:
+                    return first_ref.description
+            return self.desc or '-'
+        return self.desc
+
     def __repr__(self):
         return f'<ProjectHeader {self.hid} - {self.desc}>'
 

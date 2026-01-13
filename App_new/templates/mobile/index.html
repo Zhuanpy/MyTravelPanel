@@ -87,7 +87,7 @@
                 <i class="fas fa-project-diagram" style="color: #16a34a;"></i>
             </div>
             <div class="content">
-                <div class="title">{{ project.hid }} - {{ project.desc or '无描述' }}</div>
+                <div class="title">{{ project.hid }} - {{ project.display_desc or '无描述' }}</div>
                 <div class="subtitle">
                     {{ project.company.company_name if project.company else '无公司' }} |
                     ${{ "%.2f"|format(project.total_selling or 0) }}

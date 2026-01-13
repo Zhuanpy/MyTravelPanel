@@ -80,7 +80,7 @@
                 </div>
                 <div class="project-date">{{ project.created_at.strftime('%m-%d') if project.created_at else '' }}</div>
             </div>
-            <div class="project-desc">{{ project.desc or '无描述' }}</div>
+            <div class="project-desc">{{ project.display_desc or '无描述' }}</div>
             {% if project.company %}
             <div class="project-company">
                 <i class="fas fa-building"></i> {{ project.company.company_name }}
