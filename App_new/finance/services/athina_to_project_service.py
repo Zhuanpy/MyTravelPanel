@@ -2164,12 +2164,6 @@ class AthinaToProjectService:
         if not rows:
             return {'success': False, 'message': 'CSV 文件为空或解析失败'}
 
-        # 获取表头字段名列表，用于检测列位置
-        header_keys = list(rows[0].keys()) if rows else []
-
-        # 检测第一列表头是否为空，如果是则数据列位置需要调整
-        first_col_empty = not header_keys[0].strip() if header_keys else False
-
         # 按 Pay No 分组
         payment_groups = {}
         current_pay_no = None
@@ -2197,8 +2191,8 @@ class AthinaToProjectService:
                     val = row.get(name, '').strip()
                     if val and 'Pay No:' not in val:
                         return val
-                # 如果第一列为空，尝试从位置获取
-                if first_col_empty and len(values) > pos_index:
+                # 字段名获取失败，尝试从位置获取（处理表头和数据错位的情况）
+                if len(values) > pos_index:
                     val = values[pos_index].strip() if values[pos_index] else ''
                     if val and 'Pay No:' not in val:
                         return val
