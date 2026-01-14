@@ -1776,7 +1776,7 @@ def athina_to_project():
 
     # 统计信息 - 在 Python 层面计算，避免 collation 冲突
     from App_new.finance.models.athina_booking import AthinaBookingHeader
-    from App_new.business.projects.models.project_header import ProjectHeader
+    from App_new.business.projects.models.project import ProjectHeader
 
     # 获取所有 Athina HID
     athina_hids = {h[0] for h in db.session.query(AthinaBookingHeader.booking_header_id).all()}
