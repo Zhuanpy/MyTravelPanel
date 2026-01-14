@@ -1,9 +1,33 @@
 #!/bin/bash
 
 # 服务器项目更新脚本
-# 使用方法: ./server_update.sh
+# 使用方法:
+#   ./server_update.sh                    # 常规更新
+#   ./server_update.sh --check-settle     # 更新后检查结算状态
+#   ./server_update.sh --check-settle H1913  # 检查指定项目
 
 set -e  # 遇到错误立即退出
+
+# 解析参数
+CHECK_SETTLE=false
+CHECK_HID=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --check-settle)
+            CHECK_SETTLE=true
+            shift
+            # 检查下一个参数是否是 HID
+            if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
+                CHECK_HID="$1"
+                shift
+            fi
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 echo "=========================================="
 echo "       MyTravelPanel 项目更新脚本"
@@ -97,5 +121,22 @@ git log -1 --oneline
 echo ""
 echo "nginx 状态:"
 sudo systemctl status nginx --no-pager | head -5
+
+# 检查结算状态（可选）
+if [ "$CHECK_SETTLE" = true ]; then
+    echo ""
+    echo "=========================================="
+    echo "        检查项目结算状态"
+    echo "=========================================="
+
+    if [ -n "$CHECK_HID" ]; then
+        echo ">>> 检查项目: $CHECK_HID"
+        python scripts/check_project_settle_status.py --hid "$CHECK_HID"
+    else
+        echo ">>> 检查所有项目..."
+        python scripts/check_project_settle_status.py
+    fi
+fi
+
 echo ""
 echo "请访问网站检查是否正常运行"
