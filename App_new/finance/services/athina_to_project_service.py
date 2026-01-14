@@ -286,11 +286,13 @@ class AthinaToProjectService:
         Returns:
             dict: 包含 items, total, pages 等分页信息
         """
-        from sqlalchemy import func, case
+        from sqlalchemy import func
         from App_new.finance.models.athina_booking import AthinaBookingDetail
 
+        # 先获取已导入的 HID 集合（避免 SQL 层面的 collation 冲突）
+        imported_hids_set = {p.hid for p in db.session.query(ProjectHeader.hid).all()}
+
         # 子查询：获取每个 header 的 details 数量
-        # AthinaBookingDetail.header_id 关联到 AthinaBookingHeader.id
         details_count_subq = db.session.query(
             AthinaBookingDetail.header_id,
             func.count(AthinaBookingDetail.id).label('details_count')
@@ -300,19 +302,10 @@ class AthinaToProjectService:
             AthinaBookingDetail.header_id
         ).subquery()
 
-        # 子查询：获取已导入的 HID
-        imported_hids_subq = db.session.query(
-            ProjectHeader.hid
-        ).subquery()
-
         # 主查询
         query = db.session.query(
             AthinaBookingHeader,
-            func.coalesce(details_count_subq.c.details_count, 0).label('details_count'),
-            case(
-                (AthinaBookingHeader.booking_header_id.in_(db.session.query(imported_hids_subq)), True),
-                else_=False
-            ).label('is_imported')
+            func.coalesce(details_count_subq.c.details_count, 0).label('details_count')
         ).outerjoin(
             details_count_subq,
             AthinaBookingHeader.id == details_count_subq.c.header_id
@@ -327,24 +320,26 @@ class AthinaToProjectService:
                 )
             )
 
-        # 筛选已导入/未导入
-        if filter_imported == 'imported':
-            query = query.filter(
-                AthinaBookingHeader.booking_header_id.in_(db.session.query(imported_hids_subq))
-            )
-        elif filter_imported == 'not_imported':
-            query = query.filter(
-                ~AthinaBookingHeader.booking_header_id.in_(db.session.query(imported_hids_subq))
-            )
-
         # 排序
         query = query.order_by(AthinaBookingHeader.booking_header_id.asc())
 
-        # 获取总数
-        total = query.count()
+        # 如果需要筛选已导入/未导入，在 Python 层面处理
+        if filter_imported in ('imported', 'not_imported'):
+            # 获取所有符合搜索条件的记录，然后在 Python 中筛选
+            all_items = query.all()
+            if filter_imported == 'imported':
+                filtered_items = [(h, c) for h, c in all_items if h.booking_header_id in imported_hids_set]
+            else:
+                filtered_items = [(h, c) for h, c in all_items if h.booking_header_id not in imported_hids_set]
 
-        # 分页
-        items_raw = query.offset((page - 1) * per_page).limit(per_page).all()
+            total = len(filtered_items)
+            start = (page - 1) * per_page
+            end = start + per_page
+            items_raw = filtered_items[start:end]
+        else:
+            # 不需要筛选，直接数据库分页
+            total = query.count()
+            items_raw = query.offset((page - 1) * per_page).limit(per_page).all()
 
         # 批量获取已导入项目的详情
         hids = [item[0].booking_header_id for item in items_raw]
@@ -354,10 +349,11 @@ class AthinaToProjectService:
 
         # 构造结果
         result = []
-        for header, details_count, is_imported in items_raw:
+        for header, details_count in items_raw:
+            is_imported = header.booking_header_id in imported_hids_set
             result.append({
                 'athina_header': header,
-                'is_imported': bool(is_imported),
+                'is_imported': is_imported,
                 'project_header': imported_projects.get(header.booking_header_id),
                 'details_count': details_count,
             })

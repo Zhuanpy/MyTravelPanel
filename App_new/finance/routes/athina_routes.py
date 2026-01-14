@@ -1774,21 +1774,21 @@ def athina_to_project():
         result['pages'], result['has_prev'], result['has_next']
     )
 
-    # 统计信息 - 使用快速查询
+    # 统计信息 - 在 Python 层面计算，避免 collation 冲突
     from App_new.finance.models.athina_booking import AthinaBookingHeader
     from App_new.business.projects.models.project_header import ProjectHeader
 
-    total_athina = AthinaBookingHeader.query.count()
-    imported_hids = db.session.query(ProjectHeader.hid).all()
-    imported_hids_set = {h[0] for h in imported_hids}
-    total_imported = AthinaBookingHeader.query.filter(
-        AthinaBookingHeader.booking_header_id.in_(imported_hids_set)
-    ).count() if imported_hids_set else 0
+    # 获取所有 Athina HID
+    athina_hids = {h[0] for h in db.session.query(AthinaBookingHeader.booking_header_id).all()}
+    # 获取所有已导入的 HID
+    imported_hids = {h[0] for h in db.session.query(ProjectHeader.hid).all()}
+    # 计算交集
+    imported_count = len(athina_hids & imported_hids)
 
     stats = {
-        'total': total_athina,
-        'imported': total_imported,
-        'not_imported': total_athina - total_imported,
+        'total': len(athina_hids),
+        'imported': imported_count,
+        'not_imported': len(athina_hids) - imported_count,
     }
 
     return render_template('finance/athina/athina_to_project.html',

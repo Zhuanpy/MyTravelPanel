@@ -73,7 +73,17 @@
       "Bash(/c/Users/User/anaconda3/MyTravelPanel/Scripts/python.exe:*)",
       "Bash(python.exe:*)",
       "Bash(conda info:*)",
-      "Bash(/c/Users/User/AppData/Local/Programs/Python/Python313/python.exe:*)"
+      "Bash(/c/Users/User/AppData/Local/Programs/Python/Python313/python.exe:*)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" status)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" log --oneline -5)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" diff --stat)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" add App_new/business/projects/routes/project_list.py App_new/business/projects/routes/project_payment.py App_new/finance/routes/athina_routes.py App_new/finance/services/athina_to_project_service.py App_new/templates/business/projects/payment/detail.html App_new/templates/business/projects/payment/print_voucher.html App_new/templates/business/projects/project_detail.html App_new/templates/business/projects/project_invoice/invoice_detail.html App_new/templates/finance/athina/athina_csv_import.html App_new/templates/finance/athina/athina_to_project.html)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" commit -m \"$\\(cat <<''EOF''\n新增 Athina CSV 导入功能和 Payment Voucher 打印\n\n功能新增：\n- 新增 Athina CSV 分步导入页面（Reservation/EO/Invoice/Receipt/Payment）\n- 新增 Payment Voucher 打印功能\n- 项目列表默认按项目编号排序\n\n问题修复：\n- 修复项目详情页 ref_receipts 路由端点错误\n- 修复 Receipt CSV 导入时 Sub Total/Grand Total 行被错误导入\n- 修复项目人员名单重复导入问题（使用去掉称谓后的名字进行去重）\n- 修复 Invoice CSV 导入时表头和数据列错位问题\n- 修复 Invoice 打印时 CSV 导入数据显示为空的问题\n- 修复 Payment 详情页 sum 过滤器 default 参数错误\n- 导入数据的 STAFF 经办人统一转换为大写\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" push origin wip/backup-20250825-235609)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" show HEAD:App_new/templates/shared/staff_base.html)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" status App_new/templates/shared/staff_base.html)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" add App_new/templates/shared/staff_base.html)",
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" commit -m \"$\\(cat <<''EOF''\n补充提交：添加 Athina导入项目 菜单项\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
