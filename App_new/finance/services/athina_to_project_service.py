@@ -17,7 +17,7 @@ from App_new.business.projects.models.project import ProjectHeader, CustomerComp
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.project_member import ProjectMember
 from App_new.business.projects.models.eo import ProjectEO
-from App_new.business.projects.models.invoice import ProjectInvoice
+from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
 from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.supplier_payment import SupplierPayment
 from App_new.shared.models.business_types import BusinessType
@@ -1712,6 +1712,26 @@ class AthinaToProjectService:
                         'source': 'csv_import',
                         'updated_at': datetime.utcnow().isoformat(),
                     })
+
+                    # 检查并创建缺失的 InvoiceItem
+                    items_created = 0
+                    existing_item_ref_ids = {item.ref_id for item in InvoiceItem.query.filter_by(invoice_id=invoice.id).all()}
+                    for i, ref_id in enumerate(ref_ids):
+                        if ref_id not in existing_item_ref_ids:
+                            ref = ProjectRef.query.get(ref_id)
+                            if ref:
+                                item_data = inv_data['items'][i] if i < len(inv_data['items']) else {}
+                                invoice_item = InvoiceItem(
+                                    invoice_id=invoice.id,
+                                    ref_id=ref_id,
+                                    description=item_data.get('itin_desc') or ref.description or f"REF {ref.ref_number}",
+                                    quantity=1,
+                                    unit_price=Decimal(str(ref.selling_price or 0)),
+                                    total_price=Decimal(str(ref.selling_price or 0)),
+                                )
+                                db.session.add(invoice_item)
+                                items_created += 1
+
                     self.stats['invoices_updated'] = self.stats.get('invoices_updated', 0) + 1
                     results['success'] += 1
                     results['details'].append({
@@ -1720,7 +1740,8 @@ class AthinaToProjectService:
                         'hid': hid,
                         'amount': str(total_gross),
                         'payment_status': payment_status,
-                        'message': f'成功更新发票 {invoice_no}',
+                        'items_created': items_created,
+                        'message': f'成功更新发票 {invoice_no}' + (f'，新增 {items_created} 个 REF 关联' if items_created else ''),
                     })
                 else:
                     # 创建新发票
@@ -1749,6 +1770,26 @@ class AthinaToProjectService:
                         created_by=inv_data['consultant'],
                     )
                     db.session.add(invoice)
+                    db.session.flush()  # 获取 invoice.id
+
+                    # 创建 InvoiceItem 关联 REF
+                    items_created = 0
+                    for i, ref_id in enumerate(ref_ids):
+                        ref = ProjectRef.query.get(ref_id)
+                        if ref:
+                            # 获取对应的 item 数据（如果有）
+                            item_data = inv_data['items'][i] if i < len(inv_data['items']) else {}
+                            invoice_item = InvoiceItem(
+                                invoice_id=invoice.id,
+                                ref_id=ref_id,
+                                description=item_data.get('itin_desc') or ref.description or f"REF {ref.ref_number}",
+                                quantity=1,
+                                unit_price=Decimal(str(ref.selling_price or 0)),
+                                total_price=Decimal(str(ref.selling_price or 0)),
+                            )
+                            db.session.add(invoice_item)
+                            items_created += 1
+
                     self.stats['invoices_created'] += 1
                     results['success'] += 1
                     results['details'].append({
@@ -1758,7 +1799,8 @@ class AthinaToProjectService:
                         'amount': str(total_gross),
                         'payment_status': payment_status,
                         'ref_count': len(ref_ids),
-                        'message': f'成功创建发票 {invoice_no}',
+                        'items_created': items_created,
+                        'message': f'成功创建发票 {invoice_no}，关联 {items_created} 个 REF',
                     })
 
             except Exception as e:
