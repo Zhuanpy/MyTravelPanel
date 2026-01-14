@@ -51,8 +51,8 @@ def fix_settled_status():
             all_paid = all(ref.payment_status == 'paid' for ref in refs)
             unpaid_count = sum(1 for ref in refs if ref.payment_status != 'paid')
 
-            # 情况1：项目被标记为已结算，但实际有未付款的 REF -> 重置
-            if project.is_settled and not all_paid:
+            # 重置所有已结算的项目为未结算
+            if project.is_settled:
                 project.is_settled = False
                 project.settled_at = None
                 project.settled_by = None
@@ -60,11 +60,12 @@ def fix_settled_status():
                     'hid': project.hid,
                     'desc': project.desc[:30] if project.desc else '-',
                     'unpaid_count': unpaid_count,
-                    'total_refs': len(refs)
+                    'total_refs': len(refs),
+                    'all_paid': all_paid
                 })
 
-            # 情况2：项目未结算，但所有 REF 都已付款 -> 可结算
-            elif not project.is_settled and all_paid:
+            # 记录可结算的项目（所有 REF 都已付款但未结算）
+            if not project.is_settled and all_paid:
                 can_settle_list.append({
                     'hid': project.hid,
                     'desc': project.desc[:30] if project.desc else '-',
@@ -75,11 +76,12 @@ def fix_settled_status():
         db.session.commit()
 
         # 输出结果
-        print("\n【重置为未结算的项目】")
+        print("\n【已重置为未结算的项目】（原本是已结算）")
         print("-" * 60)
         if reset_list:
             for item in reset_list:
-                print(f"  {item['hid']}: {item['desc']} ({item['unpaid_count']}/{item['total_refs']} 未付款)")
+                status = "可结算" if item['all_paid'] else f"{item['unpaid_count']}/{item['total_refs']} 未付款"
+                print(f"  {item['hid']}: {item['desc']} -> {status}")
         else:
             print("  无")
 
