@@ -3,7 +3,7 @@
 
 from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, send_file
 from io import BytesIO
-from flask_login import login_required
+from flask_login import login_required, current_user
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
 from App_new.finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
@@ -1715,3 +1715,456 @@ def export_unsettled_orders():
         logger.error(error_msg, exc_info=True)
         return jsonify({'error': error_msg, 'success': False}), 500
 
+
+# ==================== Athina 数据导入到项目系统 ====================
+
+@athina_blue.route('/athina_to_project')
+@login_required
+@staff_only
+def athina_to_project():
+    """Athina 数据导入到项目系统页面"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    service = AthinaToProjectService(
+        current_user_id=current_user.id,
+        current_user_name=current_user.username
+    )
+
+    # 获取筛选参数
+    search = request.args.get('search', '')
+    filter_imported = request.args.get('filter_imported', '')  # 'imported', 'not_imported', ''
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # 获取可导入的 Athina Headers
+    all_items = service.get_importable_athina_headers(search, filter_imported)
+
+    # 手动分页
+    total = len(all_items)
+    start = (page - 1) * per_page
+    end = start + per_page
+    items = all_items[start:end]
+
+    # 构造分页对象
+    class SimplePagination:
+        def __init__(self, items, page, per_page, total):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page if per_page > 0 else 1
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1
+            self.next_num = page + 1
+
+        def iter_pages(self):
+            for i in range(1, self.pages + 1):
+                yield i
+
+    pagination = SimplePagination(items, page, per_page, total)
+
+    # 统计信息
+    stats = {
+        'total': total,
+        'imported': sum(1 for item in all_items if item['is_imported']),
+        'not_imported': sum(1 for item in all_items if not item['is_imported']),
+    }
+
+    return render_template('finance/athina/athina_to_project.html',
+                           items=items,
+                           pagination=pagination,
+                           search=search,
+                           filter_imported=filter_imported,
+                           stats=stats)
+
+
+@athina_blue.route('/athina_to_project/import/<int:header_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_to_project_import(header_id):
+    """导入单个 Athina Header 到项目系统"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        data = request.get_json() or {}
+        options = {
+            'create_eo': data.get('create_eo', False),
+            'create_invoice': data.get('create_invoice', False),
+        }
+
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.import_header_and_refs(header_id, options)
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f'导入失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/batch_import', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_to_project_batch_import():
+    """批量导入 Athina Headers 到项目系统"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        data = request.get_json() or {}
+        header_ids = data.get('header_ids', [])
+        options = {
+            'create_eo': data.get('create_eo', False),
+            'create_invoice': data.get('create_invoice', False),
+        }
+
+        if not header_ids:
+            return jsonify({'success': False, 'message': '请选择要导入的记录'}), 400
+
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.batch_import(header_ids, options)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f'批量导入失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'批量导入失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/generate_eos/<int:project_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_to_project_generate_eos(project_id):
+    """为项目生成 EO"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.generate_eos_for_project(project_id)
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f'生成 EO 失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'生成 EO 失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/generate_receipt/<int:project_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_to_project_generate_receipt(project_id):
+    """根据余额生成收款记录"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.generate_receipt_from_balance(project_id)
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f'生成收款记录失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'生成收款记录失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/preview/<int:header_id>')
+@login_required
+@staff_only
+def athina_to_project_preview(header_id):
+    """预览 Athina Header 导入数据"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        athina_header = AthinaBookingHeader.query.get_or_404(header_id)
+        details = athina_header.details.filter_by(is_subtotal=False).all()
+
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+
+        preview_data = {
+            'header': {
+                'hid': athina_header.booking_header_id,
+                'corporate_name': athina_header.corporate_name,
+                'book_date': athina_header.book_date.isoformat() if athina_header.book_date else None,
+                'consultant': athina_header.consultant,
+                'total_gross': float(athina_header.sub_total_gross) if athina_header.sub_total_gross else 0,
+                'total_cost': float(athina_header.sub_total_cost) if athina_header.sub_total_cost else 0,
+                'total_pl': float(athina_header.sub_total_pl) if athina_header.sub_total_pl else 0,
+                'balance': float(athina_header.sub_total_balance) if athina_header.sub_total_balance else 0,
+                'is_all_invoiced': athina_header.is_all_invoiced,
+            },
+            'details': [],
+            'company_match': None,
+            'warnings': [],
+        }
+
+        # 检查公司匹配
+        from App_new.shared.models.customer_company import CustomerCompany
+        if athina_header.corporate_name:
+            company = CustomerCompany.query.filter(
+                CustomerCompany.company_name.ilike(f'%{athina_header.corporate_name}%')
+            ).first()
+            if company:
+                preview_data['company_match'] = {
+                    'id': company.id,
+                    'name': company.company_name,
+                }
+            else:
+                preview_data['warnings'].append(f'未找到匹配的公司: {athina_header.corporate_name}')
+
+        # 处理明细
+        for detail in details:
+            ref_type_id = service._get_business_type_id(detail.book_type)
+            from App_new.shared.models.business_types import BusinessType
+            ref_type = BusinessType.query.get(ref_type_id) if ref_type_id else None
+
+            supplier_id = service._find_supplier(detail.supplier)
+            supplier = CustomerCompany.query.get(supplier_id) if supplier_id else None
+
+            preview_data['details'].append({
+                'booking_ref': detail.booking_ref,
+                'ref_number': f'R{detail.booking_ref}',
+                'book_type': detail.book_type,
+                'ref_type': ref_type.name if ref_type else '其他',
+                'client_name': detail.client_name,
+                'itin_desc': detail.itin_desc,
+                'dep_date': detail.dep_date.isoformat() if detail.dep_date else None,
+                'gross_amount': float(detail.gross_amount) if detail.gross_amount else 0,
+                'local_cost': float(detail.local_cost) if detail.local_cost else 0,
+                'profit': float(detail.profit_loss) if detail.profit_loss else 0,
+                'supplier': detail.supplier,
+                'supplier_match': supplier.company_name if supplier else None,
+                'invoice_no': detail.invoice_no,
+            })
+
+            if detail.supplier and not supplier:
+                preview_data['warnings'].append(f'未找到匹配的供应商: {detail.supplier}')
+
+        return jsonify({'success': True, 'data': preview_data})
+
+    except Exception as e:
+        logger.error(f'预览失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'预览失败: {str(e)}'}), 500
+
+
+# ==================== Athina CSV 文件导入到项目系统 ====================
+
+@athina_blue.route('/athina_to_project/csv_import')
+@login_required
+@staff_only
+def athina_to_project_csv_import():
+    """Athina CSV 文件导入页面"""
+    return render_template('finance/athina/athina_csv_import.html')
+
+
+@athina_blue.route('/athina_to_project/import_reservation_csv', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_import_reservation_csv():
+    """导入 Reservation Listing Report.csv (HID + REF)"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'message': '请选择 CSV 格式文件'}), 400
+
+        # 读取文件内容
+        file_content = file.read()
+
+        # 获取导入选项
+        options = {
+            'create_eo': request.form.get('create_eo', 'false').lower() == 'true',
+            'create_invoice': request.form.get('create_invoice', 'false').lower() == 'true',
+        }
+
+        # 导入 - 传递当前用户信息，确保导入的项目能被用户看到
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.import_reservation_csv(file_content, options)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f'导入 Reservation CSV 失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/import_eo_csv', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_import_eo_csv():
+    """导入 Exchange Order Listing Report.csv (EO)"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'message': '请选择 CSV 格式文件'}), 400
+
+        # 读取文件内容
+        file_content = file.read()
+
+        # 导入
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.import_eo_csv(file_content)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f'导入 EO CSV 失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/import_invoice_csv', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_import_invoice_csv():
+    """导入 Invoice Listing Report.csv (Invoice)"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'message': '请选择 CSV 格式文件'}), 400
+
+        # 读取文件内容
+        file_content = file.read()
+
+        # 导入
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.import_invoice_csv(file_content)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f'导入 Invoice CSV 失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/athina_to_project/import_receipt_csv', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_import_receipt_csv():
+    """导入 Receipt.csv (收款记录)"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'message': '请选择 CSV 格式文件'}), 400
+
+        # 读取文件内容
+        file_content = file.read()
+
+        # 导入
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.import_receipt_csv(file_content)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f'导入 Receipt CSV 失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
+
+
+@athina_blue.route('/import/payment-voucher-csv', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_import_payment_voucher_csv():
+    """导入 Payment Voucher CSV (付款凭证)"""
+    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': '请选择文件'}), 400
+
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'success': False, 'message': '请选择 CSV 格式文件'}), 400
+
+        # 读取文件内容
+        file_content = file.read()
+
+        # 导入
+        service = AthinaToProjectService(
+            current_user_id=current_user.id,
+            current_user_name=current_user.username
+        )
+        result = service.import_payment_voucher_csv(file_content)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f'导入 Payment Voucher CSV 失败: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500

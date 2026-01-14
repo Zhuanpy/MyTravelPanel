@@ -386,7 +386,7 @@ def list_projects():
         
         if date_to:
             base_query = base_query.filter(ProjectHeader.created_at <= date_to + ' 23:59:59')
-        
+
         # 应用排序
         if sort_by == 'created_at_desc':
             base_query = base_query.order_by(ProjectHeader.created_at.desc())
@@ -396,9 +396,22 @@ def list_projects():
             base_query = base_query.order_by(ProjectHeader.updated_at.desc())
         elif sort_by == 'updated_at_asc':
             base_query = base_query.order_by(ProjectHeader.updated_at.asc())
+        elif sort_by == 'hid_desc':
+            # 按项目编号降序（提取数字部分排序）
+            base_query = base_query.order_by(
+                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+            )
+        elif sort_by == 'hid_asc':
+            # 按项目编号升序
+            base_query = base_query.order_by(
+                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).asc()
+            )
         else:
-            base_query = base_query.order_by(ProjectHeader.created_at.desc())
-        
+            # 默认按项目编号降序
+            base_query = base_query.order_by(
+                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+            )
+
         # 分页
         page = request.args.get('page', 1, type=int)
         per_page = 30  # 增加每页显示数量
@@ -1124,7 +1137,7 @@ def export_excel():
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
         if date_to:
             base_query = base_query.filter(ProjectHeader.created_at <= date_to + ' 23:59:59')
-        
+
         # 应用排序
         if sort_by == 'created_at_desc':
             base_query = base_query.order_by(ProjectHeader.created_at.desc())
@@ -1134,9 +1147,20 @@ def export_excel():
             base_query = base_query.order_by(ProjectHeader.updated_at.desc())
         elif sort_by == 'updated_at_asc':
             base_query = base_query.order_by(ProjectHeader.updated_at.asc())
+        elif sort_by == 'hid_desc':
+            base_query = base_query.order_by(
+                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+            )
+        elif sort_by == 'hid_asc':
+            base_query = base_query.order_by(
+                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).asc()
+            )
         else:
-            base_query = base_query.order_by(ProjectHeader.created_at.desc())
-        
+            # 默认按项目编号降序
+            base_query = base_query.order_by(
+                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+            )
+
         # 获取所有符合条件的项目（不分页）
         projects = base_query.all()
         

@@ -1,0 +1,436 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}Athina CSV 导入到项目{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-card {
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .step-card.active {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    .step-card.completed {
+        border-color: #198754;
+        background-color: #f8fff9;
+    }
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #6c757d;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .step-card.active .step-number {
+        background-color: #0d6efd;
+    }
+    .step-card.completed .step-number {
+        background-color: #198754;
+    }
+    .file-upload-zone {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .file-upload-zone:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9fa;
+    }
+    .file-upload-zone.dragover {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+    .result-panel {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .import-log {
+        font-family: 'Consolas', monospace;
+        font-size: 0.85rem;
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .import-log .success { color: #198754; }
+    .import-log .warning { color: #ffc107; }
+    .import-log .error { color: #dc3545; }
+    .import-log .info { color: #0d6efd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Athina CSV 导入到项目系统</h4>
+            <p class="text-muted mb-0">分步骤导入 Athina 导出的 CSV 文件</p>
+        </div>
+        <div>
+            <a href="{{ url_for('athina_routes.athina_to_project') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回数据库导入
+            </a>
+        </div>
+    </div>
+
+    <!-- 导入说明 -->
+    <div class="alert alert-info mb-4">
+        <h6 class="alert-heading"><i class="bi bi-info-circle"></i> 导入说明</h6>
+        <ul class="mb-0">
+            <li><strong>第一步</strong>: 导入 Reservation Listing Report.csv，创建项目 (HID) 和 REF 基础数据</li>
+            <li><strong>第二步</strong>: 导入 Exchange Order Listing Report.csv，关联 EO 到已导入的 REF</li>
+            <li><strong>第三步</strong>: 导入 Invoice Listing Report.csv，关联发票到已导入的项目</li>
+            <li><strong>第四步</strong>: 导入 Receipt Listing Report.csv，关联收据到已导入的发票和项目</li>
+            <li><strong>第五步</strong>: 导入 Payment Voucher Listing Report.csv，关联付款凭证到已导入的 EO</li>
+        </ul>
+    </div>
+
+    <!-- 步骤卡片 -->
+    <div class="row g-4">
+        <!-- 第一步：导入 HID + REF -->
+        <div class="col-12">
+            <div class="step-card p-4" id="step1">
+                <div class="d-flex align-items-start">
+                    <div class="step-number me-3">1</div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">导入 HID + REF（基础数据）</h5>
+                        <p class="text-muted mb-3">文件：<code>Reservation Listing Report.csv</code></p>
+
+                        <form id="form-step1" enctype="multipart/form-data">
+                            <div class="file-upload-zone mb-3" id="dropzone1">
+                                <i class="bi bi-cloud-upload fs-1 text-muted"></i>
+                                <p class="mb-1">点击选择或拖拽 CSV 文件到此处</p>
+                                <small class="text-muted" id="filename1">未选择文件</small>
+                                <input type="file" name="file" id="file1" accept=".csv" class="d-none">
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="create_eo" id="create_eo1" value="true">
+                                    <label class="form-check-label" for="create_eo1">同时创建 EO</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="create_invoice" id="create_invoice1" value="true">
+                                    <label class="form-check-label" for="create_invoice1">同时创建 Invoice</label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="btn-step1" disabled>
+                                <i class="bi bi-upload"></i> 开始导入
+                            </button>
+                        </form>
+
+                        <div class="mt-3 d-none" id="result1">
+                            <div class="import-log" id="log1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二步：导入 EO -->
+        <div class="col-12">
+            <div class="step-card p-4" id="step2">
+                <div class="d-flex align-items-start">
+                    <div class="step-number me-3">2</div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">导入 EO（Exchange Order）</h5>
+                        <p class="text-muted mb-3">文件：<code>Exchange Order Listing Report.csv</code></p>
+
+                        <form id="form-step2" enctype="multipart/form-data">
+                            <div class="file-upload-zone mb-3" id="dropzone2">
+                                <i class="bi bi-cloud-upload fs-1 text-muted"></i>
+                                <p class="mb-1">点击选择或拖拽 CSV 文件到此处</p>
+                                <small class="text-muted" id="filename2">未选择文件</small>
+                                <input type="file" name="file" id="file2" accept=".csv" class="d-none">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="btn-step2" disabled>
+                                <i class="bi bi-upload"></i> 开始导入
+                            </button>
+                        </form>
+
+                        <div class="mt-3 d-none" id="result2">
+                            <div class="import-log" id="log2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三步：导入 Invoice -->
+        <div class="col-12">
+            <div class="step-card p-4" id="step3">
+                <div class="d-flex align-items-start">
+                    <div class="step-number me-3">3</div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">导入 Invoice（发票）</h5>
+                        <p class="text-muted mb-3">文件：<code>Invoice Listing Report.csv</code></p>
+
+                        <form id="form-step3" enctype="multipart/form-data">
+                            <div class="file-upload-zone mb-3" id="dropzone3">
+                                <i class="bi bi-cloud-upload fs-1 text-muted"></i>
+                                <p class="mb-1">点击选择或拖拽 CSV 文件到此处</p>
+                                <small class="text-muted" id="filename3">未选择文件</small>
+                                <input type="file" name="file" id="file3" accept=".csv" class="d-none">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="btn-step3" disabled>
+                                <i class="bi bi-upload"></i> 开始导入
+                            </button>
+                        </form>
+
+                        <div class="mt-3 d-none" id="result3">
+                            <div class="import-log" id="log3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第四步：导入 Receipt -->
+        <div class="col-12">
+            <div class="step-card p-4" id="step4">
+                <div class="d-flex align-items-start">
+                    <div class="step-number me-3">4</div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">导入 Receipt（收款记录）</h5>
+                        <p class="text-muted mb-3">文件：<code>Receipt Listing Report.csv</code></p>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            收据将根据 Invoice No 自动关联到对应的发票，并更新发票付款状态。
+                        </div>
+
+                        <form id="form-step4" enctype="multipart/form-data">
+                            <div class="file-upload-zone mb-3" id="dropzone4">
+                                <i class="bi bi-cloud-upload fs-1 text-muted"></i>
+                                <p class="mb-1">点击选择或拖拽 CSV 文件到此处</p>
+                                <small class="text-muted" id="filename4">未选择文件</small>
+                                <input type="file" name="file" id="file4" accept=".csv" class="d-none">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="btn-step4" disabled>
+                                <i class="bi bi-upload"></i> 开始导入
+                            </button>
+                        </form>
+
+                        <div class="mt-3 d-none" id="result4">
+                            <div class="import-log" id="log4"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第五步：导入 Payment Voucher -->
+        <div class="col-12">
+            <div class="step-card p-4" id="step5">
+                <div class="d-flex align-items-start">
+                    <div class="step-number me-3">5</div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">导入 Payment Voucher（付款凭证）</h5>
+                        <p class="text-muted mb-3">文件：<code>Payment Voucher Listing Report.csv</code></p>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            付款凭证将根据 EONo 自动关联到对应的 EO，并更新 EO 付款状态。
+                        </div>
+
+                        <form id="form-step5" enctype="multipart/form-data">
+                            <div class="file-upload-zone mb-3" id="dropzone5">
+                                <i class="bi bi-cloud-upload fs-1 text-muted"></i>
+                                <p class="mb-1">点击选择或拖拽 CSV 文件到此处</p>
+                                <small class="text-muted" id="filename5">未选择文件</small>
+                                <input type="file" name="file" id="file5" accept=".csv" class="d-none">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="btn-step5" disabled>
+                                <i class="bi bi-upload"></i> 开始导入
+                            </button>
+                        </form>
+
+                        <div class="mt-3 d-none" id="result5">
+                            <div class="import-log" id="log5"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 导入 URL 配置
+    const importUrls = {
+        1: '{{ url_for("athina_routes.athina_import_reservation_csv") }}',
+        2: '{{ url_for("athina_routes.athina_import_eo_csv") }}',
+        3: '{{ url_for("athina_routes.athina_import_invoice_csv") }}',
+        4: '{{ url_for("athina_routes.athina_import_receipt_csv") }}',
+        5: '{{ url_for("athina_routes.athina_import_payment_voucher_csv") }}'
+    };
+
+    // 为每个步骤设置文件上传和表单提交
+    for (let step = 1; step <= 5; step++) {
+        setupStep(step);
+    }
+
+    function setupStep(step) {
+        const dropzone = document.getElementById('dropzone' + step);
+        const fileInput = document.getElementById('file' + step);
+        const filename = document.getElementById('filename' + step);
+        const btn = document.getElementById('btn-step' + step);
+        const form = document.getElementById('form-step' + step);
+        const result = document.getElementById('result' + step);
+        const log = document.getElementById('log' + step);
+        const stepCard = document.getElementById('step' + step);
+
+        // 点击上传区域触发文件选择
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        // 文件选择变化
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                filename.textContent = this.files[0].name;
+                btn.disabled = false;
+                stepCard.classList.add('active');
+            } else {
+                filename.textContent = '未选择文件';
+                btn.disabled = true;
+                stepCard.classList.remove('active');
+            }
+        });
+
+        // 拖拽支持
+        dropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.toLowerCase().endsWith('.csv')) {
+                fileInput.files = files;
+                filename.textContent = files[0].name;
+                btn.disabled = false;
+                stepCard.classList.add('active');
+            }
+        });
+
+        // 表单提交
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 导入中...';
+            result.classList.remove('d-none');
+            log.innerHTML = '<span class="info">开始导入...</span>\n';
+
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch(importUrls[step], {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    log.innerHTML += '<span class="success">' + data.message + '</span>\n';
+
+                    // 显示统计信息
+                    if (data.stats) {
+                        log.innerHTML += '<span class="info">统计:</span>\n';
+                        if (data.stats.headers_created > 0) {
+                            log.innerHTML += '  - 创建项目: ' + data.stats.headers_created + '\n';
+                        }
+                        if (data.stats.refs_created > 0) {
+                            log.innerHTML += '  - 创建 REF: ' + data.stats.refs_created + '\n';
+                        }
+                        if (data.stats.eos_created > 0) {
+                            log.innerHTML += '  - 创建 EO: ' + data.stats.eos_created + '\n';
+                        }
+                        if (data.stats.eos_updated > 0) {
+                            log.innerHTML += '  - 更新 EO: ' + data.stats.eos_updated + '\n';
+                        }
+                        if (data.stats.invoices_created > 0) {
+                            log.innerHTML += '  - 创建发票: ' + data.stats.invoices_created + '\n';
+                        }
+                        if (data.stats.receipts_created > 0) {
+                            log.innerHTML += '  - 创建收据: ' + data.stats.receipts_created + '\n';
+                        }
+                        if (data.stats.payment_vouchers_created > 0) {
+                            log.innerHTML += '  - 创建付款凭证: ' + data.stats.payment_vouchers_created + '\n';
+                        }
+                    }
+
+                    // 显示警告
+                    if (data.warnings && data.warnings.length > 0) {
+                        log.innerHTML += '<span class="warning">警告:</span>\n';
+                        data.warnings.forEach(w => {
+                            log.innerHTML += '  - ' + w + '\n';
+                        });
+                    }
+
+                    // 显示详情
+                    if (data.results && data.results.details) {
+                        const details = data.results.details;
+                        const successItems = details.filter(d => d.success);
+                        const skippedItems = details.filter(d => d.skipped);
+                        const failedItems = details.filter(d => !d.success && !d.skipped);
+
+                        if (failedItems.length > 0) {
+                            log.innerHTML += '<span class="error">失败记录:</span>\n';
+                            failedItems.slice(0, 10).forEach(item => {
+                                log.innerHTML += '  - ' + item.message + '\n';
+                            });
+                            if (failedItems.length > 10) {
+                                log.innerHTML += '  ... 还有 ' + (failedItems.length - 10) + ' 条失败记录\n';
+                            }
+                        }
+                    }
+
+                    stepCard.classList.remove('active');
+                    stepCard.classList.add('completed');
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> 导入完成';
+                    btn.classList.remove('btn-primary', 'btn-warning');
+                    btn.classList.add('btn-success');
+                } else {
+                    log.innerHTML += '<span class="error">导入失败: ' + data.message + '</span>\n';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-upload"></i> 重新导入';
+                }
+
+            } catch (error) {
+                log.innerHTML += '<span class="error">导入出错: ' + error.message + '</span>\n';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-upload"></i> 重新导入';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

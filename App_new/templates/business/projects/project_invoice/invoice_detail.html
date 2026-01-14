@@ -603,6 +603,54 @@
                     <td class="text-right" style="vertical-align: top;">{{ "%.2f"|format(ref.selling_price or 0) }}</td>
                 </tr>
                 {% endfor %}
+                {# 如果 related_refs 也为空，使用 invoice.items_list (CSV导入的数据) #}
+                {% if not related_refs and invoice.items_list %}
+                {% for item_data in invoice.items_list %}
+                <tr>
+                    <td style="vertical-align: top;">
+                        {% set bkg_type = item_data.bkg_type|default('')|upper %}
+                        {% if bkg_type == 'AIR' %}Air Ticket
+                        {% elif bkg_type == 'HTL' or bkg_type == 'HOTEL' %}Hotel
+                        {% elif bkg_type == 'VISA' %}Visa
+                        {% elif bkg_type == 'TOUR' %}Tour
+                        {% elif bkg_type == 'INS' %}Insurance
+                        {% else %}Service{% endif %}
+                        <br>({{ item_data.ref_number|default('') }})
+                    </td>
+                    <td style="vertical-align: top; line-height: 1.3;">
+                        <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+                            <tr>
+                                <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Descrp</td>
+                                <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                <td style="border: none; padding: 1px 0;">{{ item_data.itin_desc|default('-') }}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+                                <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                <td style="border: none; padding: 1px 0;">{{ item_data.client_name|default('-') }}</td>
+                            </tr>
+                            {% if item_data.dep_date %}
+                            <tr>
+                                <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+                                <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                <td style="border: none; padding: 1px 0;">{{ item_data.dep_date }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td style="border: none; vertical-align: top; padding: 1px 0;">Pax Qty</td>
+                                <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                <td style="border: none; padding: 1px 0;">
+                                    ADULT - {{ item_data.adt|default(1) }}
+                                    {% if item_data.chd and item_data.chd|int > 0 %}, CHILD - {{ item_data.chd }}{% endif %}
+                                    {% if item_data.inf and item_data.inf|int > 0 %}, INFANT - {{ item_data.inf }}{% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td class="text-right" style="vertical-align: top;">{{ "%.2f"|format(item_data.amount|default(0)) }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
             {% endif %}
         </tbody>
     </table>

@@ -1,0 +1,481 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}Athina 数据导入到项目系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">
+                <i class="fas fa-file-import text-primary me-2"></i>
+                Athina 数据导入到项目系统
+            </h4>
+            <p class="text-muted mb-0 small">将 Athina 预订数据导入到项目管理系统 (HID + REF)</p>
+        </div>
+        <div>
+            <a href="{{ url_for('athina_routes.athina_to_project_csv_import') }}" class="btn btn-success btn-sm me-2">
+                <i class="fas fa-file-csv me-1"></i>CSV 文件导入
+            </a>
+            <a href="{{ url_for('athina_routes.athina_header_data') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>返回 Athina 数据
+            </a>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="display-6 text-primary">{{ stats.total }}</div>
+                    <div class="text-muted small">总记录数</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="display-6 text-success">{{ stats.imported }}</div>
+                    <div class="text-muted small">已导入</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="display-6 text-warning">{{ stats.not_imported }}</div>
+                    <div class="text-muted small">待导入</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选和搜索 -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small">搜索</label>
+                    <input type="text" name="search" class="form-control form-control-sm"
+                           value="{{ search }}" placeholder="HID 或公司名称">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">导入状态</label>
+                    <select name="filter_imported" class="form-select form-select-sm">
+                        <option value="">全部</option>
+                        <option value="not_imported" {% if filter_imported == 'not_imported' %}selected{% endif %}>待导入</option>
+                        <option value="imported" {% if filter_imported == 'imported' %}selected{% endif %}>已导入</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search me-1"></i>筛选
+                    </button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button type="button" class="btn btn-success btn-sm" onclick="batchImport()">
+                        <i class="fas fa-file-import me-1"></i>批量导入选中
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 导入选项 -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-light py-2">
+            <span class="small fw-bold">导入选项</span>
+        </div>
+        <div class="card-body py-2">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="optCreateEO">
+                <label class="form-check-label small" for="optCreateEO">同时创建 EO（采购单）</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="optCreateInvoice">
+                <label class="form-check-label small" for="optCreateInvoice">同时创建 Invoice（发票）</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据列表 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
+                            <th style="width: 100px;">HID</th>
+                            <th style="width: 200px;">公司名称</th>
+                            <th style="width: 100px;">预订日期</th>
+                            <th style="width: 80px;">REF数</th>
+                            <th style="width: 100px;">总金额</th>
+                            <th style="width: 100px;">盈亏</th>
+                            <th style="width: 80px;">状态</th>
+                            <th style="width: 150px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr data-header-id="{{ item.athina_header.id }}">
+                            <td>
+                                {% if not item.is_imported %}
+                                <input type="checkbox" class="form-check-input row-checkbox"
+                                       value="{{ item.athina_header.id }}">
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ item.athina_header.booking_header_id }}</strong>
+                            </td>
+                            <td>
+                                <span class="text-truncate d-inline-block" style="max-width: 180px;"
+                                      title="{{ item.athina_header.corporate_name }}">
+                                    {{ item.athina_header.corporate_name or '-' }}
+                                </span>
+                            </td>
+                            <td>{{ item.athina_header.book_date.strftime('%Y-%m-%d') if item.athina_header.book_date else '-' }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ item.details_count }}</span>
+                            </td>
+                            <td>
+                                {% if item.athina_header.sub_total_gross %}
+                                ${{ "%.2f"|format(item.athina_header.sub_total_gross) }}
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if item.athina_header.sub_total_pl %}
+                                    {% if item.athina_header.sub_total_pl > 0 %}
+                                    <span class="text-success">${{ "%.2f"|format(item.athina_header.sub_total_pl) }}</span>
+                                    {% elif item.athina_header.sub_total_pl < 0 %}
+                                    <span class="text-danger">${{ "%.2f"|format(item.athina_header.sub_total_pl) }}</span>
+                                    {% else %}
+                                    <span class="text-muted">$0.00</span>
+                                    {% endif %}
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if item.is_imported %}
+                                <span class="badge bg-success">已导入</span>
+                                {% else %}
+                                <span class="badge bg-warning">待导入</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.is_imported %}
+                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=item.project_header.id) }}"
+                                   class="btn btn-outline-primary btn-sm py-0" target="_blank">
+                                    <i class="fas fa-external-link-alt me-1"></i>查看项目
+                                </a>
+                                {% else %}
+                                <button class="btn btn-outline-info btn-sm py-0"
+                                        onclick="previewImport({{ item.athina_header.id }})">
+                                    <i class="fas fa-eye me-1"></i>预览
+                                </button>
+                                <button class="btn btn-primary btn-sm py-0"
+                                        onclick="importSingle({{ item.athina_header.id }})">
+                                    <i class="fas fa-file-import me-1"></i>导入
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                暂无数据
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm justify-content-center">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('athina_routes.athina_to_project', page=pagination.prev_num, search=search, filter_imported=filter_imported) }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for p in pagination.iter_pages() %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('athina_routes.athina_to_project', page=p, search=search, filter_imported=filter_imported) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('athina_routes.athina_to_project', page=pagination.next_num, search=search, filter_imported=filter_imported) }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- 预览模态框 -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>导入预览
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="previewContent">
+                <!-- 预览内容将通过 JS 填充 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="confirmImportBtn">
+                    <i class="fas fa-file-import me-1"></i>确认导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPreviewHeaderId = null;
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+function getImportOptions() {
+    return {
+        create_eo: document.getElementById('optCreateEO').checked,
+        create_invoice: document.getElementById('optCreateInvoice').checked,
+    };
+}
+
+async function importSingle(headerId) {
+    if (!confirm('确定要导入此记录到项目系统吗？')) return;
+
+    const options = getImportOptions();
+
+    try {
+        const response = await fetch(`/statement/athina_to_project/import/${headerId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(options)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`导入成功！\n${result.message}\n创建了 ${result.refs_created} 个 REF`);
+            location.reload();
+        } else {
+            alert('导入失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('导入出错: ' + error.message);
+    }
+}
+
+async function batchImport() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        alert('请选择要导入的记录');
+        return;
+    }
+
+    if (!confirm(`确定要导入选中的 ${ids.length} 条记录吗？`)) return;
+
+    const options = getImportOptions();
+
+    try {
+        const response = await fetch('/statement/athina_to_project/batch_import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                header_ids: ids,
+                ...options
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('批量导入失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('批量导入出错: ' + error.message);
+    }
+}
+
+async function previewImport(headerId) {
+    currentPreviewHeaderId = headerId;
+
+    try {
+        const response = await fetch(`/statement/athina_to_project/preview/${headerId}`);
+        const result = await response.json();
+
+        if (result.success) {
+            renderPreview(result.data);
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        } else {
+            alert('预览失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('预览出错: ' + error.message);
+    }
+}
+
+function renderPreview(data) {
+    const header = data.header;
+    const details = data.details;
+    const warnings = data.warnings;
+
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white py-2">
+                        <strong>项目信息 (HID)</strong>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr><td class="text-muted" width="100">HID:</td><td><strong>${header.hid}</strong></td></tr>
+                            <tr><td class="text-muted">公司:</td><td>${header.corporate_name || '-'}</td></tr>
+                            <tr><td class="text-muted">预订日期:</td><td>${header.book_date || '-'}</td></tr>
+                            <tr><td class="text-muted">顾问:</td><td>${header.consultant || '-'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white py-2">
+                        <strong>财务汇总</strong>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr><td class="text-muted" width="100">总金额:</td><td>$${header.total_gross.toFixed(2)}</td></tr>
+                            <tr><td class="text-muted">总成本:</td><td>$${header.total_cost.toFixed(2)}</td></tr>
+                            <tr><td class="text-muted">盈亏:</td><td class="${header.total_pl >= 0 ? 'text-success' : 'text-danger'}">$${header.total_pl.toFixed(2)}</td></tr>
+                            <tr><td class="text-muted">余额:</td><td>$${header.balance.toFixed(2)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 公司匹配信息
+    if (data.company_match) {
+        html += `<div class="alert alert-success py-2 small"><i class="fas fa-check-circle me-1"></i>公司匹配: ${data.company_match.name}</div>`;
+    }
+
+    // 警告信息
+    if (warnings.length > 0) {
+        html += `<div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>${warnings.join('<br>')}</div>`;
+    }
+
+    // REF 明细
+    html += `
+        <div class="card">
+            <div class="card-header bg-info text-white py-2">
+                <strong>REF 明细 (${details.length} 条)</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>REF</th>
+                                <th>类型</th>
+                                <th>客户</th>
+                                <th>描述</th>
+                                <th>供应商</th>
+                                <th>金额</th>
+                                <th>成本</th>
+                                <th>发票号</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+
+    details.forEach(d => {
+        html += `
+            <tr>
+                <td><strong>${d.ref_number}</strong></td>
+                <td><span class="badge bg-secondary">${d.ref_type}</span></td>
+                <td>${d.client_name || '-'}</td>
+                <td><span class="text-truncate d-inline-block" style="max-width: 150px;" title="${d.itin_desc}">${d.itin_desc || '-'}</span></td>
+                <td>
+                    ${d.supplier_match ?
+                        `<span class="text-success" title="匹配: ${d.supplier_match}"><i class="fas fa-check"></i> ${d.supplier || '-'}</span>` :
+                        `<span class="text-warning" title="未匹配">${d.supplier || '-'}</span>`
+                    }
+                </td>
+                <td>$${d.gross_amount.toFixed(2)}</td>
+                <td>$${d.local_cost.toFixed(2)}</td>
+                <td>${d.invoice_no || '-'}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('previewContent').innerHTML = html;
+}
+
+document.getElementById('confirmImportBtn').addEventListener('click', async function() {
+    if (!currentPreviewHeaderId) return;
+
+    const options = getImportOptions();
+
+    try {
+        const response = await fetch(`/statement/athina_to_project/import/${currentPreviewHeaderId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(options)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`导入成功！\n${result.message}`);
+            bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+            location.reload();
+        } else {
+            alert('导入失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('导入出错: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

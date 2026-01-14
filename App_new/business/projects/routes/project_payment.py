@@ -91,6 +91,25 @@ def payment_detail(payment_id):
                            eos=eos)
 
 
+@project_payment.route('/<int:payment_id>/print')
+@login_required
+@staff_only
+def print_voucher(payment_id):
+    """打印 Payment Voucher"""
+    payment = SupplierPayment.query.get_or_404(payment_id)
+
+    # 获取关联的 EO 列表
+    eos = ProjectEO.query.filter_by(payment_record_id=payment_id).order_by(ProjectEO.id).all()
+
+    # 计算总成本
+    total_cost = sum(float(eo.ref.cost_price or 0) for eo in eos if eo.ref)
+
+    return render_template('business/projects/payment/print_voucher.html',
+                           payment=payment,
+                           eos=eos,
+                           total_cost=total_cost)
+
+
 @project_payment.route('/<int:payment_id>/cancel', methods=['POST'])
 @login_required
 @staff_only
