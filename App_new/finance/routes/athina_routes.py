@@ -1991,38 +1991,52 @@ def athina_to_project_csv_import():
 def athina_import_reservation_csv():
     """导入 Reservation Listing Report.csv (HID + REF)"""
     from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    import traceback
 
     try:
+        logger.info('=== 开始导入 Reservation CSV ===')
+
         if 'file' not in request.files:
+            logger.warning('未找到上传文件')
             return jsonify({'success': False, 'message': '请选择文件'}), 400
 
         file = request.files['file']
         if file.filename == '':
+            logger.warning('文件名为空')
             return jsonify({'success': False, 'message': '请选择文件'}), 400
 
         if not file.filename.lower().endswith('.csv'):
+            logger.warning(f'文件格式错误: {file.filename}')
             return jsonify({'success': False, 'message': '请选择 CSV 格式文件'}), 400
 
         # 读取文件内容
         file_content = file.read()
+        logger.info(f'文件大小: {len(file_content)} 字节, 文件名: {file.filename}')
 
         # 获取导入选项
         options = {
             'create_eo': request.form.get('create_eo', 'false').lower() == 'true',
             'create_invoice': request.form.get('create_invoice', 'false').lower() == 'true',
         }
+        logger.info(f'导入选项: {options}')
 
         # 导入 - 传递当前用户信息，确保导入的项目能被用户看到
+        logger.info(f'创建 AthinaToProjectService, user_id={current_user.id}')
         service = AthinaToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )
+
+        logger.info('开始执行 import_reservation_csv...')
         result = service.import_reservation_csv(file_content, options)
+        logger.info(f'导入完成: {result.get("message", "无消息")}')
 
         return jsonify(result)
 
     except Exception as e:
-        logger.error(f'导入 Reservation CSV 失败: {str(e)}', exc_info=True)
+        error_trace = traceback.format_exc()
+        logger.error(f'导入 Reservation CSV 失败: {str(e)}\n{error_trace}')
+        print(f'[ERROR] 导入 Reservation CSV 失败: {str(e)}\n{error_trace}')
         return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
 
 
