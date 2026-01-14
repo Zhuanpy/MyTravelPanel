@@ -184,12 +184,12 @@ def _apply_can_settle_filter(base_query):
     ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
     ).group_by(ProjectRef.header_id).subquery()
 
-    # 已付款EO数量子查询（pay_amount不为空即视为已付款，包括付款金额为0的情况）
+    # 已付款EO数量子查询（status == 'paid' 视为已付款）
     paid_eo_subq = db.session.query(
         ProjectRef.header_id,
         db.func.count(ProjectEO.id).label('paid_count')
     ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
-    ).filter(ProjectEO.pay_amount.isnot(None)
+    ).filter(ProjectEO.status == 'paid'
     ).group_by(ProjectRef.header_id).subquery()
 
     # 销售总额子查询
@@ -281,13 +281,13 @@ def _get_project_stats(project_ids):
     ).group_by(ProjectRef.header_id).all()
     eo_count_dict = {r.header_id: r.eo_count for r in eo_counts}
 
-    # 已付款EO数量（pay_amount不为空即视为已付款，包括付款金额为0的情况）
+    # 已付款EO数量（status == 'paid' 视为已付款）
     eo_paid_counts = db.session.query(
         ProjectRef.header_id,
         db.func.count(ProjectEO.id).label('paid_eo_count')
     ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
         ProjectRef.header_id.in_(project_ids),
-        ProjectEO.pay_amount.isnot(None)
+        ProjectEO.status == 'paid'
     ).group_by(ProjectRef.header_id).all()
     paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
 
