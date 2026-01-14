@@ -38,3 +38,9 @@
 
 - 不要硬编码敏感信息（密码、API密钥）
 - 模板中业务类型判断需同时检查 `code` 和中文 `name`
+
+## 临时文件管理
+
+- Claude Code 临时文件 (`tmpclaude-*-cwd`) 已添加到 `.gitignore`，不会提交到 Git
+- 如发现此类临时文件被误提交，使用 `rm -f tmpclaude-*-cwd` 删除后提交
+- 临时文件应保持在项目根目录，由 `.gitignore` 自动忽略
