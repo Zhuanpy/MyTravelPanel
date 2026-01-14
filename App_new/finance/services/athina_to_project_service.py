@@ -274,18 +274,50 @@ class AthinaToProjectService:
             self.errors.append(f'创建供应商 "{supplier_name}" 失败: {str(e)}')
             return None
 
-    def get_importable_athina_headers(self, search=None, filter_imported=None):
-        """获取可导入的 Athina Header 列表
+    def get_importable_athina_headers_paginated(self, search=None, filter_imported=None, page=1, per_page=20):
+        """获取可导入的 Athina Header 列表（分页版本，性能优化）
 
         Args:
             search: 搜索关键词（HID 或公司名）
             filter_imported: 筛选已导入/未导入状态
+            page: 页码
+            per_page: 每页数量
 
         Returns:
-            list: Athina Header 列表及其导入状态
+            dict: 包含 items, total, pages 等分页信息
         """
-        query = AthinaBookingHeader.query
+        from sqlalchemy import func, case
+        from App_new.finance.models.athina_booking import AthinaBookingDetail
 
+        # 子查询：获取每个 header 的 details 数量
+        details_count_subq = db.session.query(
+            AthinaBookingDetail.booking_header_id,
+            func.count(AthinaBookingDetail.id).label('details_count')
+        ).filter(
+            AthinaBookingDetail.is_subtotal == False
+        ).group_by(
+            AthinaBookingDetail.booking_header_id
+        ).subquery()
+
+        # 子查询：获取已导入的 HID
+        imported_hids_subq = db.session.query(
+            ProjectHeader.hid
+        ).subquery()
+
+        # 主查询
+        query = db.session.query(
+            AthinaBookingHeader,
+            func.coalesce(details_count_subq.c.details_count, 0).label('details_count'),
+            case(
+                (AthinaBookingHeader.booking_header_id.in_(db.session.query(imported_hids_subq)), True),
+                else_=False
+            ).label('is_imported')
+        ).outerjoin(
+            details_count_subq,
+            AthinaBookingHeader.booking_header_id == details_count_subq.c.booking_header_id
+        )
+
+        # 搜索条件
         if search:
             query = query.filter(
                 db.or_(
@@ -294,32 +326,55 @@ class AthinaToProjectService:
                 )
             )
 
+        # 筛选已导入/未导入
+        if filter_imported == 'imported':
+            query = query.filter(
+                AthinaBookingHeader.booking_header_id.in_(db.session.query(imported_hids_subq))
+            )
+        elif filter_imported == 'not_imported':
+            query = query.filter(
+                ~AthinaBookingHeader.booking_header_id.in_(db.session.query(imported_hids_subq))
+            )
+
+        # 排序
         query = query.order_by(AthinaBookingHeader.booking_header_id.asc())
-        headers = query.all()
 
+        # 获取总数
+        total = query.count()
+
+        # 分页
+        items_raw = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # 批量获取已导入项目的详情
+        hids = [item[0].booking_header_id for item in items_raw]
+        imported_projects = {
+            p.hid: p for p in ProjectHeader.query.filter(ProjectHeader.hid.in_(hids)).all()
+        } if hids else {}
+
+        # 构造结果
         result = []
-        for header in headers:
-            # 检查是否已导入到项目系统
-            existing_project = ProjectHeader.query.filter_by(
-                hid=header.booking_header_id
-            ).first()
-
-            import_status = {
+        for header, details_count, is_imported in items_raw:
+            result.append({
                 'athina_header': header,
-                'is_imported': existing_project is not None,
-                'project_header': existing_project,
-                'details_count': header.details.filter_by(is_subtotal=False).count(),
-            }
+                'is_imported': bool(is_imported),
+                'project_header': imported_projects.get(header.booking_header_id),
+                'details_count': details_count,
+            })
 
-            # 根据筛选条件过滤
-            if filter_imported == 'imported' and not import_status['is_imported']:
-                continue
-            if filter_imported == 'not_imported' and import_status['is_imported']:
-                continue
+        return {
+            'items': result,
+            'total': total,
+            'pages': (total + per_page - 1) // per_page if per_page > 0 else 1,
+            'page': page,
+            'per_page': per_page,
+            'has_prev': page > 1,
+            'has_next': page * per_page < total,
+        }
 
-            result.append(import_status)
-
-        return result
+    def get_importable_athina_headers(self, search=None, filter_imported=None):
+        """获取可导入的 Athina Header 列表（兼容旧接口，但建议使用分页版本）"""
+        result = self.get_importable_athina_headers_paginated(search, filter_imported, page=1, per_page=10000)
+        return result['items']
 
     def import_header_and_refs(self, athina_header_id, options=None):
         """导入单个 Athina Header 及其 REF 到项目系统

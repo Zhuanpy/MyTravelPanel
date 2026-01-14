@@ -1736,39 +1736,59 @@ def athina_to_project():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
 
-    # 获取可导入的 Athina Headers
-    all_items = service.get_importable_athina_headers(search, filter_imported)
-
-    # 手动分页
-    total = len(all_items)
-    start = (page - 1) * per_page
-    end = start + per_page
-    items = all_items[start:end]
+    # 使用优化后的分页查询
+    result = service.get_importable_athina_headers_paginated(search, filter_imported, page, per_page)
+    items = result['items']
 
     # 构造分页对象
     class SimplePagination:
-        def __init__(self, items, page, per_page, total):
-            self.items = items
+        def __init__(self, page, per_page, total, pages, has_prev, has_next):
             self.page = page
             self.per_page = per_page
             self.total = total
-            self.pages = (total + per_page - 1) // per_page if per_page > 0 else 1
-            self.has_prev = page > 1
-            self.has_next = page < self.pages
+            self.pages = pages
+            self.has_prev = has_prev
+            self.has_next = has_next
             self.prev_num = page - 1
             self.next_num = page + 1
 
         def iter_pages(self):
-            for i in range(1, self.pages + 1):
-                yield i
+            # 智能分页：显示首页、末页、当前页附近的页码
+            if self.pages <= 7:
+                for i in range(1, self.pages + 1):
+                    yield i
+            else:
+                # 显示：1 ... 当前-1 当前 当前+1 ... 末页
+                yield 1
+                if self.page > 3:
+                    yield None  # 省略号
+                for i in range(max(2, self.page - 1), min(self.pages, self.page + 2)):
+                    yield i
+                if self.page < self.pages - 2:
+                    yield None  # 省略号
+                if self.pages > 1:
+                    yield self.pages
 
-    pagination = SimplePagination(items, page, per_page, total)
+    pagination = SimplePagination(
+        result['page'], result['per_page'], result['total'],
+        result['pages'], result['has_prev'], result['has_next']
+    )
 
-    # 统计信息
+    # 统计信息 - 使用快速查询
+    from App_new.finance.models.athina_booking import AthinaBookingHeader
+    from App_new.business.projects.models.project_header import ProjectHeader
+
+    total_athina = AthinaBookingHeader.query.count()
+    imported_hids = db.session.query(ProjectHeader.hid).all()
+    imported_hids_set = {h[0] for h in imported_hids}
+    total_imported = AthinaBookingHeader.query.filter(
+        AthinaBookingHeader.booking_header_id.in_(imported_hids_set)
+    ).count() if imported_hids_set else 0
+
     stats = {
-        'total': total,
-        'imported': sum(1 for item in all_items if item['is_imported']),
-        'not_imported': sum(1 for item in all_items if not item['is_imported']),
+        'total': total_athina,
+        'imported': total_imported,
+        'not_imported': total_athina - total_imported,
     }
 
     return render_template('finance/athina/athina_to_project.html',
