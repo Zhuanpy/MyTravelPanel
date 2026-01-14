@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app_new import create_app
 from App_new.exts import db
-from App_new.business.projects.models.project import ProjectHeader, ProjectRef
+from App_new.business.projects.models.project import ProjectHeader
+from App_new.business.projects.models.ref import ProjectRef
 
 def fix_settled_status():
     """修复所有项目的结算状态"""
