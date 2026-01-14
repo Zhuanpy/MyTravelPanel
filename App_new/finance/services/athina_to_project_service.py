@@ -290,13 +290,14 @@ class AthinaToProjectService:
         from App_new.finance.models.athina_booking import AthinaBookingDetail
 
         # 子查询：获取每个 header 的 details 数量
+        # AthinaBookingDetail.header_id 关联到 AthinaBookingHeader.id
         details_count_subq = db.session.query(
-            AthinaBookingDetail.booking_header_id,
+            AthinaBookingDetail.header_id,
             func.count(AthinaBookingDetail.id).label('details_count')
         ).filter(
             AthinaBookingDetail.is_subtotal == False
         ).group_by(
-            AthinaBookingDetail.booking_header_id
+            AthinaBookingDetail.header_id
         ).subquery()
 
         # 子查询：获取已导入的 HID
@@ -314,7 +315,7 @@ class AthinaToProjectService:
             ).label('is_imported')
         ).outerjoin(
             details_count_subq,
-            AthinaBookingHeader.booking_header_id == details_count_subq.c.booking_header_id
+            AthinaBookingHeader.id == details_count_subq.c.header_id
         )
 
         # 搜索条件
