@@ -493,17 +493,6 @@ class AthinaToProjectService:
             if create_invoice:
                 self._create_invoices_for_header(project_header, details)
 
-            # 检查结算状态：如果所有 REF 的 balance 都为 0，则标记为已结算
-            all_refs = ProjectRef.query.filter_by(header_id=project_header.id).all()
-            if all_refs:
-                all_paid = all(ref.payment_status == 'paid' for ref in all_refs)
-                if all_paid:
-                    project_header.is_settled = True
-                    project_header.settled_at = datetime.utcnow()
-                    project_header.settled_by = self.current_user_name or 'system'
-                else:
-                    project_header.is_settled = False
-
             db.session.commit()
 
             return {
@@ -1131,17 +1120,6 @@ class AthinaToProjectService:
 
             # 创建项目人员（从 Client Name 提取）
             members_created = self._create_project_members_from_csv(project_header, group_data['refs'])
-
-            # 检查结算状态：如果所有 REF 的 balance 都为 0，则标记为已结算
-            all_refs = ProjectRef.query.filter_by(header_id=project_header.id).all()
-            if all_refs:
-                all_paid = all(ref.payment_status == 'paid' for ref in all_refs)
-                if all_paid:
-                    project_header.is_settled = True
-                    project_header.settled_at = datetime.utcnow()
-                    project_header.settled_by = self.current_user_name or 'system'
-                else:
-                    project_header.is_settled = False
 
             return {
                 'success': True,

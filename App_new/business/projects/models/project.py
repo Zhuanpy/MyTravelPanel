@@ -497,6 +497,24 @@ class ProjectHeader(db.Model):
             'total': total_count
         }
 
+    @property
+    def can_settle(self):
+        """判断项目是否可结算（所有 REF 的款项已收齐）
+
+        可结算条件：
+        - 项目有 REF 记录
+        - 所有 REF 的 payment_status 都是 'paid'
+        - 项目尚未结算 (is_settled = False)
+        """
+        if self.is_settled:
+            return False  # 已结算的项目不再显示为可结算
+
+        refs = self.refs
+        if not refs:
+            return False  # 没有 REF 的项目不可结算
+
+        return all(ref.payment_status == 'paid' for ref in refs)
+
 
 class EmailTemplate(db.Model):
     """邮件模板模型"""

@@ -2,9 +2,11 @@
 """
 修复项目结算状态脚本
 
-检查每个项目的所有 REF 的 payment_status：
-- 如果所有 REF 都是 'paid'，设置 is_settled = True
-- 否则设置 is_settled = False
+功能：
+1. 重置被错误设置为"已结算"的项目（如果不是所有 REF 都已付款）
+2. 报告哪些项目是"可结算"的（所有 REF 已付款但未结算）
+
+注意：此脚本不会自动将项目设为"已结算"，只会重置错误的状态
 
 运行方式: python scripts/fix_project_settled_status.py
 """
@@ -30,58 +32,71 @@ def fix_settled_status():
         projects = ProjectHeader.query.all()
 
         total = len(projects)
-        updated_to_settled = 0
-        updated_to_unsettled = 0
+        can_settle_list = []  # 可结算的项目
+        reset_list = []  # 被重置的项目
         no_refs = 0
-        unchanged = 0
 
         print(f"开始检查 {total} 个项目的结算状态...")
-        print("-" * 60)
+        print("=" * 60)
 
         for project in projects:
             # 获取项目的所有 REF
             refs = ProjectRef.query.filter_by(header_id=project.id).all()
 
             if not refs:
-                # 没有 REF 的项目，保持原状态
                 no_refs += 1
                 continue
 
             # 检查是否所有 REF 都是 paid
             all_paid = all(ref.payment_status == 'paid' for ref in refs)
+            unpaid_count = sum(1 for ref in refs if ref.payment_status != 'paid')
 
-            old_status = project.is_settled
-
-            if all_paid and not project.is_settled:
-                # 应该是已结算，但当前不是
-                project.is_settled = True
-                project.settled_at = datetime.utcnow()
-                project.settled_by = 'system_fix'
-                updated_to_settled += 1
-                print(f"[已结算] {project.hid}: {len(refs)} 个 REF 全部已付款")
-
-            elif not all_paid and project.is_settled:
-                # 不应该是已结算，但当前是
+            # 情况1：项目被标记为已结算，但实际有未付款的 REF -> 重置
+            if project.is_settled and not all_paid:
                 project.is_settled = False
                 project.settled_at = None
                 project.settled_by = None
-                updated_to_unsettled += 1
-                unpaid_count = sum(1 for ref in refs if ref.payment_status != 'paid')
-                print(f"[未结算] {project.hid}: {unpaid_count}/{len(refs)} 个 REF 未付款")
+                reset_list.append({
+                    'hid': project.hid,
+                    'desc': project.desc[:30] if project.desc else '-',
+                    'unpaid_count': unpaid_count,
+                    'total_refs': len(refs)
+                })
 
-            else:
-                unchanged += 1
+            # 情况2：项目未结算，但所有 REF 都已付款 -> 可结算
+            elif not project.is_settled and all_paid:
+                can_settle_list.append({
+                    'hid': project.hid,
+                    'desc': project.desc[:30] if project.desc else '-',
+                    'total_refs': len(refs)
+                })
 
         # 提交更改
         db.session.commit()
 
+        # 输出结果
+        print("\n【重置为未结算的项目】")
         print("-" * 60)
-        print(f"修复完成！")
+        if reset_list:
+            for item in reset_list:
+                print(f"  {item['hid']}: {item['desc']} ({item['unpaid_count']}/{item['total_refs']} 未付款)")
+        else:
+            print("  无")
+
+        print("\n【可结算的项目】（所有款项已收，可手动结算）")
+        print("-" * 60)
+        if can_settle_list:
+            for item in can_settle_list:
+                print(f"  {item['hid']}: {item['desc']} ({item['total_refs']} 个 REF)")
+        else:
+            print("  无")
+
+        print("\n" + "=" * 60)
+        print(f"统计：")
         print(f"  总项目数: {total}")
-        print(f"  更新为已结算: {updated_to_settled}")
-        print(f"  更新为未结算: {updated_to_unsettled}")
         print(f"  无 REF 项目: {no_refs}")
-        print(f"  状态正确无需更新: {unchanged}")
+        print(f"  重置为未结算: {len(reset_list)}")
+        print(f"  可结算项目: {len(can_settle_list)}")
 
 if __name__ == '__main__':
     fix_settled_status()
