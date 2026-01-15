@@ -201,6 +201,8 @@ def create_flight_ref(header_id):
 
 @project_ref.route('/flight/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_flight_ref():
     """提交机票REF数据"""
     try:
@@ -545,6 +547,8 @@ def create_hotel_ref(header_id):
 
 @project_ref.route('/hotel/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_hotel_ref():
     """提交酒店REF数据"""
     try:
@@ -808,6 +812,8 @@ def create_visa_ref(header_id):
 
 @project_ref.route('/visa/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_visa_ref():
     """提交签证REF数据"""
     try:
@@ -1201,6 +1207,8 @@ def create_insurance_ref(header_id):
 
 @project_ref.route('/insurance/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_insurance_ref():
     """提交保险REF数据"""
     try:
@@ -1338,6 +1346,8 @@ def create_transport_ref(header_id):
 
 @project_ref.route('/transport/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_transport_ref():
     """提交交通REF数据"""
     try:
@@ -1891,6 +1901,8 @@ def create_attraction_ref(header_id):
 
 @project_ref.route('/attraction/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_attraction_ref():
     """提交景点/活动REF数据"""
     try:
