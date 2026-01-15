@@ -192,9 +192,10 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">国家</label>
-                        <input type="text" id="countryDisplay" value="{{ product.country if product else '' }}" 
-                               class="visa-form-control" readonly 
-                               style="background-color: #f1f5f9; cursor: not-allowed;" 
+                        <input type="hidden" name="country_name" id="countryName" value="{{ product.country if product else '' }}">
+                        <input type="text" id="countryDisplay" value="{{ product.country if product else '' }}"
+                               class="visa-form-control" readonly
+                               style="background-color: #f1f5f9; cursor: not-allowed;"
                                placeholder="自动从城市获取">
                     </div>
                     <div class="visa-form-group">
@@ -217,12 +218,27 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">最少人数</label>
-                        <input type="number" name="min_pax" value="{{ product.min_pax if product and product.min_pax else '1' }}" 
+                        <input type="number" name="min_pax" value="{{ product.min_pax if product and product.min_pax else '1' }}"
                                class="visa-form-control" min="1" placeholder="1">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">最大人数</label>
+                        <input type="number" name="max_pax" value="{{ product.max_pax if product and product.max_pax else '' }}"
+                               class="visa-form-control" min="1" placeholder="如：20">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">出发城市</label>
+                        <input type="text" name="departure_city" value="{{ product.departure_city if product else '' }}"
+                               class="visa-form-control" placeholder="如：新加坡">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">目的城市</label>
+                        <input type="text" name="destination_city" value="{{ product.destination_city if product else '' }}"
+                               class="visa-form-control" placeholder="如：曼谷">
                     </div>
                 </div>
             </div>
-            
+
             <!-- Tab 2: 价格设置 -->
             <div id="tab-pricing" class="tab-content">
                 <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
@@ -277,8 +293,18 @@
                     <i class="fas fa-file-alt"></i> 产品内容
                 </h3>
                 <div class="visa-form-group">
+                    <label class="visa-form-label">产品描述</label>
+                    <textarea name="product_description" rows="4" class="visa-form-control"
+                              placeholder="简要描述产品特色...">{{ product.product_description if product else '' }}</textarea>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">产品亮点</label>
+                    <textarea name="highlights" rows="4" class="visa-form-control"
+                              placeholder="列出产品亮点，每行一项...">{{ product.highlights if product else '' }}</textarea>
+                </div>
+                <div class="visa-form-group">
                     <label class="visa-form-label">包含服务</label>
-                    <textarea name="included_services" rows="6" class="visa-form-control" 
+                    <textarea name="included_services" rows="6" class="visa-form-control"
                               placeholder="列出包含的服务项目，每行一项...&#10;例如：&#10;- 往返机票&#10;- 酒店住宿&#10;- 当地接送机&#10;- 景点门票">{{ product.included_services if product else '' }}</textarea>
                 </div>
                 <div class="visa-form-group">
@@ -855,12 +881,15 @@ document.getElementById('productForm').addEventListener('submit', function(e) {
 function updateCountry() {
     const citySelect = document.getElementById('citySelect');
     const countryDisplay = document.getElementById('countryDisplay');
+    const countryName = document.getElementById('countryName');
     const selectedOption = citySelect.options[citySelect.selectedIndex];
-    
+
     if (selectedOption && selectedOption.dataset.country) {
         countryDisplay.value = selectedOption.dataset.country;
+        countryName.value = selectedOption.dataset.country;
     } else {
         countryDisplay.value = '';
+        countryName.value = '';
     }
 }
 
