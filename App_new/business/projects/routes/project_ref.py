@@ -1050,6 +1050,8 @@ def create_tour_ref(header_id):
 
 @project_ref.route('/tour/submit', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def submit_tour_ref():
     """提交旅游团REF数据"""
     try:
@@ -1155,7 +1157,7 @@ def submit_tour_ref():
     except Exception as e:
         db.session.rollback()
         flash(f'保存失败：{str(e)}', 'error')
-        return redirect(url_for('business_projects.detail.project_detail', header_id=header_id))
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 
 # 保险REF相关函数
