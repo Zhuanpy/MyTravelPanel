@@ -109,8 +109,8 @@
                 <select name="supplier" class="visa-form-select">
                     <option value="">全部供应商</option>
                     {% for supplier in suppliers %}
-                    <option value="{{ supplier.supplier_id }}" {% if current_filters.supplier == supplier.supplier_id %}selected{% endif %}>
-                        {{ supplier.name }}
+                    <option value="{{ supplier.id }}" {% if current_filters.supplier == supplier.id %}selected{% endif %}>
+                        {{ supplier.company_name }}
                     </option>
                     {% endfor %}
                 </select>
