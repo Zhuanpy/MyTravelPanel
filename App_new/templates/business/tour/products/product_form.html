@@ -228,12 +228,12 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">出发城市</label>
-                        <input type="text" name="departure_city" value="{{ product.departure_city if product else '' }}"
+                        <input type="text" name="departure_city" value="{{ product.departure_city if product and product.departure_city else '' }}"
                                class="visa-form-control" placeholder="如：新加坡">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">目的城市</label>
-                        <input type="text" name="destination_city" value="{{ product.destination_city if product else '' }}"
+                        <input type="text" name="destination_city" value="{{ product.destination_city if product and product.destination_city else '' }}"
                                class="visa-form-control" placeholder="如：曼谷">
                     </div>
                 </div>
@@ -295,27 +295,27 @@
                 <div class="visa-form-group">
                     <label class="visa-form-label">产品描述</label>
                     <textarea name="product_description" rows="4" class="visa-form-control"
-                              placeholder="简要描述产品特色...">{{ product.product_description if product else '' }}</textarea>
+                              placeholder="简要描述产品特色...">{{ product.product_description if product and product.product_description else '' }}</textarea>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">产品亮点</label>
                     <textarea name="highlights" rows="4" class="visa-form-control"
-                              placeholder="列出产品亮点，每行一项...">{{ product.highlights if product else '' }}</textarea>
+                              placeholder="列出产品亮点，每行一项...">{{ product.highlights if product and product.highlights else '' }}</textarea>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">包含服务</label>
                     <textarea name="included_services" rows="6" class="visa-form-control"
-                              placeholder="列出包含的服务项目，每行一项...&#10;例如：&#10;- 往返机票&#10;- 酒店住宿&#10;- 当地接送机&#10;- 景点门票">{{ product.included_services if product else '' }}</textarea>
+                              placeholder="列出包含的服务项目，每行一项...&#10;例如：&#10;- 往返机票&#10;- 酒店住宿&#10;- 当地接送机&#10;- 景点门票">{{ product.included_services if product and product.included_services else '' }}</textarea>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">不包含服务</label>
                     <textarea name="excluded_services" rows="6" class="visa-form-control" 
-                              placeholder="列出不包含的服务项目，每行一项...&#10;例如：&#10;- 个人消费&#10;- 旅游保险&#10;- 签证费用&#10;- 小费">{{ product.excluded_services if product else '' }}</textarea>
+                              placeholder="列出不包含的服务项目，每行一项...&#10;例如：&#10;- 个人消费&#10;- 旅游保险&#10;- 签证费用&#10;- 小费">{{ product.excluded_services if product and product.excluded_services else '' }}</textarea>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">重要提示</label>
                     <textarea name="important_notes" rows="4" class="visa-form-control" 
-                              placeholder="列出重要的注意事项...">{{ product.important_notes if product else '' }}</textarea>
+                              placeholder="列出重要的注意事项...">{{ product.important_notes if product and product.important_notes else '' }}</textarea>
                 </div>
             </div>
             
