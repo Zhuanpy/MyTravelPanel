@@ -199,27 +199,29 @@
                     <table class="table table-sm table-borderless mb-0" style="font-size: 13px;">
                         <tr>
                             <th class="text-muted" style="width: 80px;">客户名称</th>
-                            <td>{{ invoice.customer_name or '-' }}</td>
+                            <td>{{ project_contact or invoice.customer_name or '-' }}</td>
                         </tr>
                         <tr>
                             <th class="text-muted">公司</th>
-                            <td>{{ invoice.customer_company or '-' }}</td>
+                            <td>{{ customer_company_display or invoice.customer_company or '-' }}</td>
                         </tr>
                         <tr>
                             <th class="text-muted">邮箱</th>
                             <td>
-                                {% if invoice.customer_email %}
+                                {% if invoice.header and invoice.header.company and invoice.header.company.email %}
+                                    <a href="mailto:{{ invoice.header.company.email }}">{{ invoice.header.company.email }}</a>
+                                {% elif invoice.customer_email %}
                                     <a href="mailto:{{ invoice.customer_email }}">{{ invoice.customer_email }}</a>
                                 {% else %}-{% endif %}
                             </td>
                         </tr>
                         <tr>
                             <th class="text-muted">电话</th>
-                            <td>{{ invoice.customer_phone or '-' }}</td>
+                            <td>{{ customer_company_phone or invoice.customer_phone or '-' }}</td>
                         </tr>
                         <tr>
                             <th class="text-muted">地址</th>
-                            <td>{{ invoice.customer_address or '-' }}</td>
+                            <td>{{ customer_company_address or invoice.customer_address or '-' }}</td>
                         </tr>
                     </table>
                 </div>
