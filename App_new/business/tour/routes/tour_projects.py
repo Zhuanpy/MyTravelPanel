@@ -900,8 +900,8 @@ def edit_tour_project(project_id):
             project.project_hid = request.form.get('project_hid', '').strip() or None
             project.project_type = request.form.get('project_type', '').strip() or None
             project.project_status = request.form.get('project_status', '').strip() or None
-            project.contact_person = request.form.get('contact_person', '').strip() or None
-            project.contact_info = request.form.get('contact_info', '').strip() or None
+            project.contact_person = request.form.get('contact_person', '').strip() or ''
+            project.contact_info = request.form.get('contact_info', '').strip() or ''
             project.remarks = request.form.get('remarks', '').strip() or None
 
             # 处理预算字段
