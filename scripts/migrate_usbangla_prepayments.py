@@ -21,6 +21,7 @@ from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
 from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.project_member import ProjectMember
 from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+from App_new.business.visa.models.Visamodels import VisaProject, VisaProjectDocumentStatus, VisaProjectFile
 
 
 # US-BANGLA AIRLINES 预付款数据
@@ -149,10 +150,24 @@ def delete_project(project):
         ProjectEO.query.filter(ProjectEO.ref_id.in_(ref_ids)).delete(synchronize_session=False)
         InvoiceItem.query.filter(InvoiceItem.ref_id.in_(ref_ids)).delete(synchronize_session=False)
 
+        # 删除 VisaProject 及其关联数据
+        visa_projects = VisaProject.query.filter(VisaProject.ref_id.in_(ref_ids)).all()
+        for vp in visa_projects:
+            VisaProjectDocumentStatus.query.filter_by(project_id=vp.id).delete(synchronize_session=False)
+            VisaProjectFile.query.filter_by(project_id=vp.id).delete(synchronize_session=False)
+            db.session.delete(vp)
+
     invoices = ProjectInvoice.query.filter_by(header_id=project.id).all()
     for invoice in invoices:
         InvoiceItem.query.filter_by(invoice_id=invoice.id).delete(synchronize_session=False)
         db.session.delete(invoice)
+
+    # 也删除通过 header_id 关联的 VisaProject
+    visa_projects_by_header = VisaProject.query.filter_by(header_id=project.id).all()
+    for vp in visa_projects_by_header:
+        VisaProjectDocumentStatus.query.filter_by(project_id=vp.id).delete(synchronize_session=False)
+        VisaProjectFile.query.filter_by(project_id=vp.id).delete(synchronize_session=False)
+        db.session.delete(vp)
 
     ProjectReceipt.query.filter_by(header_id=project.id).delete(synchronize_session=False)
     ProjectMember.query.filter_by(header_id=project.id).delete(synchronize_session=False)
