@@ -461,7 +461,7 @@ class AthinaToProjectService:
                     selling_price=detail.gross_amount or Decimal('0'),
                     cost_price=detail.local_cost or Decimal('0'),
                     currency=detail.gross_curr or 'SGD',
-                    status='completed' if athina_header.is_all_invoiced else 'processing',
+                    status='completed' if athina_header.is_all_invoiced else 'confirmed',
                     payment_status='paid' if detail.balance == 0 else 'unpaid',
                     extra_info=json.dumps({
                         'athina_booking_ref': detail.booking_ref,
@@ -1078,7 +1078,7 @@ class AthinaToProjectService:
                         selling_price=ref_data['gross'] or Decimal('0'),
                         cost_price=ref_data['local_cost'] or Decimal('0'),
                         currency=ref_data['gross_curr'] or 'SGD',
-                        status='completed' if ref_data['invoice_no'] else 'processing',
+                        status='completed' if ref_data['invoice_no'] else 'confirmed',
                         payment_status='paid' if ref_data['balance'] == 0 else 'unpaid',
                         extra_info=json.dumps({
                             'athina_booking_ref': booking_ref,

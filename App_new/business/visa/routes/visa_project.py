@@ -826,7 +826,7 @@ def create_project_links(project_id):
                 cost_price=0,
                 currency='SGD',
                 remarks=project.remarks,
-                status='processing',
+                status='confirmed',
                 payment_status='unpaid',
                 extra_info=json.dumps(visa_extra_info, ensure_ascii=False)
             )

@@ -83,7 +83,8 @@
       "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" show HEAD:App_new/templates/shared/staff_base.html)",
       "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" status App_new/templates/shared/staff_base.html)",
       "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" add App_new/templates/shared/staff_base.html)",
-      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" commit -m \"$\\(cat <<''EOF''\n补充提交：添加 Athina导入项目 菜单项\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -C \"E:/MyProject/MyTravelWork/MyTravelPanel\" commit -m \"$\\(cat <<''EOF''\n补充提交：添加 Athina导入项目 菜单项\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(python3:*)"
     ]
   }
 }

@@ -173,7 +173,7 @@ def submit_order():
         # 读取前端供应商字段
         selected_supplier_id = request.form.get('supplier_id')
         # 状态和支付状态字段已从表单中移除，使用默认值
-        selected_status = 'processing'  # 默认设置为"处理中"
+        selected_status = 'confirmed'  # 默认设置为"已确认"
         selected_payment_status = 'unpaid'  # 默认设置为"未付款"
 
         # 创建项目明细表（REF）
