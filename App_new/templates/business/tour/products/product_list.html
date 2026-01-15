@@ -315,7 +315,7 @@
                                 {% if product.supplier_document %}
                                 <div style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; background: #f5f3ff; border-radius: 6px; border: 1px solid #ddd6fe;">
                                     <i class="fas fa-file-pdf" style="color: #7c3aed;"></i>
-                                    <a href="{{ url_for('static', filename=product.supplier_document) }}" download style="color: #6d28d9; font-size: 0.8125rem; text-decoration: none; font-weight: 500;" title="点击下载">
+                                    <a href="{{ product.supplier_document|image_url }}" download style="color: #6d28d9; font-size: 0.8125rem; text-decoration: none; font-weight: 500;" title="点击下载">
                                         {{ product.supplier_document_name or '供应商文件' }}
                                     </a>
                                     <i class="fas fa-download" style="color: #8b5cf6; font-size: 0.75rem;"></i>

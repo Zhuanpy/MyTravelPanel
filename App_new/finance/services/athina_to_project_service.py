@@ -20,6 +20,7 @@ from App_new.business.projects.models.eo import ProjectEO
 from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
 from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.supplier_payment import SupplierPayment
+from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
 from App_new.shared.models.business_types import BusinessType
 
 
@@ -2364,6 +2365,18 @@ class AthinaToProjectService:
                     self.stats['payment_vouchers_updated'] = self.stats.get('payment_vouchers_updated', 0) + 1
                     action = '更新'
                 else:
+                    # 检查供应商是否有预付账款记录，决定付款方式
+                    payment_source = 'bank'
+                    prepayment_amount = None
+                    if supplier_id:
+                        # 查询供应商是否有预付账款
+                        has_prepayment = SupplierPrepayment.query.filter_by(
+                            supplier_id=supplier_id
+                        ).first() is not None
+                        if has_prepayment:
+                            payment_source = 'prepayment'
+                            prepayment_amount = pmt_data['total_amount']
+
                     # 创建新的付款记录
                     payment = SupplierPayment(
                         payment_no=pay_no,
@@ -2371,7 +2384,8 @@ class AthinaToProjectService:
                         payment_date=pmt_data['pay_date'] or datetime.utcnow().date(),
                         total_amount=pmt_data['total_amount'],
                         currency=pmt_data['currency'],
-                        payment_source='bank',
+                        payment_source=payment_source,
+                        prepayment_amount=prepayment_amount,
                         payment_voucher_no=pay_no,  # 使用 pay_no 作为凭证号
                         eo_count=len(pmt_data['eo_numbers']),
                         status='confirmed',
