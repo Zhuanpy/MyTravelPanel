@@ -37,14 +37,14 @@ MERGE_COMPANIES = [
 def merge_company(keep_company, merge_company, dry_run=True):
     """合并单个公司"""
     print(f"\n  合并: {merge_company.company_name} (ID: {merge_company.id})")
-    
+
     stats = {
         'projects': 0,
-        'eos': 0,
+        'refs': 0,
         'prepayments': 0,
         'payments': 0,
     }
-    
+
     # 1. 更新 ProjectHeader 的 company_id
     projects = ProjectHeader.query.filter_by(company_id=merge_company.id).all()
     stats['projects'] = len(projects)
@@ -52,15 +52,15 @@ def merge_company(keep_company, merge_company, dry_run=True):
         print(f"    项目 {project.hid}: {project.desc}")
         if not dry_run:
             project.company_id = keep_company.id
-    
-    # 2. 更新 ProjectEO 的 supplier_id
-    eos = ProjectEO.query.filter_by(supplier_id=merge_company.id).all()
-    stats['eos'] = len(eos)
-    for eo in eos:
-        print(f"    EO {eo.eo_number}: {eo.description}")
+
+    # 2. 更新 ProjectRef 的 supplier_id（供应商在REF上，不在EO上）
+    refs = ProjectRef.query.filter_by(supplier_id=merge_company.id).all()
+    stats['refs'] = len(refs)
+    for ref in refs:
+        print(f"    REF {ref.ref_number}: {ref.description}")
         if not dry_run:
-            eo.supplier_id = keep_company.id
-    
+            ref.supplier_id = keep_company.id
+
     # 3. 更新 SupplierPrepayment 的 supplier_id
     prepayments = SupplierPrepayment.query.filter_by(supplier_id=merge_company.id).all()
     stats['prepayments'] = len(prepayments)
@@ -68,7 +68,7 @@ def merge_company(keep_company, merge_company, dry_run=True):
         print(f"    预付款 {prepayment.prepayment_number}: {prepayment.remarks}")
         if not dry_run:
             prepayment.supplier_id = keep_company.id
-    
+
     # 4. 更新 SupplierPayment 的 supplier_id
     try:
         payments = SupplierPayment.query.filter_by(supplier_id=merge_company.id).all()
@@ -79,13 +79,13 @@ def merge_company(keep_company, merge_company, dry_run=True):
                 payment.supplier_id = keep_company.id
     except Exception as e:
         print(f"    SupplierPayment 查询失败: {e}")
-    
+
     # 5. 删除被合并的公司
     if not dry_run:
         # 检查是否还有关联
         remaining = (
             ProjectHeader.query.filter_by(company_id=merge_company.id).count() +
-            ProjectEO.query.filter_by(supplier_id=merge_company.id).count() +
+            ProjectRef.query.filter_by(supplier_id=merge_company.id).count() +
             SupplierPrepayment.query.filter_by(supplier_id=merge_company.id).count()
         )
         if remaining == 0:
@@ -93,7 +93,7 @@ def merge_company(keep_company, merge_company, dry_run=True):
             db.session.delete(merge_company)
         else:
             print(f"    警告: 仍有 {remaining} 条关联数据，无法删除")
-    
+
     return stats
 
 
@@ -124,30 +124,30 @@ def main():
         
         total_stats = {
             'projects': 0,
-            'eos': 0,
+            'refs': 0,
             'prepayments': 0,
             'payments': 0,
             'companies_merged': 0,
         }
-        
+
         print("\n" + "-" * 70)
         print("合并公司:")
         print("-" * 70)
-        
+
         for company_name in MERGE_COMPANIES:
             merge_company_obj = CustomerCompany.query.filter_by(company_name=company_name).first()
             if not merge_company_obj:
                 print(f"\n  跳过: 找不到公司 '{company_name}'")
                 continue
-            
+
             if merge_company_obj.id == keep_company.id:
                 print(f"\n  跳过: '{company_name}' 与保留公司相同")
                 continue
-            
+
             stats = merge_company(keep_company, merge_company_obj, dry_run)
-            
+
             total_stats['projects'] += stats['projects']
-            total_stats['eos'] += stats['eos']
+            total_stats['refs'] += stats['refs']
             total_stats['prepayments'] += stats['prepayments']
             total_stats['payments'] += stats['payments']
             total_stats['companies_merged'] += 1
@@ -172,7 +172,7 @@ def main():
         print("-" * 70)
         print(f"  合并公司数: {total_stats['companies_merged']}")
         print(f"  更新项目: {total_stats['projects']} 条")
-        print(f"  更新 EO: {total_stats['eos']} 条")
+        print(f"  更新 REF: {total_stats['refs']} 条")
         print(f"  更新预付款: {total_stats['prepayments']} 条")
         print(f"  更新付款记录: {total_stats['payments']} 条")
         
