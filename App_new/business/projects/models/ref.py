@@ -33,8 +33,8 @@ class ProjectRef(db.Model):
     extra_info = db.Column(db.Text, nullable=True, comment='各业务类型专属字段(JSON)')
 
     # 状态信息
-    status = db.Column(db.Enum('draft', 'processing', 'completed', 'cancelled'),
-                       default='draft', nullable=False, comment='状态')
+    status = db.Column(db.Enum('confirmed', 'completed', 'cancelled'),
+                       default='confirmed', nullable=False, comment='状态')
     payment_status = db.Column(db.Enum('unpaid', 'partial', 'paid', 'refunded'),
                                default='unpaid', nullable=False, comment='支付状态')
 

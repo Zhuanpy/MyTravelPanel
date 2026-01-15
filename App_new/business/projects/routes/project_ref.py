@@ -87,7 +87,7 @@ def create_ref(header_id):
                     cost_price=form.cost_price.data,
                     currency='SGD',  # 强制使用新加坡元
                     remarks=form.remarks.data,
-                    status='processing',  # 强制使用"处理中"
+                    status='confirmed',  # 强制使用"处理中"
                     payment_status='unpaid'  # 强制使用"未支付"
                 )
                 db.session.add(ref)
@@ -249,7 +249,7 @@ def submit_flight_ref():
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                     'supplier_id') != '0' else None,
                 remarks=request.form.get('remarks'),
-                status='processing',  # 默认设置为"处理中"
+                status='confirmed',  # 默认设置为"处理中"
                 payment_status='unpaid'  # 默认设置为"未付款"
             )
             db.session.add(ref)
@@ -600,7 +600,7 @@ def submit_hotel_ref():
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                 'supplier_id') != '0' else None
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'draft')
+            ref.status = request.form.get('status', 'confirmed')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = selling_price
             ref.cost_price = cost_price
@@ -631,7 +631,7 @@ def submit_hotel_ref():
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                     'supplier_id') != '0' else None,
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'draft'),
+                status=request.form.get('status', 'confirmed'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
                 selling_price=selling_price,
                 cost_price=cost_price,
@@ -701,7 +701,7 @@ def edit_hotel_ref(ref_id):
             ref.detailed_description = request.form.get('detailed_description', '酒店订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'draft')
+            ref.status = request.form.get('status', 'confirmed')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = selling_price
             ref.cost_price = cost_price
@@ -895,7 +895,7 @@ def submit_visa_ref():
             ref.detailed_description = detailed_description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'processing')
+            ref.status = request.form.get('status', 'confirmed')
             ref.selling_price = selling_price
             ref.cost_price = cost_price
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
@@ -920,7 +920,7 @@ def submit_visa_ref():
                 detailed_description=detailed_description,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'processing'),
+                status=request.form.get('status', 'confirmed'),
                 payment_status='unpaid',
                 selling_price=selling_price,
                 cost_price=cost_price,
@@ -1013,7 +1013,7 @@ def create_tour_ref(header_id):
                         else None
                     ),
                     remarks=request.form.get('remarks'),
-                    status=request.form.get('status', 'processing'),
+                    status=request.form.get('status', 'confirmed'),
                     payment_status='unpaid',
                     selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0,
                     cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0,
@@ -1120,7 +1120,7 @@ def submit_tour_ref():
                 else None
             )
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'processing')
+            ref.status = request.form.get('status', 'confirmed')
             ref.selling_price = selling_price
             ref.cost_price = cost_price
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
@@ -1149,7 +1149,7 @@ def submit_tour_ref():
                     else None
                 ),
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'processing'),
+                status=request.form.get('status', 'confirmed'),
                 payment_status='unpaid',
                 selling_price=selling_price,
                 cost_price=cost_price,
@@ -1254,7 +1254,7 @@ def submit_insurance_ref():
             ref.detailed_description = request.form.get('detailed_description', description)
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'draft')
+            ref.status = request.form.get('status', 'confirmed')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
@@ -1283,7 +1283,7 @@ def submit_insurance_ref():
                 detailed_description=detailed_description,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'draft'),
+                status=request.form.get('status', 'confirmed'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
@@ -1402,7 +1402,7 @@ def submit_transport_ref():
             ref.detailed_description = detailed_description or description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'processing')
+            ref.status = request.form.get('status', 'confirmed')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
@@ -1436,7 +1436,7 @@ def submit_transport_ref():
                 detailed_description=detailed_description or description,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'processing'),
+                status=request.form.get('status', 'confirmed'),
                 payment_status='unpaid',
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0,
@@ -1513,7 +1513,7 @@ def edit_transport_ref(ref_id):
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
-            ref.status = request.form.get('status') or 'processing'
+            ref.status = request.form.get('status') or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
 
@@ -1730,7 +1730,7 @@ def edit_visa_ref(ref_id):
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
-            ref.status = request.form.get('status') or 'processing'
+            ref.status = request.form.get('status') or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
 
@@ -1958,7 +1958,7 @@ def submit_attraction_ref():
             ref.detailed_description = detailed_description or description
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.remarks = request.form.get('remarks')
-            ref.status = request.form.get('status', 'processing')
+            ref.status = request.form.get('status', 'confirmed')
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
@@ -1991,7 +1991,7 @@ def submit_attraction_ref():
                 detailed_description=detailed_description or description,
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None,
                 remarks=request.form.get('remarks'),
-                status=request.form.get('status', 'processing'),
+                status=request.form.get('status', 'confirmed'),
                 payment_status='unpaid',
                 selling_price=float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0,
                 cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0,
@@ -2069,7 +2069,7 @@ def edit_attraction_ref(ref_id):
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
-            ref.status = request.form.get('status') or 'processing'
+            ref.status = request.form.get('status') or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
 
@@ -2283,7 +2283,7 @@ def create_other_ref(header_id):
                     cost_price=float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None,
                     currency='SGD',
                     remarks=request.form.get('remarks', ''),
-                    status=request.form.get('status', 'processing'),
+                    status=request.form.get('status', 'confirmed'),
                     payment_status='unpaid',
                     extra_info=json.dumps(extra_info)
                 )
@@ -2373,7 +2373,7 @@ def edit_other_ref(ref_id):
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
-            ref.status = request.form.get('status') or ref.status or 'processing'
+            ref.status = request.form.get('status') or ref.status or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
             ref.extra_info = json.dumps(extra_info)
 
@@ -2491,7 +2491,7 @@ def edit_insurance_ref(ref_id):
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else None
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else None
             ref.remarks = request.form.get('remarks', '')
-            ref.status = request.form.get('status', 'draft')
+            ref.status = request.form.get('status', 'confirmed')
             ref.extra_info = json.dumps(extra_info)
 
             # 提交数据库更改
@@ -2600,7 +2600,7 @@ def edit_tour_ref(ref_id):
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
             ref.selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
-            ref.status = request.form.get('status') or 'processing'
+            ref.status = request.form.get('status') or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
             ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
 
@@ -2916,7 +2916,7 @@ def ref_list():
                 'project_name': str(project_name) if project_name else f'项目{ref.header_id}',
                 'supplier_name': str(supplier_name) if supplier_name else '',
                 'leader_name': str(ref.header.leader_name) if ref.header and ref.header.leader_name else '',
-                'status': str(ref.status) if ref.status else 'draft',
+                'status': str(ref.status) if ref.status else 'confirmed',
                 'status_display': get_status_display(ref.status),
                 'status_color': get_status_color(ref.status),
                 'selling_price': float(ref.selling_price) if ref.selling_price is not None else 0,
@@ -3068,7 +3068,7 @@ def edit_ref(ref_id):
 
             # 处理日期字段，空字符串转换为None
 
-            ref.status = request.form.get('status') or 'draft'
+            ref.status = request.form.get('status') or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
 
             # 处理出行人信息
