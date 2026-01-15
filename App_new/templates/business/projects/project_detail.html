@@ -295,7 +295,7 @@
                     <tr>
                         <th class="tw-min-w-[90px]">REF编号</th>
                         <th class="tw-min-w-[64px]">类型</th>
-                        <th class="tw-min-w-[200px]">名称</th>
+                        <th style="width: 220px; min-width: 220px; max-width: 220px;">名称</th>
                         <th class="tw-min-w-[110px]">Invoice</th>
                         <th class="tw-min-w-[110px]">EO编号</th>
                         <th class="tw-min-w-[100px]">售价</th>
@@ -352,7 +352,7 @@
                             {% endif %}
                         </td>
                         <td class="tw-max-w-[100px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ref.ref_type.name if ref.ref_type else '未分类' }}</td>
-                        <td class="tw-max-w-[260px]" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.description or ref.detailed_description }}">{{ ref.description or ref.detailed_description }}</td>
+                        <td style="width: 220px; min-width: 220px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.description or ref.detailed_description }}">{{ ref.description or ref.detailed_description }}</td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% set ref_invoices = ref.get_invoices() if ref.get_invoices is defined else [] %}
                             {% if ref_invoices %}
