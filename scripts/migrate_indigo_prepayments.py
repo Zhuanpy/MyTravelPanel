@@ -176,7 +176,7 @@ def main():
         print("=" * 70)
 
         # 获取或创建 Indigo 供应商
-        supplier = get_or_create_supplier('INDIGO AIRLINE')
+        supplier = get_or_create_supplier('IndiGo in Singapore')
         print(f"\n供应商: {supplier.company_name} (ID: {supplier.id})")
 
         created_count = 0
