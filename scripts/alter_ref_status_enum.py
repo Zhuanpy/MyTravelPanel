@@ -25,49 +25,59 @@ def main():
         print("  修改 project_refs.status 枚举值")
         print("=" * 60)
 
-        # 1. 先将现有的 draft 和 processing 更新为 confirmed
-        print("\n[1/3] 更新现有数据...")
-        
         # 统计现有数据
+        print("\n[1/4] 检查现有数据...")
         result = db.session.execute(db.text("""
-            SELECT status, COUNT(*) as cnt 
-            FROM project_refs 
+            SELECT status, COUNT(*) as cnt
+            FROM project_refs
             GROUP BY status
         """))
         print("  当前状态分布:")
         for row in result:
             print(f"    {row[0]}: {row[1]} 条")
 
-        # 更新 draft -> confirmed
+        # 1. 先扩展枚举类型，添加 confirmed
+        print("\n[2/4] 扩展枚举类型（添加 confirmed）...")
         db.session.execute(db.text("""
-            UPDATE project_refs SET status = 'confirmed' WHERE status = 'draft'
-        """))
-        print("  draft -> confirmed: 完成")
-
-        # 更新 processing -> confirmed  
-        db.session.execute(db.text("""
-            UPDATE project_refs SET status = 'confirmed' WHERE status = 'processing'
-        """))
-        print("  processing -> confirmed: 完成")
-
-        db.session.commit()
-
-        # 2. 修改枚举类型
-        print("\n[2/3] 修改枚举类型...")
-        
-        db.session.execute(db.text("""
-            ALTER TABLE project_refs 
-            MODIFY COLUMN status ENUM('confirmed', 'completed', 'cancelled') 
+            ALTER TABLE project_refs
+            MODIFY COLUMN status ENUM('draft', 'processing', 'completed', 'cancelled', 'confirmed')
             NOT NULL DEFAULT 'confirmed'
         """))
         db.session.commit()
-        print("  枚举修改完成")
+        print("  枚举扩展完成")
 
-        # 3. 验证
-        print("\n[3/3] 验证修改...")
+        # 2. 更新数据
+        print("\n[3/4] 更新现有数据...")
+
+        # 更新 draft -> confirmed
         result = db.session.execute(db.text("""
-            SELECT status, COUNT(*) as cnt 
-            FROM project_refs 
+            UPDATE project_refs SET status = 'confirmed' WHERE status = 'draft'
+        """))
+        print(f"  draft -> confirmed: {result.rowcount} 条")
+
+        # 更新 processing -> confirmed
+        result = db.session.execute(db.text("""
+            UPDATE project_refs SET status = 'confirmed' WHERE status = 'processing'
+        """))
+        print(f"  processing -> confirmed: {result.rowcount} 条")
+
+        db.session.commit()
+
+        # 3. 收缩枚举类型，移除 draft 和 processing
+        print("\n[4/4] 收缩枚举类型（移除 draft, processing）...")
+        db.session.execute(db.text("""
+            ALTER TABLE project_refs
+            MODIFY COLUMN status ENUM('confirmed', 'completed', 'cancelled')
+            NOT NULL DEFAULT 'confirmed'
+        """))
+        db.session.commit()
+        print("  枚举收缩完成")
+
+        # 验证
+        print("\n验证修改...")
+        result = db.session.execute(db.text("""
+            SELECT status, COUNT(*) as cnt
+            FROM project_refs
             GROUP BY status
         """))
         print("  新状态分布:")
