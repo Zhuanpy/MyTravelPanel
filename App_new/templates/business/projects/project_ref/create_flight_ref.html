@@ -1087,8 +1087,9 @@ function parseFlightSegments() {
         if (!cleanLine) return;
 
         // 使用更宽松的正则表达式匹配航班信息
-        const match = cleanLine.match(/(\w+)\s+(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{4})\s+(#?\d{4})/);
-        
+        // 支持时间格式：1234 或 12:34 或 #1234 或 #12:34
+        const match = cleanLine.match(/(\w{2})\s*(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{2}:?\d{2})\s+(#?\d{2}:?\d{2})/);
+
         if (!match) {
             console.log('行格式不匹配，跳过:', line);
             return;
@@ -1100,7 +1101,9 @@ function parseFlightSegments() {
             const departureAirport = route.substring(0, 3);
             const arrivalAirport = route.substring(3);
             const isNextDay = arrivalTime.startsWith('#');
-            const cleanArrivalTime = arrivalTime.replace('#', '');
+            // 移除 # 前缀和冒号，统一为4位数字格式
+            const cleanArrivalTime = arrivalTime.replace('#', '').replace(':', '');
+            const cleanDepartureTime = departureTime.replace(':', '');
 
             // 创建日期对象
             const year = new Date().getFullYear();
@@ -1114,8 +1117,8 @@ function parseFlightSegments() {
                 day: day
             });
 
-            // 格式化出发和到达时间
-            const departureDateTime = formatDateTime(year, month, day, departureTime);
+            // 格式化出发和到达时间（使用清理后的时间格式）
+            const departureDateTime = formatDateTime(year, month, day, cleanDepartureTime);
             const arrivalDateTime = formatDateTime(year, month, day, cleanArrivalTime, isNextDay);
 
             console.log('格式化后的时间:', {
