@@ -1377,6 +1377,17 @@ class AthinaToProjectService:
                     project_ref.cost_price = gross_amount
                     project_ref.currency = curr
 
+                # 保存 Pax Name 到 REF 的 extra_info
+                if pax_name:
+                    try:
+                        extra_info = json.loads(project_ref.extra_info) if project_ref.extra_info else {}
+                    except:
+                        extra_info = {}
+                    extra_info['pax_name'] = pax_name
+                    extra_info['itinerary'] = itinerary
+                    extra_info['dep_date'] = dep_date
+                    project_ref.extra_info = json.dumps(extra_info)
+
                 # 解析税费和折扣
                 tax_amount = self._parse_decimal(cost_tax)
                 disc_amount = self._parse_decimal(disc)
