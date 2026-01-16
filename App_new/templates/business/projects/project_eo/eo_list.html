@@ -241,26 +241,15 @@ function cancelPayment(eoId, eoNumber) {
 }
 
 function exportToExcel() {
-    var headers = ['EO No','EO Date','HID','REF','Invoice','Type','Supplier','Company','Pax','Curr','Cost','Tax','Disc','Payment No','Paid Date','Pay Amt','Status'];
-    var csv = headers.join(',') + '\n';
+    // 获取当前筛选参数
+    var params = new URLSearchParams(window.location.search);
+    // 移除分页参数
+    params.delete('page');
+    params.delete('per_page');
 
-    $('#eoTable tbody tr').each(function() {
-        var row = [];
-        $(this).find('td').each(function(index) {
-            // 跳过最后一列（Actions）
-            if (index < 17) {
-                var text = $(this).text().trim().replace(/"/g, '""');
-                row.push('"' + text + '"');
-            }
-        });
-        csv += row.join(',') + '\n';
-    });
-    
-    var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'EO_List_' + new Date().toISOString().slice(0,10) + '.csv';
-    link.click();
+    // 调用后端导出接口
+    var exportUrl = '{{ url_for("business_projects.project_eo.eo_export") }}?' + params.toString();
+    window.location.href = exportUrl;
 }
 </script>
 {% endblock %}

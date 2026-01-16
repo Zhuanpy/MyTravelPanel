@@ -1752,7 +1752,7 @@ def get_supplier_type_color(supplier_type):
     """获取供应商类型对应的Bootstrap颜色类"""
     if not supplier_type or not isinstance(supplier_type, str):
         return 'secondary'
-    
+
     color_map = {
         'visa': 'warning',
         'flight': 'primary',
@@ -1762,3 +1762,238 @@ def get_supplier_type_color(supplier_type):
         'other': 'secondary'
     }
     return color_map.get(supplier_type, 'secondary')
+
+
+@project_eo.route('/export')
+@login_required
+@staff_only
+def eo_export():
+    """导出EO列表到Excel - 导出所有符合筛选条件的数据"""
+    try:
+        import io
+        import pandas as pd
+        from flask import make_response
+        from sqlalchemy import and_, or_, desc, asc
+        from sqlalchemy.orm import aliased
+        from datetime import datetime, timedelta
+        from App_new.business.projects.models.ref import ProjectRef
+        from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
+        from App_new.shared.models.business_types import BusinessType
+        from App_new.business.projects.models.invoice import InvoiceItem
+
+        # 创建别名
+        SupplierCompany = aliased(CustomerCompany, name='supplier_company')
+
+        # 获取筛选参数（与 eo_list 相同）
+        supplier_type = request.args.get('supplier_type', '')
+        status = request.args.get('status', '')
+        supplier_id = request.args.get('supplier', None, type=int)
+        external_system = request.args.get('external_system', '')
+        date_range = request.args.get('date_range', '')
+        min_amount = request.args.get('min_amount', None, type=float)
+        max_amount = request.args.get('max_amount', None, type=float)
+        keyword = request.args.get('keyword', '')
+        has_invoice = request.args.get('has_invoice', '')
+
+        # 构建查询
+        query = db.session.query(
+            ProjectEO,
+            SupplierCompany.company_name.label('supplier_name'),
+            BusinessType.name.label('ref_type_name'),
+            ProjectRef.ref_number.label('ref_number'),
+            ProjectHeader.hid.label('project_hid'),
+            CustomerCompany.company_name.label('company_name')
+        ).join(
+            ProjectRef, ProjectEO.ref_id == ProjectRef.id, isouter=True
+        ).join(
+            BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
+        ).join(
+            SupplierCompany, ProjectRef.supplier_id == SupplierCompany.id, isouter=True
+        ).join(
+            ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
+        )
+
+        # 应用筛选条件
+        filters = []
+
+        # 根据员工等级过滤EO
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            if staff_level == 1:
+                filters.append(ProjectHeader.staff_name == current_user.username)
+
+        if status:
+            filters.append(ProjectEO.status == status)
+
+        if supplier_id:
+            filters.append(ProjectRef.supplier_id == supplier_id)
+
+        if supplier_type:
+            supplier_type_map = {
+                'visa': '签证',
+                'flight': '机票',
+                'hotel': '酒店',
+                'transport': '用车',
+                'local_operator': '地接',
+                'other': '其他'
+            }
+            type_name = supplier_type_map.get(supplier_type)
+            if type_name:
+                filters.append(BusinessType.name == type_name)
+
+        if external_system:
+            filters.append(ProjectEO.external_system.ilike(f'%{external_system}%'))
+
+        if date_range:
+            today = datetime.now().date()
+            if date_range == 'today':
+                start_date = today
+                end_date = today + timedelta(days=1)
+            elif date_range == 'week':
+                start_date = today - timedelta(days=today.weekday())
+                end_date = start_date + timedelta(days=7)
+            elif date_range == 'month':
+                start_date = today.replace(day=1)
+                if today.month == 12:
+                    end_date = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    end_date = today.replace(month=today.month + 1, day=1)
+            elif date_range == 'quarter':
+                quarter = (today.month - 1) // 3
+                start_date = today.replace(month=quarter * 3 + 1, day=1)
+                if quarter == 3:
+                    end_date = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    end_date = today.replace(month=quarter * 3 + 4, day=1)
+            elif date_range == 'year':
+                start_date = today.replace(month=1, day=1)
+                end_date = today.replace(year=today.year + 1, month=1, day=1)
+
+            filters.append(and_(
+                ProjectEO.created_at >= start_date,
+                ProjectEO.created_at < end_date
+            ))
+
+        if min_amount is not None and min_amount > 0:
+            filters.append(ProjectRef.cost_price >= float(min_amount))
+
+        if max_amount is not None and max_amount > 0:
+            filters.append(ProjectRef.cost_price <= float(max_amount))
+
+        if keyword:
+            keyword_filter = or_(
+                ProjectEO.eo_number.ilike(f'%{keyword}%'),
+                ProjectEO.external_system.ilike(f'%{keyword}%'),
+                ProjectEO.external_reference.ilike(f'%{keyword}%'),
+                ProjectRef.description.ilike(f'%{keyword}%'),
+                ProjectRef.ref_number.ilike(f'%{keyword}%'),
+                ProjectHeader.desc.ilike(f'%{keyword}%'),
+                CustomerCompany.company_name.ilike(f'%{keyword}%')
+            )
+            filters.append(keyword_filter)
+
+        if has_invoice:
+            refs_with_invoice = db.session.query(InvoiceItem.ref_id).filter(
+                InvoiceItem.ref_id.isnot(None)
+            ).distinct().subquery()
+
+            if has_invoice == 'yes':
+                filters.append(ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+            elif has_invoice == 'no':
+                filters.append(~ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+
+        # 应用筛选条件
+        if filters:
+            query = query.filter(and_(*filters))
+
+        # 排序
+        query = query.order_by(desc(ProjectEO.created_at))
+
+        # 获取所有数据（不分页）
+        results = query.all()
+
+        # 构建导出数据
+        export_data = []
+        for eo, supplier_name, ref_type_name, ref_number, project_hid, company_name in results:
+            # 获取乘客姓名
+            pax_names = ''
+            if eo.ref:
+                from App_new.business.flight.models.flight import ProjectFlightPassenger
+                passengers = ProjectFlightPassenger.query.filter_by(ref_id=eo.ref_id).all()
+                if passengers:
+                    pax_names = ', '.join([p.name for p in passengers if p.name])
+                if not pax_names and eo.ref.header:
+                    from App_new.business.projects.models.project_member import ProjectMember
+                    members = ProjectMember.query.filter_by(header_id=eo.ref.header.id).all()
+                    if members:
+                        leaders = [m.member_name for m in members if m.is_leader and m.member_name]
+                        if leaders:
+                            pax_names = ', '.join(leaders)
+                        else:
+                            pax_names = ', '.join([m.member_name for m in members if m.member_name])
+
+            # 获取发票号
+            invoice_number = ''
+            if eo.ref_id:
+                invoice_item = InvoiceItem.query.filter_by(ref_id=eo.ref_id).first()
+                if invoice_item and invoice_item.invoice:
+                    invoice_number = invoice_item.invoice.invoice_number
+
+            export_data.append({
+                'EO No': eo.eo_number or '',
+                'EO Date': eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '',
+                'HID': project_hid or '',
+                'REF': ref_number or '',
+                'Invoice': invoice_number,
+                'Type': ref_type_name or '',
+                'Supplier': supplier_name or '',
+                'Company': company_name or '',
+                'Pax': pax_names,
+                'Curr': eo.ref.currency if eo.ref and eo.ref.currency else 'SGD',
+                'Cost': float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0,
+                'Tax': float(eo.tax) if eo.tax else 0,
+                'Disc': float(eo.discount) if eo.discount else 0,
+                'Payment No': eo.payment_no or '',
+                'Paid Date': eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '',
+                'Pay Amt': float(eo.pay_amount) if eo.pay_amount else '',
+                'Status': get_status_display(eo.status)
+            })
+
+        # 创建 DataFrame
+        df = pd.DataFrame(export_data)
+
+        # 生成 Excel 文件
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='EO List', index=False)
+
+            # 设置列宽
+            worksheet = writer.sheets['EO List']
+            column_widths = {
+                'A': 12, 'B': 12, 'C': 10, 'D': 10, 'E': 15, 'F': 10,
+                'G': 20, 'H': 20, 'I': 25, 'J': 8, 'K': 12, 'L': 10,
+                'M': 10, 'N': 15, 'O': 12, 'P': 12, 'Q': 10
+            }
+            for col, width in column_widths.items():
+                worksheet.column_dimensions[col].width = width
+
+        excel_buffer.seek(0)
+
+        # 生成文件名
+        filename = f"EO_List_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        response = make_response(excel_buffer.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"EO导出失败: {str(e)}")
+        current_app.logger.error(f"错误详情: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'导出失败: {str(e)}'}), 500
