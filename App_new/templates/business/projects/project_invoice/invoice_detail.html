@@ -496,7 +496,7 @@
                                             {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
                                         {% endif %}
                                         {% if extra_data.single_room_qty is defined and extra_data.single_room_qty > 0 %}
-                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Room Supp.') %}
+                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Occupancy') %}
                                         {% endif %}
                                         {{ qty_parts|join(', ') if qty_parts else '1 Adult' }}
                                     </td>
@@ -706,7 +706,7 @@
                                             {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
                                         {% endif %}
                                         {% if extra_data.single_room_qty is defined and extra_data.single_room_qty > 0 %}
-                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Room Supp.') %}
+                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Occupancy') %}
                                         {% endif %}
                                         {{ qty_parts|join(', ') if qty_parts else '1 Adult' }}
                                     </td>
