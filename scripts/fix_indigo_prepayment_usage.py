@@ -8,7 +8,7 @@
 1. 查找 INDIGO 所有预付账款记录
 2. 清除所有使用记录（PrepaymentUsage）
 3. 重置所有预付账款余额为充值金额
-4. 查找所有使用预付款付款的 EO
+4. 查找所有该供应商的已付款 EO（通过 REF 的 supplier_id）
 5. 按 EO 付款时间排序，按 FIFO 原则重新分配使用记录
 
 运行方式: python scripts/fix_indigo_prepayment_usage.py
@@ -29,6 +29,7 @@ from App_new.business.projects.models.supplier_payment import SupplierPayment
 from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
 from App_new.business.projects.models.eo import ProjectEO
 from App_new.business.projects.models.project import CustomerCompany
+from App_new.business.projects.models.ref import ProjectRef
 
 
 def main():
@@ -69,44 +70,25 @@ def main():
             total_prepayment += Decimal(str(p.amount))
         print(f"  合计充值: {total_prepayment} SGD")
 
-        # 3. 查找所有使用该供应商预付款的 EO
-        # 方法1: 通过 payment_source='prepayment' 的付款记录
-        payments_with_prepayment = SupplierPayment.query.filter(
-            SupplierPayment.supplier_id == supplier_id,
-            SupplierPayment.payment_source == 'prepayment'
-        ).all()
-
-        payment_ids = [p.id for p in payments_with_prepayment]
-
-        # 方法2: 通过已有的 PrepaymentUsage 记录找到 EO
         prepayment_ids = [p.id for p in prepayments]
-        existing_usages = PrepaymentUsage.query.filter(
-            PrepaymentUsage.prepayment_id.in_(prepayment_ids)
-        ).all()
 
-        eo_ids_from_usage = set(u.eo_id for u in existing_usages if u.eo_id)
+        # 3. 查找所有该供应商的已付款 EO（通过 REF 的 supplier_id）
+        # 这是最可靠的方式：找到所有 REF 供应商是 INDIGO 的 EO
+        refs_with_supplier = ProjectRef.query.filter_by(supplier_id=supplier_id).all()
+        ref_ids = [r.id for r in refs_with_supplier]
 
-        # 合并两种方式找到的 EO
-        eos_from_payments = ProjectEO.query.filter(
-            ProjectEO.payment_record_id.in_(payment_ids)
-        ).all() if payment_ids else []
+        print(f"\n该供应商的 REF 数量: {len(ref_ids)}")
 
-        eos_from_usages = ProjectEO.query.filter(
-            ProjectEO.id.in_(eo_ids_from_usage)
-        ).all() if eo_ids_from_usage else []
+        # 查找这些 REF 对应的已付款 EO
+        all_eos = ProjectEO.query.filter(
+            ProjectEO.ref_id.in_(ref_ids),
+            ProjectEO.status == 'paid'
+        ).all() if ref_ids else []
 
-        # 合并并去重
-        all_eo_ids = set()
-        all_eos = []
-        for eo in eos_from_payments + eos_from_usages:
-            if eo.id not in all_eo_ids:
-                all_eo_ids.add(eo.id)
-                all_eos.append(eo)
-
-        print(f"\n需要重新分配的 EO: {len(all_eos)} 条")
+        print(f"已付款的 EO 数量: {len(all_eos)}")
 
         if not all_eos:
-            print("\n没有找到需要处理的 EO，退出。")
+            print("\n没有找到需要处理的已付款 EO，退出。")
             return
 
         # 4. 按 EO 的付款日期/创建日期排序
