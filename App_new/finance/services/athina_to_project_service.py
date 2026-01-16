@@ -1392,17 +1392,20 @@ class AthinaToProjectService:
                 tax_amount = self._parse_decimal(cost_tax)
                 disc_amount = self._parse_decimal(disc)
 
-                # 确定 EO 状态
-                # Paid-P = 已付款, Unpaid-N = 未付款
-                eo_status = 'confirmed'  # 默认已确认
-                if 'paid' in status.lower():
-                    eo_status = 'paid'
-                elif 'cancel' in status.lower():
-                    eo_status = 'cancelled'
-
-                # 解析付款金额和日期
+                # 解析付款金额和日期（先解析，用于判断状态）
                 pay_amount_decimal = self._parse_decimal(pay_amount)
                 paid_date_parsed = self._parse_date(paid_date)
+                has_payment_info = (payment_no and payment_no != '0') or pay_amount_decimal > 0 or paid_date_parsed
+
+                # 确定 EO 状态
+                # Paid-P = 已付款, Unpaid-N = 未付款
+                # 注意：只有同时满足 Status=Paid 且有付款信息时才设为已付款
+                eo_status = 'confirmed'  # 默认已确认
+                if 'cancel' in status.lower():
+                    eo_status = 'cancelled'
+                elif 'paid' in status.lower() and has_payment_info:
+                    # 必须有付款信息才能设为已付款
+                    eo_status = 'paid'
 
                 # 检查 EO 编号是否已存在
                 existing_eo = ProjectEO.query.filter_by(eo_number=eo_no).first()
