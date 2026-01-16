@@ -649,8 +649,17 @@ def batch_pay():
             })
         
         # 获取供应商列表（按名称排序，不区分大小写）
+        # 如果选择了供应商类型，则筛选该类型的供应商
         from sqlalchemy import func
-        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(func.lower(CustomerCompany.company_name)).all()
+        suppliers_query = CustomerCompany.query.filter(CustomerCompany.is_supplier == True)
+
+        if supplier_type:
+            # 根据供应商类型筛选
+            business_type = BusinessType.query.filter_by(code=supplier_type).first()
+            if business_type:
+                suppliers_query = suppliers_query.filter(CustomerCompany.supplier_type_id == business_type.id)
+
+        suppliers = suppliers_query.order_by(func.lower(CustomerCompany.company_name)).all()
 
         return render_template('business/projects/project_eo/batch_pay.html',
                              eos=eos,
