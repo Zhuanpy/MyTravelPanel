@@ -183,10 +183,12 @@ class ProjectReceipt(db.Model):
                     pass
 
         # 3. 通过 ReceiptInvoiceAllocation 表分配的金额
+        # 只处理项目级别收款（ref_id=None），避免与REF级别收款重复计算
         allocations = ReceiptInvoiceAllocation.query.join(
             cls, ReceiptInvoiceAllocation.receipt_id == cls.id
         ).filter(
             cls.header_id == header_id,
+            cls.ref_id == None,  # 只查询项目级别收款
             cls.status == 'confirmed'
         ).all()
 
