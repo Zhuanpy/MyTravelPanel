@@ -512,7 +512,7 @@
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 {% endif %}
                             </table>
@@ -561,7 +561,7 @@
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 {% endif %}
                             </table>
@@ -657,7 +657,7 @@
                                 <tr>
                                     <td style="border: none;">Note</td>
                                     <td style="border: none;">:</td>
-                                    <td style="border: none;">{{ ref.remarks or '' }}</td>
+                                    <td style="border: none;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                             </table>
                         {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
@@ -722,7 +722,7 @@
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 {% endif %}
                             </table>
@@ -772,7 +772,7 @@
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 {% endif %}
                             </table>
