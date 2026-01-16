@@ -731,12 +731,17 @@ def edit_hotel_ref(ref_id):
         except (json.JSONDecodeError, TypeError):
             extra_info = None
     
-    # 检查是否已生成发票
-    has_invoice = len(ref.invoice_items) > 0 if ref.invoice_items else False
+    # 检查是否有有效的发票（排除已取消的）
+    has_invoice = False
+    if ref.invoice_items:
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查关联的EO是否已付款
+    # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
@@ -1553,12 +1558,17 @@ def edit_transport_ref(ref_id):
     # 获取项目头信息
     header = ProjectHeader.query.get(ref.header_id)
 
-    # 检查是否有发票
-    has_invoice = len(ref.invoice_items) > 0 if ref.invoice_items else False
+    # 检查是否有有效的发票（排除已取消的）
+    has_invoice = False
+    if ref.invoice_items:
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查关联的EO是否已付款
+    # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
@@ -1583,12 +1593,17 @@ def edit_flight_ref(ref_id):
     # 直接查询REF，不需要预加载
     ref = ProjectRef.query.get_or_404(ref_id)
 
-    # 检查是否已生成发票
-    has_invoice = len(ref.invoice_items) > 0 if ref.invoice_items else False
+    # 检查是否有有效的发票（排除已取消的）
+    has_invoice = False
+    if ref.invoice_items:
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查关联的EO是否已付款（如果已付款，cost不能修改）
+    # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
@@ -1774,14 +1789,17 @@ def edit_visa_ref(ref_id):
     # 获取项目头信息
     header = ProjectHeader.query.get(ref.header_id)
 
-    # 检查是否有发票
+    # 检查是否有有效的发票（排除已取消的）
     has_invoice = False
     if ref.invoice_items:
-        has_invoice = len(ref.invoice_items) > 0
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查关联的EO是否已付款（如果已付款，cost不能修改）
+    # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
@@ -2108,14 +2126,17 @@ def edit_attraction_ref(ref_id):
     # 获取项目头信息
     header = ProjectHeader.query.get(ref.header_id)
 
-    # 检查是否有发票
+    # 检查是否有有效的发票（排除已取消的）
     has_invoice = False
     if ref.invoice_items:
-        has_invoice = len(ref.invoice_items) > 0
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查 EO 是否已付款
+    # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
@@ -2644,14 +2665,17 @@ def edit_tour_ref(ref_id):
         except:
             pass
 
-    # 检查是否有发票
+    # 检查是否有有效的发票（排除已取消的）
     has_invoice = False
     if ref.invoice_items:
-        has_invoice = len(ref.invoice_items) > 0
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查 EO 是否已付款
+    # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
@@ -3142,14 +3166,17 @@ def edit_ref(ref_id):
         passenger_names = [p.name for p in passengers]
         form.passenger_names.data = ', '.join(passenger_names)
 
-    # 检查是否有发票
+    # 检查是否有有效的发票（排除已取消的）
     has_invoice = False
     if ref.invoice_items:
-        has_invoice = len(ref.invoice_items) > 0
+        for item in ref.invoice_items:
+            if item.invoice and item.invoice.status != 'cancelled':
+                has_invoice = True
+                break
 
-    # 检查 EO 是否已付款
+    # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
-    if ref.eos and ref.eos.status != 'void':
+    if ref.eos and ref.eos.status not in ['void', 'cancelled']:
         if ref.eos.pay_amount or ref.eos.status == 'paid':
             eo_paid = True
 
