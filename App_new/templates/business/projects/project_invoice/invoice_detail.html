@@ -109,8 +109,8 @@
             </h4>
         </div>
         <div>
-            <button onclick="syncRefPrices()" class="btn btn-warning btn-sm me-2" title="从REF同步最新价格">
-                <i class="fas fa-sync-alt"></i> 同步REF价格
+            <button onclick="syncRefPrices()" class="btn btn-warning btn-sm me-2" title="从REF同步最新价格和描述信息">
+                <i class="fas fa-sync-alt"></i> 同步REF信息
             </button>
             <button onclick="printInvoice()" class="btn btn-success btn-sm me-2">
                 <i class="fas fa-print"></i> 打印发票
@@ -249,12 +249,33 @@
                     {% for item in items %}
                     <tr>
                         <td>
-                            {{ item.description }}
-                            {% if item.ref %}<br><small class="text-muted">REF: {{ item.ref.ref_number }}</small>{% endif %}
+                            {# 优先显示REF的实时描述，回退到快照描述 #}
+                            {{ item.ref.description if item.ref else item.description }}
+                            {% if item.ref %}
+                                <br><small class="text-muted">REF: {{ item.ref.ref_number }}</small>
+                                {% if item.ref.detailed_description %}
+                                    <br><small class="text-secondary">{{ item.ref.detailed_description[:100] }}{% if item.ref.detailed_description|length > 100 %}...{% endif %}</small>
+                                {% endif %}
+                            {% endif %}
                         </td>
                         <td>{{ item.quantity }}</td>
-                        <td>{{ invoice.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
-                        <td class="fw-bold">{{ invoice.currency }} {{ "%.2f"|format(item.total_price) }}</td>
+                        {# 显示REF的实时价格，便于对比快照价格 #}
+                        <td>
+                            {{ invoice.currency }} {{ "%.2f"|format(item.unit_price) }}
+                            {% if item.ref and item.ref.selling_price and (item.ref.selling_price|float - item.unit_price|float)|abs > 0.01 %}
+                                <br><small class="text-warning" title="REF当前价格与发票价格不一致">
+                                    <i class="fas fa-exclamation-triangle"></i> REF: {{ "%.2f"|format(item.ref.selling_price) }}
+                                </small>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">
+                            {{ invoice.currency }} {{ "%.2f"|format(item.total_price) }}
+                            {% if item.ref and item.ref.selling_price and (item.ref.selling_price|float - item.total_price|float)|abs > 0.01 %}
+                                <br><small class="text-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </small>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -427,44 +448,124 @@
                     <td style="vertical-align: top; line-height: 1.3;">
                         {% if item.ref and item.ref.extra_data is defined %}
                             {% set extra_data = item.ref.extra_data %}
+                            {% set type_code = item.ref.ref_type.code|default('') if item.ref.ref_type else '' %}
+                            {% set type_name = item.ref.ref_type.name|default('') if item.ref.ref_type else '' %}
+
+                            {% if type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
+                            {# Tour 类型专用显示 #}
+                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+                                <tr>
+                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Tour</td>
+                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.tour_name if extra_data.tour_name is defined and extra_data.tour_name else item.ref.description or '-' }}</td>
+                                </tr>
+                                {% if extra_data.departure_date is defined and extra_data.departure_date %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}
+                                        {% if extra_data.days is defined and extra_data.days %} ({{ extra_data.days }} Days){% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if extra_data.confirmation_number is defined and extra_data.confirmation_number %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Conf#</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.confirmation_number }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {% set qty_parts = [] %}
+                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.single_room_qty is defined and extra_data.single_room_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Room Supp.') %}
+                                        {% endif %}
+                                        {{ qty_parts|join(', ') if qty_parts else '1 Adult' }}
+                                    </td>
+                                </tr>
+                                {% if extra_data.itinerary is defined and extra_data.itinerary %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Itin</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.itinerary | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if item.ref.remarks %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                            {% else %}
+                            {# 其他类型通用显示 #}
                             <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
                                 <tr>
                                     <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Descrp</td>
                                     <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">{{ item.ref.description or item.description or '-' }}</td>
                                 </tr>
+                                {% if extra_data.pax_names_display is defined and extra_data.pax_names_display %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else (extra_data.pax_name if extra_data.pax_name is defined else '-') }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display }}</td>
                                 </tr>
+                                {% endif %}
                                 {% if extra_data.departure_date is defined and extra_data.departure_date %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}</td>
                                 </tr>
                                 {% endif %}
+                                {% if extra_data.adult_qty is defined or extra_data.child_qty is defined or extra_data.infant_qty is defined %}
                                 <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">
-                                        ADULT - {{ extra_data.adult_qty if extra_data.adult_qty is defined and extra_data.adult_qty else item.quantity }}
-                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}, CHILD - {{ extra_data.child_qty }}{% endif %}
-                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}, INFANT - {{ extra_data.infant_qty }}{% endif %}
+                                        {% set qty_parts = [] %}
+                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {{ qty_parts|join(', ') if qty_parts else '-' }}
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Details</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ (item.ref.detailed_description or '-') | replace('\n', '<br>') | safe }}</td>
-                                </tr>
+                                {% endif %}
+                                {% if item.ref.remarks %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks or '' }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks }}</td>
                                 </tr>
+                                {% endif %}
                             </table>
+                            {% endif %}
                         {% else %}
                             {{ item.ref.description if item.ref else item.description }}
                             {% if item.ref %}<br>Pax : {{ item.quantity }}.{% endif %}
@@ -559,8 +660,74 @@
                                     <td style="border: none;">{{ ref.remarks or '' }}</td>
                                 </tr>
                             </table>
+                        {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
+                            {# Tour 类型专用显示 #}
+                            {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}
+                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+                                <tr>
+                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Tour</td>
+                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.tour_name if extra_data.tour_name is defined and extra_data.tour_name else ref.description or '-' }}</td>
+                                </tr>
+                                {% if extra_data.departure_date is defined and extra_data.departure_date %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}
+                                        {% if extra_data.days is defined and extra_data.days %} ({{ extra_data.days }} Days){% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if extra_data.confirmation_number is defined and extra_data.confirmation_number %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Conf#</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.confirmation_number }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {% set qty_parts = [] %}
+                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.single_room_qty is defined and extra_data.single_room_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Room Supp.') %}
+                                        {% endif %}
+                                        {{ qty_parts|join(', ') if qty_parts else '1 Adult' }}
+                                    </td>
+                                </tr>
+                                {% if extra_data.itinerary is defined and extra_data.itinerary %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Itin</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.itinerary | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if ref.remarks %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
                         {% else %}
-                            {# 其他类型详细显示 #}
+                            {# 其他类型通用显示 #}
                             {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}
                             <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
                                 <tr>
@@ -568,37 +735,46 @@
                                     <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">{{ ref.description or '-' }}</td>
                                 </tr>
+                                {% if extra_data.pax_names_display is defined and extra_data.pax_names_display %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else (extra_data.pax_name if extra_data.pax_name is defined else '-') }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display }}</td>
                                 </tr>
+                                {% endif %}
                                 {% if extra_data.departure_date is defined and extra_data.departure_date %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}</td>
                                 </tr>
                                 {% endif %}
+                                {% if extra_data.adult_qty is defined or extra_data.child_qty is defined or extra_data.infant_qty is defined %}
                                 <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
                                     <td style="border: none; padding: 1px 0;">
-                                        ADULT - {{ extra_data.adult_qty if extra_data.adult_qty is defined and extra_data.adult_qty else 1 }}
-                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}, CHILD - {{ extra_data.child_qty }}{% endif %}
-                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}, INFANT - {{ extra_data.infant_qty }}{% endif %}
+                                        {% set qty_parts = [] %}
+                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {{ qty_parts|join(', ') if qty_parts else '-' }}
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Details</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ (ref.detailed_description or '-') | replace('\n', '<br>') | safe }}</td>
-                                </tr>
+                                {% endif %}
+                                {% if ref.remarks %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks or '' }}</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks }}</td>
                                 </tr>
+                                {% endif %}
                             </table>
                         {% endif %}
                     </td>
@@ -792,7 +968,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function syncRefPrices() {
-    if (!confirm('确定要从REF同步最新价格到发票吗？\n\n这将更新发票金额为REF的当前售价总和。')) {
+    if (!confirm('确定要从REF同步最新信息到发票吗？\n\n将同步以下内容：\n• 价格（更新为REF当前售价）\n• 描述信息')) {
         return;
     }
     

@@ -520,10 +520,10 @@ def delete_invoice(invoice_id):
 @staff_only
 @csrf.exempt
 def sync_ref_prices(invoice_id):
-    """同步REF价格到发票"""
+    """同步REF价格和描述到发票"""
     try:
         invoice = ProjectInvoice.query.get_or_404(invoice_id)
-        
+
         # 获取关联的REF
         ref_ids = []
         if invoice.ref_ids:
@@ -531,14 +531,14 @@ def sync_ref_prices(invoice_id):
                 ref_ids = json.loads(invoice.ref_ids)
             except (json.JSONDecodeError, TypeError):
                 pass
-        
+
         if not ref_ids:
             return jsonify({'success': False, 'message': '发票没有关联的REF'})
-        
+
         # 计算新的总金额
         new_total = 0
         updated_items = []
-        
+
         for ref_id in ref_ids:
             ref = ProjectRef.query.get(ref_id)
             if ref and ref.selling_price:
@@ -548,13 +548,13 @@ def sync_ref_prices(invoice_id):
                     'old_price': 0,  # 将在下面更新
                     'new_price': float(ref.selling_price)
                 })
-        
+
         old_amount = float(invoice.amount or 0)
-        
+
         # 更新发票金额
         invoice.amount = new_total
-        
-        # 更新发票明细项
+
+        # 更新发票明细项（价格和描述）
         items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
         for item in items:
             if item.ref_id:
@@ -567,17 +567,19 @@ def sync_ref_prices(invoice_id):
                     # 更新价格
                     item.unit_price = ref.selling_price or 0
                     item.total_price = ref.selling_price or 0
-        
+                    # 同步描述信息
+                    item.description = ref.description or ref.detailed_description or '服务'
+
         db.session.commit()
-        
+
         return jsonify({
-            'success': True, 
-            'message': f'价格同步成功！金额从 {old_amount:.2f} 更新为 {new_total:.2f}',
+            'success': True,
+            'message': f'同步成功！金额从 {old_amount:.2f} 更新为 {new_total:.2f}，描述信息已更新',
             'old_amount': old_amount,
             'new_amount': new_total,
             'updated_items': updated_items
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'同步失败：{str(e)}'})

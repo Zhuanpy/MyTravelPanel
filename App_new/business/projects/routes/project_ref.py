@@ -991,6 +991,10 @@ def create_tour_ref(header_id):
                     'infant_qty': int(request.form.get('infant_qty', 0) or 0),
                     'infant_selling': float(request.form.get('infant_selling', 0) or 0),
                     'infant_cost': float(request.form.get('infant_cost', 0) or 0),
+                    # 单房差
+                    'single_room_qty': int(request.form.get('single_room_qty', 0) or 0),
+                    'single_room_selling': float(request.form.get('single_room_selling', 0) or 0),
+                    'single_room_cost': float(request.form.get('single_room_cost', 0) or 0),
                 }
                 
                 # 生成 pax_names_display
@@ -1091,6 +1095,10 @@ def submit_tour_ref():
                 'infant_qty': int(request.form.get('infant_qty', 0) or 0),
                 'infant_selling': float(request.form.get('infant_selling', 0) or 0),
                 'infant_cost': float(request.form.get('infant_cost', 0) or 0),
+                # 单房差
+                'single_room_qty': int(request.form.get('single_room_qty', 0) or 0),
+                'single_room_selling': float(request.form.get('single_room_selling', 0) or 0),
+                'single_room_cost': float(request.form.get('single_room_cost', 0) or 0),
             }
 
         # 获取描述字段（前端自动生成）
@@ -2580,6 +2588,10 @@ def edit_tour_ref(ref_id):
                     'infant_qty': int(request.form.get('infant_qty', 0) or 0),
                     'infant_selling': float(request.form.get('infant_selling', 0) or 0),
                     'infant_cost': float(request.form.get('infant_cost', 0) or 0),
+                    # 单房差
+                    'single_room_qty': int(request.form.get('single_room_qty', 0) or 0),
+                    'single_room_selling': float(request.form.get('single_room_selling', 0) or 0),
+                    'single_room_cost': float(request.form.get('single_room_cost', 0) or 0),
                 }
 
             # 获取描述字段（前端自动生成）
