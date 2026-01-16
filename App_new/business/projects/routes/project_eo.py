@@ -648,22 +648,31 @@ def batch_pay():
                 'created_at': eo.created_at
             })
         
-        # 获取供应商列表（按名称排序，不区分大小写）
-        # 如果选择了供应商类型，则筛选该类型的供应商
+        # 获取所有供应商列表（按名称排序，不区分大小写）
+        # 前端使用JavaScript按类型筛选
         from sqlalchemy import func
-        suppliers_query = CustomerCompany.query.filter(CustomerCompany.is_supplier == True)
+        suppliers_with_type = db.session.query(
+            CustomerCompany,
+            BusinessType.code.label('supplier_type_code')
+        ).outerjoin(
+            BusinessType, CustomerCompany.supplier_type_id == BusinessType.id
+        ).filter(
+            CustomerCompany.is_supplier == True
+        ).order_by(func.lower(CustomerCompany.company_name)).all()
 
-        if supplier_type:
-            # 根据供应商类型筛选
-            business_type = BusinessType.query.filter_by(code=supplier_type).first()
-            if business_type:
-                suppliers_query = suppliers_query.filter(CustomerCompany.supplier_type_id == business_type.id)
+        suppliers = [{
+            'id': s.CustomerCompany.id,
+            'company_name': s.CustomerCompany.company_name,
+            'supplier_type_code': s.supplier_type_code or ''
+        } for s in suppliers_with_type]
 
-        suppliers = suppliers_query.order_by(func.lower(CustomerCompany.company_name)).all()
+        # 获取供应商类型列表（用于前端筛选下拉框）
+        supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
 
         return render_template('business/projects/project_eo/batch_pay.html',
                              eos=eos,
                              suppliers=suppliers,
+                             supplier_types=supplier_types,
                              today=date.today().isoformat(),
                              pagination=pagination,
                              current_filters={
