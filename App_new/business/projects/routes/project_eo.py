@@ -1687,8 +1687,25 @@ def eo_list():
             }
             eos.append(eo_dict)
         
-        # 获取筛选选项数据
-        suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).order_by(CustomerCompany.company_name).all()
+        # 获取筛选选项数据（供应商列表带类型代码，用于前端JavaScript筛选）
+        from sqlalchemy import func
+        suppliers_with_type = db.session.query(
+            CustomerCompany,
+            BusinessType.code.label('supplier_type_code')
+        ).outerjoin(
+            BusinessType, CustomerCompany.supplier_type_id == BusinessType.id
+        ).filter(
+            CustomerCompany.is_supplier == True
+        ).order_by(func.lower(CustomerCompany.company_name)).all()
+
+        suppliers = [{
+            'id': s.CustomerCompany.id,
+            'company_name': s.CustomerCompany.company_name,
+            'supplier_type_code': s.supplier_type_code or ''
+        } for s in suppliers_with_type]
+
+        # 获取供应商类型列表
+        supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
         
         # 计算筛选结果数量
         filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice]) else None
@@ -1697,6 +1714,7 @@ def eo_list():
                              eos=eos,
                              pagination=pagination,
                              suppliers=suppliers,
+                             supplier_types=supplier_types,
                              filtered_count=filtered_count,
                              current_filters={
                                  'supplier_type': supplier_type,

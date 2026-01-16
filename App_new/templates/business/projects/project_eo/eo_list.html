@@ -56,21 +56,19 @@
                 </select>
             </div>
             <div class="col-auto">
-                <select class="form-select" name="supplier_type">
-                    <option value="">类型</option>
-                    <option value="visa" {% if current_filters.supplier_type == 'visa' %}selected{% endif %}>签证</option>
-                    <option value="flight" {% if current_filters.supplier_type == 'flight' %}selected{% endif %}>机票</option>
-                    <option value="hotel" {% if current_filters.supplier_type == 'hotel' %}selected{% endif %}>酒店</option>
-                    <option value="transport" {% if current_filters.supplier_type == 'transport' %}selected{% endif %}>交通</option>
-                    <option value="local_operator" {% if current_filters.supplier_type == 'local_operator' %}selected{% endif %}>地接</option>
-                    <option value="other" {% if current_filters.supplier_type == 'other' %}selected{% endif %}>其他</option>
+                <select class="form-select" id="supplier_type_filter" onchange="filterSuppliers()">
+                    <option value="">All Types</option>
+                    {% for type in supplier_types %}
+                    <option value="{{ type.code }}">{{ type.name_en or (type.code | replace('_', ' ') | title) }}</option>
+                    {% endfor %}
                 </select>
+                <input type="hidden" name="supplier_type" id="supplier_type_hidden" value="{{ current_filters.supplier_type or '' }}">
             </div>
             <div class="col-auto">
-                <select class="form-select" name="supplier">
-                    <option value="">供应商</option>
+                <select class="form-select" name="supplier" id="supplier_filter">
+                    <option value="">Supplier</option>
                     {% for supplier in suppliers %}
-                    <option value="{{ supplier.id }}" {% if current_filters.supplier == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
+                    <option value="{{ supplier.id }}" data-type="{{ supplier.supplier_type_code }}" {% if current_filters.supplier == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -215,6 +213,46 @@
 </div>
 
 <script>
+// 供应商类型筛选函数（前端过滤，不刷新页面）
+function filterSuppliers() {
+    const typeFilter = document.getElementById('supplier_type_filter').value;
+    const supplierSelect = document.getElementById('supplier_filter');
+    const options = supplierSelect.querySelectorAll('option');
+    const currentValue = supplierSelect.value;
+
+    // 更新隐藏字段（用于表单提交）
+    document.getElementById('supplier_type_hidden').value = typeFilter;
+
+    options.forEach(option => {
+        if (option.value === '') {
+            option.style.display = '';
+        } else {
+            if (!typeFilter || option.dataset.type === typeFilter) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        }
+    });
+
+    // 如果当前选中的供应商被隐藏，则清空选择
+    if (currentValue) {
+        const currentOption = Array.from(options).find(o => o.value === currentValue);
+        if (currentOption && currentOption.style.display === 'none') {
+            supplierSelect.value = '';
+        }
+    }
+}
+
+// 页面加载时恢复类型筛选状态
+document.addEventListener('DOMContentLoaded', function() {
+    const savedType = document.getElementById('supplier_type_hidden').value;
+    if (savedType) {
+        document.getElementById('supplier_type_filter').value = savedType;
+        filterSuppliers();
+    }
+});
+
 function cancelPayment(eoId, eoNumber) {
     if(!confirm(`确定要取消 ${eoNumber} 的付款吗？\n\n取消后：\n- EO状态将恢复为"已确认"\n- 付款信息将被清除\n- 如使用了预付账款，余额将恢复`)) {
         return;
