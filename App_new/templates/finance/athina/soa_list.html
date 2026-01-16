@@ -130,7 +130,15 @@
                     </label>
                 </div>
             </div>
-            <div class="col-md-6 text-right">
+            <div class="col-md-1">
+                <select class="form-control form-control-sm" id="profitLossFilter" title="盈亏筛选">
+                    <option value="">全部盈亏</option>
+                    <option value="profit">盈利</option>
+                    <option value="loss">亏损</option>
+                    <option value="even">持平</option>
+                </select>
+            </div>
+            <div class="col-md-5 text-right">
                 <div class="btn-group btn-group-sm" role="group">
                     <button class="btn btn-warning" id="batchResetBalanceBtn" title="批量清零余额" style="display: none;">
                         <i class="fas fa-eraser"></i> 清零选中(<span id="selectedCount">0</span>)
@@ -226,6 +234,7 @@ class SOAManager {
         this.monthFilter = '';
         this.companyFilter = '';
         this.balanceFilter = false;
+        this.profitLossFilter = '';
         this.selectedItems = new Set();
         this.init();
     }
@@ -280,6 +289,7 @@ class SOAManager {
             this.monthFilter = document.getElementById('monthFilter').value;
             this.companyFilter = document.getElementById('companyFilter').value;
             this.balanceFilter = document.getElementById('balanceFilter').checked;
+            this.profitLossFilter = document.getElementById('profitLossFilter').value;
             this.currentPage = 1;
             this.loadData();
             });
@@ -294,6 +304,7 @@ class SOAManager {
                 this.monthFilter = document.getElementById('monthFilter').value;
                 this.companyFilter = document.getElementById('companyFilter').value;
                 this.balanceFilter = document.getElementById('balanceFilter').checked;
+                this.profitLossFilter = document.getElementById('profitLossFilter').value;
                 this.currentPage = 1;
                 this.loadData();
             }
@@ -331,6 +342,16 @@ class SOAManager {
             });
         }
 
+        // 盈亏过滤变化
+        const profitLossFilter = document.getElementById('profitLossFilter');
+        if (profitLossFilter) {
+            profitLossFilter.addEventListener('change', () => {
+            this.profitLossFilter = document.getElementById('profitLossFilter').value;
+            this.currentPage = 1;
+            this.loadData();
+            });
+        }
+
         // 刷新按钮
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
@@ -347,10 +368,12 @@ class SOAManager {
                 this.monthFilter = '';
                 this.companyFilter = '';
                 this.balanceFilter = false;
+                this.profitLossFilter = '';
                 document.getElementById('searchInput').value = '';
                 document.getElementById('monthFilter').value = '';
                 document.getElementById('companyFilter').value = '';
                 document.getElementById('balanceFilter').checked = false;
+                document.getElementById('profitLossFilter').value = '';
                 this.currentPage = 1;
                 this.loadData();
             });
@@ -399,12 +422,14 @@ class SOAManager {
         this.monthFilter = '';
         this.companyFilter = '';
         this.balanceFilter = false;
+        this.profitLossFilter = '';
         this.currentPage = 1;
-        
+
         // 重置UI控件
         document.getElementById('searchInput').value = '';
         document.getElementById('companyFilter').value = '';
         document.getElementById('balanceFilter').checked = false;
+        document.getElementById('profitLossFilter').value = '';
         
         // 设置月份为当前月份
         const monthFilter = document.getElementById('monthFilter');
@@ -428,7 +453,8 @@ class SOAManager {
                 search: this.searchTerm,
                 month: this.monthFilter,
                 company: this.companyFilter,
-                balance_positive: this.balanceFilter
+                balance_positive: this.balanceFilter,
+                profit_loss: this.profitLossFilter
             });
 
             const response = await fetch(`/statement/soa_data?${params}`);
@@ -580,6 +606,7 @@ class SOAManager {
                     month: this.monthFilter,
                     search: this.searchTerm,
                     balance_positive: this.balanceFilter,
+                    profit_loss: this.profitLossFilter,
                     format: 'excel'
                 });
 
@@ -629,7 +656,8 @@ class SOAManager {
                     company: this.companyFilter,
                     month: this.monthFilter,
                     search: this.searchTerm,
-                    balance_positive: this.balanceFilter
+                    balance_positive: this.balanceFilter,
+                    profit_loss: this.profitLossFilter
                 });
 
                 const response = await fetch(`/statement/soa_batch_download_pdf?${params}`);

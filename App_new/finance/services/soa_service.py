@@ -233,21 +233,21 @@ class SOAService:
         except Exception as e:
             return None, f"Error generating PDF: {str(e)}"
     
-    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, balance_positive=False):
+    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, balance_positive=False, profit_loss=None):
         """获取可生成SOA的头部列表"""
         try:
             query = AthinaBookingHeader.query
-            
+
             if search:
                 query = query.filter(
                     AthinaBookingHeader.booking_header_id.contains(search) |
                     AthinaBookingHeader.corporate_name.contains(search)
                 )
-            
+
             # 公司过滤
             if company:
                 query = query.filter(AthinaBookingHeader.corporate_name == company)
-            
+
             # 月份过滤
             if month:
                 # month格式: "2025-01" 或 "2025-1"
@@ -255,17 +255,17 @@ class SOAService:
                     year, month_num = month.split('-')
                     year = int(year)
                     month_num = int(month_num)
-                    
+
                     # 构建日期范围
                     from datetime import date
                     start_date = date(year, month_num, 1)
-                    
+
                     # 计算下个月的第一天
                     if month_num == 12:
                         end_date = date(year + 1, 1, 1)
                     else:
                         end_date = date(year, month_num + 1, 1)
-                    
+
                     # 过滤预订日期在指定月份内的记录
                     query = query.filter(
                         AthinaBookingHeader.book_date >= start_date,
@@ -274,10 +274,19 @@ class SOAService:
                 except (ValueError, TypeError):
                     # 如果月份格式不正确，忽略过滤
                     pass
-            
+
             # 余额过滤 - 只显示余额大于0的记录
             if balance_positive:
                 query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
+
+            # 盈亏过滤
+            if profit_loss:
+                if profit_loss == 'profit':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl > 0)
+                elif profit_loss == 'loss':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl < 0)
+                elif profit_loss == 'even':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl == 0)
             
             # 计算筛选后的余额统计（在所有记录上，不仅仅是当前页）
             # 使用相同的查询条件构建统计查询
@@ -313,7 +322,16 @@ class SOAService:
             
             if balance_positive:
                 stats_query = stats_query.filter(AthinaBookingHeader.sub_total_balance > 0)
-            
+
+            # 盈亏过滤 - 统计查询
+            if profit_loss:
+                if profit_loss == 'profit':
+                    stats_query = stats_query.filter(AthinaBookingHeader.sub_total_pl > 0)
+                elif profit_loss == 'loss':
+                    stats_query = stats_query.filter(AthinaBookingHeader.sub_total_pl < 0)
+                elif profit_loss == 'even':
+                    stats_query = stats_query.filter(AthinaBookingHeader.sub_total_pl == 0)
+
             # 计算总和和记录数
             total_count = stats_query.count()
             total_balance_result = stats_query.with_entities(func.sum(AthinaBookingHeader.sub_total_balance)).scalar()
@@ -387,51 +405,60 @@ class SOAService:
                 'message': f'Failed to get company list: {str(e)}'
             }
     
-    def batch_download_soa(self, company=None, month=None, search=None, balance_positive=None, format='excel'):
+    def batch_download_soa(self, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel'):
         """批量下载SOA - 生成Excel表格"""
         try:
             import pandas as pd
             import io
             from datetime import datetime
-            
+
             # 构建查询条件
             query = AthinaBookingHeader.query
-            
+
             if search:
                 query = query.filter(
                     AthinaBookingHeader.booking_header_id.contains(search) |
                     AthinaBookingHeader.corporate_name.contains(search)
                 )
-            
+
             if company:
                 query = query.filter(AthinaBookingHeader.corporate_name == company)
-            
+
             if month:
                 try:
                     year, month_num = month.split('-')
                     year = int(year)
                     month_num = int(month_num)
-                    
+
                     from datetime import date
                     start_date = date(year, month_num, 1)
-                    
+
                     if month_num == 12:
                         end_date = date(year + 1, 1, 1)
                     else:
                         end_date = date(year, month_num + 1, 1)
-                    
+
                     query = query.filter(
                         AthinaBookingHeader.book_date >= start_date,
                         AthinaBookingHeader.book_date < end_date
                     )
                 except (ValueError, TypeError):
                     pass
-            
+
             # 余额过滤 - 只显示余额大于0的记录（与get_soa_list逻辑一致）
             # 当 balance_positive=True 时，只显示余额>0的数据
             # 当 balance_positive=False 时，不进行余额过滤（显示所有数据）
             if balance_positive:
                 query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
+
+            # 盈亏过滤
+            if profit_loss:
+                if profit_loss == 'profit':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl > 0)
+                elif profit_loss == 'loss':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl < 0)
+                elif profit_loss == 'even':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl == 0)
             
             # 获取所有符合条件的头部
             headers = query.all()
@@ -574,47 +601,56 @@ class SOAService:
         except Exception as e:
             return None, f"Error generating Excel file: {str(e)}"
     
-    def batch_download_soa_pdf(self, company=None, month=None, search=None, balance_positive=None):
+    def batch_download_soa_pdf(self, company=None, month=None, search=None, balance_positive=None, profit_loss=None):
         """批量下载SOA - 生成PDF文件"""
         try:
             # 构建查询条件
             query = AthinaBookingHeader.query
-            
+
             if search:
                 query = query.filter(
                     AthinaBookingHeader.booking_header_id.contains(search) |
                     AthinaBookingHeader.corporate_name.contains(search)
                 )
-            
+
             if company:
                 query = query.filter(AthinaBookingHeader.corporate_name == company)
-            
+
             if month:
                 try:
                     year, month_num = month.split('-')
                     year = int(year)
                     month_num = int(month_num)
-                    
+
                     from datetime import date
                     start_date = date(year, month_num, 1)
-                    
+
                     if month_num == 12:
                         end_date = date(year + 1, 1, 1)
                     else:
                         end_date = date(year, month_num + 1, 1)
-                    
+
                     query = query.filter(
                         AthinaBookingHeader.book_date >= start_date,
                         AthinaBookingHeader.book_date < end_date
                     )
                 except (ValueError, TypeError):
                     pass
-            
+
             # 余额过滤 - 只显示余额大于0的记录（与get_soa_list逻辑一致）
             # 当 balance_positive=True 时，只显示余额>0的数据
             # 当 balance_positive=False 时，不进行余额过滤（显示所有数据）
             if balance_positive:
                 query = query.filter(AthinaBookingHeader.sub_total_balance > 0)
+
+            # 盈亏过滤
+            if profit_loss:
+                if profit_loss == 'profit':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl > 0)
+                elif profit_loss == 'loss':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl < 0)
+                elif profit_loss == 'even':
+                    query = query.filter(AthinaBookingHeader.sub_total_pl == 0)
             
             # 获取所有符合条件的头部
             headers = query.all()
