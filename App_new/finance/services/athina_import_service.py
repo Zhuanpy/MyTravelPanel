@@ -753,8 +753,8 @@ class AthinaImportService:
                 'sub_total_balance': float(header.sub_total_balance) if header.sub_total_balance else 0,
                 'consultant': header.consultant,
                 'sales_consultant': header.sales_consultant,
-                'invoice_no': header.invoice_no,
-                'invoice_date': header.invoice_date.isoformat() if header.invoice_date else None,
+                'is_all_invoiced': header.is_all_invoiced,
+                'is_count_performance': header.is_count_performance,
                 'created_at': header.created_at.isoformat() if header.created_at else None
             } for header in pagination.items],
             'total': pagination.total,
