@@ -520,6 +520,16 @@ def batch_pay():
         keyword = request.args.get('keyword', '')
         start_date = request.args.get('start_date', '')
         end_date = request.args.get('end_date', '')
+        sort = request.args.get('sort', 'date_desc')  # 合并的排序参数
+
+        # 解析排序参数
+        sort_map = {
+            'date_desc': ('created_at', 'desc'),
+            'date_asc': ('created_at', 'asc'),
+            'eo_desc': ('eo_number', 'desc'),
+            'eo_asc': ('eo_number', 'asc'),
+        }
+        sort_by, sort_order = sort_map.get(sort, ('created_at', 'desc'))
 
         # 分页参数
         page = request.args.get('page', 1, type=int)
@@ -586,10 +596,19 @@ def batch_pay():
                 query = query.filter(ProjectEO.created_at < end_dt)
             except ValueError:
                 pass
-        
+
         # 排序
-        query = query.order_by(desc(ProjectEO.created_at))
-        
+        from sqlalchemy import asc
+        if sort_by == 'eo_number':
+            sort_column = ProjectEO.eo_number
+        else:  # 默认按创建日期
+            sort_column = ProjectEO.created_at
+
+        if sort_order == 'asc':
+            query = query.order_by(asc(sort_column))
+        else:
+            query = query.order_by(desc(sort_column))
+
         # 使用分页获取结果
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         results = pagination.items
@@ -680,7 +699,8 @@ def batch_pay():
                                  'supplier': supplier_id,
                                  'keyword': keyword,
                                  'start_date': start_date,
-                                 'end_date': end_date
+                                 'end_date': end_date,
+                                 'sort': sort
                              })
     except Exception as e:
         import traceback
@@ -688,6 +708,182 @@ def batch_pay():
         traceback.print_exc()
         flash(f'页面加载失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.project_eo.eo_list'))
+
+
+@project_eo.route('/batch-pay/export')
+@login_required
+@staff_only
+def batch_pay_export():
+    """导出批量付款EO列表为Excel"""
+    try:
+        from sqlalchemy import and_, or_, desc, asc
+        from sqlalchemy.orm import aliased
+        from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
+        from App_new.shared.models.business_types import BusinessType
+        from io import BytesIO
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from flask import send_file
+
+        # 创建别名
+        SupplierCompany = aliased(CustomerCompany, name='supplier_company')
+
+        # 获取筛选参数（与batch_pay相同）
+        supplier_type = request.args.get('supplier_type', '')
+        supplier_id = request.args.get('supplier', None, type=int)
+        keyword = request.args.get('keyword', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        sort = request.args.get('sort', 'date_desc')
+
+        # 解析排序参数
+        sort_map = {
+            'date_desc': ('created_at', 'desc'),
+            'date_asc': ('created_at', 'asc'),
+            'eo_desc': ('eo_number', 'desc'),
+            'eo_asc': ('eo_number', 'asc'),
+        }
+        sort_by, sort_order = sort_map.get(sort, ('created_at', 'desc'))
+
+        # 构建查询
+        query = db.session.query(
+            ProjectEO,
+            SupplierCompany.company_name.label('supplier_name'),
+            BusinessType.name.label('ref_type_name'),
+            ProjectRef.ref_number.label('ref_number'),
+            ProjectHeader.hid.label('project_hid'),
+            ProjectRef.cost_price.label('cost_price'),
+            ProjectRef.currency.label('currency')
+        ).join(
+            ProjectRef, ProjectEO.ref_id == ProjectRef.id, isouter=True
+        ).join(
+            BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
+        ).join(
+            SupplierCompany, ProjectRef.supplier_id == SupplierCompany.id, isouter=True
+        ).join(
+            ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
+        ).filter(
+            ProjectEO.status == 'confirmed'
+        )
+
+        # 应用筛选条件
+        if supplier_type:
+            supplier_type_map = {
+                'visa': '签证', 'flight': '机票', 'hotel': '酒店',
+                'transport': '用车', 'local_operator': '地接', 'other': '其他'
+            }
+            type_name = supplier_type_map.get(supplier_type)
+            if type_name:
+                query = query.filter(BusinessType.name == type_name)
+
+        if supplier_id:
+            query = query.filter(ProjectRef.supplier_id == supplier_id)
+
+        if keyword:
+            keyword_filter = or_(
+                ProjectEO.eo_number.ilike(f'%{keyword}%'),
+                ProjectRef.ref_number.ilike(f'%{keyword}%'),
+                ProjectHeader.hid.ilike(f'%{keyword}%')
+            )
+            query = query.filter(keyword_filter)
+
+        if start_date:
+            from datetime import datetime
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(ProjectEO.created_at >= start_dt)
+            except ValueError:
+                pass
+
+        if end_date:
+            from datetime import datetime, timedelta
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                query = query.filter(ProjectEO.created_at < end_dt)
+            except ValueError:
+                pass
+
+        # 排序
+        if sort_by == 'eo_number':
+            sort_column = ProjectEO.eo_number
+        else:
+            sort_column = ProjectEO.created_at
+
+        if sort_order == 'asc':
+            query = query.order_by(asc(sort_column))
+        else:
+            query = query.order_by(desc(sort_column))
+
+        # 获取全部结果（不分页）
+        results = query.all()
+
+        # 创建Excel工作簿
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "待付款EO列表"
+
+        # 设置表头样式
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # 表头
+        headers = ['Date', 'EO No', 'Currency', 'Cost', 'HID', 'REF', 'Type', 'Supplier']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        # 数据行
+        for row_idx, (eo, supplier_name, ref_type_name, ref_number, project_hid, cost_price, currency) in enumerate(results, 2):
+            ws.cell(row=row_idx, column=1, value=eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '')
+            ws.cell(row=row_idx, column=2, value=eo.eo_number or '')
+            ws.cell(row=row_idx, column=3, value=currency or 'SGD')
+            ws.cell(row=row_idx, column=4, value=float(cost_price) if cost_price else 0)
+            ws.cell(row=row_idx, column=5, value=project_hid or '')
+            ws.cell(row=row_idx, column=6, value=ref_number or '')
+            ws.cell(row=row_idx, column=7, value=ref_type_name or '')
+            ws.cell(row=row_idx, column=8, value=supplier_name or '')
+
+            # 设置边框
+            for col in range(1, 9):
+                ws.cell(row=row_idx, column=col).border = thin_border
+
+        # 调整列宽
+        column_widths = [12, 15, 10, 12, 10, 12, 12, 25]
+        for col, width in enumerate(column_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
+
+        # 保存到内存
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        # 生成文件名
+        from datetime import datetime
+        filename = f"batch_pay_eo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        import traceback
+        print(f"导出Excel失败: {str(e)}")
+        traceback.print_exc()
+        flash(f'导出失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.project_eo.batch_pay'))
 
 
 @project_eo.route('/batch-pay/submit', methods=['POST'])

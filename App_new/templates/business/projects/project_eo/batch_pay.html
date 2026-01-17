@@ -77,8 +77,17 @@
                 <input type="text" class="form-control" name="keyword" placeholder="搜索..." value="{{ current_filters.keyword or '' }}" style="width: 120px;">
             </div>
             <div class="col-auto">
+                <select class="form-select" name="sort" onchange="this.form.submit()" title="排序方式">
+                    <option value="date_desc" {% if not current_filters.sort or current_filters.sort == 'date_desc' %}selected{% endif %}>日期降序（最新在前）</option>
+                    <option value="date_asc" {% if current_filters.sort == 'date_asc' %}selected{% endif %}>日期升序（最早在前）</option>
+                    <option value="eo_desc" {% if current_filters.sort == 'eo_desc' %}selected{% endif %}>EO号降序（大号在前）</option>
+                    <option value="eo_asc" {% if current_filters.sort == 'eo_asc' %}selected{% endif %}>EO号升序（小号在前）</option>
+                </select>
+            </div>
+            <div class="col-auto">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
                 <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-secondary"><i class="fas fa-undo"></i></a>
+                <a href="{{ url_for('business_projects.project_eo.batch_pay_export', supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, sort=current_filters.sort) }}" class="btn btn-success" title="下载Excel"><i class="fas fa-file-excel"></i></a>
             </div>
         </form>
     </div>
@@ -152,7 +161,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.prev_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.prev_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, sort=current_filters.sort) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -165,7 +174,7 @@
                         <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                         {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=p, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">{{ p }}</a>
+                            <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=p, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, sort=current_filters.sort) }}">{{ p }}</a>
                         </li>
                         {% elif p == 2 or p == pagination.pages - 1 %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -174,7 +183,7 @@
 
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.next_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.project_eo.batch_pay', page=pagination.next_num, supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, sort=current_filters.sort) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
