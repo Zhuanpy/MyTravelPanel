@@ -9,11 +9,14 @@
     <button type="button" class="btn btn-info btn-sm" onclick="showEmailModal()">
         <i class="fas fa-envelope"></i> 发送邮件
     </button>
-    <a href="{{ url_for('business_projects.project_create.create_header') }}" 
+    <button type="button" class="btn btn-warning btn-sm" onclick="copyProject({{ header.id }}, '{{ header.hid }}')">
+        <i class="fas fa-copy"></i> 复制项目
+    </button>
+    <a href="{{ url_for('business_projects.project_create.create_header') }}"
        class="btn btn-primary btn-sm">
         <i class="fas fa-plus"></i> 新建HID
     </a>
-    <a href="{{ url_for('business_projects.list.list_projects') }}" 
+    <a href="{{ url_for('business_projects.list.list_projects') }}"
        class="btn btn-secondary btn-sm">
         <i class="fas fa-arrow-left"></i> 返回列表
     </a>
@@ -2009,6 +2012,45 @@ document.getElementById('emailModal')?.addEventListener('click', function(e) {
         closeEmailModal();
     }
 });
+
+// 复制项目功能
+function copyProject(projectId, hid) {
+    if (!confirm(`确定要复制项目 ${hid} 吗？\n\n将复制：\n- 项目基本信息\n- 所有REF记录\n- 项目人员信息\n\n不会复制：EO、收款、发票等记录`)) {
+        return;
+    }
+
+    // 显示加载状态
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
+
+    fetch(`/projects/detail/${projectId}/copy`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (confirm(data.message + '\n\n是否跳转到新项目？')) {
+                window.location.href = `/projects/detail/${data.new_project_id}`;
+            }
+        } else {
+            alert('复制失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('复制项目失败:', error);
+        alert('复制项目时发生错误');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
 </script>
 
 {% endblock %} 

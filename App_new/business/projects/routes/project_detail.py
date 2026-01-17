@@ -712,7 +712,7 @@ def edit_email_template(template_id):
 def delete_email_template(template_id):
     """删除邮件模板"""
     from App_new.business.projects.models.project import EmailTemplate
-    
+
     template = EmailTemplate.query.get_or_404(template_id)
     try:
         db.session.delete(template)
@@ -721,5 +721,106 @@ def delete_email_template(template_id):
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
-    
+
     return redirect(url_for('business_projects.detail.email_templates_list'))
+
+
+# ==================== 复制项目功能 ====================
+
+@bp.route('/<int:project_id>/copy', methods=['POST'])
+@login_required
+@staff_only
+def copy_project(project_id):
+    """复制项目 - 复制项目主表、REF记录和人员信息"""
+    try:
+        from App_new.business.projects.models.project import ProjectHeader
+        from App_new.business.projects.models.project_member import ProjectMember
+
+        # 获取原项目
+        original = ProjectHeader.query.get_or_404(project_id)
+
+        # 生成新的HID
+        new_hid = ProjectHeader.generate_hid()
+
+        # 复制项目主表
+        new_header = ProjectHeader(
+            hid=new_hid,
+            desc=original.desc,
+            company_id=original.company_id,
+            limit=original.limit,
+            contact=original.contact,
+            dept=original.dept,
+            staff_id=original.staff_id,
+            staff_name=original.staff_name,
+            currency=original.currency,
+            leader_name=original.leader_name,
+            type=original.type,
+            status='draft',  # 新项目默认为草稿状态
+            remarks=f'复制自 {original.hid}',
+            # 利润分配相关
+            order_type=original.order_type,
+            operator_ids=original.operator_ids,
+            operator_names=original.operator_names,
+            salesperson_ids=original.salesperson_ids,
+            salesperson_names=original.salesperson_names,
+        )
+        db.session.add(new_header)
+        db.session.flush()  # 获取新项目ID
+
+        # 复制REF记录
+        ref_count = 0
+        for ref in original.refs:
+            new_ref = ProjectRef(
+                header_id=new_header.id,
+                ref_number=ProjectRef.generate_ref_number(),
+                description=ref.description,
+                detailed_description=ref.detailed_description,
+                ref_type_id=ref.ref_type_id,
+                supplier_id=ref.supplier_id,
+                selling_price=ref.selling_price,
+                cost_price=ref.cost_price,
+                currency=ref.currency,
+                remarks=ref.remarks,
+                extra_info=ref.extra_info,
+                status='confirmed',
+                payment_status='unpaid',
+            )
+            db.session.add(new_ref)
+            ref_count += 1
+
+        # 复制项目人员
+        member_count = 0
+        for member in original.members:
+            new_member = ProjectMember(
+                header_id=new_header.id,
+                title=member.title,
+                member_name=member.member_name,
+                member_name_en=member.member_name_en,
+                member_role=member.member_role,
+                member_phone=member.member_phone,
+                member_email=member.member_email,
+                id_type=member.id_type,
+                id_number=member.id_number,
+                is_leader=member.is_leader,
+                remarks=member.remarks,
+            )
+            db.session.add(new_member)
+            member_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'项目复制成功！新项目编号: {new_hid}，包含 {ref_count} 个REF，{member_count} 个人员',
+            'new_project_id': new_header.id,
+            'new_hid': new_hid
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'复制失败：{str(e)}'
+        }), 500
