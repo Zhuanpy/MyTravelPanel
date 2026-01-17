@@ -241,7 +241,7 @@
             #projectsTable th:nth-child(12),
             #projectsTable td:nth-child(12) { width: 80px; } /* 创建时间 */
             #projectsTable th:nth-child(13),
-            #projectsTable td:nth-child(13) { width: 45px; }  /* 操作 */
+            #projectsTable td:nth-child(13) { width: 70px; }  /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -434,17 +434,23 @@
                                 </small>
                             </td>
                             <td class="text-center">
-                                {% set stats = project_stats.get(project.id, {}) %}
-                                {% if not stats.has_eo and not stats.has_receipt %}
-                                <button type="button" class="btn btn-sm btn-outline-danger delete-project" 
-                                        data-project-id="{{ project.id }}"
-                                        data-project-hid="{{ project.hid }}"
-                                        title="删除">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-warning copy-project"
+                                            data-project-id="{{ project.id }}"
+                                            data-project-hid="{{ project.hid }}"
+                                            title="复制项目">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    {% set stats = project_stats.get(project.id, {}) %}
+                                    {% if not stats.has_eo and not stats.has_receipt %}
+                                    <button type="button" class="btn btn-outline-danger delete-project"
+                                            data-project-id="{{ project.id }}"
+                                            data-project-hid="{{ project.hid }}"
+                                            title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -659,6 +665,48 @@ window.deleteProject = function(projectId) {
     });
 };
 
+// 复制项目
+window.copyProject = function(projectId, projectHid, btn) {
+    if (!confirm(`确定要复制项目 ${projectHid} 吗？\n\n将复制：项目信息、REF记录、人员信息\n不复制：EO、收款、发票等`)) {
+        return;
+    }
+
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    // 显示加载状态
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    fetch(`/projects/detail/${projectId}/copy`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (confirm(data.message + '\n\n是否跳转到新项目？')) {
+                window.location.href = `/projects/detail/${data.new_project_id}`;
+            } else {
+                window.location.reload();
+            }
+        } else {
+            alert('复制失败：' + data.message);
+        }
+    })
+    .catch(err => {
+        alert('复制失败：' + err);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
+};
+
 // 结算项目
 window.settleProject = function(projectId, projectHid) {
     const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
@@ -707,6 +755,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         console.log(`删除按钮 ${index + 1} 事件绑定完成`);
+    });
+
+    // 绑定复制按钮事件
+    const copyButtons = document.querySelectorAll('.copy-project');
+    copyButtons.forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            const projectId = this.dataset.projectId;
+            const projectHid = this.dataset.projectHid;
+            window.copyProject(projectId, projectHid, this);
+        });
     });
 
     // 绑定结算按钮事件
