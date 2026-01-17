@@ -10,7 +10,7 @@ import io
 import json
 import traceback
 from decimal import Decimal, InvalidOperation
-from datetime import datetime
+from datetime import datetime, timedelta
 from App_new.exts import db
 from App_new.finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
@@ -22,6 +22,7 @@ from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.supplier_payment import SupplierPayment
 from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
 from App_new.shared.models.business_types import BusinessType
+from App_new.business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment
 
 
 class AthinaToProjectService:
@@ -1100,6 +1101,10 @@ class AthinaToProjectService:
                     'data': ref_data,
                 })
 
+                # 如果是机票类型，创建乘客和航段记录
+                if ref_data['book_type'] and ref_data['book_type'].lower() in ['airline', 'air']:
+                    self._create_flight_records_from_csv(project_ref, ref_data)
+
                 # 收集发票数据
                 if ref_data['invoice_no']:
                     invoice_data_list.append({
@@ -1213,6 +1218,109 @@ class AthinaToProjectService:
         except Exception as e:
             self.warnings.append(f'创建项目人员失败: {str(e)}')
             return 0
+
+    def _create_flight_records_from_csv(self, project_ref, ref_data):
+        """从 CSV 数据为机票类型 REF 创建乘客和航段记录
+
+        Args:
+            project_ref: ProjectRef 实例
+            ref_data: REF 数据字典，包含 client_name, gross, local_cost, itin_desc, dep_date 等
+
+        解析规则：
+        - client_name: 乘客姓名
+        - gross: 售价
+        - local_cost: 成本
+        - itin_desc: 航段描述，格式如 "SIN/PER/SIN"，解析为多个航段
+        - dep_date: 出发日期，用于航段的起飞时间
+        """
+        import re
+
+        try:
+            # 检查是否已存在乘客记录（避免重复创建）
+            existing_passenger = ProjectFlightPassenger.query.filter_by(ref_id=project_ref.id).first()
+            if existing_passenger:
+                # 已存在记录，更新信息
+                existing_passenger.selling_price = ref_data.get('gross') or existing_passenger.selling_price
+                existing_passenger.cost_price = ref_data.get('local_cost') or existing_passenger.cost_price
+                self.stats['flight_passengers_updated'] = self.stats.get('flight_passengers_updated', 0) + 1
+            else:
+                # 创建乘客记录
+                client_name = ref_data.get('client_name', '').strip()
+                if client_name:
+                    # 解析乘客类型（从称谓判断）
+                    passenger_type = 'adult'
+                    if 'MASTER' in client_name.upper() or 'MSTR' in client_name.upper():
+                        passenger_type = 'child'
+                    elif 'INFANT' in client_name.upper() or 'INF' in client_name.upper():
+                        passenger_type = 'infant'
+
+                    # 去掉称谓获取纯姓名
+                    name_clean = client_name
+                    title_pattern = r'\b(MR|MS|MISS|MASTER|MRS|MSTR|DR|PROF|INF|INFANT)\b'
+                    name_clean = re.sub(title_pattern, '', client_name, flags=re.IGNORECASE).strip()
+                    name_clean = re.sub(r'\s+', ' ', name_clean).strip()
+
+                    passenger = ProjectFlightPassenger(
+                        ref_id=project_ref.id,
+                        name=name_clean or client_name,
+                        passenger_type=passenger_type,
+                        selling_price=ref_data.get('gross') or Decimal('0'),
+                        cost_price=ref_data.get('local_cost') or Decimal('0'),
+                    )
+                    db.session.add(passenger)
+                    self.stats['flight_passengers_created'] = self.stats.get('flight_passengers_created', 0) + 1
+
+            # 解析航段信息 (如 "SIN/PER/SIN" -> ["SIN", "PER", "SIN"])
+            itin_desc = ref_data.get('itin_desc', '').strip()
+            if itin_desc and '/' in itin_desc:
+                # 检查是否已存在航段记录
+                existing_segments = ProjectFlightSegment.query.filter_by(ref_id=project_ref.id).count()
+                if existing_segments > 0:
+                    # 已存在航段记录，跳过创建
+                    pass
+                else:
+                    # 解析机场代码
+                    airports = [a.strip().upper() for a in itin_desc.split('/') if a.strip()]
+
+                    if len(airports) >= 2:
+                        # 获取出发日期，用于航段时间（默认用当前日期）
+                        dep_date = ref_data.get('dep_date') or datetime.utcnow()
+                        if isinstance(dep_date, str):
+                            try:
+                                dep_date = datetime.strptime(dep_date, '%Y-%m-%d')
+                            except:
+                                dep_date = datetime.utcnow()
+
+                        # 创建航段（每两个相邻机场构成一个航段）
+                        for i in range(len(airports) - 1):
+                            departure_airport = airports[i][:3]  # 确保只取3位机场代码
+                            arrival_airport = airports[i + 1][:3]
+
+                            # 计算航段时间（简单估算：每个航段间隔1天）
+                            segment_dep_time = dep_date.replace(hour=8, minute=0, second=0, microsecond=0)
+                            segment_arr_time = dep_date.replace(hour=12, minute=0, second=0, microsecond=0)
+
+                            # 如果不是第一个航段，日期往后推
+                            if i > 0:
+                                segment_dep_time = segment_dep_time + timedelta(days=i)
+                                segment_arr_time = segment_arr_time + timedelta(days=i)
+
+                            segment = ProjectFlightSegment(
+                                ref_id=project_ref.id,
+                                flight_number='TBA',  # 待确认
+                                departure_airport=departure_airport,
+                                arrival_airport=arrival_airport,
+                                departure_time=segment_dep_time,
+                                arrival_time=segment_arr_time,
+                                cabin_class='Economy',  # 默认经济舱
+                                cabin_code='Y',  # 默认Y舱
+                                status='confirmed',
+                            )
+                            db.session.add(segment)
+                            self.stats['flight_segments_created'] = self.stats.get('flight_segments_created', 0) + 1
+
+        except Exception as e:
+            self.warnings.append(f'创建机票记录失败 (REF {project_ref.ref_number}): {str(e)}')
 
     def _create_eo_from_csv(self, project_ref, ref_data):
         """从 CSV 数据为 REF 创建 EO"""
