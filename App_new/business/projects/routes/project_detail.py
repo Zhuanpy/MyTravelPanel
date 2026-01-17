@@ -12,7 +12,7 @@ from App_new.utils.decorators import staff_only
 from App_new.utils.permissions import can_access_project
 
 from App_new.business.projects.models.ref import ProjectRef
-from App_new.exts import db
+from App_new.exts import db, csrf
 from datetime import datetime
 import traceback
 
@@ -730,6 +730,7 @@ def delete_email_template(template_id):
 @bp.route('/<int:project_id>/copy', methods=['POST'])
 @login_required
 @staff_only
+@csrf.exempt
 def copy_project(project_id):
     """复制项目 - 复制项目主表、REF记录和人员信息"""
     try:
