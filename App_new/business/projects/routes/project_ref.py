@@ -2746,12 +2746,12 @@ def ref_list():
         query = db.session.query(
             ProjectRef,
             BusinessType.name.label('business_type_name'),
-            Supplier.name.label('supplier_name'),
+            CustomerCompany.company_name.label('supplier_name'),
             ProjectHeader.desc.label('project_name')
         ).join(
             BusinessType, ProjectRef.ref_type_id == BusinessType.id, isouter=True
         ).join(
-            Supplier, ProjectRef.supplier_id == Supplier.supplier_id, isouter=True
+            CustomerCompany, ProjectRef.supplier_id == CustomerCompany.id, isouter=True
         ).join(
             ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
         )
