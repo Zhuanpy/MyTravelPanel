@@ -86,7 +86,7 @@
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
-                <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-secondary"><i class="fas fa-undo"></i></a>
+                <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-secondary" onclick="clearSavedSelections()"><i class="fas fa-undo"></i></a>
                 <a href="{{ url_for('business_projects.project_eo.batch_pay_export', supplier_type=current_filters.supplier_type, supplier=current_filters.supplier, keyword=current_filters.keyword, start_date=current_filters.start_date, end_date=current_filters.end_date, sort=current_filters.sort) }}" class="btn btn-success" title="下载Excel"><i class="fas fa-file-excel"></i></a>
             </div>
         </form>
