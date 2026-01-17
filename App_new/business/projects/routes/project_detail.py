@@ -732,10 +732,11 @@ def delete_email_template(template_id):
 @staff_only
 @csrf.exempt
 def copy_project(project_id):
-    """复制项目 - 复制项目主表、REF记录和人员信息"""
+    """复制项目 - 复制项目主表、REF记录、人员信息、机票航段和乘客"""
     try:
         from App_new.business.projects.models.project import ProjectHeader
         from App_new.business.projects.models.project_member import ProjectMember
+        from App_new.business.flight.models.flight import ProjectFlightSegment, ProjectFlightPassenger
 
         # 获取原项目
         original = ProjectHeader.query.get_or_404(project_id)
@@ -768,8 +769,11 @@ def copy_project(project_id):
         db.session.add(new_header)
         db.session.flush()  # 获取新项目ID
 
-        # 复制REF记录
+        # 复制REF记录及关联的机票数据
         ref_count = 0
+        segment_count = 0
+        passenger_count = 0
+
         for ref in original.refs:
             new_ref = ProjectRef(
                 header_id=new_header.id,
@@ -787,7 +791,40 @@ def copy_project(project_id):
                 payment_status='unpaid',
             )
             db.session.add(new_ref)
+            db.session.flush()  # 获取新REF ID
             ref_count += 1
+
+            # 复制机票航段
+            segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).all()
+            for seg in segments:
+                new_segment = ProjectFlightSegment(
+                    ref_id=new_ref.id,
+                    flight_number=seg.flight_number,
+                    departure_airport=seg.departure_airport,
+                    arrival_airport=seg.arrival_airport,
+                    departure_time=seg.departure_time,
+                    arrival_time=seg.arrival_time,
+                    cabin_class=seg.cabin_class,
+                    cabin_code=seg.cabin_code,
+                    status=seg.status,
+                )
+                db.session.add(new_segment)
+                segment_count += 1
+
+            # 复制机票乘客
+            passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+            for pax in passengers:
+                new_passenger = ProjectFlightPassenger(
+                    ref_id=new_ref.id,
+                    name=pax.name,
+                    passenger_type=pax.passenger_type,
+                    selling_price=pax.selling_price,
+                    cost_price=pax.cost_price,
+                    ticket_number=None,  # 不复制票号
+                    pnr=None,  # 不复制PNR
+                )
+                db.session.add(new_passenger)
+                passenger_count += 1
 
         # 复制项目人员
         member_count = 0
@@ -810,9 +847,13 @@ def copy_project(project_id):
 
         db.session.commit()
 
+        msg = f'项目复制成功！新项目编号: {new_hid}，包含 {ref_count} 个REF，{member_count} 个人员'
+        if segment_count > 0:
+            msg += f'，{segment_count} 个航段，{passenger_count} 个乘客'
+
         return jsonify({
             'success': True,
-            'message': f'项目复制成功！新项目编号: {new_hid}，包含 {ref_count} 个REF，{member_count} 个人员',
+            'message': msg,
             'new_project_id': new_header.id,
             'new_hid': new_hid
         })
