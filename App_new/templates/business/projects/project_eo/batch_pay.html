@@ -97,8 +97,9 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="fas fa-list"></i> 待付款EO <span class="badge bg-info">{{ eos|length }}</span></span>
             <div>
-                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="selectAll()" style="font-size:0.7rem;">全选</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="deselectAll()" style="font-size:0.7rem;">取消</button>
+                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="selectAll()" style="font-size:0.7rem;">全选本页</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="deselectAll()" style="font-size:0.7rem;">取消本页</button>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearAllSelections()" style="font-size:0.7rem;">清空全部</button>
             </div>
         </div>
         <div class="card-body p-0">
@@ -272,7 +273,28 @@
 </div>
 
 <script>
-let selectedEOs = [];
+// 使用sessionStorage保存跨页选择的EO
+const STORAGE_KEY = 'batch_pay_selected_eos';
+
+// 获取已保存的选择
+function getSavedSelections() {
+    try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+// 保存选择到sessionStorage
+function saveSelections(selections) {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(selections));
+}
+
+// 清空保存的选择
+function clearSavedSelections() {
+    sessionStorage.removeItem(STORAGE_KEY);
+}
 
 // 供应商类型筛选函数（前端过滤，不刷新页面）
 function filterSuppliers() {
@@ -283,7 +305,6 @@ function filterSuppliers() {
 
     options.forEach(option => {
         if (option.value === '') {
-            // 保留"Supplier"占位选项
             option.style.display = '';
         } else {
             if (!typeFilter || option.dataset.type === typeFilter) {
@@ -294,7 +315,6 @@ function filterSuppliers() {
         }
     });
 
-    // 如果当前选中的供应商被隐藏，则清空选择
     if (currentValue) {
         const currentOption = Array.from(options).find(o => o.value === currentValue);
         if (currentOption && currentOption.style.display === 'none') {
@@ -323,9 +343,12 @@ function generatePaymentNo() {
     });
 }
 
-// 页面加载时自动生成付款编号，并加载预付账款信息（如果已筛选供应商）
+// 页面加载时恢复选择状态
 document.addEventListener('DOMContentLoaded', function() {
     generatePaymentNo();
+
+    // 恢复之前保存的选择状态
+    restoreSelections();
 
     // 如果已筛选供应商，自动加载预付账款余额信息
     {% if current_filters.supplier %}
@@ -334,18 +357,48 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 
+// 恢复保存的选择状态
+function restoreSelections() {
+    const saved = getSavedSelections();
+    const checkboxes = document.querySelectorAll('.eo-checkbox');
+
+    checkboxes.forEach(cb => {
+        const eoId = cb.value;
+        if (saved[eoId]) {
+            cb.checked = true;
+            cb.closest('tr').classList.add('selected-row');
+        }
+    });
+
+    // 更新汇总显示
+    updateSelectionDisplay();
+}
+
 function toggleAll(checkbox) {
     const checkboxes = document.querySelectorAll('.eo-checkbox');
+    const saved = getSavedSelections();
+
     checkboxes.forEach(cb => {
         cb.checked = checkbox.checked;
         const row = cb.closest('tr');
+        const eoId = cb.value;
+
         if (checkbox.checked) {
             row.classList.add('selected-row');
+            // 保存选择信息
+            saved[eoId] = {
+                amount: parseFloat(row.dataset.amount) || 0,
+                currency: row.dataset.currency || 'SGD',
+                supplierId: row.dataset.supplierId || ''
+            };
         } else {
             row.classList.remove('selected-row');
+            delete saved[eoId];
         }
     });
-    updateSelection();
+
+    saveSelections(saved);
+    updateSelectionDisplay();
 }
 
 function selectAll() {
@@ -358,45 +411,80 @@ function deselectAll() {
     toggleAll(document.getElementById('checkAll'));
 }
 
+// 清空所有选择（包括其他页面的）
+function clearAllSelections() {
+    if (confirm('确定清空所有已选择的EO吗？（包括其他页面的选择）')) {
+        clearSavedSelections();
+        document.querySelectorAll('.eo-checkbox').forEach(cb => {
+            cb.checked = false;
+            cb.closest('tr').classList.remove('selected-row');
+        });
+        document.getElementById('checkAll').checked = false;
+        updateSelectionDisplay();
+    }
+}
+
 let currentSupplierId = null;
 
+// 当单个checkbox变化时更新选择
 function updateSelection() {
-    selectedEOs = [];
+    const saved = getSavedSelections();
+
+    // 更新当前页面的选择到saved
+    document.querySelectorAll('.eo-checkbox').forEach(cb => {
+        const row = cb.closest('tr');
+        const eoId = cb.value;
+
+        if (cb.checked) {
+            row.classList.add('selected-row');
+            saved[eoId] = {
+                amount: parseFloat(row.dataset.amount) || 0,
+                currency: row.dataset.currency || 'SGD',
+                supplierId: row.dataset.supplierId || ''
+            };
+        } else {
+            row.classList.remove('selected-row');
+            delete saved[eoId];
+        }
+    });
+
+    saveSelections(saved);
+    updateSelectionDisplay();
+}
+
+// 更新汇总显示（基于所有已保存的选择）
+function updateSelectionDisplay() {
+    const saved = getSavedSelections();
+    const selectedEOIds = Object.keys(saved);
     let totalAmount = 0;
     let currency = 'SGD';
     let supplierIds = new Set();
 
-    const checkboxes = document.querySelectorAll('.eo-checkbox:checked');
-    checkboxes.forEach(cb => {
-        const row = cb.closest('tr');
-        row.classList.add('selected-row');
-        const eoId = parseInt(cb.value);
-        const amount = parseFloat(row.dataset.amount) || 0;
-        currency = row.dataset.currency || 'SGD';
-        const supplierId = row.dataset.supplierId;
-
-        selectedEOs.push(eoId);
-        totalAmount += amount;
-        if (supplierId) supplierIds.add(supplierId);
-    });
-
-    // 更新未选中的行
-    document.querySelectorAll('.eo-checkbox:not(:checked)').forEach(cb => {
-        cb.closest('tr').classList.remove('selected-row');
+    selectedEOIds.forEach(eoId => {
+        const info = saved[eoId];
+        totalAmount += info.amount || 0;
+        if (info.currency) currency = info.currency;
+        if (info.supplierId) supplierIds.add(info.supplierId);
     });
 
     // 更新汇总
-    document.getElementById('selectedCount').textContent = selectedEOs.length;
+    document.getElementById('selectedCount').textContent = selectedEOIds.length;
     document.getElementById('totalAmount').textContent = currency + ' ' + totalAmount.toFixed(2);
     document.getElementById('pay_amount').value = totalAmount.toFixed(2);
 
     // 更新提交按钮状态
-    document.getElementById('submitBtn').disabled = selectedEOs.length === 0;
+    document.getElementById('submitBtn').disabled = selectedEOIds.length === 0;
 
-    // 检查是否是同一供应商，更新预付账款信息
+    // 检查是否是同一供应商
     if (supplierIds.size === 1) {
         currentSupplierId = Array.from(supplierIds)[0];
         loadPrepaymentBalance(currentSupplierId);
+    } else if (supplierIds.size > 1) {
+        currentSupplierId = null;
+        const textSpan = document.getElementById('prepaymentBalanceText');
+        textSpan.innerHTML = '<span class="text-warning">已选择多个供应商的EO，请确认</span>';
+        document.getElementById('prepaymentBalanceInfo').classList.remove('alert-info');
+        document.getElementById('prepaymentBalanceInfo').classList.add('alert-warning');
     } else {
         currentSupplierId = null;
         resetPrepaymentInfo();
@@ -458,7 +546,10 @@ function resetPrepaymentInfo() {
 }
 
 function submitBatchPayment() {
-    if (selectedEOs.length === 0) {
+    const saved = getSavedSelections();
+    const selectedEOIds = Object.keys(saved).map(id => parseInt(id));
+
+    if (selectedEOIds.length === 0) {
         alert('请选择要付款的EO');
         return;
     }
@@ -491,7 +582,7 @@ function submitBatchPayment() {
         }
     }
 
-    let confirmMsg = `确认为 ${selectedEOs.length} 个EO付款，总金额 SGD ${parseFloat(pay_amount).toFixed(2)}？`;
+    let confirmMsg = `确认为 ${selectedEOIds.length} 个EO付款，总金额 SGD ${parseFloat(pay_amount).toFixed(2)}？`;
     if (payment_source === 'prepayment') {
         confirmMsg += `\n\n将从 ${currentSupplierName} 的预付账款中按时间顺序自动抵消。`;
     }
@@ -501,7 +592,7 @@ function submitBatchPayment() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                eo_ids: selectedEOs,
+                eo_ids: selectedEOIds,
                 payment_no: payment_no,
                 payment_voucher_no: payment_voucher_no,
                 paid_date: paid_date,
@@ -514,6 +605,8 @@ function submitBatchPayment() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // 付款成功，清空保存的选择
+                clearSavedSelections();
                 alert(data.message);
                 location.reload();
             } else {
