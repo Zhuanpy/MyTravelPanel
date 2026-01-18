@@ -30,13 +30,13 @@ def get_ref_total_received(ref, ProjectRef, ProjectInvoice, ProjectReceipt, Rece
         total_received += Decimal(str(receipt.amount or 0))
 
     # 2. 通过发票分配关联的收款
-    # 获取项目下所有 REF
-    all_refs = ProjectRef.query.filter_by(project_id=ref.project_id).all()
+    # 获取项目下所有 REF (使用 header_id)
+    all_refs = ProjectRef.query.filter_by(header_id=ref.header_id).all()
     is_single_ref = len(all_refs) == 1
 
-    # 获取关联此 REF 的发票
+    # 获取关联此 REF 的发票 (使用 header_id 作为 project_id)
     invoices = ProjectInvoice.query.filter_by(
-        project_id=ref.project_id,
+        project_id=ref.header_id,
         status='confirmed'
     ).all()
 
@@ -120,13 +120,13 @@ def fix_ref_payment_status(dry_run=True):
                 ref, ProjectRef, ProjectInvoice, ProjectReceipt, ReceiptInvoiceAllocation
             )
 
-            # 计算新状态
+            # 计算新状态 (使用正确的枚举值: unpaid, partial, paid, refunded)
             if selling_price <= 0:
                 new_status = 'paid'  # 无需付款
             elif total_received >= selling_price - 0.01:  # 允许 0.01 误差
                 new_status = 'paid'
             elif total_received > 0:
-                new_status = 'partial_paid'
+                new_status = 'partial'  # 注意：是 partial 不是 partial_paid
             else:
                 new_status = 'unpaid'
 
@@ -136,8 +136,8 @@ def fix_ref_payment_status(dry_run=True):
             if old_status != new_status:
                 changes.append({
                     'ref_id': ref.id,
-                    'ref_no': ref.ref_no,
-                    'project_id': ref.project_id,
+                    'ref_number': ref.ref_number,  # 使用 ref_number
+                    'header_id': ref.header_id,    # 使用 header_id
                     'selling_price': selling_price,
                     'total_received': total_received,
                     'old_status': old_status,
@@ -152,23 +152,23 @@ def fix_ref_payment_status(dry_run=True):
 
         except Exception as e:
             error_count += 1
-            print(f"错误: REF {ref.id} ({ref.ref_no}) - {str(e)}")
+            print(f"错误: REF {ref.id} ({ref.ref_number}) - {str(e)}")
 
     # 打印变更详情
     if changes:
         print(f"\n需要更新的 REF ({len(changes)} 个):")
-        print("-" * 80)
-        print(f"{'REF ID':<8} {'REF NO':<15} {'Project':<10} {'Selling':<12} {'Received':<12} {'Old':<15} {'New':<15}")
-        print("-" * 80)
+        print("-" * 100)
+        print(f"{'REF ID':<8} {'REF Number':<15} {'Header':<10} {'Selling':<12} {'Received':<12} {'Old':<15} {'New':<15}")
+        print("-" * 100)
 
         for c in changes:
-            print(f"{c['ref_id']:<8} {c['ref_no']:<15} {c['project_id']:<10} {c['selling_price']:<12.2f} {c['total_received']:<12.2f} {c['old_status']:<15} {c['new_status']:<15}")
+            print(f"{c['ref_id']:<8} {c['ref_number']:<15} {c['header_id']:<10} {c['selling_price']:<12.2f} {c['total_received']:<12.2f} {c['old_status']:<15} {c['new_status']:<15}")
 
     if not dry_run and updated_count > 0:
         db.session.commit()
         print(f"\n已提交 {updated_count} 个 REF 的状态更新")
 
-    print("-" * 80)
+    print("-" * 100)
     print(f"总计: 检查 {len(refs)} 个, 需更新 {updated_count} 个, 错误 {error_count} 个")
 
     return updated_count, error_count
