@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from decimal import Decimal
 from App_new import create_app
-from App_new.models import db
+from App_new.exts import db
 from App_new.business.projects.models.header import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
