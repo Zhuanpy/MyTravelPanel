@@ -1046,18 +1046,31 @@ def receipt_by_company():
             else:
                 # 如果有手动分配金额，使用手动分配
                 if allocation_amounts and len(allocation_amounts) == len(selected_invoice_ids):
-                    # 手动分配模式
+                    # 手动分配模式 - 添加验证
                     allocations = {}
+                    validation_error = None
                     for inv_id, alloc_amount in zip(selected_invoice_ids, allocation_amounts):
                         if alloc_amount > 0:
+                            # 验证分配金额不超过发票未付金额
+                            invoice = ProjectInvoice.query.get(inv_id)
+                            if invoice:
+                                unpaid = float(invoice.unpaid_amount or 0)
+                                if alloc_amount > unpaid + 0.01:
+                                    validation_error = f'发票 {invoice.invoice_number} 分配金额({alloc_amount:.2f})超过未付金额({unpaid:.2f})'
+                                    break
                             allocations[inv_id] = alloc_amount
-                    distribution_result = {
-                        'success': True,
-                        'allocations': allocations,
-                        'total_allocated': sum(allocations.values())
-                    }
-                    # 更新实际收款金额
-                    amount = distribution_result['total_allocated']
+
+                    if validation_error:
+                        flash(validation_error, 'error')
+                        distribution_result = {'success': False}
+                    else:
+                        distribution_result = {
+                            'success': True,
+                            'allocations': allocations,
+                            'total_allocated': sum(allocations.values())
+                        }
+                        # 更新实际收款金额
+                        amount = distribution_result['total_allocated']
                 else:
                     # 自动分配模式
                     distribution_result = ProjectReceipt.distribute_to_invoices(

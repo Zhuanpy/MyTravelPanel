@@ -704,22 +704,49 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // 收集分配金额
+    // 收集分配金额并验证
     const allocations = [];
     let hasAllocation = false;
+    let totalAllocated = 0;
+    let hasError = false;
+
     document.querySelectorAll('#selectedInvoicesBody tr').forEach(row => {
       const invId = row.dataset.invoiceId;
+      const unpaid = parseFloat(row.dataset.unpaid) || 0;
       const input = row.querySelector('.allocation-input');
       const amount = parseFloat(input?.value) || 0;
+
+      // 验证：分配金额不能超过未付金额
+      if (amount > unpaid + 0.01) {
+        hasError = true;
+        alert(`发票分配金额(${amount.toFixed(2)})不能超过未付金额(${unpaid.toFixed(2)})`);
+        input.focus();
+        return;
+      }
+
       if (amount > 0) {
         hasAllocation = true;
+        totalAllocated += amount;
         allocations.push({ id: invId, amount: amount });
       }
     });
 
+    if (hasError) {
+      e.preventDefault();
+      return;
+    }
+
     if (!hasAllocation) {
       e.preventDefault();
       alert('请至少为一张发票分配金额');
+      return;
+    }
+
+    // 验证：收款金额应与分配总额一致
+    const receiptAmt = parseFloat(receiptAmount.value) || 0;
+    if (Math.abs(receiptAmt - totalAllocated) > 0.01) {
+      e.preventDefault();
+      alert(`收款金额(${receiptAmt.toFixed(2)})与分配总额(${totalAllocated.toFixed(2)})不一致，请调整`);
       return;
     }
 
