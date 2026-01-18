@@ -1008,10 +1008,11 @@ def receipt_by_company():
     if selected_company_id:
         selected_company = CustomerCompany.query.get(selected_company_id)
         if selected_company:
-            # 查询未付发票
+            # 查询未付发票（已确认且未全额付款）
             query = ProjectInvoice.query.join(ProjectHeader).filter(
                 ProjectHeader.company_id == selected_company_id,
-                ProjectInvoice.status.in_(['sent', 'partial_paid', 'overdue'])
+                ProjectInvoice.status == 'confirmed',
+                ProjectInvoice.payment_status.in_(['unpaid', 'partial_paid'])
             )
 
             # 日期筛选
