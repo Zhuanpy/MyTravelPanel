@@ -101,8 +101,16 @@
         border-color: #007bff;
     }
 
+    /* 顶部账户选择器样式 */
+    #global-account-selector {
+        border: 2px solid #007bff;
+        font-weight: 500;
+    }
+    #global-account-selector:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
     /* 筛选表单：放大 日期 与 类型 输入宽度 */
-    .form-select[name="account_name"] { width: 200px; }
     .form-control[name="month"] { width: 180px; }
     .form-control[name="start_date"], .form-control[name="end_date"] { width: 150px; }
     .form-select[name="type"], .form-select[name="owner"] { width: 120px; }
@@ -145,12 +153,25 @@
 
 {% block content %}
 <div class="bank-statement-container">
-    <!-- 银行选择器 -->
+    <!-- 银行和账户选择器 -->
     <div class="bank-selector mb-4">
-        <div style="text-align: left !important; display: flex !important; justify-content: flex-start !important;">
-            <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
-            <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="bank-btn {{ 'active' if bank_name == 'OCBC' else '' }}">OCBC银行</a>
-            <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="bank-btn {{ 'active' if bank_name == 'CMB' else '' }}">招商银行</a>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
+                <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="bank-btn {{ 'active' if bank_name == 'OCBC' else '' }}">OCBC银行</a>
+                <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="bank-btn {{ 'active' if bank_name == 'CMB' else '' }}">招商银行</a>
+            </div>
+            {% if account_name_options %}
+            <div class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0 fw-bold">当前账户：</label>
+                <select id="global-account-selector" class="form-select" style="width: 220px;" onchange="switchAccount(this.value)">
+                    <option value="">-- 全部账户 --</option>
+                    {% for acc_name in account_name_options %}
+                    <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -236,34 +257,49 @@
 
     <!-- 数据导入 -->
     <div class="card mb-4">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">{{ bank_name }}账单数据导入</h5>
+            {% if filters.account_name %}
+            <span class="badge bg-primary">当前账户: {{ filters.account_name }}</span>
+            {% endif %}
         </div>
         <div class="card-body">
-
             <!-- 文件上传区域 -->
             <div class="upload-area">
                 <form id="{{ bank_name.lower() }}-upload-form" enctype="multipart/form-data">
+                    {% if filters.account_name %}
+                    <!-- 已选择账户，显示当前账户 -->
+                    <input type="hidden" id="{{ bank_name.lower() }}-account-name" value="{{ filters.account_name }}">
                     <div class="mb-3">
-                        <label class="form-label">账户名称 <span class="text-danger">*</span></label>
-                        <div class="d-flex gap-2 mb-2 align-items-center">
-                            {% if account_name_options %}
-                            <select class="form-select" id="{{ bank_name.lower() }}-account-name" style="max-width: 300px;" required>
-                                <option value="">请选择账户名称</option>
-                                {% for account_name in account_name_options %}
-                                <option value="{{ account_name }}">{{ account_name }}</option>
+                        <span class="text-muted">将导入到账户: </span>
+                        <strong class="text-primary">{{ filters.account_name }}</strong>
+                    </div>
+                    {% elif account_name_options %}
+                    <!-- 未选择账户但有账户列表，提示用户先选择或新建 -->
+                    <div class="mb-3">
+                        <div class="alert alert-info mb-2">
+                            <i class="fas fa-info-circle me-2"></i>请先在顶部选择账户，或新建账户
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <select class="form-select" id="{{ bank_name.lower() }}-account-name" style="max-width: 300px;">
+                                <option value="">-- 选择已有账户 --</option>
+                                {% for acc in account_name_options %}
+                                <option value="{{ acc }}">{{ acc }}</option>
                                 {% endfor %}
-                                <option value="__new__">+ 新建账户名称</option>
+                                <option value="__new__">+ 新建账户</option>
                             </select>
                             <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入新账户名称" style="max-width: 300px; display: none;">
-                            {% else %}
-                            <!-- 没有现有账户名称时，直接显示输入框 -->
-                            <input type="hidden" id="{{ bank_name.lower() }}-account-name" value="__new__">
-                            <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入账户名称（如：UOB SGD Account）" style="max-width: 400px;" required>
-                            <small class="text-muted ms-2">首次上传，请输入账户名称</small>
-                            {% endif %}
                         </div>
                     </div>
+                    {% else %}
+                    <!-- 没有账户，需要新建 -->
+                    <div class="mb-3">
+                        <label class="form-label">账户名称 <span class="text-danger">*</span></label>
+                        <input type="hidden" id="{{ bank_name.lower() }}-account-name" value="__new__">
+                        <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入账户名称（如：UOB 4434）" style="max-width: 400px;" required>
+                        <small class="text-muted">首次上传，请输入账户名称</small>
+                    </div>
+                    {% endif %}
                     <div class="mb-3">
                         <label class="form-label">上传账单文件</label>
                         <div class="d-flex gap-2">
@@ -292,15 +328,8 @@
             <form method="get" action="{{ url_for('cmb_routes.cmb_bank') }}" class="mb-3">
             {% endif %}
                 <div class="row g-3 align-items-end">
-                    <div class="col-auto">
-                        <label class="form-label">账户</label>
-                        <select class="form-select" name="account_name" onchange="this.form.submit()">
-                            <option value="">全部账户</option>
-                            {% for acc_name in account_name_options %}
-                            <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                    <!-- 隐藏字段传递当前选择的账户 -->
+                    <input type="hidden" name="account_name" value="{{ filters.account_name or '' }}">
                     <div class="col-auto">
                         <label class="form-label">月份</label>
                         <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">
@@ -452,6 +481,19 @@
 
 <!-- JavaScript -->
 <script>
+// 全局账户切换函数
+function switchAccount(accountName) {
+    const currentUrl = new URL(window.location.href);
+    if (accountName) {
+        currentUrl.searchParams.set('account_name', accountName);
+    } else {
+        currentUrl.searchParams.delete('account_name');
+    }
+    // 切换账户时重置页码
+    currentUrl.searchParams.delete('page');
+    window.location.href = currentUrl.toString();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 文件上传功能
     (function(){
