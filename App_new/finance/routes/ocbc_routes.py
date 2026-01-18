@@ -57,9 +57,15 @@ def ocbc_bank():
     }
     
     # 获取OCBC银行的对账单数据，按对账单号（月份）降序排列
-    statements = BankStatement.query.filter(
+    statements_query = BankStatement.query.filter(
         BankStatement.bank_name == 'OCBC'
-    ).order_by(desc(BankStatement.statement_number)).limit(10).all()
+    )
+    # 如果选择了账户，筛选对账单
+    if filters['account_name']:
+        statements_query = statements_query.filter(
+            BankStatement.account_name == filters['account_name']
+        )
+    statements = statements_query.order_by(desc(BankStatement.statement_number)).limit(10).all()
     
     # 更新每个对账单的状态（基于交易确认状态）
     for statement in statements:
