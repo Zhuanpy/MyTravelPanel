@@ -41,13 +41,22 @@ def get_ref_total_received(ref, ProjectRef, ProjectInvoice, ProjectReceipt, Rece
     ).all()
 
     for invoice in invoices:
-        # 解析发票的 ref_ids
+        # 解析发票的 ref_ids (支持 JSON 数组格式和逗号分隔格式)
         ref_id_int_list = []
         if invoice.ref_ids:
             try:
-                ref_id_int_list = [int(x.strip()) for x in invoice.ref_ids.split(',') if x.strip()]
-            except:
-                pass
+                import json
+                # 尝试 JSON 解析 (如 '[2612]' 或 '[2612, 2613]')
+                ref_id_int_list = json.loads(invoice.ref_ids)
+                if not isinstance(ref_id_int_list, list):
+                    ref_id_int_list = [ref_id_int_list]
+                ref_id_int_list = [int(x) for x in ref_id_int_list]
+            except (json.JSONDecodeError, ValueError, TypeError):
+                try:
+                    # 回退到逗号分隔格式 (如 '2612,2613')
+                    ref_id_int_list = [int(x.strip()) for x in invoice.ref_ids.split(',') if x.strip()]
+                except:
+                    pass
 
         # 如果发票没有 ref_ids
         if not ref_id_int_list:
