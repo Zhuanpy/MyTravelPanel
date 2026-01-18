@@ -118,20 +118,6 @@
     .form-select[name="operation_status"] { width: 120px; }
     .form-select[name="sort"] { width: 180px; }
 
-    /* 文件上传区域 */
-    .upload-area {
-        border: 2px dashed #dee2e6;
-        border-radius: 5px;
-        padding: 20px;
-        text-align: center;
-        margin: 20px 0;
-        background-color: #f8f9fa;
-    }
-    .upload-area:hover {
-        border-color: #007bff;
-        background-color: #e3f2fd;
-    }
-
     /* 页脚样式 */
     .bank-footer {
         text-align: center;
@@ -153,25 +139,41 @@
 
 {% block content %}
 <div class="bank-statement-container">
-    <!-- 银行和账户选择器 -->
+    <!-- 银行和账户选择器 + 数据导入 -->
     <div class="bank-selector mb-4">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <!-- 左侧：银行选择 -->
             <div class="d-flex align-items-center gap-2">
                 <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
                 <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="bank-btn {{ 'active' if bank_name == 'OCBC' else '' }}">OCBC银行</a>
                 <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="bank-btn {{ 'active' if bank_name == 'CMB' else '' }}">招商银行</a>
             </div>
-            {% if account_name_options %}
-            <div class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0 fw-bold">当前账户：</label>
-                <select id="global-account-selector" class="form-select" style="width: 220px;" onchange="switchAccount(this.value)">
-                    <option value="">-- 全部账户 --</option>
-                    {% for acc_name in account_name_options %}
-                    <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
-                    {% endfor %}
-                </select>
+            <!-- 右侧：账户选择 + 数据导入 -->
+            <div class="d-flex align-items-center gap-3">
+                <!-- 账户选择 -->
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label mb-0 fw-bold">账户：</label>
+                    <select id="global-account-selector" class="form-select" style="width: 180px;" onchange="switchAccount(this.value)">
+                        <option value="">全部账户</option>
+                        {% for acc_name in account_name_options %}
+                        <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
+                        {% endfor %}
+                        <option value="__new__">+ 新建账户</option>
+                    </select>
+                    <input type="text" id="new-account-name-input" class="form-control" placeholder="新账户名称" style="width: 150px; display: none;">
+                </div>
+                <!-- 数据导入 -->
+                <div class="d-flex align-items-center gap-2">
+                    <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx,.csv" style="display: none;">
+                    <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-file-excel"></i> 选择文件
+                    </button>
+                    <span id="{{ bank_name.lower() }}-file-info" class="text-muted small" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                    <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success btn-sm" disabled>
+                        <i class="fas fa-upload"></i> 入库
+                    </button>
+                </div>
             </div>
-            {% endif %}
         </div>
     </div>
 
@@ -253,65 +255,6 @@
             {% else %}
                 <p class="text-muted">暂无对账单数据</p>
             {% endif %}
-        </div>
-    </div>
-
-    <!-- 数据导入 -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">{{ bank_name }}账单数据导入</h5>
-            {% if filters.account_name %}
-            <span class="badge bg-primary">当前账户: {{ filters.account_name }}</span>
-            {% endif %}
-        </div>
-        <div class="card-body">
-            <!-- 文件上传区域 -->
-            <div class="upload-area">
-                <form id="{{ bank_name.lower() }}-upload-form" enctype="multipart/form-data">
-                    {% if filters.account_name %}
-                    <!-- 已选择账户，显示当前账户 -->
-                    <input type="hidden" id="{{ bank_name.lower() }}-account-name" value="{{ filters.account_name }}">
-                    <div class="mb-3">
-                        <span class="text-muted">将导入到账户: </span>
-                        <strong class="text-primary">{{ filters.account_name }}</strong>
-                    </div>
-                    {% elif account_name_options %}
-                    <!-- 未选择账户但有账户列表，提示用户先选择或新建 -->
-                    <div class="mb-3">
-                        <div class="alert alert-info mb-2">
-                            <i class="fas fa-info-circle me-2"></i>请先在顶部选择账户，或新建账户
-                        </div>
-                        <div class="d-flex gap-2 align-items-center">
-                            <select class="form-select" id="{{ bank_name.lower() }}-account-name" style="max-width: 300px;">
-                                <option value="">-- 选择已有账户 --</option>
-                                {% for acc in account_name_options %}
-                                <option value="{{ acc }}">{{ acc }}</option>
-                                {% endfor %}
-                                <option value="__new__">+ 新建账户</option>
-                            </select>
-                            <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入新账户名称" style="max-width: 300px; display: none;">
-                        </div>
-                    </div>
-                    {% else %}
-                    <!-- 没有账户，需要新建 -->
-                    <div class="mb-3">
-                        <label class="form-label">账户名称 <span class="text-danger">*</span></label>
-                        <input type="hidden" id="{{ bank_name.lower() }}-account-name" value="__new__">
-                        <input type="text" class="form-control" id="{{ bank_name.lower() }}-new-account-name" placeholder="输入账户名称（如：UOB 4434）" style="max-width: 400px;" required>
-                        <small class="text-muted">首次上传，请输入账户名称</small>
-                    </div>
-                    {% endif %}
-                    <div class="mb-3">
-                        <label class="form-label">上传账单文件</label>
-                        <div class="d-flex gap-2">
-                            <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx,.csv" style="display: none;">
-                            <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary">选择文件</button>
-                            <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success" disabled>入库账单数据</button>
-                        </div>
-                        <div id="{{ bank_name.lower() }}-file-info" class="mt-2 text-muted"></div>
-                    </div>
-                </form>
-            </div>
         </div>
     </div>
 
@@ -484,6 +427,22 @@
 <script>
 // 全局账户切换函数
 function switchAccount(accountName) {
+    const newAccountInput = document.getElementById('new-account-name-input');
+
+    // 如果选择"新建账户"，显示输入框，不跳转
+    if (accountName === '__new__') {
+        if (newAccountInput) {
+            newAccountInput.style.display = 'block';
+            newAccountInput.focus();
+        }
+        return;
+    }
+
+    // 隐藏新账户输入框
+    if (newAccountInput) {
+        newAccountInput.style.display = 'none';
+    }
+
     const currentUrl = new URL(window.location.href);
     if (accountName) {
         currentUrl.searchParams.set('account_name', accountName);
@@ -503,89 +462,61 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectBtn = document.getElementById(bankName + '-select-file-btn');
         const uploadBtn = document.getElementById(bankName + '-upload-btn');
         const fileInfo = document.getElementById(bankName + '-file-info');
-        
-        if (!fileInput || !selectBtn || !uploadBtn || !fileInfo) return;
-        
+        const globalAccountSelector = document.getElementById('global-account-selector');
+        const newAccountInput = document.getElementById('new-account-name-input');
+
+        if (!fileInput || !selectBtn || !uploadBtn) return;
+
         selectBtn.addEventListener('click', function() {
             fileInput.click();
         });
-        
+
         fileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
                 const file = this.files[0];
-                const isValidType = file.name.toLowerCase().endsWith('.xls') || 
-                                  file.name.toLowerCase().endsWith('.xlsx') || 
+                const isValidType = file.name.toLowerCase().endsWith('.xls') ||
+                                  file.name.toLowerCase().endsWith('.xlsx') ||
                                   file.name.toLowerCase().endsWith('.csv');
-                
+
                 if (isValidType) {
-                    fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    if (fileInfo) fileInfo.textContent = file.name;
                     uploadBtn.disabled = false;
                 } else {
-                    fileInfo.textContent = '请选择账单文件 (.xls, .xlsx 或 .csv)';
+                    if (fileInfo) fileInfo.textContent = '格式错误';
                     uploadBtn.disabled = true;
                 }
             } else {
-                fileInfo.textContent = '';
+                if (fileInfo) fileInfo.textContent = '';
                 uploadBtn.disabled = true;
             }
         });
-        
-        // 账户名称选择处理
-        const accountNameSelect = document.getElementById(bankName + '-account-name');
-        const newAccountNameInput = document.getElementById(bankName + '-new-account-name');
-        
-        if (accountNameSelect && accountNameSelect.tagName === 'SELECT') {
-            // 有下拉选择框的情况
-            accountNameSelect.addEventListener('change', function() {
-                if (this.value === '__new__') {
-                    newAccountNameInput.style.display = 'block';
-                    newAccountNameInput.required = true;
-                    newAccountNameInput.focus();
-                } else {
-                    newAccountNameInput.style.display = 'none';
-                    newAccountNameInput.required = false;
-                    newAccountNameInput.value = '';
-                }
-            });
-        }
-        // 如果是hidden input（没有现有账户名称时），新账户名称输入框已经默认显示
-        
+
         uploadBtn.addEventListener('click', async function() {
             if (!fileInput.files.length) {
                 alert('请先选择文件');
                 return;
             }
-            
-            // 获取账户名称
+
+            // 获取账户名称（从顶部全局选择器）
             let accountName = '';
-            
-            // 检查是否是SELECT元素还是hidden input
-            const isSelectElement = accountNameSelect && accountNameSelect.tagName === 'SELECT';
-            
-            if (isSelectElement) {
-                // 有下拉选择框的情况
-                if (accountNameSelect.value === '__new__') {
-                    accountName = newAccountNameInput.value.trim();
-                    if (!accountName) {
-                        alert('请输入新账户名称');
-                        newAccountNameInput.focus();
-                        return;
-                    }
-                } else if (accountNameSelect.value) {
-                    accountName = accountNameSelect.value;
-                } else {
-                    alert('请选择账户名称');
-                    accountNameSelect.focus();
-                    return;
-                }
-            } else {
-                // hidden input情况（没有现有账户名称）
-                accountName = newAccountNameInput.value.trim();
+            const selectedValue = globalAccountSelector ? globalAccountSelector.value : '';
+
+            if (selectedValue === '__new__') {
+                // 新建账户
+                accountName = newAccountInput ? newAccountInput.value.trim() : '';
                 if (!accountName) {
-                    alert('请输入账户名称');
-                    newAccountNameInput.focus();
+                    alert('请输入新账户名称');
+                    if (newAccountInput) newAccountInput.focus();
                     return;
                 }
+            } else if (selectedValue) {
+                // 已选择现有账户
+                accountName = selectedValue;
+            } else {
+                // 未选择账户
+                alert('请先选择账户或新建账户');
+                if (globalAccountSelector) globalAccountSelector.focus();
+                return;
             }
             
             const formData = new FormData();
