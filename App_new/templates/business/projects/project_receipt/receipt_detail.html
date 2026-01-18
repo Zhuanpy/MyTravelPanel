@@ -143,29 +143,35 @@
                         </thead>
                         <tbody>
                             {% for alloc in receipt.invoice_allocations %}
+                            {% if alloc.invoice %}
                             <tr>
                                 <td>
                                     <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=alloc.invoice.id) }}"
                                        class="text-primary">{{ alloc.invoice.invoice_number }}</a>
                                 </td>
                                 <td>
+                                    {% if alloc.invoice.header %}
                                     <a href="{{ url_for('business_projects.detail.project_detail', project_id=alloc.invoice.header_id) }}"
                                        class="text-secondary">{{ alloc.invoice.header.hid }}</a>
+                                    {% else %}
+                                    -
+                                    {% endif %}
                                 </td>
-                                <td>{{ alloc.invoice.currency }} {{ "%.2f"|format(alloc.invoice.amount) }}</td>
-                                <td class="text-success fw-bold">{{ receipt.currency }} {{ "%.2f"|format(alloc.allocated_amount) }}</td>
+                                <td>{{ alloc.invoice.currency }} {{ "%.2f"|format(alloc.invoice.amount or 0) }}</td>
+                                <td class="text-success fw-bold">{{ receipt.currency }} {{ "%.2f"|format(alloc.allocated_amount or 0) }}</td>
                                 <td>
                                     <span class="badge {% if alloc.invoice.payment_status == 'paid' %}bg-success{% elif alloc.invoice.payment_status == 'partial_paid' %}bg-warning{% else %}bg-secondary{% endif %}">
-                                        {{ alloc.invoice.payment_status_display }}
+                                        {{ alloc.invoice.payment_status_display if alloc.invoice.payment_status_display else alloc.invoice.payment_status }}
                                     </span>
                                 </td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
                                 <td colspan="3" class="text-end"><strong>合计分配:</strong></td>
-                                <td class="text-success fw-bold">{{ receipt.currency }} {{ "%.2f"|format(receipt.invoice_allocations|sum(attribute='allocated_amount')) }}</td>
+                                <td class="text-success fw-bold">{{ receipt.currency }} {{ "%.2f"|format(receipt.invoice_allocations|map(attribute='allocated_amount')|select|sum) }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
