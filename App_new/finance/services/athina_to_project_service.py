@@ -2122,57 +2122,107 @@ class AthinaToProjectService:
             'success': 0,
             'failed': 0,
             'skipped': 0,
-            'details': [],
+            'details': [],  # 只保留最近的几条详情
             'skipped_records': [],  # 收集跳过的记录详情
         }
 
         # 记录需要更新payment_status的REF列表
         refs_to_update_status = set()
 
+        # ========== 内存优化：预加载缓存 ==========
+        # 收集所有需要查询的 HID 和 invoice_no
+        all_hids = set()
+        all_invoice_nos = set()
+        all_ref_numbers = set()
+        all_receipt_nos = set()
+
+        for receipt_no, rcpt_data in receipt_groups.items():
+            all_receipt_nos.add(receipt_no)
+            if rcpt_data.get('hid'):
+                all_hids.add(rcpt_data['hid'])
+            all_invoice_nos.update(rcpt_data.get('invoice_nos', []))
+            all_ref_numbers.update(rcpt_data.get('ref_numbers', []))
+
+        # 批量查询并建立缓存
+        header_cache = {}  # hid -> ProjectHeader
+        invoice_cache = {}  # invoice_number -> ProjectInvoice
+        ref_cache = {}  # ref_number -> ProjectRef
+        receipt_cache = {}  # receipt_number -> ProjectReceipt
+
+        # 查询 headers
+        if all_hids:
+            headers = ProjectHeader.query.filter(ProjectHeader.hid.in_(all_hids)).all()
+            for h in headers:
+                header_cache[h.hid] = h
+
+        # 查询 invoices
+        if all_invoice_nos:
+            invoices = ProjectInvoice.query.filter(ProjectInvoice.invoice_number.in_(all_invoice_nos)).all()
+            for inv in invoices:
+                invoice_cache[inv.invoice_number] = inv
+                # 同时缓存 header
+                if inv.header_id and inv.header_id not in [h.id for h in header_cache.values()]:
+                    header = ProjectHeader.query.get(inv.header_id)
+                    if header:
+                        header_cache[header.hid] = header
+
+        # 查询 refs
+        if all_ref_numbers:
+            refs = ProjectRef.query.filter(ProjectRef.ref_number.in_(all_ref_numbers)).all()
+            for ref in refs:
+                ref_cache[ref.ref_number] = ref
+
+        # 查询已存在的 receipts
+        if all_receipt_nos:
+            existing_receipts = ProjectReceipt.query.filter(ProjectReceipt.receipt_number.in_(all_receipt_nos)).all()
+            for r in existing_receipts:
+                receipt_cache[r.receipt_number] = r
+
+        # 分批处理配置
+        BATCH_SIZE = 50
+        batch_count = 0
+
         for receipt_no, rcpt_data in receipt_groups.items():
             hid = rcpt_data['hid']
             is_deposit = not rcpt_data['invoice_nos']  # DEPOSIT记录没有invoice
 
-            # 查找对应的 ProjectHeader
-            project_header = ProjectHeader.query.filter_by(hid=hid).first() if hid else None
+            # 从缓存查找 ProjectHeader
+            project_header = header_cache.get(hid) if hid else None
 
             if not project_header:
-                # 尝试通过第一个 invoice_no 查找
+                # 尝试通过第一个 invoice_no 从缓存查找
                 for inv_no in rcpt_data['invoice_nos']:
-                    invoice = ProjectInvoice.query.filter_by(invoice_number=inv_no).first()
-                    if invoice:
-                        project_header = ProjectHeader.query.get(invoice.header_id)
+                    invoice = invoice_cache.get(inv_no)
+                    if invoice and invoice.header_id:
+                        # 从缓存中查找 header
+                        for h in header_cache.values():
+                            if h.id == invoice.header_id:
+                                project_header = h
+                                break
                         break
 
             if not project_header:
-                skip_info = {
-                    'receipt_no': receipt_no,
-                    'hid': hid,
-                    'invoice_nos': rcpt_data['invoice_nos'],
-                    'amount': str(rcpt_data['total_amount']),
-                    'reason': f'未找到项目 HID={hid}' if hid else '无HID信息',
-                }
                 results['skipped'] += 1
-                results['skipped_records'].append(skip_info)
-                results['details'].append({
-                    'success': False,
-                    'skipped': True,
-                    'receipt_no': receipt_no,
-                    'message': f'未找到项目 {hid}，跳过收据 {receipt_no}',
-                })
+                # 只保留前50条跳过记录
+                if len(results['skipped_records']) < 50:
+                    skip_info = {
+                        'receipt_no': receipt_no,
+                        'hid': hid,
+                        'amount': str(rcpt_data['total_amount']),
+                        'reason': f'未找到项目 HID={hid}' if hid else '无HID信息',
+                    }
+                    results['skipped_records'].append(skip_info)
                 continue
 
             try:
-                # 检查收据是否已存在
-                existing_receipt = ProjectReceipt.query.filter_by(
-                    receipt_number=receipt_no
-                ).first()
+                # 从缓存检查收据是否已存在
+                existing_receipt = receipt_cache.get(receipt_no)
 
-                # 查找关联的 REF
+                # 从缓存查找关联的 REF
                 ref_id = None
                 matched_refs = []  # 记录匹配的REF用于后续更新payment_status
                 for ref_number in rcpt_data['ref_numbers']:
-                    project_ref = ProjectRef.query.filter_by(ref_number=ref_number).first()
+                    project_ref = ref_cache.get(ref_number)
                     if project_ref:
                         if ref_id is None:
                             ref_id = project_ref.id  # 使用第一个匹配的 REF
@@ -2182,24 +2232,21 @@ class AthinaToProjectService:
                 if is_deposit:
                     # DEPOSIT 记录，直接分配到 REF
                     if not matched_refs and rcpt_data['ref_numbers']:
-                        # 尝试从 HID 下查找 REF
+                        # 尝试从缓存中查找 REF
                         for ref_number in rcpt_data['ref_numbers']:
-                            project_ref = ProjectRef.query.filter_by(
-                                header_id=project_header.id,
-                                ref_number=ref_number
-                            ).first()
-                            if project_ref:
+                            project_ref = ref_cache.get(ref_number)
+                            if project_ref and project_ref.header_id == project_header.id:
                                 if ref_id is None:
                                     ref_id = project_ref.id
                                 matched_refs.append(project_ref)
 
-                # 查找关联的 Invoice
+                # 从缓存查找关联的 Invoice
                 invoice_id = None
                 invoice_allocations = []  # 多个发票分配
                 invoice_not_found = []  # 记录未找到的invoice
 
                 for inv_no in rcpt_data['invoice_nos']:
-                    invoice = ProjectInvoice.query.filter_by(invoice_number=inv_no).first()
+                    invoice = invoice_cache.get(inv_no)
                     if invoice:
                         if invoice_id is None:
                             invoice_id = invoice.id  # 使用第一个作为主关联
@@ -2216,72 +2263,52 @@ class AthinaToProjectService:
 
                 # 如果有invoice但全部未找到，跳过此收据
                 if rcpt_data['invoice_nos'] and not invoice_id and not is_deposit:
-                    skip_info = {
-                        'receipt_no': receipt_no,
-                        'hid': hid,
-                        'invoice_nos': rcpt_data['invoice_nos'],
-                        'amount': str(rcpt_data['total_amount']),
-                        'reason': f'未找到发票 {", ".join(invoice_not_found)}',
-                    }
                     results['skipped'] += 1
-                    results['skipped_records'].append(skip_info)
-                    results['details'].append({
-                        'success': False,
-                        'skipped': True,
-                        'receipt_no': receipt_no,
-                        'message': f'未找到发票 {", ".join(invoice_not_found)}，跳过收据 {receipt_no}',
-                    })
+                    if len(results['skipped_records']) < 50:
+                        results['skipped_records'].append({
+                            'receipt_no': receipt_no,
+                            'hid': hid,
+                            'amount': str(rcpt_data['total_amount']),
+                            'reason': f'未找到发票 {", ".join(invoice_not_found)}',
+                        })
                     continue
 
                 # 检查是否已有手动创建的收款记录（跳过已收款）
+                # 手动收款单号以 'RC' 开头，CSV导入的是纯数字
                 if not existing_receipt:
                     skip_reason = None
 
                     # 1. 检查REF级别的手动收款
                     if matched_refs:
-                        refs_with_receipts = []
                         for ref in matched_refs:
-                            existing_ref_receipts = ProjectReceipt.query.filter(
+                            has_manual = ProjectReceipt.query.filter(
                                 ProjectReceipt.ref_id == ref.id,
-                                ProjectReceipt.status == 'confirmed'
-                            ).all()
-                            # 排除CSV导入的记录（receipt_number是纯数字的是Athina导入的）
-                            manual_receipts = [r for r in existing_ref_receipts
-                                              if not r.receipt_number.isdigit()]
-                            if manual_receipts:
-                                refs_with_receipts.append(ref.ref_number)
-
-                        if refs_with_receipts:
-                            skip_reason = f'REF {", ".join(refs_with_receipts)} 已有手动收款记录'
+                                ProjectReceipt.status == 'confirmed',
+                                ProjectReceipt.receipt_number.like('RC%')
+                            ).first()
+                            if has_manual:
+                                skip_reason = f'REF {ref.ref_number} 已有手动收款记录'
+                                break
 
                     # 2. 检查发票级别的手动收款
                     if not skip_reason and invoice_id:
-                        existing_inv_receipts = ProjectReceipt.query.filter(
+                        has_manual = ProjectReceipt.query.filter(
                             ProjectReceipt.invoice_id == invoice_id,
-                            ProjectReceipt.status == 'confirmed'
-                        ).all()
-                        manual_inv_receipts = [r for r in existing_inv_receipts
-                                              if not r.receipt_number.isdigit()]
-                        if manual_inv_receipts:
-                            skip_reason = f'发票 {rcpt_data["invoice_nos"][0] if rcpt_data["invoice_nos"] else invoice_id} 已有手动收款记录'
+                            ProjectReceipt.status == 'confirmed',
+                            ProjectReceipt.receipt_number.like('RC%')
+                        ).first()
+                        if has_manual:
+                            skip_reason = f'发票已有手动收款记录'
 
                     if skip_reason:
-                        skip_info = {
-                            'receipt_no': receipt_no,
-                            'hid': hid,
-                            'ref_numbers': rcpt_data['ref_numbers'],
-                            'invoice_nos': rcpt_data['invoice_nos'],
-                            'amount': str(rcpt_data['total_amount']),
-                            'reason': skip_reason,
-                        }
                         results['skipped'] += 1
-                        results['skipped_records'].append(skip_info)
-                        results['details'].append({
-                            'success': False,
-                            'skipped': True,
-                            'receipt_no': receipt_no,
-                            'message': f'{skip_reason}，跳过收据 {receipt_no}',
-                        })
+                        if len(results['skipped_records']) < 50:
+                            results['skipped_records'].append({
+                                'receipt_no': receipt_no,
+                                'hid': hid,
+                                'amount': str(rcpt_data['total_amount']),
+                                'reason': skip_reason,
+                            })
                         continue
 
                 # 映射付款方式
@@ -2377,24 +2404,37 @@ class AthinaToProjectService:
                     refs_to_update_status.add(ref.id)
 
                 results['success'] += 1
-                deposit_note = ' (DEPOSIT)' if is_deposit else ''
-                results['details'].append({
-                    'success': True,
-                    'receipt_no': receipt_no,
-                    'hid': hid,
-                    'amount': str(rcpt_data['total_amount']),
-                    'invoice_count': len(rcpt_data['invoice_nos']),
-                    'is_deposit': is_deposit,
-                    'message': f'成功{action}收据 {receipt_no}{deposit_note}',
-                })
+                batch_count += 1
+
+                # 只保留最近20条详情，避免内存过大
+                if len(results['details']) < 20:
+                    deposit_note = ' (DEPOSIT)' if is_deposit else ''
+                    results['details'].append({
+                        'success': True,
+                        'receipt_no': receipt_no,
+                        'hid': hid,
+                        'amount': str(rcpt_data['total_amount']),
+                        'message': f'成功{action}收据 {receipt_no}{deposit_note}',
+                    })
+
+                # 分批提交，每 BATCH_SIZE 条提交一次
+                if batch_count >= BATCH_SIZE:
+                    try:
+                        db.session.commit()
+                        batch_count = 0
+                    except Exception as commit_e:
+                        db.session.rollback()
+                        self.warnings.append(f'批量提交失败: {str(commit_e)}')
 
             except Exception as e:
                 results['failed'] += 1
-                results['details'].append({
-                    'success': False,
-                    'receipt_no': receipt_no,
-                    'message': f'创建收据失败: {str(e)}',
-                })
+                db.session.rollback()  # 回滚当前失败的记录
+                if len(results['details']) < 20:
+                    results['details'].append({
+                        'success': False,
+                        'receipt_no': receipt_no,
+                        'message': f'创建收据失败: {str(e)}',
+                    })
                 self.errors.append(f'创建收据 {receipt_no} 失败: {str(e)}')
 
         # 更新REF的payment_status
