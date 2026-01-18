@@ -434,14 +434,8 @@
                 </select>
               </div>
             </div>
+            <input type="hidden" name="distribution_method" value="sequential">
             <div class="row">
-              <div class="col-md-4 mb-3">
-                <label class="form-label">分配方式</label>
-                <select class="form-select" name="distribution_method" id="distributionMethod">
-                  <option value="sequential">顺序分配（按日期从早到晚）</option>
-                  <option value="proportional">按比例分配</option>
-                </select>
-              </div>
               <div class="col-md-4 mb-3">
                 <label class="form-label">付款方式</label>
                 <select class="form-select" name="payment_method">
@@ -566,7 +560,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // 打开收款弹窗
   const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
   const receiptAmount = document.getElementById('receiptAmount');
-  const distributionMethod = document.getElementById('distributionMethod');
   const selectedInvoicesBody = document.getElementById('selectedInvoicesBody');
   const hiddenSelectedInvoices = document.getElementById('hiddenSelectedInvoices');
   const btnAutoAllocate = document.getElementById('btnAutoAllocate');
@@ -647,7 +640,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // 自动分配按钮
   btnAutoAllocate.addEventListener('click', function() {
     const amount = parseFloat(receiptAmount.value) || 0;
-    const method = distributionMethod.value;
+    const method = 'sequential';  // 默认使用顺序分配
     const invoiceIds = hiddenSelectedInvoices.value.split(',').map(Number);
 
     if (amount <= 0) {
