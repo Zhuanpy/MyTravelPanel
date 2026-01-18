@@ -137,7 +137,8 @@ class ProjectReceipt(db.Model):
 
         计算逻辑：
         1. REF级别收款：直接关联到REF的收款全额计入
-        2. 项目级别收款：通过发票分配表计算，按发票的ref_ids比例分配
+        2. 通过发票分配表分配到本项目发票的收款（包括跨项目收款）
+        3. 旧项目级别收款的向后兼容处理
         """
         from .invoice import ProjectInvoice
         from .ref import ProjectRef
@@ -159,17 +160,19 @@ class ProjectReceipt(db.Model):
         for receipt in ref_receipts:
             total_received += float(receipt.amount or 0)
 
-        # 2. 项目级别收款（通过发票分配表计算）
-        # 获取项目级别收款的所有发票分配记录
+        # 2. 通过发票分配表分配到本项目发票的收款（包括跨项目收款）
+        # 查询分配到本项目发票的所有已确认收款
         allocations = ReceiptInvoiceAllocation.query.join(
+            ProjectInvoice, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
             cls, ReceiptInvoiceAllocation.receipt_id == cls.id
         ).filter(
-            cls.header_id == header_id,
-            cls.ref_id == None,  # 只查询项目级别收款
+            ProjectInvoice.header_id == header_id,  # 发票属于本项目
+            cls.ref_id == None,  # 项目级别收款
             cls.status == 'confirmed'
         ).all()
 
-        # 记录已处理的收款ID，用于处理没有分配记录的旧收款
+        # 记录已处理的收款ID
         processed_receipt_ids = set()
 
         for alloc in allocations:
