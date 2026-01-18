@@ -52,7 +52,8 @@
         </a>
     </div>
 
-    <!-- 汇总卡片 -->
+    <!-- 汇总卡片（仅选择供应商后显示） -->
+    {% if not no_supplier_selected %}
     <div class="summary-card">
         <div class="row">
             <div class="col-md-4 summary-item">
@@ -69,14 +70,15 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- 筛选栏 -->
     <div class="card mb-4">
         <div class="card-body py-2">
             <form method="get" class="row g-2 align-items-center">
                 <div class="col-auto">
-                    <select name="supplier_id" class="form-select form-select-sm">
-                        <option value="">全部供应商</option>
+                    <select name="supplier_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">-- 请选择供应商 --</option>
                         {% for supplier in suppliers %}
                         <option value="{{ supplier.id }}" {% if selected_supplier_id == supplier.id %}selected{% endif %}>
                             {{ supplier.company_name }}
@@ -84,6 +86,7 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if not no_supplier_selected %}
                 <div class="col-auto">
                     <select name="status" class="form-select form-select-sm">
                         <option value="">全部状态</option>
@@ -98,14 +101,25 @@
                     <button type="submit" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-filter me-1"></i>筛选
                     </button>
-                    <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-undo me-1"></i>重置
+                    <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}?supplier_id={{ selected_supplier_id }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置状态
                     </a>
                 </div>
+                {% endif %}
             </form>
         </div>
     </div>
 
+    {% if no_supplier_selected %}
+    <!-- 未选择供应商时的提示 -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-hand-point-up fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">请先选择供应商</h5>
+            <p class="text-muted mb-0">选择供应商后将显示该供应商的预付账款记录</p>
+        </div>
+    </div>
+    {% else %}
     <!-- 预付账款列表 -->
     <div class="card">
         <div class="card-body p-0">
@@ -232,7 +246,7 @@
                     <tr>
                         <td colspan="11" class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
-                            <p class="mb-0">暂无预付账款记录</p>
+                            <p class="mb-0">该供应商暂无预付账款记录</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -251,6 +265,7 @@
             </table>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 

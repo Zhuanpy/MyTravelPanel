@@ -28,22 +28,32 @@ def list_prepayments():
     supplier_id = request.args.get('supplier_id', type=int)
     status = request.args.get('status', '')
 
-    # 构建查询
-    query = SupplierPrepayment.query
-
-    if supplier_id:
-        query = query.filter_by(supplier_id=supplier_id)
-    if status:
-        query = query.filter_by(status=status)
-
-    # 按创建时间倒序
-    prepayments = query.order_by(SupplierPrepayment.created_at.desc()).all()
-
     # 获取供应商列表（用于筛选）
     suppliers = CustomerCompany.query.filter(
         CustomerCompany.is_supplier == True,
         CustomerCompany.status == 'active'
     ).order_by(CustomerCompany.company_name).all()
+
+    # 如果没有选择供应商，不加载数据
+    if not supplier_id:
+        return render_template('business/projects/prepayment/list.html',
+                               prepayments=[],
+                               suppliers=suppliers,
+                               selected_supplier_id=None,
+                               selected_status=status,
+                               total_amount=0,
+                               total_balance=0,
+                               total_used=0,
+                               no_supplier_selected=True)
+
+    # 构建查询
+    query = SupplierPrepayment.query.filter_by(supplier_id=supplier_id)
+
+    if status:
+        query = query.filter_by(status=status)
+
+    # 按创建时间倒序
+    prepayments = query.order_by(SupplierPrepayment.created_at.desc()).all()
 
     # 计算汇总
     total_amount = sum(p.amount for p in prepayments)
@@ -57,7 +67,8 @@ def list_prepayments():
                            selected_status=status,
                            total_amount=total_amount,
                            total_balance=total_balance,
-                           total_used=total_used)
+                           total_used=total_used,
+                           no_supplier_selected=False)
 
 
 @project_prepayment.route('/create', methods=['GET', 'POST'])
