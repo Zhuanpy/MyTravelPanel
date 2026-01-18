@@ -235,10 +235,11 @@
                                     <a class="btn btn-outline-primary btn-sm" href="{{ url_for('statement_common_routes.download_statement', bank_name=bank_name, statement_number=s.statement_number) }}">
                                         <i class="fas fa-download"></i> 下载
                                     </a>
-                                    <form method="post" action="{{ url_for('statement_common_routes.delete_statement', bank_name=bank_name) }}" 
-                                          style="display: inline;" 
+                                    <form method="post" action="{{ url_for('statement_common_routes.delete_statement', bank_name=bank_name) }}"
+                                          style="display: inline;"
                                           onsubmit="return confirm('确定要删除对账单 {{ s.statement_number }} 吗？这将删除所有相关的交易记录。');">
                                         <input type="hidden" name="statement_number" value="{{ s.statement_number }}">
+                                        <input type="hidden" name="account_name" value="{{ filters.account_name or '' }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="fas fa-trash"></i> 删除
                                         </button>

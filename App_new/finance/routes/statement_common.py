@@ -80,14 +80,17 @@ def open_statement_folder(bank_name):
     return redirect_to_bank_page(bank_name)
 
 
-def redirect_to_bank_page(bank_name):
-    """根据银行名称重定向到对应的银行页面"""
-    redirect_map = {
-        'UOB': url_for('uob_routes.uob_bank'),
-        'OCBC': url_for('ocbc_routes.ocbc_bank'),
-        'CMB': url_for('cmb_routes.cmb_bank')
+def redirect_to_bank_page(bank_name, account_name=None):
+    """根据银行名称重定向到对应的银行页面，可选保留账户参数"""
+    route_map = {
+        'UOB': 'uob_routes.uob_bank',
+        'OCBC': 'ocbc_routes.ocbc_bank',
+        'CMB': 'cmb_routes.cmb_bank'
     }
-    return redirect(redirect_map.get(bank_name, url_for('uob_routes.uob_bank')))
+    route_name = route_map.get(bank_name, 'uob_routes.uob_bank')
+    if account_name:
+        return redirect(url_for(route_name, account_name=account_name))
+    return redirect(url_for(route_name))
 
 
 
@@ -1096,13 +1099,14 @@ def delete_statement(bank_name):
         if bank_name.upper() not in valid_banks:
             flash(f'不支持的银行类型: {bank_name}', 'error')
             return redirect(url_for('uob_routes.uob_bank'))
-        
+
         bank_name = bank_name.upper()
         statement_number = request.form.get('statement_number')
-        
+        account_name = request.form.get('account_name', '')  # 获取当前账户参数
+
         if not statement_number:
             flash('缺少对账单号参数', 'error')
-            return redirect_to_bank_page(bank_name)
+            return redirect_to_bank_page(bank_name, account_name)
         
         # 查询对账单
         statement = BankStatement.query.filter(
@@ -1112,21 +1116,21 @@ def delete_statement(bank_name):
         
         if not statement:
             flash(f'对账单 {statement_number} 不存在', 'error')
-            return redirect_to_bank_page(bank_name)
-        
+            return redirect_to_bank_page(bank_name, account_name)
+
         # 删除相关交易记录
         BankTransaction.query.filter(BankTransaction.statement_id == statement.id).delete()
-        
+
         # 删除对账单
         db.session.delete(statement)
         db.session.commit()
-        
+
         flash(f'对账单 {statement_number} 已成功删除', 'success')
-        
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"删除对账单失败: {str(e)}")
         flash(f'删除对账单失败：{str(e)}', 'error')
-    
-    return redirect_to_bank_page(bank_name)
+
+    return redirect_to_bank_page(bank_name, account_name)
 
