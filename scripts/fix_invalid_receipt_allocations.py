@@ -77,6 +77,25 @@ def check_over_allocated():
     return db.session.execute(sql).fetchall()
 
 
+def check_under_allocated():
+    """检查分配总额少于收款金额的情况（分配不完整）"""
+    sql = text("""
+        SELECT
+            pr.id as receipt_id,
+            pr.receipt_number,
+            pr.amount as receipt_amount,
+            pr.header_id,
+            SUM(ria.allocated_amount) as total_allocated,
+            pr.amount - SUM(ria.allocated_amount) as under_amount
+        FROM project_receipts pr
+        JOIN receipt_invoice_allocations ria ON ria.receipt_id = pr.id
+        WHERE pr.status = 'confirmed' AND pr.amount > 0
+        GROUP BY pr.id, pr.receipt_number, pr.amount, pr.header_id
+        HAVING SUM(ria.allocated_amount) < pr.amount - 0.01
+    """)
+    return db.session.execute(sql).fetchall()
+
+
 def fix_zero_amount_allocations(receipt_ids):
     """删除金额为0收款的分配记录"""
     if not receipt_ids:
@@ -167,6 +186,20 @@ def main():
             print("✓ 未发现问题")
         print()
 
+        # 4. 检查分配不完整
+        print("【4】分配总额少于收款金额（分配不完整）：")
+        print("-" * 60)
+        under_issues = check_under_allocated()
+        if under_issues:
+            issues_found = True
+            print(f"{'收款ID':<8} {'收款单号':<12} {'收款金额':>10} {'项目ID':<8} {'分配总额':>12} {'少分配':>10}")
+            print("-" * 60)
+            for r in under_issues:
+                print(f"{r[0]:<8} {r[1]:<12} {float(r[2]):>10.2f} {r[3]:<8} {float(r[4]):>12.2f} {float(r[5]):>10.2f}")
+        else:
+            print("✓ 未发现问题")
+        print()
+
         # 汇总
         print("=" * 80)
         if not issues_found:
@@ -177,6 +210,7 @@ def main():
         print(f"  - 收款金额为0但有分配: {len(zero_receipt_ids)} 条")
         print(f"  - 分配金额为负数: {len(negative_alloc_ids)} 条")
         print(f"  - 分配超额: {len(over_issues)} 条 (需手动检查)")
+        print(f"  - 分配不完整: {len(under_issues)} 条 (需手动检查)")
         print()
 
         if fix_mode:
@@ -203,7 +237,9 @@ def main():
             print("提示: 使用 --fix 参数执行修复")
             print("  python scripts/fix_invalid_receipt_allocations.py --fix")
             print()
-            print("注意: 超额分配问题需要手动检查，脚本不会自动修复")
+            print("注意: ")
+            print("  - 超额分配和分配不完整问题需要手动检查，脚本不会自动修复")
+            print("  - 分配不完整可能是收款金额与发票金额不匹配，需核实后手动调整")
 
 
 if __name__ == '__main__':
