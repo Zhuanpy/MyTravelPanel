@@ -675,16 +675,29 @@ def upload_file(bank_name):
             
             for month, month_data in monthly_groups:
                 print(f"处理月份: {month}, 数据行数: {len(month_data)}")
-                
-                # 检查该月份是否已有对账单 - 使用更精确的月份匹配
-                # 构造该月份的对账单号格式: BANK-2025-09
+
+                # 检查该月份该账户是否已有对账单
+                # 构造对账单号格式: BANK-账户名-2025-09（账户名取最后4位）
                 month_year = month  # 例如: "2025-09"
-                expected_statement_number = f"{bank_name}-{month_year}"
-                
+                # 从账户名称提取简短标识（如取最后4位数字）
+                account_suffix = ''.join(filter(str.isdigit, account_name))[-4:] if account_name else 'UNKN'
+                expected_statement_number = f"{bank_name}-{account_suffix}-{month_year}"
+
+                # 按银行名称、账户名称和月份查找对账单
                 existing_statement = BankStatement.query.filter(
                     BankStatement.bank_name == bank_name,
+                    BankStatement.account_name == account_name,
                     BankStatement.statement_number == expected_statement_number
                 ).first()
+
+                # 如果用新格式没找到，也尝试旧格式（兼容旧数据）
+                if not existing_statement:
+                    old_statement_number = f"{bank_name}-{month_year}"
+                    existing_statement = BankStatement.query.filter(
+                        BankStatement.bank_name == bank_name,
+                        BankStatement.account_name == account_name,
+                        BankStatement.statement_number == old_statement_number
+                    ).first()
                 
                 if existing_statement:
                     print(f"月份 {month} 已存在对账单: {existing_statement.statement_number}")
@@ -712,12 +725,11 @@ def upload_file(bank_name):
                     # 更新对账单的statement_date为当前日期
                     existing_statement.statement_date = datetime.now().date()
                     print(f"更新对账单日期: {existing_statement.statement_date}")
-                    
-                    # 更新账户信息（如果当前是硬编码值）
-                    if existing_statement.account_number == 'UPLOAD' or existing_statement.account_name == '上传文件':
+
+                    # 更新账户号（如果当前是默认值）
+                    if existing_statement.account_number == 'UPLOAD':
                         existing_statement.account_number = account_number
-                        existing_statement.account_name = account_name
-                        print(f"更新对账单账户信息: {account_number} - {account_name}")
+                        print(f"更新对账单账户号: {account_number}")
                     
                     # 记录更新的对账单信息
                     updated_statements.append({
@@ -731,8 +743,9 @@ def upload_file(bank_name):
                     
                     statement_id = existing_statement.id
                 else:
-                    # 创建新的对账单记录
+                    # 创建新的对账单记录，使用新格式的对账单号
                     statement_number = expected_statement_number
+                    print(f"新对账单号: {statement_number}")
                     # 计算该月的开始和结束日期
                     month_start = month_data['T-Date'].min()
                     month_end = month_data['T-Date'].max()
