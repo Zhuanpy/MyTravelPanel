@@ -8,74 +8,69 @@
     table-layout: fixed;
     width: 100%;
   }
-  
+
   .receipt-table th:nth-child(1),  /* 收据号 */
-  .receipt-table td:nth-child(1) { 
-    width: 120px; 
+  .receipt-table td:nth-child(1) {
+    width: 120px;
   }
-  
+
   .receipt-table th:nth-child(2),  /* 项目(HID) */
-  .receipt-table td:nth-child(2) { 
-    width: 140px; 
-    max-width: 140px;
+  .receipt-table td:nth-child(2) {
+    width: 160px;
+    max-width: 160px;
   }
-  
-  .receipt-table th:nth-child(3),  /* REF */
-  .receipt-table td:nth-child(3) { 
-    width: 100px; 
+
+  .receipt-table th:nth-child(3),  /* 金额 */
+  .receipt-table td:nth-child(3) {
+    width: 120px;
   }
-  
-  .receipt-table th:nth-child(4),  /* 金额 */
-  .receipt-table td:nth-child(4) { 
-    width: 120px; 
+
+  .receipt-table th:nth-child(4),  /* 方式 */
+  .receipt-table td:nth-child(4) {
+    width: 100px;
   }
-  
-  .receipt-table th:nth-child(5),  /* 方式 */
-  .receipt-table td:nth-child(5) { 
-    width: 100px; 
+
+  .receipt-table th:nth-child(5),  /* 日期 */
+  .receipt-table td:nth-child(5) {
+    width: 110px;
   }
-  
-  .receipt-table th:nth-child(6),  /* 日期 */
-  .receipt-table td:nth-child(6) { 
-    width: 110px; 
+
+  .receipt-table th:nth-child(6),  /* 付款方 */
+  .receipt-table td:nth-child(6) {
+    width: 180px;
+    max-width: 180px;
   }
-  
-  .receipt-table th:nth-child(7),  /* 付款方 */
-  .receipt-table td:nth-child(7) { 
-    width: 150px; 
-    max-width: 150px;
+
+  .receipt-table th:nth-child(7),  /* 状态 */
+  .receipt-table td:nth-child(7) {
+    width: 90px;
   }
-  
-  .receipt-table th:nth-child(8),  /* 状态 */
-  .receipt-table td:nth-child(8) { 
-    width: 90px; 
+
+  .receipt-table th:nth-child(8),  /* 备注 */
+  .receipt-table td:nth-child(8) {
+    width: 180px;
+    max-width: 180px;
   }
-  
-  .receipt-table th:nth-child(9),  /* 备注 */
-  .receipt-table td:nth-child(9) { 
-    width: 150px; 
-    max-width: 150px;
-  }
-  
-  .receipt-table th:nth-child(10),  /* 操作 */
-  .receipt-table td:nth-child(10) {
+
+  .receipt-table th:nth-child(9),  /* 操作 */
+  .receipt-table td:nth-child(9) {
     width: 130px;
   }
-  
+
   /* 项目(HID)列文本优化 */
   .receipt-table td:nth-child(2) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   .receipt-table td:nth-child(2) a {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   .receipt-table td:nth-child(2) .text-muted {
     font-size: 0.85rem;
     overflow: hidden;
@@ -84,14 +79,14 @@
     display: block;
     margin-top: 2px;
   }
-  
+
   /* 备注列文本优化 */
   .receipt-remarks {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   /* 窄屏优化：将表格转为卡片式堆叠显示 */
   @media (max-width: 576px) {
     .receipt-table {
@@ -133,7 +128,7 @@
 
   <form class="row g-2 mb-3" method="get">
     <div class="col-md-2">
-      <input class="form-control" name="keyword" placeholder="关键词(单号/公司/备注/HID/REF)" value="{{ current_filters.keyword or '' }}">
+      <input class="form-control" name="keyword" placeholder="关键词(单号/公司/备注/HID)" value="{{ current_filters.keyword or '' }}">
     </div>
     <div class="col-md-2">
       <select class="form-select" name="status">
@@ -152,11 +147,8 @@
     <div class="col-md-1">
       <input class="form-control" name="currency" placeholder="币种" value="{{ current_filters.currency or '' }}">
     </div>
-    <div class="col-md-1">
+    <div class="col-md-2">
       <input class="form-control" name="header_id" placeholder="项目ID" value="{{ current_filters.header_id or '' }}">
-    </div>
-    <div class="col-md-1">
-      <input class="form-control" name="ref_id" placeholder="REF ID" value="{{ current_filters.ref_id or '' }}">
     </div>
     <div class="col-md-1">
       <input type="date" class="form-control" name="start_date" value="{{ current_filters.start_date or '' }}">
@@ -175,7 +167,6 @@
         <tr>
           <th>收据号</th>
           <th>项目(HID)</th>
-          <th>REF</th>
           <th>金额</th>
           <th>方式</th>
           <th>日期</th>
@@ -196,7 +187,7 @@
           </td>
           <td data-label="项目(HID)">
             {% if r.header_id %}
-            <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.header_id) }}" 
+            <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.header_id) }}"
                class="text-primary text-decoration-none fw-bold"
                target="_blank">
               {{ r.project_hid }}
@@ -208,13 +199,12 @@
             <div class="text-muted small">{{ r.project_name }}</div>
             {% endif %}
           </td>
-          <td data-label="REF">{{ r.ref_number or '-' }}</td>
           <td data-label="金额">{{ r.currency }} {{ '%.2f'|format(r.amount) }}</td>
           <td data-label="方式">{{ r.payment_method_display }}</td>
           <td data-label="日期">{{ r.payment_date }}</td>
           <td data-label="付款方">{{ r.payer_company or r.payer_name or '-' }}</td>
           <td data-label="状态">{{ r.status_display }}</td>
-          <td data-label="备注" class="receipt-remarks" style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ r.remarks or '' }}">{{ r.remarks or '' }}</td>
+          <td data-label="备注" class="receipt-remarks" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ r.remarks or '' }}">{{ r.remarks or '' }}</td>
           <td data-label="操作">
             <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=r.id) }}"
                class="btn btn-sm btn-info me-1"
@@ -235,7 +225,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="10" class="text-center text-muted">暂无数据</td></tr>
+        <tr><td colspan="9" class="text-center text-muted">暂无数据</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -294,4 +284,3 @@ function deleteReceipt(receiptId, receiptNumber, headerId) {
 }
 </script>
 {% endblock %}
-
