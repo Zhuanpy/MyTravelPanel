@@ -266,7 +266,7 @@ def list_projects():
                 from App_new.business.projects.models.invoice import ProjectInvoice as PI
                 from sqlalchemy import union_all
 
-                # 方式1: 通过发票分配表统计
+                # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
                 invoice_alloc_q = db.session.query(
                     PI.header_id.label('header_id'),
                     ReceiptInvoiceAllocation.allocated_amount.label('amount')
@@ -274,7 +274,10 @@ def list_projects():
                     ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == PI.id
                 ).join(
                     ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-                ).filter(ProjectReceipt.status == 'confirmed')
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
+                )
 
                 # 方式2: REF级别直接收款
                 ref_receipt_q = db.session.query(
@@ -342,7 +345,7 @@ def list_projects():
             ).group_by(ProjectRef.header_id).subquery()
 
             # 按 header 统计总收款金额（基于发票分配计算，正确处理跨项目收款）
-            # 方式1: 通过发票分配表统计
+            # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
             invoice_alloc_filter = db.session.query(
                 ProjectInvoice.header_id.label('hid'),
                 ReceiptInvoiceAllocation.allocated_amount.label('amount')
@@ -350,7 +353,10 @@ def list_projects():
                 ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
             ).join(
                 ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-            ).filter(ProjectReceipt.status == 'confirmed')
+            ).filter(
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
+            )
 
             # 方式2: REF级别直接收款
             ref_receipt_filter = db.session.query(
@@ -481,7 +487,7 @@ def list_projects():
                 # 这样可以正确处理跨项目收款的情况
                 from App_new.business.projects.models.invoice import ProjectInvoice
 
-                # 方式1: 通过发票分配表统计（适用于有发票分配的收款）
+                # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
                 allocation_query = db.session.query(
                     ProjectInvoice.header_id,
                     db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
@@ -491,7 +497,8 @@ def list_projects():
                     ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
                 ).filter(
                     ProjectInvoice.header_id.in_(project_ids),
-                    ProjectReceipt.status == 'confirmed'
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
                 ).group_by(ProjectInvoice.header_id).all()
 
                 # 方式2: REF级别直接收款（没有通过发票分配的收款）
@@ -808,7 +815,7 @@ def list_projects():
                     # 批量查询收款数据 - 通过发票分配表计算每个项目的收款金额
                     from App_new.business.projects.models.invoice import ProjectInvoice
 
-                    # 方式1: 通过发票分配表统计
+                    # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
                     allocation_query = db.session.query(
                         ProjectInvoice.header_id,
                         db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
@@ -818,7 +825,8 @@ def list_projects():
                         ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
                     ).filter(
                         ProjectInvoice.header_id.in_(project_ids),
-                        ProjectReceipt.status == 'confirmed'
+                        ProjectReceipt.status == 'confirmed',
+                        ProjectReceipt.ref_id == None  # 仅项目级别收款
                     ).group_by(ProjectInvoice.header_id).all()
 
                     # 方式2: REF级别直接收款
@@ -1205,7 +1213,7 @@ def export_excel():
             ).group_by(ProjectRef.header_id).subquery()
 
             # 按 header 统计总收款金额（基于发票分配计算，正确处理跨项目收款）
-            # 方式1: 通过发票分配表统计
+            # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
             invoice_alloc_export = db.session.query(
                 ProjectInvoice.header_id.label('hid'),
                 ReceiptInvoiceAllocation.allocated_amount.label('amount')
@@ -1213,7 +1221,10 @@ def export_excel():
                 ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
             ).join(
                 ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-            ).filter(ProjectReceipt.status == 'confirmed')
+            ).filter(
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
+            )
 
             # 方式2: REF级别直接收款
             ref_receipt_export = db.session.query(
@@ -1326,7 +1337,7 @@ def export_excel():
             # 批量查询收款数据 - 通过发票分配表计算每个项目的收款金额
             from App_new.business.projects.models.invoice import ProjectInvoice
 
-            # 方式1: 通过发票分配表统计
+            # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
             allocation_query = db.session.query(
                 ProjectInvoice.header_id,
                 db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
@@ -1336,7 +1347,8 @@ def export_excel():
                 ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
             ).filter(
                 ProjectInvoice.header_id.in_(project_ids),
-                ProjectReceipt.status == 'confirmed'
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
             ).group_by(ProjectInvoice.header_id).all()
 
             # 方式2: REF级别直接收款
