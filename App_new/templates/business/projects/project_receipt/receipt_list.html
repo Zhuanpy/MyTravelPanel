@@ -58,8 +58,8 @@
   }
   
   .receipt-table th:nth-child(10),  /* 操作 */
-  .receipt-table td:nth-child(10) { 
-    width: 80px; 
+  .receipt-table td:nth-child(10) {
+    width: 100px;
   }
   
   /* 项目(HID)列文本优化 */
@@ -188,7 +188,12 @@
       <tbody>
         {% for r in receipts %}
         <tr>
-          <td data-label="收据号">{{ r.receipt_number }}</td>
+          <td data-label="收据号">
+            <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=r.id) }}"
+               class="text-primary text-decoration-none fw-bold">
+              {{ r.receipt_number }}
+            </a>
+          </td>
           <td data-label="项目(HID)">
             {% if r.header_id %}
             <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.header_id) }}" 
@@ -211,11 +216,15 @@
           <td data-label="状态">{{ r.status_display }}</td>
           <td data-label="备注" class="receipt-remarks" style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ r.remarks or '' }}">{{ r.remarks or '' }}</td>
           <td data-label="操作">
-            <a href="{{ url_for('business_projects.project_receipt.edit_receipt', receipt_id=r.id) }}" 
-               class="btn btn-sm btn-warning" 
-               title="编辑收据"
-               target="_blank">
-              <i class="fas fa-edit"></i> 编辑
+            <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=r.id) }}"
+               class="btn btn-sm btn-info me-1"
+               title="查看详情">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{{ url_for('business_projects.project_receipt.edit_receipt', receipt_id=r.id) }}"
+               class="btn btn-sm btn-warning"
+               title="编辑收据">
+              <i class="fas fa-edit"></i>
             </a>
           </td>
         </tr>
