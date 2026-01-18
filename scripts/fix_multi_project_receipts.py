@@ -46,6 +46,7 @@ def check_problematic_receipts():
         FROM project_receipts pr
         JOIN project_refs r ON pr.ref_id = r.id
         LEFT JOIN receipt_invoice_allocations ria ON ria.receipt_id = pr.id
+        LEFT JOIN project_invoices pi ON ria.invoice_id = pi.id
         WHERE pr.ref_id IS NOT NULL
           AND pr.status = 'confirmed'
         GROUP BY pr.id, pr.receipt_number, pr.amount, pr.ref_id,
