@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
-from App_new.business.projects.models.receipt import ProjectReceipt
+from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
 from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.receipt_forms import ProjectReceiptForm, ProjectLevelReceiptForm
@@ -46,12 +46,12 @@ def create_receipt(ref_id):
             # 处理发票ID（0表示不关联）
             invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
 
-            # 创建收款记录
+            # 创建收款记录（不再直接设置 invoice_id）
             receipt = ProjectReceipt(
                 receipt_number=receipt_number,
                 ref_id=ref.id,
                 header_id=ref.header_id,
-                invoice_id=invoice_id,
+                invoice_id=None,  # 不再使用此字段
                 amount=form.amount.data,
                 currency=form.currency.data,
                 payment_method=form.payment_method.data,
@@ -67,9 +67,17 @@ def create_receipt(ref_id):
             )
 
             db.session.add(receipt)
+            db.session.flush()  # 获取 receipt.id
 
-            # 先提交收款记录，然后更新REF的付款状态
-            db.session.flush()  # 刷新session，获取receipt.id
+            # 如果选择了发票，创建分配记录
+            if invoice_id:
+                allocation = ReceiptInvoiceAllocation(
+                    receipt_id=receipt.id,
+                    invoice_id=invoice_id,
+                    allocated_amount=form.amount.data
+                )
+                db.session.add(allocation)
+                db.session.flush()
 
             # 自动创建日记账分录（借：银行存款，贷：应收账款）
             try:
@@ -92,7 +100,6 @@ def create_receipt(ref_id):
             ref = ProjectRef.query.get(ref_id)
 
             # 更新REF的付款状态
-            # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
             total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
             if total_received >= float(ref.selling_price or 0):
                 ref.payment_status = 'paid'
@@ -101,7 +108,7 @@ def create_receipt(ref_id):
             else:
                 ref.payment_status = 'unpaid'
 
-            # 更新关联发票的已付金额
+            # 更新关联发票的已付金额（通过分配表计算）
             if invoice_id:
                 ProjectReceipt.update_invoice_paid_amount(invoice_id)
 
@@ -141,14 +148,13 @@ def edit_receipt(receipt_id):
 
     if form.validate_on_submit():
         try:
-            # 记录旧的发票ID，用于更新
-            old_invoice_id = receipt.invoice_id
+            # 获取旧的分配记录的发票ID列表
+            old_allocation_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
 
             # 处理发票ID（0表示不关联）
             new_invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
 
-            # 更新收款记录
-            receipt.invoice_id = new_invoice_id
+            # 更新收款记录（不设置 invoice_id）
             receipt.amount = form.amount.data
             receipt.currency = form.currency.data
             receipt.payment_method = form.payment_method.data
@@ -161,7 +167,20 @@ def edit_receipt(receipt_id):
             receipt.transaction_id = form.transaction_id.data
             receipt.remarks = form.remarks.data
 
-            # 先提交收款记录更新
+            # 如果这是一个REF级别收款（有 ref_id），更新分配记录
+            if receipt.ref_id:
+                # 删除旧的分配记录
+                ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
+
+                # 如果选择了新发票，创建新的分配记录
+                if new_invoice_id:
+                    allocation = ReceiptInvoiceAllocation(
+                        receipt_id=receipt.id,
+                        invoice_id=new_invoice_id,
+                        allocated_amount=form.amount.data
+                    )
+                    db.session.add(allocation)
+
             db.session.flush()
 
             # 重新查询REF以获取最新的收款记录
@@ -169,7 +188,6 @@ def edit_receipt(receipt_id):
                 ref = ProjectRef.query.get(receipt.ref_id)
 
                 # 更新REF的付款状态
-                # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
                 total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
                 if total_received >= float(ref.selling_price or 0):
                     ref.payment_status = 'paid'
@@ -178,11 +196,12 @@ def edit_receipt(receipt_id):
                 else:
                     ref.payment_status = 'unpaid'
 
-            # 更新旧发票和新发票的已付金额
-            if old_invoice_id:
-                ProjectReceipt.update_invoice_paid_amount(old_invoice_id)
-            if new_invoice_id and new_invoice_id != old_invoice_id:
-                ProjectReceipt.update_invoice_paid_amount(new_invoice_id)
+            # 更新所有受影响发票的已付金额
+            affected_invoice_ids = set(old_allocation_invoice_ids)
+            if new_invoice_id:
+                affected_invoice_ids.add(new_invoice_id)
+            for inv_id in affected_invoice_ids:
+                ProjectReceipt.update_invoice_paid_amount(inv_id)
 
             db.session.commit()
 
@@ -202,30 +221,35 @@ def delete_receipt(receipt_id):
     """删除收款记录"""
     receipt = ProjectReceipt.query.get_or_404(receipt_id)
     header_id = receipt.header_id
-    invoice_id = receipt.invoice_id  # 保存发票ID用于更新
+    ref_id = receipt.ref_id
+
+    # 获取所有分配记录的发票ID（用于删除后更新）
+    affected_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
 
     try:
-        # 先删除收款记录
+        # 删除分配记录（级联删除或手动删除）
+        ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
+
+        # 删除收款记录
         db.session.delete(receipt)
         db.session.flush()
 
-        # 重新查询REF以获取最新的收款记录
-        if receipt.ref_id:
-            ref = ProjectRef.query.get(receipt.ref_id)
+        # 更新REF的付款状态
+        if ref_id:
+            ref = ProjectRef.query.get(ref_id)
+            if ref:
+                # 使用辅助方法计算总收款金额
+                total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
+                if total_received >= float(ref.selling_price or 0):
+                    ref.payment_status = 'paid'
+                elif total_received > 0:
+                    ref.payment_status = 'partial'
+                else:
+                    ref.payment_status = 'unpaid'
 
-            # 更新REF的付款状态
-            # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
-            total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
-            if total_received >= float(ref.selling_price or 0):
-                ref.payment_status = 'paid'
-            elif total_received > 0:
-                ref.payment_status = 'partial'
-            else:
-                ref.payment_status = 'unpaid'
-
-        # 更新关联发票的已付金额
-        if invoice_id:
-            ProjectReceipt.update_invoice_paid_amount(invoice_id)
+        # 更新所有受影响发票的已付金额
+        for inv_id in affected_invoice_ids:
+            ProjectReceipt.update_invoice_paid_amount(inv_id)
 
         db.session.commit()
         flash('收款记录删除成功！', 'success')
@@ -254,23 +278,22 @@ def update_receipt_status(receipt_id):
         # 先提交收款记录状态更新
         db.session.flush()
 
-        # 重新查询REF以获取最新的收款记录
+        # 更新REF的付款状态
         if receipt.ref_id:
             ref = ProjectRef.query.get(receipt.ref_id)
+            if ref:
+                # 使用辅助方法计算总收款金额
+                total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
+                if total_received >= float(ref.selling_price or 0):
+                    ref.payment_status = 'paid'
+                elif total_received > 0:
+                    ref.payment_status = 'partial'
+                else:
+                    ref.payment_status = 'unpaid'
 
-            # 更新REF的付款状态
-            # 使用辅助方法计算总收款金额（包括项目级别收款记录的分配）
-            total_received = ProjectReceipt.get_ref_total_received(ref.id, ref.header_id)
-            if total_received >= float(ref.selling_price or 0):
-                ref.payment_status = 'paid'
-            elif total_received > 0:
-                ref.payment_status = 'partial'
-            else:
-                ref.payment_status = 'unpaid'
-
-        # 更新关联发票的已付金额（状态变更会影响已付金额计算）
-        if receipt.invoice_id:
-            ProjectReceipt.update_invoice_paid_amount(receipt.invoice_id)
+        # 更新所有分配发票的已付金额（状态变更会影响已付金额计算）
+        for allocation in receipt.invoice_allocations:
+            ProjectReceipt.update_invoice_paid_amount(allocation.invoice_id)
 
         db.session.commit()
 
@@ -527,17 +550,12 @@ def create_header_receipt(header_id):
                 if inv_id and alloc_amount > 0:
                     allocations[inv_id] = alloc_amount
 
-            # 使用分配中的第一张发票作为主关联发票
-            first_invoice_id = None
-            if allocations:
-                first_invoice_id = list(allocations.keys())[0]
-
-            # 创建项目级别收款记录
+            # 创建项目级别收款记录（不再设置 invoice_id）
             project_receipt = ProjectReceipt(
                 receipt_number=receipt_number,
                 ref_id=None,  # 项目级别收款记录，ref_id为None
                 header_id=header.id,
-                invoice_id=first_invoice_id,
+                invoice_id=None,  # 不再使用直接关联，改用分配表
                 amount=amount,
                 currency=form.currency.data,
                 payment_method=form.payment_method.data,
@@ -551,8 +569,8 @@ def create_header_receipt(header_id):
                 remarks=form.remarks.data,
                 status='confirmed'
             )
-            
-            # 在extra_info中存储分配信息
+
+            # 在extra_info中存储分配信息（仅供显示参考）
             distribution_info = {
                 'distribution_method': distribution_method,
                 'allocations': allocations,
@@ -563,8 +581,16 @@ def create_header_receipt(header_id):
             project_receipt.extra_info = json.dumps(distribution_info)
 
             db.session.add(project_receipt)
+            db.session.flush()
 
-            # 先提交收款记录
+            # 创建分配记录
+            for inv_id, alloc_amount in allocations.items():
+                allocation = ReceiptInvoiceAllocation(
+                    receipt_id=project_receipt.id,
+                    invoice_id=inv_id,
+                    allocated_amount=alloc_amount
+                )
+                db.session.add(allocation)
             db.session.flush()
 
             # 自动创建日记账分录（借：银行存款，贷：应收账款）
@@ -635,14 +661,13 @@ def edit_header_receipt(header_id, receipt_id):
 
     if form.validate_on_submit():
         try:
-            # 记录旧的发票ID
-            old_invoice_id = receipt.invoice_id
+            # 获取旧的分配记录的发票ID列表
+            old_allocation_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
 
             # 处理发票ID（0表示不关联）
             new_invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
 
-            # 更新收款记录
-            receipt.invoice_id = new_invoice_id
+            # 更新收款记录（不设置 invoice_id）
             receipt.amount = form.amount.data
             receipt.currency = form.currency.data
             receipt.payment_method = form.payment_method.data
@@ -655,11 +680,26 @@ def edit_header_receipt(header_id, receipt_id):
             receipt.transaction_id = form.transaction_id.data
             receipt.remarks = form.remarks.data
 
-            # 更新旧发票和新发票的已付金额
-            if old_invoice_id:
-                ProjectReceipt.update_invoice_paid_amount(old_invoice_id)
-            if new_invoice_id and new_invoice_id != old_invoice_id:
-                ProjectReceipt.update_invoice_paid_amount(new_invoice_id)
+            # 删除旧的分配记录
+            ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
+
+            # 如果选择了新发票，创建新的分配记录
+            if new_invoice_id:
+                allocation = ReceiptInvoiceAllocation(
+                    receipt_id=receipt.id,
+                    invoice_id=new_invoice_id,
+                    allocated_amount=form.amount.data
+                )
+                db.session.add(allocation)
+
+            db.session.flush()
+
+            # 更新所有受影响发票的已付金额
+            affected_invoice_ids = set(old_allocation_invoice_ids)
+            if new_invoice_id:
+                affected_invoice_ids.add(new_invoice_id)
+            for inv_id in affected_invoice_ids:
+                ProjectReceipt.update_invoice_paid_amount(inv_id)
 
             db.session.commit()
 
@@ -689,10 +729,14 @@ def delete_header_receipt(header_id, receipt_id):
         header_id=header_id
     ).first_or_404()
 
-    invoice_id = receipt.invoice_id  # 保存发票ID用于更新
+    # 获取所有分配记录的发票ID（用于删除后更新）
+    affected_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
     ref_id = receipt.ref_id  # 保存REF ID
 
     try:
+        # 删除分配记录
+        ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
+
         # 删除收款记录
         db.session.delete(receipt)
         db.session.flush()
@@ -710,9 +754,9 @@ def delete_header_receipt(header_id, receipt_id):
                 else:
                     ref.payment_status = 'unpaid'
 
-        # 更新关联发票的已付金额
-        if invoice_id:
-            ProjectReceipt.update_invoice_paid_amount(invoice_id)
+        # 更新所有受影响发票的已付金额
+        for inv_id in affected_invoice_ids:
+            ProjectReceipt.update_invoice_paid_amount(inv_id)
 
         db.session.commit()
         flash('收款记录删除成功！', 'success')
@@ -982,7 +1026,6 @@ def receipt_by_company():
     """按公司收款页面 - 搜索公司和发票，创建收款"""
     from App_new.business.projects.models.project import CustomerCompany
     from App_new.business.projects.forms.receipt_forms import CompanyReceiptForm
-    from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
     from datetime import datetime
 
     # 获取所有活跃公司（用于下拉选择）
@@ -1237,7 +1280,6 @@ def create_company_receipt(company_id):
     """按公司创建收款 - 选择发票并分配"""
     from App_new.business.projects.models.project import CustomerCompany
     from App_new.business.projects.forms.receipt_forms import CompanyReceiptForm
-    from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
 
     company = CustomerCompany.query.get_or_404(company_id)
     form = CompanyReceiptForm()
@@ -1560,7 +1602,7 @@ def batch_invoice_receipt_submit():
             receipt = ProjectReceipt(
                 receipt_number=receipt_number,
                 header_id=inv.header_id,
-                invoice_id=inv.id,
+                invoice_id=None,  # 不再使用直接关联，改用分配表
                 amount=alloc_amount,
                 currency=currency,
                 payment_method=payment_method,
@@ -1577,14 +1619,17 @@ def batch_invoice_receipt_submit():
             db.session.add(receipt)
             db.session.flush()
 
-            # 更新发票已付金额
-            inv.paid_amount = float(inv.paid_amount or 0) + alloc_amount
+            # 创建分配记录
+            allocation = ReceiptInvoiceAllocation(
+                receipt_id=receipt.id,
+                invoice_id=inv.id,
+                allocated_amount=alloc_amount
+            )
+            db.session.add(allocation)
+            db.session.flush()
 
-            # 更新发票付款状态
-            if inv.paid_amount >= float(inv.amount or 0):
-                inv.payment_status = 'paid'
-            elif inv.paid_amount > 0:
-                inv.payment_status = 'partial_paid'
+            # 更新发票已付金额（通过分配表计算）
+            ProjectReceipt.update_invoice_paid_amount(inv.id)
 
             # 创建日记账分录
             try:

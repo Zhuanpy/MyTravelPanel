@@ -14,7 +14,8 @@ class ProjectReceipt(db.Model):
     receipt_number = db.Column(db.String(30), unique=True, nullable=False, comment='收款单号')
     ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True, comment='REF明细ID（可选）')
     header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=False, comment='项目主表ID')
-    invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id'), nullable=True, comment='关联发票ID')
+    # DEPRECATED: 使用 receipt_invoice_allocations 表替代，保留字段仅为兼容旧数据
+    invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id'), nullable=True, comment='[废弃]关联发票ID-请使用分配表')
 
     # 收款信息
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='收款金额')
@@ -132,87 +133,34 @@ class ProjectReceipt(db.Model):
 
     @classmethod
     def get_ref_total_received(cls, ref_id, header_id):
-        """获取REF的实际已收款总额（包括项目级别收款记录的分配）"""
+        """获取REF的实际已收款总额（包括项目级别收款记录的分配）
+
+        计算逻辑：
+        1. REF级别收款：直接关联到REF的收款全额计入
+        2. 项目级别收款：通过发票分配表计算，按发票的ref_ids比例分配
+        """
         from .invoice import ProjectInvoice
         from .ref import ProjectRef
         from .project import ProjectHeader
 
-        # 1. 直接关联的REF级别收款记录
-        ref_receipts = cls.query.filter_by(ref_id=ref_id, status='confirmed').all()
-        total_received = sum(float(r.amount) for r in ref_receipts)
+        total_received = 0.0
 
         # 获取当前 REF 的销售价格
         current_ref = ProjectRef.query.get(ref_id)
         current_ref_selling = float(current_ref.selling_price or 0) if current_ref else 0
 
-        # 获取项目下所有REF数量，用于判断是否只有一个REF
+        # 获取项目下所有REF，用于判断是否只有一个REF
         header = ProjectHeader.query.get(header_id)
         all_refs = header.refs if header else []
         is_single_ref = len(all_refs) == 1
 
-        # 2. 项目级别收款记录中分配给该REF的金额
-        project_receipts = cls.query.filter_by(header_id=header_id, ref_id=None, status='confirmed').all()
-        for project_receipt in project_receipts:
-            has_distribution = False  # 标记是否有分配信息
+        # 1. 直接关联的REF级别收款记录（全额计入）
+        ref_receipts = cls.query.filter_by(ref_id=ref_id, status='confirmed').all()
+        for receipt in ref_receipts:
+            total_received += float(receipt.amount or 0)
 
-            if project_receipt.extra_info:
-                try:
-                    distribution_info = json.loads(project_receipt.extra_info)
-
-                    # 旧格式：distribution 数组包含 ref_id
-                    if 'distribution' in distribution_info:
-                        has_distribution = True
-                        for dist in distribution_info['distribution']:
-                            if isinstance(dist, dict) and dist.get('ref_id') == ref_id:
-                                total_received += dist.get('amount', 0)
-
-                    # 新格式：allocations 是 {invoice_id: amount} 字典
-                    # 需要通过发票的 ref_ids 来判断是否属于这个 REF，按销售额比例分配
-                    if 'allocations' in distribution_info:
-                        has_distribution = True
-                        for inv_id_str, amount in distribution_info['allocations'].items():
-                            try:
-                                inv_id = int(inv_id_str) if isinstance(inv_id_str, str) else inv_id_str
-                                invoice = ProjectInvoice.query.get(inv_id)
-                                if invoice:
-                                    ref_id_int_list = []
-
-                                    # 尝试从发票获取 ref_ids
-                                    if invoice.ref_ids:
-                                        ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
-                                        ref_id_int_list = [int(r) for r in ref_id_list]
-
-                                    # 如果发票没有 ref_ids，使用项目下的所有 REF
-                                    if not ref_id_int_list and is_single_ref:
-                                        # 项目只有一个REF，直接分配给它
-                                        if all_refs[0].id == ref_id:
-                                            total_received += float(amount)
-                                        continue
-                                    elif not ref_id_int_list:
-                                        # 多个REF但发票没有关联，按比例分配
-                                        ref_id_int_list = [r.id for r in all_refs]
-
-                                    if ref_id in ref_id_int_list:
-                                        # 按销售额比例分配
-                                        total_selling = sum(
-                                            float(ProjectRef.query.get(rid).selling_price or 0)
-                                            for rid in ref_id_int_list
-                                            if ProjectRef.query.get(rid)
-                                        )
-                                        if total_selling > 0 and current_ref_selling > 0:
-                                            proportion = current_ref_selling / total_selling
-                                            total_received += float(amount) * proportion
-                            except (ValueError, json.JSONDecodeError, TypeError):
-                                pass
-                except (json.JSONDecodeError, KeyError, TypeError):
-                    pass
-
-            # 如果项目只有一个REF且该收款没有分配信息，自动将全部金额算到这个REF
-            if is_single_ref and not has_distribution and all_refs[0].id == ref_id:
-                total_received += float(project_receipt.amount)
-
-        # 3. 通过 ReceiptInvoiceAllocation 表分配的金额
-        # 只处理项目级别收款（ref_id=None），避免与REF级别收款重复计算
+        # 2. 项目级别收款（通过发票分配表计算）
+        # 获取项目级别收款的所有发票分配记录
         allocations = ReceiptInvoiceAllocation.query.join(
             cls, ReceiptInvoiceAllocation.receipt_id == cls.id
         ).filter(
@@ -221,31 +169,42 @@ class ProjectReceipt(db.Model):
             cls.status == 'confirmed'
         ).all()
 
+        # 记录已处理的收款ID，用于处理没有分配记录的旧收款
+        processed_receipt_ids = set()
+
         for alloc in allocations:
+            processed_receipt_ids.add(alloc.receipt_id)
             invoice = ProjectInvoice.query.get(alloc.invoice_id)
-            if invoice:
-                ref_id_int_list = []
+            if not invoice:
+                continue
 
-                # 尝试从发票的 ref_ids 获取关联的REF
-                if invoice.ref_ids:
-                    try:
-                        ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
-                        ref_id_int_list = [int(r) for r in ref_id_list]
-                    except (json.JSONDecodeError, TypeError, ValueError):
-                        pass
+            # 解析发票关联的REF列表
+            ref_id_int_list = []
+            if invoice.ref_ids:
+                try:
+                    ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
+                    ref_id_int_list = [int(r) for r in ref_id_list]
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    pass
 
-                # 如果发票没有 ref_ids，使用项目下的所有 REF
-                if not ref_id_int_list and is_single_ref:
-                    # 项目只有一个REF，直接分配给它
+            # 如果发票没有关联REF
+            if not ref_id_int_list:
+                if is_single_ref:
+                    # 项目只有一个REF，全额分配给它
                     if all_refs[0].id == ref_id:
                         total_received += float(alloc.allocated_amount)
                     continue
-                elif not ref_id_int_list:
-                    # 多个REF但发票没有关联，按比例分配给所有REF
+                else:
+                    # 多个REF，按比例分配给所有REF
                     ref_id_int_list = [r.id for r in all_refs]
 
-                if ref_id in ref_id_int_list:
-                    # 按销售额比例分配
+            # 检查当前REF是否在关联列表中
+            if ref_id in ref_id_int_list:
+                if len(ref_id_int_list) == 1:
+                    # 只关联一个REF，全额分配
+                    total_received += float(alloc.allocated_amount)
+                else:
+                    # 多个REF，按销售额比例分配
                     total_selling = sum(
                         float(ProjectRef.query.get(rid).selling_price or 0)
                         for rid in ref_id_int_list
@@ -254,6 +213,35 @@ class ProjectReceipt(db.Model):
                     if total_selling > 0 and current_ref_selling > 0:
                         proportion = current_ref_selling / total_selling
                         total_received += float(alloc.allocated_amount) * proportion
+
+        # 3. 处理没有分配记录的旧项目级别收款（向后兼容）
+        project_receipts = cls.query.filter_by(
+            header_id=header_id,
+            ref_id=None,
+            status='confirmed'
+        ).all()
+
+        for project_receipt in project_receipts:
+            # 跳过已通过分配表处理的收款
+            if project_receipt.id in processed_receipt_ids:
+                continue
+
+            # 检查是否有旧格式的distribution信息
+            if project_receipt.extra_info:
+                try:
+                    distribution_info = json.loads(project_receipt.extra_info)
+                    # 旧格式：distribution 数组包含直接的 ref_id 分配
+                    if 'distribution' in distribution_info:
+                        for dist in distribution_info['distribution']:
+                            if isinstance(dist, dict) and dist.get('ref_id') == ref_id:
+                                total_received += dist.get('amount', 0)
+                        continue  # 已处理，跳过后续逻辑
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
+
+            # 如果项目只有一个REF且该收款没有分配信息，自动将全部金额算到这个REF
+            if is_single_ref and all_refs[0].id == ref_id:
+                total_received += float(project_receipt.amount or 0)
 
         return total_received
 
@@ -428,50 +416,9 @@ class ProjectReceipt(db.Model):
         }
 
     @classmethod
-    def get_invoice_total_received(cls, invoice_id):
-        """获取发票的已收款总额"""
-        from sqlalchemy import func
-        result = db.session.query(func.sum(cls.amount)).filter(
-            cls.invoice_id == invoice_id,
-            cls.status == 'confirmed'
-        ).scalar()
-        return float(result) if result else 0
-
-    @classmethod
-    def update_invoice_paid_amount(cls, invoice_id):
-        """更新发票的已付金额（根据关联的收款记录计算）"""
-        if not invoice_id:
-            return
-
-        from .invoice import ProjectInvoice
-
-        invoice = ProjectInvoice.query.get(invoice_id)
-        if not invoice or invoice.status == 'cancelled':
-            return
-
-        # 计算该发票关联的所有确认收款总额
-        total_received = cls.get_invoice_total_received(invoice_id)
-
-        # 更新发票的 paid_amount
-        invoice.paid_amount = total_received
-
-        # 更新发票付款状态
-        amount = float(invoice.amount or 0)
-        if amount <= 0:
-            # 金额为0的发票直接标记为已付
-            invoice.payment_status = 'paid'
-        elif total_received >= amount:
-            invoice.payment_status = 'paid'
-        elif total_received > 0:
-            invoice.payment_status = 'partial_paid'
-        else:
-            invoice.payment_status = 'unpaid'
-
-    @classmethod
     def get_invoice_allocated_amount(cls, invoice_id):
-        """获取发票通过分配表已分配的收款总额"""
+        """获取发票通过分配表已分配的收款总额（唯一计算方式）"""
         from sqlalchemy import func
-        # 使用显式 join 条件，确保正确关联
         result = db.session.query(func.sum(ReceiptInvoiceAllocation.allocated_amount)).filter(
             ReceiptInvoiceAllocation.invoice_id == invoice_id
         ).join(
@@ -482,8 +429,8 @@ class ProjectReceipt(db.Model):
         return float(result) if result else 0
 
     @classmethod
-    def update_invoice_paid_amount_from_allocations(cls, invoice_id):
-        """根据分配表更新发票的已付金额"""
+    def update_invoice_paid_amount(cls, invoice_id):
+        """根据分配表更新发票的已付金额（统一使用分配表）"""
         if not invoice_id:
             return
 
@@ -493,14 +440,8 @@ class ProjectReceipt(db.Model):
         if not invoice or invoice.status == 'cancelled':
             return
 
-        # 计算该发票的所有分配总额
-        total_allocated = cls.get_invoice_allocated_amount(invoice_id)
-
-        # 兼容旧的直接关联方式
-        direct_total = cls.get_invoice_total_received(invoice_id)
-
-        # 取较大值（兼容新旧方式）
-        total_received = max(total_allocated, direct_total)
+        # 只通过分配表计算已付金额
+        total_received = cls.get_invoice_allocated_amount(invoice_id)
 
         # 更新发票的 paid_amount
         invoice.paid_amount = total_received
@@ -508,17 +449,18 @@ class ProjectReceipt(db.Model):
         # 更新发票付款状态
         amount = float(invoice.amount or 0)
         if amount <= 0:
-            # 金额为0的发票直接标记为已付
             invoice.payment_status = 'paid'
-        elif total_received >= amount:
+        elif total_received >= amount - 0.01:
             invoice.payment_status = 'paid'
         elif total_received > 0:
             invoice.payment_status = 'partial_paid'
         else:
             invoice.payment_status = 'unpaid'
 
-        # 确保更改被持久化
         db.session.flush()
+
+    # 兼容旧代码的别名
+    update_invoice_paid_amount_from_allocations = update_invoice_paid_amount
 
     @classmethod
     def update_ref_payment_status(cls, ref_id):
