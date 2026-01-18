@@ -285,6 +285,7 @@
                             <option value="settled" {{ 'selected' if filters.settlement_status == 'settled' }}>已结算</option>
                             <option value="unsettled" {{ 'selected' if filters.settlement_status == 'unsettled' }}>未结算</option>
                             <option value="can_settle" {{ 'selected' if filters.settlement_status == 'can_settle' }}>可结算</option>
+                            <option value="incomplete" {{ 'selected' if filters.settlement_status == 'incomplete' }}>未完成</option>
                         </select>
                     </div>
                     <div class="filter-item">

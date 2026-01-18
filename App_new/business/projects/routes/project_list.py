@@ -324,6 +324,102 @@ def list_projects():
 
                 base_query = base_query.filter(ProjectHeader.id.in_(can_settle_subq))
 
+            elif settlement_status == 'incomplete':
+                # 未完成：未结算 且 不满足可结算条件
+                from App_new.business.projects.models.eo import ProjectEO
+                from App_new.business.projects.models.invoice import InvoiceItem
+
+                # 1. 必须未结算
+                base_query = base_query.filter(ProjectHeader.is_settled == False)
+
+                # 构建可结算项目的子查询（与 can_settle 相同逻辑）
+                ref_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectRef.id).label('ref_count')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                invoiced_ref_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_count')
+                ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                eo_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('eo_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                paid_eo_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('paid_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).filter(ProjectEO.status == 'paid'
+                ).group_by(ProjectRef.header_id).subquery()
+
+                selling_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                from App_new.business.projects.models.invoice import ProjectInvoice as PI
+                from sqlalchemy import union_all
+
+                # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
+                invoice_alloc_q = db.session.query(
+                    PI.header_id.label('header_id'),
+                    ReceiptInvoiceAllocation.allocated_amount.label('amount')
+                ).join(
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == PI.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None
+                )
+
+                # 方式2: REF级别直接收款
+                ref_receipt_q = db.session.query(
+                    ProjectReceipt.header_id.label('header_id'),
+                    ProjectReceipt.amount.label('amount')
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id.isnot(None)
+                )
+
+                combined = union_all(invoice_alloc_q, ref_receipt_q).alias('combined_receipts')
+                receipt_subq = db.session.query(
+                    combined.c.header_id,
+                    db.func.coalesce(db.func.sum(combined.c.amount), 0).label('total_received')
+                ).group_by(combined.c.header_id).subquery()
+
+                # 可结算项目ID列表
+                can_settle_ids = db.session.query(ref_count_subq.c.header_id).outerjoin(
+                    invoiced_ref_subq, invoiced_ref_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    eo_count_subq, eo_count_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    paid_eo_subq, paid_eo_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    selling_subq, selling_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    receipt_subq, receipt_subq.c.header_id == ref_count_subq.c.header_id
+                ).filter(
+                    ref_count_subq.c.ref_count > 0,
+                    ref_count_subq.c.ref_count == db.func.coalesce(invoiced_ref_subq.c.invoiced_count, 0),
+                    db.or_(
+                        eo_count_subq.c.eo_count.is_(None),
+                        eo_count_subq.c.eo_count == db.func.coalesce(paid_eo_subq.c.paid_count, 0)
+                    ),
+                    db.func.abs(
+                        db.func.coalesce(selling_subq.c.total_selling, 0) -
+                        db.func.coalesce(receipt_subq.c.total_received, 0)
+                    ) < 0.01
+                )
+
+                # 未完成 = 未结算 且 不在可结算列表中
+                base_query = base_query.filter(~ProjectHeader.id.in_(can_settle_ids))
+
         # 添加付款状态筛选 - 基于发票数据判断
         if payment_status:
             from App_new.business.projects.models.invoice import ProjectInvoice
