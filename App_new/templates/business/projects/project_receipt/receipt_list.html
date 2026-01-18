@@ -59,7 +59,7 @@
   
   .receipt-table th:nth-child(10),  /* 操作 */
   .receipt-table td:nth-child(10) {
-    width: 100px;
+    width: 130px;
   }
   
   /* 项目(HID)列文本优化 */
@@ -222,10 +222,16 @@
               <i class="fas fa-eye"></i>
             </a>
             <a href="{{ url_for('business_projects.project_receipt.edit_receipt', receipt_id=r.id) }}"
-               class="btn btn-sm btn-warning"
+               class="btn btn-sm btn-warning me-1"
                title="编辑收据">
               <i class="fas fa-edit"></i>
             </a>
+            <button type="button"
+                    class="btn btn-sm btn-danger"
+                    title="删除收据"
+                    onclick="deleteReceipt({{ r.id }}, '{{ r.receipt_number }}', {{ r.header_id }})">
+              <i class="fas fa-trash"></i>
+            </button>
           </td>
         </tr>
         {% else %}
@@ -259,5 +265,33 @@
   </nav>
   {% endif %}
 </div>
+
+<script>
+function deleteReceipt(receiptId, receiptNumber, headerId) {
+    if (confirm('确定要删除收据 ' + receiptNumber + ' 吗？此操作不可恢复！')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("business_projects.project_receipt.delete_header_receipt", header_id=0, receipt_id=0) }}'
+            .replace('/0/receipt/0', '/' + headerId + '/receipt/' + receiptId);
+
+        // 添加CSRF令牌
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+
+        // 添加next参数，删除后返回当前页面
+        const nextUrl = document.createElement('input');
+        nextUrl.type = 'hidden';
+        nextUrl.name = 'next';
+        nextUrl.value = window.location.href;
+        form.appendChild(nextUrl);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 {% endblock %}
 

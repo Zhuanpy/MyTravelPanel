@@ -729,6 +729,9 @@ def delete_header_receipt(header_id, receipt_id):
         header_id=header_id
     ).first_or_404()
 
+    # 获取重定向目标（支持从收据列表页删除后返回列表页）
+    next_url = request.args.get('next') or request.form.get('next')
+
     # 获取所有分配记录的发票ID（用于删除后更新）
     affected_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
     ref_id = receipt.ref_id  # 保存REF ID
@@ -765,6 +768,9 @@ def delete_header_receipt(header_id, receipt_id):
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
 
+    # 如果指定了next参数，跳转到指定页面；否则返回项目收款列表
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
 
