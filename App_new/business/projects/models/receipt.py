@@ -477,6 +477,70 @@ class ProjectReceipt(db.Model):
         db.session.flush()
 
     @classmethod
+    def update_ref_payment_status(cls, ref_id):
+        """更新REF的payment_status（根据收款情况）
+
+        Args:
+            ref_id: REF的ID
+
+        Returns:
+            str: 更新后的状态，如果未更新则返回None
+        """
+        if not ref_id:
+            return None
+
+        from .ref import ProjectRef
+
+        project_ref = ProjectRef.query.get(ref_id)
+        if not project_ref:
+            return None
+
+        # 计算未付金额
+        unpaid = project_ref.unpaid_amount
+        old_status = project_ref.payment_status
+
+        if unpaid <= 0:
+            # 已全额付款
+            if project_ref.payment_status != 'paid':
+                project_ref.payment_status = 'paid'
+                return 'paid'
+        elif project_ref.selling_price and float(project_ref.selling_price) > 0:
+            # 检查是否有部分付款
+            total_received = cls.get_ref_total_received(ref_id, project_ref.header_id)
+            if total_received > 0 and project_ref.payment_status == 'unpaid':
+                project_ref.payment_status = 'partial'
+                return 'partial'
+
+        return None
+
+    @classmethod
+    def update_header_refs_payment_status(cls, header_id):
+        """更新项目下所有REF的payment_status
+
+        Args:
+            header_id: 项目ID
+
+        Returns:
+            dict: 更新结果 {'paid': count, 'partial': count}
+        """
+        from .project import ProjectHeader
+
+        header = ProjectHeader.query.get(header_id)
+        if not header:
+            return {'paid': 0, 'partial': 0}
+
+        result = {'paid': 0, 'partial': 0}
+
+        for ref in header.refs:
+            new_status = cls.update_ref_payment_status(ref.id)
+            if new_status == 'paid':
+                result['paid'] += 1
+            elif new_status == 'partial':
+                result['partial'] += 1
+
+        return result
+
+    @classmethod
     def distribute_to_invoices(cls, amount, invoice_ids, distribution_method='sequential'):
         """
         将收款金额分配到多张发票

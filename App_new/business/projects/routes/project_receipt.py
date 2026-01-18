@@ -1141,6 +1141,15 @@ def receipt_by_company():
                     for invoice_id in distribution_result['allocations'].keys():
                         ProjectReceipt.update_invoice_paid_amount_from_allocations(invoice_id)
 
+                    # 更新涉及项目的REF payment_status
+                    header_ids = set()
+                    for invoice_id in distribution_result['allocations'].keys():
+                        inv = ProjectInvoice.query.get(invoice_id)
+                        if inv:
+                            header_ids.add(inv.header_id)
+                    for header_id in header_ids:
+                        ProjectReceipt.update_header_refs_payment_status(header_id)
+
                     db.session.commit()
 
                     # 跳转回按公司收款页面，保留公司ID
@@ -1324,6 +1333,15 @@ def create_company_receipt(company_id):
             # 更新各发票的已付金额和状态
             for invoice_id in distribution_result['allocations'].keys():
                 ProjectReceipt.update_invoice_paid_amount_from_allocations(invoice_id)
+
+            # 更新涉及项目的REF payment_status
+            header_ids = set()
+            for invoice_id in distribution_result['allocations'].keys():
+                inv = ProjectInvoice.query.get(invoice_id)
+                if inv:
+                    header_ids.add(inv.header_id)
+            for header_id in header_ids:
+                ProjectReceipt.update_header_refs_payment_status(header_id)
 
             db.session.commit()
 
@@ -1571,8 +1589,14 @@ def batch_invoice_receipt_submit():
             created_receipts.append({
                 'receipt_number': receipt_number,
                 'invoice_number': inv.invoice_number,
-                'amount': alloc_amount
+                'amount': alloc_amount,
+                'header_id': inv.header_id
             })
+
+        # 更新所有涉及项目的REF payment_status
+        header_ids = set(r['header_id'] for r in created_receipts)
+        for header_id in header_ids:
+            ProjectReceipt.update_header_refs_payment_status(header_id)
 
         db.session.commit()
 
