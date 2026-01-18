@@ -12,14 +12,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from decimal import Decimal
 from App_new import create_app
 from App_new.exts import db
-from App_new.business.projects.models.header import ProjectHeader
-from App_new.business.projects.models.ref import ProjectRef
-from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
-from App_new.business.projects.models.invoice import ProjectInvoice
 
 app = create_app()
 
-def get_ref_total_received(ref):
+
+def get_ref_total_received(ref, ProjectRef, ProjectInvoice, ProjectReceipt, ReceiptInvoiceAllocation):
     """计算 REF 的总收款金额"""
     total_received = Decimal('0')
 
@@ -100,6 +97,11 @@ def get_ref_total_received(ref):
 def fix_ref_payment_status(dry_run=True):
     """修复所有 REF 的付款状态"""
 
+    # 在 app context 内导入模型
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+    from App_new.business.projects.models.invoice import ProjectInvoice
+
     print(f"{'[DRY RUN] ' if dry_run else ''}开始修复 REF 付款状态...")
     print("-" * 80)
 
@@ -114,7 +116,9 @@ def fix_ref_payment_status(dry_run=True):
     for ref in refs:
         try:
             selling_price = float(ref.selling_price or 0)
-            total_received = get_ref_total_received(ref)
+            total_received = get_ref_total_received(
+                ref, ProjectRef, ProjectInvoice, ProjectReceipt, ReceiptInvoiceAllocation
+            )
 
             # 计算新状态
             if selling_price <= 0:
@@ -171,17 +175,14 @@ def fix_ref_payment_status(dry_run=True):
 
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='修复 REF 付款状态')
+    parser.add_argument('--execute', action='store_true', help='执行更新（默认只预览）')
+    args = parser.parse_args()
+
+    dry_run = not args.execute
+
     with app.app_context():
-        # 第一次运行: dry_run=True 预览变更
-        # 第二次运行: dry_run=False 执行变更
-
-        import argparse
-        parser = argparse.ArgumentParser(description='修复 REF 付款状态')
-        parser.add_argument('--execute', action='store_true', help='执行更新（默认只预览）')
-        args = parser.parse_args()
-
-        dry_run = not args.execute
-
         if not dry_run:
             confirm = input("确定要执行更新吗？输入 'yes' 确认: ")
             if confirm.lower() != 'yes':
