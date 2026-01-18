@@ -171,7 +171,13 @@
                         <tfoot class="table-light">
                             <tr>
                                 <td colspan="3" class="text-end"><strong>合计分配:</strong></td>
-                                <td class="text-success fw-bold">{{ receipt.currency }} {{ "%.2f"|format(receipt.invoice_allocations|map(attribute='allocated_amount')|select|sum) }}</td>
+                                <td class="text-success fw-bold">
+                                    {% set total_allocated = namespace(value=0) %}
+                                    {% for alloc in receipt.invoice_allocations %}
+                                        {% set total_allocated.value = total_allocated.value + (alloc.allocated_amount or 0)|float %}
+                                    {% endfor %}
+                                    {{ receipt.currency }} {{ "%.2f"|format(total_allocated.value) }}
+                                </td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -216,8 +222,12 @@
                         </div>
                         <div class="col-md-3 mb-3">
                             <strong>项目编号:</strong><br>
+                            {% if receipt.header %}
                             <a href="{{ url_for('business_projects.detail.project_detail', project_id=receipt.header_id) }}"
                                class="text-primary">{{ receipt.header.hid }}</a>
+                            {% else %}
+                            <span class="text-secondary">-</span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
