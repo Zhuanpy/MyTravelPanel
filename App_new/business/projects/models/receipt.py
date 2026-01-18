@@ -616,9 +616,9 @@ class ReceiptInvoiceAllocation(db.Model):
 
     # 关联关系
     receipt = db.relationship('ProjectReceipt', backref=db.backref('invoice_allocations',
-                              cascade='all, delete-orphan', lazy='dynamic'))
+                              cascade='all, delete-orphan', lazy='select'))
     invoice = db.relationship('ProjectInvoice', backref=db.backref('receipt_allocations',
-                              cascade='all, delete-orphan', lazy='dynamic'))
+                              cascade='all, delete-orphan', lazy='select'))
 
     # 唯一约束
     __table_args__ = (
