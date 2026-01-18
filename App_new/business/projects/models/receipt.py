@@ -174,9 +174,24 @@ class ProjectReceipt(db.Model):
                             try:
                                 inv_id = int(inv_id_str) if isinstance(inv_id_str, str) else inv_id_str
                                 invoice = ProjectInvoice.query.get(inv_id)
-                                if invoice and invoice.ref_ids:
-                                    ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
-                                    ref_id_int_list = [int(r) for r in ref_id_list]
+                                if invoice:
+                                    ref_id_int_list = []
+
+                                    # 尝试从发票获取 ref_ids
+                                    if invoice.ref_ids:
+                                        ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
+                                        ref_id_int_list = [int(r) for r in ref_id_list]
+
+                                    # 如果发票没有 ref_ids，使用项目下的所有 REF
+                                    if not ref_id_int_list and is_single_ref:
+                                        # 项目只有一个REF，直接分配给它
+                                        if all_refs[0].id == ref_id:
+                                            total_received += float(amount)
+                                        continue
+                                    elif not ref_id_int_list:
+                                        # 多个REF但发票没有关联，按比例分配
+                                        ref_id_int_list = [r.id for r in all_refs]
+
                                     if ref_id in ref_id_int_list:
                                         # 按销售额比例分配
                                         total_selling = sum(
@@ -208,22 +223,37 @@ class ProjectReceipt(db.Model):
 
         for alloc in allocations:
             invoice = ProjectInvoice.query.get(alloc.invoice_id)
-            if invoice and invoice.ref_ids:
-                try:
-                    ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
-                    ref_id_int_list = [int(r) for r in ref_id_list]
-                    if ref_id in ref_id_int_list:
-                        # 按销售额比例分配
-                        total_selling = sum(
-                            float(ProjectRef.query.get(rid).selling_price or 0)
-                            for rid in ref_id_int_list
-                            if ProjectRef.query.get(rid)
-                        )
-                        if total_selling > 0 and current_ref_selling > 0:
-                            proportion = current_ref_selling / total_selling
-                            total_received += float(alloc.allocated_amount) * proportion
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    pass
+            if invoice:
+                ref_id_int_list = []
+
+                # 尝试从发票的 ref_ids 获取关联的REF
+                if invoice.ref_ids:
+                    try:
+                        ref_id_list = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
+                        ref_id_int_list = [int(r) for r in ref_id_list]
+                    except (json.JSONDecodeError, TypeError, ValueError):
+                        pass
+
+                # 如果发票没有 ref_ids，使用项目下的所有 REF
+                if not ref_id_int_list and is_single_ref:
+                    # 项目只有一个REF，直接分配给它
+                    if all_refs[0].id == ref_id:
+                        total_received += float(alloc.allocated_amount)
+                    continue
+                elif not ref_id_int_list:
+                    # 多个REF但发票没有关联，按比例分配给所有REF
+                    ref_id_int_list = [r.id for r in all_refs]
+
+                if ref_id in ref_id_int_list:
+                    # 按销售额比例分配
+                    total_selling = sum(
+                        float(ProjectRef.query.get(rid).selling_price or 0)
+                        for rid in ref_id_int_list
+                        if ProjectRef.query.get(rid)
+                    )
+                    if total_selling > 0 and current_ref_selling > 0:
+                        proportion = current_ref_selling / total_selling
+                        total_received += float(alloc.allocated_amount) * proportion
 
         return total_received
 
