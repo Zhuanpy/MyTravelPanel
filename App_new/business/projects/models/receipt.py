@@ -135,6 +135,7 @@ class ProjectReceipt(db.Model):
         """获取REF的实际已收款总额（包括项目级别收款记录的分配）"""
         from .invoice import ProjectInvoice
         from .ref import ProjectRef
+        from .project import ProjectHeader
 
         # 1. 直接关联的REF级别收款记录
         ref_receipts = cls.query.filter_by(ref_id=ref_id, status='confirmed').all()
@@ -144,15 +145,23 @@ class ProjectReceipt(db.Model):
         current_ref = ProjectRef.query.get(ref_id)
         current_ref_selling = float(current_ref.selling_price or 0) if current_ref else 0
 
+        # 获取项目下所有REF数量，用于判断是否只有一个REF
+        header = ProjectHeader.query.get(header_id)
+        all_refs = header.refs if header else []
+        is_single_ref = len(all_refs) == 1
+
         # 2. 项目级别收款记录中分配给该REF的金额
         project_receipts = cls.query.filter_by(header_id=header_id, ref_id=None, status='confirmed').all()
         for project_receipt in project_receipts:
+            has_distribution = False  # 标记是否有分配信息
+
             if project_receipt.extra_info:
                 try:
                     distribution_info = json.loads(project_receipt.extra_info)
 
                     # 旧格式：distribution 数组包含 ref_id
                     if 'distribution' in distribution_info:
+                        has_distribution = True
                         for dist in distribution_info['distribution']:
                             if isinstance(dist, dict) and dist.get('ref_id') == ref_id:
                                 total_received += dist.get('amount', 0)
@@ -160,6 +169,7 @@ class ProjectReceipt(db.Model):
                     # 新格式：allocations 是 {invoice_id: amount} 字典
                     # 需要通过发票的 ref_ids 来判断是否属于这个 REF，按销售额比例分配
                     if 'allocations' in distribution_info:
+                        has_distribution = True
                         for inv_id_str, amount in distribution_info['allocations'].items():
                             try:
                                 inv_id = int(inv_id_str) if isinstance(inv_id_str, str) else inv_id_str
@@ -181,6 +191,10 @@ class ProjectReceipt(db.Model):
                                 pass
                 except (json.JSONDecodeError, KeyError, TypeError):
                     pass
+
+            # 如果项目只有一个REF且该收款没有分配信息，自动将全部金额算到这个REF
+            if is_single_ref and not has_distribution and all_refs[0].id == ref_id:
+                total_received += float(project_receipt.amount)
 
         # 3. 通过 ReceiptInvoiceAllocation 表分配的金额
         # 只处理项目级别收款（ref_id=None），避免与REF级别收款重复计算
