@@ -104,6 +104,42 @@ def fix_zero_amount_allocations(receipt_ids):
     db.session.execute(sql, {'ids': tuple(receipt_ids)})
 
 
+def fix_under_allocated_single():
+    """
+    修复分配不完整的情况（只有单条分配记录的收款）
+    将分配金额更新为收款金额
+    """
+    # 找出只有一条分配记录且分配不完整的收款
+    sql = text("""
+        SELECT
+            pr.id as receipt_id,
+            pr.receipt_number,
+            pr.amount as receipt_amount,
+            ria.id as alloc_id,
+            ria.allocated_amount,
+            ria.invoice_id
+        FROM project_receipts pr
+        JOIN receipt_invoice_allocations ria ON ria.receipt_id = pr.id
+        WHERE pr.status = 'confirmed' AND pr.amount > 0
+        GROUP BY pr.id, pr.receipt_number, pr.amount, ria.id, ria.allocated_amount, ria.invoice_id
+        HAVING COUNT(*) = 1 AND SUM(ria.allocated_amount) < pr.amount - 0.01
+    """)
+    results = db.session.execute(sql).fetchall()
+
+    fixed_count = 0
+    for r in results:
+        receipt_id = r[0]
+        receipt_amount = float(r[2])
+        alloc_id = r[3]
+
+        # 更新分配金额为收款金额
+        update_sql = text("UPDATE receipt_invoice_allocations SET allocated_amount = :amount WHERE id = :id")
+        db.session.execute(update_sql, {'amount': receipt_amount, 'id': alloc_id})
+        fixed_count += 1
+
+    return fixed_count
+
+
 def fix_negative_allocations(alloc_ids):
     """删除负数分配记录"""
     if not alloc_ids:
@@ -226,6 +262,11 @@ def main():
                 fix_negative_allocations(negative_alloc_ids)
                 print(f"  ✓ 已删除 {len(negative_alloc_ids)} 条负数分配记录")
 
+            # 修复分配不完整（单条分配记录的情况）
+            under_fixed = fix_under_allocated_single()
+            if under_fixed > 0:
+                print(f"  ✓ 已修复 {under_fixed} 条分配不完整记录（单条分配）")
+
             # 更新发票已付金额
             update_invoice_paid_amounts()
             print("  ✓ 已重新计算所有发票的已付金额")
@@ -238,8 +279,8 @@ def main():
             print("  python scripts/fix_invalid_receipt_allocations.py --fix")
             print()
             print("注意: ")
-            print("  - 超额分配和分配不完整问题需要手动检查，脚本不会自动修复")
-            print("  - 分配不完整可能是收款金额与发票金额不匹配，需核实后手动调整")
+            print("  - 超额分配问题需要手动检查")
+            print("  - 分配不完整：单条分配记录的会自动修复，多条分配的需手动调整")
 
 
 if __name__ == '__main__':
