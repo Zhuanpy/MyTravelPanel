@@ -186,7 +186,9 @@
             </div>
             {% endif %}
 
-            <!-- 关联REF信息卡片 -->
+            <!-- 关联信息卡片 -->
+            {% if receipt.ref_id and receipt.ref %}
+            <!-- REF级别收款：显示REF信息 -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light">
                     <h5 class="mb-0">
@@ -197,28 +199,16 @@
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <strong>REF编号:</strong><br>
-                            {% if receipt.ref_id and receipt.ref %}
-                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=receipt.ref_id) }}"
-                                   class="text-primary">{{ receipt.ref.ref_number }}</a>
-                            {% else %}
-                                <span class="text-secondary">项目级别收款</span>
-                            {% endif %}
+                            <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=receipt.ref_id) }}"
+                               class="text-primary">{{ receipt.ref.ref_number }}</a>
                         </div>
                         <div class="col-md-3 mb-3">
                             <strong>REF类型:</strong><br>
-                            {% if receipt.ref_id and receipt.ref %}
-                                {{ receipt.ref.ref_type.name if receipt.ref.ref_type else '未分类' }}
-                            {% else %}
-                                <span class="text-secondary">-</span>
-                            {% endif %}
+                            {{ receipt.ref.ref_type.name if receipt.ref.ref_type else '未分类' }}
                         </div>
                         <div class="col-md-3 mb-3">
                             <strong>REF售价:</strong><br>
-                            {% if receipt.ref_id and receipt.ref %}
-                                <span class="text-success">{{ receipt.ref.currency }} {{ "%.2f"|format(receipt.ref.selling_price) if receipt.ref.selling_price else 0 }}</span>
-                            {% else %}
-                                <span class="text-secondary">-</span>
-                            {% endif %}
+                            <span class="text-success">{{ receipt.ref.currency }} {{ "%.2f"|format(receipt.ref.selling_price) if receipt.ref.selling_price else 0 }}</span>
                         </div>
                         <div class="col-md-3 mb-3">
                             <strong>项目编号:</strong><br>
@@ -232,6 +222,49 @@
                     </div>
                 </div>
             </div>
+            {% else %}
+            <!-- 项目级别收款：显示关联的项目列表 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-folder text-primary"></i> 关联项目信息
+                        <span class="badge bg-secondary ms-2">项目级别收款</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if receipt.invoice_allocations %}
+                    <!-- 从发票分配中提取关联的项目 -->
+                    {% set projects_seen = namespace(ids=[]) %}
+                    <div class="row">
+                        {% for alloc in receipt.invoice_allocations %}
+                            {% if alloc.invoice and alloc.invoice.header and alloc.invoice.header_id not in projects_seen.ids %}
+                                {% set projects_seen.ids = projects_seen.ids + [alloc.invoice.header_id] %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="border rounded p-2">
+                                        <strong>项目:</strong>
+                                        <a href="{{ url_for('business_projects.detail.project_detail', project_id=alloc.invoice.header_id) }}"
+                                           class="text-primary">{{ alloc.invoice.header.hid }}</a>
+                                        <br>
+                                        <small class="text-muted">{{ alloc.invoice.header.desc or '' }}</small>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% elif receipt.header %}
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>项目编号:</strong>
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=receipt.header_id) }}"
+                               class="text-primary">{{ receipt.header.hid }}</a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="text-secondary">无关联项目</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- 备注信息 -->
             {% if receipt.remarks %}
