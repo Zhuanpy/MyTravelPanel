@@ -2380,8 +2380,8 @@ class AthinaToProjectService:
                     self.stats['receipts_created'] += 1
                     action = '创建'
 
-                # 如果有多个发票，创建/更新分配记录
-                if len(invoice_allocations) > 1:
+                # 为所有关联的发票创建分配记录（包括只有1个发票的情况）
+                if len(invoice_allocations) >= 1:
                     # 先删除旧的分配记录（如果更新）
                     if existing_receipt:
                         ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
