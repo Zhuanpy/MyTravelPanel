@@ -102,6 +102,7 @@
     }
 
     /* 筛选表单：放大 日期 与 类型 输入宽度 */
+    .form-select[name="account_name"] { width: 200px; }
     .form-control[name="month"] { width: 180px; }
     .form-control[name="start_date"], .form-control[name="end_date"] { width: 150px; }
     .form-select[name="type"], .form-select[name="owner"] { width: 120px; }
@@ -291,6 +292,15 @@
             <form method="get" action="{{ url_for('cmb_routes.cmb_bank') }}" class="mb-3">
             {% endif %}
                 <div class="row g-3 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label">账户</label>
+                        <select class="form-select" name="account_name" onchange="this.form.submit()">
+                            <option value="">全部账户</option>
+                            {% for acc_name in account_name_options %}
+                            <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="col-auto">
                         <label class="form-label">月份</label>
                         <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">

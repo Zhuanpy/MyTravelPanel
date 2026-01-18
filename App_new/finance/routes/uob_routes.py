@@ -42,6 +42,7 @@ def uob_bank():
     # 如果没有指定月份，显示全部数据（不设置默认月份）
     
     filters = {
+        'account_name': request.args.get('account_name', ''),
         'month': month_param,
         'start_date': request.args.get('start_date', ''),
         'end_date': request.args.get('end_date', ''),
@@ -69,8 +70,14 @@ def uob_bank():
     transactions_query = BankTransaction.query.join(BankStatement).filter(
         BankStatement.bank_name == 'UOB'
     )
-    
+
     # 应用筛选条件
+    # 账户名称筛选
+    if filters['account_name']:
+        transactions_query = transactions_query.filter(
+            BankStatement.account_name == filters['account_name']
+        )
+
     if filters['month']:
         # 月份筛选：格式为 YYYY-MM
         try:

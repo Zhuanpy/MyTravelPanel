@@ -45,6 +45,7 @@ def cmb_bank():
     # 如果没有指定月份，显示全部数据（不设置默认月份）
     
     filters = {
+        'account_name': request.args.get('account_name', ''),
         'month': month_param,
         'start_date': request.args.get('start_date', ''),
         'end_date': request.args.get('end_date', ''),
@@ -72,8 +73,14 @@ def cmb_bank():
     transactions_query = BankTransaction.query.join(BankStatement).filter(
         BankStatement.bank_name == 'CMB'
     )
-    
+
     # 应用筛选条件
+    # 账户名称筛选
+    if filters['account_name']:
+        transactions_query = transactions_query.filter(
+            BankStatement.account_name == filters['account_name']
+        )
+
     if filters['month']:
         # 月份筛选：格式为 YYYY-MM
         try:
@@ -156,21 +163,30 @@ def cmb_bank():
     
     # 获取归属选项
     owner_options = ['Business', 'LG', 'JE', '个人消费', '个人商用']
-    
+
+    # 获取CMB银行现有的账户名称列表（用于筛选和上传时选择）
+    account_names = db.session.query(BankStatement.account_name).filter(
+        BankStatement.bank_name == 'CMB',
+        BankStatement.account_name.isnot(None),
+        BankStatement.account_name != '上传文件'
+    ).distinct().order_by(BankStatement.account_name).all()
+    account_name_options = [name[0] for name in account_names] if account_names else []
+
     # 检查是否是AJAX请求（只返回表格部分）
     if request.args.get('partial') == 'table':
-        return render_template('finance/statement/_cmb_tx_table.html', 
-                             transactions=transactions, 
-                             pagination=pagination, 
+        return render_template('finance/statement/_cmb_tx_table.html',
+                             transactions=transactions,
+                             pagination=pagination,
                              filters=filters)
-    
+
     return render_template('finance/statement/UnifiedBank.html',
                          bank_name='CMB',
                          transactions=transactions,
                          pagination=pagination,
                          filters=filters,
                          statements=statements,
-                         owner_options=owner_options)
+                         owner_options=owner_options,
+                         account_name_options=account_name_options)
 
 
 # CMB下载和删除对账单功能已移至通用函数 statement_common.download_statement 和 statement_common.delete_statement
