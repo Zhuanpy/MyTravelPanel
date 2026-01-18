@@ -34,9 +34,9 @@ def get_ref_total_received(ref, ProjectRef, ProjectInvoice, ProjectReceipt, Rece
     all_refs = ProjectRef.query.filter_by(header_id=ref.header_id).all()
     is_single_ref = len(all_refs) == 1
 
-    # 获取关联此 REF 的发票 (使用 header_id 作为 project_id)
+    # 获取关联此 REF 的发票 (使用 header_id)
     invoices = ProjectInvoice.query.filter_by(
-        project_id=ref.header_id,
+        header_id=ref.header_id,
         status='confirmed'
     ).all()
 
