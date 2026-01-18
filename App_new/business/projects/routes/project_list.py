@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from App_new.exts import db, csrf
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 from App_new.business.projects.models.ref import ProjectRef
-from App_new.business.projects.models.receipt import ProjectReceipt
+from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
 from ..services.project_service import ProjectService
 from ..services.project_stats import ProjectStatsService
 from App_new.utils.decorators import staff_only
@@ -262,12 +262,35 @@ def list_projects():
                     db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
                 ).group_by(ProjectRef.header_id).subquery()
 
-                # 子查询：每个项目的收款总额
+                # 子查询：每个项目的收款总额（基于发票分配计算，正确处理跨项目收款）
+                from App_new.business.projects.models.invoice import ProjectInvoice as PI
+                from sqlalchemy import union_all
+
+                # 方式1: 通过发票分配表统计
+                invoice_alloc_q = db.session.query(
+                    PI.header_id.label('header_id'),
+                    ReceiptInvoiceAllocation.allocated_amount.label('amount')
+                ).join(
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == PI.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(ProjectReceipt.status == 'confirmed')
+
+                # 方式2: REF级别直接收款
+                ref_receipt_q = db.session.query(
+                    ProjectReceipt.header_id.label('header_id'),
+                    ProjectReceipt.amount.label('amount')
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id.isnot(None)
+                )
+
+                # 合并两种方式
+                combined = union_all(invoice_alloc_q, ref_receipt_q).alias('combined_receipts')
                 receipt_subq = db.session.query(
-                    ProjectReceipt.header_id,
-                    db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
-                ).filter(ProjectReceipt.status == 'confirmed'
-                ).group_by(ProjectReceipt.header_id).subquery()
+                    combined.c.header_id,
+                    db.func.coalesce(db.func.sum(combined.c.amount), 0).label('total_received')
+                ).group_by(combined.c.header_id).subquery()
 
                 # 组合查询：找出满足所有条件的项目
                 can_settle_subq = db.session.query(ref_count_subq.c.header_id).outerjoin(
@@ -301,6 +324,7 @@ def list_projects():
         # 添加付款状态筛选 - 基于发票数据判断
         if payment_status:
             from App_new.business.projects.models.invoice import ProjectInvoice
+            from sqlalchemy import union_all
 
             # 按 header 统计发票金额和已付金额
             invoice_sum_subq = db.session.query(
@@ -317,13 +341,32 @@ def list_projects():
                 db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
             ).group_by(ProjectRef.header_id).subquery()
 
-            # 按 header 统计总收款金额（用于没有发票的项目）
-            receipts_sum_subq = db.session.query(
+            # 按 header 统计总收款金额（基于发票分配计算，正确处理跨项目收款）
+            # 方式1: 通过发票分配表统计
+            invoice_alloc_filter = db.session.query(
+                ProjectInvoice.header_id.label('hid'),
+                ReceiptInvoiceAllocation.allocated_amount.label('amount')
+            ).join(
+                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+            ).join(
+                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+            ).filter(ProjectReceipt.status == 'confirmed')
+
+            # 方式2: REF级别直接收款
+            ref_receipt_filter = db.session.query(
                 ProjectReceipt.header_id.label('hid'),
-                db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+                ProjectReceipt.amount.label('amount')
             ).filter(
-                ProjectReceipt.status == 'confirmed'
-            ).group_by(ProjectReceipt.header_id).subquery()
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id.isnot(None)
+            )
+
+            # 合并两种方式
+            combined_filter = union_all(invoice_alloc_filter, ref_receipt_filter).alias('combined_receipts_filter')
+            receipts_sum_subq = db.session.query(
+                combined_filter.c.hid,
+                db.func.coalesce(db.func.sum(combined_filter.c.amount), 0).label('total_received')
+            ).group_by(combined_filter.c.hid).subquery()
 
             if payment_status == 'unpaid':
                 # 未付款项目：
@@ -434,20 +477,63 @@ def list_projects():
                     db.func.sum(ProjectRef.cost_price).label('total_cost')
                 ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                 
-                # 批量查询收款数据 - 简化为统计所有已确认收款
-                # 不再区分收款类型，直接按 header_id 汇总所有已确认收款
-                receipts_query = db.session.query(
+                # 批量查询收款数据 - 通过发票分配表计算每个项目的收款金额
+                # 这样可以正确处理跨项目收款的情况
+                from App_new.business.projects.models.invoice import ProjectInvoice
+
+                # 方式1: 通过发票分配表统计（适用于有发票分配的收款）
+                allocation_query = db.session.query(
+                    ProjectInvoice.header_id,
+                    db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
+                ).join(
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(
+                    ProjectInvoice.header_id.in_(project_ids),
+                    ProjectReceipt.status == 'confirmed'
+                ).group_by(ProjectInvoice.header_id).all()
+
+                # 方式2: REF级别直接收款（没有通过发票分配的收款）
+                direct_ref_receipts = db.session.query(
                     ProjectReceipt.header_id,
-                    db.func.sum(ProjectReceipt.amount).label('total_received')
+                    db.func.sum(ProjectReceipt.amount).label('total_direct')
                 ).filter(
                     ProjectReceipt.header_id.in_(project_ids),
-                    ProjectReceipt.status == 'confirmed'
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id.isnot(None)  # REF级别收款
                 ).group_by(ProjectReceipt.header_id).all()
 
-                # 转换为字典
+                # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
+                # 这些收款没有通过分配表关联到发票，需要直接按header_id计入
+                old_project_receipts_subq = db.session.query(
+                    ReceiptInvoiceAllocation.receipt_id
+                ).distinct().subquery()
+
+                old_project_receipts = db.session.query(
+                    ProjectReceipt.header_id,
+                    db.func.sum(ProjectReceipt.amount).label('total_old')
+                ).filter(
+                    ProjectReceipt.header_id.in_(project_ids),
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None,  # 项目级别收款
+                    ~ProjectReceipt.id.in_(old_project_receipts_subq)  # 没有分配记录
+                ).group_by(ProjectReceipt.header_id).all()
+
+                # 合并三种收款方式的结果
                 receipts_data = {}
-                for r in receipts_query:
-                    receipts_data[r.header_id] = float(r.total_received or 0)
+                for r in allocation_query:
+                    receipts_data[r.header_id] = float(r.total_allocated or 0)
+                for r in direct_ref_receipts:
+                    if r.header_id in receipts_data:
+                        receipts_data[r.header_id] += float(r.total_direct or 0)
+                    else:
+                        receipts_data[r.header_id] = float(r.total_direct or 0)
+                for r in old_project_receipts:
+                    if r.header_id in receipts_data:
+                        receipts_data[r.header_id] += float(r.total_old or 0)
+                    else:
+                        receipts_data[r.header_id] = float(r.total_old or 0)
                 
                 # 检查项目是否有EO或receipt
                 from App_new.business.projects.models.eo import ProjectEO
@@ -719,19 +805,61 @@ def list_projects():
                         db.func.sum(ProjectRef.cost_price).label('total_cost')
                     ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                     
-                    # 批量查询收款数据 - 简化为统计所有已确认收款
-                    receipts_query = db.session.query(
+                    # 批量查询收款数据 - 通过发票分配表计算每个项目的收款金额
+                    from App_new.business.projects.models.invoice import ProjectInvoice
+
+                    # 方式1: 通过发票分配表统计
+                    allocation_query = db.session.query(
+                        ProjectInvoice.header_id,
+                        db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
+                    ).join(
+                        ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+                    ).join(
+                        ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                    ).filter(
+                        ProjectInvoice.header_id.in_(project_ids),
+                        ProjectReceipt.status == 'confirmed'
+                    ).group_by(ProjectInvoice.header_id).all()
+
+                    # 方式2: REF级别直接收款
+                    direct_ref_receipts = db.session.query(
                         ProjectReceipt.header_id,
-                        db.func.sum(ProjectReceipt.amount).label('total_received')
+                        db.func.sum(ProjectReceipt.amount).label('total_direct')
                     ).filter(
                         ProjectReceipt.header_id.in_(project_ids),
-                        ProjectReceipt.status == 'confirmed'
+                        ProjectReceipt.status == 'confirmed',
+                        ProjectReceipt.ref_id.isnot(None)
                     ).group_by(ProjectReceipt.header_id).all()
 
-                    # 转换为字典
+                    # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
+                    old_receipts_subq = db.session.query(
+                        ReceiptInvoiceAllocation.receipt_id
+                    ).distinct().subquery()
+
+                    old_project_receipts = db.session.query(
+                        ProjectReceipt.header_id,
+                        db.func.sum(ProjectReceipt.amount).label('total_old')
+                    ).filter(
+                        ProjectReceipt.header_id.in_(project_ids),
+                        ProjectReceipt.status == 'confirmed',
+                        ProjectReceipt.ref_id == None,
+                        ~ProjectReceipt.id.in_(old_receipts_subq)
+                    ).group_by(ProjectReceipt.header_id).all()
+
+                    # 合并三种收款方式的结果
                     receipts_data = {}
-                    for r in receipts_query:
-                        receipts_data[r.header_id] = float(r.total_received or 0)
+                    for r in allocation_query:
+                        receipts_data[r.header_id] = float(r.total_allocated or 0)
+                    for r in direct_ref_receipts:
+                        if r.header_id in receipts_data:
+                            receipts_data[r.header_id] += float(r.total_direct or 0)
+                        else:
+                            receipts_data[r.header_id] = float(r.total_direct or 0)
+                    for r in old_project_receipts:
+                        if r.header_id in receipts_data:
+                            receipts_data[r.header_id] += float(r.total_old or 0)
+                        else:
+                            receipts_data[r.header_id] = float(r.total_old or 0)
 
                     # 检查项目是否有EO或receipt
                     from App_new.business.projects.models.eo import ProjectEO
@@ -1059,6 +1187,7 @@ def export_excel():
         # 付款状态筛选 - 基于发票数据判断
         if payment_status:
             from App_new.business.projects.models.invoice import ProjectInvoice
+            from sqlalchemy import union_all
 
             # 按 header 统计发票金额和已付金额
             invoice_sum_subq = db.session.query(
@@ -1075,13 +1204,32 @@ def export_excel():
                 db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
             ).group_by(ProjectRef.header_id).subquery()
 
-            # 按 header 统计总收款金额（用于没有发票的项目）
-            receipts_sum_subq = db.session.query(
+            # 按 header 统计总收款金额（基于发票分配计算，正确处理跨项目收款）
+            # 方式1: 通过发票分配表统计
+            invoice_alloc_export = db.session.query(
+                ProjectInvoice.header_id.label('hid'),
+                ReceiptInvoiceAllocation.allocated_amount.label('amount')
+            ).join(
+                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+            ).join(
+                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+            ).filter(ProjectReceipt.status == 'confirmed')
+
+            # 方式2: REF级别直接收款
+            ref_receipt_export = db.session.query(
                 ProjectReceipt.header_id.label('hid'),
-                db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0).label('total_received')
+                ProjectReceipt.amount.label('amount')
             ).filter(
-                ProjectReceipt.status == 'confirmed'
-            ).group_by(ProjectReceipt.header_id).subquery()
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id.isnot(None)
+            )
+
+            # 合并两种方式
+            combined_export = union_all(invoice_alloc_export, ref_receipt_export).alias('combined_receipts_export')
+            receipts_sum_subq = db.session.query(
+                combined_export.c.hid,
+                db.func.coalesce(db.func.sum(combined_export.c.amount), 0).label('total_received')
+            ).group_by(combined_export.c.hid).subquery()
 
             if payment_status == 'unpaid':
                 # 未付款项目
@@ -1175,19 +1323,61 @@ def export_excel():
                 db.func.sum(ProjectRef.cost_price).label('total_cost')
             ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
             
-            # 批量查询收款数据 - 简化为统计所有已确认收款
-            receipts_query = db.session.query(
+            # 批量查询收款数据 - 通过发票分配表计算每个项目的收款金额
+            from App_new.business.projects.models.invoice import ProjectInvoice
+
+            # 方式1: 通过发票分配表统计
+            allocation_query = db.session.query(
+                ProjectInvoice.header_id,
+                db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_allocated')
+            ).join(
+                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+            ).join(
+                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+            ).filter(
+                ProjectInvoice.header_id.in_(project_ids),
+                ProjectReceipt.status == 'confirmed'
+            ).group_by(ProjectInvoice.header_id).all()
+
+            # 方式2: REF级别直接收款
+            direct_ref_receipts = db.session.query(
                 ProjectReceipt.header_id,
-                db.func.sum(ProjectReceipt.amount).label('total_received')
+                db.func.sum(ProjectReceipt.amount).label('total_direct')
             ).filter(
                 ProjectReceipt.header_id.in_(project_ids),
-                ProjectReceipt.status == 'confirmed'
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id.isnot(None)
             ).group_by(ProjectReceipt.header_id).all()
 
-            # 转换为字典
+            # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
+            old_receipts_subq = db.session.query(
+                ReceiptInvoiceAllocation.receipt_id
+            ).distinct().subquery()
+
+            old_project_receipts = db.session.query(
+                ProjectReceipt.header_id,
+                db.func.sum(ProjectReceipt.amount).label('total_old')
+            ).filter(
+                ProjectReceipt.header_id.in_(project_ids),
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None,
+                ~ProjectReceipt.id.in_(old_receipts_subq)
+            ).group_by(ProjectReceipt.header_id).all()
+
+            # 合并三种收款方式的结果
             receipts_data = {}
-            for r in receipts_query:
-                receipts_data[r.header_id] = float(r.total_received or 0)
+            for r in allocation_query:
+                receipts_data[r.header_id] = float(r.total_allocated or 0)
+            for r in direct_ref_receipts:
+                if r.header_id in receipts_data:
+                    receipts_data[r.header_id] += float(r.total_direct or 0)
+                else:
+                    receipts_data[r.header_id] = float(r.total_direct or 0)
+            for r in old_project_receipts:
+                if r.header_id in receipts_data:
+                    receipts_data[r.header_id] += float(r.total_old or 0)
+                else:
+                    receipts_data[r.header_id] = float(r.total_old or 0)
 
             for project_id in project_ids:
                 ref_info = next((r for r in refs_data if r.header_id == project_id), None)
