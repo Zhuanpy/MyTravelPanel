@@ -1,569 +1,297 @@
 {% extends "staff_base.html" %}
 
-{% block title %}预算详情 - MyTravelPanel{% endblock %}
+{% block title %}预算详情 - {{ budget.package_name }}{% endblock %}
 
 {% block page_title %}预算详情{% endblock %}
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<link href="{{ url_for('static', filename='css/package_budget.css') }}" rel="stylesheet">
-<style>
-  /* 扩展预算详情页有效宽度，减少左右留白 */
-  .table td, .table th { white-space: nowrap; }
-  .table .wrap { white-space: normal; }
-  /* 控制页面总体宽度，避免铺满屏幕 */
-  .budget-container { max-width: 1800px; margin: 0 auto; }
-  /* 明细项目长文本：超出隐藏（两行省略） */
-  .detail-clamp {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    white-space: normal;
-  }
-  /* 项目名称过长时单行省略，防止溢出表格 */
-  .name-ellipsis {
-    display: block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  /* 去掉明细表最后一行底部边线，避免文字紧贴表格线 */
-  .table.table-bordered tbody tr:last-child td {
-    border-bottom: 0 !important;
-  }
 
-  /* 打印样式 */
-  @media print {
-    /* 隐藏所有不需要打印的元素 */
-    .navbar,
-    .sidebar,
-    #sidebar,
-    .sidebar-overlay,
-    .breadcrumb,
-    nav[aria-label="breadcrumb"],
-    .alert,
-    .btn,
-    .btn-group,
-    .collapse:not(.show),
-    #addItemForm,
-    .mt-3.text-end,
-    .card-header .btn-group,
-    .page-actions,
-    .d-flex.justify-content-between.flex-wrap h1 + div,
-    footer {
-      display: none !important;
+{% block extra_css %}
+<style>
+    /* 紧凑布局 */
+    .budget-container { max-width: 1400px; margin: 0 auto; }
+
+    /* 信息标签样式 */
+    .info-label { color: #6c757d; font-size: 0.8rem; }
+    .info-value { font-weight: 500; }
+
+    /* 紧凑卡片 */
+    .card-compact .card-header { padding: 0.5rem 1rem; }
+    .card-compact .card-body { padding: 0.75rem 1rem; }
+    .card-compact .card-title { font-size: 0.9rem; margin: 0; }
+
+    /* 统计项 */
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid #f0f0f0;
     }
-    
-    /* 重置页面布局 */
-    body {
-      font-size: 12px;
-      line-height: 1.4;
-      color: #000 !important;
-      background: white !important;
-      margin: 0 !important;
-      padding: 0 !important;
+    .stat-item:last-child { border-bottom: none; }
+    .stat-label { color: #666; font-size: 0.85rem; }
+    .stat-value { font-weight: 600; }
+
+    /* 表格紧凑 */
+    .table-compact th, .table-compact td {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.85rem;
+        vertical-align: middle;
     }
-    
-    /* 重置主内容区域 - 移除侧边栏偏移 */
-    main,
-    .col-md-10,
-    .ms-sm-auto,
-    .col-lg-11 {
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 10px !important;
-      flex: 0 0 100% !important;
+    .table-compact thead th {
+        background: #f8f9fa;
+        font-weight: 600;
+        white-space: nowrap;
     }
-    
-    /* 隐藏容器布局 */
-    .container-fluid > .row {
-      display: block !important;
+
+    /* 项目名称 */
+    .item-name {
+        font-weight: 500;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
-    
-    /* 打印容器 */
-    .budget-container {
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
+
+    /* 项目详情 */
+    .item-details {
+        max-width: 280px;
+        font-size: 0.8rem;
+        color: #666;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
-    
-    /* 页面标题样式 */
-    h2 {
-      font-size: 18px;
-      margin-bottom: 15px;
-      text-align: center;
-      border-bottom: 2px solid #000;
-      padding-bottom: 10px;
+
+    /* 价格显示 */
+    .price-display { text-align: right; white-space: nowrap; }
+    .price-adult { color: #0d6efd; font-weight: 600; }
+    .price-child { color: #0dcaf0; font-size: 0.85em; }
+
+    /* 操作按钮 */
+    .btn-action { padding: 2px 6px; font-size: 0.75rem; }
+
+    /* 添加表单紧凑 */
+    .add-form-compact .form-label { font-size: 0.8rem; margin-bottom: 0.25rem; }
+    .add-form-compact .form-control { font-size: 0.85rem; }
+    .add-form-compact .form-control-sm { padding: 0.25rem 0.5rem; }
+
+    /* 头部信息条 */
+    .header-info-bar {
+        background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+        color: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
     }
-    
-    /* 隐藏页面标题区域的按钮 */
-    .col-md-4.text-end {
-      display: none !important;
+    .header-info-bar .package-name { font-size: 1.1rem; font-weight: 600; }
+    .header-info-bar .badge { background: rgba(255,255,255,0.25); font-size: 0.7rem; }
+
+    /* 快速统计 */
+    .quick-stats {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
     }
-    
-    /* 卡片样式 */
-    .card {
-      border: 1px solid #000 !important;
-      margin-bottom: 15px;
-      break-inside: avoid;
-      box-shadow: none !important;
+    .quick-stat {
+        text-align: center;
+        padding: 0 1rem;
+        border-right: 1px solid rgba(255,255,255,0.3);
     }
-    
-    .card-header {
-      background: #f8f9fa !important;
-      border-bottom: 1px solid #000 !important;
-      padding: 8px 12px;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+    .quick-stat:last-child { border-right: none; }
+    .quick-stat-value { font-size: 1.5rem; font-weight: 700; }
+    .quick-stat-label { font-size: 0.75rem; opacity: 0.9; }
+
+    /* 打印样式 */
+    @media print {
+        .navbar, .sidebar, #sidebar, .btn, .btn-group, .collapse, #addItemForm, footer { display: none !important; }
+        body { font-size: 11px; }
+        .header-info-bar { background: #f8f9fa !important; color: #000 !important; -webkit-print-color-adjust: exact; }
+        .card { border: 1px solid #000 !important; margin-bottom: 10px; }
+        .table th, .table td { border: 1px solid #000 !important; padding: 4px 6px; }
+        @page { margin: 1cm; size: A4 landscape; }
     }
-    
-    .card-title {
-      font-size: 14px;
-      font-weight: bold;
-      margin: 0;
-    }
-    
-    .card-body {
-      padding: 12px;
-    }
-    
-    /* 表格样式 */
-    .table {
-      font-size: 11px;
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 0;
-    }
-    
-    .table th, .table td {
-      border: 1px solid #000 !important;
-      padding: 4px 6px;
-      vertical-align: top;
-    }
-    
-    .table th {
-      background: #f8f9fa !important;
-      font-weight: bold;
-      text-align: center;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    .table tfoot td {
-      background: #f8f9fa !important;
-      font-weight: bold;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    /* 只隐藏明细表格的操作列（有 table-hover 类的表格） */
-    .table.table-hover th:last-child,
-    .table.table-hover td:last-child {
-      display: none !important;
-    }
-    
-    /* 修复 tfoot 人均价格总价显示 - 右对齐 */
-    .table.table-hover tfoot .print-total-row {
-      background: #f8f9fa !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .table.table-hover tfoot .print-total-cell {
-      text-align: right !important;
-      padding: 10px 15px !important;
-      font-weight: bold !important;
-      border: 1px solid #000 !important;
-    }
-    .table.table-hover tfoot .d-print-none {
-      display: none !important;
-    }
-    
-    /* 基本信息表格 - 保持两列都显示，左对齐 */
-    .table-borderless {
-      width: 100% !important;
-      text-align: left !important;
-    }
-    .table-borderless td {
-      border: none !important;
-      padding: 4px 8px !important;
-      display: table-cell !important;
-      visibility: visible !important;
-      text-align: left !important;
-    }
-    .table-borderless td:first-child {
-      width: 100px !important;
-      white-space: nowrap !important;
-    }
-    .table-borderless tr {
-      display: table-row !important;
-    }
-    
-    /* 基本信息卡片两列布局 */
-    .card-body .row .col-md-6 {
-      width: 50% !important;
-      float: left !important;
-      padding: 0 10px !important;
-    }
-    
-    /* 价格汇总和分类统计 - 左对齐 */
-    .d-flex.justify-content-between {
-      justify-content: flex-start !important;
-    }
-    .d-flex.justify-content-between span,
-    .d-flex.justify-content-between strong {
-      margin-right: 15px !important;
-      text-align: left !important;
-    }
-    .d-flex.justify-content-between span:last-child,
-    .d-flex.justify-content-between strong:last-child {
-      margin-right: 0 !important;
-    }
-    
-    /* 价格汇总和分类统计 - 并排显示 */
-    .col-md-4 {
-      width: 100% !important;
-      display: flex !important;
-      flex-wrap: wrap !important;
-      gap: 15px !important;
-      padding: 0 !important;
-    }
-    .col-md-4 > .card {
-      flex: 1 1 45% !important;
-      margin-bottom: 0 !important;
-      min-width: 200px !important;
-    }
-    .col-md-8 {
-      width: 100% !important;
-    }
-    
-    /* 清除浮动 */
-    .row::after {
-      content: "" !important;
-      display: table !important;
-      clear: both !important;
-    }
-    
-    /* 徽章样式 */
-    .badge {
-      background: #f8f9fa !important;
-      color: #000 !important;
-      border: 1px solid #000;
-      padding: 1px 4px;
-      font-size: 10px;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    /* 文本样式 */
-    .text-muted {
-      color: #666 !important;
-    }
-    
-    .text-primary, .text-success, .text-info {
-      color: #000 !important;
-    }
-    
-    .fw-bold {
-      font-weight: bold;
-    }
-    
-    /* 分页控制 */
-    .card {
-      page-break-inside: avoid;
-    }
-    
-    .table {
-      page-break-inside: auto;
-    }
-    
-    .table tr {
-      page-break-inside: avoid;
-    }
-    
-    /* 打印页面设置 */
-    @page {
-      margin: 1cm;
-      size: A4;
-    }
-    
-    /* 避免最后空白页 */
-    html, body {
-      height: auto !important;
-      overflow: visible !important;
-    }
-    
-    .budget-container {
-      page-break-after: avoid !important;
-    }
-    
-    /* 隐藏添加项目表单区域 */
-    #addItemForm,
-    .collapse,
-    .mt-3.text-end {
-      display: none !important;
-      height: 0 !important;
-      overflow: hidden !important;
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-    
-    /* 确保最后一个元素不产生额外分页 */
-    .card:last-child {
-      margin-bottom: 0 !important;
-      page-break-after: avoid !important;
-    }
-  }
 </style>
 {% endblock %}
-{% block content %}
-<div class="container-xxl px-4 budget-container">
-    <div class="row mb-3">
-        <div class="col-md-8">
-            <h2><i class="fas fa-file-invoice-dollar"></i> 配套价格预算单详情</h2>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="btn-group" role="group">
 
-                <!-- <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-outline-warning">
+{% block content %}
+<div class="container-fluid budget-container">
+    <!-- 头部信息条 -->
+    <div class="header-info-bar">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <div class="package-name">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>{{ budget.package_name }}
+                    {% if budget.is_template %}<span class="badge ms-2">模板</span>{% endif %}
+                    {% if budget.status == 'draft' %}<span class="badge">草稿</span>
+                    {% elif budget.status == 'active' %}<span class="badge">激活</span>
+                    {% elif budget.status == 'archived' %}<span class="badge">归档</span>{% endif %}
+                </div>
+                <small class="opacity-75">
+                    {% if budget.project %}
+                    <a href="{{ url_for('tour_projects.edit_tour_project', project_id=budget.project.id) }}" class="text-white text-decoration-none">
+                        <i class="fas fa-link"></i> {{ budget.project.project_name }}
+                        {% if budget.project.project_hid %}({{ budget.project.project_hid }}){% endif %}
+                    </a> |
+                    {% endif %}
+                    创建: {{ budget.created_at.strftime('%Y-%m-%d') }} by {{ budget.created_by or '-' }}
+                </small>
+            </div>
+            <div class="quick-stats">
+                <div class="quick-stat">
+                    <div class="quick-stat-value">{{ budget.adult_count }}</div>
+                    <div class="quick-stat-label">成人</div>
+                </div>
+                <div class="quick-stat">
+                    <div class="quick-stat-value">{{ budget.child_count }}</div>
+                    <div class="quick-stat-label">儿童</div>
+                </div>
+                <div class="quick-stat">
+                    <div class="quick-stat-value">{{ "%.0f"|format(adult_total + child_total) }}</div>
+                    <div class="quick-stat-label">总价 {{ budget.currency }}</div>
+                </div>
+                {% set total_persons = (budget.adult_count or 0) + (budget.child_count or 0) %}
+                {% if total_persons > 0 %}
+                <div class="quick-stat">
+                    <div class="quick-stat-value">{{ "%.0f"|format((adult_total + child_total) / total_persons) }}</div>
+                    <div class="quick-stat-label">人均</div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-light btn-sm">
                     <i class="fas fa-edit"></i> 编辑
-                </a> -->
-                <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> 返回
+                </a>
+                <button onclick="window.print()" class="btn btn-light btn-sm">
+                    <i class="fas fa-print"></i>
+                </button>
+                <a href="{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-download"></i>
+                </a>
+                <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left"></i>
                 </a>
             </div>
-            <!-- 整体人均总价汇总 -->
-            <!-- <div class="mt-3 d-flex justify-content-end">
-                {% set total_persons = (budget.adult_count or 0) + (budget.child_count or 0) %}
-                {% set grand_per_person = (budget.total_price / total_persons) if total_persons > 0 else 0 %}
-                <div class="text-end">
-                    <div class="text-muted">合计总价：{{ "%.2f"|format(budget.total_price) }} {{ budget.currency }}</div>
-                    <div class="text-muted">合计人数：成人 {{ budget.adult_count }}{% if budget.child_count and budget.child_count>0 %}，儿童 {{ budget.child_count }}{% endif %}</div>
-                    <div class="fw-bold text-primary fs-6">人均总价：{{ "%.2f"|format(grand_per_person) }} {{ budget.currency }}</div>
-                </div>
-            </div> -->
         </div>
     </div>
 
-    <!-- 预算单基本信息 -->
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> 基本信息</h5>
-                    <div class="btn-group" role="group">
-                        <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-outline-warning btn-sm">
-                            <i class="fas fa-edit"></i> 编辑基本信息
-                        </a>
-                        <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-print"></i> 打印
-                        </button>
-                        
-                        <a href="{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}" class="btn btn-outline-success btn-sm">
-                            <i class="fas fa-download"></i> 下载TXT
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>套餐名称：</strong></td>
-                                    <td>{{ budget.package_name }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>成人数量：</strong></td>
-                                    <td><span class="badge bg-primary">{{ budget.adult_count }}人</span></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>儿童数量：</strong></td>
-                                    <td><span class="badge bg-info">{{ budget.child_count }}人</span></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>币种：</strong></td>
-                                    <td><span class="badge bg-success">{{ budget.currency }}</span></td>
-                                </tr>
-                                {% if budget.project %}
-                                <tr>
-                                    <td><strong>关联项目：</strong></td>
-                                    <td>
-                                        <a href="{{ url_for('tour_projects.edit_tour_project', project_id=budget.project.id) }}" class="text-decoration-none">
-                                            <i class="fas fa-project-diagram"></i> {{ budget.project.project_name }}
-                                        </a>
-                                        {% if budget.project.project_hid %}
-                                        <span class="badge bg-secondary ms-1">{{ budget.project.project_hid }}</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endif %}
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>状态：</strong></td>
-                                    <td>
-                                        {% if budget.status == 'draft' %}
-                                            <span class="badge bg-secondary">草稿</span>
-                                        {% elif budget.status == 'active' %}
-                                            <span class="badge bg-success">激活</span>
-                                        {% elif budget.status == 'archived' %}
-                                            <span class="badge bg-warning text-dark">归档</span>
-                                        {% else %}
-                                            <span class="badge bg-light text-dark">{{ budget.status }}</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>类型：</strong></td>
-                                    <td>
-                                        {% if budget.is_template %}
-                                            <span class="badge bg-warning text-dark">模板</span>
-                                        {% else %}
-                                            <span class="badge bg-info">普通预算</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>创建时间：</strong></td>
-                                    <td>{{ budget.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>创建人：</strong></td>
-                                    <td>{{ budget.created_by or '-' }}</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                    {% if budget.remarks %}
-                    <div class="mt-3">
-                        <strong>备注：</strong>
-                        <p class="text-muted mb-0">{{ budget.remarks }}</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
+    <!-- 统计信息：价格汇总 + 分类统计 左右分布 -->
+    <div class="row mb-3">
         <!-- 价格汇总 -->
-        <div class="col-md-4">
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-calculator"></i> 价格汇总</h5>
+        <div class="col-md-6">
+            <div class="card card-compact h-100">
+                <div class="card-header py-2">
+                    <span class="card-title"><i class="fas fa-calculator text-success"></i> 价格汇总</span>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>成人费用：</span>
-                        <span class="text-primary">{{ "%.2f"|format(adult_total) }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>儿童费用：</span>
-                        <span class="text-info">{{ "%.2f"|format(child_total) }}</span>
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-between">
-                        <strong>总价：</strong>
-                        <strong class="text-success fs-5">{{ "%.2f"|format(adult_total + child_total) }}</strong>
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between flex-wrap gap-3">
+                        <div class="text-center">
+                            <div class="text-muted small">成人费用</div>
+                            <div class="fw-bold text-primary">{{ "%.2f"|format(adult_total) }}</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-muted small">儿童费用</div>
+                            <div class="fw-bold text-info">{{ "%.2f"|format(child_total) }}</div>
+                        </div>
+                        <div class="text-center px-3 py-1 bg-light rounded">
+                            <div class="text-muted small">总价</div>
+                            <div class="fw-bold text-success fs-5">{{ "%.2f"|format(adult_total + child_total) }} {{ budget.currency }}</div>
+                        </div>
+                        {% if budget.remarks %}
+                        <div class="flex-grow-1 border-start ps-3">
+                            <div class="text-muted small">备注</div>
+                            <div class="small">{{ budget.remarks }}</div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- 分类统计 -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-chart-pie"></i> 分类统计</h5>
+        <!-- 分类统计 -->
+        <div class="col-md-6">
+            <div class="card card-compact h-100">
+                <div class="card-header py-2">
+                    <span class="card-title"><i class="fas fa-chart-pie text-info"></i> 分类统计</span>
                 </div>
-                <div class="card-body">
-                    {% for category, amount in category_totals.items() %}
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>{{ category or '未分类' }}：</span>
-                        <span>{{ "%.2f"|format(amount) }}</span>
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for category, amount in category_totals.items() %}
+                        <div class="text-center">
+                            <div class="text-muted small">{{ category or '未分类' }}</div>
+                            <div class="fw-bold">{{ "%.2f"|format(amount) }}</div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 明细项目 -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title mb-0"><i class="fas fa-list"></i> 明细项目</h5>
+    <!-- 明细项目表格 -->
+    <div class="card card-compact">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span class="card-title"><i class="fas fa-list text-primary"></i> 明细项目 ({{ budget.items|length }})</span>
+            <button type="button" class="btn btn-primary btn-sm" id="toggleAddItemBtn">
+                <i class="fas fa-plus"></i> 添加
+            </button>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             {% if budget.items %}
-            <div class="table-responsive" style="overflow: visible;">
-                <table class="table table-hover table-striped table-bordered align-middle" style="table-layout: fixed;">
-                    <thead class="table-dark">
+            <div class="table-responsive">
+                <table class="table table-compact table-hover table-striped mb-0">
+                    <thead>
                         <tr>
-                            <th class="text-center" style="width: 70px;">序号</th>
-                            <th class="text-start" style="min-width: 220px;">项目名称</th>
-                            <th class="text-center" style="min-width: 120px;">类别</th>
-                            <th class="text-start" style="min-width: 320px;">项目详细</th>
-                            <th class="text-center" style="min-width: 140px;">计价方式</th>
-                            <th class="text-center" style="min-width: 180px;">适用人数</th>
-                            <th class="text-end" style="min-width: 160px;">人均价格</th>
-                            <th class="text-center" style="min-width: 140px;">操作</th>
+                            <th style="width:70px">类别</th>
+                            <th>项目名称</th>
+                            <th>详情</th>
+                            <th style="width:100px">计价</th>
+                            <th style="width:90px">人数</th>
+                            <th style="width:100px" class="text-end">人均价格</th>
+                            <th style="width:70px">操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% set ns = namespace(total=0.0) %}
                         {% for item in budget.items %}
                         <tr>
-                            <td class="text-center">{{ loop.index }}</td>
-                            <td class="text-start">
-                                <strong class="name-ellipsis">{{ item.item_name }}</strong>
-                                {% if item.is_optional %}
-                                    <span class="badge bg-warning text-dark">可选</span>
-                                {% endif %}
+                            <td><span class="badge bg-secondary">{{ item.category or '未分类' }}</span></td>
+                            <td>
+                                <span class="item-name" title="{{ item.item_name }}">{{ item.item_name }}</span>
+                                {% if item.is_optional %}<span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem">可选</span>{% endif %}
                             </td>
-                            <td class="text-center">{{ item.category or '未分类' }}</td>
-                            <td class="text-start" style="white-space: normal;">
+                            <td>
                                 {% if item.item_details %}
-                                    <small class="text-muted detail-clamp">{{ item.item_details }}</small>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
+                                <span class="item-details" title="{{ item.item_details }}">{{ item.item_details }}</span>
+                                {% else %}<span class="text-muted">-</span>{% endif %}
                             </td>
-                            <td class="text-center">
+                            <td>
                                 {% if item.pricing_method == 'item_based' %}
-                                    <span class="badge bg-primary">物品计价</span>
-                                    <br><small class="text-muted">{{ "%.2f"|format(item.item_unit_price or 0) }} × {{ item.item_quantity or 1 }}</small>
+                                <small class="text-primary">物品 {{ "%.0f"|format(item.item_unit_price or 0) }}×{{ item.item_quantity or 1 }}</small>
                                 {% else %}
-                                    <span class="badge bg-success">人均计价</span>
-                                    <br><small class="text-muted">成人: {{ "%.2f"|format(item.adult_price or 0) }}{% if budget.child_count > 0 %} | 儿童: {{ "%.2f"|format(item.child_price or 0) }}{% endif %}</small>
+                                <small class="text-success">人均 {{ "%.0f"|format(item.adult_price or 0) }}{% if budget.child_count > 0 %}/{{ "%.0f"|format(item.child_price or 0) }}{% endif %}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-center">
-                                {% if item.count_adult_apply %}
-                                    <span class="badge bg-info">成人: {{ item.adult_count_override or budget.adult_count }}</span>
-                                {% endif %}
-                                {% if item.count_child_apply and (budget.child_count > 0 or item.child_count_override) %}
-                                    <span class="badge bg-warning">儿童: {{ item.child_count_override or budget.child_count }}</span>
-                                {% endif %}
+                            <td>
+                                {% if item.count_adult_apply %}<span class="badge bg-info" style="font-size:0.7rem">成{{ item.adult_count_override or budget.adult_count }}</span>{% endif %}
+                                {% if item.count_child_apply and (budget.child_count > 0 or item.child_count_override) %}<span class="badge bg-warning text-dark" style="font-size:0.7rem">儿{{ item.child_count_override or budget.child_count }}</span>{% endif %}
                             </td>
-                            <td class="text-end">
-                                <span class="text-primary fw-bold">{{ "%.2f"|format(item.adult_unit_price) }}</span>
+                            <td class="price-display">
+                                <span class="price-adult">{{ "%.2f"|format(item.adult_unit_price) }}</span>
                                 {% set child_up = item.child_unit_price %}
                                 {% if item.count_child_apply and child_up and child_up > 0 and child_up != item.adult_unit_price %}
-                                    <br><span class="text-info">{{ "%.2f"|format(child_up) }}</span>
+                                <br><span class="price-child">{{ "%.2f"|format(child_up) }}</span>
                                 {% endif %}
-                                {# 人均总价 = 本项目 subtotal / 适用人数 #}
                                 {% set adult_cnt = item.adult_count_override if item.adult_count_override is not none else budget.adult_count %}
                                 {% set child_cnt = item.child_count_override if item.child_count_override is not none else budget.child_count %}
                                 {% set persons = (adult_cnt if item.count_adult_apply else 0) + (child_cnt if item.count_child_apply else 0) %}
                                 {% set per_person_total = (item.subtotal / persons) if persons > 0 else 0 %}
                                 {% set ns.total = ns.total + per_person_total %}
                             </td>
-                            <td class="text-center">
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-primary" onclick="editItem({{ item.id }})">
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary btn-action" onclick="editItem({{ item.id }})" title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger" onclick="deleteItem({{ item.id }})">
+                                    <button class="btn btn-outline-danger btn-action" onclick="deleteItem({{ item.id }})" title="删除">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -572,192 +300,107 @@
                         {% endfor %}
                     </tbody>
                     <tfoot>
-                        <tr class="print-total-row">
-                            <td colspan="7" class="text-end fw-bold text-primary print-total-cell">人均价格总价：{{ "%.2f"|format(ns.total) }}</td>
-                            <td class="d-print-none"></td>
+                        <tr class="table-light">
+                            <td colspan="5" class="text-end fw-bold">人均价格合计:</td>
+                            <td class="text-end fw-bold text-primary">{{ "%.2f"|format(ns.total) }}</td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-4">
-                <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
-                <p class="text-muted">暂无明细项目</p>
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <p class="mb-0">暂无明细项目，点击上方"添加"按钮创建</p>
             </div>
             {% endif %}
-            
-            <!-- 添加项目按钮 -->
-            <div class="mt-3 text-end">
-                <button type="button" class="btn btn-primary btn-sm" id="toggleAddItemBtn">
-                    <i class="fas fa-plus"></i> 添加项目
-                </button>
-            </div>
         </div>
     </div>
 
-    <!-- 添加项目表单 -->
-    <div class="collapse" id="addItemForm">
-        <div class="card mt-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0"><i class="fas fa-plus"></i> 添加明细项目</h6>
-                <button type="button" class="btn-close" id="closeAddItemBtn" aria-label="Close"></button>
+    <!-- 添加项目表单 (折叠) -->
+    <div class="collapse mt-2" id="addItemForm">
+        <div class="card card-compact">
+            <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
+                <span class="card-title"><i class="fas fa-plus text-success"></i> 添加项目</span>
+                <button type="button" class="btn-close btn-sm" id="closeAddItemBtn"></button>
             </div>
-            <div class="card-body">
+            <div class="card-body add-form-compact py-2">
                 <form method="post" action="{{ url_for('package_budget.add_item', budget_id=budget.id) }}" id="itemForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="category">类别 <span class="text-danger">*</span></label>
-                                {% if business_types %}
-                                <select class="form-control" id="category" name="category" required>
-                                    {% for bt in business_types %}
-                                        <option value="{{ bt.name }}">{{ bt.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                {% else %}
-                                <input type="text" class="form-control" id="category" name="category" required>
-                                {% endif %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-1">
+                            <label class="form-label small">类别 *</label>
+                            {% if business_types %}
+                            <select class="form-select form-select-sm" name="category" required>
+                                {% for bt in business_types %}
+                                <option value="{{ bt.name }}">{{ bt.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control form-control-sm" name="category" required>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">项目名称 *</label>
+                            <input type="text" class="form-control form-control-sm" name="item_name" required placeholder="如：圣淘沙酒店2晚">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">计价方式</label>
+                            <div class="btn-group btn-group-sm w-100">
+                                <input type="radio" class="btn-check" name="pricing_method" id="add_person_based" value="person_based" checked>
+                                <label class="btn btn-outline-success btn-sm" for="add_person_based">人均</label>
+                                <input type="radio" class="btn-check" name="pricing_method" id="add_item_based" value="item_based">
+                                <label class="btn btn-outline-primary btn-sm" for="add_item_based">物品</label>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="item_name">项目名称 <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="item_name" name="item_name" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="form-group">
-                                <label for="item_details">项目详细</label>
-                                <textarea class="form-control" id="item_details" name="item_details" rows="3" 
-                                          placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息"></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 计价方式选择 -->
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <label class="form-label">计价方式</label>
-                            <div class="btn-group w-100" role="group" id="pricingMethodGroup">
-                                <input type="radio" class="btn-check" name="pricing_method" id="person_based" value="person_based" checked>
-                                <label class="btn btn-outline-primary" for="person_based">
-                                    <i class="fas fa-users"></i> 模板2：人均计价
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="pricing_method" id="item_based" value="item_based">
-                                <label class="btn btn-outline-primary" for="item_based">
-                                    <i class="fas fa-box"></i> 模板1：物品计价
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 模板1：物品计价方式 -->
-                    <div class="row mt-3" id="itemBasedPricing" style="display: none;">
-                        <div class="col-md-12">
-                            <div class="card border-primary">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="card-title mb-0"><i class="fas fa-box"></i> 模板1：物品计价方式</h6>
+                        <!-- 人均计价 -->
+                        <div class="col-md-2" id="personBasedPricing">
+                            <div class="row g-1">
+                                <div class="col-6">
+                                    <label class="form-label small text-success">成人价</label>
+                                    <input type="number" class="form-control form-control-sm" name="adult_price" step="0.01" placeholder="0">
                                 </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <label class="form-label">物品单价 <span class="text-danger">*</span></label>
-                                            <input type="number" name="item_unit_price" class="form-control" step="0.01" placeholder="0.00">
-                                            <small class="form-text text-muted">物品的单价</small>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">物品件数 <span class="text-danger">*</span></label>
-                                            <input type="number" name="item_quantity" class="form-control" min="1" value="1" placeholder="1">
-                                            <small class="form-text text-muted">物品的数量</small>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">总价</label>
-                                            <input type="text" id="itemTotalCost" class="form-control" readonly>
-                                            <small class="form-text text-muted">自动计算：单价 × 件数</small>
-                                        </div>
-                                    </div>
-                                    <div class="row mt-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label">大人人均</label>
-                                            <input type="text" id="itemAdultUnitPrice" class="form-control" readonly>
-                                            <small class="form-text text-muted">自动计算：总价 ÷ 大人人数</small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">小孩人均</label>
-                                            <input type="text" id="itemChildUnitPrice" class="form-control" readonly>
-                                            <small class="form-text text-muted">自动计算：总价 ÷ 小孩人数</small>
-                                        </div>
-                                    </div>
+                                <div class="col-6">
+                                    <label class="form-label small">儿童价</label>
+                                    <input type="number" class="form-control form-control-sm" name="child_price" step="0.01" placeholder="0">
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- 模板2：人均计价方式 -->
-                    <div class="row mt-3" id="personBasedPricing">
-                        <div class="col-md-12">
-                            <div class="card border-success">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="card-title mb-0"><i class="fas fa-users"></i> 模板2：人均计价方式</h6>
+                        <!-- 物品计价 -->
+                        <div class="col-md-2" id="itemBasedPricing" style="display:none;">
+                            <div class="row g-1">
+                                <div class="col-7">
+                                    <label class="form-label small text-primary">单价</label>
+                                    <input type="number" class="form-control form-control-sm" name="item_unit_price" step="0.01" placeholder="0">
                                 </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <label class="form-label">成人单价 <span class="text-danger">*</span></label>
-                                            <input type="number" name="adult_price" class="form-control" step="0.01" placeholder="0.00">
-                                            <small class="form-text text-muted">成人人均价格</small>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">儿童单价 <span class="text-danger">*</span></label>
-                                            <input type="number" name="child_price" class="form-control" step="0.01" placeholder="0.00">
-                                            <small class="form-text text-muted">儿童人均价格</small>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">总价</label>
-                                            <input type="text" id="personTotalCost" class="form-control" readonly>
-                                            <small class="form-text text-muted">自动计算：成人总价 + 儿童总价</small>
-                                        </div>
-                                    </div>
+                                <div class="col-5">
+                                    <label class="form-label small">件数</label>
+                                    <input type="number" class="form-control form-control-sm" name="item_quantity" min="1" value="1">
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="row mt-3">
-                        <div class="col-md-3">
-                            <div class="form-check">
-                                <input type="checkbox" name="count_adult_apply" class="form-check-input" value="1" checked>
-                                <label class="form-check-label">计成人费用</label>
+                        <div class="col-md-2">
+                            <label class="form-label small">详情</label>
+                            <input type="text" class="form-control form-control-sm" name="item_details" placeholder="入住日期、房型等">
+                        </div>
+                        <div class="col-auto">
+                            <div class="form-check form-check-inline">
+                                <input type="checkbox" class="form-check-input" name="count_adult_apply" value="1" checked id="add_adult">
+                                <label class="form-check-label small" for="add_adult">成人</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input type="checkbox" class="form-check-input" name="count_child_apply" value="1" checked id="add_child">
+                                <label class="form-check-label small" for="add_child">儿童</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input type="checkbox" class="form-check-input" name="is_optional" value="1" id="add_optional">
+                                <label class="form-check-label small text-warning" for="add_optional">可选</label>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="form-check">
-                                <input type="checkbox" name="count_child_apply" class="form-check-input" value="1" checked>
-                                <label class="form-check-label">计儿童费用</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check">
-                                <input type="checkbox" name="is_optional" class="form-check-input" value="1">
-                                <label class="form-check-label">可选项目</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-plus"></i> 添加项目
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="fas fa-plus"></i> 添加
                             </button>
-                        </div>
-                    </div>
-                    
-                    <div class="row mt-2">
-                        <div class="col-md-12">
-                            <label class="form-label">备注</label>
-                            <textarea name="remarks" class="form-control" rows="2" placeholder="项目备注信息"></textarea>
                         </div>
                     </div>
                 </form>
@@ -769,288 +412,90 @@
 <script>
 function deleteItem(itemId) {
     if (confirm('确定要删除这个项目吗？')) {
-        // 获取CSRF token
-        const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
-        if (!csrfTokenElement) {
-            alert('CSRF令牌未找到');
-            return;
-        }
-        const csrfToken = csrfTokenElement.value;
-        
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
         fetch(`/package_budget/{{ budget.id }}/item/${itemId}/delete`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                csrf_token: csrfToken
-            })
-        }).then(response => {
-            if (response.ok) {
-                location.reload();
-            } else {
-                alert('删除失败，请重试');
-            }
-        }).catch(error => {
-            console.error('删除错误:', error);
-            alert('删除失败，请重试');
-        });
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ csrf_token: csrfToken })
+        }).then(r => r.ok ? location.reload() : alert('删除失败'));
     }
 }
 
 function editItem(itemId) {
-    // 跳转到编辑项目页面
     window.location.href = `/package_budget/{{ budget.id }}/item/${itemId}/edit`;
 }
 
-// 表单验证
-const itemForm = document.getElementById('itemForm');
-if (itemForm) {
-    itemForm.addEventListener('submit', function(e) {
-        const itemNameInput = document.querySelector('input[name="item_name"]');
-        const pricingMethodInput = document.querySelector('input[name="pricing_method"]:checked');
-        
-        if (!itemNameInput || !pricingMethodInput) {
-            e.preventDefault();
-            alert('表单字段未找到');
-            return false;
-        }
-        
-        const itemName = itemNameInput.value.trim();
-        const pricingMethod = pricingMethodInput.value;
-    
-    if (!itemName) {
-        e.preventDefault();
-        alert('请输入项目名称');
-        return false;
-    }
-    
-    if (pricingMethod === 'item_based') {
-        // 模板1验证
-        const itemUnitPrice = parseFloat(document.querySelector('input[name="item_unit_price"]').value) || 0;
-        const itemQuantity = parseInt(document.querySelector('input[name="item_quantity"]').value) || 0;
-        
-        if (itemUnitPrice <= 0 || itemQuantity <= 0) {
-            e.preventDefault();
-            alert('请输入有效的物品单价和件数');
-            return false;
-        }
-    } else {
-        // 模板2验证
-        const adultPrice = parseFloat(document.querySelector('input[name="adult_price"]').value) || 0;
-        const childPrice = parseFloat(document.querySelector('input[name="child_price"]').value) || 0;
-        
-        if (adultPrice <= 0 && childPrice <= 0) {
-            e.preventDefault();
-            alert('请至少输入成人单价或儿童单价');
-            return false;
-        }
-    }
-    });
-}
-
-// 计价方式切换
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded 事件触发');
-    
-    // 手动控制 collapse - 直接操作 CSS 类
-    const addItemFormCollapse = document.getElementById('addItemForm');
-    const toggleAddItemBtn = document.getElementById('toggleAddItemBtn');
-    const closeAddItemBtn = document.getElementById('closeAddItemBtn');
-    
-    console.log('toggleAddItemBtn 找到:', toggleAddItemBtn);
-    console.log('addItemFormCollapse 找到:', addItemFormCollapse);
-    
-    if (addItemFormCollapse && toggleAddItemBtn) {
-        console.log('开始绑定事件...');
-        
-        // 添加项目按钮点击事件
-        toggleAddItemBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const isHidden = addItemFormCollapse.style.display === 'none' || 
-                            addItemFormCollapse.classList.contains('collapse');
-            
-            if (!isHidden && addItemFormCollapse.classList.contains('show')) {
-                // 关闭
-                addItemFormCollapse.classList.remove('show');
-                addItemFormCollapse.classList.add('collapse');
-            } else {
-                // 展开 - 移除 collapse 类，添加 show 类
-                addItemFormCollapse.classList.remove('collapse');
-                addItemFormCollapse.classList.add('show');
-            }
-            
-            return false;
-        };
-        
-        // 关闭按钮点击事件
-        if (closeAddItemBtn) {
-            closeAddItemBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                addItemFormCollapse.classList.remove('show');
-                addItemFormCollapse.style.height = '';
-            });
-        }
+    const addForm = document.getElementById('addItemForm');
+    const toggleBtn = document.getElementById('toggleAddItemBtn');
+    const closeBtn = document.getElementById('closeAddItemBtn');
+
+    toggleBtn.onclick = () => { addForm.classList.toggle('show'); };
+    closeBtn.onclick = () => { addForm.classList.remove('show'); };
+
+    // 计价方式切换
+    const personBased = document.getElementById('add_person_based');
+    const itemBased = document.getElementById('add_item_based');
+    const personDiv = document.getElementById('personBasedPricing');
+    const itemDiv = document.getElementById('itemBasedPricing');
+
+    personBased.onchange = () => { personDiv.style.display = 'block'; itemDiv.style.display = 'none'; };
+    itemBased.onchange = () => { personDiv.style.display = 'none'; itemDiv.style.display = 'block'; };
+
+    // 人均计价计算
+    const adultPrice = document.querySelector('input[name="adult_price"]');
+    const childPrice = document.querySelector('input[name="child_price"]');
+    const personTotal = document.getElementById('personTotalCost');
+    const countAdult = document.querySelector('input[name="count_adult_apply"]');
+    const countChild = document.querySelector('input[name="count_child_apply"]');
+
+    function calcPerson() {
+        const ap = parseFloat(adultPrice.value) || 0;
+        const cp = parseFloat(childPrice.value) || 0;
+        const ac = countAdult.checked ? {{ budget.adult_count }} : 0;
+        const cc = countChild.checked ? {{ budget.child_count }} : 0;
+        personTotal.value = (ap * ac + cp * cc).toFixed(2);
     }
-    
-    const pricingMethodInputs = document.querySelectorAll('input[name="pricing_method"]');
-    const itemBasedPricing = document.getElementById('itemBasedPricing');
-    const personBasedPricing = document.getElementById('personBasedPricing');
-    
-    if (!itemBasedPricing || !personBasedPricing) {
-        console.warn('计价方式容器未找到');
-        return;
+    adultPrice.oninput = calcPerson;
+    childPrice.oninput = calcPerson;
+    countAdult.onchange = calcPerson;
+    countChild.onchange = calcPerson;
+
+    // 物品计价计算
+    const itemUnitPrice = document.querySelector('input[name="item_unit_price"]');
+    const itemQty = document.querySelector('input[name="item_quantity"]');
+    const itemTotal = document.getElementById('itemTotalCost');
+    const itemPerPerson = document.getElementById('itemPerPerson');
+
+    function calcItem() {
+        const up = parseFloat(itemUnitPrice.value) || 0;
+        const qty = parseInt(itemQty.value) || 1;
+        const total = up * qty;
+        itemTotal.value = total.toFixed(2);
+        const ac = countAdult.checked ? {{ budget.adult_count }} : 0;
+        const cc = countChild.checked ? {{ budget.child_count }} : 0;
+        const persons = ac + cc;
+        itemPerPerson.value = persons > 0 ? (total / persons).toFixed(2) : '0.00';
     }
-    
-    // 计价方式切换事件
-    pricingMethodInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            if (this.value === 'item_based') {
-                itemBasedPricing.style.display = 'block';
-                personBasedPricing.style.display = 'none';
-                // 清空模板2的字段
-                const adultPriceInput = document.querySelector('input[name="adult_price"]');
-                const childPriceInput = document.querySelector('input[name="child_price"]');
-                if (adultPriceInput) adultPriceInput.value = '';
-                if (childPriceInput) childPriceInput.value = '';
-            } else {
-                itemBasedPricing.style.display = 'none';
-                personBasedPricing.style.display = 'block';
-                // 清空模板1的字段
-                const itemUnitPriceInput = document.querySelector('input[name="item_unit_price"]');
-                const itemQuantityInput = document.querySelector('input[name="item_quantity"]');
-                if (itemUnitPriceInput) itemUnitPriceInput.value = '';
-                if (itemQuantityInput) itemQuantityInput.value = '1';
-            }
-            updateCalculations();
-        });
-    });
-    
-    // 模板1：物品计价计算
-    const itemUnitPriceInput = document.querySelector('input[name="item_unit_price"]');
-    const itemQuantityInput = document.querySelector('input[name="item_quantity"]');
-    
-    function updateItemBasedCalculations() {
-        if (!itemUnitPriceInput || !itemQuantityInput) return;
-        
-        const itemUnitPrice = parseFloat(itemUnitPriceInput.value) || 0;
-        const itemQuantity = parseInt(itemQuantityInput.value) || 0;
-        const totalCost = itemUnitPrice * itemQuantity;
-        
-        // 更新总价显示
-        const itemTotalCostInput = document.getElementById('itemTotalCost');
-        if (itemTotalCostInput) {
-            itemTotalCostInput.value = totalCost.toFixed(2);
-        }
-        
-        // 计算人均价格
-        const adultCount = parseInt('{{ budget.adult_count }}') || 0;
-        const childCount = parseInt('{{ budget.child_count }}') || 0;
-        const countAdultApplyInput = document.querySelector('input[name="count_adult_apply"]');
-        const countChildApplyInput = document.querySelector('input[name="count_child_apply"]');
-        const countAdultApply = countAdultApplyInput ? countAdultApplyInput.checked : false;
-        const countChildApply = countChildApplyInput ? countChildApplyInput.checked : false;
-        
-        let totalPersons = 0;
-        if (countAdultApply) totalPersons += adultCount;
-        if (countChildApply) totalPersons += childCount;
-        
-        if (totalPersons > 0) {
-            const unitPrice = totalCost / totalPersons;
-            const itemAdultUnitPriceEl = document.getElementById('itemAdultUnitPrice');
-            const itemChildUnitPriceEl = document.getElementById('itemChildUnitPrice');
-            if (itemAdultUnitPriceEl) itemAdultUnitPriceEl.value = countAdultApply ? unitPrice.toFixed(2) : '0.00';
-            if (itemChildUnitPriceEl) itemChildUnitPriceEl.value = countChildApply ? unitPrice.toFixed(2) : '0.00';
+    itemUnitPrice.oninput = calcItem;
+    itemQty.oninput = calcItem;
+
+    // 表单验证
+    document.getElementById('itemForm').onsubmit = function(e) {
+        const name = document.querySelector('input[name="item_name"]').value.trim();
+        if (!name) { e.preventDefault(); alert('请输入项目名称'); return false; }
+
+        const method = document.querySelector('input[name="pricing_method"]:checked').value;
+        if (method === 'person_based') {
+            const ap = parseFloat(adultPrice.value) || 0;
+            const cp = parseFloat(childPrice.value) || 0;
+            if (ap <= 0 && cp <= 0) { e.preventDefault(); alert('请输入成人或儿童单价'); return false; }
         } else {
-            const itemAdultUnitPriceEl = document.getElementById('itemAdultUnitPrice');
-            const itemChildUnitPriceEl = document.getElementById('itemChildUnitPrice');
-            if (itemAdultUnitPriceEl) itemAdultUnitPriceEl.value = '0.00';
-            if (itemChildUnitPriceEl) itemChildUnitPriceEl.value = '0.00';
+            const up = parseFloat(itemUnitPrice.value) || 0;
+            const qty = parseInt(itemQty.value) || 0;
+            if (up <= 0 || qty <= 0) { e.preventDefault(); alert('请输入物品单价和件数'); return false; }
         }
-    }
-    
-    // 模板2：人均计价计算
-    const adultPriceInput = document.querySelector('input[name="adult_price"]');
-    const childPriceInput = document.querySelector('input[name="child_price"]');
-    
-    function updatePersonBasedCalculations() {
-        if (!adultPriceInput || !childPriceInput) return;
-        
-        const adultPrice = parseFloat(adultPriceInput.value) || 0;
-        const childPrice = parseFloat(childPriceInput.value) || 0;
-        const adultCount = parseInt('{{ budget.adult_count }}') || 0;
-        const childCount = parseInt('{{ budget.child_count }}') || 0;
-        const countAdultApplyInput = document.querySelector('input[name="count_adult_apply"]');
-        const countChildApplyInput = document.querySelector('input[name="count_child_apply"]');
-        const countAdultApply = countAdultApplyInput ? countAdultApplyInput.checked : false;
-        const countChildApply = countChildApplyInput ? countChildApplyInput.checked : false;
-        
-        let totalCost = 0;
-        if (countAdultApply) totalCost += adultPrice * adultCount;
-        if (countChildApply) totalCost += childPrice * childCount;
-        
-        const personTotalCostEl = document.getElementById('personTotalCost');
-        if (personTotalCostEl) {
-            personTotalCostEl.value = totalCost.toFixed(2);
-        }
-    }
-    
-    // 绑定计算事件
-    if (itemUnitPriceInput) itemUnitPriceInput.addEventListener('input', updateItemBasedCalculations);
-    if (itemQuantityInput) itemQuantityInput.addEventListener('input', updateItemBasedCalculations);
-    if (adultPriceInput) adultPriceInput.addEventListener('input', updatePersonBasedCalculations);
-    if (childPriceInput) childPriceInput.addEventListener('input', updatePersonBasedCalculations);
-    
-    // 人数变化时重新计算
-    const countAdultApplyEl = document.querySelector('input[name="count_adult_apply"]');
-    const countChildApplyEl = document.querySelector('input[name="count_child_apply"]');
-    
-    if (countAdultApplyEl) {
-        countAdultApplyEl.addEventListener('change', function() {
-            updateCalculations();
-        });
-    }
-    if (countChildApplyEl) {
-        countChildApplyEl.addEventListener('change', function() {
-            updateCalculations();
-        });
-    }
-    
-    function updateCalculations() {
-        const currentMethodInput = document.querySelector('input[name="pricing_method"]:checked');
-        if (!currentMethodInput) return;
-        
-        const currentMethod = currentMethodInput.value;
-        if (currentMethod === 'item_based') {
-            updateItemBasedCalculations();
-        } else {
-            updatePersonBasedCalculations();
-        }
-    }
-    
-    // 初始化计算
-    updateCalculations();
+    };
 });
 </script>
-
-<style>
-@media print {
-    .btn, .btn-group, .collapse {
-        display: none !important;
-    }
-    .card {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    .card-header {
-        background-color: #f8f9fa !important;
-        border-bottom: 1px solid #dee2e6 !important;
-    }
-}
-</style>
-{% endblock %} 
+{% endblock %}
