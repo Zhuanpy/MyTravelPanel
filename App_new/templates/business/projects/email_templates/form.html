@@ -70,17 +70,17 @@
 
                 <div class="mb-3">
                     <label class="form-label">邮件主题 <span class="text-danger">*</span></label>
-                    <input type="text" name="subject" class="form-control" 
-                           value="{{ template.subject if template else '' }}" 
+                    <input type="text" name="subject" class="form-control"
+                           value="{{ template.subject if template else '' }}"
                            placeholder="如：[{hid}] 机票确认" required>
-                    <small class="text-muted">可使用变量：{hid}（项目编号）、{contact}（联系人）、{company}（公司名称）</small>
+                    <small class="text-muted">可使用变量：{hid}、{contact}、{company}、{leader_name}、{ref_description}</small>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">邮件正文 <span class="text-danger">*</span></label>
-                    <textarea name="body" class="form-control" rows="12" 
+                    <textarea name="body" class="form-control" rows="12"
                               placeholder="邮件内容..." required>{{ template.body if template else '' }}</textarea>
-                    <small class="text-muted">支持HTML格式，可使用变量：{hid}、{contact}、{company}</small>
+                    <small class="text-muted">支持HTML格式，可使用下方列出的变量</small>
                 </div>
 
                 <div class="variable-hint">
@@ -88,7 +88,9 @@
                     <div class="mt-2">
                         <code>{hid}</code> - 项目编号<br>
                         <code>{contact}</code> - 联系人姓名<br>
-                        <code>{company}</code> - 公司名称
+                        <code>{company}</code> - 公司名称<br>
+                        <code>{leader_name}</code> - 客户姓名（Leader）<br>
+                        <code>{ref_description}</code> - REF服务描述
                     </div>
                 </div>
 

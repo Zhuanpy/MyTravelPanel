@@ -66,13 +66,30 @@ def project_detail(project_id):
         companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
         print(f"DEBUG: 加载了 {len(companies)} 个活跃公司")
 
+        # 获取项目的 leader 成员名称
+        from App_new.business.projects.models.project_member import ProjectMember
+        leader_member = ProjectMember.query.filter_by(
+            header_id=project_id,
+            is_leader=True
+        ).first()
+        if not leader_member:
+            # 没有指定 leader，取第一个成员
+            leader_member = ProjectMember.query.filter_by(header_id=project_id).first()
+
+        leader_member_name = ''
+        if leader_member:
+            leader_member_name = leader_member.member_name
+            if leader_member.title:
+                leader_member_name = f"{leader_member.title} {leader_member.member_name}"
+
         print(f"DEBUG: 准备渲染模板 business/projects/project_detail.html")
         return render_template('business/projects/project_detail.html',
                                header=header,
                                company=company,
                                companies=companies,
                                prev_header=prev_header,
-                               next_header=next_header)
+                               next_header=next_header,
+                               leader_member_name=leader_member_name)
                                
     except Exception as e:
         error_msg = str(e)
