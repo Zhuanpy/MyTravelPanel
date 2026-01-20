@@ -2332,10 +2332,12 @@ def edit_other_ref(ref_id):
     """编辑其他类型REF"""
     ref = ProjectRef.query.get_or_404(ref_id)
 
-    # 确保这是其他类型的REF
+    # 通用REF编辑表单 - 接受没有专用编辑器的类型
     business_type = BusinessType.query.get(ref.ref_type_id)
-    if not business_type or business_type.name != '其他':
-        flash('只能编辑其他类型的REF', 'error')
+    # 有专用编辑器的类型应使用对应的编辑路由
+    specialized_types = ['机票', '酒店', '签证', '保险', '旅游团', '交通', '景点/活动']
+    if business_type and business_type.name in specialized_types:
+        flash(f'请使用{business_type.name}专用编辑页面', 'warning')
         return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
 
     if request.method == 'POST':

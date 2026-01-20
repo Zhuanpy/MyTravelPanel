@@ -344,12 +344,16 @@
                                 <a href="{{ url_for('business_projects.project_ref.edit_transport_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑交通REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
+                            {% elif ref.ref_type and ref.ref_type.name == '接送' %}
+                                <a href="{{ url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑接送REF">
+                                    <strong>{{ ref.ref_number }}</strong>
+                                </a>
                             {% elif ref.ref_type and ref.ref_type.name == '景点/活动' %}
                                 <a href="{{ url_for('business_projects.project_ref.edit_attraction_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑景点REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% else %}
-                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑REF">
+                                <a href="{{ url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id) }}" class="ref-number-link" title="点击编辑REF">
                                     <strong>{{ ref.ref_number }}</strong>
                                 </a>
                             {% endif %}

@@ -30,6 +30,7 @@ class ProjectReceiptForm(FlaskForm):
         ('cash', '现金'),
         ('credit_card', '信用卡'),
         ('cheque', '支票'),
+        ('wechat', 'WeChat'),
         ('other', '其他')
     ], default='bank_transfer', validators=[DataRequired(message='请选择付款方式')])
     
@@ -93,6 +94,7 @@ class ProjectLevelReceiptForm(FlaskForm):
         ('cash', '现金'),
         ('credit_card', '信用卡'),
         ('cheque', '支票'),
+        ('wechat', 'WeChat'),
         ('other', '其他')
     ], default='bank_transfer', validators=[DataRequired(message='请选择付款方式')])
     
@@ -179,6 +181,7 @@ class CompanyReceiptForm(FlaskForm):
         ('cash', '现金'),
         ('credit_card', '信用卡'),
         ('cheque', '支票'),
+        ('wechat', 'WeChat'),
         ('other', '其他')
     ], default='bank_transfer', validators=[DataRequired(message='请选择付款方式')])
 

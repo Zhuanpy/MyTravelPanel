@@ -20,7 +20,7 @@ class ProjectReceipt(db.Model):
     # 收款信息
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment='收款金额')
     currency = db.Column(db.String(3), default='SGD', nullable=False, comment='货币类型')
-    payment_method = db.Column(db.Enum('cash', 'bank_transfer', 'credit_card', 'cheque', 'other'),
+    payment_method = db.Column(db.Enum('cash', 'bank_transfer', 'credit_card', 'cheque', 'wechat', 'other'),
                                nullable=False, comment='付款方式')
     payment_date = db.Column(db.Date, nullable=False, comment='收款日期')
 
@@ -120,6 +120,7 @@ class ProjectReceipt(db.Model):
             'bank_transfer': '银行转账',
             'credit_card': '信用卡',
             'cheque': '支票',
+            'wechat': 'WeChat',
             'other': '其他'
         }
         return method_map.get(self.payment_method, self.payment_method)
