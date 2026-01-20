@@ -1,0 +1,1073 @@
+{% extends "staff_base.html" %}
+
+{% block title %}银行支出与EO对比 - MyTravelPanel{% endblock %}
+
+{% block page_title %}银行支出与EO对比{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
+<style>
+    .compare-container { width: 100%; max-width: none; margin: 0; padding: 20px; }
+
+    /* 筛选区域样式 */
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+    }
+
+    /* 双栏布局 */
+    .compare-panels {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .compare-panel {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .panel-header {
+        background: #dc3545;
+        color: white;
+        padding: 12px 15px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .panel-header.eo-header {
+        background: #6f42c1;
+    }
+    .panel-body {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    /* 表格样式 */
+    .compare-table {
+        width: 100%;
+        font-size: 13px;
+        margin: 0;
+    }
+    .compare-table th {
+        background: #f1f3f5;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: 10px 8px;
+        text-align: center;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .compare-table td {
+        padding: 8px;
+        vertical-align: middle;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .compare-table tbody tr:hover {
+        background: #f3e5f5;
+    }
+    .compare-table tbody tr.selected {
+        background: #e1bee7 !important;
+    }
+    .compare-table tbody tr.matched {
+        background: #c8e6c9;
+    }
+    .compare-table tbody tr.matched:hover {
+        background: #a5d6a7;
+    }
+
+    /* 金额样式 */
+    .amount-cell {
+        font-family: 'Consolas', monospace;
+        font-weight: 600;
+        text-align: right;
+    }
+    .amount-credit { color: #28a745; }
+    .amount-debit { color: #dc3545; }
+
+    /* 对方/摘要单元格 - 换行显示 */
+    .desc-cell {
+        max-width: 200px;
+        word-wrap: break-word;
+        white-space: normal;
+        line-height: 1.3;
+    }
+    .desc-cell .counterparty {
+        font-weight: 500;
+        color: #333;
+    }
+    .desc-cell .description {
+        font-size: 12px;
+        color: #666;
+        margin-top: 2px;
+    }
+
+    /* 状态标签 */
+    .status-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .status-unmatched { background: #fff3cd; color: #856404; }
+    .status-matched { background: #d4edda; color: #155724; }
+    .status-personal { background: #e2e3e5; color: #383d41; }
+    .status-reconciled { background: #cce5ff; color: #004085; }
+
+    /* 已核对行样式 */
+    .compare-table tbody tr.reconciled {
+        background: #e7f3ff;
+    }
+    .compare-table tbody tr.reconciled:hover {
+        background: #d0e8ff;
+    }
+
+    /* 操作区域 */
+    .action-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+    }
+    .action-btn {
+        margin-right: 10px;
+    }
+
+    /* 匹配建议区域 */
+    .suggestions-section {
+        margin-top: 20px;
+    }
+    .suggestion-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: #fff;
+    }
+    .suggestion-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .suggestion-card.accepted {
+        background: #d4edda;
+        border-color: #28a745;
+    }
+    .match-score {
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+    }
+    .match-score.high { color: #28a745; }
+    .match-score.medium { color: #ffc107; }
+    .match-score.low { color: #dc3545; }
+
+    /* 选中计数 */
+    .selection-info {
+        font-weight: 600;
+        color: #6f42c1;
+    }
+
+    /* 加载状态 */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 1200px) {
+        .compare-panels {
+            flex-direction: column;
+        }
+        .compare-panel {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="compare-container">
+    <!-- 筛选区域 -->
+    <div class="filter-section">
+        <form id="filterForm" class="row g-3 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">银行</label>
+                <select id="bankNameFilter" class="form-select" name="bank_name">
+                    <option value="">全部银行</option>
+                    {% for bank in bank_options %}
+                    <option value="{{ bank }}" {% if filters.bank_name == bank %}selected{% endif %}>{{ bank }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">账户</label>
+                <select id="accountNameFilter" class="form-select" name="account_name">
+                    <option value="">全部账户</option>
+                    {% for acc in account_options %}
+                    <option value="{{ acc }}" {% if filters.account_name == acc %}selected{% endif %}>{{ acc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">供应商</label>
+                <select id="supplierFilter" class="form-select" name="supplier_id" style="min-width: 150px;">
+                    <option value="">全部供应商</option>
+                    {% for supplier in supplier_options %}
+                    <option value="{{ supplier[0] }}" {% if filters.supplier_id|string == supplier[0]|string %}selected{% endif %}>{{ supplier[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">开始日期</label>
+                <input type="date" class="form-control" id="startDate" name="start_date" value="{{ filters.start_date }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label">结束日期</label>
+                <input type="date" class="form-control" id="endDate" name="end_date" value="{{ filters.end_date }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label">显示状态</label>
+                <select id="statusFilter" class="form-select" name="status">
+                    <option value="all" {% if filters.status == 'all' %}selected{% endif %}>全部</option>
+                    <option value="unmatched" {% if filters.status == 'unmatched' %}selected{% endif %}>未匹配</option>
+                    <option value="matched" {% if filters.status == 'matched' %}selected{% endif %}>已匹配</option>
+                    <option value="reconciled" {% if filters.status == 'reconciled' %}selected{% endif %}>已核对</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" id="hideReconciledFilter" checked>
+                    <label class="form-check-label" for="hideReconciledFilter">隐藏已核对</label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="button" id="loadDataBtn" class="btn btn-primary">
+                    <i class="fas fa-search"></i> 查询
+                </button>
+            </div>
+            <div class="col-auto">
+                <button type="button" id="resetFilterBtn" class="btn btn-secondary">
+                    <i class="fas fa-undo"></i> 重置
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 操作区域 -->
+    <div class="action-section">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="selection-info me-3">
+                    银行记录: <span id="txSelectedCount">0</span> 条 |
+                    EO记录: <span id="eoSelectedCount">0</span> 条
+                </span>
+            </div>
+            <div>
+                <button type="button" id="autoMatchBtn" class="btn btn-info action-btn">
+                    <i class="fas fa-magic"></i> 自动匹配建议
+                </button>
+                <button type="button" id="manualMatchBtn" class="btn btn-success action-btn" disabled>
+                    <i class="fas fa-link"></i> 手动匹配选中项
+                </button>
+                <button type="button" id="markPersonalBtn" class="btn btn-secondary action-btn" disabled>
+                    <i class="fas fa-user"></i> 标记为个人
+                </button>
+                <button type="button" id="markReconciledBtn" class="btn btn-primary action-btn" disabled>
+                    <i class="fas fa-check-circle"></i> 标记已核对
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 双栏对比区域 -->
+    <div class="compare-panels">
+        <!-- 左侧：银行支出记录 -->
+        <div class="compare-panel">
+            <div class="panel-header">
+                <span><i class="fas fa-university me-2"></i>银行支出记录 (Debit)</span>
+                <span id="txTotalCount">0 条</span>
+            </div>
+            <div class="panel-body" id="txPanelBody">
+                <table class="table compare-table" id="txTable">
+                    <thead>
+                        <tr>
+                            <th width="30"><input type="checkbox" id="txSelectAll"></th>
+                            <th width="90">日期</th>
+                            <th width="100">金额</th>
+                            <th>对方/摘要</th>
+                            <th width="80">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txTableBody">
+                        <tr><td colspan="5" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 右侧：EO记录 -->
+        <div class="compare-panel">
+            <div class="panel-header eo-header">
+                <span><i class="fas fa-file-invoice-dollar me-2"></i>EO记录</span>
+                <span id="eoTotalCount">0 条</span>
+            </div>
+            <div class="panel-body" id="eoPanelBody">
+                <table class="table compare-table" id="eoTable">
+                    <thead>
+                        <tr>
+                            <th width="30"><input type="checkbox" id="eoSelectAll"></th>
+                            <th width="90">日期</th>
+                            <th width="100">金额</th>
+                            <th>EO/供应商</th>
+                            <th width="80">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eoTableBody">
+                        <tr><td colspan="5" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自动匹配建议区域 -->
+    <div class="suggestions-section" id="suggestionsSection" style="display: none;">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>自动匹配建议</h5>
+                <div>
+                    <button type="button" id="acceptAllBtn" class="btn btn-sm btn-success me-2">
+                        <i class="fas fa-check-double"></i> 全部接受
+                    </button>
+                    <button type="button" id="closeSuggestionsBtn" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times"></i> 关闭
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="suggestionsBody">
+                <!-- 匹配建议将在这里动态生成 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 标记个人转账模态框 -->
+<div class="modal fade" id="markPersonalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="fas fa-user me-2"></i>标记为个人支出</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>将 <strong id="markPersonalCount">0</strong> 条银行记录标记为：</p>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="personalLabel" id="labelPersonal" value="个人消费" checked>
+                    <label class="form-check-label" for="labelPersonal">个人消费</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="personalLabel" id="labelPersonalBusiness" value="个人商用">
+                    <label class="form-check-label" for="labelPersonalBusiness">个人商用</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" id="confirmMarkPersonalBtn" class="btn btn-primary">
+                    <i class="fas fa-check"></i> 确认标记
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 数据存储
+    let bankTransactions = [];
+    let projectEOs = [];
+    let selectedTxIds = new Set();
+    let selectedEOIds = new Set();
+    let currentSuggestions = [];
+
+    // DOM元素
+    const txTableBody = document.getElementById('txTableBody');
+    const eoTableBody = document.getElementById('eoTableBody');
+    const txTotalCount = document.getElementById('txTotalCount');
+    const eoTotalCount = document.getElementById('eoTotalCount');
+    const txSelectedCount = document.getElementById('txSelectedCount');
+    const eoSelectedCount = document.getElementById('eoSelectedCount');
+
+    // 按钮
+    const loadDataBtn = document.getElementById('loadDataBtn');
+    const autoMatchBtn = document.getElementById('autoMatchBtn');
+    const manualMatchBtn = document.getElementById('manualMatchBtn');
+    const markPersonalBtn = document.getElementById('markPersonalBtn');
+    const markReconciledBtn = document.getElementById('markReconciledBtn');
+
+    // 银行选择联动账户
+    document.getElementById('bankNameFilter').addEventListener('change', async function() {
+        const bankName = this.value;
+        const accountSelect = document.getElementById('accountNameFilter');
+
+        // 清空并重置账户选择
+        accountSelect.innerHTML = '<option value="">全部账户</option>';
+
+        if (bankName) {
+            try {
+                const response = await fetch(`/reconciliation/api/accounts?bank_name=${encodeURIComponent(bankName)}`);
+                const result = await response.json();
+
+                if (result.success && result.accounts) {
+                    result.accounts.forEach(acc => {
+                        const option = document.createElement('option');
+                        option.value = acc;
+                        option.textContent = acc;
+                        accountSelect.appendChild(option);
+                    });
+                }
+            } catch (e) {
+                console.error('获取账户列表失败:', e);
+            }
+        }
+    });
+
+    // 加载数据
+    loadDataBtn.addEventListener('click', loadCompareData);
+
+    // 重置筛选
+    document.getElementById('resetFilterBtn').addEventListener('click', function() {
+        document.getElementById('bankNameFilter').value = '';
+        document.getElementById('accountNameFilter').innerHTML = '<option value="">全部账户</option>';
+        document.getElementById('supplierFilter').value = '';
+        document.getElementById('statusFilter').value = 'all';
+        document.getElementById('hideReconciledFilter').checked = true;
+
+        // 设置默认日期范围
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+        document.getElementById('endDate').value = today.toISOString().split('T')[0];
+
+        loadCompareData();
+    });
+
+    // 加载对比数据
+    async function loadCompareData() {
+        const hideReconciled = document.getElementById('hideReconciledFilter').checked;
+        const status = document.getElementById('statusFilter').value;
+
+        // 如果选择查看已核对，则不隐藏已核对记录
+        const actualHideReconciled = (status === 'reconciled') ? false : hideReconciled;
+
+        const params = new URLSearchParams({
+            bank_name: document.getElementById('bankNameFilter').value,
+            account_name: document.getElementById('accountNameFilter').value,
+            supplier_id: document.getElementById('supplierFilter').value,
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value,
+            status: status,
+            hide_reconciled: actualHideReconciled.toString()
+        });
+
+        txTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+        eoTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+
+        try {
+            const response = await fetch(`/reconciliation/api/eo-compare-data?${params}`);
+            const result = await response.json();
+
+            if (result.success) {
+                bankTransactions = result.bank_transactions;
+                projectEOs = result.project_eos;
+
+                renderTransactions();
+                renderEOs();
+
+                // 清空选择
+                selectedTxIds.clear();
+                selectedEOIds.clear();
+                updateSelectionCount();
+            } else {
+                alert('加载数据失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('加载数据失败:', e);
+            txTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
+            eoTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
+        }
+    }
+
+    // 渲染银行交易表格
+    function renderTransactions() {
+        if (bankTransactions.length === 0) {
+            txTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>';
+            txTotalCount.textContent = '0 条';
+            return;
+        }
+
+        txTotalCount.textContent = `${bankTransactions.length} 条`;
+
+        let html = '';
+        bankTransactions.forEach(tx => {
+            const isMatched = tx.eo_id && tx.eo_id > 0;
+            const isPersonal = tx.owner_label && ['个人消费', '个人商用', 'personal'].includes(tx.owner_label);
+            const isReconciled = tx.is_reconciled;
+
+            let statusHtml = '';
+            if (isReconciled) {
+                statusHtml = '<span class="status-badge status-reconciled">已核对</span>';
+            } else if (isMatched) {
+                statusHtml = '<span class="status-badge status-matched">已匹配</span>';
+            } else if (isPersonal) {
+                statusHtml = `<span class="status-badge status-personal">${tx.owner_label}</span>`;
+            } else {
+                statusHtml = '<span class="status-badge status-unmatched">待匹配</span>';
+            }
+
+            let rowClass = '';
+            if (isReconciled) {
+                rowClass = 'reconciled';
+            } else if (isMatched) {
+                rowClass = 'matched';
+            } else if (selectedTxIds.has(tx.id)) {
+                rowClass = 'selected';
+            }
+
+            // 对方名称和摘要分开显示
+            const counterparty = tx.counterparty_name || '';
+            const description = tx.description || '';
+
+            html += `
+                <tr class="${rowClass}" data-tx-id="${tx.id}">
+                    <td><input type="checkbox" class="tx-checkbox" data-id="${tx.id}" ${selectedTxIds.has(tx.id) ? 'checked' : ''}></td>
+                    <td>${tx.transaction_date || '-'}</td>
+                    <td class="amount-cell amount-debit">${formatAmount(tx.amount)}</td>
+                    <td class="desc-cell">
+                        ${counterparty ? `<div class="counterparty">${escapeHtml(counterparty)}</div>` : ''}
+                        ${description ? `<div class="description">${escapeHtml(description)}</div>` : ''}
+                        ${!counterparty && !description ? '-' : ''}
+                    </td>
+                    <td>${statusHtml}</td>
+                </tr>
+            `;
+        });
+
+        txTableBody.innerHTML = html;
+
+        // 绑定复选框事件
+        txTableBody.querySelectorAll('.tx-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const id = parseInt(this.dataset.id);
+                if (this.checked) {
+                    selectedTxIds.add(id);
+                    this.closest('tr').classList.add('selected');
+                } else {
+                    selectedTxIds.delete(id);
+                    this.closest('tr').classList.remove('selected');
+                }
+                updateSelectionCount();
+            });
+        });
+    }
+
+    // 渲染EO记录表格
+    function renderEOs() {
+        if (projectEOs.length === 0) {
+            eoTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>';
+            eoTotalCount.textContent = '0 条';
+            return;
+        }
+
+        eoTotalCount.textContent = `${projectEOs.length} 条`;
+
+        let html = '';
+        projectEOs.forEach(eo => {
+            const isMatched = eo.is_matched;
+            const isReconciled = eo.is_reconciled;
+
+            let statusHtml = '';
+            if (isReconciled) {
+                statusHtml = '<span class="status-badge status-reconciled">已核对</span>';
+            } else if (isMatched) {
+                statusHtml = '<span class="status-badge status-matched">已匹配</span>';
+            } else {
+                statusHtml = '<span class="status-badge status-unmatched">待匹配</span>';
+            }
+
+            let rowClass = '';
+            if (isReconciled) {
+                rowClass = 'reconciled';
+            } else if (isMatched) {
+                rowClass = 'matched';
+            } else if (selectedEOIds.has(eo.id)) {
+                rowClass = 'selected';
+            }
+
+            // EO信息
+            const eoNumber = eo.eo_number || '';
+            const supplierName = eo.supplier_name || '';
+            const costPrice = eo.pay_amount || eo.cost_price || 0;
+            const eoDate = eo.paid_date || eo.eo_date || '-';
+            const headerId = eo.header_id;
+
+            // EO编号显示：如果有项目ID则可点击
+            const eoNumberHtml = headerId
+                ? `<a href="/projects/detail/${headerId}" target="_blank" class="text-dark text-decoration-none"><strong>${escapeHtml(eoNumber)}</strong> <i class="fas fa-external-link-alt fa-xs text-muted"></i></a>`
+                : `<strong>${escapeHtml(eoNumber)}</strong>`;
+
+            html += `
+                <tr class="${rowClass}" data-eo-id="${eo.id}">
+                    <td><input type="checkbox" class="eo-checkbox" data-id="${eo.id}" ${selectedEOIds.has(eo.id) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
+                    <td>${eoDate}</td>
+                    <td class="amount-cell amount-debit">${formatAmount(costPrice)}</td>
+                    <td title="${escapeHtml(supplierName)}">
+                        <div>${eoNumberHtml}</div>
+                        <small class="text-muted">${escapeHtml(truncate(supplierName, 20))}</small>
+                    </td>
+                    <td>${statusHtml}</td>
+                </tr>
+            `;
+        });
+
+        eoTableBody.innerHTML = html;
+
+        // 绑定复选框事件
+        eoTableBody.querySelectorAll('.eo-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const id = parseInt(this.dataset.id);
+                if (this.checked) {
+                    selectedEOIds.add(id);
+                    this.closest('tr').classList.add('selected');
+                } else {
+                    selectedEOIds.delete(id);
+                    this.closest('tr').classList.remove('selected');
+                }
+                updateSelectionCount();
+            });
+        });
+    }
+
+    // 更新选择计数
+    function updateSelectionCount() {
+        txSelectedCount.textContent = selectedTxIds.size;
+        eoSelectedCount.textContent = selectedEOIds.size;
+
+        // 更新按钮状态
+        manualMatchBtn.disabled = !(selectedTxIds.size === 1 && selectedEOIds.size === 1);
+        markPersonalBtn.disabled = selectedTxIds.size === 0;
+        markReconciledBtn.disabled = (selectedTxIds.size === 0 && selectedEOIds.size === 0);
+    }
+
+    // 全选复选框
+    document.getElementById('txSelectAll').addEventListener('change', function() {
+        const checkboxes = txTableBody.querySelectorAll('.tx-checkbox:not(:disabled)');
+        checkboxes.forEach(cb => {
+            cb.checked = this.checked;
+            const id = parseInt(cb.dataset.id);
+            if (this.checked) {
+                selectedTxIds.add(id);
+                cb.closest('tr').classList.add('selected');
+            } else {
+                selectedTxIds.delete(id);
+                cb.closest('tr').classList.remove('selected');
+            }
+        });
+        updateSelectionCount();
+    });
+
+    document.getElementById('eoSelectAll').addEventListener('change', function() {
+        const checkboxes = eoTableBody.querySelectorAll('.eo-checkbox:not(:disabled)');
+        checkboxes.forEach(cb => {
+            cb.checked = this.checked;
+            const id = parseInt(cb.dataset.id);
+            if (this.checked) {
+                selectedEOIds.add(id);
+                cb.closest('tr').classList.add('selected');
+            } else {
+                selectedEOIds.delete(id);
+                cb.closest('tr').classList.remove('selected');
+            }
+        });
+        updateSelectionCount();
+    });
+
+    // 自动匹配建议
+    autoMatchBtn.addEventListener('click', async function() {
+        const params = new URLSearchParams({
+            bank_name: document.getElementById('bankNameFilter').value,
+            account_name: document.getElementById('accountNameFilter').value,
+            supplier_id: document.getElementById('supplierFilter').value,
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value
+        });
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch(`/reconciliation/api/eo-auto-match?${params}`);
+            const result = await response.json();
+
+            if (result.success) {
+                currentSuggestions = result.suggestions;
+                renderSuggestions();
+                document.getElementById('suggestionsSection').style.display = 'block';
+            } else {
+                alert('生成匹配建议失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('生成匹配建议失败:', e);
+            alert('生成匹配建议失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-magic"></i> 自动匹配建议';
+            this.disabled = false;
+        }
+    });
+
+    // 渲染匹配建议
+    function renderSuggestions() {
+        const container = document.getElementById('suggestionsBody');
+
+        if (currentSuggestions.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted py-4">没有找到匹配建议</p>';
+            return;
+        }
+
+        let html = '';
+        currentSuggestions.forEach((s, idx) => {
+            const scoreClass = s.match_score >= 80 ? 'high' : (s.match_score >= 60 ? 'medium' : 'low');
+
+            html += `
+                <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-eo-id="${s.eo_id}">
+                    <div class="row">
+                        <div class="col-md-1 d-flex flex-column align-items-center justify-content-center">
+                            <div class="match-score ${scoreClass}">${s.match_score}</div>
+                            <small class="text-muted d-block text-center">${s.match_level}</small>
+                        </div>
+                        <div class="col-md-5">
+                            <strong>银行支出</strong><br>
+                            <span class="text-muted">${s.transaction_date}</span> |
+                            <span class="text-danger fw-bold">${formatAmount(s.transaction_amount)}</span>
+                            <div class="mt-1" style="word-break: break-word; line-height: 1.4;">
+                                <small class="text-secondary">${escapeHtml(s.transaction_counterparty)}</small>
+                                ${s.transaction_description ? `<br><small class="text-muted">${escapeHtml(s.transaction_description)}</small>` : ''}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>EO记录</strong><br>
+                            <span class="text-muted">${s.eo_date}</span> |
+                            <span class="text-danger fw-bold">${formatAmount(s.pay_amount || s.eo_amount)}</span>
+                            <div class="mt-1">
+                                <small><strong>${s.eo_number}</strong></small>
+                                ${s.supplier_name ? `<br><small class="text-muted">${escapeHtml(s.supplier_name)}</small>` : ''}
+                                ${s.project_number && s.header_id ? `<br><small class="text-info">项目: <a href="/projects/detail/${s.header_id}" target="_blank" class="text-info">${s.project_number} <i class="fas fa-external-link-alt fa-xs"></i></a></small>` : (s.project_number ? `<br><small class="text-info">项目: ${s.project_number}</small>` : '')}
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center justify-content-end gap-1">
+                            <button type="button" class="btn btn-sm btn-success accept-suggestion-btn" data-idx="${idx}">
+                                <i class="fas fa-check"></i> 接受
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn" data-idx="${idx}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // 绑定接受/拒绝按钮
+        container.querySelectorAll('.accept-suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const idx = parseInt(this.dataset.idx);
+                await acceptSuggestion(idx);
+            });
+        });
+
+        container.querySelectorAll('.reject-suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const idx = parseInt(this.dataset.idx);
+                document.getElementById(`suggestion-${idx}`).remove();
+                currentSuggestions.splice(idx, 1);
+            });
+        });
+    }
+
+    // 接受单个建议
+    async function acceptSuggestion(idx) {
+        const suggestion = currentSuggestions[idx];
+        if (!suggestion) return;
+
+        const card = document.getElementById(`suggestion-${idx}`);
+        const acceptBtn = card.querySelector('.accept-suggestion-btn');
+
+        // 禁用按钮防止重复点击
+        acceptBtn.disabled = true;
+        acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch('/reconciliation/api/eo-manual-match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transaction_id: suggestion.transaction_id,
+                    eo_id: suggestion.eo_id
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // 平滑移除卡片
+                card.style.transition = 'all 0.3s ease';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(20px)';
+
+                setTimeout(() => {
+                    card.remove();
+                    // 更新建议数组
+                    const realIdx = currentSuggestions.findIndex(s =>
+                        s.transaction_id === suggestion.transaction_id &&
+                        s.eo_id === suggestion.eo_id
+                    );
+                    if (realIdx > -1) {
+                        currentSuggestions.splice(realIdx, 1);
+                    }
+
+                    // 如果没有更多建议，显示提示
+                    if (currentSuggestions.length === 0) {
+                        document.getElementById('suggestionsBody').innerHTML =
+                            '<p class="text-center text-success py-4"><i class="fas fa-check-circle me-2"></i>所有建议已处理完成</p>';
+                    }
+                }, 300);
+            } else {
+                alert('匹配失败: ' + result.message);
+                acceptBtn.disabled = false;
+                acceptBtn.innerHTML = '<i class="fas fa-check"></i> 接受';
+            }
+        } catch (e) {
+            console.error('匹配失败:', e);
+            alert('匹配失败');
+            acceptBtn.disabled = false;
+            acceptBtn.innerHTML = '<i class="fas fa-check"></i> 接受';
+        }
+    }
+
+    // 全部接受
+    document.getElementById('acceptAllBtn').addEventListener('click', async function() {
+        if (currentSuggestions.length === 0) {
+            alert('没有待处理的建议');
+            return;
+        }
+
+        if (!confirm(`确定要接受全部 ${currentSuggestions.length} 条匹配建议吗？`)) {
+            return;
+        }
+
+        const matches = currentSuggestions.map(s => ({
+            transaction_id: s.transaction_id,
+            eo_id: s.eo_id
+        }));
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch('/reconciliation/api/eo-batch-match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matches })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`成功匹配 ${result.success_count} 条记录`);
+                document.getElementById('suggestionsSection').style.display = 'none';
+                loadCompareData();
+            } else {
+                alert('批量匹配失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('批量匹配失败:', e);
+            alert('批量匹配失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-check-double"></i> 全部接受';
+            this.disabled = false;
+        }
+    });
+
+    // 关闭建议
+    document.getElementById('closeSuggestionsBtn').addEventListener('click', function() {
+        document.getElementById('suggestionsSection').style.display = 'none';
+    });
+
+    // 手动匹配
+    manualMatchBtn.addEventListener('click', async function() {
+        if (selectedTxIds.size !== 1 || selectedEOIds.size !== 1) {
+            alert('请各选择一条银行记录和一条EO记录');
+            return;
+        }
+
+        const txId = Array.from(selectedTxIds)[0];
+        const eoId = Array.from(selectedEOIds)[0];
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 匹配中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch('/reconciliation/api/eo-manual-match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transaction_id: txId, eo_id: eoId })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                selectedTxIds.clear();
+                selectedEOIds.clear();
+                loadCompareData();
+            } else {
+                alert('匹配失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('匹配失败:', e);
+            alert('匹配失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-link"></i> 手动匹配选中项';
+            this.disabled = false;
+        }
+    });
+
+    // 标记为个人支出
+    markPersonalBtn.addEventListener('click', function() {
+        if (selectedTxIds.size === 0) {
+            alert('请选择要标记的银行记录');
+            return;
+        }
+        document.getElementById('markPersonalCount').textContent = selectedTxIds.size;
+        new bootstrap.Modal(document.getElementById('markPersonalModal')).show();
+    });
+
+    document.getElementById('confirmMarkPersonalBtn').addEventListener('click', async function() {
+        const label = document.querySelector('input[name="personalLabel"]:checked').value;
+        const ids = Array.from(selectedTxIds);
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch('/reconciliation/api/mark-personal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transaction_ids: ids, label: label })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                bootstrap.Modal.getInstance(document.getElementById('markPersonalModal')).hide();
+                selectedTxIds.clear();
+                loadCompareData();
+            } else {
+                alert('标记失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('标记失败:', e);
+            alert('标记失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-check"></i> 确认标记';
+            this.disabled = false;
+        }
+    });
+
+    // 标记为已核对
+    markReconciledBtn.addEventListener('click', async function() {
+        if (selectedTxIds.size === 0 && selectedEOIds.size === 0) {
+            alert('请选择要标记的记录');
+            return;
+        }
+
+        const txIds = Array.from(selectedTxIds);
+        const eoIds = Array.from(selectedEOIds);
+
+        const countText = [];
+        if (txIds.length > 0) countText.push(`${txIds.length} 条银行记录`);
+        if (eoIds.length > 0) countText.push(`${eoIds.length} 条EO记录`);
+
+        if (!confirm(`确定要将 ${countText.join('、')} 标记为已核对吗？\n\n标记后，这些记录将不再显示在默认列表中。`)) {
+            return;
+        }
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch('/reconciliation/api/eo-mark-reconciled', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transaction_ids: txIds,
+                    eo_ids: eoIds,
+                    is_reconciled: true
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                selectedTxIds.clear();
+                selectedEOIds.clear();
+                loadCompareData();
+            } else {
+                alert('操作失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('标记已核对失败:', e);
+            alert('操作失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-check-circle"></i> 标记已核对';
+            this.disabled = false;
+        }
+    });
+
+    // 工具函数
+    function formatAmount(amount) {
+        return parseFloat(amount || 0).toFixed(2);
+    }
+
+    function truncate(str, maxLen) {
+        if (!str) return '';
+        return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // 页面加载时自动加载数据
+    loadCompareData();
+});
+</script>
+{% endblock %}

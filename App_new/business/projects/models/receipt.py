@@ -40,6 +40,11 @@ class ProjectReceipt(db.Model):
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     extra_info = db.Column(db.Text, nullable=True, comment='额外信息(JSON格式，用于存储分配信息等)')
 
+    # 核对状态（用于银行收款对比功能）
+    is_reconciled = db.Column(db.Boolean, default=False, nullable=False, comment='已核对状态')
+    reconciled_at = db.Column(db.DateTime, nullable=True, comment='核对时间')
+    reconciled_by = db.Column(db.String(50), nullable=True, comment='核对人')
+
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -74,6 +79,9 @@ class ProjectReceipt(db.Model):
             'status': self.status,
             'remarks': self.remarks,
             'extra_info': json.loads(self.extra_info) if self.extra_info else None,
+            'is_reconciled': self.is_reconciled,
+            'reconciled_at': self.reconciled_at.isoformat() if self.reconciled_at else None,
+            'reconciled_by': self.reconciled_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by

@@ -203,6 +203,10 @@ def create_app():
     from .finance.routes.ledger_routes import ledger_blue
     app.register_blueprint(ledger_blue, url_prefix='/ledger')
 
+    # 银行流水与收款对比模块
+    from .finance.routes.reconciliation_routes import reconciliation_bp
+    app.register_blueprint(reconciliation_bp)
+
     # 移动端模块
     from .mobile import mobile_bp
     app.register_blueprint(mobile_bp)

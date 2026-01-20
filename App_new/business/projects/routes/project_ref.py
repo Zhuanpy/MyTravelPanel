@@ -731,13 +731,8 @@ def edit_hotel_ref(ref_id):
         except (json.JSONDecodeError, TypeError):
             extra_info = None
     
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
@@ -1558,13 +1553,8 @@ def edit_transport_ref(ref_id):
     # 获取项目头信息
     header = ProjectHeader.query.get(ref.header_id)
 
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
@@ -1593,13 +1583,8 @@ def edit_flight_ref(ref_id):
     # 直接查询REF，不需要预加载
     ref = ProjectRef.query.get_or_404(ref_id)
 
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
@@ -1789,13 +1774,8 @@ def edit_visa_ref(ref_id):
     # 获取项目头信息
     header = ProjectHeader.query.get(ref.header_id)
 
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
@@ -2126,13 +2106,8 @@ def edit_attraction_ref(ref_id):
     # 获取项目头信息
     header = ProjectHeader.query.get(ref.header_id)
 
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
@@ -2431,19 +2406,8 @@ def edit_other_ref(ref_id):
         except (json.JSONDecodeError, TypeError):
             extra_info = None
 
-    # 检查REF是否已关联发票
-    from App_new.business.projects.models.invoice import ProjectInvoice
-    has_invoice = False
-    invoices = ProjectInvoice.query.filter_by(header_id=ref.header_id).all()
-    for invoice in invoices:
-        if invoice.ref_ids:
-            try:
-                ref_id_list = json.loads(invoice.ref_ids)
-                if ref.id in ref_id_list:
-                    has_invoice = True
-                    break
-            except (json.JSONDecodeError, TypeError):
-                pass
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查 EO 是否已付款
     eo_paid = False
@@ -2539,8 +2503,8 @@ def edit_insurance_ref(ref_id):
     # 获取项目成员
     members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
 
-    # 检查是否已生成发票
-    has_invoice = InvoiceItem.query.filter_by(ref_id=ref.id).first() is not None
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查 EO 是否已付款
     eo_paid = False
@@ -2665,13 +2629,8 @@ def edit_tour_ref(ref_id):
         except:
             pass
 
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
@@ -3166,13 +3125,8 @@ def edit_ref(ref_id):
         passenger_names = [p.name for p in passengers]
         form.passenger_names.data = ', '.join(passenger_names)
 
-    # 检查是否有有效的发票（排除已取消的）
-    has_invoice = False
-    if ref.invoice_items:
-        for item in ref.invoice_items:
-            if item.invoice and item.invoice.status != 'cancelled':
-                has_invoice = True
-                break
+    # 检查是否有有效的发票（使用 get_invoices 方法，更可靠）
+    has_invoice = len(ref.get_invoices()) > 0
 
     # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False

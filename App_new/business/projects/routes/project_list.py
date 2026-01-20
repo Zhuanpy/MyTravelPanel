@@ -463,29 +463,34 @@ def list_projects():
                 ProjectReceipt.ref_id.isnot(None)
             )
 
-            # 合并两种方式
-            combined_filter = union_all(invoice_alloc_filter, ref_receipt_filter).alias('combined_receipts_filter')
+            # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
+            old_receipts_subq = db.session.query(
+                ReceiptInvoiceAllocation.receipt_id
+            ).distinct().subquery()
+
+            old_project_receipt_filter = db.session.query(
+                ProjectReceipt.header_id.label('hid'),
+                ProjectReceipt.amount.label('amount')
+            ).filter(
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None,  # 项目级别收款
+                ~ProjectReceipt.id.in_(old_receipts_subq)  # 没有分配记录
+            )
+
+            # 合并三种方式
+            combined_filter = union_all(invoice_alloc_filter, ref_receipt_filter, old_project_receipt_filter).alias('combined_receipts_filter')
             receipts_sum_subq = db.session.query(
                 combined_filter.c.hid,
                 db.func.coalesce(db.func.sum(combined_filter.c.amount), 0).label('total_received')
             ).group_by(combined_filter.c.hid).subquery()
 
             if payment_status == 'unpaid':
-                # 未付款项目：
-                # 1. 有发票且发票未付清 (invoice_total > invoice_paid)
-                # 2. 或无发票但有REF销售且未收款 (total_selling > total_received)
-                has_unpaid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
-                    invoice_sum_subq.c.invoice_total > invoice_sum_subq.c.invoice_paid
-                )
-
-                # 无发票但有未收款的项目
-                no_invoice_unpaid = db.session.query(refs_sum_subq.c.hid).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
-                ).outerjoin(
+                # 未付款项目：销售金额 > 实际收款金额（与列表显示的"未付款"计算方式一致）
+                unpaid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
                     receipts_sum_subq,
                     receipts_sum_subq.c.hid == refs_sum_subq.c.hid
                 ).filter(
+                    refs_sum_subq.c.total_selling > 0,
                     db.or_(
                         receipts_sum_subq.c.total_received.is_(None),
                         refs_sum_subq.c.total_selling > db.func.coalesce(receipts_sum_subq.c.total_received, 0)
@@ -493,37 +498,21 @@ def list_projects():
                 )
 
                 base_query = base_query.filter(
-                    db.or_(
-                        ProjectHeader.id.in_(has_unpaid_invoice),
-                        ProjectHeader.id.in_(no_invoice_unpaid)
-                    )
+                    ProjectHeader.id.in_(unpaid_projects)
                 )
 
             elif payment_status == 'paid':
-                # 已付款项目：
-                # 1. 有发票且发票已付清 (invoice_total <= invoice_paid)
-                # 2. 或无发票但有REF销售且已收款 (total_selling <= total_received)
-                has_paid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
-                    invoice_sum_subq.c.invoice_total > 0,
-                    invoice_sum_subq.c.invoice_total <= invoice_sum_subq.c.invoice_paid
-                )
-
-                # 无发票但已收款的项目
-                no_invoice_paid = db.session.query(refs_sum_subq.c.hid).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
-                ).outerjoin(
+                # 已付款项目：销售金额 <= 实际收款金额（与列表显示的"未付款"计算方式一致）
+                paid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
                     receipts_sum_subq,
                     receipts_sum_subq.c.hid == refs_sum_subq.c.hid
                 ).filter(
+                    refs_sum_subq.c.total_selling > 0,
                     refs_sum_subq.c.total_selling <= db.func.coalesce(receipts_sum_subq.c.total_received, 0)
                 )
 
                 base_query = base_query.filter(
-                    db.or_(
-                        ProjectHeader.id.in_(has_paid_invoice),
-                        ProjectHeader.id.in_(no_invoice_paid)
-                    )
+                    ProjectHeader.id.in_(paid_projects)
                 )
         
         if date_from:
@@ -1331,26 +1320,34 @@ def export_excel():
                 ProjectReceipt.ref_id.isnot(None)
             )
 
-            # 合并两种方式
-            combined_export = union_all(invoice_alloc_export, ref_receipt_export).alias('combined_receipts_export')
+            # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
+            old_receipts_export_subq = db.session.query(
+                ReceiptInvoiceAllocation.receipt_id
+            ).distinct().subquery()
+
+            old_project_receipt_export = db.session.query(
+                ProjectReceipt.header_id.label('hid'),
+                ProjectReceipt.amount.label('amount')
+            ).filter(
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None,  # 项目级别收款
+                ~ProjectReceipt.id.in_(old_receipts_export_subq)  # 没有分配记录
+            )
+
+            # 合并三种方式
+            combined_export = union_all(invoice_alloc_export, ref_receipt_export, old_project_receipt_export).alias('combined_receipts_export')
             receipts_sum_subq = db.session.query(
                 combined_export.c.hid,
                 db.func.coalesce(db.func.sum(combined_export.c.amount), 0).label('total_received')
             ).group_by(combined_export.c.hid).subquery()
 
             if payment_status == 'unpaid':
-                # 未付款项目
-                has_unpaid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
-                    invoice_sum_subq.c.invoice_total > invoice_sum_subq.c.invoice_paid
-                )
-
-                no_invoice_unpaid = db.session.query(refs_sum_subq.c.hid).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
-                ).outerjoin(
+                # 未付款项目：销售金额 > 实际收款金额（与列表显示的"未付款"计算方式一致）
+                unpaid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
                     receipts_sum_subq,
                     receipts_sum_subq.c.hid == refs_sum_subq.c.hid
                 ).filter(
+                    refs_sum_subq.c.total_selling > 0,
                     db.or_(
                         receipts_sum_subq.c.total_received.is_(None),
                         refs_sum_subq.c.total_selling > db.func.coalesce(receipts_sum_subq.c.total_received, 0)
@@ -1358,34 +1355,21 @@ def export_excel():
                 )
 
                 base_query = base_query.filter(
-                    db.or_(
-                        ProjectHeader.id.in_(has_unpaid_invoice),
-                        ProjectHeader.id.in_(no_invoice_unpaid)
-                    )
+                    ProjectHeader.id.in_(unpaid_projects)
                 )
 
             elif payment_status == 'paid':
-                # 已付款项目
-                has_paid_invoice = db.session.query(invoice_sum_subq.c.hid).filter(
-                    invoice_sum_subq.c.invoice_total > 0,
-                    invoice_sum_subq.c.invoice_total <= invoice_sum_subq.c.invoice_paid
-                )
-
-                no_invoice_paid = db.session.query(refs_sum_subq.c.hid).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    ~refs_sum_subq.c.hid.in_(db.session.query(invoice_sum_subq.c.hid))
-                ).outerjoin(
+                # 已付款项目：销售金额 <= 实际收款金额（与列表显示的"未付款"计算方式一致）
+                paid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
                     receipts_sum_subq,
                     receipts_sum_subq.c.hid == refs_sum_subq.c.hid
                 ).filter(
+                    refs_sum_subq.c.total_selling > 0,
                     refs_sum_subq.c.total_selling <= db.func.coalesce(receipts_sum_subq.c.total_received, 0)
                 )
 
                 base_query = base_query.filter(
-                    db.or_(
-                        ProjectHeader.id.in_(has_paid_invoice),
-                        ProjectHeader.id.in_(no_invoice_paid)
-                    )
+                    ProjectHeader.id.in_(paid_projects)
                 )
 
         if date_from:

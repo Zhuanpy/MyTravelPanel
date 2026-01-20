@@ -160,7 +160,12 @@ class BankTransaction(db.Model):
     is_confirmed = db.Column(db.Boolean, default=False, nullable=False, comment='确认状态')
     confirmed_at = db.Column(db.DateTime, nullable=True, comment='确认时间')
     confirmed_by = db.Column(db.String(50), nullable=True, comment='确认人')
-    
+
+    # 核对状态（用于银行收款对比功能）
+    is_reconciled = db.Column(db.Boolean, default=False, nullable=False, comment='已核对状态')
+    reconciled_at = db.Column(db.DateTime, nullable=True, comment='核对时间')
+    reconciled_by = db.Column(db.String(50), nullable=True, comment='核对人')
+
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -199,6 +204,9 @@ class BankTransaction(db.Model):
             'is_confirmed': self.is_confirmed,
             'confirmed_at': self.confirmed_at.isoformat() if self.confirmed_at else None,
             'confirmed_by': self.confirmed_by,
+            'is_reconciled': self.is_reconciled,
+            'reconciled_at': self.reconciled_at.isoformat() if self.reconciled_at else None,
+            'reconciled_by': self.reconciled_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

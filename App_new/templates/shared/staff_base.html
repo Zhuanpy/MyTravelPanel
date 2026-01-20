@@ -291,6 +291,12 @@
                             <li><a class="dropdown-item" href="{{ url_for('uob_routes.uob_bank') }}">
                                 <i class="fas fa-university me-2"></i>银行账单
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('reconciliation.bank_receipt_compare') }}">
+                                <i class="fas fa-balance-scale me-2"></i>银行收款对比
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('reconciliation.bank_eo_compare') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>银行支出EO对比
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_import') }}">
                                 <i class="fas fa-upload me-2"></i>Athina数据录入

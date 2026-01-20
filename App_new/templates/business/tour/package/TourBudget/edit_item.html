@@ -3,428 +3,330 @@
 {% block title %}编辑预算项目 - MyTravelPanel{% endblock %}
 
 {% block page_title %}编辑预算项目{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 优化输入框宽度 */
+    .form-control-narrow { max-width: 200px; }
+    .form-control-medium { max-width: 300px; }
+
+    /* 计价方式按钮组 */
+    .pricing-method-group { max-width: 400px; }
+    .pricing-method-group .btn { padding: 8px 20px; }
+
+    /* 价格输入框 */
+    .price-input { max-width: 150px; }
+
+    /* 数量输入框 */
+    .quantity-input { max-width: 100px; }
+
+    /* 复选框区域 */
+    .checkbox-group {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .checkbox-group .form-check { margin: 0; }
+
+    /* 紧凑卡片 */
+    .card-compact .card-body { padding: 1rem; }
+    .card-compact .row { margin-bottom: 0.5rem; }
+
+    /* 预览表格紧凑 */
+    .preview-table td { padding: 4px 8px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
+<div class="container-fluid" style="max-width: 1000px;">
     <div class="row mb-3">
-        <div class="col-md-8">
-            <h2><i class="fas fa-edit"></i> 编辑预算项目</h2>
-            <p class="text-muted">预算单：{{ budget.package_name }}</p>
+        <div class="col">
+            <h5 class="mb-1"><i class="fas fa-edit text-primary"></i> 编辑预算项目</h5>
+            <small class="text-muted">预算单：{{ budget.package_name }} | 成人 {{ budget.adult_count }} 人，儿童 {{ budget.child_count }} 人</small>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回详情
+        <div class="col-auto">
+            <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> 返回
             </a>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title mb-0"><i class="fas fa-edit"></i> 编辑项目信息</h5>
-        </div>
+    <div class="card card-compact">
         <div class="card-body">
             <form method="post" id="editItemForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="category">类别 <span class="text-danger">*</span></label>
-                            <select class="form-control" id="category" name="category" required>
-                                <option value="">请选择类别</option>
-                                {% if item.category and item.category not in ['住宿', '交通', '餐饮', '门票', '导游', '保险', '签证', '购物', '其他'] %}
-                                <option value="{{ item.category }}" selected>{{ item.category }}</option>
-                                {% endif %}
-                                <option value="住宿" {% if item.category == '住宿' %}selected{% endif %}>住宿</option>
-                                <option value="交通" {% if item.category == '交通' %}selected{% endif %}>交通</option>
-                                <option value="餐饮" {% if item.category == '餐饮' %}selected{% endif %}>餐饮</option>
-                                <option value="门票" {% if item.category == '门票' %}selected{% endif %}>门票</option>
-                                <option value="导游" {% if item.category == '导游' %}selected{% endif %}>导游</option>
-                                <option value="保险" {% if item.category == '保险' %}selected{% endif %}>保险</option>
-                                <option value="签证" {% if item.category == '签证' %}selected{% endif %}>签证</option>
-                                <option value="购物" {% if item.category == '购物' %}selected{% endif %}>购物</option>
-                                <option value="其他" {% if item.category == '其他' %}selected{% endif %}>其他</option>
-                            </select>
-                        </div>
+
+                <!-- 基本信息：类别、名称 -->
+                <div class="row mb-3">
+                    <div class="col-md-3 col-sm-4">
+                        <label for="category" class="form-label">类别 <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="category" name="category" required>
+                            <option value="">请选择</option>
+                            {% if item.category and item.category not in ['住宿', '交通', '餐饮', '门票', '导游', '保险', '签证', '购物', '其他'] %}
+                            <option value="{{ item.category }}" selected>{{ item.category }}</option>
+                            {% endif %}
+                            <option value="住宿" {% if item.category == '住宿' %}selected{% endif %}>住宿</option>
+                            <option value="交通" {% if item.category == '交通' %}selected{% endif %}>交通</option>
+                            <option value="餐饮" {% if item.category == '餐饮' %}selected{% endif %}>餐饮</option>
+                            <option value="门票" {% if item.category == '门票' %}selected{% endif %}>门票</option>
+                            <option value="导游" {% if item.category == '导游' %}selected{% endif %}>导游</option>
+                            <option value="保险" {% if item.category == '保险' %}selected{% endif %}>保险</option>
+                            <option value="签证" {% if item.category == '签证' %}selected{% endif %}>签证</option>
+                            <option value="购物" {% if item.category == '购物' %}selected{% endif %}>购物</option>
+                            <option value="其他" {% if item.category == '其他' %}selected{% endif %}>其他</option>
+                        </select>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="item_name">项目名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="item_name" name="item_name" 
-                                   value="{{ item.item_name or '' }}" required>
-                        </div>
+                    <div class="col-md-5 col-sm-8">
+                        <label for="item_name" class="form-label">项目名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="item_name" name="item_name"
+                               value="{{ item.item_name or '' }}" required placeholder="如：新加坡圣淘沙酒店">
                     </div>
-                </div>
-                
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="form-group">
-                            <label for="item_details">项目详细</label>
-                            <textarea class="form-control" id="item_details" name="item_details" rows="3" 
-                                      placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息">{{ item.item_details or '' }}</textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 计价方式选择 -->
-                <div class="row mt-3">
-                    <div class="col-md-12">
+                    <div class="col-md-4">
                         <label class="form-label">计价方式</label>
-                        <div class="btn-group w-100" role="group" id="pricingMethodGroup">
-                            <input type="radio" class="btn-check" name="pricing_method" id="person_based" value="person_based" 
+                        <div class="btn-group btn-group-sm pricing-method-group" role="group">
+                            <input type="radio" class="btn-check" name="pricing_method" id="person_based" value="person_based"
                                    {% if item.pricing_method == 'person_based' %}checked{% endif %}>
-                            <label class="btn btn-outline-primary" for="person_based">
-                                <i class="fas fa-users"></i> 模板2：人均计价
+                            <label class="btn btn-outline-success" for="person_based">
+                                <i class="fas fa-users"></i> 人均
                             </label>
-                            
+
                             <input type="radio" class="btn-check" name="pricing_method" id="item_based" value="item_based"
                                    {% if item.pricing_method == 'item_based' %}checked{% endif %}>
                             <label class="btn btn-outline-primary" for="item_based">
-                                <i class="fas fa-box"></i> 模板1：物品计价
+                                <i class="fas fa-box"></i> 物品
                             </label>
                         </div>
                     </div>
                 </div>
+
+                <!-- 项目详细 -->
+                <div class="mb-3">
+                    <label for="item_details" class="form-label">项目详细</label>
+                    <textarea class="form-control form-control-sm" id="item_details" name="item_details" rows="4"
+                              placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息">{{ item.item_details or '' }}</textarea>
+                </div>
                 
-                <!-- 模板1：物品计价方式 -->
-                <div class="row mt-3" id="itemBasedPricing" style="display: {% if item.pricing_method == 'item_based' %}block{% else %}none{% endif %};">
-                    <div class="col-md-12">
-                        <div class="card border-primary">
-                            <div class="card-header bg-primary text-white">
-                                <h6 class="card-title mb-0"><i class="fas fa-box"></i> 模板1：物品计价方式</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <label class="form-label">物品单价 <span class="text-danger">*</span></label>
-                                        <input type="number" name="item_unit_price" class="form-control" step="0.01" 
-                                               value="{{ item.item_unit_price or '' }}" placeholder="0.00">
-                                        <small class="form-text text-muted">物品的单价</small>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">物品件数 <span class="text-danger">*</span></label>
-                                        <input type="number" name="item_quantity" class="form-control" min="1" 
-                                               value="{{ item.item_quantity or 1 }}" placeholder="1">
-                                        <small class="form-text text-muted">物品的数量</small>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">总价</label>
-                                        <input type="text" id="itemTotalCost" class="form-control" readonly 
-                                               value="{{ "%.2f"|format(item.total_item_cost) if item.total_item_cost else '0.00' }}">
-                                        <small class="form-text text-muted">自动计算：单价 × 件数</small>
-                                    </div>
-                                </div>
-                                <div class="row mt-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label">大人人均</label>
-                                        <input type="text" id="itemAdultUnitPrice" class="form-control" readonly 
-                                               value="{{ "%.2f"|format(item.adult_unit_price) if item.adult_unit_price else '0.00' }}">
-                                        <small class="form-text text-muted">自动计算：总价 ÷ 大人人数</small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">小孩人均</label>
-                                        <input type="text" id="itemChildUnitPrice" class="form-control" readonly 
-                                               value="{{ "%.2f"|format(item.child_unit_price) if item.child_unit_price else '0.00' }}">
-                                        <small class="form-text text-muted">自动计算：总价 ÷ 小孩人数</small>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- 物品计价方式 -->
+                <div class="mb-3 p-3 border rounded bg-light" id="itemBasedPricing" style="display: {% if item.pricing_method == 'item_based' %}block{% else %}none{% endif %};">
+                    <div class="row align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label small text-primary fw-bold"><i class="fas fa-box"></i> 物品单价</label>
+                            <input type="number" name="item_unit_price" class="form-control form-control-sm price-input" step="0.01"
+                                   value="{{ item.item_unit_price or '' }}" placeholder="0.00">
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small">× 件数</label>
+                            <input type="number" name="item_quantity" class="form-control form-control-sm quantity-input" min="1"
+                                   value="{{ item.item_quantity or 1 }}" placeholder="1">
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small">= 总价</label>
+                            <input type="text" id="itemTotalCost" class="form-control form-control-sm price-input bg-white" readonly
+                                   value="{{ "%.2f"|format(item.total_item_cost) if item.total_item_cost else '0.00' }}">
+                        </div>
+                        <div class="col-auto text-muted small pt-2">
+                            <span class="me-3">大人人均: <strong id="itemAdultUnitPrice">{{ "%.2f"|format(item.adult_unit_price) if item.adult_unit_price else '0.00' }}</strong></span>
+                            <span>小孩人均: <strong id="itemChildUnitPrice">{{ "%.2f"|format(item.child_unit_price) if item.child_unit_price else '0.00' }}</strong></span>
                         </div>
                     </div>
                 </div>
-                
-                <!-- 模板2：人均计价方式 -->
-                <div class="row mt-3" id="personBasedPricing" style="display: {% if item.pricing_method == 'person_based' %}block{% else %}none{% endif %};">
-                    <div class="col-md-12">
-                        <div class="card border-success">
-                            <div class="card-header bg-success text-white">
-                                <h6 class="card-title mb-0"><i class="fas fa-users"></i> 模板2：人均计价方式</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <label class="form-label">成人单价 <span class="text-danger">*</span></label>
-                                        <input type="number" name="adult_price" class="form-control" step="0.01" 
-                                               value="{{ item.adult_price or '' }}" placeholder="0.00">
-                                        <small class="form-text text-muted">成人人均价格</small>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">儿童单价 <span class="text-danger">*</span></label>
-                                        <input type="number" name="child_price" class="form-control" step="0.01" 
-                                               value="{{ item.child_price or '' }}" placeholder="0.00">
-                                        <small class="form-text text-muted">儿童人均价格</small>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">总价</label>
-                                        <input type="text" id="personTotalCost" class="form-control" readonly 
-                                               value="{{ "%.2f"|format(item.subtotal) if item.subtotal else '0.00' }}">
-                                        <small class="form-text text-muted">自动计算：成人总价 + 儿童总价</small>
-                                    </div>
-                                </div>
-                            </div>
+
+                <!-- 人均计价方式 -->
+                <div class="mb-3 p-3 border rounded bg-light" id="personBasedPricing" style="display: {% if item.pricing_method == 'person_based' %}block{% else %}none{% endif %};">
+                    <div class="row align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label small text-success fw-bold"><i class="fas fa-users"></i> 成人单价</label>
+                            <input type="number" name="adult_price" class="form-control form-control-sm price-input" step="0.01"
+                                   value="{{ item.adult_price or '' }}" placeholder="0.00">
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small">× {{ budget.adult_count }} 人</label>
+                            <input type="text" class="form-control form-control-sm price-input bg-white" readonly
+                                   id="adultSubtotal" value="{{ "%.2f"|format((item.adult_price or 0) * budget.adult_count) }}">
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small">儿童单价</label>
+                            <input type="number" name="child_price" class="form-control form-control-sm price-input" step="0.01"
+                                   value="{{ item.child_price or '' }}" placeholder="0.00">
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small">× {{ budget.child_count }} 人</label>
+                            <input type="text" class="form-control form-control-sm price-input bg-white" readonly
+                                   id="childSubtotal" value="{{ "%.2f"|format((item.child_price or 0) * budget.child_count) }}">
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small fw-bold">= 总价</label>
+                            <input type="text" id="personTotalCost" class="form-control form-control-sm price-input bg-white fw-bold" readonly
+                                   value="{{ "%.2f"|format(item.subtotal) if item.subtotal else '0.00' }}">
                         </div>
                     </div>
                 </div>
-                
-                <div class="row mt-3">
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input type="checkbox" name="count_adult_apply" class="form-check-input" value="1"
-                                   {{ 'checked' if item.count_adult_apply else '' }}>
-                            <label class="form-check-label">计成人费用</label>
+
+                <!-- 选项和备注 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">费用计算选项</label>
+                        <div class="checkbox-group">
+                            <div class="form-check">
+                                <input type="checkbox" name="count_adult_apply" class="form-check-input" id="count_adult_apply" value="1"
+                                       {{ 'checked' if item.count_adult_apply else '' }}>
+                                <label class="form-check-label" for="count_adult_apply">计成人</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="count_child_apply" class="form-check-input" id="count_child_apply" value="1"
+                                       {{ 'checked' if item.count_child_apply else '' }}>
+                                <label class="form-check-label" for="count_child_apply">计儿童</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="is_optional" class="form-check-input" id="is_optional" value="1"
+                                       {{ 'checked' if item.is_optional else '' }}>
+                                <label class="form-check-label text-warning" for="is_optional"><i class="fas fa-star"></i> 可选</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input type="checkbox" name="count_child_apply" class="form-check-input" value="1"
-                                   {{ 'checked' if item.count_child_apply else '' }}>
-                            <label class="form-check-label">计儿童费用</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input type="checkbox" name="is_optional" class="form-check-input" value="1"
-                                   {{ 'checked' if item.is_optional else '' }}>
-                            <label class="form-check-label">可选项目</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary me-2">
-                                <i class="fas fa-save"></i> 保存修改
-                            </button>
-                            <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-secondary">
-                                <i class="fas fa-times"></i> 取消
-                            </a>
-                        </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">备注</label>
+                        <input type="text" name="remarks" class="form-control form-control-sm"
+                               value="{{ item.remarks or '' }}" placeholder="项目备注信息（可选）">
                     </div>
                 </div>
-                
-                <div class="row mt-3">
-                    <div class="col-md-12">
-                        <label class="form-label">备注</label>
-                        <textarea name="remarks" class="form-control" rows="3" 
-                                  placeholder="项目备注信息">{{ item.remarks or '' }}</textarea>
+
+                <!-- 提交按钮 -->
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                    <div class="text-muted small">
+                        <i class="fas fa-info-circle"></i> 预览：
+                        <span class="badge bg-secondary" id="preview_category">{{ item.category or '未分类' }}</span>
+                        <span id="preview_name" class="fw-bold">{{ item.item_name }}</span>
+                        <span class="text-success fw-bold ms-2">小计: <span id="preview_subtotal">{{ "%.2f"|format(item.subtotal) }}</span></span>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-outline-secondary btn-sm me-2">
+                            <i class="fas fa-times"></i> 取消
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-save"></i> 保存修改
+                        </button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-
-    <!-- 项目预览 -->
-    <div class="card mt-3">
-        <div class="card-header">
-            <h6 class="card-title mb-0"><i class="fas fa-eye"></i> 项目预览</h6>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <table class="table table-borderless">
-                        <tr>
-                            <td><strong>项目名称：</strong></td>
-                            <td id="preview_name">{{ item.item_name }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>类别：</strong></td>
-                            <td id="preview_category">{{ item.category or '未分类' }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>类型：</strong></td>
-                            <td id="preview_type">{{ item.item_type or '-' }}</td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="col-md-6">
-                    <table class="table table-borderless">
-                        <tr>
-                            <td><strong>成人单价：</strong></td>
-                            <td id="preview_adult_price">{{ "%.2f"|format(item.adult_price) if item.adult_price else '-' }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>儿童单价：</strong></td>
-                            <td id="preview_child_price">{{ "%.2f"|format(item.child_price) if item.child_price else '-' }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>小计：</strong></td>
-                            <td id="preview_subtotal" class="text-success fw-bold">{{ "%.2f"|format(item.subtotal) }}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
-// 计价方式切换功能
 document.addEventListener('DOMContentLoaded', function() {
     const personBasedRadio = document.getElementById('person_based');
     const itemBasedRadio = document.getElementById('item_based');
     const personBasedPricing = document.getElementById('personBasedPricing');
     const itemBasedPricing = document.getElementById('itemBasedPricing');
-    
-    // 计价方式切换处理
+
+    // 预算人数常量
+    const budgetAdultCount = {{ budget.adult_count }};
+    const budgetChildCount = {{ budget.child_count }};
+
+    // 计价方式切换
     function handlePricingMethodChange() {
         if (personBasedRadio.checked) {
-            // 显示人均计价方式
             personBasedPricing.style.display = 'block';
             itemBasedPricing.style.display = 'none';
-            
-            // 清空物品计价相关字段
-            document.querySelector('input[name="item_unit_price"]').value = '';
-            document.querySelector('input[name="item_quantity"]').value = '1';
-            
-            // 更新预览
-            updatePreview();
-        } else if (itemBasedRadio.checked) {
-            // 显示物品计价方式
+        } else {
             personBasedPricing.style.display = 'none';
             itemBasedPricing.style.display = 'block';
-            
-            // 清空人均计价相关字段
-            document.querySelector('input[name="adult_price"]').value = '';
-            document.querySelector('input[name="child_price"]').value = '';
-            
-            // 更新预览
-            updatePreview();
         }
+        updatePreview();
     }
-    
-    // 绑定计价方式切换事件
+
     personBasedRadio.addEventListener('change', handlePricingMethodChange);
     itemBasedRadio.addEventListener('change', handlePricingMethodChange);
-    
-    // 物品计价方式的实时计算
+
+    // 物品计价方式计算
     const itemUnitPrice = document.querySelector('input[name="item_unit_price"]');
     const itemQuantity = document.querySelector('input[name="item_quantity"]');
     const itemTotalCost = document.getElementById('itemTotalCost');
     const itemAdultUnitPrice = document.getElementById('itemAdultUnitPrice');
     const itemChildUnitPrice = document.getElementById('itemChildUnitPrice');
-    
+
     function calculateItemBasedPricing() {
         const unitPrice = parseFloat(itemUnitPrice.value) || 0;
         const quantity = parseInt(itemQuantity.value) || 1;
         const totalCost = unitPrice * quantity;
-        
-        // 更新总价显示
+
         itemTotalCost.value = totalCost.toFixed(2);
-        
-        // 计算人均价格
-        const budgetAdultCount = {{ budget.adult_count }};
-        const budgetChildCount = {{ budget.child_count }};
+
         const totalPeople = budgetAdultCount + budgetChildCount;
-        
         if (totalPeople > 0) {
-            const perPersonCost = totalCost / totalPeople;
-            itemAdultUnitPrice.value = perPersonCost.toFixed(2);
-            itemChildUnitPrice.value = perPersonCost.toFixed(2);
+            const perPerson = totalCost / totalPeople;
+            itemAdultUnitPrice.textContent = perPerson.toFixed(2);
+            itemChildUnitPrice.textContent = perPerson.toFixed(2);
         } else {
-            itemAdultUnitPrice.value = '0.00';
-            itemChildUnitPrice.value = '0.00';
+            itemAdultUnitPrice.textContent = '0.00';
+            itemChildUnitPrice.textContent = '0.00';
         }
-        
-        // 更新预览
         updatePreview();
     }
-    
-    // 绑定物品计价方式的计算事件
+
     itemUnitPrice.addEventListener('input', calculateItemBasedPricing);
     itemQuantity.addEventListener('input', calculateItemBasedPricing);
-    
-    // 人均计价方式的实时计算
+
+    // 人均计价方式计算
     const adultPrice = document.querySelector('input[name="adult_price"]');
     const childPrice = document.querySelector('input[name="child_price"]');
+    const adultSubtotal = document.getElementById('adultSubtotal');
+    const childSubtotal = document.getElementById('childSubtotal');
     const personTotalCost = document.getElementById('personTotalCost');
-    
+
     function calculatePersonBasedPricing() {
-        const adultPriceValue = parseFloat(adultPrice.value) || 0;
-        const childPriceValue = parseFloat(childPrice.value) || 0;
-        const budgetAdultCount = {{ budget.adult_count }};
-        const budgetChildCount = {{ budget.child_count }};
-        
-        const adultTotal = adultPriceValue * budgetAdultCount;
-        const childTotal = childPriceValue * budgetChildCount;
+        const adultPriceVal = parseFloat(adultPrice.value) || 0;
+        const childPriceVal = parseFloat(childPrice.value) || 0;
+
+        const adultTotal = adultPriceVal * budgetAdultCount;
+        const childTotal = childPriceVal * budgetChildCount;
         const totalCost = adultTotal + childTotal;
-        
-        // 更新总价显示
+
+        adultSubtotal.value = adultTotal.toFixed(2);
+        childSubtotal.value = childTotal.toFixed(2);
         personTotalCost.value = totalCost.toFixed(2);
-        
-        // 更新预览
         updatePreview();
     }
-    
-    // 绑定人均计价方式的计算事件
+
     adultPrice.addEventListener('input', calculatePersonBasedPricing);
     childPrice.addEventListener('input', calculatePersonBasedPricing);
 
-    // 实时预览功能
-    const itemName = document.getElementById('editItemForm').querySelector('input[name="item_name"]');
-    const category = document.getElementById('editItemForm').querySelector('input[name="category"]');
-    const itemType = document.getElementById('editItemForm').querySelector('input[name="item_type"]');
+    // 预览更新
+    const itemName = document.querySelector('input[name="item_name"]');
+    const category = document.querySelector('select[name="category"]');
 
     function updatePreview() {
-        // 更新项目名称预览
         document.getElementById('preview_name').textContent = itemName.value || '-';
-        
-        // 更新类别预览
         document.getElementById('preview_category').textContent = category.value || '未分类';
-        
-        // 更新类型预览
-        document.getElementById('preview_type').textContent = itemType.value || '-';
-        
-        // 根据计价方式更新价格预览
+
+        let subtotal = 0;
         if (personBasedRadio.checked) {
-            // 人均计价方式预览
-            const adultPriceValue = parseFloat(adultPrice.value) || 0;
-            const childPriceValue = parseFloat(childPrice.value) || 0;
-            
-            document.getElementById('preview_adult_price').textContent = 
-                adultPriceValue > 0 ? adultPriceValue.toFixed(2) : '-';
-            document.getElementById('preview_child_price').textContent = 
-                childPriceValue > 0 ? childPriceValue.toFixed(2) : '-';
-            
-            // 计算小计预览
-            const budgetAdultCount = {{ budget.adult_count }};
-            const budgetChildCount = {{ budget.child_count }};
-            const countAdultApply = document.querySelector('input[name="count_adult_apply"]').checked;
-            const countChildApply = document.querySelector('input[name="count_child_apply"]').checked;
-            
-            let subtotal = 0;
-            if (countAdultApply) {
-                subtotal += adultPriceValue * budgetAdultCount;
-            }
-            if (countChildApply) {
-                subtotal += childPriceValue * budgetChildCount;
-            }
-            
-            document.getElementById('preview_subtotal').textContent = subtotal.toFixed(2);
-            
-        } else if (itemBasedRadio.checked) {
-            // 物品计价方式预览
+            const adultPriceVal = parseFloat(adultPrice.value) || 0;
+            const childPriceVal = parseFloat(childPrice.value) || 0;
+            const countAdult = document.querySelector('input[name="count_adult_apply"]').checked;
+            const countChild = document.querySelector('input[name="count_child_apply"]').checked;
+
+            if (countAdult) subtotal += adultPriceVal * budgetAdultCount;
+            if (countChild) subtotal += childPriceVal * budgetChildCount;
+        } else {
             const unitPrice = parseFloat(itemUnitPrice.value) || 0;
             const quantity = parseInt(itemQuantity.value) || 1;
-            const totalCost = unitPrice * quantity;
-            
-            document.getElementById('preview_adult_price').textContent = 
-                totalCost > 0 ? (totalCost / {{ budget.adult_count }}).toFixed(2) : '-';
-            document.getElementById('preview_child_price').textContent = 
-                totalCost > 0 ? (totalCost / {{ budget.child_count }}).toFixed(2) : '-';
-            document.getElementById('preview_subtotal').textContent = totalCost.toFixed(2);
+            subtotal = unitPrice * quantity;
         }
+        document.getElementById('preview_subtotal').textContent = subtotal.toFixed(2);
     }
 
-    // 绑定事件监听器
     itemName.addEventListener('input', updatePreview);
-    category.addEventListener('input', updatePreview);
-    itemType.addEventListener('input', updatePreview);
-    
-    // 复选框变化时也更新预览
+    category.addEventListener('change', updatePreview);
     document.querySelector('input[name="count_adult_apply"]').addEventListener('change', updatePreview);
     document.querySelector('input[name="count_child_apply"]').addEventListener('change', updatePreview);
 
-    // 初始化预览和计算
-    updatePreview();
+    // 初始化
     if (itemBasedRadio.checked) {
         calculateItemBasedPricing();
-    } else if (personBasedRadio.checked) {
+    } else {
         calculatePersonBasedPricing();
     }
 });
@@ -433,41 +335,29 @@ document.addEventListener('DOMContentLoaded', function() {
 document.getElementById('editItemForm').addEventListener('submit', function(e) {
     const itemName = document.querySelector('input[name="item_name"]').value.trim();
     const pricingMethod = document.querySelector('input[name="pricing_method"]:checked').value;
-    
+
     if (!itemName) {
         e.preventDefault();
         alert('请输入项目名称');
         return false;
     }
-    
+
     if (pricingMethod === 'person_based') {
-        // 人均计价方式验证
         const adultPrice = parseFloat(document.querySelector('input[name="adult_price"]').value) || 0;
         const childPrice = parseFloat(document.querySelector('input[name="child_price"]').value) || 0;
-        
         if (adultPrice === 0 && childPrice === 0) {
             e.preventDefault();
             alert('人均计价方式需要至少填写成人单价或儿童单价');
             return false;
         }
     } else if (pricingMethod === 'item_based') {
-        // 物品计价方式验证
         const itemUnitPrice = parseFloat(document.querySelector('input[name="item_unit_price"]').value) || 0;
         const itemQuantity = parseInt(document.querySelector('input[name="item_quantity"]').value) || 0;
-        
         if (itemUnitPrice === 0 || itemQuantity === 0) {
             e.preventDefault();
             alert('物品计价方式需要填写物品单价和件数');
             return false;
         }
-    }
-    
-    // 总价覆盖验证
-    const totalOverride = parseFloat(document.querySelector('input[name="total_override"]').value) || 0;
-    if (totalOverride < 0) {
-        e.preventDefault();
-        alert('总价覆盖不能为负数');
-        return false;
     }
 });
 </script>

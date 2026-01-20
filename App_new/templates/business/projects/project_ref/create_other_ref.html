@@ -144,10 +144,15 @@
         <!-- 供应商与服务日期 -->
         <div class="form-section">
             <div class="section-title"><i class="fas fa-truck me-2"></i>供应商与服务日期</div>
+            {% if eo_paid %}
+            <div class="alert alert-info py-1 mb-2" style="font-size: 12px;">
+                <i class="fas fa-lock me-1"></i>EO已付款，供应商已锁定。
+            </div>
+            {% endif %}
             <div class="row g-2">
                 <div class="col-3">
                     <label class="form-label small mb-1">供应商类型</label>
-                    <select id="supplier_type_filter" class="form-select form-select-sm" onchange="filterSuppliers()">
+                    <select id="supplier_type_filter" class="form-select form-select-sm" onchange="filterSuppliers()" {% if eo_paid %}disabled{% endif %}>
                         <option value="">全部类型</option>
                         {% for type in supplier_types %}
                         <option value="{{ type }}">{{ type | replace('_', ' ') | title }}</option>
@@ -156,7 +161,7 @@
                 </div>
                 <div class="col-5">
                     <label class="form-label small mb-1">供应商名称</label>
-                    <select name="supplier_id" id="supplier_id" class="form-select form-select-sm">
+                    <select name="supplier_id" id="supplier_id" class="form-select form-select-sm" {% if eo_paid %}disabled{% endif %}>
                         <option value="">-- 请选择 --</option>
                         {% for supplier in suppliers %}
                         <option value="{{ supplier.id }}" data-type="{{ supplier.supplier_type.code if supplier.supplier_type else '' }}"
@@ -165,6 +170,9 @@
                         </option>
                         {% endfor %}
                     </select>
+                    {% if eo_paid and ref and ref.supplier_id %}
+                    <input type="hidden" name="supplier_id" value="{{ ref.supplier_id }}">
+                    {% endif %}
                 </div>
                 <div class="col-4">
                     <label class="form-label small mb-1">服务日期</label>
