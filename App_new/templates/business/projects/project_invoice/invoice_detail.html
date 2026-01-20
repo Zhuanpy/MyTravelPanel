@@ -359,7 +359,8 @@
                     <div class="input-group input-group-sm">
                         <span class="input-group-text" style="width:60px;">发票</span>
                         <input type="text" class="form-control" id="invoiceFileName" readonly
-                               value="{{ invoice.header.hid }}_INV_{{ project_contact|default(invoice.customer_name, true)|replace(' ', '_') }}">
+                               data-hid="{{ invoice.header.hid }}" data-type="INV"
+                               data-name="{{ project_contact|default(invoice.customer_name, true) }}">
                         <button class="btn btn-outline-primary" type="button" onclick="copyFileName('invoiceFileName')" title="复制">
                             <i class="fas fa-copy"></i>
                         </button>
@@ -386,7 +387,9 @@
                             {% else %}REF{% endif %}
                         </span>
                         <input type="text" class="form-control" id="refFileName{{ ref.id }}" readonly
-                               value="{{ invoice.header.hid }}_{% if ref.ref_type %}{% set type_code = ref.ref_type.code|default('') %}{% set type_name = ref.ref_type.name|default('') %}{% if type_code == 'flight' or type_name == '机票' %}AIR{% elif type_code == 'hotel' or type_name == '酒店' %}HOTEL{% elif type_code == 'visa' or type_name == '签证' %}VISA{% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}TOUR{% elif type_code == 'insurance' or type_name == '保险' %}INS{% elif type_code == 'transport' or type_name == '交通' %}TRANS{% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}ATTR{% elif type_code == 'cruise' or type_name == '邮轮' %}CRUISE{% elif type_code == 'other' or type_name == '其他' %}MISC{% else %}REF{% endif %}{% else %}REF{% endif %}_{{ project_contact|default(invoice.customer_name, true)|replace(' ', '_') }}">
+                               data-hid="{{ invoice.header.hid }}"
+                               data-type="{% if ref.ref_type %}{% set type_code = ref.ref_type.code|default('') %}{% set type_name = ref.ref_type.name|default('') %}{% if type_code == 'flight' or type_name == '机票' %}AIR{% elif type_code == 'hotel' or type_name == '酒店' %}HOTEL{% elif type_code == 'visa' or type_name == '签证' %}VISA{% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}TOUR{% elif type_code == 'insurance' or type_name == '保险' %}INS{% elif type_code == 'transport' or type_name == '交通' %}TRANS{% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}ATTR{% elif type_code == 'cruise' or type_name == '邮轮' %}CRUISE{% elif type_code == 'other' or type_name == '其他' %}MISC{% else %}REF{% endif %}{% else %}REF{% endif %}"
+                               data-name="{{ project_contact|default(invoice.customer_name, true) }}">
                         <button class="btn btn-outline-primary" type="button" onclick="copyFileName('refFileName{{ ref.id }}')" title="复制">
                             <i class="fas fa-copy"></i>
                         </button>
@@ -985,6 +988,31 @@
 </div>
 
 <script>
+// 清理客户名称：去掉称呼(MR/MRS/MS/MISS/DR等)，保留原始空格
+function cleanCustomerName(name) {
+    if (!name) return '';
+    // 去掉开头的称呼（MR/MRS/MS/MISS/DR/MSTR等）
+    const titles = /^(MR\.?|MRS\.?|MS\.?|MISS\.?|DR\.?|MSTR\.?|MASTER\.?|MDM\.?|MADAM\.?)\s+/i;
+    return name.replace(titles, '').trim();
+}
+
+// 生成文件名
+function generateFileName(hid, type, name) {
+    const cleanName = cleanCustomerName(name);
+    return `${hid}_${type}_${cleanName}`;
+}
+
+// 初始化文件名输入框
+function initFileNameInputs() {
+    const inputs = document.querySelectorAll('[data-hid][data-type][data-name]');
+    inputs.forEach(input => {
+        const hid = input.dataset.hid;
+        const type = input.dataset.type;
+        const name = input.dataset.name;
+        input.value = generateFileName(hid, type, name);
+    });
+}
+
 // 复制文件名功能
 function copyFileName(inputId) {
     const input = document.getElementById(inputId);
@@ -1020,6 +1048,9 @@ function copyAllFileNames() {
         }, 1500);
     });
 }
+
+// 页面加载时初始化文件名
+document.addEventListener('DOMContentLoaded', initFileNameInputs);
 
 function printInvoice() {
     // 保存原标题
