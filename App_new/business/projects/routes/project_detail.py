@@ -82,6 +82,30 @@ def project_detail(project_id):
             if leader_member.title:
                 leader_member_name = f"{leader_member.title} {leader_member.member_name}"
 
+        # 获取供应商预付余额（用于在REF列表中显示）
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+        from sqlalchemy import func
+        supplier_balances = {}
+        # 查询所有有余额的供应商预付记录
+        prepayment_balances = db.session.query(
+            SupplierPrepayment.supplier_id,
+            func.sum(SupplierPrepayment.balance_amount).label('total_balance'),
+            SupplierPrepayment.currency
+        ).filter(
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+            SupplierPrepayment.balance_amount > 0
+        ).group_by(
+            SupplierPrepayment.supplier_id,
+            SupplierPrepayment.currency
+        ).all()
+
+        for supplier_id, total_balance, currency in prepayment_balances:
+            if supplier_id:
+                supplier_balances[supplier_id] = {
+                    'balance': float(total_balance),
+                    'currency': currency
+                }
+
         print(f"DEBUG: 准备渲染模板 business/projects/project_detail.html")
         return render_template('business/projects/project_detail.html',
                                header=header,
@@ -89,7 +113,8 @@ def project_detail(project_id):
                                companies=companies,
                                prev_header=prev_header,
                                next_header=next_header,
-                               leader_member_name=leader_member_name)
+                               leader_member_name=leader_member_name,
+                               supplier_balances=supplier_balances)
                                
     except Exception as e:
         error_msg = str(e)

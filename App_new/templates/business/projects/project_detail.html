@@ -428,7 +428,14 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.company_name if ref.supplier else '-' }}">{{ ref.supplier.company_name if ref.supplier else '-' }}</td>
+                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.company_name if ref.supplier else '-' }}">
+                            {{ ref.supplier.company_name if ref.supplier else '-' }}
+                            {% if ref.supplier and ref.supplier_id in supplier_balances %}
+                                <span class="badge bg-success ms-1" title="预付余额">
+                                    {{ supplier_balances[ref.supplier_id].currency }} {{ "%.2f"|format(supplier_balances[ref.supplier_id].balance) }}
+                                </span>
+                            {% endif %}
+                        </td>
                         <td style="white-space: nowrap;">
                             <div style="display: flex; gap: 4px; align-items: center;">
                                 {% if ref.receipts %}
