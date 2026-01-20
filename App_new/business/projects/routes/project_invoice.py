@@ -240,44 +240,37 @@ def invoice_detail(invoice_id):
     customer_company_display = None
     customer_company_address = None
     customer_company_phone = None
+    project_leader_name = None  # 项目的 leader/主要客户名称
+
+    # 先获取项目的 leader 成员
+    if header:
+        leader_member = ProjectMember.query.filter_by(
+            header_id=header.id,
+            is_leader=True
+        ).first()
+        if not leader_member:
+            leader_member = ProjectMember.query.filter_by(header_id=header.id).first()
+
+        if leader_member:
+            project_leader_name = leader_member.member_name
+            if leader_member.title:
+                project_leader_name = f"{leader_member.title} {leader_member.member_name}"
+
     if header and header.company:
         company_name = header.company.company_name
         # 检查是否是个人客户（公司名为"个人"或"cash"）
         if company_name and company_name.lower() in ['个人', 'cash', '现金']:
-            # 获取项目 leader 或第一个人员的姓名
-            leader_member = ProjectMember.query.filter_by(
-                header_id=header.id, 
-                is_leader=True
-            ).first()
-            if not leader_member:
-                # 没有指定 leader，取第一个人员
-                leader_member = ProjectMember.query.filter_by(header_id=header.id).first()
-            
-            if leader_member:
-                customer_company_display = leader_member.member_name
-                if leader_member.title:
-                    customer_company_display = f"{leader_member.title} {leader_member.member_name}"
-            else:
-                # 如果没有人员，使用项目联系人
-                customer_company_display = header.contact or company_name
+            # 个人客户：公司显示为项目联系人（付款人），客户名称显示为 leader（实际客户）
+            # 公司字段显示联系人（通常是付款/联系人）
+            customer_company_display = header.contact if header.contact else project_leader_name
         else:
             customer_company_display = company_name
         customer_company_address = header.company.address
         customer_company_phone = header.company.contact_phone
     elif header:
-        # 没有公司，尝试获取 leader 姓名
-        leader_member = ProjectMember.query.filter_by(
-            header_id=header.id, 
-            is_leader=True
-        ).first()
-        if not leader_member:
-            leader_member = ProjectMember.query.filter_by(header_id=header.id).first()
-        
-        if leader_member:
-            customer_company_display = leader_member.member_name
-            if leader_member.title:
-                customer_company_display = f"{leader_member.title} {leader_member.member_name}"
-    
+        # 没有公司，使用 leader 姓名作为公司显示
+        customer_company_display = project_leader_name
+
     # 解析付款记录 - 从两个来源获取
     payments = []
     
@@ -397,9 +390,10 @@ def invoice_detail(invoice_id):
     # 发票金额是实际开票金额，receipt是实际收款
     balance = float(invoice.amount or 0) - total_paid
     
-    # 获取项目联系人
-    project_contact = header.contact if header else None
-    
+    # 获取项目联系人/客户名称
+    # 优先显示 leader（实际客户），其次是项目联系人
+    project_contact = project_leader_name or (header.contact if header else None)
+
     return render_template('business/projects/project_invoice/invoice_detail.html',
                          invoice=invoice,
                          related_refs=related_refs,

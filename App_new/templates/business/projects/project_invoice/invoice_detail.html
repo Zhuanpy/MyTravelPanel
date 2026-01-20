@@ -347,6 +347,61 @@
     </div>
     {% endif %}
 
+    <!-- 文件命名助手 -->
+    <div class="card shadow-sm mb-3 no-print">
+        <div class="card-header bg-light py-2">
+            <h6 class="mb-0"><i class="fas fa-file-signature text-success"></i> 文件命名助手</h6>
+        </div>
+        <div class="card-body py-2">
+            <div class="row g-2">
+                <!-- 发票文件名 -->
+                <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="width:60px;">发票</span>
+                        <input type="text" class="form-control" id="invoiceFileName" readonly
+                               value="{{ invoice.header.hid }}_INV_{{ project_contact|default(invoice.customer_name, true)|replace(' ', '_') }}">
+                        <button class="btn btn-outline-primary" type="button" onclick="copyFileName('invoiceFileName')" title="复制">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- REF 文件名 -->
+                {% for ref in related_refs %}
+                <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="width:60px;">
+                            {% if ref.ref_type %}
+                                {% set type_code = ref.ref_type.code|default('') %}
+                                {% set type_name = ref.ref_type.name|default('') %}
+                                {% if type_code == 'flight' or type_name == '机票' %}AIR
+                                {% elif type_code == 'hotel' or type_name == '酒店' %}HTL
+                                {% elif type_code == 'visa' or type_name == '签证' %}VISA
+                                {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}TOUR
+                                {% elif type_code == 'insurance' or type_name == '保险' %}INS
+                                {% elif type_code == 'transport' or type_name == '交通' %}TRANS
+                                {% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}ATTR
+                                {% elif type_code == 'cruise' or type_name == '邮轮' %}CRUISE
+                                {% elif type_code == 'other' or type_name == '其他' %}MISC
+                                {% else %}REF{% endif %}
+                            {% else %}REF{% endif %}
+                        </span>
+                        <input type="text" class="form-control" id="refFileName{{ ref.id }}" readonly
+                               value="{{ invoice.header.hid }}_{% if ref.ref_type %}{% set type_code = ref.ref_type.code|default('') %}{% set type_name = ref.ref_type.name|default('') %}{% if type_code == 'flight' or type_name == '机票' %}AIR{% elif type_code == 'hotel' or type_name == '酒店' %}HOTEL{% elif type_code == 'visa' or type_name == '签证' %}VISA{% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}TOUR{% elif type_code == 'insurance' or type_name == '保险' %}INS{% elif type_code == 'transport' or type_name == '交通' %}TRANS{% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}ATTR{% elif type_code == 'cruise' or type_name == '邮轮' %}CRUISE{% elif type_code == 'other' or type_name == '其他' %}MISC{% else %}REF{% endif %}{% else %}REF{% endif %}_{{ project_contact|default(invoice.customer_name, true)|replace(' ', '_') }}">
+                        <button class="btn btn-outline-primary" type="button" onclick="copyFileName('refFileName{{ ref.id }}')" title="复制">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-outline-success" onclick="copyAllFileNames()">
+                    <i class="fas fa-clipboard-list"></i> 复制全部
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- 打印发票模板 -->
@@ -930,6 +985,42 @@
 </div>
 
 <script>
+// 复制文件名功能
+function copyFileName(inputId) {
+    const input = document.getElementById(inputId);
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+        // 显示复制成功提示
+        const btn = input.nextElementSibling;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-primary');
+        }, 1500);
+    });
+}
+
+function copyAllFileNames() {
+    const inputs = document.querySelectorAll('[id^="invoiceFileName"], [id^="refFileName"]');
+    const fileNames = Array.from(inputs).map(input => input.value).join('\n');
+    navigator.clipboard.writeText(fileNames).then(() => {
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+        }, 1500);
+    });
+}
+
 function printInvoice() {
     // 保存原标题
     var originalTitle = document.title;
