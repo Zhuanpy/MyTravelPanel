@@ -546,12 +546,83 @@ def list_projects():
                 db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
             )
 
+        # 在分页前计算整个筛选结果的总计
+        # 获取筛选后的所有项目ID（用于总计计算）
+        all_filtered_ids_query = base_query.with_entities(ProjectHeader.id)
+        all_filtered_ids = [r.id for r in all_filtered_ids_query.all()]
+
+        # 计算整个筛选结果的总计
+        summary_stats = {'total_cost': 0, 'total_profit': 0, 'total_balance': 0, 'total_selling': 0}
+        if all_filtered_ids:
+            try:
+                from App_new.business.projects.models.invoice import ProjectInvoice
+                from sqlalchemy import union_all
+
+                # 汇总所有筛选项目的销售和成本
+                all_refs_totals = db.session.query(
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling'),
+                    db.func.coalesce(db.func.sum(ProjectRef.cost_price), 0).label('total_cost')
+                ).filter(ProjectRef.header_id.in_(all_filtered_ids)).first()
+
+                total_selling_all = float(all_refs_totals.total_selling or 0)
+                total_cost_all = float(all_refs_totals.total_cost or 0)
+
+                # 计算总收款（通过发票分配 + REF直接收款 + 旧项目收款）
+                # 方式1: 通过发票分配表统计
+                alloc_total = db.session.query(
+                    db.func.coalesce(db.func.sum(ReceiptInvoiceAllocation.allocated_amount), 0)
+                ).join(
+                    ProjectInvoice, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(
+                    ProjectInvoice.header_id.in_(all_filtered_ids),
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None
+                ).scalar() or 0
+
+                # 方式2: REF级别直接收款
+                ref_receipt_total = db.session.query(
+                    db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)
+                ).filter(
+                    ProjectReceipt.header_id.in_(all_filtered_ids),
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id.isnot(None)
+                ).scalar() or 0
+
+                # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）
+                old_receipts_subq = db.session.query(
+                    ReceiptInvoiceAllocation.receipt_id
+                ).distinct().subquery()
+
+                old_receipt_total = db.session.query(
+                    db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)
+                ).filter(
+                    ProjectReceipt.header_id.in_(all_filtered_ids),
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None,
+                    ~ProjectReceipt.id.in_(old_receipts_subq)
+                ).scalar() or 0
+
+                total_received_all = float(alloc_total) + float(ref_receipt_total) + float(old_receipt_total)
+
+                summary_stats = {
+                    'total_selling': total_selling_all,
+                    'total_cost': total_cost_all,
+                    'total_profit': total_selling_all - total_cost_all,
+                    'total_balance': total_selling_all - total_received_all
+                }
+            except Exception as e:
+                print(f"计算总计时出错: {e}")
+                import traceback
+                traceback.print_exc()
+
         # 分页
         page = request.args.get('page', 1, type=int)
         per_page = 30  # 增加每页显示数量
         pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
         projects = pagination.items
-        
+
         # 批量获取项目统计信息，避免 N+1 查询
         project_ids = [project.id for project in projects]
         project_stats = {}
@@ -1081,23 +1152,7 @@ def list_projects():
                 print(f"应用金额筛选时出错: {e}")
                 # 如果筛选失败，继续使用原始查询结果
                 pass
-        
-        # 计算总计（成本、利润、未付款）
-        total_cost = sum(stats.get('total_cost_price', 0) for stats in project_stats.values())
-        total_profit = sum(stats.get('total_profit', 0) for stats in project_stats.values())
-        total_balance = sum(
-            (stats.get('total_selling_price', 0) - stats.get('total_received', 0))
-            for stats in project_stats.values()
-        )
-        total_selling = sum(stats.get('total_selling_price', 0) for stats in project_stats.values())
-        
-        summary_stats = {
-            'total_cost': total_cost,
-            'total_profit': total_profit,
-            'total_balance': total_balance,
-            'total_selling': total_selling
-        }
-        
+
         # 提供客户公司列表用于前端下拉选择
         companies = CustomerCompany.query.order_by(CustomerCompany.company_name).all()
 

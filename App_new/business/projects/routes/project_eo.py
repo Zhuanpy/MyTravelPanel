@@ -38,47 +38,8 @@ def create_eo(ref_id):
                 status=form.status.data
             )
             db.session.add(eo)
-            db.session.flush()  # 获取EO的ID
-
-            # 自动预扣预付账款（如果供应商有可用预付账款）
-            prepayment_message = ''
-            if ref.supplier_id and ref.cost_price:
-                from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
-                from decimal import Decimal
-                from datetime import date
-
-                # 查找该供应商可用的预付账款（按创建时间排序，使用最早的）
-                prepayment = SupplierPrepayment.query.filter(
-                    SupplierPrepayment.supplier_id == ref.supplier_id,
-                    SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-                    SupplierPrepayment.balance_amount > 0
-                ).order_by(SupplierPrepayment.created_at.asc()).first()
-
-                if prepayment:
-                    cost_amount = Decimal(str(ref.cost_price))
-                    # 如果预付余额足够，使用预付账款
-                    if prepayment.balance_amount >= cost_amount:
-                        # 创建预付使用记录（状态直接为confirmed，创建EO即扣减）
-                        usage = PrepaymentUsage(
-                            prepayment_id=prepayment.id,
-                            eo_id=eo.id,
-                            ref_id=ref.id,
-                            amount=cost_amount,
-                            usage_date=date.today(),
-                            description=f'EO创建扣减 {eo_number}',
-                            status='confirmed',
-                            created_by=current_user.username if current_user else None
-                        )
-                        db.session.add(usage)
-
-                        # 扣减预付余额
-                        prepayment.balance_amount -= cost_amount
-                        prepayment.update_status()
-
-                        prepayment_message = f'，已从预付账款扣减 {cost_amount}'
-
             db.session.commit()
-            flash(f'EO子明细创建成功！{prepayment_message}', 'success')
+            flash('EO子明细创建成功！', 'success')
             return redirect(url_for('project_ref.ref_detail', ref_id=ref.id))
         except Exception as e:
             db.session.rollback()
@@ -1510,56 +1471,13 @@ def quick_create_eo(ref_id):
             # 使用ID生成EO编号
             eo.eo_number = f'E{str(eo.id).zfill(3)}'
 
-        # 自动扣减预付账款（如有）
-        prepayment_msg = ''
-        if ref.supplier_id and ref.cost_price:
-            from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
-            from decimal import Decimal
-
-            cost_amount = Decimal(str(ref.cost_price))
-
-            # 检查是否已有使用记录（pending或confirmed）
-            existing_usage = PrepaymentUsage.query.filter(
-                PrepaymentUsage.eo_id == eo.id,
-                PrepaymentUsage.status.in_(['pending', 'confirmed'])
-            ).first()
-
-            if not existing_usage:
-                # 查找该供应商的可用预付账款
-                prepayment = SupplierPrepayment.query.filter(
-                    SupplierPrepayment.supplier_id == ref.supplier_id,
-                    SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-                    SupplierPrepayment.balance_amount > 0
-                ).order_by(SupplierPrepayment.created_at.asc()).first()
-
-                if prepayment and prepayment.balance_amount >= cost_amount:
-                    # 创建预付使用记录（confirmed状态，创建EO即扣减）
-                    usage = PrepaymentUsage(
-                        prepayment_id=prepayment.id,
-                        eo_id=eo.id,
-                        ref_id=ref.id,
-                        amount=cost_amount,
-                        usage_date=db.func.current_date(),
-                        status='confirmed',
-                        description=f'EO创建扣减 - {eo.eo_number}',
-                        created_by=current_user.username if current_user else None
-                    )
-                    db.session.add(usage)
-
-                    # 扣减预付余额
-                    prepayment.balance_amount -= cost_amount
-                    prepayment.update_status()
-
-                    prepayment_msg = f'，已扣减预付账款 {cost_amount}'
-                    print(f"DEBUG: 自动扣减预付账款 {prepayment.prepayment_number} 金额 {cost_amount}")
-
         # 提交事务
         db.session.commit()
 
         action = '重新激活' if is_reactivated else '创建'
         return jsonify({
             'success': True,
-            'message': f'EO {eo.eo_number} {action}成功！{prepayment_msg}',
+            'message': f'EO {eo.eo_number} {action}成功！',
             'eo_number': eo.eo_number,
             'eo_id': eo.id
         })
