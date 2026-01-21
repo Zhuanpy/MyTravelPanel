@@ -83,7 +83,7 @@ def project_detail(project_id):
                 leader_member_name = f"{leader_member.title} {leader_member.member_name}"
 
         # 获取供应商预付余额（用于在REF列表中显示）
-        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
         from App_new.business.projects.models.eo import ProjectEO
         from sqlalchemy import func
         supplier_balances = {}
@@ -110,7 +110,12 @@ def project_detail(project_id):
                     'expected_balance': float(total_balance)
                 }
 
-        # 查询每个供应商的待付款EO总额
+        # 获取已经从预付款扣减过的EO ID列表
+        used_eo_subquery = db.session.query(PrepaymentUsage.eo_id).filter(
+            PrepaymentUsage.eo_id.isnot(None)
+        ).distinct().subquery()
+
+        # 查询每个供应商的待付款EO总额（排除已从预付款扣减的）
         pending_eo_amounts = db.session.query(
             ProjectRef.supplier_id,
             func.sum(ProjectRef.cost_price).label('pending_total')
@@ -118,7 +123,8 @@ def project_detail(project_id):
             ProjectEO, ProjectEO.ref_id == ProjectRef.id
         ).filter(
             ProjectRef.supplier_id.isnot(None),
-            ProjectEO.status.in_(['draft', 'confirmed'])  # 待付款状态
+            ProjectEO.status.in_(['draft', 'confirmed']),  # 待付款状态
+            ~ProjectEO.id.in_(used_eo_subquery)  # 排除已扣减的
         ).group_by(
             ProjectRef.supplier_id
         ).all()

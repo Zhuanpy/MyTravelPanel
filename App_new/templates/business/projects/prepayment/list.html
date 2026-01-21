@@ -329,7 +329,7 @@
                             </a>
                             {% else %}-{% endif %}
                         </td>
-                        <td>{{ eo.ref.business_type.name if eo.ref and eo.ref.business_type else '-' }}</td>
+                        <td>{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '-' }}</td>
                         <td class="text-end">
                             {% if eo.ref and eo.ref.cost_price %}
                             {{ "%.2f"|format(eo.ref.cost_price|float) }} {{ eo.ref.currency or 'SGD' }}
