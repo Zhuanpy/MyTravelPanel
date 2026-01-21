@@ -16,10 +16,10 @@ import urllib.parse
 package_budget = Blueprint('package_budget', __name__, url_prefix='/package_budget')
 
 
-@login_required
-@staff_only
 @package_budget.route('/')
 @package_budget.route('/list')
+@login_required
+@staff_only
 def list_budgets():
     """预算单列表页面"""
     try:
@@ -74,9 +74,9 @@ def list_budgets():
         return render_template('business/tour/package/TourBudget/list.html', budgets=[], pagination=None)
 
 
+@package_budget.route('/create', methods=['GET', 'POST'])
 @login_required
 @staff_only
-@package_budget.route('/create', methods=['GET', 'POST'])
 @csrf.exempt
 def create():
     """创建新预算单"""
@@ -172,9 +172,9 @@ def create():
     return render_template('business/tour/package/TourBudget/create.html')
 
 
+@package_budget.route('/<int:budget_id>')
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>')
 def detail(budget_id):
     """预算单详情页面"""
     try:
@@ -219,9 +219,9 @@ def detail(budget_id):
         return redirect(url_for('package_budget.list_budgets'))
 
 
+@package_budget.route('/<int:budget_id>/edit', methods=['GET', 'POST'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
 def edit(budget_id):
     """编辑预算单"""
@@ -281,9 +281,9 @@ def edit(budget_id):
     return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@package_budget.route('/<int:budget_id>/delete', methods=['POST'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/delete', methods=['POST'])
 @csrf.exempt
 def delete(budget_id):
     """删除预算单"""
@@ -311,9 +311,9 @@ def delete(budget_id):
         return jsonify({'success': False, 'error': '删除失败'}), 500
 
 
+@package_budget.route('/<int:budget_id>/add_item', methods=['POST'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/add_item', methods=['POST'])
 @csrf.exempt
 def add_item(budget_id):
     """添加预算项目"""
@@ -408,9 +408,9 @@ def add_item(budget_id):
     return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@package_budget.route('/<int:budget_id>/item/<int:item_id>/edit', methods=['GET', 'POST'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/item/<int:item_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
 def edit_item(budget_id, item_id):
     """编辑预算项目"""
@@ -514,9 +514,9 @@ def edit_item(budget_id, item_id):
     return render_template('business/tour/package/TourBudget/edit_item.html', budget=header, item=item)
 
 
+@package_budget.route('/<int:budget_id>/item/<int:item_id>/delete', methods=['POST'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/item/<int:item_id>/delete', methods=['POST'])
 @csrf.exempt
 def delete_item(budget_id, item_id):
     """删除预算项目"""
@@ -556,9 +556,9 @@ def delete_item(budget_id, item_id):
         return jsonify({'success': False, 'error': '删除失败'}), 500
 
 
+@package_budget.route('/<int:budget_id>/duplicate', methods=['POST'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/duplicate', methods=['POST'])
 @csrf.exempt
 def duplicate(budget_id):
     """复制预算单"""
@@ -630,9 +630,9 @@ def duplicate(budget_id):
     return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@package_budget.route('/<int:budget_id>/export', methods=['GET'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/export', methods=['GET'])
 def export_budget(budget_id):
     """导出预算单为JSON格式"""
     try:
@@ -684,9 +684,9 @@ def export_budget(budget_id):
         return jsonify({'error': '导出失败'}), 500
 
 
+@package_budget.route('/import', methods=['GET', 'POST'])
 @login_required
 @staff_only
-@package_budget.route('/import', methods=['GET', 'POST'])
 @csrf.exempt
 def import_budget():
     """导入预算单"""
@@ -704,9 +704,9 @@ def import_budget():
     return render_template('business/tour/package/TourBudget/import.html')
 
 
+@package_budget.route('/templates')
 @login_required
 @staff_only
-@package_budget.route('/templates')
 def list_templates():
     """模板列表页面"""
     try:
@@ -748,9 +748,9 @@ def list_templates():
         return render_template('business/tour/package/TourBudget/templates.html', templates=[], pagination=None)
 
 
+@package_budget.route('/<int:budget_id>/download_txt', methods=['GET'])
 @login_required
 @staff_only
-@package_budget.route('/<int:budget_id>/download_txt', methods=['GET'])
 def download_budget_txt(budget_id):
     """下载预算项目为txt文件（顾客版本）"""
     try:
@@ -845,9 +845,9 @@ def download_budget_txt(budget_id):
         return redirect(url_for('package_budget.detail', budget_id=budget_id))
 
 
+@package_budget.route('/project/<int:project_id>')
 @login_required
 @staff_only
-@package_budget.route('/project/<int:project_id>')
 def budgets_by_project(project_id):
     """根据项目ID获取关联的预算单列表"""
     try:
@@ -864,9 +864,9 @@ def budgets_by_project(project_id):
         return redirect(url_for('tour_projects.list_tour_projects'))
 
 
+@package_budget.route('/project/<int:project_id>/json')
 @login_required
 @staff_only
-@package_budget.route('/project/<int:project_id>/json')
 def budgets_by_project_json(project_id):
     """根据项目ID获取关联的预算单列表（JSON格式）"""
     try:
