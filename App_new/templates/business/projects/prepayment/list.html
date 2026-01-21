@@ -56,19 +56,36 @@
     {% if not no_supplier_selected %}
     <div class="summary-card">
         <div class="row">
-            <div class="col-md-4 summary-item">
+            <div class="col-md-3 summary-item">
                 <div class="summary-value">{{ "%.2f"|format(total_amount) }}</div>
                 <div class="summary-label">总充值金额 (SGD)</div>
             </div>
-            <div class="col-md-4 summary-item">
+            <div class="col-md-3 summary-item">
                 <div class="summary-value">{{ "%.2f"|format(total_used) }}</div>
                 <div class="summary-label">已使用金额</div>
             </div>
-            <div class="col-md-4 summary-item">
+            <div class="col-md-3 summary-item">
                 <div class="summary-value">{{ "%.2f"|format(total_balance) }}</div>
                 <div class="summary-label">剩余可用</div>
             </div>
+            <div class="col-md-3 summary-item">
+                <div class="summary-value text-warning">{{ "%.2f"|format(pending_eo_total) }}</div>
+                <div class="summary-label">待付款EO</div>
+            </div>
         </div>
+        {% if pending_eo_total > 0 %}
+        <div class="row mt-2 pt-2 border-top border-light">
+            <div class="col-12 text-center">
+                <span class="summary-label">预计剩余：</span>
+                <span class="summary-value {% if total_balance - pending_eo_total < 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ "%.2f"|format(total_balance - pending_eo_total) }} SGD
+                </span>
+                {% if total_balance - pending_eo_total < 0 %}
+                <span class="badge bg-danger ms-2">余额不足</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -265,6 +282,84 @@
             </table>
         </div>
     </div>
+
+    <!-- 待付款EO列表 -->
+    {% if pending_eos %}
+    <div class="card mt-4">
+        <div class="card-header bg-warning bg-opacity-25">
+            <h6 class="mb-0">
+                <i class="fas fa-clock me-2"></i>待付款EO（{{ pending_eos|length }}）
+                <span class="badge bg-warning text-dark ms-2">合计: {{ "%.2f"|format(pending_eo_total) }} SGD</span>
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>EO编号</th>
+                        <th>REF编号</th>
+                        <th>HID</th>
+                        <th>业务类型</th>
+                        <th class="text-end">成本金额</th>
+                        <th>EO日期</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eo in pending_eos %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}">
+                                {{ eo.eo_number }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if eo.ref %}
+                            <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref.id) }}">
+                                {{ eo.ref.ref_number }}
+                            </a>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>
+                            {% if eo.ref and eo.ref.header %}
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.ref.header.id) }}">
+                                {{ eo.ref.header.hid }}
+                            </a>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>{{ eo.ref.business_type.name if eo.ref and eo.ref.business_type else '-' }}</td>
+                        <td class="text-end">
+                            {% if eo.ref and eo.ref.cost_price %}
+                            {{ "%.2f"|format(eo.ref.cost_price) }} {{ eo.ref.currency or 'SGD' }}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>{{ eo.eo_date.strftime('%Y-%m-%d') if eo.eo_date else (eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-') }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'secondary' if eo.status == 'draft' else 'info' if eo.status == 'confirmed' else 'success' }}">
+                                {{ '草稿' if eo.status == 'draft' else '已确认' if eo.status == 'confirmed' else eo.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}"
+                               class="btn btn-sm btn-outline-primary" title="查看">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="4" class="text-end">待付款合计：</td>
+                        <td class="text-end text-warning">{{ "%.2f"|format(pending_eo_total) }} SGD</td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

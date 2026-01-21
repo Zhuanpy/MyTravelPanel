@@ -10,6 +10,8 @@ from App_new.exts import db, csrf
 from App_new.utils.decorators import staff_only, admin_only
 from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
 from App_new.business.projects.models.project import CustomerCompany
+from App_new.business.projects.models.eo import ProjectEO
+from App_new.business.projects.models.ref import ProjectRef
 from App_new.finance.models.chart_of_account import ChartOfAccount
 from App_new.finance.models.journal_entry import JournalEntry, JournalEntryLine
 from datetime import datetime, date
@@ -44,7 +46,9 @@ def list_prepayments():
                                total_amount=0,
                                total_balance=0,
                                total_used=0,
-                               no_supplier_selected=True)
+                               no_supplier_selected=True,
+                               pending_eos=[],
+                               pending_eo_total=0)
 
     # 构建查询
     query = SupplierPrepayment.query.filter_by(supplier_id=supplier_id)
@@ -52,13 +56,28 @@ def list_prepayments():
     if status:
         query = query.filter_by(status=status)
 
-    # 按创建时间倒序
-    prepayments = query.order_by(SupplierPrepayment.created_at.desc()).all()
+    # 按编号倒序（最新的显示在最上面）
+    prepayments = query.order_by(SupplierPrepayment.prepayment_number.desc()).all()
 
     # 计算汇总
     total_amount = sum(p.amount for p in prepayments)
     total_balance = sum(p.balance_amount for p in prepayments)
     total_used = total_amount - total_balance
+
+    # 查询待付款的EO（已创建但未付款的EO）
+    # 条件：关联的REF属于该供应商，且EO状态不是paid/cancelled/void
+    pending_eos = db.session.query(ProjectEO).join(
+        ProjectRef, ProjectEO.ref_id == ProjectRef.id
+    ).filter(
+        ProjectRef.supplier_id == supplier_id,
+        ProjectEO.status.in_(['draft', 'confirmed']),  # 待付款状态
+    ).order_by(ProjectEO.created_at.desc()).all()
+
+    # 计算待付款总金额
+    pending_eo_total = sum(
+        float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
+        for eo in pending_eos
+    )
 
     return render_template('business/projects/prepayment/list.html',
                            prepayments=prepayments,
@@ -68,7 +87,9 @@ def list_prepayments():
                            total_amount=total_amount,
                            total_balance=total_balance,
                            total_used=total_used,
-                           no_supplier_selected=False)
+                           no_supplier_selected=False,
+                           pending_eos=pending_eos,
+                           pending_eo_total=pending_eo_total)
 
 
 @project_prepayment.route('/create', methods=['GET', 'POST'])

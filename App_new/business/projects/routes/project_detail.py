@@ -84,8 +84,10 @@ def project_detail(project_id):
 
         # 获取供应商预付余额（用于在REF列表中显示）
         from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+        from App_new.business.projects.models.eo import ProjectEO
         from sqlalchemy import func
         supplier_balances = {}
+
         # 查询所有有余额的供应商预付记录
         prepayment_balances = db.session.query(
             SupplierPrepayment.supplier_id,
@@ -103,8 +105,30 @@ def project_detail(project_id):
             if supplier_id:
                 supplier_balances[supplier_id] = {
                     'balance': float(total_balance),
-                    'currency': currency
+                    'currency': currency,
+                    'pending_eo': 0,
+                    'expected_balance': float(total_balance)
                 }
+
+        # 查询每个供应商的待付款EO总额
+        pending_eo_amounts = db.session.query(
+            ProjectRef.supplier_id,
+            func.sum(ProjectRef.cost_price).label('pending_total')
+        ).join(
+            ProjectEO, ProjectEO.ref_id == ProjectRef.id
+        ).filter(
+            ProjectRef.supplier_id.isnot(None),
+            ProjectEO.status.in_(['draft', 'confirmed'])  # 待付款状态
+        ).group_by(
+            ProjectRef.supplier_id
+        ).all()
+
+        # 更新预计余额
+        for supplier_id, pending_total in pending_eo_amounts:
+            if supplier_id in supplier_balances:
+                pending_amount = float(pending_total) if pending_total else 0
+                supplier_balances[supplier_id]['pending_eo'] = pending_amount
+                supplier_balances[supplier_id]['expected_balance'] = supplier_balances[supplier_id]['balance'] - pending_amount
 
         print(f"DEBUG: 准备渲染模板 business/projects/project_detail.html")
         return render_template('business/projects/project_detail.html',

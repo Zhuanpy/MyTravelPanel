@@ -435,8 +435,10 @@
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ref.supplier.company_name if ref.supplier else '-' }}">
                             {{ ref.supplier.company_name if ref.supplier else '-' }}
                             {% if ref.supplier and ref.supplier_id in supplier_balances %}
-                                <span class="badge bg-success ms-1" title="预付余额">
-                                    {{ supplier_balances[ref.supplier_id].currency }} {{ "%.2f"|format(supplier_balances[ref.supplier_id].balance) }}
+                                {% set sb = supplier_balances[ref.supplier_id] %}
+                                <span class="badge ms-1 {% if sb.expected_balance < 0 %}bg-danger{% elif sb.pending_eo > 0 %}bg-warning text-dark{% else %}bg-success{% endif %}"
+                                      title="预计余额: {{ sb.currency }} {{ '%.2f'|format(sb.expected_balance) }}&#10;当前余额: {{ '%.2f'|format(sb.balance) }}&#10;待付EO: {{ '%.2f'|format(sb.pending_eo) }}">
+                                    {{ sb.currency }} {{ "%.2f"|format(sb.expected_balance) }}
                                 </span>
                             {% endif %}
                         </td>
