@@ -39,6 +39,11 @@
 - 不要硬编码敏感信息（密码、API密钥）
 - 模板中业务类型判断需同时检查 `code` 和中文 `name`
 
+## Git 提交规则
+
+- **不要自动推送**: 修改代码后等待用户验证，确认没问题后再推送到 GitHub
+- 用户明确说"推送"或"push"时才执行 git push
+
 ## 临时文件管理
 
 - Claude Code 临时文件 (`tmpclaude-*-cwd`) 已添加到 `.gitignore`，不会提交到 Git
