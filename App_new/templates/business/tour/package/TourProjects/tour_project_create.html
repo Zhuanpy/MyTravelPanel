@@ -100,7 +100,7 @@
             {% endif %}
         {% endwith %}
 
-        <form id="projectForm" method="POST" action="{{ url_for('tour_projects.create_tour_project') }}">
+        <form id="projectForm" method="POST" action="{{ url_for('tour_projects.create_tour_project') }}" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             
             <!-- 标签页容器 -->
