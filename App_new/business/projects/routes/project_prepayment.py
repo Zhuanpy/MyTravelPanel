@@ -60,18 +60,22 @@ def list_prepayments():
     prepayments = query.order_by(SupplierPrepayment.prepayment_number.desc()).all()
 
     # 计算汇总
-    total_amount = sum(p.amount for p in prepayments)
-    total_balance = sum(p.balance_amount for p in prepayments)
+    total_amount = sum(float(p.amount or 0) for p in prepayments)
+    total_balance = sum(float(p.balance_amount or 0) for p in prepayments)
     total_used = total_amount - total_balance
 
     # 查询待付款的EO（已创建但未付款的EO）
     # 条件：关联的REF属于该供应商，且EO状态不是paid/cancelled/void
-    pending_eos = db.session.query(ProjectEO).join(
-        ProjectRef, ProjectEO.ref_id == ProjectRef.id
-    ).filter(
-        ProjectRef.supplier_id == supplier_id,
-        ProjectEO.status.in_(['draft', 'confirmed']),  # 待付款状态
-    ).order_by(ProjectEO.created_at.desc()).all()
+    try:
+        pending_eos = db.session.query(ProjectEO).join(
+            ProjectRef, ProjectEO.ref_id == ProjectRef.id
+        ).filter(
+            ProjectRef.supplier_id == supplier_id,
+            ProjectEO.status.in_(['draft', 'confirmed']),  # 待付款状态
+        ).order_by(ProjectEO.created_at.desc()).all()
+    except Exception as e:
+        print(f"查询待付款EO出错: {e}")
+        pending_eos = []
 
     # 计算待付款总金额
     pending_eo_total = sum(

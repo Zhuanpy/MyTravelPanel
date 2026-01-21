@@ -74,13 +74,14 @@
             </div>
         </div>
         {% if pending_eo_total > 0 %}
+        {% set expected_balance = (total_balance|float) - (pending_eo_total|float) %}
         <div class="row mt-2 pt-2 border-top border-light">
             <div class="col-12 text-center">
                 <span class="summary-label">预计剩余：</span>
-                <span class="summary-value {% if total_balance - pending_eo_total < 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ "%.2f"|format(total_balance - pending_eo_total) }} SGD
+                <span class="summary-value {% if expected_balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ "%.2f"|format(expected_balance) }} SGD
                 </span>
-                {% if total_balance - pending_eo_total < 0 %}
+                {% if expected_balance < 0 %}
                 <span class="badge bg-danger ms-2">余额不足</span>
                 {% endif %}
             </div>
@@ -331,7 +332,7 @@
                         <td>{{ eo.ref.business_type.name if eo.ref and eo.ref.business_type else '-' }}</td>
                         <td class="text-end">
                             {% if eo.ref and eo.ref.cost_price %}
-                            {{ "%.2f"|format(eo.ref.cost_price) }} {{ eo.ref.currency or 'SGD' }}
+                            {{ "%.2f"|format(eo.ref.cost_price|float) }} {{ eo.ref.currency or 'SGD' }}
                             {% else %}-{% endif %}
                         </td>
                         <td>{{ eo.eo_date.strftime('%Y-%m-%d') if eo.eo_date else (eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-') }}</td>
