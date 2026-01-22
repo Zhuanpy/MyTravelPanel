@@ -1731,6 +1731,9 @@ def update_transaction_status(transaction, match_type, match_id, username):
     transaction.confirmed_by = username
     transaction.updated_at = current_time
 
+    # 多对多匹配时也要更新状态为已匹配
+    transaction.reconciliation_status = 'matched'
+
     # 根据匹配类型更新对应字段（兼容旧逻辑）
     if match_type == 'receipt':
         # 如果是单一匹配，也更新旧字段
@@ -1740,10 +1743,18 @@ def update_transaction_status(transaction, match_type, match_id, username):
         ).all()
         if len(matches) == 1:
             transaction.matched_receipt_id = match_id
-            transaction.reconciliation_status = 'matched'
             receipt = ProjectReceipt.query.get(match_id)
             if receipt:
                 transaction.accounting_ref = receipt.receipt_number
+        else:
+            # 多对多匹配：设置accounting_ref为所有收款单号
+            receipt_numbers = []
+            for m in matches:
+                r = ProjectReceipt.query.get(m.match_id)
+                if r:
+                    receipt_numbers.append(r.receipt_number)
+            if receipt_numbers:
+                transaction.accounting_ref = ','.join(receipt_numbers)
     else:
         # EO匹配
         matches = BankTransactionMatch.query.filter_by(
@@ -1755,6 +1766,15 @@ def update_transaction_status(transaction, match_type, match_id, username):
             eo = ProjectEO.query.get(match_id)
             if eo:
                 transaction.accounting_ref = eo.eo_number
+        else:
+            # 多对多匹配：设置accounting_ref为所有EO单号
+            eo_numbers = []
+            for m in matches:
+                e = ProjectEO.query.get(m.match_id)
+                if e:
+                    eo_numbers.append(e.eo_number)
+            if eo_numbers:
+                transaction.accounting_ref = ','.join(eo_numbers)
 
 
 @reconciliation_bp.route('/api/remove-match', methods=['POST'])
