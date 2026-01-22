@@ -86,6 +86,10 @@
                             <span class="badge bg-info" title="已核对">
                                 <i class="fas fa-check-double"></i> 已核对
                             </span>
+                            <br><button class="btn btn-outline-secondary btn-sm mt-1 unreconcile-btn"
+                                    data-tx-id="{{ tx.id }}" title="取消核对">
+                                <i class="fas fa-undo"></i>
+                            </button>
                         {% elif tx.matched_receipt_id or tx.eo_id %}
                             <span class="badge bg-success" title="已匹配">
                                 <i class="fas fa-link"></i> 已匹配
@@ -95,6 +99,17 @@
                             {% elif tx.matched_eo and tx.transaction_type == 'debit' %}
                                 <br><small class="text-danger" title="EO: {{ tx.matched_eo.eo_number }}">{{ tx.matched_eo.eo_number }}</small>
                             {% endif %}
+                            <br>
+                            <div class="btn-group btn-group-sm mt-1">
+                                <button class="btn btn-outline-info reconcile-btn"
+                                        data-tx-id="{{ tx.id }}" title="标记已核对">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                                <button class="btn btn-outline-danger unmatch-btn"
+                                        data-tx-id="{{ tx.id }}" title="解除匹配">
+                                    <i class="fas fa-unlink"></i>
+                                </button>
+                            </div>
                         {% else %}
                             <span class="badge bg-warning text-dark" title="待匹配">
                                 <i class="fas fa-clock"></i> 待匹配

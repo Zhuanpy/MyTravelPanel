@@ -374,6 +374,88 @@ def cmb_unlock_transaction(transaction_id):
         return jsonify({'success': False, 'message': f'解锁失败: {str(e)}'}), 500
 
 
+@cmb_blue.route('/cmb_unmatch_transaction/<int:transaction_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def cmb_unmatch_transaction(transaction_id):
+    """解除CMB银行交易的匹配关系"""
+    try:
+        transaction = BankTransaction.query.get(transaction_id)
+
+        if not transaction:
+            return jsonify({'success': False, 'message': '交易记录不存在'}), 404
+
+        if transaction.statement.bank_name != 'CMB':
+            return jsonify({'success': False, 'message': '该交易不属于CMB银行'}), 400
+
+        # 解除匹配
+        old_receipt_id = transaction.matched_receipt_id
+        old_eo_id = transaction.eo_id
+
+        transaction.matched_receipt_id = None
+        transaction.eo_id = None
+        transaction.reconciliation_status = 'unmatched'
+        transaction.is_reconciled = False
+        transaction.reconciled_at = None
+        transaction.reconciled_by = None
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '匹配关系已解除',
+            'old_receipt_id': old_receipt_id,
+            'old_eo_id': old_eo_id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'解除匹配失败: {str(e)}'}), 500
+
+
+@cmb_blue.route('/cmb_reconcile_transaction/<int:transaction_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def cmb_reconcile_transaction(transaction_id):
+    """标记CMB银行交易为已核对"""
+    try:
+        transaction = BankTransaction.query.get(transaction_id)
+
+        if not transaction:
+            return jsonify({'success': False, 'message': '交易记录不存在'}), 404
+
+        if transaction.statement.bank_name != 'CMB':
+            return jsonify({'success': False, 'message': '该交易不属于CMB银行'}), 400
+
+        data = request.get_json() or {}
+        action = data.get('action', 'reconcile')
+
+        if action == 'reconcile':
+            transaction.is_reconciled = True
+            transaction.reconciled_at = datetime.now()
+            transaction.reconciled_by = 'user'
+            message = '已标记为已核对'
+        else:
+            transaction.is_reconciled = False
+            transaction.reconciled_at = None
+            transaction.reconciled_by = None
+            message = '已取消核对状态'
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'is_reconciled': transaction.is_reconciled
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'操作失败: {str(e)}'}), 500
+
+
 # CMB所有通用功能已移至通用函数 statement_common.py：
 # - open_cmb_statement_folder → statement_common.open_statement_folder
 # - cmb_bank_processing → statement_common.bank_processing

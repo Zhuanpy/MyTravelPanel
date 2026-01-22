@@ -917,7 +917,143 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })();
             }
-            
+
+            // 解除匹配按钮
+            else if (e.target && e.target.classList.contains('unmatch-btn')) {
+                const transactionId = parseInt(e.target.dataset.txId);
+
+                if (!transactionId) {
+                    alert('交易记录ID无效');
+                    return;
+                }
+
+                if (!confirm('确定要解除此交易的匹配关系吗？')) {
+                    return;
+                }
+
+                (async () => {
+                    const originalText = e.target.innerHTML;
+                    try {
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        e.target.disabled = true;
+
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_unmatch_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_unmatch_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_unmatch_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
+                        } else {
+                            alert(`解除匹配失败: ${result.message}`);
+                        }
+
+                    } catch (error) {
+                        console.error('解除匹配错误:', error);
+                        alert('解除匹配失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+
+            // 标记已核对按钮
+            else if (e.target && e.target.classList.contains('reconcile-btn')) {
+                const transactionId = parseInt(e.target.dataset.txId);
+
+                if (!transactionId) {
+                    alert('交易记录ID无效');
+                    return;
+                }
+
+                (async () => {
+                    const originalText = e.target.innerHTML;
+                    try {
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        e.target.disabled = true;
+
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'reconcile' })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
+                        } else {
+                            alert(`标记核对失败: ${result.message}`);
+                        }
+
+                    } catch (error) {
+                        console.error('标记核对错误:', error);
+                        alert('标记核对失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+
+            // 取消核对按钮
+            else if (e.target && e.target.classList.contains('unreconcile-btn')) {
+                const transactionId = parseInt(e.target.dataset.txId);
+
+                if (!transactionId) {
+                    alert('交易记录ID无效');
+                    return;
+                }
+
+                if (!confirm('确定要取消此交易的核对状态吗？')) {
+                    return;
+                }
+
+                (async () => {
+                    const originalText = e.target.innerHTML;
+                    try {
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        e.target.disabled = true;
+
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'unreconcile' })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
+                        } else {
+                            alert(`取消核对失败: ${result.message}`);
+                        }
+
+                    } catch (error) {
+                        console.error('取消核对错误:', error);
+                        alert('取消核对失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+
             // 重置选择按钮
             else if (e.target && e.target.id === 'clearSelectionBtn') {
                 const transactionCheckboxes = document.querySelectorAll('.transaction-checkbox');
