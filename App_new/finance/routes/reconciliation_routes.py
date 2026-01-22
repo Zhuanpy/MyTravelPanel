@@ -1458,34 +1458,78 @@ def eo_manual_match():
 @login_required
 @staff_only
 def eo_unmatch():
-    """取消EO匹配API"""
+    """取消EO匹配API - 支持通过transaction_id或eo_id解除匹配"""
     try:
         data = request.get_json()
         transaction_id = data.get('transaction_id')
+        eo_id = data.get('eo_id')
 
-        if not transaction_id:
-            return jsonify({'success': False, 'message': '缺少交易ID'})
+        if not transaction_id and not eo_id:
+            return jsonify({'success': False, 'message': '缺少交易ID或EO ID'})
 
-        transaction = BankTransaction.query.get(transaction_id)
-        if not transaction:
-            return jsonify({'success': False, 'message': '银行交易记录不存在'})
+        unmatch_count = 0
+        current_time = datetime.utcnow()
 
-        if not transaction.eo_id:
-            return jsonify({'success': False, 'message': '该交易未匹配任何EO记录'})
+        if transaction_id:
+            # 通过银行交易ID解除匹配
+            transaction = BankTransaction.query.get(transaction_id)
+            if not transaction:
+                return jsonify({'success': False, 'message': '银行交易记录不存在'})
 
-        # 取消匹配
-        old_eo_id = transaction.eo_id
-        transaction.eo_id = None
-        transaction.accounting_ref = None
-        transaction.updated_at = datetime.utcnow()
+            if not transaction.eo_id:
+                return jsonify({'success': False, 'message': '该交易未匹配任何EO记录'})
+
+            # 取消匹配
+            old_eo_id = transaction.eo_id
+            transaction.eo_id = None
+            transaction.reconciliation_status = 'unmatched'
+            transaction.accounting_ref = None
+            transaction.updated_at = current_time
+            unmatch_count = 1
+
+        elif eo_id:
+            # 通过EO ID解除所有关联的银行交易匹配
+            # 1. 查找直接关联的银行交易 (eo_id字段)
+            transactions = BankTransaction.query.filter_by(eo_id=eo_id).all()
+            for tx in transactions:
+                tx.eo_id = None
+                tx.reconciliation_status = 'unmatched'
+                tx.accounting_ref = None
+                tx.updated_at = current_time
+                unmatch_count += 1
+
+            # 2. 查找通过多对多匹配表关联的记录
+            matches = BankTransactionMatch.query.filter_by(match_type='eo', match_id=eo_id).all()
+            for match in matches:
+                tx = BankTransaction.query.get(match.transaction_id)
+                if tx:
+                    # 检查是否还有其他匹配
+                    other_matches = BankTransactionMatch.query.filter(
+                        BankTransactionMatch.transaction_id == tx.id,
+                        BankTransactionMatch.id != match.id
+                    ).count()
+                    if other_matches == 0:
+                        tx.reconciliation_status = 'unmatched'
+                    tx.updated_at = current_time
+                db.session.delete(match)
+                unmatch_count += 1
+
+            # 3. 更新EO的核对状态
+            eo = ProjectEO.query.get(eo_id)
+            if eo:
+                eo.is_reconciled = False
+                eo.reconciled_at = None
+                eo.reconciled_by = None
+
+            if unmatch_count == 0:
+                return jsonify({'success': False, 'message': '该EO没有关联的银行交易记录'})
 
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': '已取消匹配',
-            'transaction_id': transaction_id,
-            'old_eo_id': old_eo_id
+            'message': f'已解除 {unmatch_count} 条匹配记录',
+            'unmatch_count': unmatch_count
         })
 
     except Exception as e:
