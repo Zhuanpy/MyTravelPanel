@@ -271,7 +271,7 @@
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text py-0">$</span>
                                 <input type="number" name="adult_selling" id="adult_selling" class="form-control"
-                                       min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else '0.00' }}"
+                                       min="0" step="0.01" value="{{ extra_info.adult_selling if extra_info and extra_info.adult_selling else (ref.selling_price if ref and ref.selling_price else '0.00') }}"
                                        onchange="calculateTotals()" {% if has_invoice %}readonly{% endif %}>
                             </div>
                         </td>
@@ -279,7 +279,7 @@
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text py-0">$</span>
                                 <input type="number" name="adult_cost" id="adult_cost" class="form-control"
-                                       min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else '0.00' }}"
+                                       min="0" step="0.01" value="{{ extra_info.adult_cost if extra_info and extra_info.adult_cost else (ref.cost_price if ref and ref.cost_price else '0.00') }}"
                                        onchange="calculateTotals()" {% if eo_paid %}readonly{% endif %}>
                             </div>
                         </td>
