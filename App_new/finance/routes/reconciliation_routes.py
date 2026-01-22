@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
 from App_new.finance.models.statement import BankStatement, BankTransaction
+from App_new.finance.models.bank_transaction_match import BankTransactionMatch
 from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.eo import ProjectEO
@@ -1608,3 +1609,376 @@ def eo_mark_reconciled():
         db.session.rollback()
         logger.error(f"标记EO核对状态失败: {str(e)}")
         return jsonify({'success': False, 'message': f'操作失败: {str(e)}'})
+
+
+# ==================== 多对多匹配功能 ====================
+
+@reconciliation_bp.route('/api/multi-match', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def multi_match():
+    """
+    多对多匹配API
+    支持：
+    - 一笔银行转账 → 多个收款/EO
+    - 多笔银行转账 → 一个收款/EO
+
+    请求格式：
+    {
+        "matches": [
+            {"transaction_id": 1, "match_type": "receipt", "match_id": 101, "amount": 295.00},
+            {"transaction_id": 1, "match_type": "receipt", "match_id": 102, "amount": 315.00},
+            {"transaction_id": 2, "match_type": "eo", "match_id": 201, "amount": 416.21}
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+        matches = data.get('matches', [])
+
+        if not matches:
+            return jsonify({'success': False, 'message': '没有提供匹配数据'})
+
+        success_count = 0
+        failed_items = []
+        current_user_name = current_user.username if current_user else 'system'
+
+        for match in matches:
+            tx_id = match.get('transaction_id')
+            match_type = match.get('match_type')
+            match_id = match.get('match_id')
+            amount = match.get('amount')
+
+            # 验证参数
+            if not all([tx_id, match_type, match_id, amount]):
+                failed_items.append({'transaction_id': tx_id, 'reason': '参数不完整'})
+                continue
+
+            if match_type not in ['receipt', 'eo']:
+                failed_items.append({'transaction_id': tx_id, 'reason': '无效的匹配类型'})
+                continue
+
+            # 验证银行交易存在
+            transaction = BankTransaction.query.get(tx_id)
+            if not transaction:
+                failed_items.append({'transaction_id': tx_id, 'reason': '银行交易不存在'})
+                continue
+
+            # 验证收款/EO存在
+            if match_type == 'receipt':
+                target = ProjectReceipt.query.get(match_id)
+                if not target:
+                    failed_items.append({'transaction_id': tx_id, 'reason': f'收款记录 {match_id} 不存在'})
+                    continue
+            else:
+                target = ProjectEO.query.get(match_id)
+                if not target:
+                    failed_items.append({'transaction_id': tx_id, 'reason': f'EO记录 {match_id} 不存在'})
+                    continue
+
+            # 检查是否已存在该匹配
+            existing = BankTransactionMatch.query.filter_by(
+                transaction_id=tx_id,
+                match_type=match_type,
+                match_id=match_id
+            ).first()
+
+            if existing:
+                # 更新金额
+                existing.allocated_amount = amount
+                existing.updated_at = datetime.utcnow()
+            else:
+                # 创建新匹配
+                new_match = BankTransactionMatch(
+                    transaction_id=tx_id,
+                    match_type=match_type,
+                    match_id=match_id,
+                    allocated_amount=amount,
+                    created_by=current_user_name
+                )
+                db.session.add(new_match)
+
+            # 更新银行交易状态
+            update_transaction_status(transaction, match_type, match_id, current_user_name)
+            success_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'成功创建 {success_count} 条匹配记录',
+            'success_count': success_count,
+            'failed_count': len(failed_items),
+            'failed_items': failed_items
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"多对多匹配失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'匹配失败: {str(e)}'})
+
+
+def update_transaction_status(transaction, match_type, match_id, username):
+    """更新银行交易的匹配状态"""
+    current_time = datetime.utcnow()
+
+    # 更新确认状态
+    transaction.is_confirmed = True
+    transaction.confirmed_at = current_time
+    transaction.confirmed_by = username
+    transaction.updated_at = current_time
+
+    # 根据匹配类型更新对应字段（兼容旧逻辑）
+    if match_type == 'receipt':
+        # 如果是单一匹配，也更新旧字段
+        matches = BankTransactionMatch.query.filter_by(
+            transaction_id=transaction.id,
+            match_type='receipt'
+        ).all()
+        if len(matches) == 1:
+            transaction.matched_receipt_id = match_id
+            transaction.reconciliation_status = 'matched'
+            receipt = ProjectReceipt.query.get(match_id)
+            if receipt:
+                transaction.accounting_ref = receipt.receipt_number
+    else:
+        # EO匹配
+        matches = BankTransactionMatch.query.filter_by(
+            transaction_id=transaction.id,
+            match_type='eo'
+        ).all()
+        if len(matches) == 1:
+            transaction.eo_id = match_id
+            eo = ProjectEO.query.get(match_id)
+            if eo:
+                transaction.accounting_ref = eo.eo_number
+
+
+@reconciliation_bp.route('/api/remove-match', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def remove_match():
+    """
+    删除指定匹配记录
+
+    请求格式：
+    {
+        "match_id": 123  // bank_transaction_matches 表的 ID
+    }
+    或
+    {
+        "transaction_id": 1,
+        "match_type": "receipt",
+        "target_id": 101
+    }
+    """
+    try:
+        data = request.get_json()
+
+        # 方式1：通过 match_id 删除
+        match_id = data.get('match_id')
+        if match_id:
+            match_record = BankTransactionMatch.query.get(match_id)
+            if not match_record:
+                return jsonify({'success': False, 'message': '匹配记录不存在'})
+
+            transaction_id = match_record.transaction_id
+            db.session.delete(match_record)
+
+            # 检查是否还有其他匹配，如果没有则清除银行交易的匹配状态
+            remaining = BankTransactionMatch.query.filter_by(transaction_id=transaction_id).count()
+            if remaining == 0:
+                transaction = BankTransaction.query.get(transaction_id)
+                if transaction:
+                    transaction.matched_receipt_id = None
+                    transaction.eo_id = None
+                    transaction.reconciliation_status = 'unmatched'
+                    transaction.accounting_ref = None
+
+            db.session.commit()
+            return jsonify({'success': True, 'message': '匹配记录已删除'})
+
+        # 方式2：通过 transaction_id + match_type + target_id 删除
+        transaction_id = data.get('transaction_id')
+        match_type = data.get('match_type')
+        target_id = data.get('target_id')
+
+        if not all([transaction_id, match_type, target_id]):
+            return jsonify({'success': False, 'message': '参数不完整'})
+
+        match_record = BankTransactionMatch.query.filter_by(
+            transaction_id=transaction_id,
+            match_type=match_type,
+            match_id=target_id
+        ).first()
+
+        if not match_record:
+            return jsonify({'success': False, 'message': '匹配记录不存在'})
+
+        db.session.delete(match_record)
+
+        # 检查是否还有其他匹配
+        remaining = BankTransactionMatch.query.filter_by(transaction_id=transaction_id).count()
+        if remaining == 0:
+            transaction = BankTransaction.query.get(transaction_id)
+            if transaction:
+                transaction.matched_receipt_id = None
+                transaction.eo_id = None
+                transaction.reconciliation_status = 'unmatched'
+                transaction.accounting_ref = None
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': '匹配记录已删除'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除匹配记录失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'})
+
+
+@reconciliation_bp.route('/api/get-matches')
+@login_required
+@staff_only
+def get_matches():
+    """
+    获取匹配记录
+
+    参数：
+    - transaction_id: 银行交易ID（可选）
+    - match_type: 匹配类型 receipt/eo（可选）
+    - match_id: 目标ID（可选）
+    """
+    try:
+        transaction_id = request.args.get('transaction_id', type=int)
+        match_type = request.args.get('match_type')
+        match_id = request.args.get('match_id', type=int)
+
+        query = BankTransactionMatch.query
+
+        if transaction_id:
+            query = query.filter_by(transaction_id=transaction_id)
+        if match_type:
+            query = query.filter_by(match_type=match_type)
+        if match_id:
+            query = query.filter_by(match_id=match_id)
+
+        matches = query.order_by(BankTransactionMatch.created_at.desc()).all()
+
+        result = []
+        for m in matches:
+            item = m.to_dict()
+
+            # 获取银行交易信息
+            if m.transaction:
+                item['transaction_date'] = m.transaction.transaction_date.isoformat() if m.transaction.transaction_date else None
+                item['transaction_amount'] = float(m.transaction.amount) if m.transaction.amount else 0
+                item['counterparty'] = m.transaction.counterparty_name or m.transaction.description or ''
+
+            # 获取目标信息
+            if m.match_type == 'receipt':
+                receipt = ProjectReceipt.query.get(m.match_id)
+                if receipt:
+                    item['target_number'] = receipt.receipt_number
+                    item['target_amount'] = float(receipt.amount) if receipt.amount else 0
+                    item['target_date'] = receipt.payment_date.isoformat() if receipt.payment_date else None
+                    item['project_number'] = receipt.header.hid if receipt.header else ''
+            else:
+                eo = ProjectEO.query.get(m.match_id)
+                if eo:
+                    item['target_number'] = eo.eo_number
+                    item['target_amount'] = float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
+                    item['target_date'] = (eo.paid_date or eo.eo_date).isoformat() if (eo.paid_date or eo.eo_date) else None
+                    item['project_number'] = eo.ref.header.hid if eo.ref and eo.ref.header else ''
+
+            result.append(item)
+
+        return jsonify({
+            'success': True,
+            'matches': result,
+            'total': len(result)
+        })
+
+    except Exception as e:
+        logger.error(f"获取匹配记录失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'获取失败: {str(e)}'})
+
+
+@reconciliation_bp.route('/api/match-summary')
+@login_required
+@staff_only
+def match_summary():
+    """
+    获取匹配汇总信息
+
+    参数：
+    - transaction_id: 银行交易ID
+    或
+    - match_type: 匹配类型
+    - match_id: 目标ID
+    """
+    try:
+        transaction_id = request.args.get('transaction_id', type=int)
+        match_type = request.args.get('match_type')
+        match_id = request.args.get('match_id', type=int)
+
+        if transaction_id:
+            # 获取银行交易的匹配汇总
+            transaction = BankTransaction.query.get(transaction_id)
+            if not transaction:
+                return jsonify({'success': False, 'message': '银行交易不存在'})
+
+            matched_amount = BankTransactionMatch.get_transaction_matched_amount(transaction_id)
+            transaction_amount = float(transaction.amount) if transaction.amount else 0
+            remaining = transaction_amount - matched_amount
+
+            matches = BankTransactionMatch.query.filter_by(transaction_id=transaction_id).all()
+
+            return jsonify({
+                'success': True,
+                'transaction_id': transaction_id,
+                'transaction_amount': transaction_amount,
+                'matched_amount': matched_amount,
+                'remaining_amount': remaining,
+                'is_fully_matched': abs(remaining) < 0.01,
+                'match_count': len(matches)
+            })
+
+        elif match_type and match_id:
+            # 获取收款/EO的匹配汇总
+            if match_type == 'receipt':
+                target = ProjectReceipt.query.get(match_id)
+                if not target:
+                    return jsonify({'success': False, 'message': '收款记录不存在'})
+                target_amount = float(target.amount) if target.amount else 0
+                matched_amount = BankTransactionMatch.get_receipt_matched_amount(match_id)
+            else:
+                target = ProjectEO.query.get(match_id)
+                if not target:
+                    return jsonify({'success': False, 'message': 'EO记录不存在'})
+                target_amount = float(target.ref.cost_price) if target.ref and target.ref.cost_price else 0
+                matched_amount = BankTransactionMatch.get_eo_matched_amount(match_id)
+
+            remaining = target_amount - matched_amount
+            matches = BankTransactionMatch.query.filter_by(match_type=match_type, match_id=match_id).all()
+
+            return jsonify({
+                'success': True,
+                'match_type': match_type,
+                'match_id': match_id,
+                'target_amount': target_amount,
+                'matched_amount': matched_amount,
+                'remaining_amount': remaining,
+                'is_fully_matched': abs(remaining) < 0.01,
+                'match_count': len(matches)
+            })
+
+        else:
+            return jsonify({'success': False, 'message': '请提供 transaction_id 或 match_type + match_id'})
+
+    except Exception as e:
+        logger.error(f"获取匹配汇总失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'获取失败: {str(e)}'})

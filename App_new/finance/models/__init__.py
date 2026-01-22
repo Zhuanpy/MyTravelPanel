@@ -5,6 +5,7 @@
 
 # 对账相关模型
 from .statement import BankStatement, BankTransaction, SupplierStatement, SupplierStatementItem
+from .bank_transaction_match import BankTransactionMatch
 
 # 会计科目与分录模型
 from .chart_of_account import ChartOfAccount
@@ -18,6 +19,7 @@ __all__ = [
     # 对账相关模型
     'BankStatement',
     'BankTransaction',
+    'BankTransactionMatch',
     'SupplierStatement',
     'SupplierStatementItem',
     # 会计科目与分录

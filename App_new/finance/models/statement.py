@@ -172,6 +172,7 @@ class BankTransaction(db.Model):
 
     # 关联关系
     matched_receipt = db.relationship('ProjectReceipt', backref='bank_transactions')
+    matched_eo = db.relationship('ProjectEO', backref='bank_transactions', foreign_keys=[eo_id])
 
     def __repr__(self):
         return f'<BankTransaction {self.transaction_date} - {self.amount}>'

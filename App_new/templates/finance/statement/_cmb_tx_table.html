@@ -39,6 +39,7 @@
                 <th>关键词</th>
                 <th>归属</th>
                 <th>REF/EO</th>
+                <th>匹配状态</th>
                 <th>备注</th>
                 <th>操作</th>
             </tr>
@@ -76,8 +77,28 @@
                         {% if tx.is_confirmed %}
                             <span class="text-muted">{{ tx.accounting_ref or '未设置' }}</span>
                         {% else %}
-                            <input type="text" class="form-control tx-input" data-field="accounting_ref" data-tx-id="{{ tx.id }}" 
+                            <input type="text" class="form-control tx-input" data-field="accounting_ref" data-tx-id="{{ tx.id }}"
                                    value="{{ tx.accounting_ref or '' }}" placeholder="REF/EO">
+                        {% endif %}
+                    </td>
+                    <td style="white-space: nowrap;">
+                        {% if tx.is_reconciled %}
+                            <span class="badge bg-info" title="已核对">
+                                <i class="fas fa-check-double"></i> 已核对
+                            </span>
+                        {% elif tx.matched_receipt_id or tx.eo_id %}
+                            <span class="badge bg-success" title="已匹配">
+                                <i class="fas fa-link"></i> 已匹配
+                            </span>
+                            {% if tx.matched_receipt and tx.transaction_type == 'credit' %}
+                                <br><small class="text-success" title="收款: {{ tx.matched_receipt.receipt_number }}">{{ tx.matched_receipt.receipt_number }}</small>
+                            {% elif tx.matched_eo and tx.transaction_type == 'debit' %}
+                                <br><small class="text-danger" title="EO: {{ tx.matched_eo.eo_number }}">{{ tx.matched_eo.eo_number }}</small>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-warning text-dark" title="待匹配">
+                                <i class="fas fa-clock"></i> 待匹配
+                            </span>
                         {% endif %}
                     </td>
                     <td>
@@ -118,7 +139,7 @@
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">暂无交易记录</td>
+                    <td colspan="12" class="text-center text-muted py-4">暂无交易记录</td>
                 </tr>
             {% endif %}
         </tbody>

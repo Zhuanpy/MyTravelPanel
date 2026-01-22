@@ -86,6 +86,27 @@
         font-family: 'Consolas', monospace;
         font-weight: 600;
         text-align: right;
+        white-space: nowrap;
+    }
+
+    /* 收据表格特定样式 */
+    #receiptTable td {
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #receiptTable .receipt-num {
+        font-family: 'Consolas', monospace;
+        font-size: 12px;
+        color: #555;
+    }
+    #receiptTable .date-cell {
+        white-space: nowrap;
+    }
+    #receiptTable .project-cell {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .amount-credit { color: #28a745; }
     .amount-debit { color: #dc3545; }
@@ -290,7 +311,10 @@
                     <i class="fas fa-magic"></i> 自动匹配建议
                 </button>
                 <button type="button" id="manualMatchBtn" class="btn btn-success action-btn" disabled>
-                    <i class="fas fa-link"></i> 手动匹配选中项
+                    <i class="fas fa-link"></i> 匹配选中项
+                </button>
+                <button type="button" id="multiMatchBtn" class="btn btn-outline-success action-btn" disabled>
+                    <i class="fas fa-project-diagram"></i> 多对多匹配
                 </button>
                 <button type="button" id="markPersonalBtn" class="btn btn-secondary action-btn" disabled>
                     <i class="fas fa-user"></i> 标记为个人
@@ -337,19 +361,50 @@
                 <span><i class="fas fa-receipt me-2"></i>项目收款记录</span>
                 <span id="receiptTotalCount">0 条</span>
             </div>
+            <!-- 收款搜索栏 -->
+            <div class="p-2 border-bottom bg-light">
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" id="receiptPaymentMethodFilter" style="width:100px;">
+                        <option value="">方式</option>
+                        <option value="cash">现金</option>
+                        <option value="bank_transfer">转账</option>
+                        <option value="check">支票</option>
+                        <option value="credit_card">信用卡</option>
+                        <option value="alipay">支付宝</option>
+                        <option value="wechat">微信</option>
+                        <option value="other">其他</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="receiptBankFilter" style="width:120px;">
+                        <option value="">银行</option>
+                    </select>
+                    <div class="input-group input-group-sm" style="width:160px;">
+                        <input type="text" class="form-control" id="receiptSearchInput" placeholder="搜索...">
+                        <button class="btn btn-outline-secondary" type="button" id="receiptSearchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" id="receiptClearSearchBtn" title="清除搜索">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div class="panel-body" id="receiptPanelBody">
-                <table class="table compare-table" id="receiptTable">
+                <table class="table compare-table" id="receiptTable" style="table-layout:fixed;">
                     <thead>
                         <tr>
-                            <th width="30"><input type="checkbox" id="receiptSelectAll"></th>
-                            <th width="90">日期</th>
-                            <th width="100">金额</th>
-                            <th>项目/付款人</th>
-                            <th width="80">状态</th>
+                            <th style="width:26px;"><input type="checkbox" id="receiptSelectAll"></th>
+                            <th style="width:78px;">收据号</th>
+                            <th style="width:72px; text-align:center;">日期</th>
+                            <th style="width:68px; text-align:right; padding-right:6px;">金额</th>
+                            <th style="width:48px; text-align:center;">方式</th>
+                            <th style="width:60px;">银行</th>
+                            <th style="width:70px;">付款人</th>
+                            <th style="width:75px;">项目</th>
+                            <th style="width:46px; text-align:center;">状态</th>
                         </tr>
                     </thead>
                     <tbody id="receiptTableBody">
-                        <tr><td colspan="5" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -422,6 +477,83 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" id="confirmCreateReceiptBtn" class="btn btn-warning" disabled>
                     <i class="fas fa-plus"></i> 创建收款
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 多对多匹配模态框 -->
+<div class="modal fade" id="multiMatchModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-project-diagram me-2"></i>多对多匹配</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- 左侧：选中的银行记录 -->
+                    <div class="col-md-6">
+                        <h6 class="mb-3"><i class="fas fa-university me-2"></i>选中的银行记录</h6>
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered" id="multiMatchTxTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>金额</th>
+                                        <th>对方</th>
+                                        <th>分配金额</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiMatchTxBody"></tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">银行总计:</td>
+                                        <td class="fw-bold text-success" id="multiMatchTxTotal">0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- 右侧：选中的收款记录 -->
+                    <div class="col-md-6">
+                        <h6 class="mb-3"><i class="fas fa-receipt me-2"></i>选中的收款记录</h6>
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered" id="multiMatchReceiptTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>金额</th>
+                                        <th>项目</th>
+                                        <th>分配金额</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiMatchReceiptBody"></tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">收款总计:</td>
+                                        <td class="fw-bold text-success" id="multiMatchReceiptTotal">0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>提示：</strong>可以修改分配金额以支持部分匹配。银行记录总计应等于收款记录总计。
+                    <div class="mt-2">
+                        <span class="me-3">银行总计: <strong id="multiMatchTxSum">0.00</strong></span>
+                        <span class="me-3">收款总计: <strong id="multiMatchReceiptSum">0.00</strong></span>
+                        <span id="multiMatchDiff" class="text-success fw-bold">✓ 金额一致</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" id="confirmMultiMatchBtn" class="btn btn-success">
+                    <i class="fas fa-check"></i> 确认匹配
                 </button>
             </div>
         </div>
@@ -549,7 +681,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         txTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
-        receiptTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+        receiptTableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
 
         try {
             const response = await fetch(`/reconciliation/api/compare-data?${params}`);
@@ -558,6 +690,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 bankTransactions = result.bank_transactions;
                 projectReceipts = result.project_receipts;
+
+                // 更新银行筛选下拉框选项
+                updateReceiptBankFilterOptions();
 
                 renderTransactions();
                 renderReceipts();
@@ -572,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) {
             console.error('加载数据失败:', e);
             txTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
-            receiptTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
+            receiptTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">加载失败</td></tr>';
         }
     }
 
@@ -649,18 +784,111 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 收款搜索关键字和筛选
+    let receiptSearchKeyword = '';
+    let receiptPaymentMethodFilter = '';
+
+    // 支付方式筛选
+    document.getElementById('receiptPaymentMethodFilter').addEventListener('change', function() {
+        receiptPaymentMethodFilter = this.value;
+        renderReceipts();
+    });
+
+    // 银行筛选
+    let receiptBankFilter = '';
+    document.getElementById('receiptBankFilter').addEventListener('change', function() {
+        receiptBankFilter = this.value;
+        renderReceipts();
+    });
+
+    // 收款搜索功能
+    document.getElementById('receiptSearchBtn').addEventListener('click', function() {
+        receiptSearchKeyword = document.getElementById('receiptSearchInput').value.trim().toLowerCase();
+        renderReceipts();
+    });
+
+    document.getElementById('receiptSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            receiptSearchKeyword = this.value.trim().toLowerCase();
+            renderReceipts();
+        }
+    });
+
+    document.getElementById('receiptClearSearchBtn').addEventListener('click', function() {
+        document.getElementById('receiptSearchInput').value = '';
+        document.getElementById('receiptPaymentMethodFilter').value = '';
+        document.getElementById('receiptBankFilter').value = '';
+        receiptSearchKeyword = '';
+        receiptPaymentMethodFilter = '';
+        receiptBankFilter = '';
+        renderReceipts();
+    });
+
+    // 更新银行筛选下拉框选项
+    function updateReceiptBankFilterOptions() {
+        const bankFilterSelect = document.getElementById('receiptBankFilter');
+        const currentValue = bankFilterSelect.value;
+
+        // 获取所有不重复的银行名称
+        const bankNames = [...new Set(projectReceipts
+            .map(r => r.bank_name)
+            .filter(name => name && name.trim())
+        )].sort();
+
+        // 重建选项
+        let optionsHtml = '<option value="">银行</option>';
+        bankNames.forEach(name => {
+            optionsHtml += `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+        });
+        bankFilterSelect.innerHTML = optionsHtml;
+
+        // 恢复之前的选择（如果仍存在）
+        if (currentValue && bankNames.includes(currentValue)) {
+            bankFilterSelect.value = currentValue;
+        }
+    }
+
     // 渲染收款记录表格
     function renderReceipts() {
-        if (projectReceipts.length === 0) {
-            receiptTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>';
-            receiptTotalCount.textContent = '0 条';
+        // 根据搜索关键字和筛选条件过滤
+        let filteredReceipts = projectReceipts;
+
+        // 支付方式筛选
+        if (receiptPaymentMethodFilter) {
+            filteredReceipts = filteredReceipts.filter(r => r.payment_method === receiptPaymentMethodFilter);
+        }
+
+        // 银行筛选
+        if (receiptBankFilter) {
+            filteredReceipts = filteredReceipts.filter(r => r.bank_name === receiptBankFilter);
+        }
+
+        // 关键字搜索
+        if (receiptSearchKeyword) {
+            filteredReceipts = filteredReceipts.filter(r => {
+                const receiptNumber = (r.receipt_number || '').toLowerCase();
+                const projectNumber = (r.project_number || '').toLowerCase();
+                const payerName = (r.payer_name || '').toLowerCase();
+                return receiptNumber.includes(receiptSearchKeyword) ||
+                       projectNumber.includes(receiptSearchKeyword) ||
+                       payerName.includes(receiptSearchKeyword);
+            });
+        }
+
+        const hasFilter = receiptSearchKeyword || receiptPaymentMethodFilter || receiptBankFilter;
+
+        if (filteredReceipts.length === 0) {
+            receiptTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无数据</td></tr>';
+            receiptTotalCount.textContent = hasFilter ? `0/${projectReceipts.length} 条` : '0 条';
             return;
         }
 
-        receiptTotalCount.textContent = `${projectReceipts.length} 条`;
+        receiptTotalCount.textContent = hasFilter ?
+            `${filteredReceipts.length}/${projectReceipts.length} 条` :
+            `${filteredReceipts.length} 条`;
 
         let html = '';
-        projectReceipts.forEach(r => {
+        filteredReceipts.forEach(r => {
             const isMatched = r.is_matched;
             const isReconciled = r.is_reconciled;
 
@@ -682,19 +910,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 rowClass = 'selected';
             }
 
-            const projectInfo = r.project_number ? `${r.project_number}` : '';
-            const payerInfo = r.payer_name || r.payer_company || '-';
+            const projectInfo = r.project_number ? `${r.project_number}` : '-';
+            const payerName = r.payer_name || '-';
+            const bankName = r.bank_name || '-';
+
+            // 收据号码简化显示（去掉RC前缀）
+            const receiptNum = (r.receipt_number || '').replace(/^RC/, '');
+
+            // 支付方式映射
+            const paymentMethodMap = {
+                'cash': '现金',
+                'bank_transfer': '转账',
+                'credit_card': '信用卡',
+                'cheque': '支票',
+                'wechat': '微信',
+                'alipay': '支付宝',
+                'other': '其他'
+            };
+            const paymentMethod = paymentMethodMap[r.payment_method] || r.payment_method || '-';
 
             html += `
                 <tr class="${rowClass}" data-receipt-id="${r.id}">
                     <td><input type="checkbox" class="receipt-checkbox" data-id="${r.id}" ${selectedReceiptIds.has(r.id) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
-                    <td>${r.payment_date || '-'}</td>
-                    <td class="amount-cell amount-credit">${formatAmount(r.amount)}</td>
-                    <td title="${escapeHtml(payerInfo)}">
-                        <div>${escapeHtml(projectInfo)}</div>
-                        <small class="text-muted">${escapeHtml(truncate(payerInfo, 20))}</small>
-                    </td>
-                    <td>${statusHtml}</td>
+                    <td class="receipt-num" title="${r.receipt_number || ''}">${receiptNum}</td>
+                    <td class="date-cell" style="text-align:center;">${r.payment_date || '-'}</td>
+                    <td class="amount-cell amount-credit" style="padding-right:6px;">${formatAmount(r.amount)}</td>
+                    <td style="text-align:center;"><small>${paymentMethod}</small></td>
+                    <td title="${escapeHtml(bankName)}">${escapeHtml(truncate(bankName, 6))}</td>
+                    <td title="${escapeHtml(payerName)}">${escapeHtml(truncate(payerName, 6))}</td>
+                    <td title="${escapeHtml(projectInfo)}">${escapeHtml(projectInfo)}</td>
+                    <td style="text-align:center;">${statusHtml}</td>
                 </tr>
             `;
         });
@@ -717,13 +962,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 多对多匹配按钮
+    const multiMatchBtn = document.getElementById('multiMatchBtn');
+
     // 更新选择计数
     function updateSelectionCount() {
         txSelectedCount.textContent = selectedTxIds.size;
         receiptSelectedCount.textContent = selectedReceiptIds.size;
 
         // 更新按钮状态
+        // 1:1 匹配
         manualMatchBtn.disabled = !(selectedTxIds.size === 1 && selectedReceiptIds.size === 1);
+        // 多对多匹配：至少选一边有多条，或双边都有选择
+        const canMultiMatch = (selectedTxIds.size >= 1 && selectedReceiptIds.size >= 1) &&
+                             (selectedTxIds.size > 1 || selectedReceiptIds.size > 1);
+        multiMatchBtn.disabled = !canMultiMatch;
         markPersonalBtn.disabled = selectedTxIds.size === 0;
         markReconciledBtn.disabled = (selectedTxIds.size === 0 && selectedReceiptIds.size === 0);
         createReceiptBtn.disabled = selectedTxIds.size !== 1;
@@ -1243,6 +1496,204 @@ document.addEventListener('DOMContentLoaded', function() {
         div.textContent = str;
         return div.innerHTML;
     }
+
+    // 多对多匹配
+    multiMatchBtn.addEventListener('click', function() {
+        if (selectedTxIds.size === 0 || selectedReceiptIds.size === 0) {
+            alert('请选择银行记录和收款记录');
+            return;
+        }
+
+        // 填充模态框
+        const txBody = document.getElementById('multiMatchTxBody');
+        const receiptBody = document.getElementById('multiMatchReceiptBody');
+
+        let txHtml = '';
+        let txTotal = 0;
+        selectedTxIds.forEach(txId => {
+            const tx = bankTransactions.find(t => t.id === txId);
+            if (tx) {
+                const amount = parseFloat(tx.amount || 0);
+                txTotal += amount;
+                txHtml += `
+                    <tr data-tx-id="${tx.id}">
+                        <td>${tx.transaction_date || '-'}</td>
+                        <td class="text-success">${amount.toFixed(2)}</td>
+                        <td>${escapeHtml(tx.counterparty_name || tx.description || '-')}</td>
+                        <td><input type="number" class="form-control form-control-sm multi-tx-amount"
+                                   data-id="${tx.id}" value="${amount.toFixed(2)}" step="0.01" min="0"></td>
+                    </tr>
+                `;
+            }
+        });
+        txBody.innerHTML = txHtml;
+
+        let receiptHtml = '';
+        let receiptTotal = 0;
+        selectedReceiptIds.forEach(receiptId => {
+            const r = projectReceipts.find(rec => rec.id === receiptId);
+            if (r) {
+                const amount = parseFloat(r.amount || 0);
+                receiptTotal += amount;
+                receiptHtml += `
+                    <tr data-receipt-id="${r.id}">
+                        <td>${r.payment_date || '-'}</td>
+                        <td class="text-success">${amount.toFixed(2)}</td>
+                        <td>${escapeHtml(r.project_number || '-')}</td>
+                        <td><input type="number" class="form-control form-control-sm multi-receipt-amount"
+                                   data-id="${r.id}" value="${amount.toFixed(2)}" step="0.01" min="0"></td>
+                    </tr>
+                `;
+            }
+        });
+        receiptBody.innerHTML = receiptHtml;
+
+        document.getElementById('multiMatchTxTotal').textContent = txTotal.toFixed(2);
+        document.getElementById('multiMatchReceiptTotal').textContent = receiptTotal.toFixed(2);
+
+        updateMultiMatchSummary();
+
+        // 绑定金额变化事件
+        document.querySelectorAll('.multi-tx-amount, .multi-receipt-amount').forEach(input => {
+            input.addEventListener('input', updateMultiMatchSummary);
+        });
+
+        new bootstrap.Modal(document.getElementById('multiMatchModal')).show();
+    });
+
+    // 更新多对多匹配汇总
+    function updateMultiMatchSummary() {
+        let txSum = 0;
+        document.querySelectorAll('.multi-tx-amount').forEach(input => {
+            txSum += parseFloat(input.value || 0);
+        });
+
+        let receiptSum = 0;
+        document.querySelectorAll('.multi-receipt-amount').forEach(input => {
+            receiptSum += parseFloat(input.value || 0);
+        });
+
+        document.getElementById('multiMatchTxSum').textContent = txSum.toFixed(2);
+        document.getElementById('multiMatchReceiptSum').textContent = receiptSum.toFixed(2);
+
+        const diff = Math.abs(txSum - receiptSum);
+        const diffSpan = document.getElementById('multiMatchDiff');
+        if (diff < 0.01) {
+            diffSpan.className = 'text-success fw-bold';
+            diffSpan.textContent = '✓ 金额一致';
+        } else {
+            diffSpan.className = 'text-warning fw-bold';
+            diffSpan.textContent = `差额: ${diff.toFixed(2)}`;
+        }
+    }
+
+    // 确认多对多匹配
+    document.getElementById('confirmMultiMatchBtn').addEventListener('click', async function() {
+        const matches = [];
+
+        // 收集银行记录分配
+        document.querySelectorAll('.multi-tx-amount').forEach(input => {
+            const txId = parseInt(input.dataset.id);
+            const amount = parseFloat(input.value || 0);
+            if (amount > 0) {
+                // 对于每个银行记录，分配给所有选中的收款
+                document.querySelectorAll('.multi-receipt-amount').forEach(receiptInput => {
+                    const receiptId = parseInt(receiptInput.dataset.id);
+                    const receiptAmount = parseFloat(receiptInput.value || 0);
+
+                    // 如果是一对多或多对一，需要计算分配比例
+                    if (selectedTxIds.size === 1) {
+                        // 一笔银行 → 多个收款
+                        if (receiptAmount > 0) {
+                            matches.push({
+                                transaction_id: txId,
+                                match_type: 'receipt',
+                                match_id: receiptId,
+                                amount: receiptAmount
+                            });
+                        }
+                    } else if (selectedReceiptIds.size === 1) {
+                        // 多笔银行 → 一个收款
+                        if (amount > 0) {
+                            matches.push({
+                                transaction_id: txId,
+                                match_type: 'receipt',
+                                match_id: receiptId,
+                                amount: amount
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // 如果是多对多（两边都多于1条），需要更复杂的处理
+        if (selectedTxIds.size > 1 && selectedReceiptIds.size > 1) {
+            // 简单处理：按顺序匹配
+            const txList = Array.from(document.querySelectorAll('.multi-tx-amount'));
+            const receiptList = Array.from(document.querySelectorAll('.multi-receipt-amount'));
+
+            // 清空之前的matches
+            matches.length = 0;
+
+            // 创建所有可能的匹配组合（简化：平均分配）
+            txList.forEach(txInput => {
+                const txId = parseInt(txInput.dataset.id);
+                const txAmount = parseFloat(txInput.value || 0);
+
+                receiptList.forEach(receiptInput => {
+                    const receiptId = parseInt(receiptInput.dataset.id);
+                    const receiptAmount = parseFloat(receiptInput.value || 0);
+
+                    // 只有当两者都有金额时才创建匹配
+                    // 这里简化处理，使用较小的金额
+                    const allocAmount = Math.min(txAmount / receiptList.length, receiptAmount / txList.length);
+                    if (allocAmount > 0) {
+                        matches.push({
+                            transaction_id: txId,
+                            match_type: 'receipt',
+                            match_id: receiptId,
+                            amount: parseFloat(allocAmount.toFixed(2))
+                        });
+                    }
+                });
+            });
+        }
+
+        if (matches.length === 0) {
+            alert('没有有效的匹配数据');
+            return;
+        }
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 匹配中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch('/reconciliation/api/multi-match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matches })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`成功创建 ${result.success_count} 条匹配记录`);
+                bootstrap.Modal.getInstance(document.getElementById('multiMatchModal')).hide();
+                selectedTxIds.clear();
+                selectedReceiptIds.clear();
+                loadCompareData();
+            } else {
+                alert('匹配失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('多对多匹配失败:', e);
+            alert('匹配失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-check"></i> 确认匹配';
+            this.disabled = false;
+        }
+    });
 
     // 页面加载时自动加载数据
     loadCompareData();

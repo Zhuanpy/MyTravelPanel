@@ -43,17 +43,22 @@
 
   .receipt-table th:nth-child(7),  /* 状态 */
   .receipt-table td:nth-child(7) {
-    width: 90px;
+    width: 80px;
   }
 
-  .receipt-table th:nth-child(8),  /* 备注 */
+  .receipt-table th:nth-child(8),  /* 匹配 */
   .receipt-table td:nth-child(8) {
-    width: 180px;
-    max-width: 180px;
+    width: 80px;
   }
 
-  .receipt-table th:nth-child(9),  /* 操作 */
+  .receipt-table th:nth-child(9),  /* 备注 */
   .receipt-table td:nth-child(9) {
+    width: 150px;
+    max-width: 150px;
+  }
+
+  .receipt-table th:nth-child(10),  /* 操作 */
+  .receipt-table td:nth-child(10) {
     width: 130px;
   }
 
@@ -172,6 +177,7 @@
           <th>日期</th>
           <th>付款方</th>
           <th>状态</th>
+          <th>匹配</th>
           <th>备注</th>
           <th>操作</th>
         </tr>
@@ -204,6 +210,19 @@
           <td data-label="日期">{{ r.payment_date }}</td>
           <td data-label="付款方">{{ r.payer_company or r.payer_name or '-' }}</td>
           <td data-label="状态">{{ r.status_display }}</td>
+          <td data-label="匹配" style="white-space: nowrap;">
+            {% if r.is_reconciled %}
+              <span class="badge bg-info" title="已核对"><i class="fas fa-check-double"></i> 已核对</span>
+            {% elif r.is_matched %}
+              <span class="badge bg-success" title="已匹配{{ r.matched_tx_count }}笔银行流水"><i class="fas fa-link"></i> 已匹配</span>
+              {% for tx in r.matched_tx_info %}
+              <br><small class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} {{ "%.2f"|format(tx.amount) }}</small>
+              {% endfor %}
+              {% if r.matched_tx_count > 3 %}<br><small class="text-muted">+{{ r.matched_tx_count - 3 }}条</small>{% endif %}
+            {% else %}
+              <span class="badge bg-warning text-dark" title="待匹配"><i class="fas fa-clock"></i> 待匹配</span>
+            {% endif %}
+          </td>
           <td data-label="备注" class="receipt-remarks" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ r.remarks or '' }}">{{ r.remarks or '' }}</td>
           <td data-label="操作">
             <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=r.id) }}"
@@ -225,7 +244,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center text-muted">暂无数据</td></tr>
+        <tr><td colspan="10" class="text-center text-muted">暂无数据</td></tr>
         {% endfor %}
       </tbody>
     </table>

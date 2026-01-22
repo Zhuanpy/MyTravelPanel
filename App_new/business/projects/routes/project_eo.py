@@ -1761,6 +1761,19 @@ def eo_list():
                         'status': inv.status
                     }
             
+            # 获取匹配状态和匹配详情
+            matched_transactions = eo.bank_transactions if hasattr(eo, 'bank_transactions') else []
+            is_matched = len(matched_transactions) > 0
+            matched_tx_count = len(matched_transactions)
+            # 获取匹配的银行流水信息（日期、金额、对方）
+            matched_tx_info = []
+            for tx in matched_transactions[:3]:  # 最多显示3条
+                matched_tx_info.append({
+                    'date': tx.transaction_date.strftime('%m-%d') if tx.transaction_date else '',
+                    'amount': float(tx.amount) if tx.amount else 0,
+                    'counterparty': tx.counterparty_name or tx.description[:20] if tx.description else ''
+                })
+
             eo_dict = {
                 'id': eo.id,
                 'eo_number': str(eo.eo_number) if eo.eo_number else '',
@@ -1797,7 +1810,12 @@ def eo_list():
                 'created_at': eo.created_at,
                 'updated_at': eo.updated_at,
                 # 发票信息
-                'invoice': invoice_info
+                'invoice': invoice_info,
+                # 匹配状态
+                'is_reconciled': eo.is_reconciled,
+                'is_matched': is_matched,
+                'matched_tx_count': matched_tx_count,
+                'matched_tx_info': matched_tx_info
             }
             eos.append(eo_dict)
         

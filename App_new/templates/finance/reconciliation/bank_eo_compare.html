@@ -68,6 +68,16 @@
         vertical-align: middle;
         border-bottom: 1px solid #e9ecef;
     }
+    #eoTable td {
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #eoTable .eo-num {
+        font-family: 'Consolas', monospace;
+        font-size: 12px;
+        color: #555;
+    }
     .compare-table tbody tr:hover {
         background: #f3e5f5;
     }
@@ -280,7 +290,10 @@
                     <i class="fas fa-magic"></i> 自动匹配建议
                 </button>
                 <button type="button" id="manualMatchBtn" class="btn btn-success action-btn" disabled>
-                    <i class="fas fa-link"></i> 手动匹配选中项
+                    <i class="fas fa-link"></i> 匹配选中项
+                </button>
+                <button type="button" id="multiMatchBtn" class="btn btn-outline-success action-btn" disabled>
+                    <i class="fas fa-project-diagram"></i> 多对多匹配
                 </button>
                 <button type="button" id="markPersonalBtn" class="btn btn-secondary action-btn" disabled>
                     <i class="fas fa-user"></i> 标记为个人
@@ -324,19 +337,38 @@
                 <span><i class="fas fa-file-invoice-dollar me-2"></i>EO记录</span>
                 <span id="eoTotalCount">0 条</span>
             </div>
+            <!-- EO搜索栏 -->
+            <div class="p-2 border-bottom bg-light">
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" id="eoSupplierFilter" style="width:120px;">
+                        <option value="">供应商</option>
+                    </select>
+                    <div class="input-group input-group-sm" style="width:160px;">
+                        <input type="text" class="form-control" id="eoSearchInput" placeholder="搜索...">
+                        <button class="btn btn-outline-secondary" type="button" id="eoSearchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" id="eoClearSearchBtn" title="清除搜索">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div class="panel-body" id="eoPanelBody">
-                <table class="table compare-table" id="eoTable">
+                <table class="table compare-table" id="eoTable" style="table-layout:fixed;">
                     <thead>
                         <tr>
-                            <th width="30"><input type="checkbox" id="eoSelectAll"></th>
-                            <th width="90">日期</th>
-                            <th width="100">金额</th>
-                            <th>EO/供应商</th>
-                            <th width="80">状态</th>
+                            <th style="width:26px;"><input type="checkbox" id="eoSelectAll"></th>
+                            <th style="width:85px;">EO号</th>
+                            <th style="width:72px; text-align:center;">日期</th>
+                            <th style="width:70px; text-align:right; padding-right:6px;">金额</th>
+                            <th style="width:90px;">供应商</th>
+                            <th style="width:75px;">项目</th>
+                            <th style="width:46px; text-align:center;">状态</th>
                         </tr>
                     </thead>
                     <tbody id="eoTableBody">
-                        <tr><td colspan="5" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -392,6 +424,83 @@
         </div>
     </div>
 </div>
+
+<!-- 多对多匹配模态框 -->
+<div class="modal fade" id="multiMatchModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-project-diagram me-2"></i>多对多匹配</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- 左侧：选中的银行记录 -->
+                    <div class="col-md-6">
+                        <h6 class="mb-3"><i class="fas fa-university me-2"></i>选中的银行支出记录</h6>
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered" id="multiMatchTxTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>金额</th>
+                                        <th>对方</th>
+                                        <th>分配金额</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiMatchTxBody"></tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">银行总计:</td>
+                                        <td class="fw-bold text-danger" id="multiMatchTxTotal">0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- 右侧：选中的EO记录 -->
+                    <div class="col-md-6">
+                        <h6 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>选中的EO记录</h6>
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered" id="multiMatchEOTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>金额</th>
+                                        <th>EO号/供应商</th>
+                                        <th>分配金额</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiMatchEOBody"></tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <td colspan="3" class="text-end fw-bold">EO总计:</td>
+                                        <td class="fw-bold text-danger" id="multiMatchEOTotal">0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>提示：</strong>可以修改分配金额以支持部分匹配。银行记录总计应等于EO记录总计。
+                    <div class="mt-2">
+                        <span class="me-3">银行总计: <strong id="multiMatchTxSum">0.00</strong></span>
+                        <span class="me-3">EO总计: <strong id="multiMatchEOSum">0.00</strong></span>
+                        <span id="multiMatchDiff" class="text-success fw-bold">✓ 金额一致</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" id="confirmMultiMatchBtn" class="btn btn-success">
+                    <i class="fas fa-check"></i> 确认匹配
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -416,6 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadDataBtn = document.getElementById('loadDataBtn');
     const autoMatchBtn = document.getElementById('autoMatchBtn');
     const manualMatchBtn = document.getElementById('manualMatchBtn');
+    const multiMatchBtn = document.getElementById('multiMatchBtn');
     const markPersonalBtn = document.getElementById('markPersonalBtn');
     const markReconciledBtn = document.getElementById('markReconciledBtn');
 
@@ -485,7 +595,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         txTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
-        eoTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+        eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
 
         try {
             const response = await fetch(`/reconciliation/api/eo-compare-data?${params}`);
@@ -494,6 +604,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 bankTransactions = result.bank_transactions;
                 projectEOs = result.project_eos;
+
+                // 更新供应商筛选下拉框选项
+                updateEOSupplierFilterOptions();
 
                 renderTransactions();
                 renderEOs();
@@ -508,7 +621,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) {
             console.error('加载数据失败:', e);
             txTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
-            eoTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
+            eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">加载失败</td></tr>';
         }
     }
 
@@ -585,18 +698,97 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // EO搜索和筛选变量
+    let eoSearchKeyword = '';
+    let eoSupplierFilterValue = '';
+
+    // 供应商筛选
+    document.getElementById('eoSupplierFilter').addEventListener('change', function() {
+        eoSupplierFilterValue = this.value;
+        renderEOs();
+    });
+
+    // EO搜索功能
+    document.getElementById('eoSearchBtn').addEventListener('click', function() {
+        eoSearchKeyword = document.getElementById('eoSearchInput').value.trim().toLowerCase();
+        renderEOs();
+    });
+
+    document.getElementById('eoSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            eoSearchKeyword = this.value.trim().toLowerCase();
+            renderEOs();
+        }
+    });
+
+    document.getElementById('eoClearSearchBtn').addEventListener('click', function() {
+        document.getElementById('eoSearchInput').value = '';
+        document.getElementById('eoSupplierFilter').value = '';
+        eoSearchKeyword = '';
+        eoSupplierFilterValue = '';
+        renderEOs();
+    });
+
+    // 更新供应商筛选下拉框选项
+    function updateEOSupplierFilterOptions() {
+        const supplierFilterSelect = document.getElementById('eoSupplierFilter');
+        const currentValue = supplierFilterSelect.value;
+
+        // 获取所有不重复的供应商名称
+        const supplierNames = [...new Set(projectEOs
+            .map(eo => eo.supplier_name)
+            .filter(name => name && name.trim())
+        )].sort();
+
+        // 重建选项
+        let optionsHtml = '<option value="">供应商</option>';
+        supplierNames.forEach(name => {
+            optionsHtml += `<option value="${escapeHtml(name)}">${escapeHtml(truncate(name, 15))}</option>`;
+        });
+        supplierFilterSelect.innerHTML = optionsHtml;
+
+        // 恢复之前的选择（如果仍存在）
+        if (currentValue && supplierNames.includes(currentValue)) {
+            supplierFilterSelect.value = currentValue;
+        }
+    }
+
     // 渲染EO记录表格
     function renderEOs() {
-        if (projectEOs.length === 0) {
-            eoTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>';
-            eoTotalCount.textContent = '0 条';
+        // 根据搜索关键字和筛选条件过滤
+        let filteredEOs = projectEOs;
+
+        // 供应商筛选
+        if (eoSupplierFilterValue) {
+            filteredEOs = filteredEOs.filter(eo => eo.supplier_name === eoSupplierFilterValue);
+        }
+
+        // 关键字搜索
+        if (eoSearchKeyword) {
+            filteredEOs = filteredEOs.filter(eo => {
+                const eoNumber = (eo.eo_number || '').toLowerCase();
+                const supplierName = (eo.supplier_name || '').toLowerCase();
+                const projectNumber = (eo.project_number || '').toLowerCase();
+                return eoNumber.includes(eoSearchKeyword) ||
+                       supplierName.includes(eoSearchKeyword) ||
+                       projectNumber.includes(eoSearchKeyword);
+            });
+        }
+
+        const hasFilter = eoSearchKeyword || eoSupplierFilterValue;
+
+        if (filteredEOs.length === 0) {
+            eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>';
+            eoTotalCount.textContent = hasFilter ? `0/${projectEOs.length} 条` : '0 条';
             return;
         }
 
-        eoTotalCount.textContent = `${projectEOs.length} 条`;
+        eoTotalCount.textContent = hasFilter ?
+            `${filteredEOs.length}/${projectEOs.length} 条` :
+            `${filteredEOs.length} 条`;
 
         let html = '';
-        projectEOs.forEach(eo => {
+        filteredEOs.forEach(eo => {
             const isMatched = eo.is_matched;
             const isReconciled = eo.is_reconciled;
 
@@ -619,27 +811,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // EO信息
-            const eoNumber = eo.eo_number || '';
-            const supplierName = eo.supplier_name || '';
+            const eoNumber = eo.eo_number || '-';
+            const supplierName = eo.supplier_name || '-';
+            const projectNumber = eo.project_number || '-';
             const costPrice = eo.pay_amount || eo.cost_price || 0;
             const eoDate = eo.paid_date || eo.eo_date || '-';
             const headerId = eo.header_id;
 
-            // EO编号显示：如果有项目ID则可点击
-            const eoNumberHtml = headerId
-                ? `<a href="/projects/detail/${headerId}" target="_blank" class="text-dark text-decoration-none"><strong>${escapeHtml(eoNumber)}</strong> <i class="fas fa-external-link-alt fa-xs text-muted"></i></a>`
-                : `<strong>${escapeHtml(eoNumber)}</strong>`;
+            // 项目号显示：如果有项目ID则可点击
+            const projectHtml = headerId
+                ? `<a href="/projects/detail/${headerId}" target="_blank" class="text-dark text-decoration-none">${escapeHtml(projectNumber)}</a>`
+                : escapeHtml(projectNumber);
 
             html += `
                 <tr class="${rowClass}" data-eo-id="${eo.id}">
                     <td><input type="checkbox" class="eo-checkbox" data-id="${eo.id}" ${selectedEOIds.has(eo.id) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
-                    <td>${eoDate}</td>
-                    <td class="amount-cell amount-debit">${formatAmount(costPrice)}</td>
-                    <td title="${escapeHtml(supplierName)}">
-                        <div>${eoNumberHtml}</div>
-                        <small class="text-muted">${escapeHtml(truncate(supplierName, 20))}</small>
-                    </td>
-                    <td>${statusHtml}</td>
+                    <td class="eo-num" title="${escapeHtml(eo.eo_number || '')}">${escapeHtml(eoNumber)}</td>
+                    <td class="date-cell" style="text-align:center;">${eoDate}</td>
+                    <td class="amount-cell amount-debit" style="padding-right:6px;">${formatAmount(costPrice)}</td>
+                    <td title="${escapeHtml(supplierName)}">${escapeHtml(truncate(supplierName, 8))}</td>
+                    <td title="${escapeHtml(projectNumber)}">${projectHtml}</td>
+                    <td style="text-align:center;">${statusHtml}</td>
                 </tr>
             `;
         });
@@ -668,7 +860,12 @@ document.addEventListener('DOMContentLoaded', function() {
         eoSelectedCount.textContent = selectedEOIds.size;
 
         // 更新按钮状态
+        // 1:1 匹配
         manualMatchBtn.disabled = !(selectedTxIds.size === 1 && selectedEOIds.size === 1);
+        // 多对多匹配：至少选一边有多条，或双边都有选择
+        const canMultiMatch = (selectedTxIds.size >= 1 && selectedEOIds.size >= 1) &&
+                             (selectedTxIds.size > 1 || selectedEOIds.size > 1);
+        multiMatchBtn.disabled = !canMultiMatch;
         markPersonalBtn.disabled = selectedTxIds.size === 0;
         markReconciledBtn.disabled = (selectedTxIds.size === 0 && selectedEOIds.size === 0);
     }
@@ -952,7 +1149,205 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('匹配失败:', e);
             alert('匹配失败');
         } finally {
-            this.innerHTML = '<i class="fas fa-link"></i> 手动匹配选中项';
+            this.innerHTML = '<i class="fas fa-link"></i> 匹配选中项';
+            this.disabled = false;
+        }
+    });
+
+    // 多对多匹配
+    multiMatchBtn.addEventListener('click', function() {
+        if (selectedTxIds.size === 0 || selectedEOIds.size === 0) {
+            alert('请选择银行记录和EO记录');
+            return;
+        }
+
+        // 填充模态框
+        const txBody = document.getElementById('multiMatchTxBody');
+        const eoBody = document.getElementById('multiMatchEOBody');
+
+        let txHtml = '';
+        let txTotal = 0;
+        selectedTxIds.forEach(txId => {
+            const tx = bankTransactions.find(t => t.id === txId);
+            if (tx) {
+                const amount = parseFloat(tx.amount || 0);
+                txTotal += amount;
+                txHtml += `
+                    <tr data-tx-id="${tx.id}">
+                        <td>${tx.transaction_date || '-'}</td>
+                        <td class="text-danger">${amount.toFixed(2)}</td>
+                        <td>${escapeHtml(tx.counterparty_name || tx.description || '-')}</td>
+                        <td><input type="number" class="form-control form-control-sm multi-tx-amount"
+                                   data-id="${tx.id}" value="${amount.toFixed(2)}" step="0.01" min="0"></td>
+                    </tr>
+                `;
+            }
+        });
+        txBody.innerHTML = txHtml;
+
+        let eoHtml = '';
+        let eoTotal = 0;
+        selectedEOIds.forEach(eoId => {
+            const eo = projectEOs.find(e => e.id === eoId);
+            if (eo) {
+                const amount = parseFloat(eo.pay_amount || eo.cost_price || 0);
+                eoTotal += amount;
+                eoHtml += `
+                    <tr data-eo-id="${eo.id}">
+                        <td>${eo.paid_date || eo.eo_date || '-'}</td>
+                        <td class="text-danger">${amount.toFixed(2)}</td>
+                        <td>${escapeHtml(eo.eo_number || '')} <small class="text-muted">${escapeHtml(truncate(eo.supplier_name || '', 10))}</small></td>
+                        <td><input type="number" class="form-control form-control-sm multi-eo-amount"
+                                   data-id="${eo.id}" value="${amount.toFixed(2)}" step="0.01" min="0"></td>
+                    </tr>
+                `;
+            }
+        });
+        eoBody.innerHTML = eoHtml;
+
+        document.getElementById('multiMatchTxTotal').textContent = txTotal.toFixed(2);
+        document.getElementById('multiMatchEOTotal').textContent = eoTotal.toFixed(2);
+
+        updateMultiMatchSummary();
+
+        // 绑定金额变化事件
+        document.querySelectorAll('.multi-tx-amount, .multi-eo-amount').forEach(input => {
+            input.addEventListener('input', updateMultiMatchSummary);
+        });
+
+        new bootstrap.Modal(document.getElementById('multiMatchModal')).show();
+    });
+
+    // 更新多对多匹配汇总
+    function updateMultiMatchSummary() {
+        let txSum = 0;
+        document.querySelectorAll('.multi-tx-amount').forEach(input => {
+            txSum += parseFloat(input.value || 0);
+        });
+
+        let eoSum = 0;
+        document.querySelectorAll('.multi-eo-amount').forEach(input => {
+            eoSum += parseFloat(input.value || 0);
+        });
+
+        document.getElementById('multiMatchTxSum').textContent = txSum.toFixed(2);
+        document.getElementById('multiMatchEOSum').textContent = eoSum.toFixed(2);
+
+        const diff = Math.abs(txSum - eoSum);
+        const diffSpan = document.getElementById('multiMatchDiff');
+        if (diff < 0.01) {
+            diffSpan.className = 'text-success fw-bold';
+            diffSpan.textContent = '✓ 金额一致';
+        } else {
+            diffSpan.className = 'text-warning fw-bold';
+            diffSpan.textContent = `差额: ${diff.toFixed(2)}`;
+        }
+    }
+
+    // 确认多对多匹配
+    document.getElementById('confirmMultiMatchBtn').addEventListener('click', async function() {
+        const matches = [];
+
+        // 收集银行记录分配
+        document.querySelectorAll('.multi-tx-amount').forEach(input => {
+            const txId = parseInt(input.dataset.id);
+            const amount = parseFloat(input.value || 0);
+            if (amount > 0) {
+                // 对于每个银行记录，分配给所有选中的EO
+                document.querySelectorAll('.multi-eo-amount').forEach(eoInput => {
+                    const eoId = parseInt(eoInput.dataset.id);
+                    const eoAmount = parseFloat(eoInput.value || 0);
+
+                    // 如果是一对多或多对一，需要计算分配比例
+                    if (selectedTxIds.size === 1) {
+                        // 一笔银行 → 多个EO
+                        if (eoAmount > 0) {
+                            matches.push({
+                                transaction_id: txId,
+                                match_type: 'eo',
+                                match_id: eoId,
+                                amount: eoAmount
+                            });
+                        }
+                    } else if (selectedEOIds.size === 1) {
+                        // 多笔银行 → 一个EO
+                        if (amount > 0) {
+                            matches.push({
+                                transaction_id: txId,
+                                match_type: 'eo',
+                                match_id: eoId,
+                                amount: amount
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // 如果是多对多（两边都多于1条），需要更复杂的处理
+        if (selectedTxIds.size > 1 && selectedEOIds.size > 1) {
+            // 简单处理：按顺序匹配
+            const txList = Array.from(document.querySelectorAll('.multi-tx-amount'));
+            const eoList = Array.from(document.querySelectorAll('.multi-eo-amount'));
+
+            // 清空之前的matches
+            matches.length = 0;
+
+            // 创建所有可能的匹配组合（简化：平均分配）
+            txList.forEach(txInput => {
+                const txId = parseInt(txInput.dataset.id);
+                const txAmount = parseFloat(txInput.value || 0);
+
+                eoList.forEach(eoInput => {
+                    const eoId = parseInt(eoInput.dataset.id);
+                    const eoAmount = parseFloat(eoInput.value || 0);
+
+                    // 只有当两者都有金额时才创建匹配
+                    // 这里简化处理，使用较小的金额
+                    const allocAmount = Math.min(txAmount / eoList.length, eoAmount / txList.length);
+                    if (allocAmount > 0) {
+                        matches.push({
+                            transaction_id: txId,
+                            match_type: 'eo',
+                            match_id: eoId,
+                            amount: parseFloat(allocAmount.toFixed(2))
+                        });
+                    }
+                });
+            });
+        }
+
+        if (matches.length === 0) {
+            alert('没有有效的匹配数据');
+            return;
+        }
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 匹配中...';
+        this.disabled = true;
+
+        try {
+            const response = await fetch('/reconciliation/api/multi-match', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matches })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`成功创建 ${result.success_count} 条匹配记录`);
+                bootstrap.Modal.getInstance(document.getElementById('multiMatchModal')).hide();
+                selectedTxIds.clear();
+                selectedEOIds.clear();
+                loadCompareData();
+            } else {
+                alert('匹配失败: ' + result.message);
+            }
+        } catch (e) {
+            console.error('多对多匹配失败:', e);
+            alert('匹配失败');
+        } finally {
+            this.innerHTML = '<i class="fas fa-check"></i> 确认匹配';
             this.disabled = false;
         }
     });

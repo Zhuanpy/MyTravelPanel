@@ -920,6 +920,19 @@ def receipt_list():
                 except (json.JSONDecodeError, KeyError, TypeError):
                     pass
             
+            # 获取匹配状态和匹配详情
+            matched_transactions = r.bank_transactions if hasattr(r, 'bank_transactions') else []
+            is_matched = len(matched_transactions) > 0
+            matched_tx_count = len(matched_transactions)
+            # 获取匹配的银行流水信息（日期、金额、对方）
+            matched_tx_info = []
+            for tx in matched_transactions[:3]:  # 最多显示3条
+                matched_tx_info.append({
+                    'date': tx.transaction_date.strftime('%m-%d') if tx.transaction_date else '',
+                    'amount': float(tx.amount) if tx.amount else 0,
+                    'counterparty': tx.counterparty_name or (tx.description[:20] if tx.description else '')
+                })
+
             items.append({
                 'id': r.id,
                 'receipt_number': r.receipt_number,
@@ -939,7 +952,11 @@ def receipt_list():
                 'status_display': r.status_display,
                 'transaction_id': r.transaction_id,
                 'remarks': r.remarks,
-                'created_at': r.created_at
+                'created_at': r.created_at,
+                'is_reconciled': r.is_reconciled,
+                'is_matched': is_matched,
+                'matched_tx_count': matched_tx_count,
+                'matched_tx_info': matched_tx_info
             })
 
         payment_methods = [
