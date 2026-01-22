@@ -473,21 +473,29 @@ def manual_match():
             return jsonify({'success': False, 'message': '该收款记录已被其他银行交易匹配'})
 
         # 执行匹配
+        current_time = datetime.utcnow()
+        current_user_name = current_user.username if current_user else 'system'
+
         transaction.matched_receipt_id = receipt_id
         transaction.reconciliation_status = 'matched'
         # 填充收款单号到 REF/EO 字段
         transaction.accounting_ref = receipt.receipt_number
         # 自动确认该银行记录
         transaction.is_confirmed = True
-        transaction.confirmed_at = datetime.utcnow()
-        transaction.confirmed_by = current_user.username if current_user else 'system'
-        transaction.updated_at = datetime.utcnow()
+        transaction.confirmed_at = current_time
+        transaction.confirmed_by = current_user_name
+        transaction.updated_at = current_time
+
+        # 同时更新收款记录的核对状态
+        receipt.is_reconciled = True
+        receipt.reconciled_at = current_time
+        receipt.reconciled_by = current_user_name
 
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': '匹配成功，已自动确认银行记录',
+            'message': '匹配成功，已自动确认银行记录和收款记录',
             'transaction_id': transaction_id,
             'receipt_id': receipt_id,
             'receipt_number': receipt.receipt_number
@@ -700,15 +708,24 @@ def batch_match():
                 continue
 
             # 执行匹配
+            current_time = datetime.utcnow()
+            current_user_name = current_user.username if current_user else 'system'
+
             transaction.matched_receipt_id = receipt_id
             transaction.reconciliation_status = 'matched'
             # 填充收款单号到 REF/EO 字段
             transaction.accounting_ref = receipt.receipt_number
             # 自动确认该银行记录
             transaction.is_confirmed = True
-            transaction.confirmed_at = datetime.utcnow()
-            transaction.confirmed_by = current_user.username if current_user else 'system'
-            transaction.updated_at = datetime.utcnow()
+            transaction.confirmed_at = current_time
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = current_time
+
+            # 同时更新收款记录的核对状态
+            receipt.is_reconciled = True
+            receipt.reconciled_at = current_time
+            receipt.reconciled_by = current_user_name
+
             success_count += 1
 
         db.session.commit()
@@ -1701,6 +1718,13 @@ def multi_match():
 
             # 更新银行交易状态
             update_transaction_status(transaction, match_type, match_id, current_user_name)
+
+            # 同时更新收款/EO的核对状态
+            current_time = datetime.utcnow()
+            target.is_reconciled = True
+            target.reconciled_at = current_time
+            target.reconciled_by = current_user_name
+
             success_count += 1
 
         db.session.commit()
