@@ -1597,6 +1597,28 @@ def edit_flight_ref(ref_id):
     # 动态获取供应商类型（从 BusinessType 表）
     supplier_types = [bt.code for bt in BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()]
 
+    # 当没有乘客数据但REF有价格时，创建回退乘客
+    fallback_passenger = None
+    if not ref.flight_passengers and ref.selling_price:
+        # 从extra_info获取客户名
+        client_name = ''
+        if ref.extra_info:
+            try:
+                extra = json.loads(ref.extra_info)
+                client_name = extra.get('client_name', '')
+                # 移除称谓后缀
+                for suffix in [' MR', ' MS', ' MRS', ' MISS']:
+                    if client_name.endswith(suffix):
+                        client_name = client_name[:-len(suffix)]
+                        break
+            except (json.JSONDecodeError, TypeError):
+                pass
+        fallback_passenger = {
+            'name': client_name,
+            'selling_price': float(ref.selling_price) if ref.selling_price else 0,
+            'cost_price': float(ref.cost_price) if ref.cost_price else 0
+        }
+
     return render_template('business/projects/project_ref/create_flight_ref.html',
                           header_id=ref.header_id,
                           ref_id=ref.id,
@@ -1604,7 +1626,8 @@ def edit_flight_ref(ref_id):
                           suppliers=suppliers,
                           supplier_types=supplier_types,
                           has_invoice=has_invoice,
-                          eo_paid=eo_paid)
+                          eo_paid=eo_paid,
+                          fallback_passenger=fallback_passenger)
 
 @project_ref.route('/flight/detail/<int:ref_id>', methods=['GET'])
 def flight_ref_detail(ref_id):

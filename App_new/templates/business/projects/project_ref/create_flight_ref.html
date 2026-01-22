@@ -220,6 +220,16 @@ window.passengersData = [
                 "pnr": {{ p.pnr|tojson }}
             }{% if not loop.last %},{% endif %}
         {% endfor %}
+    {% elif fallback_passenger %}
+        {# 没有乘客数据但REF有价格时，使用回退乘客 #}
+        {
+            "name": {{ fallback_passenger.name|tojson }},
+            "passenger_type": "adult",
+            "selling_price": {{ fallback_passenger.selling_price|default(0, true) }},
+            "cost_price": {{ fallback_passenger.cost_price|default(0, true) }},
+            "ticket_number": "",
+            "pnr": ""
+        }
     {% endif %}
 ];
 window.segmentsData = [
