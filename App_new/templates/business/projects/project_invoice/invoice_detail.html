@@ -389,6 +389,7 @@
                         <input type="text" class="form-control" id="refFileName{{ ref.id }}" readonly
                                data-hid="{{ invoice.header.hid }}"
                                data-type="{% if ref.ref_type %}{% set type_code = ref.ref_type.code|default('') %}{% set type_name = ref.ref_type.name|default('') %}{% if type_code == 'flight' or type_name == '机票' %}AIR{% elif type_code == 'hotel' or type_name == '酒店' %}HOTEL{% elif type_code == 'visa' or type_name == '签证' %}VISA{% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}TOUR{% elif type_code == 'insurance' or type_name == '保险' %}INS{% elif type_code == 'transport' or type_name == '交通' %}TRANS{% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}ATTR{% elif type_code == 'cruise' or type_name == '邮轮' %}CRUISE{% elif type_code == 'other' or type_name == '其他' %}MISC{% else %}REF{% endif %}{% else %}REF{% endif %}"
+                               data-desc="{{ ref.description|default('', true) }}"
                                data-name="{{ project_contact|default(invoice.customer_name, true) }}">
                         <button class="btn btn-outline-primary" type="button" onclick="copyFileName('refFileName{{ ref.id }}')" title="复制">
                             <i class="fas fa-copy"></i>
@@ -997,8 +998,13 @@ function cleanCustomerName(name) {
 }
 
 // 生成文件名
-function generateFileName(hid, type, name) {
+function generateFileName(hid, type, desc, name) {
     const cleanName = cleanCustomerName(name);
+    // 清理描述中的特殊字符，替换 / \ 为 -
+    const cleanDesc = desc ? desc.replace(/[\/\\:*?"<>|]/g, '-').trim() : '';
+    if (cleanDesc) {
+        return `${hid}_${type}_${cleanDesc}_${cleanName}`;
+    }
     return `${hid}_${type}_${cleanName}`;
 }
 
@@ -1008,8 +1014,9 @@ function initFileNameInputs() {
     inputs.forEach(input => {
         const hid = input.dataset.hid;
         const type = input.dataset.type;
+        const desc = input.dataset.desc || '';
         const name = input.dataset.name;
-        input.value = generateFileName(hid, type, name);
+        input.value = generateFileName(hid, type, desc, name);
     });
 }
 
