@@ -1612,35 +1612,50 @@ def batch_invoice_receipt_submit():
 
         allocations = result['allocations']
 
-        # 创建收款记录
-        created_receipts = []
+        # 获取第一张发票的header_id作为收款记录的项目ID
+        first_invoice = invoices[0]
+
+        # 生成收款单号（只生成一个）
+        receipt_number = ProjectReceipt.generate_receipt_number()
+
+        # 存储分配信息
+        allocation_info = {
+            'allocation_type': 'batch_invoices',
+            'distribution_method': distribution_method,
+            'invoice_allocations': [
+                {'invoice_id': inv_id, 'amount': alloc_amount}
+                for inv_id, alloc_amount in allocations.items()
+            ]
+        }
+
+        # 创建一个收款记录（多个发票共用一个收款单号）
+        receipt = ProjectReceipt(
+            receipt_number=receipt_number,
+            header_id=first_invoice.header_id,
+            invoice_id=None,  # 不再使用直接关联，改用分配表
+            amount=amount,  # 总金额
+            currency=currency,
+            payment_method=payment_method,
+            payment_date=payment_date,
+            payer_name=payer_name,
+            payer_contact=payer_contact,
+            payer_company=payer_company,
+            bank_name=bank_name,
+            account_number=account_number,
+            transaction_id=transaction_id,
+            remarks=remarks,
+            status='confirmed',
+            extra_info=json.dumps(allocation_info)
+        )
+        db.session.add(receipt)
+        db.session.flush()
+
+        # 为每个发票创建分配记录
+        allocated_invoices = []
         for inv in invoices:
             alloc_amount = allocations.get(inv.id, 0)
             if alloc_amount <= 0:
                 continue
-
-            # 生成收款单号
-            receipt_number = ProjectReceipt.generate_receipt_number()
-
-            receipt = ProjectReceipt(
-                receipt_number=receipt_number,
-                header_id=inv.header_id,
-                invoice_id=None,  # 不再使用直接关联，改用分配表
-                amount=alloc_amount,
-                currency=currency,
-                payment_method=payment_method,
-                payment_date=payment_date,
-                payer_name=payer_name,
-                payer_contact=payer_contact,
-                payer_company=payer_company,
-                bank_name=bank_name,
-                account_number=account_number,
-                transaction_id=transaction_id,
-                remarks=remarks,
-                status='confirmed'
-            )
-            db.session.add(receipt)
-            db.session.flush()
 
             # 创建分配记录
             allocation = ReceiptInvoiceAllocation(
@@ -1649,34 +1664,36 @@ def batch_invoice_receipt_submit():
                 allocated_amount=alloc_amount
             )
             db.session.add(allocation)
-            db.session.flush()
 
-            # 更新发票已付金额（通过分配表计算）
-            ProjectReceipt.update_invoice_paid_amount(inv.id)
-
-            # 创建日记账分录
-            try:
-                from App_new.finance.models.journal_entry import JournalEntry
-                journal_entry = JournalEntry.create_from_receipt(
-                    receipt,
-                    user=current_user.username if current_user else None
-                )
-                if journal_entry and journal_entry.lines:
-                    db.session.add(journal_entry)
-                    journal_entry.post(user=current_user.username if current_user else None)
-            except Exception as je_error:
-                import logging
-                logging.getLogger(__name__).warning(f"创建收款日记账失败: {str(je_error)}")
-
-            created_receipts.append({
-                'receipt_number': receipt_number,
+            allocated_invoices.append({
                 'invoice_number': inv.invoice_number,
                 'amount': alloc_amount,
                 'header_id': inv.header_id
             })
 
+        db.session.flush()
+
+        # 更新发票已付金额
+        for inv in invoices:
+            if allocations.get(inv.id, 0) > 0:
+                ProjectReceipt.update_invoice_paid_amount(inv.id)
+
+        # 创建日记账分录
+        try:
+            from App_new.finance.models.journal_entry import JournalEntry
+            journal_entry = JournalEntry.create_from_receipt(
+                receipt,
+                user=current_user.username if current_user else None
+            )
+            if journal_entry and journal_entry.lines:
+                db.session.add(journal_entry)
+                journal_entry.post(user=current_user.username if current_user else None)
+        except Exception as je_error:
+            import logging
+            logging.getLogger(__name__).warning(f"创建收款日记账失败: {str(je_error)}")
+
         # 更新所有涉及项目的REF payment_status
-        header_ids = set(r['header_id'] for r in created_receipts)
+        header_ids = set(inv['header_id'] for inv in allocated_invoices)
         for header_id in header_ids:
             ProjectReceipt.update_header_refs_payment_status(header_id)
 
@@ -1684,8 +1701,9 @@ def batch_invoice_receipt_submit():
 
         return jsonify({
             'success': True,
-            'message': f'成功创建 {len(created_receipts)} 条收款记录',
-            'receipts': created_receipts
+            'message': f'成功创建收款记录 {receipt_number}，分配到 {len(allocated_invoices)} 张发票',
+            'receipt_number': receipt_number,
+            'allocated_invoices': allocated_invoices
         })
 
     except Exception as e:
