@@ -751,7 +751,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <tr class="${rowClass}" data-tx-id="${tx.id}">
                     <td><input type="checkbox" class="tx-checkbox" data-id="${tx.id}" ${selectedTxIds.has(tx.id) ? 'checked' : ''}></td>
                     <td>${tx.transaction_date || '-'}</td>
-                    <td class="amount-cell amount-credit">${formatAmount(tx.amount)}</td>
+                    <td class="amount-cell amount-credit">
+                        <a href="${getBankStatementUrl(tx)}" target="_blank" class="text-decoration-none" style="color: inherit;" title="查看银行账单">
+                            ${formatAmount(tx.amount)}
+                        </a>
+                    </td>
                     <td class="desc-cell">
                         ${counterparty ? `<div class="counterparty">${escapeHtml(counterparty)}</div>` : ''}
                         ${description ? `<div class="description">${escapeHtml(description)}</div>` : ''}
@@ -1449,6 +1453,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    // 生成银行账单页面链接
+    function getBankStatementUrl(tx) {
+        const bankRouteMap = {
+            'UOB': '/statement/uob_bank',
+            'OCBC': '/statement/ocbc_bank',
+            'CMB': '/statement/cmb_bank'
+        };
+        const baseUrl = bankRouteMap[tx.bank_name] || '/statement/uob_bank';
+        const params = new URLSearchParams();
+        if (tx.account_name) params.set('account_name', tx.account_name);
+        if (tx.transaction_date) params.set('start_date', tx.transaction_date);
+        if (tx.transaction_date) params.set('end_date', tx.transaction_date);
+        return baseUrl + '?' + params.toString();
     }
 
     // 多对多匹配
