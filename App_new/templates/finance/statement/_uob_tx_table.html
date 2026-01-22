@@ -91,7 +91,7 @@
                                 data-tx-id="{{ t.id }}" title="取消核对">
                             <i class="fas fa-undo"></i>
                         </button>
-                    {% elif t.matched_receipt_id or t.eo_id %}
+                    {% elif t.matched_receipt_id or t.eo_id or t.reconciliation_status == 'matched' %}
                         <span class="badge bg-success" title="已匹配">
                             <i class="fas fa-link"></i> 已匹配
                         </span>
@@ -99,6 +99,8 @@
                             <br><small class="text-success" title="收款: {{ t.matched_receipt.receipt_number }}">{{ t.matched_receipt.receipt_number }}</small>
                         {% elif t.matched_eo and t.transaction_type == 'debit' %}
                             <br><small class="text-danger" title="EO: {{ t.matched_eo.eo_number }}">{{ t.matched_eo.eo_number }}</small>
+                        {% elif t.accounting_ref %}
+                            <br><small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
                         {% endif %}
                         <br>
                         <div class="btn-group btn-group-sm mt-1">
