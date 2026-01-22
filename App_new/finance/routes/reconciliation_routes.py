@@ -1372,17 +1372,20 @@ def calculate_eo_match_score(transaction, eo):
     if eo_amount == 0 and eo.ref and eo.ref.cost_price:
         eo_amount = float(eo.ref.cost_price)
 
+    # 金额为0的记录不参与匹配
+    if eo_amount == 0 or tx_amount == 0:
+        return 0
+
     # 金额匹配（允许0.01误差）
     amount_match = abs(tx_amount - eo_amount) < 0.01
 
     if not amount_match:
         # 检查金额相近（±1%）
-        if eo_amount > 0:
-            diff_ratio = abs(tx_amount - eo_amount) / eo_amount
-            if diff_ratio > 0.01:  # 差异超过1%
-                return 0
-            else:
-                amount_match = True  # 金额相近也算匹配
+        diff_ratio = abs(tx_amount - eo_amount) / eo_amount
+        if diff_ratio > 0.01:  # 差异超过1%
+            return 0
+        else:
+            amount_match = True  # 金额相近也算匹配
 
     # 日期匹配
     tx_date = transaction.transaction_date
