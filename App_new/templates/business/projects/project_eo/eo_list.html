@@ -80,6 +80,14 @@
                 </select>
             </div>
             <div class="col-auto">
+                <select class="form-select" name="match_status">
+                    <option value="">匹配状态</option>
+                    <option value="reconciled" {% if current_filters.match_status == 'reconciled' %}selected{% endif %}>已核对</option>
+                    <option value="matched" {% if current_filters.match_status == 'matched' %}selected{% endif %}>已匹配</option>
+                    <option value="unmatched" {% if current_filters.match_status == 'unmatched' %}selected{% endif %}>待匹配</option>
+                </select>
+            </div>
+            <div class="col-auto">
                 <input type="text" class="form-control" name="keyword" placeholder="搜索..." value="{{ current_filters.keyword or '' }}" style="width: 150px;">
             </div>
             <div class="col-auto">

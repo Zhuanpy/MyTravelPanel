@@ -1542,6 +1542,7 @@ def eo_list():
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
         has_invoice = request.args.get('has_invoice', '')  # 筛选有无发票
+        match_status = request.args.get('match_status', '')  # 筛选匹配状态
 
         # 构建查询
         from App_new.shared.models.business_types import BusinessType
@@ -1668,7 +1669,32 @@ def eo_list():
                 filters.append(ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
             elif has_invoice == 'no':
                 filters.append(~ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
-        
+
+        # 筛选匹配状态
+        if match_status:
+            from App_new.finance.models.bank_statement import BankTransaction
+            if match_status == 'reconciled':
+                # 已核对
+                filters.append(ProjectEO.is_reconciled == True)
+            elif match_status == 'matched':
+                # 已匹配但未核对 - 有关联的银行交易
+                matched_eo_ids = db.session.query(BankTransaction.eo_id).filter(
+                    BankTransaction.eo_id.isnot(None)
+                ).distinct().subquery()
+                filters.append(and_(
+                    ProjectEO.is_reconciled == False,
+                    ProjectEO.id.in_(db.session.query(matched_eo_ids.c.eo_id))
+                ))
+            elif match_status == 'unmatched':
+                # 待匹配 - 没有关联的银行交易且未核对
+                matched_eo_ids = db.session.query(BankTransaction.eo_id).filter(
+                    BankTransaction.eo_id.isnot(None)
+                ).distinct().subquery()
+                filters.append(and_(
+                    ProjectEO.is_reconciled == False,
+                    ~ProjectEO.id.in_(db.session.query(matched_eo_ids.c.eo_id))
+                ))
+
         # 应用筛选条件
         if filters:
             query = query.filter(and_(*filters))
@@ -1840,7 +1866,7 @@ def eo_list():
         supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
         
         # 计算筛选结果数量
-        filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice]) else None
+        filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice, match_status]) else None
 
         return render_template('business/projects/project_eo/eo_list.html',
                              eos=eos,
@@ -1859,7 +1885,8 @@ def eo_list():
                                  'keyword': keyword,
                                  'sort_by': sort_by,
                                  'sort_order': sort_order,
-                                 'has_invoice': has_invoice
+                                 'has_invoice': has_invoice,
+                                 'match_status': match_status
                              })
                              
     except Exception as e:
