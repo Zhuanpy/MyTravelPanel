@@ -7,132 +7,103 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
-    .bank-statement-container { width: 100%; max-width: none; margin: 0; padding: 20px; }
+    /* 紧凑布局 */
+    .bank-statement-container { width: 100%; max-width: none; margin: 0; padding: 12px; }
     .table-responsive { overflow-x: auto; }
-    /* 列宽度调整：7个字段等宽，3个字段更宽，1个操作列 */
-    #txTable { table-layout: fixed; width: 100%; min-width: 1200px; }
-    #txTable th, #txTable td { text-align: center; vertical-align: top; }
-    #txTable tbody tr { height: auto; min-height: 40px; }
-    
-    /* 等宽字段：日期、记账日期、类型、金额、余额、归属、REF/EO (7个字段，每个约7%) */
-    #txTable th:nth-child(1), #txTable td:nth-child(1), /* 日期 */
-    #txTable th:nth-child(2), #txTable td:nth-child(2), /* 记账日期 */
-    #txTable th:nth-child(3), #txTable td:nth-child(3), /* 类型 */
-    #txTable th:nth-child(4), #txTable td:nth-child(4), /* 金额 */
-    #txTable th:nth-child(5), #txTable td:nth-child(5), /* 余额 */
-    #txTable th:nth-child(8), #txTable td:nth-child(8), /* 归属 */
-    #txTable th:nth-child(9), #txTable td:nth-child(9)  /* REF/EO */
-    { width: 7%; }
 
-    /* 更宽字段：摘要、关键词、备注 (3个字段，每个约16%) */
-    #txTable th:nth-child(6), #txTable td:nth-child(6), /* 摘要 */
-    #txTable th:nth-child(7), #txTable td:nth-child(7), /* 关键词 */
-    #txTable th:nth-child(10), #txTable td:nth-child(10) /* 备注 */
-    { width: 16%; vertical-align: top; }
-    
-    /* 操作列 (第11列，宽度约11%) */
-    #txTable th:nth-child(11), #txTable td:nth-child(11) /* 操作 */
-    { 
-        width: 11%; 
-        min-width: 120px; 
-        white-space: nowrap;
-        text-align: center;
+    /* 表格紧凑样式 */
+    #txTable { table-layout: fixed; width: 100%; min-width: 1100px; font-size: 12px; }
+    #txTable th, #txTable td { text-align: center; vertical-align: middle; padding: 4px 6px; }
+    #txTable th { font-size: 11px; white-space: nowrap; }
+    #txTable tbody tr { height: auto; }
+
+    /* 列宽度调整 */
+    #txTable th:nth-child(1), #txTable td:nth-child(1) { width: 75px; } /* 日期 */
+    #txTable th:nth-child(2), #txTable td:nth-child(2) { width: 75px; } /* 记账日期 */
+    #txTable th:nth-child(3), #txTable td:nth-child(3) { width: 45px; } /* 类型 */
+    #txTable th:nth-child(4), #txTable td:nth-child(4) { width: 70px; } /* 金额 */
+    #txTable th:nth-child(5), #txTable td:nth-child(5) { width: 70px; } /* 余额 */
+    #txTable th:nth-child(6), #txTable td:nth-child(6) { width: 15%; text-align: left; } /* 摘要 */
+    #txTable th:nth-child(7), #txTable td:nth-child(7) { width: 80px; text-align: left; } /* 关键词 */
+    #txTable th:nth-child(8), #txTable td:nth-child(8) { width: 80px; } /* 归属 */
+    #txTable th:nth-child(9), #txTable td:nth-child(9) { width: 80px; } /* REF/EO */
+    #txTable th:nth-child(10), #txTable td:nth-child(10) { width: 85px; } /* 匹配状态 */
+    #txTable th:nth-child(11), #txTable td:nth-child(11) { width: 12%; text-align: left; } /* 备注 */
+    #txTable th:nth-child(12), #txTable td:nth-child(12) { width: 100px; white-space: nowrap; } /* 操作 */
+
+    /* 表单控件紧凑 */
+    #txTable .tx-input, #txTable select.tx-input {
+        width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+        font-size: 11px; padding: 2px 4px; height: 26px;
     }
-    #txTable .tx-input, #txTable .tx-remarks, #txTable select.tx-input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
-    #txTable .tx-remarks { height: 48px; resize: vertical; }
+    #txTable .tx-remarks { height: 36px; resize: vertical; font-size: 11px; padding: 2px 4px; }
+    #txTable .form-select-sm { font-size: 11px; padding: 2px 4px; height: 26px; }
 
-    /* 操作列样式 */
-    .confirm-btn {
-        background-color: #007bff;
-        color: white;
-        border: none;
-        padding: 4px 8px;
+    /* 按钮紧凑 */
+    .confirm-btn, .unlock-btn {
+        padding: 2px 6px;
         border-radius: 3px;
-        font-size: 12px;
+        font-size: 11px;
         cursor: pointer;
         transition: background-color 0.2s;
-    }
-    .confirm-btn:hover {
-        background-color: #0056b3;
-    }
-    .unlock-btn {
-        background-color: #ffc107;
-        color: #000;
         border: none;
-        padding: 4px 8px;
-        border-radius: 3px;
-        font-size: 12px;
-        cursor: pointer;
-        transition: background-color 0.2s;
     }
-    .unlock-btn:hover {
-        background-color: #e0a800;
-    }
-    .badge.bg-success {
-        background-color: #28a745 !important;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 3px;
-        font-size: 12px;
-    }
+    .confirm-btn { background-color: #007bff; color: white; }
+    .confirm-btn:hover { background-color: #0056b3; }
+    .unlock-btn { background-color: #ffc107; color: #000; }
+    .unlock-btn:hover { background-color: #e0a800; }
 
-    /* 银行选择器样式 */
-    .bank-selector {
-        margin-bottom: 20px;
-    }
+    .badge { padding: 2px 6px; font-size: 10px; }
+    .btn-sm { padding: 2px 6px; font-size: 11px; }
+    .btn-group-sm .btn { padding: 1px 4px; font-size: 10px; }
+
+    /* 银行选择器紧凑 */
+    .bank-selector { margin-bottom: 12px; }
     .bank-btn {
-        margin-right: 10px;
-        padding: 8px 16px;
-        border: 2px solid #dee2e6;
-        border-radius: 5px;
+        margin-right: 6px;
+        padding: 4px 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
         text-decoration: none;
         color: #495057;
         background-color: white;
+        font-size: 13px;
         transition: all 0.2s;
     }
-    .bank-btn:hover {
-        border-color: #007bff;
-        color: #007bff;
-        text-decoration: none;
-    }
-    .bank-btn.active {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
-    }
+    .bank-btn:hover { border-color: #007bff; color: #007bff; text-decoration: none; }
+    .bank-btn.active { background-color: #007bff; color: white; border-color: #007bff; }
 
-    /* 顶部账户选择器样式 */
-    #global-account-selector {
-        border: 2px solid #007bff;
-        font-weight: 500;
-    }
-    #global-account-selector:focus {
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
+    /* 账户选择器 */
+    #global-account-selector { border: 1px solid #007bff; font-weight: 500; font-size: 13px; padding: 4px 8px; }
+    #global-account-selector:focus { box-shadow: 0 0 0 0.15rem rgba(0, 123, 255, 0.25); }
 
-    /* 筛选表单：放大 日期 与 类型 输入宽度 */
-    .form-control[name="month"] { width: 180px; }
-    .form-control[name="start_date"], .form-control[name="end_date"] { width: 150px; }
-    .form-select[name="type"], .form-select[name="owner"] { width: 120px; }
-    .form-control[name="ref"] { width: 150px; }
-    .form-select[name="operation_status"] { width: 120px; }
-    .form-select[name="sort"] { width: 180px; }
+    /* 筛选表单紧凑 */
+    .card-header { padding: 8px 12px; }
+    .card-header h5 { font-size: 14px; margin: 0; }
+    .card-body { padding: 10px 12px; }
+    .form-label { font-size: 11px; margin-bottom: 2px; }
+    .row.g-3 { --bs-gutter-y: 0.5rem; --bs-gutter-x: 0.5rem; }
 
-    /* 页脚样式 */
-    .bank-footer {
-        text-align: center;
-        padding: 20px;
-        color: #6c757d;
-        border-top: 1px solid #dee2e6;
-        margin-top: 40px;
-    }
+    .form-control[name="month"] { width: 130px; font-size: 12px; padding: 4px 6px; }
+    .form-control[name="start_date"], .form-control[name="end_date"] { width: 120px; font-size: 12px; padding: 4px 6px; }
+    .form-select[name="type"], .form-select[name="owner"] { width: 90px; font-size: 12px; padding: 4px 6px; }
+    .form-control[name="ref"] { width: 100px; font-size: 12px; padding: 4px 6px; }
+    .form-select[name="operation_status"] { width: 90px; font-size: 12px; padding: 4px 6px; }
+    .form-select[name="sort"] { width: 140px; font-size: 12px; padding: 4px 6px; }
 
-    /* 响应式设计 */
+    /* 调试信息紧凑 */
+    .debug-info { padding: 4px 8px; font-size: 11px; }
+    .batch-controls .btn { font-size: 11px; padding: 3px 8px; }
+
+    /* 页脚 */
+    .bank-footer { text-align: center; padding: 12px; color: #6c757d; border-top: 1px solid #dee2e6; margin-top: 20px; }
+
+    /* 响应式 */
     @media (max-width: 768px) {
-        .bank-statement-container { padding: 10px; }
-        .form-control, .form-select { width: 100% !important; margin-bottom: 10px; }
-        #txTable { font-size: 12px; }
-        .bank-btn { margin-bottom: 10px; }
+        .bank-statement-container { padding: 8px; }
+        .form-control, .form-select { width: 100% !important; margin-bottom: 8px; }
+        #txTable { font-size: 11px; }
+        .bank-btn { margin-bottom: 8px; }
     }
 </style>
 {% endblock %}

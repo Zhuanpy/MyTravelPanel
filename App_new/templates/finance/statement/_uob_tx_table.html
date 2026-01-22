@@ -4,32 +4,20 @@
 {%- endmacro %}
 
 <!-- 表格头部控制区域 -->
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <!-- 左侧：调试信息 -->
-    <div class="debug-info" style="background-color: #e9ecef; padding: 8px; border-radius: 4px; font-size: 12px;">
-        <strong>调试信息:</strong> 
-        当前页交易数: {{ transactions|length }} | 
-        未确认交易数: {{ transactions|selectattr('is_confirmed', 'equalto', False)|list|length }} | 
-        已确认交易数: {{ transactions|selectattr('is_confirmed', 'equalto', True)|list|length }}
-        {% if pagination %}
-        | 第 {{ pagination.page }} 页 / 共 {{ pagination.pages }} 页 | 总计 {{ pagination.total }} 条记录
-        {% endif %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <!-- 左侧：统计信息 -->
+    <div class="debug-info" style="background-color: #f8f9fa; padding: 4px 10px; border-radius: 3px; font-size: 11px; color: #666;">
+        共 {{ transactions|length }} 条 |
+        未确认 {{ transactions|selectattr('is_confirmed', 'equalto', False)|list|length }} |
+        已确认 {{ transactions|selectattr('is_confirmed', 'equalto', True)|list|length }}
+        {% if pagination %} | 第{{ pagination.page }}/{{ pagination.pages }}页{% endif %}
     </div>
-    
-    <!-- 右侧：批量操作控制区域 -->
-    <div class="batch-controls">
-        <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-outline-primary btn-sm" id="selectAllBtn" title="选择所有未确认的交易">
-                <i class="fas fa-check-square"></i> 一键选择
-            </button>
-            <button class="btn btn-success btn-sm" id="batchConfirmBtn" title="确认所有选中的交易">
-                <i class="fas fa-check-double"></i> 一键确认
-            </button>
-            <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn" title="清除所有选择">
-                <i class="fas fa-times"></i> 重置选择
-            </button>
-            <span class="text-muted ms-2" id="selectedCount">已选择 0 个交易</span>
-        </div>
+    <!-- 右侧：批量操作 -->
+    <div class="batch-controls d-flex align-items-center gap-1">
+        <button class="btn btn-outline-primary btn-sm" id="selectAllBtn" title="选择所有未确认的交易">一键选择</button>
+        <button class="btn btn-success btn-sm" id="batchConfirmBtn" title="确认所有选中的交易">一键确认</button>
+        <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn" title="清除所有选择">重置</button>
+        <span class="text-muted small" id="selectedCount">已选 0</span>
     </div>
 </div>
 
@@ -59,8 +47,8 @@
                 <td>{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
                 <td>{{ '%.2f'|format(t.amount) }}</td>
                 <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
-                <td class="summary-cell" style="text-align:left; word-wrap:break-word; white-space:normal; max-width:200px; vertical-align:top; padding:8px; line-height:1.4;" title="{{ t.description or '' }}">{{ t.description or '' }}</td>
-                <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ t.keyword or '-' }}</td>
+                <td class="summary-cell" style="text-align:left; word-wrap:break-word; white-space:normal; max-width:180px; line-height:1.2; font-size:11px;" title="{{ t.description or '' }}">{{ t.description or '' }}</td>
+                <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px;">{{ t.keyword or '-' }}</td>
                 <td>
                     {% if t.is_confirmed %}
                         <span class="badge bg-success">{{ t.owner_label or '未设置' }}</span>
