@@ -167,12 +167,24 @@
                     <td style="white-space: nowrap;">
                         {% if eo.is_reconciled %}
                             <span class="badge bg-info" title="已核对"><i class="fas fa-check-double"></i> 已核对</span>
+                            <br><button class="btn btn-outline-secondary btn-sm mt-1" onclick="toggleReconcile({{ eo.id }}, false)" title="取消核对">
+                                <i class="fas fa-undo"></i>
+                            </button>
                         {% elif eo.is_matched %}
                             <span class="badge bg-success" title="已匹配{{ eo.matched_tx_count }}笔银行流水"><i class="fas fa-link"></i> 已匹配</span>
                             {% for tx in eo.matched_tx_info %}
                             <br><small class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} {{ "%.2f"|format(tx.amount) }}</small>
                             {% endfor %}
                             {% if eo.matched_tx_count > 3 %}<br><small class="text-muted">+{{ eo.matched_tx_count - 3 }}条</small>{% endif %}
+                            <br>
+                            <div class="btn-group btn-group-sm mt-1">
+                                <button class="btn btn-outline-info" onclick="toggleReconcile({{ eo.id }}, true)" title="标记已核对">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="unmatchEO({{ eo.id }})" title="解除匹配">
+                                    <i class="fas fa-unlink"></i>
+                                </button>
+                            </div>
                         {% else %}
                             <span class="badge bg-warning text-dark" title="待匹配"><i class="fas fa-clock"></i> 待匹配</span>
                         {% endif %}
@@ -302,6 +314,62 @@ function exportToExcel() {
     // 调用后端导出接口
     var exportUrl = '{{ url_for("business_projects.project_eo.eo_export") }}?' + params.toString();
     window.location.href = exportUrl;
+}
+
+// 切换核对状态
+function toggleReconcile(eoId, isReconciled) {
+    const action = isReconciled ? '标记为已核对' : '取消核对';
+    if(!confirm(`确定要${action}吗？`)) {
+        return;
+    }
+    fetch('/reconciliation/api/eo-mark-reconciled', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            eo_ids: [eoId],
+            is_reconciled: isReconciled
+        })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            location.reload();
+        } else {
+            alert(d.message || '操作失败');
+        }
+    })
+    .catch(err => {
+        alert('请求失败: ' + err);
+    });
+}
+
+// 解除匹配
+function unmatchEO(eoId) {
+    if(!confirm('确定要解除此EO的银行流水匹配吗？')) {
+        return;
+    }
+    fetch('/reconciliation/api/eo-unmatch', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ eo_id: eoId })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            location.reload();
+        } else {
+            alert(d.message || '解除匹配失败');
+        }
+    })
+    .catch(err => {
+        alert('请求失败: ' + err);
+    });
 }
 </script>
 {% endblock %}
