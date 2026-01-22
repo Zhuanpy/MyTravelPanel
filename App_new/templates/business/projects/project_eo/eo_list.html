@@ -113,6 +113,7 @@
                     <th>Status</th>
                     <th>匹配状态</th>
                     <th>匹配详情</th>
+                    <th>匹配操作</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -175,16 +176,22 @@
                         {% endif %}
                     </td>
                     <td style="white-space: nowrap; font-size: 11px;">
-                        {% if eo.is_reconciled %}
-                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleReconcile({{ eo.id }}, false)" title="取消核对">
-                                <i class="fas fa-undo"></i> 取消
-                            </button>
-                        {% elif eo.is_matched %}
+                        {% if eo.is_matched %}
                             {% for tx in eo.matched_tx_info[:2] %}
                             <span class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} ${{ "%.0f"|format(tx.amount) }}</span>{% if not loop.last %}, {% endif %}
                             {% endfor %}
-                            {% if eo.matched_tx_count > 2 %}<span class="text-muted">+{{ eo.matched_tx_count - 2 }}</span>{% endif %}
-                            <div class="btn-group btn-group-sm ms-1">
+                            {% if eo.matched_tx_count > 2 %}<span class="text-muted"> +{{ eo.matched_tx_count - 2 }}</span>{% endif %}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space: nowrap;">
+                        {% if eo.is_reconciled %}
+                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleReconcile({{ eo.id }}, false)" title="取消核对">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        {% elif eo.is_matched %}
+                            <div class="btn-group btn-group-sm">
                                 <button class="btn btn-outline-info btn-sm" onclick="toggleReconcile({{ eo.id }}, true)" title="标记已核对">
                                     <i class="fas fa-check"></i>
                                 </button>
