@@ -800,6 +800,7 @@ def receipt_list():
         keyword = request.args.get('keyword', '').strip()
         sort_by = request.args.get('sort_by', 'payment_date').strip()
         sort_order = request.args.get('sort_order', 'desc').strip()
+        match_status = request.args.get('match_status', '').strip()  # reconciled/matched/unmatched
 
         # 构建查询
         query = db.session.query(
@@ -879,6 +880,31 @@ def receipt_list():
                 ProjectHeader.desc.ilike(kw),
                 ProjectRef.ref_number.ilike(kw)
             ))
+
+        # 匹配状态筛选
+        if match_status:
+            from App_new.finance.models.bank_transaction import BankTransaction
+            if match_status == 'reconciled':
+                # 已核对：is_reconciled = True
+                filters.append(ProjectReceipt.is_reconciled == True)
+            elif match_status == 'matched':
+                # 已匹配但未核对：有关联银行流水但 is_reconciled = False
+                matched_receipt_ids = db.session.query(BankTransaction.matched_receipt_id).filter(
+                    BankTransaction.matched_receipt_id.isnot(None)
+                ).distinct().subquery()
+                filters.append(and_(
+                    or_(ProjectReceipt.is_reconciled == False, ProjectReceipt.is_reconciled.is_(None)),
+                    ProjectReceipt.id.in_(matched_receipt_ids)
+                ))
+            elif match_status == 'unmatched':
+                # 待匹配：无关联银行流水且未核对
+                matched_receipt_ids = db.session.query(BankTransaction.matched_receipt_id).filter(
+                    BankTransaction.matched_receipt_id.isnot(None)
+                ).distinct().subquery()
+                filters.append(and_(
+                    or_(ProjectReceipt.is_reconciled == False, ProjectReceipt.is_reconciled.is_(None)),
+                    ~ProjectReceipt.id.in_(matched_receipt_ids)
+                ))
 
         if filters:
             query = query.filter(and_(*filters))
@@ -994,7 +1020,8 @@ def receipt_list():
                 'keyword': keyword,
                 'sort_by': sort_by,
                 'sort_order': sort_order,
-                'per_page': per_page
+                'per_page': per_page,
+                'match_status': match_status
             }
         )
     except Exception as e:

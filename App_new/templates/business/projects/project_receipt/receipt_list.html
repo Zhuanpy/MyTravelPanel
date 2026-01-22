@@ -46,20 +46,30 @@
     width: 80px;
   }
 
-  .receipt-table th:nth-child(8),  /* 匹配 */
+  .receipt-table th:nth-child(8),  /* 匹配状态 */
   .receipt-table td:nth-child(8) {
+    width: 70px;
+  }
+
+  .receipt-table th:nth-child(9),  /* 匹配详情 */
+  .receipt-table td:nth-child(9) {
+    width: 100px;
+  }
+
+  .receipt-table th:nth-child(10),  /* 匹配操作 */
+  .receipt-table td:nth-child(10) {
     width: 80px;
   }
 
-  .receipt-table th:nth-child(9),  /* 备注 */
-  .receipt-table td:nth-child(9) {
-    width: 150px;
-    max-width: 150px;
+  .receipt-table th:nth-child(11),  /* 备注 */
+  .receipt-table td:nth-child(11) {
+    width: 120px;
+    max-width: 120px;
   }
 
-  .receipt-table th:nth-child(10),  /* 操作 */
-  .receipt-table td:nth-child(10) {
-    width: 130px;
+  .receipt-table th:nth-child(12),  /* 操作 */
+  .receipt-table td:nth-child(12) {
+    width: 100px;
   }
 
   /* 项目(HID)列文本优化 */
@@ -161,6 +171,14 @@
     <div class="col-md-1">
       <input type="date" class="form-control" name="end_date" value="{{ current_filters.end_date or '' }}">
     </div>
+    <div class="col-md-1">
+      <select class="form-select" name="match_status">
+        <option value="">匹配状态</option>
+        <option value="reconciled" {% if current_filters.match_status == 'reconciled' %}selected{% endif %}>已核对</option>
+        <option value="matched" {% if current_filters.match_status == 'matched' %}selected{% endif %}>已匹配</option>
+        <option value="unmatched" {% if current_filters.match_status == 'unmatched' %}selected{% endif %}>待匹配</option>
+      </select>
+    </div>
     <div class="col-md-1 d-grid">
       <button class="btn btn-primary" type="submit">筛选</button>
     </div>
@@ -177,7 +195,9 @@
           <th>日期</th>
           <th>付款方</th>
           <th>状态</th>
-          <th>匹配</th>
+          <th>匹配状态</th>
+          <th>匹配详情</th>
+          <th>匹配操作</th>
           <th>备注</th>
           <th>操作</th>
         </tr>
@@ -210,17 +230,41 @@
           <td data-label="日期">{{ r.payment_date }}</td>
           <td data-label="付款方">{{ r.payer_company or r.payer_name or '-' }}</td>
           <td data-label="状态">{{ r.status_display }}</td>
-          <td data-label="匹配" style="white-space: nowrap;">
+          <td data-label="匹配状态" style="white-space: nowrap;">
             {% if r.is_reconciled %}
-              <span class="badge bg-info" title="已核对"><i class="fas fa-check-double"></i> 已核对</span>
+              <span class="badge bg-info"><i class="fas fa-check-double"></i> 已核对</span>
             {% elif r.is_matched %}
-              <span class="badge bg-success" title="已匹配{{ r.matched_tx_count }}笔银行流水"><i class="fas fa-link"></i> 已匹配</span>
-              {% for tx in r.matched_tx_info %}
-              <br><small class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} {{ "%.2f"|format(tx.amount) }}</small>
-              {% endfor %}
-              {% if r.matched_tx_count > 3 %}<br><small class="text-muted">+{{ r.matched_tx_count - 3 }}条</small>{% endif %}
+              <span class="badge bg-success"><i class="fas fa-link"></i> 已匹配</span>
             {% else %}
-              <span class="badge bg-warning text-dark" title="待匹配"><i class="fas fa-clock"></i> 待匹配</span>
+              <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> 待匹配</span>
+            {% endif %}
+          </td>
+          <td data-label="匹配详情" style="white-space: nowrap; font-size: 11px;">
+            {% if r.is_matched %}
+              {% for tx in r.matched_tx_info[:2] %}
+              <span class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} ${{ "%.0f"|format(tx.amount) }}</span>{% if not loop.last %}, {% endif %}
+              {% endfor %}
+              {% if r.matched_tx_count > 2 %}<span class="text-muted"> +{{ r.matched_tx_count - 2 }}</span>{% endif %}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td data-label="匹配操作" style="white-space: nowrap;">
+            {% if r.is_reconciled %}
+              <button class="btn btn-outline-secondary btn-sm" onclick="toggleReconcile({{ r.id }}, false)" title="取消核对">
+                <i class="fas fa-undo"></i>
+              </button>
+            {% elif r.is_matched %}
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-info btn-sm" onclick="toggleReconcile({{ r.id }}, true)" title="标记已核对">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-outline-danger btn-sm" onclick="unmatchReceipt({{ r.id }})" title="解除匹配">
+                  <i class="fas fa-unlink"></i>
+                </button>
+              </div>
+            {% else %}
+              <span class="text-muted">-</span>
             {% endif %}
           </td>
           <td data-label="备注" class="receipt-remarks" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ r.remarks or '' }}">{{ r.remarks or '' }}</td>
@@ -244,7 +288,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="10" class="text-center text-muted">暂无数据</td></tr>
+        <tr><td colspan="12" class="text-center text-muted">暂无数据</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -300,6 +344,62 @@ function deleteReceipt(receiptId, receiptNumber, headerId) {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+// 切换核对状态
+function toggleReconcile(receiptId, isReconciled) {
+    const action = isReconciled ? '标记为已核对' : '取消核对';
+    if(!confirm(`确定要${action}吗？`)) {
+        return;
+    }
+    fetch('/reconciliation/api/mark-reconciled', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            receipt_ids: [receiptId],
+            is_reconciled: isReconciled
+        })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            location.reload();
+        } else {
+            alert(d.message || '操作失败');
+        }
+    })
+    .catch(err => {
+        alert('请求失败: ' + err);
+    });
+}
+
+// 解除匹配
+function unmatchReceipt(receiptId) {
+    if(!confirm('确定要解除此收据的银行流水匹配吗？')) {
+        return;
+    }
+    fetch('/reconciliation/api/unmatch', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ receipt_id: receiptId })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            location.reload();
+        } else {
+            alert(d.message || '解除匹配失败');
+        }
+    })
+    .catch(err => {
+        alert('请求失败: ' + err);
+    });
 }
 </script>
 {% endblock %}

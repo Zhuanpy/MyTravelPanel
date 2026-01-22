@@ -512,39 +512,69 @@ def manual_match():
 @login_required
 @staff_only
 def unmatch():
-    """取消匹配API"""
+    """取消匹配API - 支持通过transaction_id或receipt_id解除匹配"""
     try:
         data = request.get_json()
         transaction_id = data.get('transaction_id')
+        receipt_id = data.get('receipt_id')
 
-        if not transaction_id:
-            return jsonify({'success': False, 'message': '缺少交易ID'})
+        unmatch_count = 0
+        old_receipt_id = None
 
-        transaction = BankTransaction.query.get(transaction_id)
-        if not transaction:
-            return jsonify({'success': False, 'message': '银行交易记录不存在'})
+        if receipt_id:
+            # 通过receipt_id查找所有关联的银行交易并解除匹配
+            transactions = BankTransaction.query.filter_by(matched_receipt_id=receipt_id).all()
+            if not transactions:
+                return jsonify({'success': False, 'message': '该收据未匹配任何银行流水'})
 
-        if not transaction.matched_receipt_id:
-            return jsonify({'success': False, 'message': '该交易未匹配任何收款记录'})
+            old_receipt_id = receipt_id
+            for tx in transactions:
+                tx.matched_receipt_id = None
+                tx.reconciliation_status = 'unmatched'
+                tx.accounting_ref = None
+                tx.is_confirmed = False
+                tx.confirmed_at = None
+                tx.confirmed_by = None
+                tx.updated_at = datetime.utcnow()
+                unmatch_count += 1
 
-        # 取消匹配
-        old_receipt_id = transaction.matched_receipt_id
-        transaction.matched_receipt_id = None
-        transaction.reconciliation_status = 'unmatched'
-        # 清除 REF/EO 字段和确认状态
-        transaction.accounting_ref = None
-        transaction.is_confirmed = False
-        transaction.confirmed_at = None
-        transaction.confirmed_by = None
-        transaction.updated_at = datetime.utcnow()
+            # 更新收据的核对状态
+            from App_new.business.projects.models.receipt import ProjectReceipt
+            receipt = ProjectReceipt.query.get(receipt_id)
+            if receipt:
+                receipt.is_reconciled = False
+                receipt.reconciled_at = None
+                receipt.reconciled_by = None
+
+        elif transaction_id:
+            # 原有逻辑：通过transaction_id解除匹配
+            transaction = BankTransaction.query.get(transaction_id)
+            if not transaction:
+                return jsonify({'success': False, 'message': '银行交易记录不存在'})
+
+            if not transaction.matched_receipt_id:
+                return jsonify({'success': False, 'message': '该交易未匹配任何收款记录'})
+
+            old_receipt_id = transaction.matched_receipt_id
+            transaction.matched_receipt_id = None
+            transaction.reconciliation_status = 'unmatched'
+            transaction.accounting_ref = None
+            transaction.is_confirmed = False
+            transaction.confirmed_at = None
+            transaction.confirmed_by = None
+            transaction.updated_at = datetime.utcnow()
+            unmatch_count = 1
+        else:
+            return jsonify({'success': False, 'message': '缺少交易ID或收据ID'})
 
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': '已取消匹配，已解锁银行记录',
+            'message': f'已解除 {unmatch_count} 条匹配记录',
             'transaction_id': transaction_id,
-            'old_receipt_id': old_receipt_id
+            'old_receipt_id': old_receipt_id,
+            'unmatch_count': unmatch_count
         })
 
     except Exception as e:
