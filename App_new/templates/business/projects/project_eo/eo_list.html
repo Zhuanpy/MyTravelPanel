@@ -111,7 +111,8 @@
                     <th>Paid Date</th>
                     <th class="amount-col">Pay Amt</th>
                     <th>Status</th>
-                    <th>匹配</th>
+                    <th>匹配状态</th>
+                    <th>匹配详情</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -166,27 +167,33 @@
                     <td><span class="badge status-{{ eo.status }}">{{ eo.status_display }}</span></td>
                     <td style="white-space: nowrap;">
                         {% if eo.is_reconciled %}
-                            <span class="badge bg-info" title="已核对"><i class="fas fa-check-double"></i> 已核对</span>
-                            <br><button class="btn btn-outline-secondary btn-sm mt-1" onclick="toggleReconcile({{ eo.id }}, false)" title="取消核对">
-                                <i class="fas fa-undo"></i>
+                            <span class="badge bg-info"><i class="fas fa-check-double"></i> 已核对</span>
+                        {% elif eo.is_matched %}
+                            <span class="badge bg-success"><i class="fas fa-link"></i> 已匹配</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> 待匹配</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space: nowrap; font-size: 11px;">
+                        {% if eo.is_reconciled %}
+                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleReconcile({{ eo.id }}, false)" title="取消核对">
+                                <i class="fas fa-undo"></i> 取消
                             </button>
                         {% elif eo.is_matched %}
-                            <span class="badge bg-success" title="已匹配{{ eo.matched_tx_count }}笔银行流水"><i class="fas fa-link"></i> 已匹配</span>
-                            {% for tx in eo.matched_tx_info %}
-                            <br><small class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} {{ "%.2f"|format(tx.amount) }}</small>
+                            {% for tx in eo.matched_tx_info[:2] %}
+                            <span class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} ${{ "%.0f"|format(tx.amount) }}</span>{% if not loop.last %}, {% endif %}
                             {% endfor %}
-                            {% if eo.matched_tx_count > 3 %}<br><small class="text-muted">+{{ eo.matched_tx_count - 3 }}条</small>{% endif %}
-                            <br>
-                            <div class="btn-group btn-group-sm mt-1">
-                                <button class="btn btn-outline-info" onclick="toggleReconcile({{ eo.id }}, true)" title="标记已核对">
-                                    <i class="fas fa-check-double"></i>
+                            {% if eo.matched_tx_count > 2 %}<span class="text-muted">+{{ eo.matched_tx_count - 2 }}</span>{% endif %}
+                            <div class="btn-group btn-group-sm ms-1">
+                                <button class="btn btn-outline-info btn-sm" onclick="toggleReconcile({{ eo.id }}, true)" title="标记已核对">
+                                    <i class="fas fa-check"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="unmatchEO({{ eo.id }})" title="解除匹配">
+                                <button class="btn btn-outline-danger btn-sm" onclick="unmatchEO({{ eo.id }})" title="解除匹配">
                                     <i class="fas fa-unlink"></i>
                                 </button>
                             </div>
                         {% else %}
-                            <span class="badge bg-warning text-dark" title="待匹配"><i class="fas fa-clock"></i> 待匹配</span>
+                            <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                     <td>
