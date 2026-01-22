@@ -289,11 +289,8 @@
                 <button type="button" id="autoMatchBtn" class="btn btn-info action-btn">
                     <i class="fas fa-magic"></i> 自动匹配建议
                 </button>
-                <button type="button" id="manualMatchBtn" class="btn btn-success action-btn" disabled>
+                <button type="button" id="multiMatchBtn" class="btn btn-success action-btn" disabled>
                     <i class="fas fa-link"></i> 匹配选中项
-                </button>
-                <button type="button" id="multiMatchBtn" class="btn btn-outline-success action-btn" disabled>
-                    <i class="fas fa-project-diagram"></i> 多对多匹配
                 </button>
                 <button type="button" id="markPersonalBtn" class="btn btn-secondary action-btn" disabled>
                     <i class="fas fa-user"></i> 标记为个人
@@ -425,12 +422,12 @@
     </div>
 </div>
 
-<!-- 多对多匹配模态框 -->
+<!-- 匹配确认模态框 -->
 <div class="modal fade" id="multiMatchModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-project-diagram me-2"></i>多对多匹配</h5>
+                <h5 class="modal-title"><i class="fas fa-link me-2"></i>匹配确认</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -524,7 +521,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // 按钮
     const loadDataBtn = document.getElementById('loadDataBtn');
     const autoMatchBtn = document.getElementById('autoMatchBtn');
-    const manualMatchBtn = document.getElementById('manualMatchBtn');
     const multiMatchBtn = document.getElementById('multiMatchBtn');
     const markPersonalBtn = document.getElementById('markPersonalBtn');
     const markReconciledBtn = document.getElementById('markReconciledBtn');
@@ -860,12 +856,8 @@ document.addEventListener('DOMContentLoaded', function() {
         eoSelectedCount.textContent = selectedEOIds.size;
 
         // 更新按钮状态
-        // 1:1 匹配
-        manualMatchBtn.disabled = !(selectedTxIds.size === 1 && selectedEOIds.size === 1);
-        // 多对多匹配：至少选一边有多条，或双边都有选择
-        const canMultiMatch = (selectedTxIds.size >= 1 && selectedEOIds.size >= 1) &&
-                             (selectedTxIds.size > 1 || selectedEOIds.size > 1);
-        multiMatchBtn.disabled = !canMultiMatch;
+        // 匹配按钮：两边都至少选择1条
+        multiMatchBtn.disabled = !(selectedTxIds.size >= 1 && selectedEOIds.size >= 1);
         markPersonalBtn.disabled = selectedTxIds.size === 0;
         markReconciledBtn.disabled = (selectedTxIds.size === 0 && selectedEOIds.size === 0);
     }
@@ -1116,45 +1108,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('suggestionsSection').style.display = 'none';
     });
 
-    // 手动匹配
-    manualMatchBtn.addEventListener('click', async function() {
-        if (selectedTxIds.size !== 1 || selectedEOIds.size !== 1) {
-            alert('请各选择一条银行记录和一条EO记录');
-            return;
-        }
-
-        const txId = Array.from(selectedTxIds)[0];
-        const eoId = Array.from(selectedEOIds)[0];
-
-        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 匹配中...';
-        this.disabled = true;
-
-        try {
-            const response = await fetch('/reconciliation/api/eo-manual-match', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transaction_id: txId, eo_id: eoId })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                selectedTxIds.clear();
-                selectedEOIds.clear();
-                loadCompareData();
-            } else {
-                alert('匹配失败: ' + result.message);
-            }
-        } catch (e) {
-            console.error('匹配失败:', e);
-            alert('匹配失败');
-        } finally {
-            this.innerHTML = '<i class="fas fa-link"></i> 匹配选中项';
-            this.disabled = false;
-        }
-    });
-
-    // 多对多匹配
+    // 匹配选中项
     multiMatchBtn.addEventListener('click', function() {
         if (selectedTxIds.size === 0 || selectedEOIds.size === 0) {
             alert('请选择银行记录和EO记录');
@@ -1344,7 +1298,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('匹配失败: ' + result.message);
             }
         } catch (e) {
-            console.error('多对多匹配失败:', e);
+            console.error('匹配失败:', e);
             alert('匹配失败');
         } finally {
             this.innerHTML = '<i class="fas fa-check"></i> 确认匹配';
