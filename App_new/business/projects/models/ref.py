@@ -14,7 +14,7 @@ class ProjectRef(db.Model):
     header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=False, comment='HID主表ID')
     ref_number = db.Column(db.String(30), unique=True, nullable=False, comment='REF编号')
     description = db.Column(db.String(100), nullable=True, comment='描述')
-    detailed_description = db.Column(db.String(200), nullable=False, comment='详细描述')
+    detailed_description = db.Column(db.Text, nullable=False, comment='详细描述')
     
     ref_type_id = db.Column(db.Integer, db.ForeignKey('business_types.id'), nullable=False, comment='REF类型ID')
     

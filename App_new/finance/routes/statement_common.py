@@ -588,47 +588,48 @@ def upload_file(bank_name):
             
             # 创建唯一ID
             try:
+                import hashlib
+
                 # 确保所有列都是字符串类型
                 df['Description'] = df['Description'].astype(str)
-                
-                # 处理金额列 - 根据银行类型
+
+                # 处理金额列 - 统一格式化为2位小数，避免尾零差异
                 if bank_name == 'UOB':
                     # UOB银行有Withdrawal和Deposit两列
-                    withdrawal_str = df['Withdrawal'].fillna(0).astype(str) if 'Withdrawal' in df.columns else '0'
-                    deposit_str = df['Deposit'].fillna(0).astype(str) if 'Deposit' in df.columns else '0'
-                    amount_str = withdrawal_str + '|' + deposit_str
+                    withdrawal = pd.to_numeric(df['Withdrawal'], errors='coerce').fillna(0) if 'Withdrawal' in df.columns else 0
+                    deposit = pd.to_numeric(df['Deposit'], errors='coerce').fillna(0) if 'Deposit' in df.columns else 0
+                    amount_str = withdrawal.apply(lambda x: f'{x:.2f}') + '|' + deposit.apply(lambda x: f'{x:.2f}')
                 elif bank_name == 'OCBC':
                     # OCBC银行有Debit Amount和Credit Amount两列
-                    debit_str = df['Debit Amount'].fillna(0).astype(str) if 'Debit Amount' in df.columns else '0'
-                    credit_str = df['Credit Amount'].fillna(0).astype(str) if 'Credit Amount' in df.columns else '0'
-                    amount_str = debit_str + '|' + credit_str
+                    debit = pd.to_numeric(df['Debit Amount'], errors='coerce').fillna(0) if 'Debit Amount' in df.columns else 0
+                    credit = pd.to_numeric(df['Credit Amount'], errors='coerce').fillna(0) if 'Credit Amount' in df.columns else 0
+                    amount_str = debit.apply(lambda x: f'{x:.2f}') + '|' + credit.apply(lambda x: f'{x:.2f}')
                 else:
                     # 其他银行使用Amount列
-                    amount_str = df['Amount'].fillna(0).astype(str) if 'Amount' in df.columns else '0'
-                
-                # 处理余额列 - 针对OCBC银行优先使用Closing Book Balance
-                balance_str = '0'
+                    amount = pd.to_numeric(df['Amount'], errors='coerce').fillna(0) if 'Amount' in df.columns else 0
+                    amount_str = amount.apply(lambda x: f'{x:.2f}')
+
+                # 处理余额列 - 统一格式化为2位小数
+                balance_str = '0.00'
                 if bank_name == 'OCBC':
-                    # OCBC银行优先使用Closing Book Balance列（用于排重）
                     for balance_col in ['Closing Book Balance', 'Balance', 'Available Balance']:
                         if balance_col in df.columns:
-                            balance_str = df[balance_col].fillna('0').astype(str)
+                            balance_val = pd.to_numeric(df[balance_col], errors='coerce').fillna(0)
+                            balance_str = balance_val.apply(lambda x: f'{x:.2f}')
                             print(f"OCBC银行使用余额列进行排重: {balance_col}")
                             break
                 else:
-                    # 其他银行使用Balance列
                     if 'Balance' in df.columns:
-                        balance_str = df['Balance'].fillna('0').astype(str)
-                    else:
-                        balance_str = '0'
-                
+                        balance_val = pd.to_numeric(df['Balance'], errors='coerce').fillna(0)
+                        balance_str = balance_val.apply(lambda x: f'{x:.2f}')
+
                 # 将T-Date转换为字符串用于ID创建
                 df['T-Date-Str'] = df['T-Date'].astype(str)
-                
-                # 创建复合唯一ID：日期+描述+金额+余额
-                df['Id'] = (df['T-Date-Str'] + '|' + df['Description'] + '|' + 
-                           amount_str + '|' + balance_str)
-                df['Id'] = df['Id'].str.replace('[\s\.\\/]', '', regex=True).str[-50:].str.lower()
+
+                # 创建复合唯一ID：日期+描述+金额+余额，使用MD5哈希避免截断问题
+                raw_id = (df['T-Date-Str'] + '|' + df['Description'] + '|' +
+                         amount_str + '|' + balance_str)
+                df['Id'] = raw_id.apply(lambda x: hashlib.md5(x.strip().lower().encode()).hexdigest()[:16])
                 
                 print(f"ID创建后数据形状: {df.shape}")
                 print(f"示例ID: {df['Id'].head().tolist()}")

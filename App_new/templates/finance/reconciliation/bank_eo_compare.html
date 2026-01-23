@@ -1067,7 +1067,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                // 平滑移除卡片
+                // 从上方面板中移除已匹配的记录
+                const txRow = document.querySelector(`#txTableBody tr[data-tx-id="${suggestion.transaction_id}"]`);
+                if (txRow) txRow.remove();
+                const eoRow = document.querySelector(`#eoTableBody tr[data-eo-id="${suggestion.eo_id}"]`);
+                if (eoRow) eoRow.remove();
+
+                // 从数据数组中移除
+                const txIdx = bankTransactions.findIndex(t => t.id === suggestion.transaction_id);
+                if (txIdx > -1) bankTransactions.splice(txIdx, 1);
+                const eoIdx = projectEOs.findIndex(e => e.id === suggestion.eo_id);
+                if (eoIdx > -1) projectEOs.splice(eoIdx, 1);
+
+                // 更新计数
+                txTotalCount.textContent = `${bankTransactions.length} 条`;
+                eoTotalCount.textContent = `${projectEOs.length} 条`;
+
+                // 平滑移除建议卡片
                 card.style.transition = 'all 0.3s ease';
                 card.style.opacity = '0';
                 card.style.transform = 'translateX(20px)';
