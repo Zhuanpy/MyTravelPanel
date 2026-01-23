@@ -54,7 +54,11 @@ def create_invoice(header_id):
             selected_ref_ids = form.selected_refs.data
             if selected_ref_ids and (len(selected_ref_ids) == 1 and selected_ref_ids[0] == 0):
                 selected_ref_ids = []
-            
+
+            # 如果没有选择REF，默认关联项目所有REF
+            if not selected_ref_ids:
+                selected_ref_ids = [ref.id for ref in header.refs if ref.selling_price]
+
             # 如果是手动选择REF，计算总金额
             if selected_ref_ids:
                 total_amount = 0
@@ -433,6 +437,9 @@ def edit_invoice(invoice_id):
             selected_ref_ids = form.selected_refs.data
             if selected_ref_ids and (len(selected_ref_ids) == 1 and selected_ref_ids[0] == 0):
                 selected_ref_ids = []
+            # 如果没有选择REF，默认关联项目所有REF
+            if not selected_ref_ids:
+                selected_ref_ids = [ref.id for ref in header.refs if ref.selling_price]
             invoice.ref_ids = json.dumps(selected_ref_ids) if selected_ref_ids else None
             
             # 删除旧的发票明细，重新创建

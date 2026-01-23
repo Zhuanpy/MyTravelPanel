@@ -318,11 +318,12 @@
                             <th width="90">日期</th>
                             <th width="100">金额</th>
                             <th>对方/摘要</th>
+                            <th width="90">REF/EO</th>
                             <th width="80">状态</th>
                         </tr>
                     </thead>
                     <tbody id="txTableBody">
-                        <tr><td colspan="5" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -590,7 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
             hide_reconciled: actualHideReconciled.toString()
         });
 
-        txTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+        txTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
         eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
 
         try {
@@ -616,7 +617,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (e) {
             console.error('加载数据失败:', e);
-            txTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">加载失败</td></tr>';
+            txTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">加载失败</td></tr>';
             eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">加载失败</td></tr>';
         }
     }
@@ -624,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 渲染银行交易表格
     function renderTransactions() {
         if (bankTransactions.length === 0) {
-            txTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>';
+            txTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">暂无数据</td></tr>';
             txTotalCount.textContent = '0 条';
             return;
         }
@@ -675,6 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${description ? `<div class="description">${escapeHtml(description)}</div>` : ''}
                         ${!counterparty && !description ? '-' : ''}
                     </td>
+                    <td><small class="text-muted">${tx.accounting_ref ? escapeHtml(tx.accounting_ref) : ''}</small></td>
                     <td>${statusHtml}</td>
                 </tr>
             `;
@@ -955,7 +957,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-5">
                             <strong>银行支出</strong><br>
                             <span class="text-muted">${s.transaction_date}</span> |
-                            <span class="text-danger fw-bold">${formatAmount(s.transaction_amount)}</span>
+                            <a href="javascript:void(0)" class="text-danger fw-bold text-decoration-none jump-to-tx" data-tx-id="${s.transaction_id}" data-bank-name="${s.transaction_bank_name || ''}" data-account-name="${s.transaction_account_name || ''}" data-tx-date="${s.transaction_date || ''}" title="定位到银行记录">${formatAmount(s.transaction_amount)}</a>
+                            ${s.transaction_accounting_ref ? `<span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:0.7rem;">${escapeHtml(s.transaction_accounting_ref)}</span>` : ''}
                             <div class="mt-1" style="word-break: break-word; line-height: 1.4;">
                                 <small class="text-secondary">${escapeHtml(s.transaction_counterparty)}</small>
                                 ${s.transaction_description ? `<br><small class="text-muted">${escapeHtml(s.transaction_description)}</small>` : ''}
@@ -999,6 +1002,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 const idx = parseInt(this.dataset.idx);
                 document.getElementById(`suggestion-${idx}`).remove();
                 currentSuggestions.splice(idx, 1);
+            });
+        });
+
+        // 绑定金额点击跳转到银行记录
+        container.querySelectorAll('.jump-to-tx').forEach(link => {
+            link.addEventListener('click', function() {
+                const txId = parseInt(this.dataset.txId);
+                const targetRow = document.querySelector(`#txTableBody tr[data-tx-id="${txId}"]`);
+                if (targetRow) {
+                    // 滚动到目标行
+                    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // 高亮闪烁效果
+                    targetRow.style.transition = 'background-color 0.3s';
+                    targetRow.style.backgroundColor = '#fff3cd';
+                    setTimeout(() => {
+                        targetRow.style.backgroundColor = '';
+                    }, 2000);
+                } else {
+                    // 左侧表格中找不到该记录，跳转到银行账单页面
+                    const bankName = this.dataset.bankName || '';
+                    const accountName = this.dataset.accountName || '';
+                    const txDate = this.dataset.txDate || '';
+                    const bankRouteMap = {
+                        'UOB': '/statement/uob_bank',
+                        'OCBC': '/statement/ocbc_bank',
+                        'CMB': '/statement/cmb_bank'
+                    };
+                    const baseUrl = bankRouteMap[bankName] || '/statement/uob_bank';
+                    const params = new URLSearchParams();
+                    if (accountName) params.set('account_name', accountName);
+                    if (txDate) {
+                        params.set('start_date', txDate);
+                        params.set('end_date', txDate);
+                    }
+                    window.open(baseUrl + '?' + params.toString(), '_blank');
+                }
             });
         });
     }

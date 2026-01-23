@@ -1237,6 +1237,14 @@ def eo_auto_match_suggestions():
             )
         )
 
+        # 排除已核对的记录
+        tx_query = tx_query.filter(
+            or_(
+                BankTransaction.is_reconciled == False,
+                BankTransaction.is_reconciled.is_(None)
+            )
+        )
+
         # 排除已确认的个人消费记录
         tx_query = tx_query.filter(
             ~and_(
@@ -1326,6 +1334,9 @@ def eo_auto_match_suggestions():
                     'transaction_amount': float(tx.amount),
                     'transaction_counterparty': tx.counterparty_name or '',
                     'transaction_description': tx.description or '',
+                    'transaction_accounting_ref': tx.accounting_ref or '',
+                    'transaction_bank_name': tx.statement.bank_name if tx.statement else '',
+                    'transaction_account_name': tx.statement.account_name if tx.statement else '',
                     'eo_id': best_match.id,
                     'eo_number': best_match.eo_number,
                     'eo_date': best_match.paid_date.isoformat() if best_match.paid_date else (best_match.eo_date.isoformat() if best_match.eo_date else ''),

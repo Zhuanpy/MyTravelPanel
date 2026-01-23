@@ -22,7 +22,22 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped table-hover" id="txTable">
+    <table class="table table-striped table-hover" id="txTable" style="table-layout: fixed; width: 100%;">
+        <colgroup>
+            <col style="width: 82px;">  <!-- 日期 -->
+            <col style="width: 82px;">  <!-- 记账日期 -->
+            <col style="width: 42px;">  <!-- 类型 -->
+            <col style="width: 80px;">  <!-- 金额 -->
+            <col style="width: 80px;">  <!-- 余额 -->
+            <col style="width: auto;">  <!-- 摘要 (弹性) -->
+            <col style="width: 80px;">  <!-- 关键词 -->
+            <col style="width: 80px;">  <!-- 归属 -->
+            <col style="width: 90px;">  <!-- REF/EO -->
+            <col style="width: 100px;"> <!-- 备注 -->
+            <col style="width: 68px;">  <!-- 匹配状态 -->
+            <col style="width: 95px;">  <!-- 匹配单号 -->
+            <col style="width: 110px;"> <!-- 操作 -->
+        </colgroup>
         <thead>
             <tr>
                 <th>日期</th>
@@ -34,8 +49,9 @@
                 <th>关键词</th>
                 <th>归属</th>
                 <th>REF/EO</th>
-                <th>匹配状态</th>
                 <th>备注</th>
+                <th>匹配状态</th>
+                <th>匹配单号</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -48,14 +64,14 @@
                 <td>{{ '%.2f'|format(t.amount) }}</td>
                 <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
                 <td class="summary-cell" style="text-align:left; word-wrap:break-word; white-space:normal; max-width:180px; line-height:1.2; font-size:11px;" title="{{ t.description or '' }}">{{ t.description or '' }}</td>
-                <td style="text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px;">{{ t.keyword or '-' }}</td>
-                <td>
+                <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px;" title="{{ t.keyword or '' }}">{{ t.keyword or '-' }}</td>
+                <td style="font-size:11px;">
                     {% if t.is_confirmed %}
-                        <span class="badge bg-success">{{ t.owner_label or '未设置' }}</span>
+                        <span class="badge bg-success">{{ t.owner_label or '' }}</span>
                     {% else %}
-                        <select class="form-select form-select-sm tx-input" data-tx-id="{{ t.id }}" data-field="owner_label">
+                        <select class="form-select form-select-sm tx-input" style="width:100%; font-size:11px; padding:2px 4px;" data-tx-id="{{ t.id }}" data-field="owner_label">
                             <option value="" {% if not t.owner_label %}selected{% endif %}></option>
-                            <option value="Business" {% if t.owner_label=='Business' %}selected{% endif %}>Business</option>
+                            <option value="Business" {% if t.owner_label=='Business' %}selected{% endif %}>Biz</option>
                             <option value="LG" {% if t.owner_label=='LG' %}selected{% endif %}>LG</option>
                             <option value="JE" {% if t.owner_label=='JE' %}selected{% endif %}>JE</option>
                             <option value="个人消费" {% if t.owner_label=='个人消费' %}selected{% endif %}>个人消费</option>
@@ -63,11 +79,18 @@
                         </select>
                     {% endif %}
                 </td>
-                <td>
+                <td style="overflow:hidden; font-size:11px;">
                     {% if t.is_confirmed %}
-                        <span class="text-muted">{{ t.accounting_ref or '未设置' }}</span>
+                        <span class="text-muted" title="{{ t.accounting_ref or '' }}">{{ t.accounting_ref or '' }}</span>
                     {% else %}
-                        <input type="text" class="form-control form-control-sm tx-input" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="填写REF/EO">
+                        <input type="text" class="form-control form-control-sm tx-input" style="width:100%; font-size:11px;" data-tx-id="{{ t.id }}" data-field="accounting_ref" value="{{ t.accounting_ref or '' }}" placeholder="REF/EO">
+                    {% endif %}
+                </td>
+                <td style="overflow:hidden; text-overflow:ellipsis; font-size:11px;">
+                    {% if t.is_confirmed %}
+                        <span class="text-muted" title="{{ t.remarks or '' }}">{{ t.remarks or '' }}</span>
+                    {% else %}
+                        <textarea class="form-control form-control-sm tx-remarks" style="width:100%; font-size:11px; resize:none;" rows="1" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="备注">{{ t.remarks or '' }}</textarea>
                     {% endif %}
                 </td>
                 <td style="white-space: nowrap;">
@@ -75,74 +98,62 @@
                         <span class="badge bg-info" title="已核对">
                             <i class="fas fa-check-double"></i> 已核对
                         </span>
-                        <br><button class="btn btn-outline-secondary btn-sm mt-1 unreconcile-btn"
-                                data-tx-id="{{ t.id }}" title="取消核对">
-                            <i class="fas fa-undo"></i>
-                        </button>
                     {% elif t.matched_receipt_id or t.eo_id or t.reconciliation_status == 'matched' %}
                         <span class="badge bg-success" title="已匹配">
                             <i class="fas fa-link"></i> 已匹配
                         </span>
-                        {% if t.matched_receipt and t.transaction_type == 'credit' %}
-                            <br><small class="text-success" title="收款: {{ t.matched_receipt.receipt_number }}">{{ t.matched_receipt.receipt_number }}</small>
-                        {% elif t.matched_eo and t.transaction_type == 'debit' %}
-                            <br><small class="text-danger" title="EO: {{ t.matched_eo.eo_number }}">{{ t.matched_eo.eo_number }}</small>
-                        {% elif t.accounting_ref %}
-                            <br><small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
-                        {% endif %}
-                        <br>
-                        <div class="btn-group btn-group-sm mt-1">
-                            <button class="btn btn-outline-info reconcile-btn"
-                                    data-tx-id="{{ t.id }}" title="标记已核对">
-                                <i class="fas fa-check-double"></i>
-                            </button>
-                            <button class="btn btn-outline-danger unmatch-btn"
-                                    data-tx-id="{{ t.id }}" title="解除匹配">
-                                <i class="fas fa-unlink"></i>
-                            </button>
-                        </div>
                     {% else %}
                         <span class="badge bg-warning text-dark" title="待匹配">
                             <i class="fas fa-clock"></i> 待匹配
                         </span>
                     {% endif %}
                 </td>
-                <td>
-                    {% if t.is_confirmed %}
-                        <span class="text-muted">{{ t.remarks or '无备注' }}</span>
+                <td style="white-space: nowrap; font-size: 11px;">
+                    {% if t.matched_receipt and t.transaction_type == 'credit' %}
+                        <small class="text-success" title="收款: {{ t.matched_receipt.receipt_number }}">{{ t.matched_receipt.receipt_number }}</small>
+                    {% elif t.matched_eo and t.transaction_type == 'debit' %}
+                        <small class="text-danger" title="EO: {{ t.matched_eo.eo_number }}">{{ t.matched_eo.eo_number }}</small>
+                    {% elif (t.matched_receipt_id or t.eo_id or t.reconciliation_status == 'matched') and t.accounting_ref %}
+                        <small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
                     {% else %}
-                        <textarea class="form-control form-control-sm tx-remarks" data-tx-id="{{ t.id }}" data-field="remarks" placeholder="填写备注">{{ t.remarks or '' }}</textarea>
+                        -
                     {% endif %}
                 </td>
-                <td>
+                <td style="white-space: nowrap;">
                     {% if not t.is_confirmed %}
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-1">
                             <input type="checkbox" class="transaction-checkbox" data-tx-id="{{ t.id }}" title="选择此交易">
                             <button class="btn btn-primary btn-sm confirm-btn" data-tx-id="{{ t.id }}" title="确认此交易记录">
                                 确认
                             </button>
                         </div>
                     {% else %}
-                        <div class="d-flex flex-column align-items-start gap-1">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-success">
-                                    <i class="fas fa-check-circle"></i> 已确认
-                                </span>
-                                <button class="btn btn-warning btn-sm unlock-btn" 
-                                        data-tx-id="{{ t.id }}" 
-                                        title="解锁此交易记录，使其可以重新编辑">
-                                    <i class="fas fa-unlock"></i> 解锁
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                            <button class="btn btn-warning btn-sm unlock-btn"
+                                    data-tx-id="{{ t.id }}" title="解锁">
+                                <i class="fas fa-unlock"></i>
+                            </button>
+                            {% if t.is_reconciled %}
+                                <button class="btn btn-outline-secondary btn-sm unreconcile-btn"
+                                        data-tx-id="{{ t.id }}" title="取消核对">
+                                    <i class="fas fa-undo"></i>
                                 </button>
-                            </div>
-                            {% if t.confirmed_at %}
-                                <small class="text-muted">{{ t.confirmed_at.strftime('%m-%d %H:%M') }}</small>
+                            {% elif t.matched_receipt_id or t.eo_id or t.reconciliation_status == 'matched' %}
+                                <button class="btn btn-outline-info btn-sm reconcile-btn"
+                                        data-tx-id="{{ t.id }}" title="标记已核对">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm unmatch-btn"
+                                        data-tx-id="{{ t.id }}" title="解除匹配">
+                                    <i class="fas fa-unlink"></i>
+                                </button>
                             {% endif %}
                         </div>
                     {% endif %}
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="12" class="text-center text-muted">暂无交易</td></tr>
+            <tr><td colspan="13" class="text-center text-muted">暂无交易</td></tr>
             {% endfor %}
         </tbody>
     </table>
