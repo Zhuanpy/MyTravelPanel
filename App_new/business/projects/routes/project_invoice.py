@@ -174,66 +174,48 @@ def invoice_detail(invoice_id):
     # 获取关联的REF信息
     related_refs = invoice.related_refs
     
-    # 为每个REF解析extra_info并获取人员姓名
-    for ref in related_refs:
+    def build_ref_extra_data(ref):
+        """为REF构建extra_data，机票类型始终从源表获取乘客信息"""
+        extra_data = {}
         if ref.extra_info:
             try:
                 extra_data = json.loads(ref.extra_info)
-                # 检查是否已有pax_names_display（机票REF已预先生成）
-                if not extra_data.get('pax_names_display'):
-                    # 获取选中的人员姓名（其他REF使用ID列表）
-                    pax_names_ids = extra_data.get('pax_names', [])
-                    if pax_names_ids:
-                        members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
-                        pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
-                        extra_data['pax_names_display'] = ', '.join(pax_names_list)
-                    else:
-                        extra_data['pax_names_display'] = extra_data.get('pax_name', '')
-                ref.extra_data = extra_data
             except (json.JSONDecodeError, TypeError):
-                ref.extra_data = {}
-        else:
-            # 如果没有extra_info，尝试从flight_passengers获取乘客信息
-            if hasattr(ref, 'flight_passengers') and ref.flight_passengers:
-                pax_names = [p.name for p in ref.flight_passengers if p.name]
-                ref.extra_data = {
-                    'pax_names_display': ', '.join(pax_names),
-                    'departure_date': ref.flight_segments[0].departure_time.strftime('%Y-%m-%d') if ref.flight_segments and ref.flight_segments[0].departure_time else ''
-                }
+                extra_data = {}
+
+        # 机票类型：始终从flight_passengers表获取最新乘客信息
+        if hasattr(ref, 'flight_passengers') and ref.flight_passengers:
+            pax_names = [p.name for p in ref.flight_passengers if p.name]
+            extra_data['pax_names_display'] = ', '.join(pax_names)
+            if hasattr(ref, 'flight_segments') and ref.flight_segments:
+                seg = ref.flight_segments[0]
+                if seg.departure_time:
+                    extra_data['departure_date'] = seg.departure_time.strftime('%Y-%m-%d')
+        elif not extra_data.get('pax_names_display'):
+            # 非机票类型：从项目成员表获取乘客信息
+            pax_names_ids = extra_data.get('pax_names', [])
+            if pax_names_ids:
+                members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
+                pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+                extra_data['pax_names_display'] = ', '.join(pax_names_list)
             else:
-                ref.extra_data = {}
-    
+                extra_data['pax_names_display'] = extra_data.get('pax_name', '')
+
+        return extra_data
+
+    # 为每个REF构建extra_data
+    for ref in related_refs:
+        ref.extra_data = build_ref_extra_data(ref)
+
     # 获取发票明细
     items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
-    
-    # 为每个item的ref也处理extra_info
+
+    # 为每个item的ref也构建extra_data
     for item in items:
-        if item.ref and item.ref.extra_info:
-            try:
-                extra_data = json.loads(item.ref.extra_info)
-                # 检查是否已有pax_names_display（机票REF已预先生成）
-                if not extra_data.get('pax_names_display'):
-                    # 获取选中的人员姓名（其他REF使用ID列表）
-                    pax_names_ids = extra_data.get('pax_names', [])
-                    if pax_names_ids:
-                        members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
-                        pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
-                        extra_data['pax_names_display'] = ', '.join(pax_names_list)
-                    else:
-                        extra_data['pax_names_display'] = extra_data.get('pax_name', '')
-                item.ref.extra_data = extra_data
-            except (json.JSONDecodeError, TypeError):
-                item.ref.extra_data = {}
-        elif item.ref:
-            # 如果没有extra_info，尝试从flight_passengers获取乘客信息
-            if hasattr(item.ref, 'flight_passengers') and item.ref.flight_passengers:
-                pax_names = [p.name for p in item.ref.flight_passengers if p.name]
-                item.ref.extra_data = {
-                    'pax_names_display': ', '.join(pax_names),
-                    'departure_date': item.ref.flight_segments[0].departure_time.strftime('%Y-%m-%d') if item.ref.flight_segments and item.ref.flight_segments[0].departure_time else ''
-                }
-            else:
-                item.ref.extra_data = {}
+        if item.ref:
+            item.ref.extra_data = build_ref_extra_data(item.ref)
+        else:
+            item.ref_extra_data = {}
     
     # 获取项目header的最新公司信息
     header = invoice.header
