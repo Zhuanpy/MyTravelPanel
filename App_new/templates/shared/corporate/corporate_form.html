@@ -192,8 +192,44 @@
                         </div>
                     </div>
                     
-                    <!-- 第三行：集团/关联公司 -->
+                    <!-- 第三行：联系人信息 -->
                     <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.contact_person.label.text }}</label>
+                            {{ form.contact_person(class="visa-form-control", placeholder="主要联系人姓名") }}
+                            {% if form.contact_person.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.contact_person.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.contact_phone.label.text }}</label>
+                            {{ form.contact_phone(class="visa-form-control", placeholder="联系电话") }}
+                            {% if form.contact_phone.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.contact_phone.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.contact_email.label.text }}</label>
+                            {{ form.contact_email(class="visa-form-control", placeholder="email@example.com") }}
+                            {% if form.contact_email.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.contact_email.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
                         <div class="visa-form-group">
                             <label class="visa-form-label">
                                 {{ form.group_name.label.text }} <small style="color: #94a3b8;">(可选)</small>
