@@ -13,8 +13,6 @@
     .status-void { background: #6c757d; }
     .status-confirmed { background: #17a2b8; }
     .status-paid { background: #28a745; }
-    .status-draft { background: #ffc107; color: #000; }
-    .status-cancelled { background: #dc3545; }
     .filter-row { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
     .filter-row .form-control, .filter-row .form-select { height: 32px; font-size: 0.85rem; padding: 4px 8px; }
     .filter-row .btn { height: 32px; padding: 4px 12px; font-size: 0.85rem; }
@@ -48,10 +46,8 @@
             <div class="col-auto">
                 <select class="form-select" name="status">
                     <option value="">状态</option>
-                    <option value="draft" {% if current_filters.status == 'draft' %}selected{% endif %}>草稿</option>
                     <option value="confirmed" {% if current_filters.status == 'confirmed' %}selected{% endif %}>已确认</option>
                     <option value="paid" {% if current_filters.status == 'paid' %}selected{% endif %}>已付款</option>
-                    <option value="cancelled" {% if current_filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
                     <option value="void" {% if current_filters.status == 'void' %}selected{% endif %}>已作废</option>
                 </select>
             </div>

@@ -81,7 +81,7 @@ def list_prepayments():
             ProjectRef, ProjectEO.ref_id == ProjectRef.id
         ).filter(
             ProjectRef.supplier_id == supplier_id,
-            ProjectEO.status.in_(['draft', 'confirmed']),  # 待付款状态
+            ProjectEO.status == 'confirmed',  # 待付款状态
         )
         if used_eo_ids:
             query = query.filter(~ProjectEO.id.in_(used_eo_ids))  # 排除已扣减的

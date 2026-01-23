@@ -1073,7 +1073,7 @@ def get_eo_compare_data():
 
         # 查询EO记录（草稿、已确认或已付款的，排除已取消和作废的）
         eo_query = ProjectEO.query.join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
-            ProjectEO.status.in_(['draft', 'confirmed', 'paid'])
+            ProjectEO.status.in_(['confirmed', 'paid'])
         )
 
         # 按供应商筛选
@@ -1127,7 +1127,7 @@ def get_eo_compare_data():
         elif status == 'reconciled':
             # 只显示已核对的EO
             eo_query = ProjectEO.query.join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
-                ProjectEO.status.in_(['draft', 'confirmed', 'paid']),
+                ProjectEO.status.in_(['confirmed', 'paid']),
                 ProjectEO.is_reconciled == True
             )
             if supplier_id:
@@ -1263,7 +1263,7 @@ def eo_auto_match_suggestions():
         ).subquery()
 
         eo_query = ProjectEO.query.join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
-            ProjectEO.status.in_(['draft', 'confirmed', 'paid']),
+            ProjectEO.status.in_(['confirmed', 'paid']),
             ~ProjectEO.id.in_(matched_eo_ids)
         )
 

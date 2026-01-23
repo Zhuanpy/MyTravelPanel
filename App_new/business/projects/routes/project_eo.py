@@ -1902,12 +1902,10 @@ def get_status_display(status):
     """获取状态的中文显示名称"""
     if not status or not isinstance(status, str):
         return '未知'
-    
+
     status_map = {
-        'draft': '草稿',
         'confirmed': '已确认',
         'paid': '已付款',
-        'cancelled': '已取消',
         'void': '已作废'
     }
     return status_map.get(status, status)
@@ -1919,10 +1917,8 @@ def get_status_color(status):
         return 'secondary'
     
     color_map = {
-        'draft': 'secondary',
         'confirmed': 'info',
         'paid': 'success',
-        'cancelled': 'danger',
         'void': 'dark'
     }
     return color_map.get(status, 'secondary')

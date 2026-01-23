@@ -28,9 +28,8 @@ class ProjectEOForm(FlaskForm):
         DataRequired(message='请选择状态')
     ], choices=[
         ('confirmed', '已确认'),
-        ('draft', '草稿'),
-        ('paid', '已支付'),
-        ('cancelled', '已取消')
+        ('paid', '已付款'),
+        ('void', '已作废')
     ], default='confirmed')
     
     submit = SubmitField('保存EO')

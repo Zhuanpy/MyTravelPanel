@@ -123,7 +123,7 @@ def project_detail(project_id):
             ProjectEO, ProjectEO.ref_id == ProjectRef.id
         ).filter(
             ProjectRef.supplier_id.isnot(None),
-            ProjectEO.status.in_(['draft', 'confirmed']),  # 待付款状态
+            ProjectEO.status == 'confirmed',  # 待付款状态
             ~ProjectEO.id.in_(used_eo_subquery)  # 排除已扣减的
         ).group_by(
             ProjectRef.supplier_id
