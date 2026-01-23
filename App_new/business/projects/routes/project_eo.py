@@ -1571,106 +1571,107 @@ def eo_list():
         
         # 应用筛选条件
         filters = []
-        
+
         # 根据员工等级过滤EO
         if current_user.role and current_user.role.name == 'staff':
             # 检查用户资料中的员工等级
             staff_level = 1  # 默认等级
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
-            
+
             if staff_level == 1:
                 # 1级员工只能看到自己创建的项目的EO
                 filters.append(ProjectHeader.staff_name == current_user.username)
             # 2级员工可以看到所有EO，不需要额外过滤
-        
-        if status:
-            filters.append(ProjectEO.status == status)
-        
-        if supplier_id:
-            filters.append(ProjectRef.supplier_id == supplier_id)
-        
-        if supplier_type:
-            # 通过REF的ref_type_id关联到business_types来筛选
-            # 根据供应商类型枚举值匹配业务类型名称
-            supplier_type_map = {
-                'visa': '签证',
-                'flight': '机票',
-                'hotel': '酒店',
-                'transport': '用车',
-                'local_operator': '地接',
-                'other': '其他'
-            }
-            type_name = supplier_type_map.get(supplier_type)
-            if type_name:
-                filters.append(BusinessType.name == type_name)
-        
-        if external_system:
-            filters.append(ProjectEO.external_system.ilike(f'%{external_system}%'))
-        
-        if date_range:
-            today = datetime.now().date()
-            if date_range == 'today':
-                start_date = today
-                end_date = today + timedelta(days=1)
-            elif date_range == 'week':
-                start_date = today - timedelta(days=today.weekday())
-                end_date = start_date + timedelta(days=7)
-            elif date_range == 'month':
-                start_date = today.replace(day=1)
-                if today.month == 12:
+
+        # 当匹配状态筛选启用时，忽略其他筛选条件（搜索全部EO）
+        if not match_status:
+            if status:
+                filters.append(ProjectEO.status == status)
+
+            if supplier_id:
+                filters.append(ProjectRef.supplier_id == supplier_id)
+
+            if supplier_type:
+                # 通过REF的ref_type_id关联到business_types来筛选
+                supplier_type_map = {
+                    'visa': '签证',
+                    'flight': '机票',
+                    'hotel': '酒店',
+                    'transport': '用车',
+                    'local_operator': '地接',
+                    'other': '其他'
+                }
+                type_name = supplier_type_map.get(supplier_type)
+                if type_name:
+                    filters.append(BusinessType.name == type_name)
+
+            if external_system:
+                filters.append(ProjectEO.external_system.ilike(f'%{external_system}%'))
+
+            if date_range:
+                today = datetime.now().date()
+                if date_range == 'today':
+                    start_date = today
+                    end_date = today + timedelta(days=1)
+                elif date_range == 'week':
+                    start_date = today - timedelta(days=today.weekday())
+                    end_date = start_date + timedelta(days=7)
+                elif date_range == 'month':
+                    start_date = today.replace(day=1)
+                    if today.month == 12:
+                        end_date = today.replace(year=today.year + 1, month=1, day=1)
+                    else:
+                        end_date = today.replace(month=today.month + 1, day=1)
+                elif date_range == 'quarter':
+                    quarter = (today.month - 1) // 3
+                    start_date = today.replace(month=quarter * 3 + 1, day=1)
+                    if quarter == 3:
+                        end_date = today.replace(year=today.year + 1, month=1, day=1)
+                    else:
+                        end_date = today.replace(month=quarter * 3 + 4, day=1)
+                elif date_range == 'year':
+                    start_date = today.replace(month=1, day=1)
                     end_date = today.replace(year=today.year + 1, month=1, day=1)
-                else:
-                    end_date = today.replace(month=today.month + 1, day=1)
-            elif date_range == 'quarter':
-                quarter = (today.month - 1) // 3
-                start_date = today.replace(month=quarter * 3 + 1, day=1)
-                if quarter == 3:
-                    end_date = today.replace(year=today.year + 1, month=1, day=1)
-                else:
-                    end_date = today.replace(month=quarter * 3 + 4, day=1)
-            elif date_range == 'year':
-                start_date = today.replace(month=1, day=1)
-                end_date = today.replace(year=today.year + 1, month=1, day=1)
-            
-            filters.append(and_(
-                ProjectEO.created_at >= start_date,
-                ProjectEO.created_at < end_date
-            ))
-        
-        if min_amount is not None and min_amount > 0:
-            filters.append(ProjectRef.cost_price >= float(min_amount))
-        
-        if max_amount is not None and max_amount > 0:
-            filters.append(ProjectRef.cost_price <= float(max_amount))
-        
-        if keyword:
-            keyword_filter = or_(
-                ProjectEO.eo_number.ilike(f'%{keyword}%'),
-                ProjectEO.external_system.ilike(f'%{keyword}%'),
-                ProjectEO.external_reference.ilike(f'%{keyword}%'),
-                ProjectRef.description.ilike(f'%{keyword}%'),
-                ProjectRef.detailed_description.ilike(f'%{keyword}%'),
-                ProjectRef.ref_number.ilike(f'%{keyword}%'),
-                ProjectHeader.desc.ilike(f'%{keyword}%'),
-                CustomerCompany.company_name.ilike(f'%{keyword}%')
-            )
-            filters.append(keyword_filter)
 
-        # 筛选有无发票
-        if has_invoice:
-            from App_new.business.projects.models.invoice import InvoiceItem
-            # 获取有发票的 ref_id 列表
-            refs_with_invoice = db.session.query(InvoiceItem.ref_id).filter(
-                InvoiceItem.ref_id.isnot(None)
-            ).distinct().subquery()
+                filters.append(and_(
+                    ProjectEO.created_at >= start_date,
+                    ProjectEO.created_at < end_date
+                ))
 
-            if has_invoice == 'yes':
-                filters.append(ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
-            elif has_invoice == 'no':
-                filters.append(~ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+            if min_amount is not None and min_amount > 0:
+                filters.append(ProjectRef.cost_price >= float(min_amount))
 
-        # 筛选匹配状态
+            if max_amount is not None and max_amount > 0:
+                filters.append(ProjectRef.cost_price <= float(max_amount))
+
+            if keyword:
+                keyword_filter = or_(
+                    ProjectEO.eo_number.ilike(f'%{keyword}%'),
+                    ProjectEO.external_system.ilike(f'%{keyword}%'),
+                    ProjectEO.external_reference.ilike(f'%{keyword}%'),
+                    ProjectRef.description.ilike(f'%{keyword}%'),
+                    ProjectRef.detailed_description.ilike(f'%{keyword}%'),
+                    ProjectRef.ref_number.ilike(f'%{keyword}%'),
+                    ProjectHeader.desc.ilike(f'%{keyword}%'),
+                    CustomerCompany.company_name.ilike(f'%{keyword}%')
+                )
+                filters.append(keyword_filter)
+
+            # 筛选有无发票
+            if has_invoice:
+                from App_new.business.projects.models.invoice import InvoiceItem
+                # 获取有发票的 ref_id 列表
+                refs_with_invoice = db.session.query(InvoiceItem.ref_id).filter(
+                    InvoiceItem.ref_id.isnot(None)
+                ).distinct().subquery()
+
+                if has_invoice == 'yes':
+                    filters.append(ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+                elif has_invoice == 'no':
+                    filters.append(~ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+
+        # 筛选匹配状态（独立于其他筛选条件，搜索全部EO）
         if match_status:
             from App_new.finance.models.bank_statement import BankTransaction
             if match_status == 'reconciled':
@@ -1682,7 +1683,7 @@ def eo_list():
                     BankTransaction.eo_id.isnot(None)
                 ).distinct().subquery()
                 filters.append(and_(
-                    ProjectEO.is_reconciled == False,
+                    or_(ProjectEO.is_reconciled == False, ProjectEO.is_reconciled.is_(None)),
                     ProjectEO.id.in_(db.session.query(matched_eo_ids.c.eo_id))
                 ))
             elif match_status == 'unmatched':
@@ -1691,7 +1692,7 @@ def eo_list():
                     BankTransaction.eo_id.isnot(None)
                 ).distinct().subquery()
                 filters.append(and_(
-                    ProjectEO.is_reconciled == False,
+                    or_(ProjectEO.is_reconciled == False, ProjectEO.is_reconciled.is_(None)),
                     ~ProjectEO.id.in_(db.session.query(matched_eo_ids.c.eo_id))
                 ))
 
