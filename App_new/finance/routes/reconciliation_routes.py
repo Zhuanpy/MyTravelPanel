@@ -652,6 +652,14 @@ def unmatch():
                 return jsonify({'success': False, 'message': '该交易未匹配任何收款记录'})
 
             old_receipt_id = transaction.matched_receipt_id
+
+            # 同步清除收据的核对状态
+            receipt = ProjectReceipt.query.get(old_receipt_id)
+            if receipt:
+                receipt.is_reconciled = False
+                receipt.reconciled_at = None
+                receipt.reconciled_by = None
+
             transaction.matched_receipt_id = None
             transaction.reconciliation_status = 'unmatched'
             transaction.accounting_ref = None
@@ -1634,6 +1642,14 @@ def eo_unmatch():
 
             # 取消匹配
             old_eo_id = transaction.eo_id
+
+            # 同步清除EO的核对状态
+            eo_record = ProjectEO.query.get(old_eo_id)
+            if eo_record:
+                eo_record.is_reconciled = False
+                eo_record.reconciled_at = None
+                eo_record.reconciled_by = None
+
             transaction.eo_id = None
             transaction.reconciliation_status = 'unmatched'
             transaction.accounting_ref = None
@@ -1642,6 +1658,13 @@ def eo_unmatch():
 
         elif eo_id:
             # 通过EO ID解除所有关联的银行交易匹配
+            # 同步清除EO的核对状态
+            eo_record = ProjectEO.query.get(eo_id)
+            if eo_record:
+                eo_record.is_reconciled = False
+                eo_record.reconciled_at = None
+                eo_record.reconciled_by = None
+
             # 1. 查找直接关联的银行交易 (eo_id字段)
             transactions = BankTransaction.query.filter_by(eo_id=eo_id).all()
             for tx in transactions:

@@ -5,6 +5,8 @@ from App_new.utils.Invoice import CountHid
 from App_new.exts import db
 from App_new.finance.models.statement import BankStatement, BankTransaction
 from App_new.finance.models.bank_keywords import BankStatementKeyword
+from App_new.business.projects.models.receipt import ProjectReceipt
+from App_new.business.projects.models.eo import ProjectEO
 import os
 import logging
 from App_new.config import Config
@@ -464,6 +466,22 @@ def cmb_unmatch_transaction(transaction_id):
         # 解除匹配
         old_receipt_id = transaction.matched_receipt_id
         old_eo_id = transaction.eo_id
+
+        # 同步清除收据的核对状态
+        if old_receipt_id:
+            receipt = ProjectReceipt.query.get(old_receipt_id)
+            if receipt:
+                receipt.is_reconciled = False
+                receipt.reconciled_at = None
+                receipt.reconciled_by = None
+
+        # 同步清除EO的核对状态
+        if old_eo_id:
+            eo = ProjectEO.query.get(old_eo_id)
+            if eo:
+                eo.is_reconciled = False
+                eo.reconciled_at = None
+                eo.reconciled_by = None
 
         transaction.matched_receipt_id = None
         transaction.eo_id = None
