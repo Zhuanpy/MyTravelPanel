@@ -17,8 +17,8 @@ class BankTransactionMatch(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('bank_transactions.id', ondelete='CASCADE'),
                               nullable=False, comment='银行交易ID')
-    match_type = db.Column(db.Enum('receipt', 'eo'), nullable=False,
-                          comment='匹配类型：receipt=收款，eo=EO')
+    match_type = db.Column(db.Enum('receipt', 'eo', 'payment', 'prepayment'), nullable=False,
+                          comment='匹配类型：receipt=收款，eo=EO，payment=付款，prepayment=预付款')
     match_id = db.Column(db.Integer, nullable=False,
                         comment='匹配记录ID（收款ID或EO ID）')
     allocated_amount = db.Column(db.Numeric(12, 2), nullable=False,
@@ -53,6 +53,16 @@ class BankTransactionMatch(db.Model):
     def get_eo_matches(cls, eo_id):
         """获取EO的所有匹配记录"""
         return cls.query.filter_by(match_type='eo', match_id=eo_id).all()
+
+    @classmethod
+    def get_payment_matches(cls, payment_id):
+        """获取付款的所有匹配记录"""
+        return cls.query.filter_by(match_type='payment', match_id=payment_id).all()
+
+    @classmethod
+    def get_prepayment_matches(cls, prepayment_id):
+        """获取预付款的所有匹配记录"""
+        return cls.query.filter_by(match_type='prepayment', match_id=prepayment_id).all()
 
     @classmethod
     def get_transaction_matches(cls, transaction_id):

@@ -43,6 +43,11 @@ class SupplierPayment(db.Model):
     status = db.Column(db.Enum('draft', 'confirmed', 'cancelled'),
                        default='confirmed', nullable=False, comment='状态')
 
+    # 核对状态
+    is_reconciled = db.Column(db.Boolean, default=False, comment='是否已核对')
+    reconciled_at = db.Column(db.DateTime, nullable=True, comment='核对时间')
+    reconciled_by = db.Column(db.String(50), nullable=True, comment='核对人')
+
     # 备注
     remarks = db.Column(db.Text, nullable=True, comment='备注')
 

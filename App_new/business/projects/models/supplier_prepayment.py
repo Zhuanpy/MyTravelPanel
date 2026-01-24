@@ -45,6 +45,11 @@ class SupplierPrepayment(db.Model):
     journal_entry_id = db.Column(db.Integer, db.ForeignKey('project_journal_entries.id'),
                                  nullable=True, comment='日记账分录ID')
 
+    # 核对状态
+    is_reconciled = db.Column(db.Boolean, default=False, comment='是否已核对')
+    reconciled_at = db.Column(db.DateTime, nullable=True, comment='核对时间')
+    reconciled_by = db.Column(db.String(50), nullable=True, comment='核对人')
+
     # 备注
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     reference = db.Column(db.String(100), nullable=True, comment='参考号/交易号')

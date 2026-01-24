@@ -11,6 +11,8 @@ from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.eo import ProjectEO
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.project import CustomerCompany
+from App_new.business.projects.models.supplier_payment import SupplierPayment
+from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
 from App_new.utils.decorators import staff_only
 from datetime import datetime, timedelta
 from sqlalchemy import desc, func, or_, and_
@@ -1123,14 +1125,20 @@ def get_eo_compare_data():
                 )
             )
 
+        # 获取通过BankTransactionMatch表已匹配的银行交易ID
+        matched_tx_ids_via_btm = db.session.query(BankTransactionMatch.transaction_id).filter(
+            BankTransactionMatch.match_type.in_(['payment', 'prepayment', 'eo'])
+        ).subquery()
+
         # 根据状态筛选
         if status == 'all':
-            # 默认排除已匹配EO的记录
+            # 排除已匹配EO的记录和已通过BankTransactionMatch匹配的记录
             tx_query = tx_query.filter(
                 or_(
                     BankTransaction.eo_id.is_(None),
                     BankTransaction.eo_id == 0
-                )
+                ),
+                ~BankTransaction.id.in_(matched_tx_ids_via_btm)
             )
             # 排除已确认的个人消费记录
             tx_query = tx_query.filter(
@@ -1145,6 +1153,7 @@ def get_eo_compare_data():
                     BankTransaction.eo_id.is_(None),
                     BankTransaction.eo_id == 0
                 ),
+                ~BankTransaction.id.in_(matched_tx_ids_via_btm),
                 # 排除个人消费标记的记录
                 or_(
                     BankTransaction.owner_label.is_(None),
@@ -1154,8 +1163,10 @@ def get_eo_compare_data():
             )
         elif status == 'matched':
             tx_query = tx_query.filter(
-                BankTransaction.eo_id.isnot(None),
-                BankTransaction.eo_id != 0
+                or_(
+                    and_(BankTransaction.eo_id.isnot(None), BankTransaction.eo_id != 0),
+                    BankTransaction.id.in_(matched_tx_ids_via_btm)
+                )
             )
         elif status == 'reconciled':
             # 只显示已核对的记录
@@ -1257,6 +1268,78 @@ def get_eo_compare_data():
         eo_query = eo_query.order_by(desc(ProjectEO.eo_date), desc(ProjectEO.created_at))
         eos = eo_query.limit(200).all()
 
+        # 查询付款记录（payment_source含bank的已确认记录）
+        pay_query = SupplierPayment.query.filter(
+            SupplierPayment.status == 'confirmed',
+            SupplierPayment.payment_source.in_(['bank', 'mixed'])
+        )
+        if supplier_id:
+            pay_query = pay_query.filter(SupplierPayment.supplier_id == int(supplier_id))
+        if start_date:
+            pay_query = pay_query.filter(SupplierPayment.payment_date >= start_date)
+        if end_date:
+            pay_query = pay_query.filter(SupplierPayment.payment_date <= end_date)
+        if hide_reconciled:
+            pay_query = pay_query.filter(
+                or_(SupplierPayment.is_reconciled == False, SupplierPayment.is_reconciled.is_(None))
+            )
+        # 根据状态筛选付款记录
+        matched_payment_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'payment'
+        ).subquery()
+        if status in ('all', 'unmatched'):
+            pay_query = pay_query.filter(~SupplierPayment.id.in_(matched_payment_ids))
+        elif status == 'matched':
+            pay_query = pay_query.filter(SupplierPayment.id.in_(matched_payment_ids))
+        elif status == 'reconciled':
+            pay_query = SupplierPayment.query.filter(
+                SupplierPayment.status == 'confirmed',
+                SupplierPayment.is_reconciled == True
+            )
+            if supplier_id:
+                pay_query = pay_query.filter(SupplierPayment.supplier_id == int(supplier_id))
+            if start_date:
+                pay_query = pay_query.filter(SupplierPayment.payment_date >= start_date)
+            if end_date:
+                pay_query = pay_query.filter(SupplierPayment.payment_date <= end_date)
+        payments = pay_query.order_by(desc(SupplierPayment.payment_date)).limit(100).all()
+
+        # 查询预付款记录（银行转账方式的已确认记录）
+        prepay_query = SupplierPrepayment.query.filter(
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+            SupplierPrepayment.payment_method == 'bank_transfer'
+        )
+        if supplier_id:
+            prepay_query = prepay_query.filter(SupplierPrepayment.supplier_id == int(supplier_id))
+        if start_date:
+            prepay_query = prepay_query.filter(SupplierPrepayment.payment_date >= start_date)
+        if end_date:
+            prepay_query = prepay_query.filter(SupplierPrepayment.payment_date <= end_date)
+        if hide_reconciled:
+            prepay_query = prepay_query.filter(
+                or_(SupplierPrepayment.is_reconciled == False, SupplierPrepayment.is_reconciled.is_(None))
+            )
+        # 根据状态筛选预付款记录
+        matched_prepayment_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'prepayment'
+        ).subquery()
+        if status in ('all', 'unmatched'):
+            prepay_query = prepay_query.filter(~SupplierPrepayment.id.in_(matched_prepayment_ids))
+        elif status == 'matched':
+            prepay_query = prepay_query.filter(SupplierPrepayment.id.in_(matched_prepayment_ids))
+        elif status == 'reconciled':
+            prepay_query = SupplierPrepayment.query.filter(
+                SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+                SupplierPrepayment.is_reconciled == True
+            )
+            if supplier_id:
+                prepay_query = prepay_query.filter(SupplierPrepayment.supplier_id == int(supplier_id))
+            if start_date:
+                prepay_query = prepay_query.filter(SupplierPrepayment.payment_date >= start_date)
+            if end_date:
+                prepay_query = prepay_query.filter(SupplierPrepayment.payment_date <= end_date)
+        prepayments = prepay_query.order_by(desc(SupplierPrepayment.payment_date)).limit(100).all()
+
         # 格式化数据
         tx_data = []
         for tx in transactions:
@@ -1301,10 +1384,58 @@ def get_eo_compare_data():
             eo_dict['matched_tx_id'] = matched_tx.id if matched_tx else None
             eo_data.append(eo_dict)
 
+        # 格式化付款数据
+        payment_data = []
+        for pay in payments:
+            is_matched = BankTransactionMatch.query.filter_by(
+                match_type='payment', match_id=pay.id
+            ).first() is not None
+            payment_data.append({
+                'id': pay.id,
+                'record_type': 'payment',
+                'number': pay.payment_no,
+                'date': pay.payment_date.isoformat() if pay.payment_date else '',
+                'amount': float(pay.total_amount) if pay.total_amount else 0,
+                'currency': pay.currency or 'SGD',
+                'supplier_name': pay.supplier.company_name if pay.supplier else '',
+                'supplier_id': pay.supplier_id,
+                'payment_source': pay.payment_source,
+                'eo_count': pay.eo_count or 0,
+                'remarks': pay.remarks or '',
+                'is_matched': is_matched,
+                'is_reconciled': pay.is_reconciled or False,
+                'status': pay.status
+            })
+
+        # 格式化预付款数据
+        prepayment_data = []
+        for pre in prepayments:
+            is_matched = BankTransactionMatch.query.filter_by(
+                match_type='prepayment', match_id=pre.id
+            ).first() is not None
+            prepayment_data.append({
+                'id': pre.id,
+                'record_type': 'prepayment',
+                'number': pre.prepayment_number,
+                'date': pre.payment_date.isoformat() if pre.payment_date else '',
+                'amount': float(pre.amount) if pre.amount else 0,
+                'currency': pre.currency or 'SGD',
+                'supplier_name': pre.supplier.company_name if pre.supplier else '',
+                'supplier_id': pre.supplier_id,
+                'payment_method': pre.payment_method,
+                'remarks': pre.remarks or '',
+                'reference': pre.reference or '',
+                'is_matched': is_matched,
+                'is_reconciled': pre.is_reconciled or False,
+                'status': pre.status
+            })
+
         return jsonify({
             'success': True,
             'bank_transactions': tx_data,
-            'project_eos': eo_data
+            'project_eos': eo_data,
+            'payments': payment_data,
+            'prepayments': prepayment_data
         })
 
     except Exception as e:
@@ -1333,12 +1464,16 @@ def eo_auto_match_suggestions():
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
         # 查询未匹配的银行支出记录
+        # 排除已通过BankTransactionMatch表匹配的银行交易
+        already_matched_tx_ids = db.session.query(BankTransactionMatch.transaction_id).subquery()
+
         tx_query = BankTransaction.query.join(BankStatement).filter(
             BankTransaction.transaction_type == 'debit',
             or_(
                 BankTransaction.eo_id.is_(None),
                 BankTransaction.eo_id == 0
-            )
+            ),
+            ~BankTransaction.id.in_(already_matched_tx_ids)
         )
 
         # 排除已核对的记录
@@ -1404,48 +1539,108 @@ def eo_auto_match_suggestions():
 
         eos = eo_query.all()
 
-        # 构建EO号 -> EO对象的索引，用于REF优先匹配
+        # 查询未匹配的付款记录
+        matched_pay_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'payment'
+        ).subquery()
+        pay_query = SupplierPayment.query.filter(
+            SupplierPayment.status == 'confirmed',
+            SupplierPayment.payment_source.in_(['bank', 'mixed']),
+            ~SupplierPayment.id.in_(matched_pay_ids),
+            or_(SupplierPayment.is_reconciled == False, SupplierPayment.is_reconciled.is_(None))
+        )
+        if supplier_id:
+            pay_query = pay_query.filter(SupplierPayment.supplier_id == int(supplier_id))
+        if start_date:
+            pay_query = pay_query.filter(SupplierPayment.payment_date >= start_date - timedelta(days=14))
+        if end_date:
+            pay_query = pay_query.filter(SupplierPayment.payment_date <= end_date)
+        unmatched_payments = pay_query.all()
+
+        # 查询未匹配的预付款记录
+        matched_prepay_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'prepayment'
+        ).subquery()
+        prepay_query = SupplierPrepayment.query.filter(
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+            SupplierPrepayment.payment_method == 'bank_transfer',
+            ~SupplierPrepayment.id.in_(matched_prepay_ids),
+            or_(SupplierPrepayment.is_reconciled == False, SupplierPrepayment.is_reconciled.is_(None))
+        )
+        if supplier_id:
+            prepay_query = prepay_query.filter(SupplierPrepayment.supplier_id == int(supplier_id))
+        if start_date:
+            prepay_query = prepay_query.filter(SupplierPrepayment.payment_date >= start_date - timedelta(days=14))
+        if end_date:
+            prepay_query = prepay_query.filter(SupplierPrepayment.payment_date <= end_date)
+        unmatched_prepayments = prepay_query.all()
+
+        # 构建编号索引，用于REF优先匹配
         eo_by_number = {}
         for e in eos:
             if e.eo_number:
                 eo_by_number[e.eo_number.strip()] = e
+
+        pay_by_number = {}
+        for p in unmatched_payments:
+            if p.payment_no:
+                pay_by_number[p.payment_no.strip()] = p
+
+        prepay_by_number = {}
+        for p in unmatched_prepayments:
+            if p.prepayment_number:
+                prepay_by_number[p.prepayment_number.strip()] = p
 
         # 计算匹配建议
         suggestions = []
         for tx in transactions:
             best_match = None
             best_score = 0
+            best_match_type = 'eo'
 
-            # 优先：通过 accounting_ref 匹配EO号
+            # 优先：通过 accounting_ref 匹配编号
             ref = (tx.accounting_ref or '').strip()
-            if ref and ref in eo_by_number:
-                best_match = eo_by_number[ref]
-                best_score = 200  # REF直接匹配，最高优先级
-            else:
-                # 回退：金额+日期+供应商匹配
+            if ref:
+                if ref in eo_by_number:
+                    best_match = eo_by_number[ref]
+                    best_score = 200
+                    best_match_type = 'eo'
+                elif ref in pay_by_number:
+                    best_match = pay_by_number[ref]
+                    best_score = 200
+                    best_match_type = 'payment'
+                elif ref in prepay_by_number:
+                    best_match = prepay_by_number[ref]
+                    best_score = 200
+                    best_match_type = 'prepayment'
+
+            if not best_match:
+                # 回退：金额+日期匹配（EO）
                 for eo in eos:
                     score = calculate_eo_match_score(tx, eo)
                     if score > best_score and score >= 40:
                         best_score = score
                         best_match = eo
+                        best_match_type = 'eo'
+
+                # 金额+日期匹配（Payment）
+                for pay in unmatched_payments:
+                    score = calculate_payment_match_score(tx, pay)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = pay
+                        best_match_type = 'payment'
+
+                # 金额+日期匹配（Prepayment）
+                for pre in unmatched_prepayments:
+                    score = calculate_prepayment_match_score(tx, pre)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = pre
+                        best_match_type = 'prepayment'
 
             if best_match:
-                # 获取REF信息
-                ref_number = ''
-                cost_price = 0
-                supplier_name = ''
-                project_number = ''
-                header_id = None
-                if best_match.ref:
-                    ref_number = best_match.ref.ref_number or ''
-                    cost_price = float(best_match.ref.cost_price) if best_match.ref.cost_price else 0
-                    if best_match.ref.supplier:
-                        supplier_name = best_match.ref.supplier.company_name or ''
-                    if best_match.ref.header:
-                        project_number = best_match.ref.header.hid or ''
-                        header_id = best_match.ref.header.id
-
-                suggestions.append({
+                suggestion = {
                     'transaction_id': tx.id,
                     'transaction_date': tx.transaction_date.isoformat(),
                     'transaction_amount': float(tx.amount),
@@ -1454,18 +1649,59 @@ def eo_auto_match_suggestions():
                     'transaction_accounting_ref': tx.accounting_ref or '',
                     'transaction_bank_name': tx.statement.bank_name if tx.statement else '',
                     'transaction_account_name': tx.statement.account_name if tx.statement else '',
-                    'eo_id': best_match.id,
-                    'eo_number': best_match.eo_number,
-                    'eo_date': best_match.paid_date.isoformat() if best_match.paid_date else (best_match.eo_date.isoformat() if best_match.eo_date else ''),
-                    'eo_amount': cost_price,
-                    'pay_amount': float(best_match.pay_amount) if best_match.pay_amount else cost_price,
-                    'ref_number': ref_number,
-                    'supplier_name': supplier_name,
-                    'project_number': project_number,
-                    'header_id': header_id,
+                    'match_type': best_match_type,
                     'match_score': best_score,
                     'match_level': get_match_level(best_score)
-                })
+                }
+
+                if best_match_type == 'eo':
+                    ref_number = ''
+                    cost_price = 0
+                    supplier_name = ''
+                    project_number = ''
+                    header_id = None
+                    if best_match.ref:
+                        ref_number = best_match.ref.ref_number or ''
+                        cost_price = float(best_match.ref.cost_price) if best_match.ref.cost_price else 0
+                        if best_match.ref.supplier:
+                            supplier_name = best_match.ref.supplier.company_name or ''
+                        if best_match.ref.header:
+                            project_number = best_match.ref.header.hid or ''
+                            header_id = best_match.ref.header.id
+                    suggestion.update({
+                        'eo_id': best_match.id,
+                        'match_id': best_match.id,
+                        'eo_number': best_match.eo_number,
+                        'record_number': best_match.eo_number,
+                        'eo_date': best_match.paid_date.isoformat() if best_match.paid_date else (best_match.eo_date.isoformat() if best_match.eo_date else ''),
+                        'record_date': best_match.paid_date.isoformat() if best_match.paid_date else (best_match.eo_date.isoformat() if best_match.eo_date else ''),
+                        'eo_amount': cost_price,
+                        'pay_amount': float(best_match.pay_amount) if best_match.pay_amount else cost_price,
+                        'record_amount': float(best_match.pay_amount) if best_match.pay_amount else cost_price,
+                        'ref_number': ref_number,
+                        'supplier_name': supplier_name,
+                        'project_number': project_number,
+                        'header_id': header_id
+                    })
+                elif best_match_type == 'payment':
+                    suggestion.update({
+                        'match_id': best_match.id,
+                        'record_number': best_match.payment_no,
+                        'record_date': best_match.payment_date.isoformat() if best_match.payment_date else '',
+                        'record_amount': float(best_match.total_amount) if best_match.total_amount else 0,
+                        'supplier_name': best_match.supplier.company_name if best_match.supplier else '',
+                        'eo_count': best_match.eo_count or 0
+                    })
+                elif best_match_type == 'prepayment':
+                    suggestion.update({
+                        'match_id': best_match.id,
+                        'record_number': best_match.prepayment_number,
+                        'record_date': best_match.payment_date.isoformat() if best_match.payment_date else '',
+                        'record_amount': float(best_match.amount) if best_match.amount else 0,
+                        'supplier_name': best_match.supplier.company_name if best_match.supplier else ''
+                    })
+
+                suggestions.append(suggestion)
 
         # 按匹配分数降序排列
         suggestions.sort(key=lambda x: x['match_score'], reverse=True)
@@ -1558,46 +1794,189 @@ def calculate_eo_match_score(transaction, eo):
     return score
 
 
+def calculate_payment_match_score(transaction, payment):
+    """计算银行支出与付款记录的匹配分数"""
+    tx_amount = float(transaction.amount or 0)
+    pay_amount = float(payment.total_amount or 0)
+
+    if tx_amount == 0 or pay_amount == 0:
+        return 0
+
+    # 金额匹配（允许0.01误差）
+    if abs(tx_amount - pay_amount) >= 0.01:
+        diff_ratio = abs(tx_amount - pay_amount) / pay_amount
+        if diff_ratio > 0.01:
+            return 0
+
+    # 日期匹配
+    tx_date = transaction.transaction_date
+    pay_date = payment.payment_date
+
+    score = 40
+    if tx_date and pay_date:
+        date_diff = abs((tx_date - pay_date).days)
+        if date_diff == 0:
+            score = 100
+        elif date_diff <= 3:
+            score = 90
+        elif date_diff <= 7:
+            score = 70
+        elif date_diff <= 14:
+            score = 50
+
+    # 供应商名称匹配加分
+    counterparty = (transaction.counterparty_name or '').lower()
+    description = (transaction.description or '').lower()
+    bank_text = counterparty + ' ' + description
+    supplier_name = (payment.supplier.company_name or '').lower() if payment.supplier else ''
+    if supplier_name and len(supplier_name) >= 2 and supplier_name in bank_text:
+        score = min(100, score + 15)
+
+    return score
+
+
+def calculate_prepayment_match_score(transaction, prepayment):
+    """计算银行支出与预付款记录的匹配分数"""
+    tx_amount = float(transaction.amount or 0)
+    pre_amount = float(prepayment.amount or 0)
+
+    if tx_amount == 0 or pre_amount == 0:
+        return 0
+
+    # 金额匹配（允许0.01误差）
+    if abs(tx_amount - pre_amount) >= 0.01:
+        diff_ratio = abs(tx_amount - pre_amount) / pre_amount
+        if diff_ratio > 0.01:
+            return 0
+
+    # 日期匹配
+    tx_date = transaction.transaction_date
+    pre_date = prepayment.payment_date
+
+    score = 40
+    if tx_date and pre_date:
+        date_diff = abs((tx_date - pre_date).days)
+        if date_diff == 0:
+            score = 100
+        elif date_diff <= 3:
+            score = 90
+        elif date_diff <= 7:
+            score = 70
+        elif date_diff <= 14:
+            score = 50
+
+    # 供应商名称匹配加分
+    counterparty = (transaction.counterparty_name or '').lower()
+    description = (transaction.description or '').lower()
+    bank_text = counterparty + ' ' + description
+    supplier_name = (prepayment.supplier.company_name or '').lower() if prepayment.supplier else ''
+    if supplier_name and len(supplier_name) >= 2 and supplier_name in bank_text:
+        score = min(100, score + 15)
+
+    return score
+
+
 @reconciliation_bp.route('/api/eo-manual-match', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
 def eo_manual_match():
-    """EO手动匹配API"""
+    """EO手动匹配API - 支持EO/Payment/Prepayment"""
     try:
         data = request.get_json()
         transaction_id = data.get('transaction_id')
-        eo_id = data.get('eo_id')
+        match_type = data.get('match_type', 'eo')
+        match_id = data.get('match_id') or data.get('eo_id')
 
-        if not transaction_id or not eo_id:
-            return jsonify({'success': False, 'message': '缺少交易ID或EO ID'})
+        if not transaction_id or not match_id:
+            return jsonify({'success': False, 'message': '缺少交易ID或匹配记录ID'})
 
         # 查找银行交易
         transaction = BankTransaction.query.get(transaction_id)
         if not transaction:
             return jsonify({'success': False, 'message': '银行交易记录不存在'})
 
-        # 查找EO记录
-        eo = ProjectEO.query.get(eo_id)
-        if not eo:
-            return jsonify({'success': False, 'message': 'EO记录不存在'})
+        current_user_name = current_user.username if current_user else 'system'
 
-        # 检查是否已经匹配
-        if transaction.eo_id:
-            return jsonify({'success': False, 'message': '该银行交易已匹配其他EO记录'})
+        if match_type == 'eo':
+            # EO匹配（保持原有逻辑）
+            eo = ProjectEO.query.get(match_id)
+            if not eo:
+                return jsonify({'success': False, 'message': 'EO记录不存在'})
 
-        existing_match = BankTransaction.query.filter_by(eo_id=eo_id).first()
-        if existing_match:
-            return jsonify({'success': False, 'message': '该EO记录已被其他银行交易匹配'})
+            if transaction.eo_id:
+                return jsonify({'success': False, 'message': '该银行交易已匹配其他EO记录'})
 
-        # 执行匹配
-        transaction.eo_id = eo_id
-        transaction.accounting_ref = eo.eo_number
-        # 自动确认该银行记录
-        transaction.is_confirmed = True
-        transaction.confirmed_at = datetime.utcnow()
-        transaction.confirmed_by = current_user.username if current_user else 'system'
-        transaction.updated_at = datetime.utcnow()
+            existing_match = BankTransaction.query.filter_by(eo_id=match_id).first()
+            if existing_match:
+                return jsonify({'success': False, 'message': '该EO记录已被其他银行交易匹配'})
+
+            transaction.eo_id = match_id
+            transaction.accounting_ref = eo.eo_number
+            transaction.is_confirmed = True
+            transaction.confirmed_at = datetime.utcnow()
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = datetime.utcnow()
+
+        elif match_type == 'payment':
+            # 付款匹配
+            payment = SupplierPayment.query.get(match_id)
+            if not payment:
+                return jsonify({'success': False, 'message': '付款记录不存在'})
+
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='payment', match_id=match_id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': '该付款记录已被其他银行交易匹配'})
+
+            # 通过BankTransactionMatch表建立关联
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='payment',
+                match_id=match_id,
+                allocated_amount=payment.total_amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.accounting_ref = payment.payment_no
+            transaction.reconciliation_status = 'matched'
+            transaction.is_confirmed = True
+            transaction.confirmed_at = datetime.utcnow()
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = datetime.utcnow()
+
+        elif match_type == 'prepayment':
+            # 预付款匹配
+            prepayment = SupplierPrepayment.query.get(match_id)
+            if not prepayment:
+                return jsonify({'success': False, 'message': '预付款记录不存在'})
+
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='prepayment', match_id=match_id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': '该预付款记录已被其他银行交易匹配'})
+
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='prepayment',
+                match_id=match_id,
+                allocated_amount=prepayment.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.accounting_ref = prepayment.prepayment_number
+            transaction.reconciliation_status = 'matched'
+            transaction.is_confirmed = True
+            transaction.confirmed_at = datetime.utcnow()
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = datetime.utcnow()
+
+        else:
+            return jsonify({'success': False, 'message': f'不支持的匹配类型: {match_type}'})
 
         db.session.commit()
 
@@ -1605,12 +1984,13 @@ def eo_manual_match():
             'success': True,
             'message': '匹配成功，已自动确认银行记录',
             'transaction_id': transaction_id,
-            'eo_id': eo_id
+            'match_type': match_type,
+            'match_id': match_id
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"EO手动匹配失败: {str(e)}")
+        logger.error(f"手动匹配失败: {str(e)}")
         return jsonify({'success': False, 'message': f'匹配失败: {str(e)}'})
 
 
@@ -1619,14 +1999,16 @@ def eo_manual_match():
 @login_required
 @staff_only
 def eo_unmatch():
-    """取消EO匹配API - 支持通过transaction_id或eo_id解除匹配"""
+    """取消匹配API - 支持EO/Payment/Prepayment解除匹配"""
     try:
         data = request.get_json()
         transaction_id = data.get('transaction_id')
         eo_id = data.get('eo_id')
+        match_type = data.get('match_type', 'eo')
+        match_id = data.get('match_id')
 
-        if not transaction_id and not eo_id:
-            return jsonify({'success': False, 'message': '缺少交易ID或EO ID'})
+        if not transaction_id and not eo_id and not match_id:
+            return jsonify({'success': False, 'message': '缺少交易ID或匹配记录ID'})
 
         unmatch_count = 0
         current_time = datetime.utcnow()
@@ -1637,35 +2019,91 @@ def eo_unmatch():
             if not transaction:
                 return jsonify({'success': False, 'message': '银行交易记录不存在'})
 
-            if not transaction.eo_id:
-                return jsonify({'success': False, 'message': '该交易未匹配任何EO记录'})
+            # 解除EO直连匹配
+            if transaction.eo_id:
+                old_eo_id = transaction.eo_id
+                eo_record = ProjectEO.query.get(old_eo_id)
+                if eo_record:
+                    eo_record.is_reconciled = False
+                    eo_record.reconciled_at = None
+                    eo_record.reconciled_by = None
+                transaction.eo_id = None
+                unmatch_count += 1
 
-            # 取消匹配
-            old_eo_id = transaction.eo_id
+            # 解除BankTransactionMatch表中的匹配
+            tx_matches = BankTransactionMatch.query.filter_by(transaction_id=transaction_id).all()
+            for m in tx_matches:
+                # 清除对应记录的核对状态
+                if m.match_type == 'payment':
+                    pay = SupplierPayment.query.get(m.match_id)
+                    if pay:
+                        pay.is_reconciled = False
+                        pay.reconciled_at = None
+                        pay.reconciled_by = None
+                elif m.match_type == 'prepayment':
+                    pre = SupplierPrepayment.query.get(m.match_id)
+                    if pre:
+                        pre.is_reconciled = False
+                        pre.reconciled_at = None
+                        pre.reconciled_by = None
+                elif m.match_type == 'eo':
+                    eo = ProjectEO.query.get(m.match_id)
+                    if eo:
+                        eo.is_reconciled = False
+                        eo.reconciled_at = None
+                        eo.reconciled_by = None
+                db.session.delete(m)
+                unmatch_count += 1
 
-            # 同步清除EO的核对状态
-            eo_record = ProjectEO.query.get(old_eo_id)
-            if eo_record:
-                eo_record.is_reconciled = False
-                eo_record.reconciled_at = None
-                eo_record.reconciled_by = None
+            if unmatch_count > 0:
+                transaction.reconciliation_status = 'unmatched'
+                transaction.accounting_ref = None
+                transaction.updated_at = current_time
+            else:
+                return jsonify({'success': False, 'message': '该交易未匹配任何记录'})
 
-            transaction.eo_id = None
-            transaction.reconciliation_status = 'unmatched'
-            transaction.accounting_ref = None
-            transaction.updated_at = current_time
-            unmatch_count = 1
+        elif match_id and match_type in ('payment', 'prepayment'):
+            # 通过付款/预付款ID解除匹配
+            matches = BankTransactionMatch.query.filter_by(match_type=match_type, match_id=match_id).all()
+            for match in matches:
+                tx = BankTransaction.query.get(match.transaction_id)
+                if tx:
+                    other_matches = BankTransactionMatch.query.filter(
+                        BankTransactionMatch.transaction_id == tx.id,
+                        BankTransactionMatch.id != match.id
+                    ).count()
+                    if other_matches == 0 and not tx.eo_id:
+                        tx.reconciliation_status = 'unmatched'
+                        tx.accounting_ref = None
+                    tx.updated_at = current_time
+                db.session.delete(match)
+                unmatch_count += 1
+
+            # 清除核对状态
+            if match_type == 'payment':
+                pay = SupplierPayment.query.get(match_id)
+                if pay:
+                    pay.is_reconciled = False
+                    pay.reconciled_at = None
+                    pay.reconciled_by = None
+            elif match_type == 'prepayment':
+                pre = SupplierPrepayment.query.get(match_id)
+                if pre:
+                    pre.is_reconciled = False
+                    pre.reconciled_at = None
+                    pre.reconciled_by = None
+
+            if unmatch_count == 0:
+                return jsonify({'success': False, 'message': '该记录没有关联的银行交易'})
 
         elif eo_id:
-            # 通过EO ID解除所有关联的银行交易匹配
-            # 同步清除EO的核对状态
+            # 通过EO ID解除所有关联的银行交易匹配（保持原有逻辑）
             eo_record = ProjectEO.query.get(eo_id)
             if eo_record:
                 eo_record.is_reconciled = False
                 eo_record.reconciled_at = None
                 eo_record.reconciled_by = None
 
-            # 1. 查找直接关联的银行交易 (eo_id字段)
             transactions = BankTransaction.query.filter_by(eo_id=eo_id).all()
             for tx in transactions:
                 tx.eo_id = None
@@ -1674,12 +2112,10 @@ def eo_unmatch():
                 tx.updated_at = current_time
                 unmatch_count += 1
 
-            # 2. 查找通过多对多匹配表关联的记录
             matches = BankTransactionMatch.query.filter_by(match_type='eo', match_id=eo_id).all()
             for match in matches:
                 tx = BankTransaction.query.get(match.transaction_id)
                 if tx:
-                    # 检查是否还有其他匹配
                     other_matches = BankTransactionMatch.query.filter(
                         BankTransactionMatch.transaction_id == tx.id,
                         BankTransactionMatch.id != match.id
@@ -1689,13 +2125,6 @@ def eo_unmatch():
                     tx.updated_at = current_time
                 db.session.delete(match)
                 unmatch_count += 1
-
-            # 3. 更新EO的核对状态
-            eo = ProjectEO.query.get(eo_id)
-            if eo:
-                eo.is_reconciled = False
-                eo.reconciled_at = None
-                eo.reconciled_by = None
 
             if unmatch_count == 0:
                 return jsonify({'success': False, 'message': '该EO没有关联的银行交易记录'})
@@ -1710,7 +2139,7 @@ def eo_unmatch():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"取消EO匹配失败: {str(e)}")
+        logger.error(f"取消匹配失败: {str(e)}")
         return jsonify({'success': False, 'message': f'取消匹配失败: {str(e)}'})
 
 
@@ -1719,46 +2148,86 @@ def eo_unmatch():
 @login_required
 @staff_only
 def eo_batch_match():
-    """EO批量匹配API（接受匹配建议）"""
+    """批量匹配API - 支持EO/Payment/Prepayment"""
     try:
         data = request.get_json()
-        matches = data.get('matches', [])  # [{transaction_id, eo_id}, ...]
+        matches = data.get('matches', [])  # [{transaction_id, match_type, match_id}, ...]
 
         if not matches:
             return jsonify({'success': False, 'message': '没有选择要匹配的记录'})
 
         success_count = 0
         failed_items = []
+        current_user_name = current_user.username if current_user else 'system'
 
         for match in matches:
             tx_id = match.get('transaction_id')
-            eo_id = match.get('eo_id')
+            match_type = match.get('match_type', 'eo')
+            match_id = match.get('match_id') or match.get('eo_id')
 
             transaction = BankTransaction.query.get(tx_id)
-            eo = ProjectEO.query.get(eo_id)
-
             if not transaction:
                 failed_items.append({'tx_id': tx_id, 'reason': '交易不存在'})
                 continue
-            if not eo:
-                failed_items.append({'tx_id': tx_id, 'reason': 'EO不存在'})
-                continue
-            if transaction.eo_id:
-                failed_items.append({'tx_id': tx_id, 'reason': '已有匹配'})
+
+            if match_type == 'eo':
+                eo = ProjectEO.query.get(match_id)
+                if not eo:
+                    failed_items.append({'tx_id': tx_id, 'reason': 'EO不存在'})
+                    continue
+                if transaction.eo_id:
+                    failed_items.append({'tx_id': tx_id, 'reason': '已有匹配'})
+                    continue
+                existing = BankTransaction.query.filter_by(eo_id=match_id).first()
+                if existing:
+                    failed_items.append({'tx_id': tx_id, 'reason': 'EO已被匹配'})
+                    continue
+                transaction.eo_id = match_id
+                transaction.accounting_ref = eo.eo_number
+
+            elif match_type == 'payment':
+                payment = SupplierPayment.query.get(match_id)
+                if not payment:
+                    failed_items.append({'tx_id': tx_id, 'reason': '付款记录不存在'})
+                    continue
+                existing = BankTransactionMatch.query.filter_by(match_type='payment', match_id=match_id).first()
+                if existing:
+                    failed_items.append({'tx_id': tx_id, 'reason': '付款已被匹配'})
+                    continue
+                new_match = BankTransactionMatch(
+                    transaction_id=tx_id, match_type='payment',
+                    match_id=match_id, allocated_amount=payment.total_amount,
+                    created_by=current_user_name
+                )
+                db.session.add(new_match)
+                transaction.accounting_ref = payment.payment_no
+                transaction.reconciliation_status = 'matched'
+
+            elif match_type == 'prepayment':
+                prepayment = SupplierPrepayment.query.get(match_id)
+                if not prepayment:
+                    failed_items.append({'tx_id': tx_id, 'reason': '预付款记录不存在'})
+                    continue
+                existing = BankTransactionMatch.query.filter_by(match_type='prepayment', match_id=match_id).first()
+                if existing:
+                    failed_items.append({'tx_id': tx_id, 'reason': '预付款已被匹配'})
+                    continue
+                new_match = BankTransactionMatch(
+                    transaction_id=tx_id, match_type='prepayment',
+                    match_id=match_id, allocated_amount=prepayment.amount,
+                    created_by=current_user_name
+                )
+                db.session.add(new_match)
+                transaction.accounting_ref = prepayment.prepayment_number
+                transaction.reconciliation_status = 'matched'
+
+            else:
+                failed_items.append({'tx_id': tx_id, 'reason': f'不支持的类型: {match_type}'})
                 continue
 
-            existing = BankTransaction.query.filter_by(eo_id=eo_id).first()
-            if existing:
-                failed_items.append({'tx_id': tx_id, 'reason': 'EO已被匹配'})
-                continue
-
-            # 执行匹配
-            transaction.eo_id = eo_id
-            transaction.accounting_ref = eo.eo_number
-            # 自动确认该银行记录
             transaction.is_confirmed = True
             transaction.confirmed_at = datetime.utcnow()
-            transaction.confirmed_by = current_user.username if current_user else 'system'
+            transaction.confirmed_by = current_user_name
             transaction.updated_at = datetime.utcnow()
             success_count += 1
 
@@ -1783,18 +2252,22 @@ def eo_batch_match():
 @login_required
 @staff_only
 def eo_mark_reconciled():
-    """标记EO为已核对API"""
+    """标记支出记录为已核对API - 支持EO/Payment/Prepayment"""
     try:
         data = request.get_json()
         transaction_ids = data.get('transaction_ids', [])
         eo_ids = data.get('eo_ids', [])
+        payment_ids = data.get('payment_ids', [])
+        prepayment_ids = data.get('prepayment_ids', [])
         is_reconciled = data.get('is_reconciled', True)
 
-        if not transaction_ids and not eo_ids:
+        if not transaction_ids and not eo_ids and not payment_ids and not prepayment_ids:
             return jsonify({'success': False, 'message': '请选择要标记的记录'})
 
         tx_count = 0
         eo_count = 0
+        pay_count = 0
+        prepay_count = 0
         current_time = datetime.utcnow()
         current_user_name = current_user.username if current_user else 'system'
 
@@ -1826,6 +2299,32 @@ def eo_mark_reconciled():
                 eo.updated_at = current_time
                 eo_count += 1
 
+        # 标记付款记录
+        for pay_id in payment_ids:
+            pay = SupplierPayment.query.get(pay_id)
+            if pay:
+                pay.is_reconciled = is_reconciled
+                if is_reconciled:
+                    pay.reconciled_at = current_time
+                    pay.reconciled_by = current_user_name
+                else:
+                    pay.reconciled_at = None
+                    pay.reconciled_by = None
+                pay_count += 1
+
+        # 标记预付款记录
+        for pre_id in prepayment_ids:
+            pre = SupplierPrepayment.query.get(pre_id)
+            if pre:
+                pre.is_reconciled = is_reconciled
+                if is_reconciled:
+                    pre.reconciled_at = current_time
+                    pre.reconciled_by = current_user_name
+                else:
+                    pre.reconciled_at = None
+                    pre.reconciled_by = None
+                prepay_count += 1
+
         db.session.commit()
 
         action = '核对' if is_reconciled else '取消核对'
@@ -1834,17 +2333,23 @@ def eo_mark_reconciled():
             message_parts.append(f'{tx_count} 条银行记录')
         if eo_count > 0:
             message_parts.append(f'{eo_count} 条EO记录')
+        if pay_count > 0:
+            message_parts.append(f'{pay_count} 条付款记录')
+        if prepay_count > 0:
+            message_parts.append(f'{prepay_count} 条预付款记录')
 
         return jsonify({
             'success': True,
             'message': f'已{action} ' + '、'.join(message_parts),
             'transaction_count': tx_count,
-            'eo_count': eo_count
+            'eo_count': eo_count,
+            'payment_count': pay_count,
+            'prepayment_count': prepay_count
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"标记EO核对状态失败: {str(e)}")
+        logger.error(f"标记核对状态失败: {str(e)}")
         return jsonify({'success': False, 'message': f'操作失败: {str(e)}'})
 
 
@@ -1892,7 +2397,7 @@ def multi_match():
                 failed_items.append({'transaction_id': tx_id, 'reason': '参数不完整'})
                 continue
 
-            if match_type not in ['receipt', 'eo']:
+            if match_type not in ['receipt', 'eo', 'payment', 'prepayment']:
                 failed_items.append({'transaction_id': tx_id, 'reason': '无效的匹配类型'})
                 continue
 
@@ -1902,16 +2407,26 @@ def multi_match():
                 failed_items.append({'transaction_id': tx_id, 'reason': '银行交易不存在'})
                 continue
 
-            # 验证收款/EO存在
+            # 验证匹配记录存在
             if match_type == 'receipt':
                 target = ProjectReceipt.query.get(match_id)
                 if not target:
                     failed_items.append({'transaction_id': tx_id, 'reason': f'收款记录 {match_id} 不存在'})
                     continue
-            else:
+            elif match_type == 'eo':
                 target = ProjectEO.query.get(match_id)
                 if not target:
                     failed_items.append({'transaction_id': tx_id, 'reason': f'EO记录 {match_id} 不存在'})
+                    continue
+            elif match_type == 'payment':
+                target = SupplierPayment.query.get(match_id)
+                if not target:
+                    failed_items.append({'transaction_id': tx_id, 'reason': f'付款记录 {match_id} 不存在'})
+                    continue
+            elif match_type == 'prepayment':
+                target = SupplierPrepayment.query.get(match_id)
+                if not target:
+                    failed_items.append({'transaction_id': tx_id, 'reason': f'预付款记录 {match_id} 不存在'})
                     continue
 
             # 检查是否已存在该匹配
