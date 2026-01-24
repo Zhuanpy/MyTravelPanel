@@ -108,9 +108,12 @@
                     {% endif %}
                 </td>
                 <td style="white-space: nowrap; font-size: 11px;">
-                    {% if t.matched_receipt and t.transaction_type == 'credit' %}
+                    {% if t.matched_receipt and t.matched_eo %}
+                        <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=t.matched_receipt.id) }}" target="_blank" class="text-success" title="收款: {{ t.matched_receipt.receipt_number }}">{{ t.matched_receipt.receipt_number }}</a><br>
+                        <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=t.matched_eo.id) }}" target="_blank" class="text-danger" title="EO: {{ t.matched_eo.eo_number }}">{{ t.matched_eo.eo_number }}</a>
+                    {% elif t.matched_receipt %}
                         <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=t.matched_receipt.id) }}" target="_blank" class="text-success" title="收款: {{ t.matched_receipt.receipt_number }}">{{ t.matched_receipt.receipt_number }}</a>
-                    {% elif t.matched_eo and t.transaction_type == 'debit' %}
+                    {% elif t.matched_eo %}
                         <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=t.matched_eo.id) }}" target="_blank" class="text-danger" title="EO: {{ t.matched_eo.eo_number }}">{{ t.matched_eo.eo_number }}</a>
                     {% elif (t.matched_receipt_id or t.eo_id or t.reconciliation_status == 'matched') and t.accounting_ref %}
                         <small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
@@ -119,10 +122,15 @@
                     {% endif %}
                 </td>
                 <td style="white-space: nowrap; font-size: 13px; font-weight: 500;">
-                    {% if t.matched_receipt and t.transaction_type == 'credit' %}
-                        <span class="text-success">{{ '%.2f'|format(t.matched_receipt.amount) }}</span>
-                    {% elif t.matched_eo and t.transaction_type == 'debit' %}
-                        <span class="text-danger">{{ '%.2f'|format(t.matched_eo.pay_amount if t.matched_eo.pay_amount else (t.matched_eo.ref.cost_price if t.matched_eo.ref and t.matched_eo.ref.cost_price else 0)) }}</span>
+                    {% set receipt_amt = t.matched_receipt.amount if t.matched_receipt else 0 %}
+                    {% set eo_amt = (t.matched_eo.pay_amount if t.matched_eo.pay_amount else (t.matched_eo.ref.cost_price if t.matched_eo.ref and t.matched_eo.ref.cost_price else 0)) if t.matched_eo else 0 %}
+                    {% set total_match_amt = receipt_amt + eo_amt %}
+                    {% if t.matched_receipt and t.matched_eo %}
+                        <span class="text-primary" title="收据:{{ '%.2f'|format(receipt_amt) }} + EO:{{ '%.2f'|format(eo_amt) }}">{{ '%.2f'|format(total_match_amt) }}</span>
+                    {% elif t.matched_receipt %}
+                        <span class="text-success">{{ '%.2f'|format(receipt_amt) }}</span>
+                    {% elif t.matched_eo %}
+                        <span class="text-danger">{{ '%.2f'|format(eo_amt) }}</span>
                     {% else %}
                         -
                     {% endif %}
