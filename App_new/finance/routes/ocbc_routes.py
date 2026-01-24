@@ -7,6 +7,9 @@ from App_new.finance.models.statement import BankStatement, BankTransaction
 from App_new.finance.models.bank_keywords import BankStatementKeyword
 from App_new.business.projects.models.receipt import ProjectReceipt
 from App_new.business.projects.models.eo import ProjectEO
+from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+from App_new.business.projects.models.supplier_payment import SupplierPayment
+from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
 import os
 import logging
 from App_new.config import Config
@@ -497,8 +500,26 @@ def ocbc_unmatch_transaction(transaction_id):
                 eo.reconciled_at = None
                 eo.reconciled_by = None
 
+        # 清除BankTransactionMatch关联（Payment/Prepayment）
+        btm_matches = BankTransactionMatch.query.filter_by(transaction_id=transaction_id).all()
+        for m in btm_matches:
+            if m.match_type == 'payment':
+                payment = SupplierPayment.query.get(m.match_id)
+                if payment:
+                    payment.is_reconciled = False
+                    payment.reconciled_at = None
+                    payment.reconciled_by = None
+            elif m.match_type == 'prepayment':
+                prepayment = SupplierPrepayment.query.get(m.match_id)
+                if prepayment:
+                    prepayment.is_reconciled = False
+                    prepayment.reconciled_at = None
+                    prepayment.reconciled_by = None
+            db.session.delete(m)
+
         transaction.matched_receipt_id = None
         transaction.eo_id = None
+        transaction.accounting_ref = None
         transaction.reconciliation_status = 'unmatched'
         transaction.is_reconciled = False
         transaction.reconciled_at = None

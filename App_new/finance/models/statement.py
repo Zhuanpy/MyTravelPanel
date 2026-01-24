@@ -174,6 +174,30 @@ class BankTransaction(db.Model):
     matched_receipt = db.relationship('ProjectReceipt', backref='bank_transactions')
     matched_eo = db.relationship('ProjectEO', backref='bank_transactions', foreign_keys=[eo_id])
 
+    @property
+    def matched_payment(self):
+        """获取通过BankTransactionMatch匹配的付款记录"""
+        from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+        match = BankTransactionMatch.query.filter_by(
+            transaction_id=self.id, match_type='payment'
+        ).first()
+        if match:
+            from App_new.business.projects.models.supplier_payment import SupplierPayment
+            return SupplierPayment.query.get(match.match_id)
+        return None
+
+    @property
+    def matched_prepayment(self):
+        """获取通过BankTransactionMatch匹配的预付款记录"""
+        from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+        match = BankTransactionMatch.query.filter_by(
+            transaction_id=self.id, match_type='prepayment'
+        ).first()
+        if match:
+            from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+            return SupplierPrepayment.query.get(match.match_id)
+        return None
+
     def __repr__(self):
         return f'<BankTransaction {self.transaction_date} - {self.amount}>'
 
