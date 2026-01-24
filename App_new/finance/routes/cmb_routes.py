@@ -52,6 +52,7 @@ def cmb_bank():
         'type': request.args.get('type', ''),
         'owner': request.args.get('owner', ''),
         'ref': request.args.get('ref', ''),
+        'match_status': request.args.get('match_status', ''),
         'operation_status': request.args.get('operation_status', ''),
         'sort': request.args.get('sort', 'date_desc')
     }
@@ -142,6 +143,28 @@ def cmb_bank():
             BankTransaction.accounting_ref.like(f'%{filters["ref"]}%')
         )
     
+    if filters['match_status']:
+        if filters['match_status'] == 'reconciled':
+            transactions_query = transactions_query.filter(
+                BankTransaction.is_reconciled == True
+            )
+        elif filters['match_status'] == 'matched':
+            transactions_query = transactions_query.filter(
+                BankTransaction.is_reconciled != True,
+                db.or_(
+                    BankTransaction.matched_receipt_id.isnot(None),
+                    BankTransaction.eo_id.isnot(None),
+                    BankTransaction.reconciliation_status == 'matched'
+                )
+            )
+        elif filters['match_status'] == 'unmatched':
+            transactions_query = transactions_query.filter(
+                db.or_(BankTransaction.is_reconciled == False, BankTransaction.is_reconciled.is_(None)),
+                BankTransaction.matched_receipt_id.is_(None),
+                db.or_(BankTransaction.eo_id.is_(None), BankTransaction.eo_id == 0),
+                db.or_(BankTransaction.reconciliation_status != 'matched', BankTransaction.reconciliation_status.is_(None))
+            )
+
     if filters['operation_status']:
         if filters['operation_status'] == 'confirmed':
             transactions_query = transactions_query.filter(
@@ -151,7 +174,7 @@ def cmb_bank():
             transactions_query = transactions_query.filter(
                 BankTransaction.is_confirmed == False
             )
-    
+
     # 应用排序
     if filters['sort'] == 'date_desc':
         transactions_query = transactions_query.order_by(desc(BankTransaction.transaction_date))
@@ -240,10 +263,12 @@ def cmb_tx_update():
             if data['is_confirmed']:
                 transaction.confirmed_at = datetime.utcnow()
                 transaction.confirmed_by = data.get('confirmed_by', 'system')
+                transaction.is_reconciled = True
             else:
                 transaction.confirmed_at = None
                 transaction.confirmed_by = None
-        
+                transaction.is_reconciled = False
+
         db.session.commit()
         
         return jsonify({'success': True, 'message': '交易记录更新成功'})
@@ -276,10 +301,11 @@ def cmb_tx_confirm():
         # 确认交易记录
         transaction.is_confirmed = True
         transaction.confirmed_at = datetime.now()
-        transaction.confirmed_by = 'user'  # 这里可以改为实际的用户名
-        
+        transaction.confirmed_by = 'user'
+        transaction.is_reconciled = True
+
         db.session.commit()
-        
+
         return jsonify({'success': True, 'message': '交易记录确认成功'})
         
     except Exception as e:
@@ -318,7 +344,8 @@ def cmb_batch_confirm():
         for transaction in transactions:
             transaction.is_confirmed = True
             transaction.confirmed_at = datetime.utcnow()
-            transaction.confirmed_by = 'staff'  # 这里可以改为当前用户信息
+            transaction.confirmed_by = 'staff'
+            transaction.is_reconciled = True
             confirmed_count += 1
         
         # 保存更改
@@ -333,6 +360,51 @@ def cmb_batch_confirm():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'批量确认失败: {str(e)}'}), 500
+
+
+@cmb_blue.route('/cmb_batch_unlock', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def cmb_batch_unlock():
+    """批量解锁CMB银行交易记录"""
+    try:
+        data = request.get_json()
+
+        if not data or 'transaction_ids' not in data:
+            return jsonify({'success': False, 'message': '缺少交易记录ID列表'})
+
+        transaction_ids = data['transaction_ids']
+
+        if not isinstance(transaction_ids, list) or len(transaction_ids) == 0:
+            return jsonify({'success': False, 'message': '交易记录ID列表不能为空'})
+
+        transactions = BankTransaction.query.filter(
+            BankTransaction.id.in_(transaction_ids),
+            BankTransaction.is_confirmed == True
+        ).all()
+
+        if not transactions:
+            return jsonify({'success': False, 'message': '没有找到需要解锁的交易记录'})
+
+        unlocked_count = 0
+        for transaction in transactions:
+            transaction.is_confirmed = False
+            transaction.confirmed_at = None
+            transaction.confirmed_by = None
+            unlocked_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'成功解锁 {unlocked_count} 个交易记录',
+            'unlocked_count': unlocked_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'批量解锁失败: {str(e)}'}), 500
 
 
 @cmb_blue.route('/cmb_unlock_transaction/<int:transaction_id>', methods=['POST'])

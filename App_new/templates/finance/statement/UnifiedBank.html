@@ -12,7 +12,7 @@
     .table-responsive { overflow-x: auto; }
 
     /* 表格紧凑样式 */
-    #txTable { table-layout: fixed; width: 100%; min-width: 1100px; font-size: 12px; }
+    #txTable { table-layout: fixed; width: 100%; min-width: 1180px; font-size: 12px; }
     #txTable th, #txTable td { text-align: center; vertical-align: middle; padding: 4px 6px; }
     #txTable th { font-size: 11px; white-space: nowrap; }
     #txTable tbody tr { height: auto; }
@@ -27,9 +27,11 @@
     #txTable th:nth-child(7), #txTable td:nth-child(7) { width: 80px; text-align: left; } /* 关键词 */
     #txTable th:nth-child(8), #txTable td:nth-child(8) { width: 80px; } /* 归属 */
     #txTable th:nth-child(9), #txTable td:nth-child(9) { width: 80px; } /* REF/EO */
-    #txTable th:nth-child(10), #txTable td:nth-child(10) { width: 85px; } /* 匹配状态 */
-    #txTable th:nth-child(11), #txTable td:nth-child(11) { width: 12%; text-align: left; } /* 备注 */
-    #txTable th:nth-child(12), #txTable td:nth-child(12) { width: 100px; white-space: nowrap; } /* 操作 */
+    #txTable th:nth-child(10), #txTable td:nth-child(10) { width: 68px; } /* 匹配状态 */
+    #txTable th:nth-child(11), #txTable td:nth-child(11) { width: 95px; } /* 匹配单号 */
+    #txTable th:nth-child(12), #txTable td:nth-child(12) { width: 80px; } /* 匹配金额 */
+    #txTable th:nth-child(13), #txTable td:nth-child(13) { width: 100px; white-space: nowrap; } /* 操作 */
+    #txTable th:nth-child(14), #txTable td:nth-child(14) { width: 100px; text-align: left; } /* 备注 */
 
     /* 表单控件紧凑 */
     #txTable .tx-input, #txTable select.tx-input {
@@ -88,6 +90,7 @@
     .form-control[name="start_date"], .form-control[name="end_date"] { width: 120px; font-size: 12px; padding: 4px 6px; }
     .form-select[name="type"], .form-select[name="owner"] { width: 90px; font-size: 12px; padding: 4px 6px; }
     .form-control[name="ref"] { width: 100px; font-size: 12px; padding: 4px 6px; }
+    .form-select[name="match_status"] { width: 90px; font-size: 12px; padding: 4px 6px; }
     .form-select[name="operation_status"] { width: 90px; font-size: 12px; padding: 4px 6px; }
     .form-select[name="sort"] { width: 140px; font-size: 12px; padding: 4px 6px; }
 
@@ -286,6 +289,15 @@
                     <div class="col-auto">
                         <label class="form-label">REF/EO</label>
                         <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">匹配状态</label>
+                        <select class="form-select" name="match_status">
+                            <option value="">全部</option>
+                            <option value="reconciled" {% if filters.match_status=='reconciled' %}selected{% endif %}>已核对</option>
+                            <option value="matched" {% if filters.match_status=='matched' %}selected{% endif %}>已匹配</option>
+                            <option value="unmatched" {% if filters.match_status=='unmatched' %}selected{% endif %}>待匹配</option>
+                        </select>
                     </div>
                     <div class="col-auto">
                         <label class="form-label">操作状态</label>
@@ -661,13 +673,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // 更新选择计数和批量操作区域显示
         function updateSelection() {
             const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
+            const lockedCheckedBoxes = document.querySelectorAll('.locked-checkbox:checked');
             const count = checkedBoxes.length;
-            
+            const lockedCount = lockedCheckedBoxes.length;
+
             // 计算选中交易的金额总和
             let totalAmount = 0;
-            if (count > 0) {
-                checkedBoxes.forEach(checkbox => {
-                    // 获取该行第4列（金额列）的值
+            const allChecked = [...checkedBoxes, ...lockedCheckedBoxes];
+            if (allChecked.length > 0) {
+                allChecked.forEach(checkbox => {
                     const row = checkbox.closest('tr');
                     const amountCell = row.querySelector('td:nth-child(4)');
                     if (amountCell) {
@@ -677,24 +691,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
             }
-            
+
             const selectedCount = document.getElementById('selectedCount');
             const batchActions = document.getElementById('batchActions');
             const batchStatus = document.getElementById('batchStatus');
-            
+            const totalSelected = count + lockedCount;
+
             if (selectedCount) {
-                if (count > 0) {
-                    selectedCount.textContent = `已选择 ${count} 个交易，金额总计: ${totalAmount.toFixed(2)}`;
+                let text = '';
+                if (count > 0 && lockedCount > 0) {
+                    text = `未确认 ${count} + 锁定 ${lockedCount}，金额: ${totalAmount.toFixed(2)}`;
+                } else if (count > 0) {
+                    text = `已选 ${count} 个未确认，金额: ${totalAmount.toFixed(2)}`;
+                } else if (lockedCount > 0) {
+                    text = `已选 ${lockedCount} 个锁定，金额: ${totalAmount.toFixed(2)}`;
                 } else {
-                    selectedCount.textContent = `已选择 ${count} 个交易`;
+                    text = '已选 0';
                 }
+                selectedCount.textContent = text;
             }
-            
-            if (batchActions) batchActions.style.display = count > 0 ? 'block' : 'none';
-            
+
+            if (batchActions) batchActions.style.display = totalSelected > 0 ? 'block' : 'none';
+
             if (batchStatus) {
-                if (count > 0) {
-                    batchStatus.textContent = `已选择 ${count} 个交易 (金额总计: ${totalAmount.toFixed(2)})，点击"一键确认"进行批量操作`;
+                if (totalSelected > 0) {
+                    batchStatus.textContent = `已选择 ${totalSelected} 个交易 (金额总计: ${totalAmount.toFixed(2)})`;
                 } else {
                     batchStatus.textContent = '准备批量操作...';
                 }
@@ -782,7 +803,84 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })();
             }
-            
+
+            // 选择所有锁定交易按钮
+            else if (e.target && e.target.id === 'selectAllLockedBtn') {
+                const lockedCheckboxes = document.querySelectorAll('.locked-checkbox');
+                const checkedCount = document.querySelectorAll('.locked-checkbox:checked').length;
+
+                if (lockedCheckboxes.length === 0) {
+                    alert('当前页面没有锁定的交易记录');
+                    return;
+                }
+
+                const shouldCheck = checkedCount < lockedCheckboxes.length;
+                lockedCheckboxes.forEach(checkbox => {
+                    checkbox.checked = shouldCheck;
+                });
+
+                const selectBtn = e.target;
+                if (shouldCheck) {
+                    selectBtn.textContent = '取消选择';
+                    selectBtn.classList.remove('btn-outline-warning');
+                    selectBtn.classList.add('btn-warning');
+                } else {
+                    selectBtn.textContent = '选择锁定';
+                    selectBtn.classList.remove('btn-warning');
+                    selectBtn.classList.add('btn-outline-warning');
+                }
+
+                updateSelection();
+            }
+
+            // 一键解锁按钮
+            else if (e.target && e.target.id === 'batchUnlockBtn') {
+                const checkedBoxes = document.querySelectorAll('.locked-checkbox:checked');
+                const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.txId));
+
+                if (transactionIds.length === 0) {
+                    alert('请先选择要解锁的锁定交易记录');
+                    return;
+                }
+
+                if (!confirm(`确定要解锁选中的 ${transactionIds.length} 个交易记录吗？`)) {
+                    return;
+                }
+
+                (async () => {
+                    const originalText = e.target.innerHTML;
+                    try {
+                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 解锁中...';
+                        e.target.disabled = true;
+
+                        const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_batch_unlock') }}"{% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_batch_unlock') }}"{% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_batch_unlock') }}"{% endif %};
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ transaction_ids: transactionIds })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
+                        } else {
+                            alert(`批量解锁失败: ${result.message}`);
+                        }
+
+                    } catch (error) {
+                        console.error('批量解锁错误:', error);
+                        alert('批量解锁失败，请重试');
+                    } finally {
+                        e.target.innerHTML = originalText;
+                        e.target.disabled = false;
+                    }
+                })();
+            }
+
             // 单个确认按钮
             else if (e.target && e.target.classList.contains('confirm-btn')) {
                 const transactionId = parseInt(e.target.dataset.txId);
@@ -838,8 +936,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // 解锁按钮
-            else if (e.target && e.target.classList.contains('unlock-btn')) {
-                const transactionId = parseInt(e.target.dataset.txId);
+            else if (e.target && e.target.closest('.unlock-btn')) {
+                const btn = e.target.closest('.unlock-btn');
+                const transactionId = parseInt(btn.dataset.txId);
                 
                 if (!transactionId) {
                     alert('交易记录ID无效');
@@ -852,46 +951,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 (async () => {
-                    const originalText = e.target.innerHTML;
+                    const originalText = btn.innerHTML;
                     try {
-                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 解锁中...';
-                        e.target.disabled = true;
-                        
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 解锁中...';
+                        btn.disabled = true;
+
                         const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_unlock_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_unlock_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_unlock_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
-                        
+
                         const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
                         });
-                        
+
                         const result = await response.json();
-                        
+
                         if (result.success) {
-                            // 直接刷新表格，不显示成功提示
-                            console.log('解锁成功，准备刷新表格');
                             if (window.refreshTableOnly) {
                                 window.refreshTableOnly();
-                            } else {
-                                console.error('refreshTableOnly函数不存在');
                             }
                         } else {
-                            // 只在失败时显示错误提示
                             alert(`解锁失败: ${result.message}`);
                         }
-                        
+
                     } catch (error) {
                         console.error('解锁错误:', error);
                         alert('解锁失败，请重试');
                     } finally {
-                        e.target.innerHTML = originalText;
-                        e.target.disabled = false;
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
                     }
                 })();
             }
 
             // 解除匹配按钮
-            else if (e.target && e.target.classList.contains('unmatch-btn')) {
-                const transactionId = parseInt(e.target.dataset.txId);
+            else if (e.target && e.target.closest('.unmatch-btn')) {
+                const unmatchBtn = e.target.closest('.unmatch-btn');
+                const transactionId = parseInt(unmatchBtn.dataset.txId);
 
                 if (!transactionId) {
                     alert('交易记录ID无效');
@@ -903,10 +998,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 (async () => {
-                    const originalText = e.target.innerHTML;
+                    const originalText = unmatchBtn.innerHTML;
                     try {
-                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        e.target.disabled = true;
+                        unmatchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        unmatchBtn.disabled = true;
 
                         const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_unmatch_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_unmatch_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_unmatch_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
 
@@ -929,15 +1024,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.error('解除匹配错误:', error);
                         alert('解除匹配失败，请重试');
                     } finally {
-                        e.target.innerHTML = originalText;
-                        e.target.disabled = false;
+                        unmatchBtn.innerHTML = originalText;
+                        unmatchBtn.disabled = false;
                     }
                 })();
             }
 
             // 标记已核对按钮
-            else if (e.target && e.target.classList.contains('reconcile-btn')) {
-                const transactionId = parseInt(e.target.dataset.txId);
+            else if (e.target && e.target.closest('.reconcile-btn')) {
+                const reconcileBtn = e.target.closest('.reconcile-btn');
+                const transactionId = parseInt(reconcileBtn.dataset.txId);
 
                 if (!transactionId) {
                     alert('交易记录ID无效');
@@ -945,10 +1041,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 (async () => {
-                    const originalText = e.target.innerHTML;
+                    const originalText = reconcileBtn.innerHTML;
                     try {
-                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        e.target.disabled = true;
+                        reconcileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        reconcileBtn.disabled = true;
 
                         const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
 
@@ -972,15 +1068,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.error('标记核对错误:', error);
                         alert('标记核对失败，请重试');
                     } finally {
-                        e.target.innerHTML = originalText;
-                        e.target.disabled = false;
+                        reconcileBtn.innerHTML = originalText;
+                        reconcileBtn.disabled = false;
                     }
                 })();
             }
 
             // 取消核对按钮
-            else if (e.target && e.target.classList.contains('unreconcile-btn')) {
-                const transactionId = parseInt(e.target.dataset.txId);
+            else if (e.target && e.target.closest('.unreconcile-btn')) {
+                const unreconcileBtn = e.target.closest('.unreconcile-btn');
+                const transactionId = parseInt(unreconcileBtn.dataset.txId);
 
                 if (!transactionId) {
                     alert('交易记录ID无效');
@@ -992,10 +1089,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 (async () => {
-                    const originalText = e.target.innerHTML;
+                    const originalText = unreconcileBtn.innerHTML;
                     try {
-                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        e.target.disabled = true;
+                        unreconcileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        unreconcileBtn.disabled = true;
 
                         const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_reconcile_transaction', transaction_id=0) }}".replace('/0', '/' + transactionId){% endif %};
 
@@ -1019,25 +1116,78 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.error('取消核对错误:', error);
                         alert('取消核对失败，请重试');
                     } finally {
-                        e.target.innerHTML = originalText;
-                        e.target.disabled = false;
+                        unreconcileBtn.innerHTML = originalText;
+                        unreconcileBtn.disabled = false;
+                    }
+                })();
+            }
+
+            // 快速匹配按钮（根据REF/EO字段匹配）
+            else if (e.target && e.target.closest('.quick-match-btn')) {
+                const quickMatchBtn = e.target.closest('.quick-match-btn');
+                const transactionId = parseInt(quickMatchBtn.dataset.txId);
+
+                if (!transactionId) {
+                    alert('交易记录ID无效');
+                    return;
+                }
+
+                (async () => {
+                    const originalText = quickMatchBtn.innerHTML;
+                    try {
+                        quickMatchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        quickMatchBtn.disabled = true;
+
+                        const response = await fetch("{{ url_for('reconciliation.quick_match_by_ref') }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ transaction_id: transactionId })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            if (window.refreshTableOnly) {
+                                window.refreshTableOnly();
+                            }
+                        } else {
+                            alert(`快速匹配失败: ${result.message}`);
+                        }
+
+                    } catch (error) {
+                        console.error('快速匹配错误:', error);
+                        alert('快速匹配失败，请重试');
+                    } finally {
+                        quickMatchBtn.innerHTML = originalText;
+                        quickMatchBtn.disabled = false;
                     }
                 })();
             }
 
             // 重置选择按钮
             else if (e.target && e.target.id === 'clearSelectionBtn') {
-                const transactionCheckboxes = document.querySelectorAll('.transaction-checkbox');
-                transactionCheckboxes.forEach(checkbox => {
-                    checkbox.checked = false;
-                });
+                document.querySelectorAll('.transaction-checkbox').forEach(cb => cb.checked = false);
+                document.querySelectorAll('.locked-checkbox').forEach(cb => cb.checked = false);
+                // 重置按钮状态
+                const selectAllBtn = document.getElementById('selectAllBtn');
+                if (selectAllBtn) {
+                    selectAllBtn.textContent = '一键选择';
+                    selectAllBtn.classList.remove('btn-primary');
+                    selectAllBtn.classList.add('btn-outline-primary');
+                }
+                const selectAllLockedBtn = document.getElementById('selectAllLockedBtn');
+                if (selectAllLockedBtn) {
+                    selectAllLockedBtn.textContent = '选择锁定';
+                    selectAllLockedBtn.classList.remove('btn-warning');
+                    selectAllLockedBtn.classList.add('btn-outline-warning');
+                }
                 updateSelection();
             }
         });
         
         // 使用事件委托处理复选框变化和输入字段自动保存
         document.addEventListener('change', function(e) {
-            if (e.target && e.target.classList.contains('transaction-checkbox')) {
+            if (e.target && (e.target.classList.contains('transaction-checkbox') || e.target.classList.contains('locked-checkbox'))) {
                 updateSelection();
             }
             // 处理输入字段的自动保存

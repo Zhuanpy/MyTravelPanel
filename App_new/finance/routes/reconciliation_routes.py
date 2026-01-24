@@ -306,17 +306,30 @@ def auto_match_suggestions():
 
         receipts = receipt_query.all()
 
+        # 构建收据号 -> 收据对象的索引，用于REF优先匹配
+        receipt_by_number = {}
+        for r in receipts:
+            if r.receipt_number:
+                receipt_by_number[r.receipt_number.strip()] = r
+
         # 计算匹配建议
         suggestions = []
         for tx in transactions:
             best_match = None
             best_score = 0
 
-            for receipt in receipts:
-                score = calculate_match_score(tx, receipt)
-                if score > best_score and score >= 40:
-                    best_score = score
-                    best_match = receipt
+            # 优先：通过 accounting_ref 匹配收据号
+            ref = (tx.accounting_ref or '').strip()
+            if ref and ref in receipt_by_number:
+                best_match = receipt_by_number[ref]
+                best_score = 200  # REF直接匹配，最高优先级
+            else:
+                # 回退：金额+日期+名称匹配
+                for receipt in receipts:
+                    score = calculate_match_score(tx, receipt)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = receipt
 
             if best_match:
                 suggestions.append({
@@ -428,7 +441,9 @@ def calculate_match_score(transaction, receipt):
 
 def get_match_level(score):
     """根据分数获取匹配级别"""
-    if score >= 100:
+    if score >= 200:
+        return 'REF匹配'
+    elif score >= 100:
         return '精确匹配'
     elif score >= 80:
         return '高度匹配'
@@ -504,6 +519,87 @@ def manual_match():
     except Exception as e:
         db.session.rollback()
         logger.error(f"手动匹配失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'匹配失败: {str(e)}'})
+
+
+@reconciliation_bp.route('/api/quick-match-by-ref', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def quick_match_by_ref():
+    """根据REF/EO字段快速匹配收据或EO"""
+    try:
+        data = request.get_json()
+        transaction_id = data.get('transaction_id')
+
+        if not transaction_id:
+            return jsonify({'success': False, 'message': '缺少交易ID'})
+
+        transaction = BankTransaction.query.get(transaction_id)
+        if not transaction:
+            return jsonify({'success': False, 'message': '银行交易记录不存在'})
+
+        ref = (transaction.accounting_ref or '').strip()
+        if not ref:
+            return jsonify({'success': False, 'message': 'REF/EO字段为空，请先填写收据号或EO号'})
+
+        # 已经匹配过的不再重复匹配
+        if transaction.matched_receipt_id or transaction.eo_id:
+            return jsonify({'success': False, 'message': '该交易已有匹配记录'})
+
+        current_time = datetime.utcnow()
+        current_user_name = current_user.username if current_user else 'system'
+
+        # 尝试匹配收据（收入类型优先匹配收据）
+        receipt = ProjectReceipt.query.filter_by(receipt_number=ref).first()
+        if receipt:
+            # 检查收据是否已被其他交易匹配
+            existing = BankTransaction.query.filter_by(matched_receipt_id=receipt.id).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'收据 {ref} 已被其他银行交易匹配'})
+
+            transaction.matched_receipt_id = receipt.id
+            transaction.reconciliation_status = 'matched'
+            transaction.updated_at = current_time
+
+            # 更新收款记录核对状态
+            receipt.is_reconciled = True
+            receipt.reconciled_at = current_time
+            receipt.reconciled_by = current_user_name
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'已匹配收据 {ref}',
+                'match_type': 'receipt',
+                'receipt_number': receipt.receipt_number
+            })
+
+        # 尝试匹配EO（支出类型优先匹配EO）
+        eo = ProjectEO.query.filter_by(eo_number=ref).first()
+        if eo:
+            # 检查EO是否已被其他交易匹配
+            existing = BankTransaction.query.filter_by(eo_id=eo.id).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'EO {ref} 已被其他银行交易匹配'})
+
+            transaction.eo_id = eo.id
+            transaction.reconciliation_status = 'matched'
+            transaction.updated_at = current_time
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'已匹配EO {ref}',
+                'match_type': 'eo',
+                'eo_number': eo.eo_number
+            })
+
+        return jsonify({'success': False, 'message': f'未找到匹配的收据或EO: {ref}'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"快速匹配失败: {str(e)}")
         return jsonify({'success': False, 'message': f'匹配失败: {str(e)}'})
 
 
@@ -1300,17 +1396,30 @@ def eo_auto_match_suggestions():
 
         eos = eo_query.all()
 
+        # 构建EO号 -> EO对象的索引，用于REF优先匹配
+        eo_by_number = {}
+        for e in eos:
+            if e.eo_number:
+                eo_by_number[e.eo_number.strip()] = e
+
         # 计算匹配建议
         suggestions = []
         for tx in transactions:
             best_match = None
             best_score = 0
 
-            for eo in eos:
-                score = calculate_eo_match_score(tx, eo)
-                if score > best_score and score >= 40:
-                    best_score = score
-                    best_match = eo
+            # 优先：通过 accounting_ref 匹配EO号
+            ref = (tx.accounting_ref or '').strip()
+            if ref and ref in eo_by_number:
+                best_match = eo_by_number[ref]
+                best_score = 200  # REF直接匹配，最高优先级
+            else:
+                # 回退：金额+日期+供应商匹配
+                for eo in eos:
+                    score = calculate_eo_match_score(tx, eo)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = eo
 
             if best_match:
                 # 获取REF信息
