@@ -2026,6 +2026,8 @@ def eo_export():
         max_amount = request.args.get('max_amount', None, type=float)
         keyword = request.args.get('keyword', '')
         has_invoice = request.args.get('has_invoice', '')
+        payment_status = request.args.get('payment_status', '')
+        match_status = request.args.get('match_status', '')
 
         # 构建查询
         query = db.session.query(
@@ -2137,6 +2139,43 @@ def eo_export():
                 filters.append(ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
             elif has_invoice == 'no':
                 filters.append(~ProjectEO.ref_id.in_(db.session.query(refs_with_invoice.c.ref_id)))
+
+        # 筛选付款状态
+        if payment_status:
+            if payment_status == 'paid':
+                filters.append(ProjectEO.is_paid == True)
+            elif payment_status == 'unpaid':
+                filters.append(ProjectEO.is_paid == False)
+
+        # 筛选匹配状态（已付款的EO视为已核对）
+        if match_status:
+            from App_new.finance.models.bank_statement import BankTransaction
+            if match_status == 'reconciled':
+                # 已核对：is_reconciled=True 或 is_paid=True
+                filters.append(or_(
+                    ProjectEO.is_reconciled == True,
+                    ProjectEO.is_paid == True
+                ))
+            elif match_status == 'matched':
+                # 已匹配但未核对 - 有关联的银行交易，且未核对且未付款
+                matched_eo_ids = db.session.query(BankTransaction.eo_id).filter(
+                    BankTransaction.eo_id.isnot(None)
+                ).distinct().subquery()
+                filters.append(and_(
+                    or_(ProjectEO.is_reconciled == False, ProjectEO.is_reconciled.is_(None)),
+                    ProjectEO.is_paid == False,
+                    ProjectEO.id.in_(db.session.query(matched_eo_ids.c.eo_id))
+                ))
+            elif match_status == 'unmatched':
+                # 待匹配 - 没有关联的银行交易，且未核对且未付款
+                matched_eo_ids = db.session.query(BankTransaction.eo_id).filter(
+                    BankTransaction.eo_id.isnot(None)
+                ).distinct().subquery()
+                filters.append(and_(
+                    or_(ProjectEO.is_reconciled == False, ProjectEO.is_reconciled.is_(None)),
+                    ProjectEO.is_paid == False,
+                    ~ProjectEO.id.in_(db.session.query(matched_eo_ids.c.eo_id))
+                ))
 
         # 应用筛选条件
         if filters:
