@@ -1351,8 +1351,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const receiptIds = [];
         const loanBorrowIds = [];
         selectedReceiptIds.forEach(key => {
-            const [recordType, recordIdStr] = key.split('_');
-            const recordId = parseInt(recordIdStr);
+            // 解析选择键（注意 loan_borrow 包含下划线）
+            const lastUnderscoreIdx = key.lastIndexOf('_');
+            const recordType = key.substring(0, lastUnderscoreIdx);
+            const recordId = parseInt(key.substring(lastUnderscoreIdx + 1));
             if (recordType === 'receipt') {
                 receiptIds.push(recordId);
             } else if (recordType === 'loan_borrow') {
@@ -1594,9 +1596,10 @@ document.addEventListener('DOMContentLoaded', function() {
         let receiptHtml = '';
         let receiptTotal = 0;
         selectedReceiptIds.forEach(selectionKey => {
-            // 解析选择键 "type_id"
-            const [recordType, recordIdStr] = selectionKey.split('_');
-            const recordId = parseInt(recordIdStr);
+            // 解析选择键 "type_id"（注意 loan_borrow 包含下划线）
+            const lastUnderscoreIdx = selectionKey.lastIndexOf('_');
+            const recordType = selectionKey.substring(0, lastUnderscoreIdx);
+            const recordId = parseInt(selectionKey.substring(lastUnderscoreIdx + 1));
 
             // 从合并记录中查找
             const r = incomeRecords.find(rec => rec.record_type === recordType && rec.id === recordId);
