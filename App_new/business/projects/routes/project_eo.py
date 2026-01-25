@@ -1684,7 +1684,7 @@ def eo_list():
         # 筛选匹配状态（独立于其他筛选条件，搜索全部EO）
         # 已付款的EO视为已核对
         if match_status:
-            from App_new.finance.models.bank_statement import BankTransaction
+            from App_new.finance.models.statement import BankTransaction
             if match_status == 'reconciled':
                 # 已核对：is_reconciled=True 或 is_paid=True
                 filters.append(or_(
@@ -2151,7 +2151,7 @@ def eo_export():
 
         # 筛选匹配状态（已付款的EO视为已核对）
         if match_status:
-            from App_new.finance.models.bank_statement import BankTransaction
+            from App_new.finance.models.statement import BankTransaction
             if match_status == 'reconciled':
                 # 已核对：is_reconciled=True 或 is_paid=True
                 filters.append(or_(
