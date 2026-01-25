@@ -1790,9 +1790,10 @@ def eo_list():
                         else:
                             pax_names = ', '.join([m.member_name for m in members if m.member_name])
 
-            # 获取关联的发票信息
+            # 获取关联的发票信息（检查两种关联方式）
             invoice_info = None
             if eo.ref_id:
+                # 方式1：通过 InvoiceItem 关联
                 invoice_item = InvoiceItem.query.filter_by(ref_id=eo.ref_id).first()
                 if invoice_item and invoice_item.invoice:
                     inv = invoice_item.invoice
@@ -1801,6 +1802,29 @@ def eo_list():
                         'invoice_number': inv.invoice_number,
                         'status': inv.status
                     }
+                else:
+                    # 方式2：通过 Invoice.ref_ids JSON 字段关联
+                    import json
+                    # 获取 REF 的 header_id
+                    ref = ProjectRef.query.get(eo.ref_id)
+                    if ref:
+                        invoices = ProjectInvoice.query.filter(
+                            ProjectInvoice.header_id == ref.header_id,
+                            ProjectInvoice.status != 'cancelled'
+                        ).all()
+                        for inv in invoices:
+                            if inv.ref_ids:
+                                try:
+                                    ref_id_list = json.loads(inv.ref_ids)
+                                    if eo.ref_id in ref_id_list or str(eo.ref_id) in ref_id_list:
+                                        invoice_info = {
+                                            'id': inv.id,
+                                            'invoice_number': inv.invoice_number,
+                                            'status': inv.status
+                                        }
+                                        break
+                                except (json.JSONDecodeError, TypeError):
+                                    pass
             
             # 获取匹配状态和匹配详情
             matched_transactions = eo.bank_transactions if hasattr(eo, 'bank_transactions') else []
