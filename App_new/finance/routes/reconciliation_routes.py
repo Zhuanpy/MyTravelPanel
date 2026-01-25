@@ -360,7 +360,7 @@ def auto_match_suggestions():
         ).subquery()
 
         loan_query = ShareholderLoan.query.filter(
-            ShareholderLoan.status.in_(['confirmed', 'partial_repaid']),
+            ShareholderLoan.status.in_(['active', 'confirmed', 'partial_repaid']),
             ~ShareholderLoan.id.in_(matched_loan_ids),
             or_(ShareholderLoan.is_reconciled == False, ShareholderLoan.is_reconciled.is_(None))
         )
