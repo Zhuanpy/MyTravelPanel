@@ -809,7 +809,98 @@ def quick_match_by_ref():
                 'eo_number': eo.eo_number
             })
 
-        return jsonify({'success': False, 'message': f'未找到匹配的收据或EO: {ref}'})
+        # 尝试匹配付款单
+        payment = SupplierPayment.query.filter_by(payment_no=ref).first()
+        if payment:
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='payment', match_id=payment.id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'付款单 {ref} 已被其他银行交易匹配'})
+
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='payment',
+                match_id=payment.id,
+                allocated_amount=payment.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.reconciliation_status = 'matched'
+            transaction.updated_at = current_time
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'已匹配付款单 {ref}',
+                'match_type': 'payment',
+                'payment_no': payment.payment_no
+            })
+
+        # 尝试匹配预付款单
+        prepayment = SupplierPrepayment.query.filter_by(prepayment_number=ref).first()
+        if prepayment:
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='prepayment', match_id=prepayment.id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'预付款单 {ref} 已被其他银行交易匹配'})
+
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='prepayment',
+                match_id=prepayment.id,
+                allocated_amount=prepayment.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.reconciliation_status = 'matched'
+            transaction.updated_at = current_time
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'已匹配预付款单 {ref}',
+                'match_type': 'prepayment',
+                'prepayment_number': prepayment.prepayment_number
+            })
+
+        # 尝试匹配股东借款
+        loan = ShareholderLoan.query.filter_by(loan_number=ref).first()
+        if loan:
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='loan_borrow', match_id=loan.id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'借款 {ref} 已被其他银行交易匹配'})
+
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='loan_borrow',
+                match_id=loan.id,
+                allocated_amount=loan.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.reconciliation_status = 'matched'
+            transaction.updated_at = current_time
+
+            loan.is_reconciled = True
+            loan.reconciled_at = current_time
+            loan.reconciled_by = current_user_name
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'已匹配股东借款 {ref}',
+                'match_type': 'loan_borrow',
+                'loan_number': loan.loan_number
+            })
+
+        return jsonify({'success': False, 'message': f'未找到匹配的收据、EO、付款单、预付款单或借款: {ref}'})
 
     except Exception as e:
         db.session.rollback()
