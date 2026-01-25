@@ -217,22 +217,54 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('borrowForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
+
+        const amount = parseFloat(formData.get('amount'));
+        if (!amount || amount <= 0) {
+            alert('请输入有效的金额');
+            return;
+        }
+
+        const bankAccountId = parseInt(formData.get('bank_account_id'));
+        if (!bankAccountId) {
+            alert('请选择银行账户');
+            return;
+        }
+
+        const entryDate = formData.get('entry_date');
+        if (!entryDate) {
+            alert('请选择日期');
+            return;
+        }
+
         const data = {
             transaction_type: 'borrow',
-            entry_date: formData.get('entry_date'),
-            amount: parseFloat(formData.get('amount')),
-            bank_account_id: parseInt(formData.get('bank_account_id')),
-            description: formData.get('description'),
-            remarks: formData.get('remarks')
+            entry_date: entryDate,
+            amount: amount,
+            bank_account_id: bankAccountId,
+            description: formData.get('description') || '',
+            remarks: formData.get('remarks') || ''
         };
 
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
         try {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+            console.log('提交数据:', data);
+
             const response = await fetch('{{ url_for("ledger_routes.shareholder_loan_add") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+
+            console.log('响应状态:', response.status);
+
             const result = await response.json();
+            console.log('响应内容:', result);
+
             if (result.success) {
                 alert(result.message);
                 location.reload();
@@ -240,7 +272,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('操作失败: ' + result.message);
             }
         } catch (error) {
+            console.error('请求错误:', error);
             alert('请求失败: ' + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     });
 
@@ -248,22 +284,54 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('repayForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData(this);
+
+        const amount = parseFloat(formData.get('amount'));
+        if (!amount || amount <= 0) {
+            alert('请输入有效的金额');
+            return;
+        }
+
+        const bankAccountId = parseInt(formData.get('bank_account_id'));
+        if (!bankAccountId) {
+            alert('请选择银行账户');
+            return;
+        }
+
+        const entryDate = formData.get('entry_date');
+        if (!entryDate) {
+            alert('请选择日期');
+            return;
+        }
+
         const data = {
             transaction_type: 'repay',
-            entry_date: formData.get('entry_date'),
-            amount: parseFloat(formData.get('amount')),
-            bank_account_id: parseInt(formData.get('bank_account_id')),
-            description: formData.get('description'),
-            remarks: formData.get('remarks')
+            entry_date: entryDate,
+            amount: amount,
+            bank_account_id: bankAccountId,
+            description: formData.get('description') || '',
+            remarks: formData.get('remarks') || ''
         };
 
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
         try {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+            console.log('提交数据:', data);
+
             const response = await fetch('{{ url_for("ledger_routes.shareholder_loan_add") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+
+            console.log('响应状态:', response.status);
+
             const result = await response.json();
+            console.log('响应内容:', result);
+
             if (result.success) {
                 alert(result.message);
                 location.reload();
@@ -271,7 +339,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('操作失败: ' + result.message);
             }
         } catch (error) {
+            console.error('请求错误:', error);
             alert('请求失败: ' + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     });
 
