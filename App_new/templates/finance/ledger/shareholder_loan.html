@@ -140,8 +140,15 @@
                             </thead>
                             <tbody>
                                 {% for entry in entries %}
-                                {% set loan_line = entry.lines | selectattr('account_id', 'equalto', loan_account.id) | first %}
-                                {% if loan_line %}
+                                {% set ns = namespace(loan_debit=0, loan_credit=0, found=false) %}
+                                {% for line in entry.lines %}
+                                    {% if line.account_id == loan_account.id %}
+                                        {% set ns.loan_debit = line.debit %}
+                                        {% set ns.loan_credit = line.credit %}
+                                        {% set ns.found = true %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if ns.found %}
                                 <tr>
                                     <td>{{ entry.entry_date.strftime('%Y-%m-%d') }}</td>
                                     <td>
@@ -151,13 +158,13 @@
                                     </td>
                                     <td>{{ entry.description or '-' }}</td>
                                     <td class="text-end text-success">
-                                        {% if loan_line.credit > 0 %}
-                                        +{{ "%.2f"|format(loan_line.credit) }}
+                                        {% if ns.loan_credit > 0 %}
+                                        +{{ "%.2f"|format(ns.loan_credit) }}
                                         {% endif %}
                                     </td>
                                     <td class="text-end text-danger">
-                                        {% if loan_line.debit > 0 %}
-                                        -{{ "%.2f"|format(loan_line.debit) }}
+                                        {% if ns.loan_debit > 0 %}
+                                        -{{ "%.2f"|format(ns.loan_debit) }}
                                         {% endif %}
                                     </td>
                                     <td>
