@@ -118,7 +118,25 @@
                         <a href="{{ url_for('business_projects.project_payment.payment_detail', payment_id=t.matched_payment.id) }}" target="_blank" class="text-warning" title="付款: {{ t.matched_payment.payment_no }}">{{ t.matched_payment.payment_no }}</a>
                     {% elif t.reconciliation_status == 'matched' and t.matched_prepayment %}
                         <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=t.matched_prepayment.id) }}" target="_blank" class="text-info" title="预付: {{ t.matched_prepayment.prepayment_number }}">{{ t.matched_prepayment.prepayment_number }}</a>
-                    {% elif (t.matched_receipt_id or t.eo_id or t.reconciliation_status == 'matched') and t.accounting_ref %}
+                    {% elif t.reconciliation_status == 'matched' %}
+                        {% set match_records = t.matches.all() if t.matches else [] %}
+                        {% if match_records %}
+                            {% set first_match = match_records[0] %}
+                            {% if first_match.match_type == 'loan_borrow' %}
+                                <a href="{{ url_for('ledger.shareholder_loan') }}" target="_blank" class="text-primary" title="借款: {{ t.accounting_ref or '' }}">{{ t.accounting_ref or '借款' }}</a>
+                            {% elif first_match.match_type == 'loan_repay' %}
+                                <a href="{{ url_for('ledger.shareholder_loan') }}" target="_blank" class="text-secondary" title="还款: {{ t.accounting_ref or '' }}">{{ t.accounting_ref or '还款' }}</a>
+                            {% elif t.accounting_ref %}
+                                <small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
+                            {% else %}
+                                -
+                            {% endif %}
+                        {% elif t.accounting_ref %}
+                            <small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
+                        {% else %}
+                            -
+                        {% endif %}
+                    {% elif (t.matched_receipt_id or t.eo_id) and t.accounting_ref %}
                         <small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
                     {% else %}
                         -
