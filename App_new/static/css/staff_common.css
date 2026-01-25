@@ -1304,29 +1304,34 @@ td .btn-group {
     }
 }
 
-/* 确保在大屏幕上侧边栏正常显示 */
-@media (min-width: 1850px) {
+/* 确保在大屏幕上侧边栏正常显示（1201px以上） */
+@media (min-width: 1201px) {
     #sidebar {
-        position: relative !important;
-        left: auto !important;
-        width: auto !important;
-        height: auto !important;
+        position: fixed !important;
+        top: 56px !important;
+        left: 0 !important;
+        width: var(--sidebar-width) !important;
+        height: calc(100vh - 56px) !important;
         transform: none !important;
-        box-shadow: none !important;
+        box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1) !important;
         display: block !important;
     }
-    
+
     #sidebarToggle {
         display: none !important;
     }
-    
+
     .sidebar-overlay {
         display: none !important;
     }
+
+    main {
+        margin-left: var(--sidebar-width) !important;
+    }
 }
 
-/* 中等屏幕（1850px以下）- 侧边栏浮动 */
-@media (max-width: 1849px) {
+/* 中等屏幕（1200px以下）- 侧边栏浮动 */
+@media (max-width: 1200px) {
     #sidebar {
         position: fixed !important;
         top: 56px !important;
@@ -1340,95 +1345,33 @@ td .btn-group {
         box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
         display: block !important;
     }
-    
+
     #sidebar.show {
         left: 0 !important;
     }
-    
+
     #sidebar:not(.show) {
         left: -100% !important;
     }
-    
+
     main {
         margin-left: 0 !important;
         width: 100% !important;
     }
-    
+
     #sidebarToggle {
-        display: none !important;
+        display: inline-block !important;
     }
 }
 
-/* 移动端样式 */
+/* 小屏幕样式（桌面端最小支持，移动端有独立页面） */
 @media (max-width: 768px) {
-    html { 
-        font-size: 14px; 
-    }
-    
-    body { 
-        line-height: 1.4; 
-    }
-    
-    /* 移动端导航栏切换按钮 */
-    .navbar-toggler {
-        display: block !important;
-        border: 1px solid rgba(255,255,255,0.3) !important;
-        background: transparent !important;
-        color: white !important;
-        padding: 4px 8px !important;
-        border-radius: 4px !important;
-    }
-    
-    /* 移动端导航栏折叠内容 */
-    .navbar-collapse {
-        position: absolute !important;
-        top: 100% !important;
-        left: 0 !important;
-        right: 0 !important;
-        background-color: #198754 !important;
-        z-index: 1000 !important;
-        padding: 15px !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
-    }
-    
-    .navbar-collapse.collapse {
-        display: none !important;
-    }
-    
-    .navbar-collapse.collapse.show {
-        display: flex !important;
-        flex-direction: column !important;
-        width: 100% !important;
-    }
-    
-    .navbar-nav {
-        flex-direction: column !important;
-        width: 100% !important;
-    }
-    
-    .nav-item {
-        width: 100% !important;
-        margin-bottom: 5px !important;
-    }
-    
-    .nav-link {
-        padding: 10px 15px !important;
-        text-align: left !important;
-        width: 100% !important;
-        color: white !important;
-    }
-    
-    .nav-link:hover {
-        background-color: rgba(255,255,255,0.1) !important;
-        border-radius: 4px !important;
-    }
-    
-    /* 移动端侧边栏隐藏 */
+    /* 侧边栏隐藏 */
     #sidebar {
         left: -100% !important;
     }
-    
-    /* 移动端主内容区域全宽 */
+
+    /* 主内容区域全宽 */
     main {
         margin-left: 0 !important;
     }
@@ -1441,43 +1384,19 @@ td .btn-group {
     }
 }
 
-/* 平板和移动端 - Staff特定 */
+/* 小屏幕布局调整 */
 @media (max-width: 767.98px) {
-    .sidebar {
-        position: static;
-        height: auto;
-        padding: 0;
-        box-shadow: none;
-    }
-    
     main {
         margin-left: 0;
         padding-top: 80px;
     }
-    
+
     .stats-card {
         margin-bottom: 1rem;
     }
-    
+
     .project-card {
         margin-bottom: 1rem;
-    }
-    
-    .data-table .table thead {
-        display: none;
-    }
-    
-    .data-table .table tbody td {
-        display: block;
-        text-align: right;
-        border: none;
-        padding: 0.5rem 1rem;
-    }
-    
-    .data-table .table tbody td:before {
-        content: attr(data-label);
-        float: left;
-        font-weight: 600;
     }
 }
 

@@ -638,7 +638,7 @@
             </nav>
 
             <!-- 主内容区域 -->
-            <main class="col-md-10 ms-sm-auto col-lg-11 px-md-4" style="margin-left: 280px;">
+            <main class="col-md-10 ms-sm-auto col-lg-11 px-md-4" id="mainContent">
                 <!-- 面包屑导航 -->
                 <nav aria-label="breadcrumb" class="pt-3">
                     <ol class="breadcrumb">
@@ -678,26 +678,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
-        // 导航栏响应式控制
+        // 导航栏响应式控制（桌面端专用，移动端有独立页面）
         document.addEventListener('DOMContentLoaded', function() {
             const navbarCollapse = document.querySelector('.navbar-collapse');
-            
-            function updateNavbarState() {
-                if (window.innerWidth <= 768) {
-                    // 移动端：添加collapse类，让Bootstrap控制折叠
-                    navbarCollapse.classList.add('collapse');
-                } else {
-                    // 桌面端：移除collapse类，直接显示
-                    navbarCollapse.classList.remove('collapse');
-                    navbarCollapse.classList.add('show');
-                }
+
+            // 桌面端始终显示导航栏（移动端有独立页面，无需折叠逻辑）
+            if (navbarCollapse) {
+                navbarCollapse.classList.remove('collapse');
+                navbarCollapse.classList.add('show');
             }
-            
-            // 初始设置
-            updateNavbarState();
-            
-            // 窗口大小改变时更新
-            window.addEventListener('resize', updateNavbarState);
         });
         
         // 统一的侧边栏控制器
@@ -706,8 +695,8 @@
                 this.sidebarToggle = document.getElementById('sidebarToggle');
                 this.sidebar = document.getElementById('sidebar');
                 this.sidebarOverlay = document.getElementById('sidebarOverlay');
-                this.breakpoint = 1849; // 使用1850px断点
-                
+                this.breakpoint = 1200; // 降低断点，适应更多屏幕
+
                 this.init();
             }
             
@@ -758,12 +747,18 @@
                 } else {
                     this.sidebar.classList.add('show');
                 }
+                // margin-left 由 CSS 媒体查询控制，无需 JavaScript 设置
             }
             
             toggleSidebarButton() {
-                // 在1850px以下时隐藏切换按钮，避免功能重复
-                this.sidebarToggle.classList.add('d-none');
-                this.sidebarToggle.classList.remove('d-inline-block');
+                // 小屏幕显示切换按钮，大屏幕隐藏
+                if (window.innerWidth <= this.breakpoint) {
+                    this.sidebarToggle.classList.remove('d-none');
+                    this.sidebarToggle.classList.add('d-inline-block');
+                } else {
+                    this.sidebarToggle.classList.add('d-none');
+                    this.sidebarToggle.classList.remove('d-inline-block');
+                }
             }
             
             bindSidebarLinkEvents() {
