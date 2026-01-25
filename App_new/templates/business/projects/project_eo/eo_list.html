@@ -180,7 +180,7 @@
                     <td><span class="badge status-{{ eo.status }}">{{ eo.status_display }}</span></td>
                     <td><span class="badge payment-{{ 'paid' if eo.is_paid else 'unpaid' }}">{{ eo.payment_display }}</span></td>
                     <td style="white-space: nowrap;">
-                        {% if eo.is_reconciled %}
+                        {% if eo.is_reconciled or eo.is_paid %}
                             <span class="badge bg-info"><i class="fas fa-check-double"></i> 已核对</span>
                         {% elif eo.is_matched %}
                             <span class="badge bg-success"><i class="fas fa-link"></i> 已匹配</span>
