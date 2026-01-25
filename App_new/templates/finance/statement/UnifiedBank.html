@@ -102,12 +102,26 @@
     /* 页脚 */
     .bank-footer { text-align: center; padding: 12px; color: #6c757d; border-top: 1px solid #dee2e6; margin-top: 20px; }
 
-    /* 响应式 */
-    @media (max-width: 768px) {
-        .bank-statement-container { padding: 8px; }
-        .form-control, .form-select { width: 100% !important; margin-bottom: 8px; }
-        #txTable { font-size: 11px; }
-        .bank-btn { margin-bottom: 8px; }
+    /* 列隐藏控制类 */
+    .col-hide-1366, .col-hide-1200 { transition: opacity 0.2s; }
+
+    /* 电脑端响应式 - 小笔记本 (1200-1366px) */
+    @media (max-width: 1366px) {
+        #txTable { min-width: 1050px; font-size: 11px; }
+        #txTable th, #txTable td { padding: 3px 4px; }
+        /* 隐藏：记账日期、余额 */
+        .col-hide-1366 { display: none; }
+        .form-control, .form-select { font-size: 11px; }
+        .badge { font-size: 9px; padding: 1px 4px; }
+    }
+
+    /* 电脑端响应式 - 超小笔记本 (<1200px) */
+    @media (max-width: 1200px) {
+        #txTable { min-width: 900px; font-size: 10px; }
+        /* 额外隐藏：匹配金额、分类 */
+        .col-hide-1200 { display: none; }
+        .btn-sm { padding: 1px 4px; font-size: 10px; }
+        .confirm-btn, .unlock-btn { padding: 1px 4px; font-size: 10px; }
     }
 </style>
 {% endblock %}

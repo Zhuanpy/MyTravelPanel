@@ -29,36 +29,36 @@
     <table class="table table-striped table-hover" id="txTable" style="table-layout: fixed; width: 100%;">
         <colgroup>
             <col style="width: 82px;">  <!-- 日期 -->
-            <col style="width: 82px;">  <!-- 记账日期 -->
+            <col class="col-hide-1366" style="width: 82px;">  <!-- 记账日期 -->
             <col style="width: 42px;">  <!-- 类型 -->
             <col style="width: 80px;">  <!-- 金额 -->
-            <col style="width: 80px;">  <!-- 余额 -->
+            <col class="col-hide-1366" style="width: 80px;">  <!-- 余额 -->
             <col style="width: auto;">  <!-- 摘要 (弹性) -->
             <col style="width: 80px;">  <!-- 关键词 -->
             <col style="width: 80px;">  <!-- 归属 -->
             <col style="width: 90px;">  <!-- REF/EO -->
             <col style="width: 68px;">  <!-- 匹配状态 -->
             <col style="width: 95px;">  <!-- 匹配单号 -->
-            <col style="width: 80px;">  <!-- 匹配金额 -->
-            <col style="width: 55px;">  <!-- 匹配分类 -->
+            <col class="col-hide-1200" style="width: 80px;">  <!-- 匹配金额 -->
+            <col class="col-hide-1200" style="width: 55px;">  <!-- 匹配分类 -->
             <col style="width: 110px;"> <!-- 操作 -->
             <col style="width: 100px;"> <!-- 备注 -->
         </colgroup>
         <thead>
             <tr>
                 <th>日期</th>
-                <th>记账日期</th>
+                <th class="col-hide-1366">记账日期</th>
                 <th>类型</th>
                 <th>金额</th>
-                <th>余额</th>
+                <th class="col-hide-1366">余额</th>
                 <th>摘要</th>
                 <th>关键词</th>
                 <th>归属</th>
                 <th>REF/EO</th>
                 <th>匹配状态</th>
                 <th>匹配单号</th>
-                <th>匹配金额</th>
-                <th>分类</th>
+                <th class="col-hide-1200">匹配金额</th>
+                <th class="col-hide-1200">分类</th>
                 <th>操作</th>
                 <th>备注</th>
             </tr>
@@ -67,10 +67,10 @@
             {% for t in transactions %}
             <tr>
                 <td>{{ t.transaction_date }}</td>
-                <td>{{ t.post_date or '-' }}</td>
+                <td class="col-hide-1366">{{ t.post_date or '-' }}</td>
                 <td>{{ '支出' if t.transaction_type=='debit' else '收入' }}</td>
                 <td>{{ '%.2f'|format(t.amount) }}</td>
-                <td>{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
+                <td class="col-hide-1366">{{ '%.2f'|format(t.balance) if t.balance is not none else '-' }}</td>
                 <td class="summary-cell" style="text-align:left; word-wrap:break-word; white-space:normal; max-width:180px; line-height:1.2; font-size:11px;" title="{{ t.description or '' }}">{{ t.description or '' }}</td>
                 <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px;" title="{{ t.keyword or '' }}">{{ t.keyword or '-' }}</td>
                 <td style="font-size:11px;">
@@ -142,7 +142,7 @@
                         -
                     {% endif %}
                 </td>
-                <td style="white-space: nowrap; font-size: 13px; font-weight: 500;">
+                <td class="col-hide-1200" style="white-space: nowrap; font-size: 13px; font-weight: 500;">
                     {% if t.matched_receipt %}
                         <span class="text-success">{{ '%.2f'|format(t.matched_receipt.amount) }}</span>
                     {% elif t.matched_eo %}
@@ -164,7 +164,7 @@
                         {% endif %}
                     {% endif %}
                 </td>
-                <td style="white-space: nowrap; font-size: 11px;">
+                <td class="col-hide-1200" style="white-space: nowrap; font-size: 11px;">
                     {% if t.matched_receipt %}
                         <span class="badge bg-success">收据</span>
                     {% elif t.matched_eo %}
