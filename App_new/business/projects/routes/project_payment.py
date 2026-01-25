@@ -21,12 +21,18 @@ project_payment = Blueprint('project_payment', __name__, url_prefix='/payment')
 @staff_only
 def list_payments():
     """付款记录列表页面"""
+    from sqlalchemy import and_, or_
+    from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+    from App_new.finance.models.statement import BankTransaction
+
     # 获取筛选参数
     supplier_id = request.args.get('supplier_id', type=int)
+    status = request.args.get('status', '')
     payment_source = request.args.get('payment_source', '')
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     keyword = request.args.get('keyword', '')
+    match_status = request.args.get('match_status', '')  # 匹配状态筛选
 
     # 分页参数
     page = request.args.get('page', 1, type=int)
@@ -37,6 +43,8 @@ def list_payments():
 
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
+    if status:
+        query = query.filter_by(status=status)
     if payment_source:
         query = query.filter_by(payment_source=payment_source)
     if start_date:
@@ -46,10 +54,34 @@ def list_payments():
     if keyword:
         query = query.filter(SupplierPayment.payment_no.ilike(f'%{keyword}%'))
 
+    # 匹配状态筛选
+    if match_status:
+        # 获取已匹配的 payment_id 列表
+        matched_payment_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'payment'
+        ).distinct().subquery()
+
+        if match_status == 'reconciled':
+            # 已核对
+            query = query.filter(SupplierPayment.is_reconciled == True)
+        elif match_status == 'matched':
+            # 已匹配但未核对
+            query = query.filter(and_(
+                or_(SupplierPayment.is_reconciled == False, SupplierPayment.is_reconciled.is_(None)),
+                SupplierPayment.id.in_(db.session.query(matched_payment_ids.c.match_id))
+            ))
+        elif match_status == 'unmatched':
+            # 待匹配（银行付款且未匹配）
+            query = query.filter(and_(
+                or_(SupplierPayment.is_reconciled == False, SupplierPayment.is_reconciled.is_(None)),
+                SupplierPayment.payment_source.in_(['bank', 'mixed']),
+                ~SupplierPayment.id.in_(db.session.query(matched_payment_ids.c.match_id))
+            ))
+
     # 排序并分页
     query = query.order_by(SupplierPayment.created_at.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    payments = pagination.items
+    payment_records = pagination.items
 
     # 获取供应商列表（用于筛选）
     suppliers = CustomerCompany.query.filter(
@@ -58,8 +90,69 @@ def list_payments():
     ).order_by(CustomerCompany.company_name).all()
 
     # 计算汇总
-    total_amount = sum(float(p.total_amount) for p in payments)
-    total_prepayment = sum(float(p.prepayment_amount or 0) for p in payments)
+    total_amount = sum(float(p.total_amount) for p in payment_records)
+    total_prepayment = sum(float(p.prepayment_amount or 0) for p in payment_records)
+
+    # 批量获取匹配信息
+    payment_ids = [p.id for p in payment_records]
+    matched_info = {}
+    if payment_ids:
+        # 获取所有匹配记录
+        matches = BankTransactionMatch.query.filter(
+            BankTransactionMatch.match_type == 'payment',
+            BankTransactionMatch.match_id.in_(payment_ids)
+        ).all()
+
+        # 按 payment_id 分组
+        for match in matches:
+            if match.match_id not in matched_info:
+                matched_info[match.match_id] = []
+            matched_info[match.match_id].append(match.transaction_id)
+
+        # 获取相关银行交易详情
+        tx_ids = [tx_id for tx_list in matched_info.values() for tx_id in tx_list]
+        if tx_ids:
+            transactions = BankTransaction.query.filter(BankTransaction.id.in_(tx_ids)).all()
+            tx_dict = {tx.id: tx for tx in transactions}
+
+            # 更新匹配信息为交易详情
+            for payment_id, tx_id_list in matched_info.items():
+                matched_info[payment_id] = [tx_dict.get(tx_id) for tx_id in tx_id_list if tx_dict.get(tx_id)]
+
+    # 构建 payments 数据
+    payments = []
+    for p in payment_records:
+        matched_txs = matched_info.get(p.id, [])
+        is_matched = len(matched_txs) > 0
+
+        # 构建匹配详情
+        matched_tx_info = []
+        for tx in matched_txs[:2]:  # 最多显示2条
+            matched_tx_info.append({
+                'date': tx.transaction_date.strftime('%m-%d') if tx.transaction_date else '',
+                'amount': float(tx.amount) if tx.amount else 0,
+                'counterparty': tx.counterparty_name or (tx.description[:15] if tx.description else '')
+            })
+
+        payments.append({
+            'id': p.id,
+            'payment_no': p.payment_no,
+            'supplier': p.supplier,
+            'payment_date': p.payment_date,
+            'total_amount': p.total_amount,
+            'currency': p.currency,
+            'payment_source': p.payment_source,
+            'payment_source_display': p.payment_source_display,
+            'prepayment_amount': p.prepayment_amount,
+            'eo_count': p.eo_count,
+            'payment_voucher_no': p.payment_voucher_no,
+            'status': p.status,
+            'status_display': p.status_display,
+            'is_reconciled': p.is_reconciled,
+            'is_matched': is_matched,
+            'matched_tx_count': len(matched_txs),
+            'matched_tx_info': matched_tx_info
+        })
 
     return render_template('business/projects/payment/list.html',
                            payments=payments,
@@ -69,10 +162,12 @@ def list_payments():
                            total_prepayment=total_prepayment,
                            current_filters={
                                'supplier_id': supplier_id,
+                               'status': status,
                                'payment_source': payment_source,
                                'start_date': start_date,
                                'end_date': end_date,
-                               'keyword': keyword
+                               'keyword': keyword,
+                               'match_status': match_status
                            })
 
 
@@ -209,3 +304,98 @@ def get_payment_summary():
         })
 
     return jsonify({'success': True, 'data': result})
+
+
+@project_payment.route('/<int:payment_id>/reconcile', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def toggle_reconcile(payment_id):
+    """标记/取消核对状态"""
+    try:
+        payment = SupplierPayment.query.get_or_404(payment_id)
+        data = request.get_json() or {}
+        reconcile = data.get('reconcile', True)
+
+        payment.is_reconciled = reconcile
+        if reconcile:
+            payment.reconciled_at = datetime.utcnow()
+            payment.reconciled_by = current_user.username if current_user else None
+        else:
+            payment.reconciled_at = None
+            payment.reconciled_by = None
+
+        db.session.commit()
+
+        action = '已核对' if reconcile else '取消核对'
+        return jsonify({'success': True, 'message': f'付款记录 {payment.payment_no} {action}'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@project_payment.route('/<int:payment_id>/unmatch', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def unmatch_payment(payment_id):
+    """解除银行账单匹配"""
+    try:
+        from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+
+        payment = SupplierPayment.query.get_or_404(payment_id)
+
+        # 删除所有匹配记录
+        matches = BankTransactionMatch.query.filter_by(
+            match_type='payment',
+            match_id=payment_id
+        ).all()
+
+        for match in matches:
+            db.session.delete(match)
+
+        # 重置核对状态
+        payment.is_reconciled = False
+        payment.reconciled_at = None
+        payment.reconciled_by = None
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': f'付款记录 {payment.payment_no} 已解除匹配'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@project_payment.route('/<int:payment_id>/update-voucher', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def update_voucher(payment_id):
+    """更新付款凭证号"""
+    try:
+        payment = SupplierPayment.query.get_or_404(payment_id)
+
+        if payment.status != 'confirmed':
+            return jsonify({'success': False, 'message': '只能编辑已确认的付款记录'})
+
+        data = request.get_json() or {}
+        voucher_no = data.get('voucher_no', '').strip()
+
+        payment.payment_voucher_no = voucher_no if voucher_no else None
+        payment.updated_at = datetime.utcnow()
+
+        # 同时更新关联的EO的凭证号
+        eos = ProjectEO.query.filter_by(payment_record_id=payment_id).all()
+        for eo in eos:
+            eo.payment_voucher_no = voucher_no if voucher_no else None
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '凭证号已更新'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})

@@ -92,11 +92,11 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.eo_list') }}">
                                 <i class="fas fa-tasks me-2"></i>EO列表
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.exchange_order') }}">
-                                <i class="fas fa-exchange-alt me-2"></i>Exchange Order
-                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.batch_pay') }}">
                                 <i class="fas fa-money-check-alt me-2"></i>批量付款
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_payment.list_payments') }}">
+                                <i class="fas fa-list-alt me-2"></i>付款记录
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Invoice 发票</h6></li>
@@ -553,17 +553,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'business_projects.project_eo.exchange_order' %}active{% endif %}"
-                               href="{{ url_for('business_projects.project_eo.exchange_order') }}">
-                                <i class="fas fa-exchange-alt me-2"></i>
-                                Exchange Order
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'business_projects.project_eo.batch_pay' %}active{% endif %}"
                                href="{{ url_for('business_projects.project_eo.batch_pay') }}">
                                 <i class="fas fa-money-check-alt me-2"></i>
                                 批量付款
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'business_projects.project_payment.list_payments' %}active{% endif %}"
+                               href="{{ url_for('business_projects.project_payment.list_payments') }}">
+                                <i class="fas fa-list-alt me-2"></i>
+                                付款记录
                             </a>
                         </li>
                         <li class="nav-item">

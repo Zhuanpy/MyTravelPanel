@@ -26,9 +26,6 @@
         <h5 class="mb-0"><i class="fas fa-file-invoice text-primary"></i> EO列表</h5>
         <div>
             <span class="badge bg-info me-2">总计: {{ pagination.total if pagination else eos|length }}</span>
-            <a href="{{ url_for('business_projects.project_eo.exchange_order') }}" class="btn btn-sm btn-primary me-1">
-                <i class="fas fa-exchange-alt"></i> Exchange Order
-            </a>
             <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-sm btn-success me-1">
                 <i class="fas fa-money-check-alt"></i> 批量付款
             </a>
@@ -223,7 +220,7 @@
                                 <i class="fas fa-eye"></i>
                             </a>
                             {% if eo.status == 'confirmed' and not eo.is_paid %}
-                            <a href="{{ url_for('business_projects.project_eo.exchange_order') }}?keyword={{ eo.eo_number }}"
+                            <a href="{{ url_for('business_projects.project_eo.batch_pay') }}?keyword={{ eo.eo_number }}"
                                class="btn btn-outline-success btn-sm" title="付款">
                                 <i class="fas fa-dollar-sign"></i>
                             </a>
