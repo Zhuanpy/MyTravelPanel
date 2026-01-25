@@ -106,10 +106,9 @@
                 </div>
                 <div class="col-auto">
                     <select name="match_status" class="form-select form-select-sm">
-                        <option value="">匹配状态</option>
+                        <option value="">确认状态</option>
                         <option value="reconciled" {% if current_filters.match_status == 'reconciled' %}selected{% endif %}>已核对</option>
-                        <option value="matched" {% if current_filters.match_status == 'matched' %}selected{% endif %}>已匹配</option>
-                        <option value="unmatched" {% if current_filters.match_status == 'unmatched' %}selected{% endif %}>待匹配</option>
+                        <option value="unmatched" {% if current_filters.match_status == 'unmatched' %}selected{% endif %}>待确认</option>
                     </select>
                 </div>
                 <div class="col-auto">
@@ -138,9 +137,9 @@
                         <th class="text-center">EO数量</th>
                         <th>凭证号</th>
                         <th>状态</th>
-                        <th>匹配状态</th>
-                        <th>匹配详情</th>
-                        <th>匹配操作</th>
+                        <th>确认状态</th>
+                        <th>银行匹配</th>
+                        <th>确认</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -166,7 +165,7 @@
                         </td>
                         <td style="white-space: nowrap;">
                             <span id="voucher-text-{{ p.id }}">{{ p.payment_voucher_no or '-' }}</span>
-                            {% if p.status == 'confirmed' %}
+                            {% if p.status == 'confirmed' and not p.is_reconciled %}
                             <button class="btn btn-link btn-sm p-0 ms-1" onclick="editVoucher({{ p.id }}, '{{ p.payment_voucher_no or '' }}')" title="编辑凭证号">
                                 <i class="fas fa-edit text-muted" style="font-size: 11px;"></i>
                             </button>
@@ -178,12 +177,8 @@
                         <td style="white-space: nowrap;">
                             {% if p.is_reconciled %}
                                 <span class="badge badge-reconciled"><i class="fas fa-check-double"></i> 已核对</span>
-                            {% elif p.is_matched %}
-                                <span class="badge badge-matched"><i class="fas fa-link"></i> 已匹配</span>
-                            {% elif p.payment_source in ['bank', 'mixed'] %}
-                                <span class="badge badge-unmatched"><i class="fas fa-clock"></i> 待匹配</span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                <span class="badge badge-unmatched"><i class="fas fa-clock"></i> 待确认</span>
                             {% endif %}
                         </td>
                         <td style="white-space: nowrap; font-size: 11px;">
@@ -198,24 +193,11 @@
                         </td>
                         <td style="white-space: nowrap;">
                             {% if p.is_reconciled %}
-                                <button class="btn btn-outline-secondary btn-sm" onclick="toggleReconcile({{ p.id }}, false)" title="取消核对">
-                                    <i class="fas fa-undo"></i>
-                                </button>
-                            {% elif p.is_matched %}
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-info btn-sm" onclick="toggleReconcile({{ p.id }}, true)" title="标记已核对">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger btn-sm" onclick="unmatchPayment({{ p.id }})" title="解除匹配">
-                                        <i class="fas fa-unlink"></i>
-                                    </button>
-                                </div>
-                            {% elif p.payment_source in ['bank', 'mixed'] %}
-                                <button class="btn btn-outline-info btn-sm" onclick="toggleReconcile({{ p.id }}, true)" title="标记已核对">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                            {% else %}
                                 <span class="text-muted">-</span>
+                            {% else %}
+                                <button class="btn btn-success btn-sm" onclick="confirmPayment({{ p.id }})" title="确认付款">
+                                    <i class="fas fa-check"></i> 确认
+                                </button>
                             {% endif %}
                         </td>
                         <td>
@@ -224,7 +206,7 @@
                                    class="btn btn-outline-primary" title="查看详情">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                {% if p.status == 'confirmed' %}
+                                {% if p.status == 'confirmed' and not p.is_reconciled %}
                                 <button type="button" class="btn btn-outline-danger"
                                         onclick="cancelPayment({{ p.id }}, '{{ p.payment_no }}')" title="取消">
                                     <i class="fas fa-times"></i>
@@ -334,34 +316,14 @@ function cancelPayment(paymentId, paymentNo) {
     .catch(err => alert('请求失败: ' + err));
 }
 
-// 标记/取消核对
-function toggleReconcile(paymentId, reconcile) {
-    const action = reconcile ? '标记为已核对' : '取消核对';
-    if (!confirm(`确定要${action}吗？`)) return;
+// 确认付款（标记为已核对，之后不可取消和编辑）
+function confirmPayment(paymentId) {
+    if (!confirm('确认后付款记录将不可取消和编辑，确定要确认吗？')) return;
 
     fetch(`/projects/payment/${paymentId}/reconcile`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({reconcile: reconcile})
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('操作失败: ' + data.message);
-        }
-    })
-    .catch(err => alert('请求失败: ' + err));
-}
-
-// 解除匹配
-function unmatchPayment(paymentId) {
-    if (!confirm('确定要解除银行账单匹配吗？')) return;
-
-    fetch(`/projects/payment/${paymentId}/unmatch`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
+        body: JSON.stringify({reconcile: true})
     })
     .then(res => res.json())
     .then(data => {

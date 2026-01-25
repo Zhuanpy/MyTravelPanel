@@ -54,28 +54,16 @@ def list_payments():
     if keyword:
         query = query.filter(SupplierPayment.payment_no.ilike(f'%{keyword}%'))
 
-    # 匹配状态筛选
+    # 确认状态筛选
     if match_status:
-        # 获取已匹配的 payment_id 列表
-        matched_payment_ids = db.session.query(BankTransactionMatch.match_id).filter(
-            BankTransactionMatch.match_type == 'payment'
-        ).distinct().subquery()
-
         if match_status == 'reconciled':
             # 已核对
             query = query.filter(SupplierPayment.is_reconciled == True)
-        elif match_status == 'matched':
-            # 已匹配但未核对
-            query = query.filter(and_(
-                or_(SupplierPayment.is_reconciled == False, SupplierPayment.is_reconciled.is_(None)),
-                SupplierPayment.id.in_(db.session.query(matched_payment_ids.c.match_id))
-            ))
         elif match_status == 'unmatched':
-            # 待匹配（银行付款且未匹配）
-            query = query.filter(and_(
-                or_(SupplierPayment.is_reconciled == False, SupplierPayment.is_reconciled.is_(None)),
-                SupplierPayment.payment_source.in_(['bank', 'mixed']),
-                ~SupplierPayment.id.in_(db.session.query(matched_payment_ids.c.match_id))
+            # 待确认
+            query = query.filter(or_(
+                SupplierPayment.is_reconciled == False,
+                SupplierPayment.is_reconciled.is_(None)
             ))
 
     # 排序并分页
