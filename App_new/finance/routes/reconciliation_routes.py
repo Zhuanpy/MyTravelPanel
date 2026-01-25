@@ -822,7 +822,7 @@ def quick_match_by_ref():
                 transaction_id=transaction_id,
                 match_type='payment',
                 match_id=payment.id,
-                allocated_amount=payment.amount,
+                allocated_amount=payment.total_amount,
                 created_by=current_user_name
             )
             db.session.add(new_match)
