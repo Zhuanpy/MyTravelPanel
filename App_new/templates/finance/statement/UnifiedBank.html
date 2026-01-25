@@ -327,6 +327,8 @@
                             <option value="date_asc" {% if filters.sort=='date_asc' %}selected{% endif %}>日期升序（最早在前）</option>
                             <option value="amount_desc" {% if filters.sort=='amount_desc' %}selected{% endif %}>金额降序（大额在前）</option>
                             <option value="amount_asc" {% if filters.sort=='amount_asc' %}selected{% endif %}>金额升序（小额在前）</option>
+                            <option value="ref_desc" {% if filters.sort=='ref_desc' %}selected{% endif %}>匹配单号降序</option>
+                            <option value="ref_asc" {% if filters.sort=='ref_asc' %}selected{% endif %}>匹配单号升序</option>
                         </select>
                     </div>
                     <div class="col-auto">

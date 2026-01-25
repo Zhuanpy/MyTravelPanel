@@ -227,6 +227,12 @@ def cmb_bank():
         transactions_query = transactions_query.order_by(desc(BankTransaction.amount))
     elif filters['sort'] == 'amount_asc':
         transactions_query = transactions_query.order_by(BankTransaction.amount)
+    elif filters['sort'] == 'ref_desc':
+        transactions_query = transactions_query.order_by(desc(BankTransaction.accounting_ref))
+    elif filters['sort'] == 'ref_asc':
+        transactions_query = transactions_query.order_by(BankTransaction.accounting_ref)
+    else:
+        transactions_query = transactions_query.order_by(desc(BankTransaction.transaction_date))
 
     # 分页处理
     page = request.args.get('page', 1, type=int)
