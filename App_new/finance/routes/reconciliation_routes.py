@@ -448,7 +448,7 @@ def auto_match_suggestions():
                         'receipt_number': best_match.loan_number,
                         'receipt_date': best_match.loan_date.isoformat() if best_match.loan_date else '',
                         'receipt_amount': float(best_match.amount),
-                        'receipt_payer': best_match.lender_name or '',
+                        'receipt_payer': best_match.created_by or '',
                         'project_number': '',  # 借款没有项目
                         'match_score': best_score,
                         'match_level': get_match_level(best_score),
@@ -591,7 +591,7 @@ def calculate_loan_match_score(transaction, loan):
     description = (transaction.description or '').lower()
     bank_text = counterparty + ' ' + description
 
-    lender_name = (loan.lender_name or '').lower().strip()
+    lender_name = (loan.created_by or '').lower().strip()
 
     if lender_name and len(lender_name) >= 2 and lender_name in bank_text:
         score = min(100, score + 15)
