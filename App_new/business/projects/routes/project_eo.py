@@ -517,7 +517,8 @@ def batch_pay():
         ).join(
             CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
         ).filter(
-            ProjectEO.status == 'confirmed'  # 只显示已确认但未付款的
+            ProjectEO.status == 'confirmed',  # 只显示已确认的
+            ProjectEO.is_paid == False  # 且未付款的
         )
         
         # 应用筛选条件
@@ -724,7 +725,8 @@ def batch_pay_export():
         ).join(
             ProjectHeader, ProjectRef.header_id == ProjectHeader.id, isouter=True
         ).filter(
-            ProjectEO.status == 'confirmed'
+            ProjectEO.status == 'confirmed',  # 只显示已确认的
+            ProjectEO.is_paid == False  # 且未付款的
         )
 
         # 应用筛选条件
