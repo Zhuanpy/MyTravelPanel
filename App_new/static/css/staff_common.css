@@ -159,10 +159,12 @@ body {
     top: 56px;
     bottom: 0;
     left: 0;
+    width: var(--sidebar-width);
     z-index: 100;
     padding: 48px 0 0;
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
     overflow-y: auto;
+    background-color: #f8f9fa;
 }
 
 .sidebar .nav-link {
