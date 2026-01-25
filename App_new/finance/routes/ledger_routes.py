@@ -57,7 +57,7 @@ def ledger_home():
         # 业务数据（待生成日记账）- 已确认的发票都应生成日记账
         'invoice_pending': ProjectInvoice.query.filter_by(status='confirmed').count(),
         'receipt_pending': ProjectReceipt.query.filter_by(status='confirmed').count(),
-        'eo_pending': ProjectEO.query.filter_by(status='paid').count(),
+        'eo_pending': ProjectEO.query.filter_by(is_paid=True).count(),
     }
 
     # 计算已生成日记账的数量
@@ -317,7 +317,7 @@ def generate_journal_from_business():
                 logger.warning(f"Receipt {receipt.receipt_number} 生成日记账失败: {str(e)}")
 
         # 处理已付款的 EO
-        eos = ProjectEO.query.filter_by(status='paid').all()
+        eos = ProjectEO.query.filter_by(is_paid=True).all()
         for eo in eos:
             existing = JournalEntry.query.filter_by(source_type='eo', source_id=eo.id).first()
             if existing:

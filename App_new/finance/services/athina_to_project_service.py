@@ -1507,13 +1507,14 @@ class AthinaToProjectService:
 
                 # 确定 EO 状态
                 # Paid-P = 已付款, Unpaid-N = 未付款
-                # 注意：只有同时满足 Status=Paid 且有付款信息时才设为已付款
+                # 业务状态：confirmed/void，付款状态：is_paid
                 eo_status = 'confirmed'  # 默认已确认
+                eo_is_paid = False
                 if 'cancel' in status.lower():
-                    eo_status = 'cancelled'
+                    eo_status = 'void'
                 elif 'paid' in status.lower() and has_payment_info:
                     # 必须有付款信息才能设为已付款
-                    eo_status = 'paid'
+                    eo_is_paid = True
 
                 # 检查 EO 编号是否已存在
                 existing_eo = ProjectEO.query.filter_by(eo_number=eo_no).first()
@@ -1542,6 +1543,7 @@ class AthinaToProjectService:
                     eo.external_status = status
                     eo.external_reference = f"EO{eo_no}"
                     eo.status = eo_status
+                    eo.is_paid = eo_is_paid
                     self.stats['eos_updated'] += 1
                     results['success'] += 1
                     results['details'].append({
@@ -1574,6 +1576,7 @@ class AthinaToProjectService:
                         external_status=status,
                         external_reference=f"EO{eo_no}",
                         status=eo_status,
+                        is_paid=eo_is_paid,
                     )
                     db.session.add(eo)
                     self.stats['eos_created'] += 1
@@ -2726,7 +2729,7 @@ class AthinaToProjectService:
                         eo.paid_date = pmt_data['pay_date']
                         if item_amount:
                             eo.pay_amount = item_amount
-                        eo.status = 'paid'
+                        eo.is_paid = True
                         eo.payment_remarks = json.dumps({
                             'athina_pay_no': pay_no,
                             'pay_detail': pmt_data['pay_detail'],

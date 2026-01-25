@@ -247,12 +247,12 @@ def list_projects():
                 ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
                 ).group_by(ProjectRef.header_id).subquery()
 
-                # 子查询：每个项目已付款的EO数量（status == 'paid' 视为已付款）
+                # 子查询：每个项目已付款的EO数量（is_paid == True 视为已付款）
                 paid_eo_subq = db.session.query(
                     ProjectRef.header_id,
                     db.func.count(ProjectEO.id).label('paid_count')
                 ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
-                ).filter(ProjectEO.status == 'paid'
+                ).filter(ProjectEO.is_paid == True
                 ).group_by(ProjectRef.header_id).subquery()
 
                 # 4. Balance = 0
@@ -354,7 +354,7 @@ def list_projects():
                     ProjectRef.header_id,
                     db.func.count(ProjectEO.id).label('paid_count')
                 ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
-                ).filter(ProjectEO.status == 'paid'
+                ).filter(ProjectEO.is_paid == True
                 ).group_by(ProjectRef.header_id).subquery()
 
                 selling_subq = db.session.query(
@@ -741,13 +741,13 @@ def list_projects():
                 ).group_by(ProjectRef.header_id).all()
                 eo_count_dict = {r.header_id: r.eo_count for r in eo_counts}
 
-                # 4. 每个项目已付款的 EO 数量（status == 'paid' 视为已付款）
+                # 4. 每个项目已付款的 EO 数量（is_paid == True 视为已付款）
                 eo_paid_counts = db.session.query(
                     ProjectRef.header_id,
                     db.func.count(ProjectEO.id).label('paid_eo_count')
                 ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
                     ProjectRef.header_id.in_(project_ids),
-                    ProjectEO.status == 'paid'
+                    ProjectEO.is_paid == True
                 ).group_by(ProjectRef.header_id).all()
                 paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
 
@@ -1069,13 +1069,13 @@ def list_projects():
                     ).group_by(ProjectRef.header_id).all()
                     eo_count_dict = {r.header_id: r.eo_count for r in eo_counts}
 
-                    # 4. 每个项目已付款的 EO 数量（status == 'paid' 视为已付款）
+                    # 4. 每个项目已付款的 EO 数量（is_paid == True 视为已付款）
                     eo_paid_counts = db.session.query(
                         ProjectRef.header_id,
                         db.func.count(ProjectEO.id).label('paid_eo_count')
                     ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
                         ProjectRef.header_id.in_(project_ids),
-                        ProjectEO.status == 'paid'
+                        ProjectEO.is_paid == True
                     ).group_by(ProjectRef.header_id).all()
                     paid_eo_dict = {r.header_id: r.paid_eo_count for r in eo_paid_counts}
 

@@ -203,7 +203,7 @@ class ProjectRef(db.Model):
 
     def has_paid_eo(self):
         """检查是否有已付款的EO"""
-        if self.eos and self.eos.status == 'paid':
+        if self.eos and self.eos.is_paid:
             return True
         return False
 

@@ -94,7 +94,7 @@ def update_eo(eo_id):
             return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
 
         # 已付款的EO不能编辑
-        if eo.status == 'paid':
+        if eo.is_paid:
             return jsonify({'success': False, 'message': '已付款的EO不能编辑'}), 400
 
         # 获取JSON数据
@@ -395,7 +395,7 @@ def exchange_order_pay():
             eo.payment_no = payment_no
             eo.paid_date = paid_date
             eo.pay_amount = round(eo_pay_amount, 2)
-            eo.status = 'paid'
+            eo.is_paid = True
             success_count += 1
 
             # 自动创建日记账分录（借：成本费用，贷：银行存款）
@@ -975,7 +975,7 @@ def batch_pay_submit():
             eo.paid_date = paid_date
             eo.pay_amount = eo_pay_amount
             eo.payment_remarks = remarks
-            eo.status = 'paid'
+            eo.is_paid = True
             success_count += 1
 
             # 检查是否有已存在的预付使用记录（pending或confirmed）
@@ -1119,7 +1119,7 @@ def pay_eo(eo_id):
         if eo.status == 'void':
             return jsonify({'success': False, 'message': '此EO已作废，无法付款'}), 400
 
-        if eo.status == 'paid':
+        if eo.is_paid:
             return jsonify({'success': False, 'message': '此EO已付款'}), 400
 
         # 获取请求数据
@@ -1230,7 +1230,7 @@ def pay_eo(eo_id):
         eo.paid_date = paid_date
         eo.pay_amount = pay_amount
         eo.payment_remarks = payment_remarks
-        eo.status = 'paid'
+        eo.is_paid = True
 
         # 自动创建日记账分录
         journal_entry = None
@@ -1343,7 +1343,7 @@ def cancel_payment(eo_id):
             return jsonify({'success': False, 'message': '您没有权限操作此EO'}), 403
 
         # 检查是否已付款
-        if eo.status != 'paid' and not eo.pay_amount:
+        if not eo.is_paid and not eo.pay_amount:
             return jsonify({'success': False, 'message': '此EO未付款，无需取消'}), 400
 
         # 检查是否已作废
@@ -1388,7 +1388,7 @@ def cancel_payment(eo_id):
         eo.paid_date = None
         eo.pay_amount = None
         eo.payment_remarks = None
-        eo.status = 'confirmed'
+        eo.is_paid = False
 
         db.session.commit()
 
@@ -1543,6 +1543,7 @@ def eo_list():
         sort_order = request.args.get('sort_order', 'desc')
         has_invoice = request.args.get('has_invoice', '')  # 筛选有无发票
         match_status = request.args.get('match_status', '')  # 筛选匹配状态
+        payment_status = request.args.get('payment_status', '')  # 筛选付款状态
 
         # 构建查询
         from App_new.shared.models.business_types import BusinessType
@@ -1588,6 +1589,13 @@ def eo_list():
         if not match_status:
             if status:
                 filters.append(ProjectEO.status == status)
+
+            # 付款状态筛选
+            if payment_status:
+                if payment_status == 'paid':
+                    filters.append(ProjectEO.is_paid == True)
+                elif payment_status == 'unpaid':
+                    filters.append(ProjectEO.is_paid == False)
 
             if supplier_id:
                 filters.append(ProjectRef.supplier_id == supplier_id)
@@ -1831,8 +1839,10 @@ def eo_list():
                 'external_status': str(eo.external_status) if eo.external_status else '',
                 'external_reference': str(eo.external_reference) if eo.external_reference else '',
                 # 状态
-                'status': str(eo.status) if eo.status else 'draft',
+                'status': str(eo.status) if eo.status else 'confirmed',
+                'is_paid': eo.is_paid if hasattr(eo, 'is_paid') else False,
                 'status_display': get_status_display(eo.status),
+                'payment_display': '已付款' if (hasattr(eo, 'is_paid') and eo.is_paid) else '未付款',
                 'status_color': get_status_color(eo.status),
                 'created_at': eo.created_at,
                 'updated_at': eo.updated_at,
@@ -1867,7 +1877,7 @@ def eo_list():
         supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
         
         # 计算筛选结果数量
-        filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice, match_status]) else None
+        filtered_count = pagination.total if any([supplier_type, status, supplier_id, external_system, date_range, min_amount, max_amount, keyword, has_invoice, match_status, payment_status]) else None
 
         return render_template('business/projects/project_eo/eo_list.html',
                              eos=eos,
@@ -1878,6 +1888,7 @@ def eo_list():
                              current_filters={
                                  'supplier_type': supplier_type,
                                  'status': status,
+                                 'payment_status': payment_status,
                                  'supplier': supplier_id,
                                  'external_system': external_system,
                                  'date_range': date_range,
@@ -1899,13 +1910,12 @@ def eo_list():
 
 
 def get_status_display(status):
-    """获取状态的中文显示名称"""
+    """获取业务状态的中文显示名称"""
     if not status or not isinstance(status, str):
         return '未知'
 
     status_map = {
         'confirmed': '已确认',
-        'paid': '已付款',
         'void': '已作废'
     }
     return status_map.get(status, status)

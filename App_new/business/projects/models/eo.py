@@ -34,9 +34,12 @@ class ProjectEO(db.Model):
     external_status = db.Column(db.String(50), nullable=True, comment='外部系统状态')
     external_reference = db.Column(db.String(100), nullable=True, comment='外部系统参考号')
 
-    # 状态信息
-    status = db.Column(db.Enum('draft', 'confirmed', 'paid', 'cancelled', 'void'),
-                       default='draft', nullable=False, comment='状态')
+    # 状态信息（业务状态）
+    status = db.Column(db.Enum('confirmed', 'void'),
+                       default='confirmed', nullable=False, comment='业务状态：confirmed已确认/void已作废')
+
+    # 付款状态
+    is_paid = db.Column(db.Boolean, default=False, nullable=False, comment='是否已付款')
 
     # 核对状态（用于银行支出对比功能）
     is_reconciled = db.Column(db.Boolean, default=False, nullable=False, comment='已核对状态')
@@ -73,6 +76,7 @@ class ProjectEO(db.Model):
             'external_status': self.external_status,
             'external_reference': self.external_reference,
             'status': self.status,
+            'is_paid': self.is_paid,
             'is_reconciled': self.is_reconciled,
             'reconciled_at': self.reconciled_at.isoformat() if self.reconciled_at else None,
             'reconciled_by': self.reconciled_by,

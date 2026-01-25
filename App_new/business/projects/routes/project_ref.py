@@ -737,7 +737,7 @@ def edit_hotel_ref(ref_id):
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     header = ProjectHeader.query.get(ref.header_id)
@@ -1559,7 +1559,7 @@ def edit_transport_ref(ref_id):
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     return render_template('business/projects/project_ref/create_transport_ref.html',
@@ -1589,7 +1589,7 @@ def edit_flight_ref(ref_id):
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     # 获取供应商数据
@@ -1803,7 +1803,7 @@ def edit_visa_ref(ref_id):
     # 检查关联的EO是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     # 获取预选的签证类型列表
@@ -2135,7 +2135,7 @@ def edit_attraction_ref(ref_id):
     # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     return render_template('business/projects/project_ref/create_attraction_ref.html',
@@ -2437,7 +2437,7 @@ def edit_other_ref(ref_id):
     # 检查 EO 是否已付款
     eo_paid = False
     if ref.eos and ref.eos.status != 'void':
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     return render_template(
@@ -2534,7 +2534,7 @@ def edit_insurance_ref(ref_id):
     # 检查 EO 是否已付款
     eo_paid = False
     if ref.eos and ref.eos.status != 'void':
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     # 解析保险专属信息
@@ -2660,7 +2660,7 @@ def edit_tour_ref(ref_id):
     # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     return render_template('business/projects/project_ref/create_tour_ref.html',
@@ -3156,7 +3156,7 @@ def edit_ref(ref_id):
     # 检查 EO 是否已付款（排除已取消的）
     eo_paid = False
     if ref.eos and ref.eos.status not in ['void', 'cancelled']:
-        if ref.eos.pay_amount or ref.eos.status == 'paid':
+        if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
     return render_template('business/projects/project_ref/create_ref.html',
