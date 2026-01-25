@@ -252,6 +252,10 @@ class JournalEntry(db.Model):
             ))
 
         entry.total_amount = invoice.amount
+        # 自动过账
+        entry.status = 'posted'
+        entry.posted_at = datetime.utcnow()
+        entry.posted_by = user
         return entry
 
     @classmethod
@@ -297,6 +301,10 @@ class JournalEntry(db.Model):
             ))
 
         entry.total_amount = receipt.amount
+        # 自动过账
+        entry.status = 'posted'
+        entry.posted_at = datetime.utcnow()
+        entry.posted_by = user
         return entry
 
     @classmethod
@@ -345,6 +353,10 @@ class JournalEntry(db.Model):
             ))
 
         entry.total_amount = eo.pay_amount
+        # 自动过账
+        entry.status = 'posted'
+        entry.posted_at = datetime.utcnow()
+        entry.posted_by = user
         return entry
 
     @classmethod
@@ -403,6 +415,10 @@ class JournalEntry(db.Model):
                 ))
 
         entry.total_amount = eo.pay_amount
+        # 自动过账
+        entry.status = 'posted'
+        entry.posted_at = datetime.utcnow()
+        entry.posted_by = user
         return entry
 
 

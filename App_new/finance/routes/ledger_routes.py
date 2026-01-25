@@ -506,6 +506,10 @@ def journal_entry_add():
                 return jsonify({'success': False, 'message': 'Debit and Credit must be balanced'})
 
             entry.total_amount = entry.total_debit
+            # 自动过账
+            entry.status = 'posted'
+            entry.posted_at = datetime.utcnow()
+            entry.posted_by = current_user.username if current_user else None
 
             db.session.add(entry)
             db.session.commit()

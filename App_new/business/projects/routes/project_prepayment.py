@@ -237,6 +237,8 @@ def confirm_prepayment(prepayment_id):
                 description=f'预付账款充值 - {prepayment.supplier.name if prepayment.supplier else ""}',
                 total_amount=prepayment.amount,
                 status='posted',
+                posted_at=datetime.utcnow(),
+                posted_by=current_user.username if current_user else None,
                 created_by=current_user.username if current_user else None
             )
             db.session.add(journal_entry)
