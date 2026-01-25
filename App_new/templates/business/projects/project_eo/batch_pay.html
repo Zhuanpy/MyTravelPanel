@@ -50,7 +50,7 @@
 
     <!-- 筛选 -->
     <div class="filter-row">
-        <form method="GET" class="row g-2 align-items-end">
+        <form method="GET" class="row g-2 align-items-end" onsubmit="clearSavedSelections()">
             <div class="col-auto">
                 <select class="form-select" id="supplier_type" onchange="filterSuppliers()">
                     <option value="">All Types</option>
@@ -60,7 +60,7 @@
                 </select>
             </div>
             <div class="col-auto">
-                <select class="form-select" name="supplier" id="supplier_name" onchange="this.form.submit()">
+                <select class="form-select" name="supplier" id="supplier_name" onchange="clearSavedSelections(); this.form.submit()">
                     <option value="">Supplier</option>
                     {% for supplier in suppliers %}
                     <option value="{{ supplier.id }}" data-type="{{ supplier.supplier_type_code }}" {% if current_filters.supplier == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
