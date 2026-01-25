@@ -91,6 +91,7 @@
     .form-select[name="type"], .form-select[name="owner"] { width: 90px; font-size: 12px; padding: 4px 6px; }
     .form-control[name="ref"] { width: 100px; font-size: 12px; padding: 4px 6px; }
     .form-select[name="match_status"] { width: 90px; font-size: 12px; padding: 4px 6px; }
+    .form-select[name="match_category"] { width: 90px; font-size: 12px; padding: 4px 6px; }
     .form-select[name="operation_status"] { width: 90px; font-size: 12px; padding: 4px 6px; }
     .form-select[name="sort"] { width: 140px; font-size: 12px; padding: 4px 6px; }
 
@@ -297,6 +298,18 @@
                             <option value="reconciled" {% if filters.match_status=='reconciled' %}selected{% endif %}>已核对</option>
                             <option value="matched" {% if filters.match_status=='matched' %}selected{% endif %}>已匹配</option>
                             <option value="unmatched" {% if filters.match_status=='unmatched' %}selected{% endif %}>待匹配</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label">匹配分类</label>
+                        <select class="form-select" name="match_category" style="width: 90px;">
+                            <option value="">全部</option>
+                            <option value="receipt" {% if filters.match_category=='receipt' %}selected{% endif %}>收据</option>
+                            <option value="eo" {% if filters.match_category=='eo' %}selected{% endif %}>EO</option>
+                            <option value="payment" {% if filters.match_category=='payment' %}selected{% endif %}>付款</option>
+                            <option value="prepayment" {% if filters.match_category=='prepayment' %}selected{% endif %}>预付</option>
+                            <option value="loan_borrow" {% if filters.match_category=='loan_borrow' %}selected{% endif %}>借款</option>
+                            <option value="loan_repay" {% if filters.match_category=='loan_repay' %}selected{% endif %}>还款</option>
                         </select>
                     </div>
                     <div class="col-auto">

@@ -40,6 +40,7 @@
             <col style="width: 68px;">  <!-- 匹配状态 -->
             <col style="width: 95px;">  <!-- 匹配单号 -->
             <col style="width: 80px;">  <!-- 匹配金额 -->
+            <col style="width: 55px;">  <!-- 匹配分类 -->
             <col style="width: 110px;"> <!-- 操作 -->
             <col style="width: 100px;"> <!-- 备注 -->
         </colgroup>
@@ -57,6 +58,7 @@
                 <th>匹配状态</th>
                 <th>匹配单号</th>
                 <th>匹配金额</th>
+                <th>分类</th>
                 <th>操作</th>
                 <th>备注</th>
             </tr>
@@ -144,6 +146,39 @@
                         {% endif %}
                     {% endif %}
                 </td>
+                <td style="white-space: nowrap; font-size: 11px;">
+                    {% if t.matched_receipt %}
+                        <span class="badge bg-success">收据</span>
+                    {% elif t.matched_eo %}
+                        <span class="badge bg-danger">EO</span>
+                    {% elif t.reconciliation_status == 'matched' and t.matched_payment %}
+                        <span class="badge bg-warning text-dark">付款</span>
+                    {% elif t.reconciliation_status == 'matched' and t.matched_prepayment %}
+                        <span class="badge bg-info">预付</span>
+                    {% else %}
+                        {% set match_records = t.matches.all() if t.matches else [] %}
+                        {% if match_records %}
+                            {% set first_match = match_records[0] %}
+                            {% if first_match.match_type == 'receipt' %}
+                                <span class="badge bg-success">收据</span>
+                            {% elif first_match.match_type == 'eo' %}
+                                <span class="badge bg-danger">EO</span>
+                            {% elif first_match.match_type == 'payment' %}
+                                <span class="badge bg-warning text-dark">付款</span>
+                            {% elif first_match.match_type == 'prepayment' %}
+                                <span class="badge bg-info">预付</span>
+                            {% elif first_match.match_type == 'loan_borrow' %}
+                                <span class="badge bg-primary">借款</span>
+                            {% elif first_match.match_type == 'loan_repay' %}
+                                <span class="badge bg-secondary">还款</span>
+                            {% else %}
+                                <span class="badge bg-secondary">其他</span>
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    {% endif %}
+                </td>
                 <td style="white-space: nowrap;">
                     {% if not t.is_confirmed %}
                         <div class="d-flex align-items-center gap-1">
@@ -197,7 +232,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="14" class="text-center text-muted">暂无交易</td></tr>
+            <tr><td colspan="15" class="text-center text-muted">暂无交易</td></tr>
             {% endfor %}
         </tbody>
     </table>

@@ -13,6 +13,7 @@ from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.project import CustomerCompany
 from App_new.business.projects.models.supplier_payment import SupplierPayment
 from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+from App_new.finance.models.shareholder_loan import ShareholderLoan, ShareholderLoanRepayment
 from App_new.utils.decorators import staff_only
 from datetime import datetime, timedelta
 from sqlalchemy import desc, func, or_, and_
@@ -212,6 +213,28 @@ def get_compare_data():
         receipt_query = receipt_query.order_by(desc(ProjectReceipt.payment_date))
         receipts = receipt_query.limit(200).all()
 
+        # 查询股东借款记录（用于收入匹配）
+        loan_query = ShareholderLoan.query.filter(
+            ShareholderLoan.status != 'cancelled'
+        )
+        if start_date:
+            loan_query = loan_query.filter(ShareholderLoan.loan_date >= start_date)
+        if end_date:
+            loan_query = loan_query.filter(ShareholderLoan.loan_date <= end_date)
+
+        # 获取已匹配的借款ID
+        matched_loan_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'loan_borrow'
+        ).subquery()
+
+        if status in ['all', 'unmatched']:
+            loan_query = loan_query.filter(~ShareholderLoan.id.in_(matched_loan_ids))
+        elif status == 'matched':
+            loan_query = loan_query.filter(ShareholderLoan.id.in_(matched_loan_ids))
+
+        loan_query = loan_query.order_by(desc(ShareholderLoan.loan_date))
+        loans = loan_query.limit(50).all()
+
         # 格式化数据
         tx_data = []
         for tx in transactions:
@@ -234,12 +257,33 @@ def get_compare_data():
             matched_tx = BankTransaction.query.filter_by(matched_receipt_id=r.id).first()
             r_dict['is_matched'] = matched_tx is not None
             r_dict['matched_tx_id'] = matched_tx.id if matched_tx else None
+            r_dict['record_type'] = 'receipt'
             receipt_data.append(r_dict)
+
+        # 格式化股东借款数据
+        loan_data = []
+        for loan in loans:
+            matched = BankTransactionMatch.query.filter_by(
+                match_type='loan_borrow', match_id=loan.id
+            ).first()
+            loan_data.append({
+                'id': loan.id,
+                'record_type': 'loan_borrow',
+                'loan_number': loan.loan_number,
+                'amount': float(loan.amount),
+                'loan_date': loan.loan_date.isoformat() if loan.loan_date else None,
+                'description': loan.description or '',
+                'status': loan.status,
+                'status_display': loan.status_display,
+                'is_matched': matched is not None,
+                'matched_tx_id': matched.transaction_id if matched else None
+            })
 
         return jsonify({
             'success': True,
             'bank_transactions': tx_data,
-            'project_receipts': receipt_data
+            'project_receipts': receipt_data,
+            'shareholder_loans': loan_data
         })
 
     except Exception as e:
@@ -462,61 +506,110 @@ def get_match_level(score):
 @login_required
 @staff_only
 def manual_match():
-    """手动匹配API"""
+    """手动匹配API - 支持收据和股东借款"""
     try:
         data = request.get_json()
         transaction_id = data.get('transaction_id')
-        receipt_id = data.get('receipt_id')
+        match_type = data.get('match_type', 'receipt')
+        match_id = data.get('match_id') or data.get('receipt_id')
 
-        if not transaction_id or not receipt_id:
-            return jsonify({'success': False, 'message': '缺少交易ID或收款ID'})
+        if not transaction_id or not match_id:
+            return jsonify({'success': False, 'message': '缺少交易ID或匹配记录ID'})
 
         # 查找银行交易
         transaction = BankTransaction.query.get(transaction_id)
         if not transaction:
             return jsonify({'success': False, 'message': '银行交易记录不存在'})
 
-        # 查找收款记录
-        receipt = ProjectReceipt.query.get(receipt_id)
-        if not receipt:
-            return jsonify({'success': False, 'message': '收款记录不存在'})
-
-        # 检查是否已经匹配
-        if transaction.matched_receipt_id:
-            return jsonify({'success': False, 'message': '该银行交易已匹配其他收款记录'})
-
-        existing_match = BankTransaction.query.filter_by(matched_receipt_id=receipt_id).first()
-        if existing_match:
-            return jsonify({'success': False, 'message': '该收款记录已被其他银行交易匹配'})
-
-        # 执行匹配
         current_time = datetime.utcnow()
         current_user_name = current_user.username if current_user else 'system'
 
-        transaction.matched_receipt_id = receipt_id
-        transaction.reconciliation_status = 'matched'
-        # 填充收款单号到 REF/EO 字段
-        transaction.accounting_ref = receipt.receipt_number
-        # 自动确认该银行记录
-        transaction.is_confirmed = True
-        transaction.confirmed_at = current_time
-        transaction.confirmed_by = current_user_name
-        transaction.updated_at = current_time
+        if match_type == 'receipt':
+            # 收据匹配（保持原有逻辑）
+            receipt = ProjectReceipt.query.get(match_id)
+            if not receipt:
+                return jsonify({'success': False, 'message': '收款记录不存在'})
 
-        # 同时更新收款记录的核对状态
-        receipt.is_reconciled = True
-        receipt.reconciled_at = current_time
-        receipt.reconciled_by = current_user_name
+            if transaction.matched_receipt_id:
+                return jsonify({'success': False, 'message': '该银行交易已匹配其他收款记录'})
 
-        db.session.commit()
+            existing_match = BankTransaction.query.filter_by(matched_receipt_id=match_id).first()
+            if existing_match:
+                return jsonify({'success': False, 'message': '该收款记录已被其他银行交易匹配'})
 
-        return jsonify({
-            'success': True,
-            'message': '匹配成功，已自动确认银行记录和收款记录',
-            'transaction_id': transaction_id,
-            'receipt_id': receipt_id,
-            'receipt_number': receipt.receipt_number
-        })
+            transaction.matched_receipt_id = match_id
+            transaction.reconciliation_status = 'matched'
+            transaction.accounting_ref = receipt.receipt_number
+            transaction.is_confirmed = True
+            transaction.confirmed_at = current_time
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = current_time
+
+            receipt.is_reconciled = True
+            receipt.reconciled_at = current_time
+            receipt.reconciled_by = current_user_name
+
+            # 同时创建BankTransactionMatch记录
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='receipt',
+                match_id=match_id,
+                allocated_amount=receipt.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': '匹配成功，已自动确认银行记录和收款记录',
+                'transaction_id': transaction_id,
+                'match_type': 'receipt',
+                'match_id': match_id,
+                'match_number': receipt.receipt_number
+            })
+
+        elif match_type == 'loan_borrow':
+            # 股东借款匹配
+            loan = ShareholderLoan.query.get(match_id)
+            if not loan:
+                return jsonify({'success': False, 'message': '借款记录不存在'})
+
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='loan_borrow', match_id=match_id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': '该借款记录已被其他银行交易匹配'})
+
+            # 创建匹配记录
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='loan_borrow',
+                match_id=match_id,
+                allocated_amount=loan.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.accounting_ref = loan.loan_number
+            transaction.reconciliation_status = 'matched'
+            transaction.is_confirmed = True
+            transaction.confirmed_at = current_time
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = current_time
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': '匹配成功，已关联股东借款记录',
+                'transaction_id': transaction_id,
+                'match_type': 'loan_borrow',
+                'match_id': match_id,
+                'match_number': loan.loan_number
+            })
+
+        else:
+            return jsonify({'success': False, 'message': f'不支持的匹配类型: {match_type}'})
 
     except Exception as e:
         db.session.rollback()
@@ -954,18 +1047,20 @@ def get_accounts():
 @login_required
 @staff_only
 def mark_reconciled():
-    """标记为已核对API"""
+    """标记为已核对API - 支持收款和股东借款"""
     try:
         data = request.get_json()
         transaction_ids = data.get('transaction_ids', [])
         receipt_ids = data.get('receipt_ids', [])
+        loan_borrow_ids = data.get('loan_borrow_ids', [])
         is_reconciled = data.get('is_reconciled', True)
 
-        if not transaction_ids and not receipt_ids:
+        if not transaction_ids and not receipt_ids and not loan_borrow_ids:
             return jsonify({'success': False, 'message': '请选择要标记的记录'})
 
         tx_count = 0
         receipt_count = 0
+        loan_borrow_count = 0
         current_time = datetime.utcnow()
         current_user_name = current_user.username if current_user else 'system'
 
@@ -997,6 +1092,19 @@ def mark_reconciled():
                 receipt.updated_at = current_time
                 receipt_count += 1
 
+        # 标记股东借款记录
+        for loan_id in loan_borrow_ids:
+            loan = ShareholderLoan.query.get(loan_id)
+            if loan:
+                loan.is_reconciled = is_reconciled
+                if is_reconciled:
+                    loan.reconciled_at = current_time
+                    loan.reconciled_by = current_user_name
+                else:
+                    loan.reconciled_at = None
+                    loan.reconciled_by = None
+                loan_borrow_count += 1
+
         db.session.commit()
 
         action = '核对' if is_reconciled else '取消核对'
@@ -1005,12 +1113,15 @@ def mark_reconciled():
             message_parts.append(f'{tx_count} 条银行记录')
         if receipt_count > 0:
             message_parts.append(f'{receipt_count} 条收款记录')
+        if loan_borrow_count > 0:
+            message_parts.append(f'{loan_borrow_count} 条股东借款')
 
         return jsonify({
             'success': True,
             'message': f'已{action} ' + '、'.join(message_parts),
             'transaction_count': tx_count,
-            'receipt_count': receipt_count
+            'receipt_count': receipt_count,
+            'loan_borrow_count': loan_borrow_count
         })
 
     except Exception as e:
@@ -1430,12 +1541,55 @@ def get_eo_compare_data():
                 'status': pre.status
             })
 
+        # 查询股东还款记录（用于支出匹配）
+        repay_query = ShareholderLoanRepayment.query.filter(
+            ShareholderLoanRepayment.status != 'cancelled'
+        )
+        if start_date:
+            repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date >= start_date)
+        if end_date:
+            repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date <= end_date)
+
+        # 获取已匹配的还款ID
+        matched_repay_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'loan_repay'
+        ).subquery()
+
+        if status in ['all', 'unmatched']:
+            repay_query = repay_query.filter(~ShareholderLoanRepayment.id.in_(matched_repay_ids))
+        elif status == 'matched':
+            repay_query = repay_query.filter(ShareholderLoanRepayment.id.in_(matched_repay_ids))
+
+        repay_query = repay_query.order_by(desc(ShareholderLoanRepayment.repayment_date))
+        repayments = repay_query.limit(50).all()
+
+        # 格式化股东还款数据
+        loan_repay_data = []
+        for repay in repayments:
+            is_matched = BankTransactionMatch.query.filter_by(
+                match_type='loan_repay', match_id=repay.id
+            ).first() is not None
+            loan_repay_data.append({
+                'id': repay.id,
+                'record_type': 'loan_repay',
+                'number': repay.repayment_number,
+                'date': repay.repayment_date.isoformat() if repay.repayment_date else '',
+                'amount': float(repay.total_amount) if repay.total_amount else 0,
+                'currency': 'SGD',
+                'supplier_name': '股东还款',
+                'description': repay.description or '',
+                'remarks': repay.remarks or '',
+                'is_matched': is_matched,
+                'status': repay.status
+            })
+
         return jsonify({
             'success': True,
             'bank_transactions': tx_data,
             'project_eos': eo_data,
             'payments': payment_data,
-            'prepayments': prepayment_data
+            'prepayments': prepayment_data,
+            'loan_repayments': loan_repay_data
         })
 
     except Exception as e:
@@ -1975,6 +2129,34 @@ def eo_manual_match():
             transaction.confirmed_by = current_user_name
             transaction.updated_at = datetime.utcnow()
 
+        elif match_type == 'loan_repay':
+            # 股东还款匹配
+            repayment = ShareholderLoanRepayment.query.get(match_id)
+            if not repayment:
+                return jsonify({'success': False, 'message': '还款记录不存在'})
+
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='loan_repay', match_id=match_id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': '该还款记录已被其他银行交易匹配'})
+
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='loan_repay',
+                match_id=match_id,
+                allocated_amount=repayment.total_amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.accounting_ref = repayment.repayment_number
+            transaction.reconciliation_status = 'matched'
+            transaction.is_confirmed = True
+            transaction.confirmed_at = datetime.utcnow()
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = datetime.utcnow()
+
         else:
             return jsonify({'success': False, 'message': f'不支持的匹配类型: {match_type}'})
 
@@ -2252,16 +2434,17 @@ def eo_batch_match():
 @login_required
 @staff_only
 def eo_mark_reconciled():
-    """标记支出记录为已核对API - 支持EO/Payment/Prepayment"""
+    """标记支出记录为已核对API - 支持EO/Payment/Prepayment/LoanRepay"""
     try:
         data = request.get_json()
         transaction_ids = data.get('transaction_ids', [])
         eo_ids = data.get('eo_ids', [])
         payment_ids = data.get('payment_ids', [])
         prepayment_ids = data.get('prepayment_ids', [])
+        loan_repay_ids = data.get('loan_repay_ids', [])
         is_reconciled = data.get('is_reconciled', True)
 
-        if not transaction_ids and not eo_ids and not payment_ids and not prepayment_ids:
+        if not transaction_ids and not eo_ids and not payment_ids and not prepayment_ids and not loan_repay_ids:
             return jsonify({'success': False, 'message': '请选择要标记的记录'})
 
         tx_count = 0
@@ -2325,6 +2508,20 @@ def eo_mark_reconciled():
                     pre.reconciled_by = None
                 prepay_count += 1
 
+        # 标记股东还款记录
+        loan_repay_count = 0
+        for repay_id in loan_repay_ids:
+            repay = ShareholderLoanRepayment.query.get(repay_id)
+            if repay:
+                repay.is_reconciled = is_reconciled
+                if is_reconciled:
+                    repay.reconciled_at = current_time
+                    repay.reconciled_by = current_user_name
+                else:
+                    repay.reconciled_at = None
+                    repay.reconciled_by = None
+                loan_repay_count += 1
+
         db.session.commit()
 
         action = '核对' if is_reconciled else '取消核对'
@@ -2337,6 +2534,8 @@ def eo_mark_reconciled():
             message_parts.append(f'{pay_count} 条付款记录')
         if prepay_count > 0:
             message_parts.append(f'{prepay_count} 条预付款记录')
+        if loan_repay_count > 0:
+            message_parts.append(f'{loan_repay_count} 条股东还款')
 
         return jsonify({
             'success': True,
@@ -2344,7 +2543,8 @@ def eo_mark_reconciled():
             'transaction_count': tx_count,
             'eo_count': eo_count,
             'payment_count': pay_count,
-            'prepayment_count': prepay_count
+            'prepayment_count': prepay_count,
+            'loan_repay_count': loan_repay_count
         })
 
     except Exception as e:
@@ -2397,7 +2597,7 @@ def multi_match():
                 failed_items.append({'transaction_id': tx_id, 'reason': '参数不完整'})
                 continue
 
-            if match_type not in ['receipt', 'eo', 'payment', 'prepayment']:
+            if match_type not in ['receipt', 'eo', 'payment', 'prepayment', 'loan_borrow', 'loan_repay']:
                 failed_items.append({'transaction_id': tx_id, 'reason': '无效的匹配类型'})
                 continue
 
@@ -2427,6 +2627,16 @@ def multi_match():
                 target = SupplierPrepayment.query.get(match_id)
                 if not target:
                     failed_items.append({'transaction_id': tx_id, 'reason': f'预付款记录 {match_id} 不存在'})
+                    continue
+            elif match_type == 'loan_borrow':
+                target = ShareholderLoan.query.get(match_id)
+                if not target:
+                    failed_items.append({'transaction_id': tx_id, 'reason': f'借款记录 {match_id} 不存在'})
+                    continue
+            elif match_type == 'loan_repay':
+                target = ShareholderLoanRepayment.query.get(match_id)
+                if not target:
+                    failed_items.append({'transaction_id': tx_id, 'reason': f'还款记录 {match_id} 不存在'})
                     continue
 
             # 检查是否已存在该匹配
@@ -2514,7 +2724,7 @@ def update_transaction_status(transaction, match_type, match_id, username):
                     receipt_numbers.append(r.receipt_number)
             if receipt_numbers:
                 transaction.accounting_ref = ','.join(receipt_numbers)
-    else:
+    elif match_type == 'eo':
         # EO匹配
         matches = BankTransactionMatch.query.filter_by(
             transaction_id=transaction.id,
@@ -2534,6 +2744,16 @@ def update_transaction_status(transaction, match_type, match_id, username):
                     eo_numbers.append(e.eo_number)
             if eo_numbers:
                 transaction.accounting_ref = ','.join(eo_numbers)
+    elif match_type == 'loan_borrow':
+        # 股东借款匹配
+        loan = ShareholderLoan.query.get(match_id)
+        if loan:
+            transaction.accounting_ref = loan.loan_number
+    elif match_type == 'loan_repay':
+        # 股东还款匹配
+        repayment = ShareholderLoanRepayment.query.get(match_id)
+        if repayment:
+            transaction.accounting_ref = repayment.repayment_number
 
 
 @reconciliation_bp.route('/api/remove-match', methods=['POST'])

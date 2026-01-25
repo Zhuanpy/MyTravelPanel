@@ -55,6 +55,7 @@ def uob_bank():
         'owner': request.args.get('owner', ''),
         'ref': request.args.get('ref', ''),
         'match_status': request.args.get('match_status', ''),
+        'match_category': request.args.get('match_category', ''),
         'operation_status': request.args.get('operation_status', ''),
         'sort': request.args.get('sort', 'date_desc')
     }
@@ -175,6 +176,43 @@ def uob_bank():
         elif filters['operation_status'] == 'unconfirmed':
             transactions_query = transactions_query.filter(
                 BankTransaction.is_confirmed == False
+            )
+
+    # 匹配分类筛选
+    if filters['match_category']:
+        category = filters['match_category']
+        if category == 'receipt':
+            # 收据匹配：旧字段或BankTransactionMatch
+            transactions_query = transactions_query.filter(
+                db.or_(
+                    BankTransaction.matched_receipt_id.isnot(None),
+                    BankTransaction.id.in_(
+                        db.session.query(BankTransactionMatch.transaction_id).filter(
+                            BankTransactionMatch.match_type == 'receipt'
+                        )
+                    )
+                )
+            )
+        elif category == 'eo':
+            # EO匹配：旧字段或BankTransactionMatch
+            transactions_query = transactions_query.filter(
+                db.or_(
+                    db.and_(BankTransaction.eo_id.isnot(None), BankTransaction.eo_id != 0),
+                    BankTransaction.id.in_(
+                        db.session.query(BankTransactionMatch.transaction_id).filter(
+                            BankTransactionMatch.match_type == 'eo'
+                        )
+                    )
+                )
+            )
+        elif category in ['payment', 'prepayment', 'loan_borrow', 'loan_repay']:
+            # 其他类型：仅通过BankTransactionMatch
+            transactions_query = transactions_query.filter(
+                BankTransaction.id.in_(
+                    db.session.query(BankTransactionMatch.transaction_id).filter(
+                        BankTransactionMatch.match_type == category
+                    )
+                )
             )
 
     # 应用排序

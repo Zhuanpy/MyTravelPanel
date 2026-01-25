@@ -343,6 +343,7 @@
                         <option value="eo">EO</option>
                         <option value="payment">PAY</option>
                         <option value="prepayment">PRE</option>
+                        <option value="loan_repay">还款</option>
                     </select>
                     <select class="form-select form-select-sm" id="eoSupplierFilter" style="width:120px;">
                         <option value="">供应商</option>
@@ -645,6 +646,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
 
+                // 合并股东借款还款
+                (result.loan_repayments || []).forEach(r => {
+                    projectRecords.push({
+                        ...r,
+                        record_type: 'loan_repay',
+                        record_id: r.id,
+                        record_number: r.repayment_number || '',
+                        record_date: r.repayment_date || '',
+                        record_amount: r.amount || 0,
+                        record_supplier: r.shareholder_name || '股东还款',
+                        supplier_name: r.shareholder_name || '股东还款'
+                    });
+                });
+
                 // 更新供应商筛选下拉框选项
                 updateEOSupplierFilterOptions();
 
@@ -810,6 +825,7 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'eo': return '<span class="badge bg-purple" style="font-size:10px; background-color:#6f42c1;">EO</span>';
             case 'payment': return '<span class="badge bg-danger" style="font-size:10px;">PAY</span>';
             case 'prepayment': return '<span class="badge bg-warning text-dark" style="font-size:10px;">PRE</span>';
+            case 'loan_repay': return '<span class="badge bg-secondary" style="font-size:10px;">还款</span>';
             default: return '';
         }
     }
@@ -1021,6 +1037,9 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (matchType === 'prepayment') {
                 typeLabel = '预付款记录';
                 typeBadge = '<span class="badge bg-warning text-dark me-1" style="font-size:10px;">PRE</span>';
+            } else if (matchType === 'loan_repay') {
+                typeLabel = '股东还款';
+                typeBadge = '<span class="badge bg-secondary me-1" style="font-size:10px;">还款</span>';
             }
 
             html += `
@@ -1498,11 +1517,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const eoIds = [];
         const paymentIds = [];
         const prepaymentIds = [];
+        const loanRepayIds = [];
         selectedRecordKeys.forEach(key => {
             const [rType, rId] = key.split(':');
             if (rType === 'eo') eoIds.push(parseInt(rId));
             else if (rType === 'payment') paymentIds.push(parseInt(rId));
             else if (rType === 'prepayment') prepaymentIds.push(parseInt(rId));
+            else if (rType === 'loan_repay') loanRepayIds.push(parseInt(rId));
         });
 
         const countText = [];
@@ -1510,6 +1531,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (eoIds.length > 0) countText.push(`${eoIds.length} 条EO记录`);
         if (paymentIds.length > 0) countText.push(`${paymentIds.length} 条付款记录`);
         if (prepaymentIds.length > 0) countText.push(`${prepaymentIds.length} 条预付款记录`);
+        if (loanRepayIds.length > 0) countText.push(`${loanRepayIds.length} 条股东还款`);
 
         if (!confirm(`确定要将 ${countText.join('、')} 标记为已核对吗？\n\n标记后，这些记录将不再显示在默认列表中。`)) {
             return;
@@ -1527,6 +1549,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     eo_ids: eoIds,
                     payment_ids: paymentIds,
                     prepayment_ids: prepaymentIds,
+                    loan_repay_ids: loanRepayIds,
                     is_reconciled: true
                 })
             });

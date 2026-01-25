@@ -303,7 +303,7 @@
             <div>
                 <span class="selection-info me-3">
                     银行记录: <span id="txSelectedCount">0</span> 条 |
-                    收款记录: <span id="receiptSelectedCount">0</span> 条
+                    收入记录: <span id="receiptSelectedCount">0</span> 条
                 </span>
             </div>
             <div>
@@ -352,10 +352,10 @@
             </div>
         </div>
 
-        <!-- 右侧：项目收款记录 -->
+        <!-- 右侧：项目收款记录/借款 -->
         <div class="compare-panel">
             <div class="panel-header receipt-header">
-                <span><i class="fas fa-receipt me-2"></i>项目收款记录</span>
+                <span><i class="fas fa-receipt me-2"></i>收款记录/借款</span>
                 <span id="receiptTotalCount">0 条</span>
             </div>
             <!-- 收款搜索栏 -->
@@ -390,18 +390,19 @@
                     <thead>
                         <tr>
                             <th style="width:26px;"><input type="checkbox" id="receiptSelectAll"></th>
-                            <th style="width:78px;">收据号</th>
+                            <th style="width:40px; text-align:center;">类型</th>
+                            <th style="width:78px;">单号</th>
                             <th style="width:72px; text-align:center;">日期</th>
                             <th style="width:68px; text-align:right; padding-right:6px;">金额</th>
                             <th style="width:48px; text-align:center;">方式</th>
                             <th style="width:60px;">银行</th>
-                            <th style="width:70px;">付款人</th>
+                            <th style="width:70px;">付款人/股东</th>
                             <th style="width:75px;">项目</th>
                             <th style="width:46px; text-align:center;">状态</th>
                         </tr>
                     </thead>
                     <tbody id="receiptTableBody">
-                        <tr><td colspan="9" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                        <tr><td colspan="10" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -513,9 +514,9 @@
                             </table>
                         </div>
                     </div>
-                    <!-- 右侧：选中的收款记录 -->
+                    <!-- 右侧：选中的收入记录 -->
                     <div class="col-md-6">
-                        <h6 class="mb-3"><i class="fas fa-receipt me-2"></i>选中的收款记录</h6>
+                        <h6 class="mb-3"><i class="fas fa-receipt me-2"></i>选中的收入记录（收款/借款）</h6>
                         <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                             <table class="table table-sm table-bordered" id="multiMatchReceiptTable">
                                 <thead class="table-light">
@@ -529,7 +530,7 @@
                                 <tbody id="multiMatchReceiptBody"></tbody>
                                 <tfoot class="table-secondary">
                                     <tr>
-                                        <td colspan="3" class="text-end fw-bold">收款总计:</td>
+                                        <td colspan="3" class="text-end fw-bold">收入总计:</td>
                                         <td class="fw-bold text-success" id="multiMatchReceiptTotal">0.00</td>
                                     </tr>
                                 </tfoot>
@@ -539,10 +540,10 @@
                 </div>
                 <div class="alert alert-info mt-3 mb-0">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>提示：</strong>可以修改分配金额以支持部分匹配。银行记录总计应等于收款记录总计。
+                    <strong>提示：</strong>可以修改分配金额以支持部分匹配。银行记录总计应等于收入记录总计。
                     <div class="mt-2">
                         <span class="me-3">银行总计: <strong id="multiMatchTxSum">0.00</strong></span>
-                        <span class="me-3">收款总计: <strong id="multiMatchReceiptSum">0.00</strong></span>
+                        <span class="me-3">收入总计: <strong id="multiMatchReceiptSum">0.00</strong></span>
                         <span id="multiMatchDiff" class="text-success fw-bold">✓ 金额一致</span>
                     </div>
                 </div>
@@ -592,9 +593,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 数据存储
     let bankTransactions = [];
-    let projectReceipts = [];
+    let projectReceipts = [];      // 原始收款数据
+    let shareholderLoans = [];     // 股东借款数据
+    let incomeRecords = [];        // 合并后的收入记录（收款+借款）
     let selectedTxIds = new Set();
-    let selectedReceiptIds = new Set();
+    let selectedReceiptIds = new Set();  // 收款选择（包含类型信息）
     let currentSuggestions = [];
     let currentCreateTxId = null;
 
@@ -685,7 +688,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (result.success) {
                 bankTransactions = result.bank_transactions;
-                projectReceipts = result.project_receipts;
+                projectReceipts = result.project_receipts || [];
+                shareholderLoans = result.shareholder_loans || [];
+
+                // 合并收款和借款为统一的收入记录
+                incomeRecords = [];
+
+                // 添加收款记录
+                projectReceipts.forEach(r => {
+                    incomeRecords.push({
+                        ...r,
+                        record_type: 'receipt',
+                        record_id: r.id,
+                        record_number: r.receipt_number,
+                        record_date: r.payment_date,
+                        payer_name: r.payer_name
+                    });
+                });
+
+                // 添加借款记录
+                shareholderLoans.forEach(loan => {
+                    incomeRecords.push({
+                        id: loan.id,
+                        record_type: 'loan_borrow',
+                        record_id: loan.id,
+                        record_number: loan.loan_number,
+                        record_date: loan.loan_date,
+                        amount: loan.amount,
+                        payment_method: 'bank_transfer',
+                        bank_name: loan.bank_name || '',
+                        payer_name: loan.shareholder_name,
+                        project_number: '-',
+                        is_matched: loan.is_reconciled,
+                        is_reconciled: loan.is_reconciled
+                    });
+                });
 
                 // 更新银行筛选下拉框选项
                 updateReceiptBankFilterOptions();
@@ -829,8 +866,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const bankFilterSelect = document.getElementById('receiptBankFilter');
         const currentValue = bankFilterSelect.value;
 
-        // 获取所有不重复的银行名称
-        const bankNames = [...new Set(projectReceipts
+        // 获取所有不重复的银行名称（从合并后的记录中获取）
+        const bankNames = [...new Set(incomeRecords
             .map(r => r.bank_name)
             .filter(name => name && name.trim())
         )].sort();
@@ -848,28 +885,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 渲染收款记录表格
+    // 渲染收款/借款记录表格
     function renderReceipts() {
         // 根据搜索关键字和筛选条件过滤
-        let filteredReceipts = projectReceipts;
+        let filteredRecords = incomeRecords;
 
         // 支付方式筛选
         if (receiptPaymentMethodFilter) {
-            filteredReceipts = filteredReceipts.filter(r => r.payment_method === receiptPaymentMethodFilter);
+            filteredRecords = filteredRecords.filter(r => r.payment_method === receiptPaymentMethodFilter);
         }
 
         // 银行筛选
         if (receiptBankFilter) {
-            filteredReceipts = filteredReceipts.filter(r => r.bank_name === receiptBankFilter);
+            filteredRecords = filteredRecords.filter(r => r.bank_name === receiptBankFilter);
         }
 
         // 关键字搜索
         if (receiptSearchKeyword) {
-            filteredReceipts = filteredReceipts.filter(r => {
-                const receiptNumber = (r.receipt_number || '').toLowerCase();
+            filteredRecords = filteredRecords.filter(r => {
+                const recordNumber = (r.record_number || r.receipt_number || '').toLowerCase();
                 const projectNumber = (r.project_number || '').toLowerCase();
                 const payerName = (r.payer_name || '').toLowerCase();
-                return receiptNumber.includes(receiptSearchKeyword) ||
+                return recordNumber.includes(receiptSearchKeyword) ||
                        projectNumber.includes(receiptSearchKeyword) ||
                        payerName.includes(receiptSearchKeyword);
             });
@@ -877,20 +914,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const hasFilter = receiptSearchKeyword || receiptPaymentMethodFilter || receiptBankFilter;
 
-        if (filteredReceipts.length === 0) {
-            receiptTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无数据</td></tr>';
-            receiptTotalCount.textContent = hasFilter ? `0/${projectReceipts.length} 条` : '0 条';
+        if (filteredRecords.length === 0) {
+            receiptTableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无数据</td></tr>';
+            receiptTotalCount.textContent = hasFilter ? `0/${incomeRecords.length} 条` : '0 条';
             return;
         }
 
         receiptTotalCount.textContent = hasFilter ?
-            `${filteredReceipts.length}/${projectReceipts.length} 条` :
-            `${filteredReceipts.length} 条`;
+            `${filteredRecords.length}/${incomeRecords.length} 条` :
+            `${filteredRecords.length} 条`;
 
         let html = '';
-        filteredReceipts.forEach(r => {
+        filteredRecords.forEach(r => {
             const isMatched = r.is_matched;
             const isReconciled = r.is_reconciled;
+            const recordType = r.record_type || 'receipt';
 
             let statusHtml = '';
             if (isReconciled) {
@@ -906,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 rowClass = 'reconciled';
             } else if (isMatched) {
                 rowClass = 'matched';
-            } else if (selectedReceiptIds.has(r.id)) {
+            } else if (selectedReceiptIds.has(`${recordType}_${r.id}`)) {
                 rowClass = 'selected';
             }
 
@@ -914,8 +952,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const payerName = r.payer_name || '-';
             const bankName = r.bank_name || '-';
 
-            // 收据号码简化显示（去掉RC前缀）
-            const receiptNum = (r.receipt_number || '').replace(/^RC/, '');
+            // 单号简化显示（去掉前缀）
+            const recordNum = (r.record_number || r.receipt_number || '').replace(/^(RC|SL)/, '');
+
+            // 类型标签
+            let typeLabel = '';
+            if (recordType === 'loan_borrow') {
+                typeLabel = '<span class="badge bg-primary" title="股东借款">借款</span>';
+            } else {
+                typeLabel = '<span class="badge bg-success" title="收款">收款</span>';
+            }
 
             // 支付方式映射
             const paymentMethodMap = {
@@ -929,11 +975,15 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             const paymentMethod = paymentMethodMap[r.payment_method] || r.payment_method || '-';
 
+            // 使用组合键作为选择标识
+            const selectionKey = `${recordType}_${r.id}`;
+
             html += `
-                <tr class="${rowClass}" data-receipt-id="${r.id}">
-                    <td><input type="checkbox" class="receipt-checkbox" data-id="${r.id}" ${selectedReceiptIds.has(r.id) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
-                    <td class="receipt-num" title="${r.receipt_number || ''}">${receiptNum}</td>
-                    <td class="date-cell" style="text-align:center;">${r.payment_date || '-'}</td>
+                <tr class="${rowClass}" data-record-type="${recordType}" data-record-id="${r.id}">
+                    <td><input type="checkbox" class="receipt-checkbox" data-key="${selectionKey}" data-type="${recordType}" data-id="${r.id}" ${selectedReceiptIds.has(selectionKey) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
+                    <td style="text-align:center;">${typeLabel}</td>
+                    <td class="receipt-num" title="${r.record_number || r.receipt_number || ''}">${recordNum}</td>
+                    <td class="date-cell" style="text-align:center;">${r.record_date || r.payment_date || '-'}</td>
                     <td class="amount-cell amount-credit" style="padding-right:6px;">${formatAmount(r.amount)}</td>
                     <td style="text-align:center;"><small>${paymentMethod}</small></td>
                     <td title="${escapeHtml(bankName)}">${escapeHtml(truncate(bankName, 6))}</td>
@@ -949,12 +999,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // 绑定复选框事件
         receiptTableBody.querySelectorAll('.receipt-checkbox').forEach(cb => {
             cb.addEventListener('change', function() {
-                const id = parseInt(this.dataset.id);
+                const key = this.dataset.key;
                 if (this.checked) {
-                    selectedReceiptIds.add(id);
+                    selectedReceiptIds.add(key);
                     this.closest('tr').classList.add('selected');
                 } else {
-                    selectedReceiptIds.delete(id);
+                    selectedReceiptIds.delete(key);
                     this.closest('tr').classList.remove('selected');
                 }
                 updateSelectionCount();
@@ -1270,11 +1320,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const txIds = Array.from(selectedTxIds);
-        const receiptIds = Array.from(selectedReceiptIds);
+
+        // 按类型分组选中的收入记录
+        const receiptIds = [];
+        const loanBorrowIds = [];
+        selectedReceiptIds.forEach(key => {
+            const [recordType, recordIdStr] = key.split('_');
+            const recordId = parseInt(recordIdStr);
+            if (recordType === 'receipt') {
+                receiptIds.push(recordId);
+            } else if (recordType === 'loan_borrow') {
+                loanBorrowIds.push(recordId);
+            }
+        });
 
         const countText = [];
         if (txIds.length > 0) countText.push(`${txIds.length} 条银行记录`);
         if (receiptIds.length > 0) countText.push(`${receiptIds.length} 条收款记录`);
+        if (loanBorrowIds.length > 0) countText.push(`${loanBorrowIds.length} 条股东借款`);
 
         if (!confirm(`确定要将 ${countText.join('、')} 标记为已核对吗？\n\n标记后，这些记录将不再显示在默认列表中。`)) {
             return;
@@ -1290,6 +1353,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     transaction_ids: txIds,
                     receipt_ids: receiptIds,
+                    loan_borrow_ids: loanBorrowIds,
                     is_reconciled: true
                 })
             });
@@ -1473,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 多对多匹配
     multiMatchBtn.addEventListener('click', function() {
         if (selectedTxIds.size === 0 || selectedReceiptIds.size === 0) {
-            alert('请选择银行记录和收款记录');
+            alert('请选择银行记录和收款/借款记录');
             return;
         }
 
@@ -1503,18 +1567,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let receiptHtml = '';
         let receiptTotal = 0;
-        selectedReceiptIds.forEach(receiptId => {
-            const r = projectReceipts.find(rec => rec.id === receiptId);
+        selectedReceiptIds.forEach(selectionKey => {
+            // 解析选择键 "type_id"
+            const [recordType, recordIdStr] = selectionKey.split('_');
+            const recordId = parseInt(recordIdStr);
+
+            // 从合并记录中查找
+            const r = incomeRecords.find(rec => rec.record_type === recordType && rec.id === recordId);
             if (r) {
                 const amount = parseFloat(r.amount || 0);
                 receiptTotal += amount;
+
+                // 类型标签
+                const typeLabel = recordType === 'loan_borrow' ?
+                    '<span class="badge bg-primary">借款</span>' :
+                    '<span class="badge bg-success">收款</span>';
+
                 receiptHtml += `
-                    <tr data-receipt-id="${r.id}">
-                        <td>${r.payment_date || '-'}</td>
+                    <tr data-record-type="${recordType}" data-record-id="${recordId}">
+                        <td>${r.record_date || r.payment_date || '-'}</td>
                         <td class="text-success">${amount.toFixed(2)}</td>
-                        <td>${escapeHtml(r.project_number || '-')}</td>
+                        <td>${typeLabel} ${escapeHtml(r.project_number || r.payer_name || '-')}</td>
                         <td><input type="number" class="form-control form-control-sm multi-receipt-amount"
-                                   data-id="${r.id}" value="${amount.toFixed(2)}" step="0.01" min="0"></td>
+                                   data-type="${recordType}" data-id="${recordId}" value="${amount.toFixed(2)}" step="0.01" min="0"></td>
                     </tr>
                 `;
             }
@@ -1569,29 +1644,33 @@ document.addEventListener('DOMContentLoaded', function() {
             const txId = parseInt(input.dataset.id);
             const amount = parseFloat(input.value || 0);
             if (amount > 0) {
-                // 对于每个银行记录，分配给所有选中的收款
+                // 对于每个银行记录，分配给所有选中的收入记录
                 document.querySelectorAll('.multi-receipt-amount').forEach(receiptInput => {
-                    const receiptId = parseInt(receiptInput.dataset.id);
+                    const recordType = receiptInput.dataset.type;
+                    const recordId = parseInt(receiptInput.dataset.id);
                     const receiptAmount = parseFloat(receiptInput.value || 0);
+
+                    // 确定 match_type（如果是loan_borrow则用loan_borrow，否则用receipt）
+                    const matchType = recordType === 'loan_borrow' ? 'loan_borrow' : 'receipt';
 
                     // 如果是一对多或多对一，需要计算分配比例
                     if (selectedTxIds.size === 1) {
-                        // 一笔银行 → 多个收款
+                        // 一笔银行 → 多个收款/借款
                         if (receiptAmount > 0) {
                             matches.push({
                                 transaction_id: txId,
-                                match_type: 'receipt',
-                                match_id: receiptId,
+                                match_type: matchType,
+                                match_id: recordId,
                                 amount: receiptAmount
                             });
                         }
                     } else if (selectedReceiptIds.size === 1) {
-                        // 多笔银行 → 一个收款
+                        // 多笔银行 → 一个收款/借款
                         if (amount > 0) {
                             matches.push({
                                 transaction_id: txId,
-                                match_type: 'receipt',
-                                match_id: receiptId,
+                                match_type: matchType,
+                                match_id: recordId,
                                 amount: amount
                             });
                         }
@@ -1615,8 +1694,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const txAmount = parseFloat(txInput.value || 0);
 
                 receiptList.forEach(receiptInput => {
-                    const receiptId = parseInt(receiptInput.dataset.id);
+                    const recordType = receiptInput.dataset.type;
+                    const recordId = parseInt(receiptInput.dataset.id);
                     const receiptAmount = parseFloat(receiptInput.value || 0);
+
+                    const matchType = recordType === 'loan_borrow' ? 'loan_borrow' : 'receipt';
 
                     // 只有当两者都有金额时才创建匹配
                     // 这里简化处理，使用较小的金额
@@ -1624,8 +1706,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (allocAmount > 0) {
                         matches.push({
                             transaction_id: txId,
-                            match_type: 'receipt',
-                            match_id: receiptId,
+                            match_type: matchType,
+                            match_id: recordId,
                             amount: parseFloat(allocAmount.toFixed(2))
                         });
                     }
