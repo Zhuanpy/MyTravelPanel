@@ -901,12 +901,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const supplierName = record.supplier_name || record.record_supplier || '-';
             const amount = record.record_amount || 0;
             const recordDate = record.record_date || '-';
+            const recordId = record.record_id || record.id;
+
+            // 构建编号链接
+            let recordNumberLink = escapeHtml(truncate(recordNumber, 12));
+            if (record.record_type === 'eo' && recordId) {
+                recordNumberLink = `<a href="/projects/eo/${recordId}" target="_blank" title="查看EO详情">${escapeHtml(truncate(recordNumber, 12))}</a>`;
+            } else if (record.record_type === 'payment' && recordId) {
+                recordNumberLink = `<a href="/projects/payment/${recordId}" target="_blank" title="查看付款详情">${escapeHtml(truncate(recordNumber, 12))}</a>`;
+            } else if (record.record_type === 'prepayment' && recordId) {
+                recordNumberLink = `<a href="/projects/prepayment/${recordId}" target="_blank" title="查看预付款详情">${escapeHtml(truncate(recordNumber, 12))}</a>`;
+            } else if (record.record_type === 'loan_repay') {
+                recordNumberLink = `<a href="/ledger/shareholder-loan" target="_blank" title="查看股东借款">${escapeHtml(truncate(recordNumber, 12))}</a>`;
+            }
 
             html += `
-                <tr class="${rowClass}" data-record-key="${recordKey}" data-record-type="${record.record_type}" data-record-id="${record.record_id || record.id}">
+                <tr class="${rowClass}" data-record-key="${recordKey}" data-record-type="${record.record_type}" data-record-id="${recordId}">
                     <td><input type="checkbox" class="record-checkbox" data-key="${recordKey}" ${selectedRecordKeys.has(recordKey) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
                     <td>${getRecordTypeBadge(record.record_type)}</td>
-                    <td class="eo-num" title="${escapeHtml(recordNumber)}">${escapeHtml(truncate(recordNumber, 12))}</td>
+                    <td class="eo-num" title="${escapeHtml(recordNumber)}">${recordNumberLink}</td>
                     <td class="date-cell" style="text-align:center;">${recordDate}</td>
                     <td class="amount-cell amount-debit" style="padding-right:6px;">${formatAmount(amount)}</td>
                     <td title="${escapeHtml(supplierName)}">${escapeHtml(truncate(supplierName, 8))}</td>
