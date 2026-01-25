@@ -136,6 +136,7 @@
                                     <th style="width:100px;" class="text-end text-success">借款</th>
                                     <th style="width:100px;" class="text-end text-danger">还款</th>
                                     <th style="width:80px;">状态</th>
+                                    <th style="width:60px;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -176,11 +177,21 @@
                                         <span class="badge bg-warning">已冲销</span>
                                         {% endif %}
                                     </td>
+                                    <td>
+                                        {% if entry.status == 'posted' %}
+                                        <button class="btn btn-outline-danger btn-sm reverse-btn"
+                                                data-entry-id="{{ entry.id }}"
+                                                data-entry-number="{{ entry.entry_number }}"
+                                                title="冲销此分录">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% endif %}
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">暂无交易记录</td>
+                                    <td colspan="7" class="text-center text-muted py-4">暂无交易记录</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -262,6 +273,42 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             alert('请求失败: ' + error.message);
         }
+    });
+
+    // 冲销按钮
+    document.querySelectorAll('.reverse-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const entryId = this.dataset.entryId;
+            const entryNumber = this.dataset.entryNumber;
+
+            if (!confirm(`确定要冲销分录 ${entryNumber} 吗？\n\n冲销后将创建一笔相反的分录来抵消原记录。`)) {
+                return;
+            }
+
+            try {
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                const response = await fetch(`/ledger/shareholder-loan/reverse/${entryId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    location.reload();
+                } else {
+                    alert('冲销失败: ' + result.message);
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-undo"></i>';
+                }
+            } catch (error) {
+                alert('请求失败: ' + error.message);
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-undo"></i>';
+            }
+        });
     });
 });
 </script>

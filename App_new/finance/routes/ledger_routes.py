@@ -2096,3 +2096,66 @@ def shareholder_loan_balance():
         'account_code': loan_account.code,
         'account_name': loan_account.name
     })
+
+
+@ledger_blue.route('/shareholder-loan/reverse/<int:entry_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def shareholder_loan_reverse(entry_id):
+    """冲销股东借款分录"""
+    try:
+        entry = JournalEntry.query.get(entry_id)
+        if not entry:
+            return jsonify({'success': False, 'message': '分录不存在'})
+
+        if entry.status == 'reversed':
+            return jsonify({'success': False, 'message': '该分录已被冲销'})
+
+        if entry.status != 'posted':
+            return jsonify({'success': False, 'message': '只能冲销已过账的分录'})
+
+        # 创建冲销分录（借贷相反）
+        reverse_entry = JournalEntry(
+            entry_number=JournalEntry._generate_entry_number(),
+            entry_date=date.today(),
+            source_type='manual',
+            description=f'冲销: {entry.description or entry.entry_number}',
+            currency=entry.currency,
+            remarks=f'冲销分录 {entry.entry_number}',
+            created_by=current_user.username if current_user else None
+        )
+
+        # 复制分录行，借贷互换
+        for i, line in enumerate(entry.lines, 1):
+            reverse_line = JournalEntryLine(
+                line_no=i,
+                account_id=line.account_id,
+                debit=line.credit,  # 借贷互换
+                credit=line.debit,
+                memo=f'冲销: {line.memo or ""}'
+            )
+            reverse_entry.lines.append(reverse_line)
+
+        reverse_entry.total_amount = entry.total_amount
+        reverse_entry.status = 'posted'
+        reverse_entry.posted_at = datetime.utcnow()
+        reverse_entry.posted_by = current_user.username if current_user else None
+
+        # 标记原分录为已冲销
+        entry.status = 'reversed'
+        entry.remarks = (entry.remarks or '') + f' [已冲销: {reverse_entry.entry_number}]'
+
+        db.session.add(reverse_entry)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'分录已冲销，生成冲销分录 {reverse_entry.entry_number}',
+            'reverse_entry_id': reverse_entry.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"冲销分录失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
