@@ -355,8 +355,7 @@ def auto_match_suggestions():
         receipts = receipt_query.all()
 
         # 查询未匹配的股东借款记录
-        matched_loan_ids = db.session.query(BankTransactionMatch.loan_id).filter(
-            BankTransactionMatch.loan_id.isnot(None),
+        matched_loan_ids = db.session.query(BankTransactionMatch.match_id).filter(
             BankTransactionMatch.match_type == 'loan_borrow'
         ).subquery()
 

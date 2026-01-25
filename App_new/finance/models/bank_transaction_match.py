@@ -17,8 +17,8 @@ class BankTransactionMatch(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('bank_transactions.id', ondelete='CASCADE'),
                               nullable=False, comment='银行交易ID')
-    match_type = db.Column(db.Enum('receipt', 'eo', 'payment', 'prepayment'), nullable=False,
-                          comment='匹配类型：receipt=收款，eo=EO，payment=付款，prepayment=预付款')
+    match_type = db.Column(db.Enum('receipt', 'eo', 'payment', 'prepayment', 'loan_borrow', 'loan_repay'), nullable=False,
+                          comment='匹配类型：receipt=收款，eo=EO，payment=付款，prepayment=预付款，loan_borrow=股东借款，loan_repay=股东还款')
     match_id = db.Column(db.Integer, nullable=False,
                         comment='匹配记录ID（收款ID或EO ID）')
     allocated_amount = db.Column(db.Numeric(12, 2), nullable=False,
