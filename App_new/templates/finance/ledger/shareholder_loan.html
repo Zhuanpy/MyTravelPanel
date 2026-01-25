@@ -1,0 +1,261 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}股东借款管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            <i class="fas fa-hand-holding-usd text-primary"></i> 股东借款管理
+        </h4>
+        <div>
+            <a href="{{ url_for('ledger_routes.ledger_home') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> 返回总账
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：余额卡片和操作表单 -->
+        <div class="col-md-4">
+            <!-- 当前余额 -->
+            <div class="card mb-3 border-primary">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">当前欠股东款</h6>
+                    <h2 class="mb-0 {{ 'text-danger' if current_balance > 0 else 'text-success' }}">
+                        {{ "%.2f"|format(current_balance) }} SGD
+                    </h2>
+                    <small class="text-muted">科目: {{ loan_account.code }} {{ loan_account.name }}</small>
+                </div>
+            </div>
+
+            <!-- 操作表单 -->
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="borrow-tab" data-bs-toggle="tab" href="#borrow-form" role="tab">
+                                <i class="fas fa-plus-circle text-success"></i> 股东借款
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="repay-tab" data-bs-toggle="tab" href="#repay-form" role="tab">
+                                <i class="fas fa-minus-circle text-danger"></i> 归还借款
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- 股东借款表单 -->
+                        <div class="tab-pane fade show active" id="borrow-form" role="tabpanel">
+                            <form id="borrowForm">
+                                <div class="mb-3">
+                                    <label class="form-label">日期 <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="entry_date" value="{{ today }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">金额 (SGD) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" name="amount" step="0.01" min="0.01" placeholder="0.00" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">存入银行账户 <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="bank_account_id" required>
+                                        {% for bank in bank_accounts %}
+                                        <option value="{{ bank.id }}" {{ 'selected' if bank.code == '1002' }}>{{ bank.code }} - {{ bank.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">描述</label>
+                                    <input type="text" class="form-control" name="description" placeholder="股东借款">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">备注</label>
+                                    <textarea class="form-control" name="remarks" rows="2" placeholder="可选备注..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-check"></i> 确认借款
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- 归还借款表单 -->
+                        <div class="tab-pane fade" id="repay-form" role="tabpanel">
+                            <form id="repayForm">
+                                <div class="mb-3">
+                                    <label class="form-label">日期 <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="entry_date" value="{{ today }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">金额 (SGD) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" name="amount" step="0.01" min="0.01" placeholder="0.00" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">从银行账户支付 <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="bank_account_id" required>
+                                        {% for bank in bank_accounts %}
+                                        <option value="{{ bank.id }}" {{ 'selected' if bank.code == '1002' }}>{{ bank.code }} - {{ bank.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">描述</label>
+                                    <input type="text" class="form-control" name="description" placeholder="归还股东借款">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">备注</label>
+                                    <textarea class="form-control" name="remarks" rows="2" placeholder="可选备注..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-danger w-100">
+                                    <i class="fas fa-check"></i> 确认还款
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：交易记录 -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-history"></i> 交易记录</span>
+                    <span class="badge bg-secondary">{{ entries|length }} 条</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:100px;">日期</th>
+                                    <th style="width:120px;">分录号</th>
+                                    <th>描述</th>
+                                    <th style="width:100px;" class="text-end text-success">借款</th>
+                                    <th style="width:100px;" class="text-end text-danger">还款</th>
+                                    <th style="width:80px;">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                {% set loan_line = entry.lines | selectattr('account_id', 'equalto', loan_account.id) | first %}
+                                {% if loan_line %}
+                                <tr>
+                                    <td>{{ entry.entry_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('ledger_routes.journal_entry_detail', entry_id=entry.id) }}" class="text-decoration-none">
+                                            {{ entry.entry_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ entry.description or '-' }}</td>
+                                    <td class="text-end text-success">
+                                        {% if loan_line.credit > 0 %}
+                                        +{{ "%.2f"|format(loan_line.credit) }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end text-danger">
+                                        {% if loan_line.debit > 0 %}
+                                        -{{ "%.2f"|format(loan_line.debit) }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.status == 'posted' %}
+                                        <span class="badge bg-success">已过账</span>
+                                        {% elif entry.status == 'draft' %}
+                                        <span class="badge bg-secondary">草稿</span>
+                                        {% elif entry.status == 'reversed' %}
+                                        <span class="badge bg-warning">已冲销</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">暂无交易记录</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置默认日期为今天
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[name="entry_date"]').forEach(input => {
+        if (!input.value) input.value = today;
+    });
+
+    // 股东借款表单
+    document.getElementById('borrowForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = {
+            transaction_type: 'borrow',
+            entry_date: formData.get('entry_date'),
+            amount: parseFloat(formData.get('amount')),
+            bank_account_id: parseInt(formData.get('bank_account_id')),
+            description: formData.get('description'),
+            remarks: formData.get('remarks')
+        };
+
+        try {
+            const response = await fetch('{{ url_for("ledger_routes.shareholder_loan_add") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + result.message);
+            }
+        } catch (error) {
+            alert('请求失败: ' + error.message);
+        }
+    });
+
+    // 归还借款表单
+    document.getElementById('repayForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = {
+            transaction_type: 'repay',
+            entry_date: formData.get('entry_date'),
+            amount: parseFloat(formData.get('amount')),
+            bank_account_id: parseInt(formData.get('bank_account_id')),
+            description: formData.get('description'),
+            remarks: formData.get('remarks')
+        };
+
+        try {
+            const response = await fetch('{{ url_for("ledger_routes.shareholder_loan_add") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + result.message);
+            }
+        } catch (error) {
+            alert('请求失败: ' + error.message);
+        }
+    });
+});
+</script>
+{% endblock %}
