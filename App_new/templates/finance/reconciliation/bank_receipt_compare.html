@@ -948,12 +948,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 rowClass = 'selected';
             }
 
-            const projectInfo = r.project_number ? `${r.project_number}` : '-';
             const payerName = r.payer_name || '-';
             const bankName = r.bank_name || '-';
 
             // 单号简化显示（去掉前缀）
             const recordNum = (r.record_number || r.receipt_number || '').replace(/^(RC|SL)/, '');
+
+            // 构建单号链接
+            let recordNumLink = recordNum;
+            if (recordType === 'loan_borrow') {
+                // 股东借款跳转到借款列表页
+                recordNumLink = `<a href="/ledger/shareholder-loan" target="_blank" title="查看借款详情">${recordNum}</a>`;
+            } else if (r.id) {
+                // 收款记录跳转到详情页
+                recordNumLink = `<a href="/projects/receipt/${r.id}" target="_blank" title="查看收款详情">${recordNum}</a>`;
+            }
+
+            // 构建项目链接
+            let projectInfo = '-';
+            if (r.project_number && r.header_id) {
+                projectInfo = `<a href="/projects/detail/${r.header_id}" target="_blank" title="查看项目详情">${escapeHtml(r.project_number)}</a>`;
+            } else if (r.project_number) {
+                projectInfo = escapeHtml(r.project_number);
+            }
 
             // 类型标签
             let typeLabel = '';
@@ -982,13 +999,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <tr class="${rowClass}" data-record-type="${recordType}" data-record-id="${r.id}">
                     <td><input type="checkbox" class="receipt-checkbox" data-key="${selectionKey}" data-type="${recordType}" data-id="${r.id}" ${selectedReceiptIds.has(selectionKey) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
                     <td style="text-align:center;">${typeLabel}</td>
-                    <td class="receipt-num" title="${r.record_number || r.receipt_number || ''}">${recordNum}</td>
+                    <td class="receipt-num" title="${r.record_number || r.receipt_number || ''}">${recordNumLink}</td>
                     <td class="date-cell" style="text-align:center;">${r.record_date || r.payment_date || '-'}</td>
                     <td class="amount-cell amount-credit" style="padding-right:6px;">${formatAmount(r.amount)}</td>
                     <td style="text-align:center;"><small>${paymentMethod}</small></td>
                     <td title="${escapeHtml(bankName)}">${escapeHtml(truncate(bankName, 6))}</td>
                     <td title="${escapeHtml(payerName)}">${escapeHtml(truncate(payerName, 6))}</td>
-                    <td title="${escapeHtml(projectInfo)}">${escapeHtml(projectInfo)}</td>
+                    <td>${projectInfo}</td>
                     <td style="text-align:center;">${statusHtml}</td>
                 </tr>
             `;
@@ -1105,6 +1122,12 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
         currentSuggestions.forEach((s, idx) => {
             const scoreClass = s.match_score >= 80 ? 'high' : (s.match_score >= 60 ? 'medium' : 'low');
+            // 区分收款记录和股东借款
+            const isLoan = s.match_type === 'loan_borrow';
+            const matchLabel = isLoan ? '股东借款' : '收款记录';
+            const matchBadge = isLoan ? '<span class="badge bg-warning text-dark ms-1">借款</span>' : '';
+            const matchNumber = isLoan ? s.receipt_number : s.project_number;
+            const matchPerson = isLoan ? `出借人: ${escapeHtml(s.receipt_payer)}` : `${escapeHtml(s.receipt_payer)}`;
 
             html += `
                 <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}">
@@ -1122,11 +1145,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <strong>收款记录</strong><br>
+                            <strong>${matchLabel}</strong>${matchBadge}<br>
                             <span class="text-muted">${s.receipt_date}</span> |
                             <span class="text-success fw-bold">${formatAmount(s.receipt_amount)}</span>
                             <div class="mt-1">
-                                <small><strong>${s.project_number}</strong> - ${escapeHtml(s.receipt_payer)}</small>
+                                <small><strong>${matchNumber}</strong> - ${matchPerson}</small>
                             </div>
                         </div>
                         <div class="col-md-2 d-flex align-items-center justify-content-end gap-1">
@@ -1174,12 +1197,15 @@ document.addEventListener('DOMContentLoaded', function() {
         acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
+            // 确定匹配类型（股东借款或收款）
+            const matchType = suggestion.match_type || 'receipt';
             const response = await fetch('/reconciliation/api/manual-match', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     transaction_id: suggestion.transaction_id,
-                    receipt_id: suggestion.receipt_id
+                    match_id: suggestion.receipt_id,
+                    match_type: matchType
                 })
             });
 

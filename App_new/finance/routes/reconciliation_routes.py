@@ -250,9 +250,11 @@ def get_compare_data():
             if r.header:
                 r_dict['project_number'] = r.header.hid
                 r_dict['project_name'] = r.header.desc or ''
+                r_dict['header_id'] = r.header.id
             else:
                 r_dict['project_number'] = ''
                 r_dict['project_name'] = ''
+                r_dict['header_id'] = None
             # 检查是否已匹配
             matched_tx = BankTransaction.query.filter_by(matched_receipt_id=r.id).first()
             r_dict['is_matched'] = matched_tx is not None
@@ -352,46 +354,107 @@ def auto_match_suggestions():
 
         receipts = receipt_query.all()
 
+        # 查询未匹配的股东借款记录
+        matched_loan_ids = db.session.query(BankTransactionMatch.loan_id).filter(
+            BankTransactionMatch.loan_id.isnot(None),
+            BankTransactionMatch.match_type == 'loan_borrow'
+        ).subquery()
+
+        loan_query = ShareholderLoan.query.filter(
+            ShareholderLoan.status.in_(['confirmed', 'partial_repaid']),
+            ~ShareholderLoan.id.in_(matched_loan_ids),
+            ShareholderLoan.is_reconciled == False
+        )
+
+        if start_date:
+            extended_start = start_date - timedelta(days=7)
+            loan_query = loan_query.filter(ShareholderLoan.loan_date >= extended_start)
+        if end_date:
+            extended_end = end_date + timedelta(days=7)
+            loan_query = loan_query.filter(ShareholderLoan.loan_date <= extended_end)
+
+        loans = loan_query.all()
+
         # 构建收据号 -> 收据对象的索引，用于REF优先匹配
         receipt_by_number = {}
         for r in receipts:
             if r.receipt_number:
                 receipt_by_number[r.receipt_number.strip()] = r
 
+        # 构建借款号 -> 借款对象的索引
+        loan_by_number = {}
+        for loan in loans:
+            if loan.loan_number:
+                loan_by_number[loan.loan_number.strip()] = loan
+
         # 计算匹配建议
         suggestions = []
         for tx in transactions:
             best_match = None
             best_score = 0
+            match_type = 'receipt'  # 默认匹配类型
 
-            # 优先：通过 accounting_ref 匹配收据号
+            # 优先：通过 accounting_ref 匹配收据号或借款号
             ref = (tx.accounting_ref or '').strip()
             if ref and ref in receipt_by_number:
                 best_match = receipt_by_number[ref]
                 best_score = 200  # REF直接匹配，最高优先级
+                match_type = 'receipt'
+            elif ref and ref in loan_by_number:
+                best_match = loan_by_number[ref]
+                best_score = 200
+                match_type = 'loan_borrow'
             else:
                 # 回退：金额+日期+名称匹配
+                # 先匹配收款记录
                 for receipt in receipts:
                     score = calculate_match_score(tx, receipt)
                     if score > best_score and score >= 40:
                         best_score = score
                         best_match = receipt
+                        match_type = 'receipt'
+
+                # 再匹配股东借款
+                for loan in loans:
+                    score = calculate_loan_match_score(tx, loan)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = loan
+                        match_type = 'loan_borrow'
 
             if best_match:
-                suggestions.append({
-                    'transaction_id': tx.id,
-                    'transaction_date': tx.transaction_date.isoformat(),
-                    'transaction_amount': float(tx.amount),
-                    'transaction_counterparty': tx.counterparty_name or tx.description or '',
-                    'receipt_id': best_match.id,
-                    'receipt_number': best_match.receipt_number,
-                    'receipt_date': best_match.payment_date.isoformat() if best_match.payment_date else '',
-                    'receipt_amount': float(best_match.amount),
-                    'receipt_payer': best_match.payer_name or '',
-                    'project_number': best_match.header.hid if best_match.header else '',
-                    'match_score': best_score,
-                    'match_level': get_match_level(best_score)
-                })
+                if match_type == 'receipt':
+                    suggestions.append({
+                        'transaction_id': tx.id,
+                        'transaction_date': tx.transaction_date.isoformat(),
+                        'transaction_amount': float(tx.amount),
+                        'transaction_counterparty': tx.counterparty_name or tx.description or '',
+                        'receipt_id': best_match.id,
+                        'receipt_number': best_match.receipt_number,
+                        'receipt_date': best_match.payment_date.isoformat() if best_match.payment_date else '',
+                        'receipt_amount': float(best_match.amount),
+                        'receipt_payer': best_match.payer_name or '',
+                        'project_number': best_match.header.hid if best_match.header else '',
+                        'match_score': best_score,
+                        'match_level': get_match_level(best_score),
+                        'match_type': 'receipt'
+                    })
+                elif match_type == 'loan_borrow':
+                    suggestions.append({
+                        'transaction_id': tx.id,
+                        'transaction_date': tx.transaction_date.isoformat(),
+                        'transaction_amount': float(tx.amount),
+                        'transaction_counterparty': tx.counterparty_name or tx.description or '',
+                        'receipt_id': best_match.id,  # 借款ID
+                        'receipt_number': best_match.loan_number,
+                        'receipt_date': best_match.loan_date.isoformat() if best_match.loan_date else '',
+                        'receipt_amount': float(best_match.amount),
+                        'receipt_payer': best_match.lender_name or '',
+                        'project_number': '',  # 借款没有项目
+                        'match_score': best_score,
+                        'match_level': get_match_level(best_score),
+                        'match_type': 'loan_borrow'
+                    })
 
         # 按匹配分数降序排列
         suggestions.sort(key=lambda x: x['match_score'], reverse=True)
@@ -481,6 +544,58 @@ def calculate_match_score(transaction, receipt):
 
     if name_matched:
         score = min(100, score + 15)  # 名称匹配加15分
+
+    return score
+
+
+def calculate_loan_match_score(transaction, loan):
+    """
+    计算银行交易与股东借款的匹配分数
+
+    匹配规则：
+    1. 精确匹配（100分）：金额完全相等 + 日期相同
+    2. 高度匹配（80分）：金额完全相等 + 日期±3天内
+    3. 可能匹配（60分）：金额完全相等 + 日期±7天内
+    4. 参考匹配（40分）：仅金额匹配
+    """
+    score = 0
+
+    tx_amount = float(transaction.amount or 0)
+    loan_amount = float(loan.amount or 0)
+
+    # 金额匹配（允许0.01误差）
+    amount_match = abs(tx_amount - loan_amount) < 0.01
+
+    if not amount_match:
+        return 0  # 金额不匹配直接返回0分
+
+    # 日期匹配
+    tx_date = transaction.transaction_date
+    loan_date = loan.loan_date
+
+    if tx_date and loan_date:
+        date_diff = abs((loan_date - tx_date).days)
+
+        if date_diff == 0:
+            score = 100  # 精确匹配：同一天
+        elif date_diff <= 3:
+            score = 80  # 高度匹配：日期±3天内
+        elif date_diff <= 7:
+            score = 60  # 可能匹配：日期±7天内
+        else:
+            score = 40  # 仅金额匹配
+    else:
+        score = 40  # 仅金额匹配
+
+    # 名称匹配加分 - 检查出借人名称是否出现在银行记录中
+    counterparty = (transaction.counterparty_name or '').lower()
+    description = (transaction.description or '').lower()
+    bank_text = counterparty + ' ' + description
+
+    lender_name = (loan.lender_name or '').lower().strip()
+
+    if lender_name and len(lender_name) >= 2 and lender_name in bank_text:
+        score = min(100, score + 15)
 
     return score
 
@@ -597,6 +712,11 @@ def manual_match():
             transaction.confirmed_at = current_time
             transaction.confirmed_by = current_user_name
             transaction.updated_at = current_time
+
+            # 标记借款已核对
+            loan.is_reconciled = True
+            loan.reconciled_at = current_time
+            loan.reconciled_by = current_user_name
 
             db.session.commit()
             return jsonify({
