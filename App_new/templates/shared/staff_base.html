@@ -224,30 +224,43 @@
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="productsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-cubes"></i> 产品
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('products.index') }}">
+                                <i class="fas fa-th-large me-2"></i>产品中心
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">旅游配套</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tour_products.product_list') }}">
+                                <i class="fas fa-suitcase-rolling me-2"></i>配套产品库
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tour_products.add_product') }}">
+                                <i class="fas fa-plus me-2"></i>添加配套
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">签证产品</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_list') }}">
+                                <i class="fas fa-passport me-2"></i>签证类型
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">供应商</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('supplier.suppliers') }}">
+                                <i class="fas fa-building me-2"></i>供应商列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('supplier.add_supplier') }}">
+                                <i class="fas fa-user-plus me-2"></i>添加供应商
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="packageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-box"></i> 配套管理
+                            <i class="fas fa-box"></i> 配套预算
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('package_routes.package_home') }}">
                                 <i class="fas fa-home me-2"></i>配套首页
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">统一产品</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('products.index') }}">
-                                <i class="fas fa-cubes me-2"></i>产品中心
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">旅游产品</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('tour_products.add_product') }}">
-                                <i class="fas fa-plus me-2"></i>添加产品
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('tour_products.product_list') }}">
-                                <i class="fas fa-list me-2"></i>产品库
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">供应商管理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('supplier.add_supplier') }}">
-                                <i class="fas fa-user-plus me-2"></i>添加供应商
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('package_routes.manage_cities') }}">
                                 <i class="fas fa-city me-2"></i>城市管理
@@ -455,10 +468,45 @@
                             </a>
                         </li>
 
-                        <!-- 配套管理分组 -->
+                        <!-- 产品管理分组 -->
                         <li class="nav-item mt-3">
                             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                                <span><i class="fas fa-box me-2"></i>配套管理</span>
+                                <span><i class="fas fa-cubes me-2"></i>产品管理</span>
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('products.') %}active{% endif %}"
+                               href="{{ url_for('products.index') }}">
+                                <i class="fas fa-th-large me-2"></i>
+                                产品中心
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'tour_products.product_list' %}active{% endif %}"
+                               href="{{ url_for('tour_products.product_list') }}">
+                                <i class="fas fa-suitcase-rolling me-2"></i>
+                                配套产品库
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'visa_basic.visa_type_list' %}active{% endif %}"
+                               href="{{ url_for('visa_basic.visa_type_list') }}">
+                                <i class="fas fa-passport me-2"></i>
+                                签证类型
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint.startswith('supplier.') %}active{% endif %}"
+                               href="{{ url_for('supplier.suppliers') }}">
+                                <i class="fas fa-building me-2"></i>
+                                供应商管理
+                            </a>
+                        </li>
+
+                        <!-- 配套预算分组 -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                                <span><i class="fas fa-box me-2"></i>配套预算</span>
                             </h6>
                         </li>
                         <li class="nav-item">
@@ -469,42 +517,21 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint.startswith('products.') %}active{% endif %}"
-                               href="{{ url_for('products.index') }}">
-                                <i class="fas fa-cubes me-2"></i>
-                                产品中心
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'tour_products.add_product' %}active{% endif %}"
-                               href="{{ url_for('tour_products.add_product') }}">
-                                <i class="fas fa-plus me-2"></i>
-                                添加产品
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'tour_products.product_list' %}active{% endif %}"
-                               href="{{ url_for('tour_products.product_list') }}">
-                                <i class="fas fa-list me-2"></i>
-                                产品库
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'package_routes.manage_cities' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'package_routes.manage_cities' %}active{% endif %}"
                                href="{{ url_for('package_routes.manage_cities') }}">
                                 <i class="fas fa-city me-2"></i>
                                 城市管理
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint.startswith('package_budget') %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint.startswith('package_budget') %}active{% endif %}"
                                href="{{ url_for('package_budget.list_budgets') }}">
                                 <i class="fas fa-file-invoice-dollar me-2"></i>
                                 预算管理
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint.startswith('tour_projects') %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint.startswith('tour_projects') %}active{% endif %}"
                                href="{{ url_for('tour_projects.manage_tour_projects') }}">
                                 <i class="fas fa-suitcase me-2"></i>
                                 旅游项目
@@ -588,25 +615,6 @@
                             </a>
                         </li>
 
-                        <!-- 快速操作分组 -->
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                                <span><i class="fas fa-bolt me-2"></i>快速操作</span>
-                            </h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('staff.create_quote') }}">
-                                <i class="fas fa-file-invoice me-2"></i>
-                                新建报价
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('staff.upload_file') }}">
-                                <i class="fas fa-upload me-2"></i>
-                                上传文件
-                            </a>
-                        </li>
-                        
                         <!-- 其他功能分组 -->
                         <li class="nav-item mt-3">
                             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
@@ -642,7 +650,7 @@
             </nav>
 
             <!-- 主内容区域 -->
-            <main class="px-4" id="mainContent">
+            <main class="col-md-10 col-lg-11 ms-sm-auto px-4" id="mainContent">
                 <!-- 面包屑导航 -->
                 <nav aria-label="breadcrumb" class="pt-3">
                     <ol class="breadcrumb">

@@ -46,22 +46,22 @@
 	</div>
 	<div class="card-body">
 		{% if recent_projects %}
-		<table class="table table-hover">
+		<table class="table table-hover" style="table-layout: fixed; width: 100%;">
 			<thead>
 				<tr>
-					<th>项目名称</th>
-					<th>客户</th>
-					<th>类型</th>
-					<th>状态</th>
-					<th>创建时间</th>
-					<th>操作</th>
+					<th style="width: 30%;">项目名称</th>
+					<th style="width: 20%;">客户</th>
+					<th style="width: 12%;">类型</th>
+					<th style="width: 12%;">状态</th>
+					<th style="width: 15%;">创建时间</th>
+					<th style="width: 11%;">操作</th>
 				</tr>
 			</thead>
 			<tbody>
 				{% for p in recent_projects %}
 				<tr>
-					<td>{{ p.name }}</td>
-					<td>{{ p.client }}</td>
+					<td class="text-truncate" title="{{ p.name }}">{{ p.name }}</td>
+					<td class="text-truncate" title="{{ p.client }}">{{ p.client }}</td>
 					<td>{{ p.type }}</td>
 					<td>{{ p.status }}</td>
 					<td>{{ p.created_at }}</td>

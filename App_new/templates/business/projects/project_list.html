@@ -203,45 +203,37 @@
             .suggestion-item:hover { background-color: #f8f9fa; }
             .suggestion-item:last-child { border-bottom: none; }
             
-            /* 表格固定宽度样式 */
-            #projectsTable { 
-                table-layout: fixed; 
-                width: 100%; 
-                min-width: 1400px;
+            /* 表格样式 - 自适应容器宽度 */
+            .table-responsive {
+                overflow-x: auto;
             }
-            #projectsTable th, 
-            #projectsTable td { 
-                overflow: hidden; 
-                text-overflow: ellipsis; 
-                white-space: nowrap; 
+            #projectsTable {
+                table-layout: fixed;
+                width: 100%;
+                max-width: 100%;
+            }
+            #projectsTable th,
+            #projectsTable td {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
                 padding: 8px 6px;
+                font-size: 14px;
             }
-            #projectsTable th:nth-child(1),
-            #projectsTable td:nth-child(1) { width: 70px; } /* 项目编号 */
-            #projectsTable th:nth-child(2),
-            #projectsTable td:nth-child(2) { width: 130px; } /* 描述 */
-            #projectsTable th:nth-child(3),
-            #projectsTable td:nth-child(3) { width: 120px; } /* 客户公司 */
-            #projectsTable th:nth-child(4),
-            #projectsTable td:nth-child(4) { width: 70px; }  /* 联系人 */
-            #projectsTable th:nth-child(5),
-            #projectsTable td:nth-child(5) { width: 60px; }  /* 经办人 */
-            #projectsTable th:nth-child(6),
-            #projectsTable td:nth-child(6) { width: 60px; }  /* 类型 */
-            #projectsTable th:nth-child(7),
-            #projectsTable td:nth-child(7) { width: 85px; } /* 销售金额 */
-            #projectsTable th:nth-child(8),
-            #projectsTable td:nth-child(8) { width: 85px; } /* 成本 */
-            #projectsTable th:nth-child(9),
-            #projectsTable td:nth-child(9) { width: 85px; }  /* 利润 */
-            #projectsTable th:nth-child(10),
-            #projectsTable td:nth-child(10) { width: 85px; } /* 未付款 */
-            #projectsTable th:nth-child(11),
-            #projectsTable td:nth-child(11) { width: 75px; } /* 结算 */
-            #projectsTable th:nth-child(12),
-            #projectsTable td:nth-child(12) { width: 80px; } /* 创建时间 */
-            #projectsTable th:nth-child(13),
-            #projectsTable td:nth-child(13) { width: 70px; }  /* 操作 */
+            /* 列宽设置 */
+            #projectsTable th:nth-child(1), #projectsTable td:nth-child(1) { width: 6%; }   /* 项目编号 */
+            #projectsTable th:nth-child(2), #projectsTable td:nth-child(2) { width: 18%; }  /* 描述 */
+            #projectsTable th:nth-child(3), #projectsTable td:nth-child(3) { width: 12%; }  /* 客户公司 */
+            #projectsTable th:nth-child(4), #projectsTable td:nth-child(4) { width: 5%; }   /* 联系人 */
+            #projectsTable th:nth-child(5), #projectsTable td:nth-child(5) { width: 5%; }   /* 经办人 */
+            #projectsTable th:nth-child(6), #projectsTable td:nth-child(6) { width: 4%; }   /* 类型 */
+            #projectsTable th:nth-child(7), #projectsTable td:nth-child(7) { width: 7%; }   /* 销售金额 */
+            #projectsTable th:nth-child(8), #projectsTable td:nth-child(8) { width: 7%; }   /* 成本 */
+            #projectsTable th:nth-child(9), #projectsTable td:nth-child(9) { width: 6%; }   /* 利润 */
+            #projectsTable th:nth-child(10), #projectsTable td:nth-child(10) { width: 6%; } /* 未付款 */
+            #projectsTable th:nth-child(11), #projectsTable td:nth-child(11) { width: 5%; } /* 结算 */
+            #projectsTable th:nth-child(12), #projectsTable td:nth-child(12) { width: 6%; } /* 创建时间 */
+            #projectsTable th:nth-child(13), #projectsTable td:nth-child(13) { width: 4%; } /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -362,10 +354,15 @@
                         {% for project in projects %}
                         <tr data-project-id="{{ project.id }}">
                             <td>
-                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" 
+                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}"
                                    class="text-primary fw-bold">
                                     {{ project.hid }}
                                 </a>
+                                <i class="fas fa-copy text-warning copy-project"
+                                   style="cursor:pointer; font-size:12px; margin-left:4px; opacity:0.8;"
+                                   data-project-id="{{ project.id }}"
+                                   data-project-hid="{{ project.hid }}"
+                                   title="复制项目"></i>
                             </td>
                             <td title="{{ project.display_desc or '-' }}">{{ project.display_desc or '-' }}</td>
                             <td>
@@ -435,23 +432,15 @@
                                 </small>
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-warning copy-project"
-                                            data-project-id="{{ project.id }}"
-                                            data-project-hid="{{ project.hid }}"
-                                            title="复制项目">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                    {% set stats = project_stats.get(project.id, {}) %}
-                                    {% if not stats.has_eo and not stats.has_receipt %}
-                                    <button type="button" class="btn btn-outline-danger delete-project"
-                                            data-project-id="{{ project.id }}"
-                                            data-project-hid="{{ project.hid }}"
-                                            title="删除">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    {% endif %}
-                                </div>
+                                {% set stats = project_stats.get(project.id, {}) %}
+                                {% if not stats.has_eo and not stats.has_receipt %}
+                                <button type="button" class="btn btn-outline-danger btn-sm delete-project"
+                                        data-project-id="{{ project.id }}"
+                                        data-project-hid="{{ project.hid }}"
+                                        title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
