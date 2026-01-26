@@ -123,9 +123,9 @@
                         {% if match_records %}
                             {% set first_match = match_records[0] %}
                             {% if first_match.match_type == 'loan_borrow' %}
-                                <a href="{{ url_for('ledger.shareholder_loan') }}" target="_blank" class="text-primary" title="借款: {{ t.accounting_ref or '' }}">{{ t.accounting_ref or '借款' }}</a>
+                                <a href="{{ url_for('ledger_routes.shareholder_loan_list') }}" target="_blank" class="text-primary" title="借款: {{ t.accounting_ref or '' }}">{{ t.accounting_ref or '借款' }}</a>
                             {% elif first_match.match_type == 'loan_repay' %}
-                                <a href="{{ url_for('ledger.shareholder_loan') }}" target="_blank" class="text-secondary" title="还款: {{ t.accounting_ref or '' }}">{{ t.accounting_ref or '还款' }}</a>
+                                <a href="{{ url_for('ledger_routes.shareholder_loan_list') }}" target="_blank" class="text-secondary" title="还款: {{ t.accounting_ref or '' }}">{{ t.accounting_ref or '还款' }}</a>
                             {% elif t.accounting_ref %}
                                 <small class="text-muted" title="{{ t.accounting_ref }}">{{ t.accounting_ref }}</small>
                             {% else %}
