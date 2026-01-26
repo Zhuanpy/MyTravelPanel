@@ -34,7 +34,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container-fluid py-4" style="max-width: 1400px;">
     <!-- 页面标题 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="mb-0">
@@ -181,10 +181,10 @@
                                 <span class="badge badge-unmatched"><i class="fas fa-clock"></i> 待确认</span>
                             {% endif %}
                         </td>
-                        <td style="white-space: nowrap; font-size: 11px;">
+                        <td style="white-space: nowrap;">
                             {% if p.is_matched %}
                                 {% for tx in p.matched_tx_info[:2] %}
-                                <span class="text-muted" title="{{ tx.counterparty }}">{{ tx.date }} ${{ "%.0f"|format(tx.amount) }}</span>{% if not loop.last %}, {% endif %}
+                                <span class="text-dark" title="{{ tx.counterparty }}">{{ tx.date }} ${{ "%.2f"|format(tx.amount) }}</span>{% if not loop.last %}, {% endif %}
                                 {% endfor %}
                                 {% if p.matched_tx_count > 2 %}<span class="text-muted"> +{{ p.matched_tx_count - 2 }}</span>{% endif %}
                             {% else %}
