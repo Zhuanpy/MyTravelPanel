@@ -240,8 +240,10 @@ window.segmentsData = [
                 "cabin_code": {{ s.cabin_code|tojson }},
                 "departure_airport": {{ s.departure_airport|tojson }},
                 "arrival_airport": {{ s.arrival_airport|tojson }},
-                "departure_time": {{ (s.departure_time.isoformat() if s.departure_time else '')|tojson }},
-                "arrival_time": {{ (s.arrival_time.isoformat() if s.arrival_time else '')|tojson }}
+                "departure_date": {{ (s.departure_time.strftime('%Y-%m-%d') if s.departure_time else '')|tojson }},
+                "departure_time_only": {{ (s.departure_time.strftime('%H:%M') if s.departure_time else '')|tojson }},
+                "arrival_date": {{ (s.arrival_time.strftime('%Y-%m-%d') if s.arrival_time else '')|tojson }},
+                "arrival_time_only": {{ (s.arrival_time.strftime('%H:%M') if s.arrival_time else '')|tojson }}
             }{% if not loop.last %},{% endif %}
         {% endfor %}
     {% endif %}
@@ -418,61 +420,17 @@ function loadExistingData() {
         // 有航段数据，加载现有航段
         segments.forEach((segment, index) => {
             console.log(`添加航段 ${index + 1}:`, segment);
-            
-            // 安全处理日期时间格式
-            let departure_date = '';
-            let departure_time = '';
-            let arrival_date = '';
-            let arrival_time = '';
-            
-            if (segment.departure_time) {
-                try {
-                    // 处理ISO格式的日期时间字符串
-                    let depDateTime = new Date(segment.departure_time);
-                    if (!isNaN(depDateTime.getTime())) {
-                        // 兼容'YYYY-MM-DD HH:MM'和'YYYY-MM-DDTHH:MM:SS'两种格式
-                        if (segment.departure_time.includes('T')) {
-                            departure_date = depDateTime.toISOString().split('T')[0];
-                            departure_time = depDateTime.toTimeString().substring(0, 5);
-                        } else if (segment.departure_time.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)) {
-                            departure_date = segment.departure_time.split(' ')[0];
-                            departure_time = segment.departure_time.split(' ')[1].substring(0,5);
-                        }
-                        console.log(`解析出发时间: ${segment.departure_time} -> 日期: ${departure_date}, 时间: ${departure_time}`);
-                    }
-                } catch (e) {
-                    console.error('解析出发时间失败:', e);
-                }
-            }
-            
-            if (segment.arrival_time) {
-                try {
-                    // 处理ISO格式的日期时间字符串
-                    let arrDateTime = new Date(segment.arrival_time);
-                    if (!isNaN(arrDateTime.getTime())) {
-                        if (segment.arrival_time.includes('T')) {
-                            arrival_date = arrDateTime.toISOString().split('T')[0];
-                            arrival_time = arrDateTime.toTimeString().substring(0, 5);
-                        } else if (segment.arrival_time.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)) {
-                            arrival_date = segment.arrival_time.split(' ')[0];
-                            arrival_time = segment.arrival_time.split(' ')[1].substring(0,5);
-                        }
-                        console.log(`解析到达时间: ${segment.arrival_time} -> 日期: ${arrival_date}, 时间: ${arrival_time}`);
-                    }
-                } catch (e) {
-                    console.error('解析到达时间失败:', e);
-                }
-            }
-            
+
+            // 直接使用服务端预格式化的日期和时间（避免时区转换问题）
             addFlightSegmentWithData({
                 flight_number: segment.flight_number || '',
                 cabin_code: segment.cabin_code || '',
                 departure_airport: segment.departure_airport || '',
                 arrival_airport: segment.arrival_airport || '',
-                departure_date: departure_date,
-                departure_time: departure_time,
-                arrival_date: arrival_date,
-                arrival_time: arrival_time
+                departure_date: segment.departure_date || '',
+                departure_time: segment.departure_time_only || '',
+                arrival_date: segment.arrival_date || '',
+                arrival_time: segment.arrival_time_only || ''
             });
         });
     }
@@ -1225,36 +1183,12 @@ function loadExistingSegmentsToParser() {
     
     let parserText = '';
     segments.forEach((segment, index) => {
-        // 解析日期时间
-        let departureDate = '';
-        let departureTime = '';
-        let arrivalDate = '';
-        let arrivalTime = '';
-        
-        if (segment.departure_time) {
-            try {
-                const depDateTime = new Date(segment.departure_time);
-                if (!isNaN(depDateTime.getTime())) {
-                    departureDate = depDateTime.toISOString().split('T')[0];
-                    departureTime = depDateTime.toTimeString().substring(0, 5);
-                }
-            } catch (e) {
-                console.error('解析出发时间失败:', e);
-            }
-        }
-        
-        if (segment.arrival_time) {
-            try {
-                const arrDateTime = new Date(segment.arrival_time);
-                if (!isNaN(arrDateTime.getTime())) {
-                    arrivalDate = arrDateTime.toISOString().split('T')[0];
-                    arrivalTime = arrDateTime.toTimeString().substring(0, 5);
-                }
-            } catch (e) {
-                console.error('解析到达时间失败:', e);
-            }
-        }
-        
+        // 直接使用服务端预格式化的日期和时间
+        let departureDate = segment.departure_date || '';
+        let departureTime = segment.departure_time_only || '';
+        let arrivalDate = segment.arrival_date || '';
+        let arrivalTime = segment.arrival_time_only || '';
+
         // 提取航班号和航空公司代码
         const flightNumber = segment.flight_number || '';
         const airlineCode = flightNumber.substring(0, 2);

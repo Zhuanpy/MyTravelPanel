@@ -400,60 +400,67 @@ def submit_flight_ref():
 
             return '\n'.join(lines) if lines else '机票订单'
 
-        # 生成并更新描述
-        ref.description = generate_flight_description(departure_airports, arrival_airports, departure_dates)
-        ref.detailed_description = generate_flight_detailed_description(
-            flight_numbers, departure_airports, arrival_airports, departure_dates,
-            cabin_codes, departure_times, arrival_times
+        # 检查是否有有效的航段数据提交（至少有一个航段有出发日期）
+        has_valid_segment_data = any(
+            departure_dates[i] for i in range(len(departure_dates)) if i < len(departure_dates)
         )
 
-        # 删除现有航段
-        ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete()
+        # 只有当有有效航段数据时才更新航段，否则保留原有航段
+        if has_valid_segment_data:
+            # 生成并更新描述
+            ref.description = generate_flight_description(departure_airports, arrival_airports, departure_dates)
+            ref.detailed_description = generate_flight_detailed_description(
+                flight_numbers, departure_airports, arrival_airports, departure_dates,
+                cabin_codes, departure_times, arrival_times
+            )
 
-        # 安全处理航段信息 - 确保所有字段长度一致
-        max_segment_len = max(len(flight_numbers), len(cabin_codes), len(departure_airports),
-                              len(arrival_airports), len(departure_dates), len(departure_times),
-                              len(arrival_dates), len(arrival_times))
+            # 删除现有航段
+            ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete()
 
-        # 扩展较短的列
-        cabin_codes.extend([''] * (max_segment_len - len(cabin_codes)))
-        departure_airports.extend([''] * (max_segment_len - len(departure_airports)))
-        arrival_airports.extend([''] * (max_segment_len - len(arrival_airports)))
-        departure_dates.extend([''] * (max_segment_len - len(departure_dates)))
-        departure_times.extend([''] * (max_segment_len - len(departure_times)))
-        arrival_dates.extend([''] * (max_segment_len - len(arrival_dates)))
-        arrival_times.extend([''] * (max_segment_len - len(arrival_times)))
+            # 安全处理航段信息 - 确保所有字段长度一致
+            max_segment_len = max(len(flight_numbers), len(cabin_codes), len(departure_airports),
+                                  len(arrival_airports), len(departure_dates), len(departure_times),
+                                  len(arrival_dates), len(arrival_times))
 
-        # 添加新航段
-        for i in range(len(flight_numbers)):
-            # 允许保存空航段，不强制要求航班号不为空
-            try:
-                # 安全获取日期和时间，提供默认值
-                dep_date = departure_dates[i] if i < len(departure_dates) and departure_dates[
-                    i] else datetime.now().strftime('%Y-%m-%d')
-                dep_time = departure_times[i] if i < len(departure_times) and departure_times[i] else '00:00'
-                arr_date = arrival_dates[i] if i < len(arrival_dates) and arrival_dates[i] else dep_date
-                arr_time = arrival_times[i] if i < len(arrival_times) and arrival_times[i] else '00:00'
+            # 扩展较短的列
+            cabin_codes.extend([''] * (max_segment_len - len(cabin_codes)))
+            departure_airports.extend([''] * (max_segment_len - len(departure_airports)))
+            arrival_airports.extend([''] * (max_segment_len - len(arrival_airports)))
+            departure_dates.extend([''] * (max_segment_len - len(departure_dates)))
+            departure_times.extend([''] * (max_segment_len - len(departure_times)))
+            arrival_dates.extend([''] * (max_segment_len - len(arrival_dates)))
+            arrival_times.extend([''] * (max_segment_len - len(arrival_times)))
 
-                # 合并日期和时间
-                dep_datetime = datetime.strptime(f"{dep_date} {dep_time}", '%Y-%m-%d %H:%M')
-                arr_datetime = datetime.strptime(f"{arr_date} {arr_time}", '%Y-%m-%d %H:%M')
+            # 添加新航段
+            for i in range(len(flight_numbers)):
+                # 跳过没有出发日期的航段
+                if not departure_dates[i]:
+                    continue
+                try:
+                    dep_date = departure_dates[i]
+                    dep_time = departure_times[i] if i < len(departure_times) and departure_times[i] else '00:00'
+                    arr_date = arrival_dates[i] if i < len(arrival_dates) and arrival_dates[i] else dep_date
+                    arr_time = arrival_times[i] if i < len(arrival_times) and arrival_times[i] else '00:00'
 
-                segment = ProjectFlightSegment(
-                    ref_id=ref.id,
-                    flight_number=flight_numbers[i] if i < len(flight_numbers) and flight_numbers[i] else '',
-                    departure_airport=departure_airports[i] if i < len(departure_airports) else '',
-                    arrival_airport=arrival_airports[i] if i < len(arrival_airports) else '',
-                    departure_time=dep_datetime,
-                    arrival_time=arr_datetime,
-                    cabin_class=cabin_codes[i] if i < len(cabin_codes) else '',
-                    cabin_code=cabin_codes[i] if i < len(cabin_codes) else '',
-                    status='pending'
-                )
-                db.session.add(segment)
-            except (ValueError, IndexError) as e:
-                # 记录错误但继续处理其他航段
-                continue
+                    # 合并日期和时间
+                    dep_datetime = datetime.strptime(f"{dep_date} {dep_time}", '%Y-%m-%d %H:%M')
+                    arr_datetime = datetime.strptime(f"{arr_date} {arr_time}", '%Y-%m-%d %H:%M')
+
+                    segment = ProjectFlightSegment(
+                        ref_id=ref.id,
+                        flight_number=flight_numbers[i] if i < len(flight_numbers) and flight_numbers[i] else '',
+                        departure_airport=departure_airports[i] if i < len(departure_airports) else '',
+                        arrival_airport=arrival_airports[i] if i < len(arrival_airports) else '',
+                        departure_time=dep_datetime,
+                        arrival_time=arr_datetime,
+                        cabin_class=cabin_codes[i] if i < len(cabin_codes) else '',
+                        cabin_code=cabin_codes[i] if i < len(cabin_codes) else '',
+                        status='pending'
+                    )
+                    db.session.add(segment)
+                except (ValueError, IndexError) as e:
+                    # 记录错误但继续处理其他航段
+                    continue
 
         # 统计各类型乘客数量
         adult_qty = 0

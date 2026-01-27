@@ -2026,13 +2026,6 @@ function sendEmail() {
     });
 }
 
-// 点击模态框外部关闭
-document.getElementById('emailModal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeEmailModal();
-    }
-});
-
 // 复制项目功能
 function copyProject(projectId, hid) {
     if (!confirm(`确定要复制项目 ${hid} 吗？\n\n将复制：\n- 项目基本信息\n- 所有REF记录\n- 项目人员信息\n\n不会复制：EO、收款、发票等记录`)) {
