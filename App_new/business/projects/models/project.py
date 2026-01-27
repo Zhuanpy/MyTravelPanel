@@ -366,6 +366,17 @@ class ProjectHeader(db.Model):
             return self.desc or '-'
         return self.desc
 
+    @property
+    def leader_member_name(self):
+        """
+        从项目人员名单中获取 leader 的名字
+        优先返回 is_leader=True 的成员名字
+        """
+        leader = self.members.filter_by(is_leader=True).first()
+        if leader:
+            return leader.member_name
+        return None
+
     def __repr__(self):
         return f'<ProjectHeader {self.hid} - {self.desc}>'
 

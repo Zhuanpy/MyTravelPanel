@@ -221,17 +221,17 @@
             }
             /* 列宽设置 */
             #projectsTable th:nth-child(1), #projectsTable td:nth-child(1) { width: 6%; }   /* 项目编号 */
-            #projectsTable th:nth-child(2), #projectsTable td:nth-child(2) { width: 9%; }   /* 描述 */
-            #projectsTable th:nth-child(3), #projectsTable td:nth-child(3) { width: 12%; }  /* 客户公司 */
-            #projectsTable th:nth-child(4), #projectsTable td:nth-child(4) { width: 5%; }   /* 联系人 */
-            #projectsTable th:nth-child(5), #projectsTable td:nth-child(5) { width: 5%; }   /* 经办人 */
-            #projectsTable th:nth-child(6), #projectsTable td:nth-child(6) { width: 4%; }   /* 类型 */
-            #projectsTable th:nth-child(7), #projectsTable td:nth-child(7) { width: 7%; }   /* 销售金额 */
-            #projectsTable th:nth-child(8), #projectsTable td:nth-child(8) { width: 7%; }   /* 成本 */
-            #projectsTable th:nth-child(9), #projectsTable td:nth-child(9) { width: 6%; }   /* 利润 */
-            #projectsTable th:nth-child(10), #projectsTable td:nth-child(10) { width: 6%; } /* 未付款 */
-            #projectsTable th:nth-child(11), #projectsTable td:nth-child(11) { width: 5%; } /* 结算 */
-            #projectsTable th:nth-child(12), #projectsTable td:nth-child(12) { width: 6%; } /* 创建时间 */
+            #projectsTable th:nth-child(2), #projectsTable td:nth-child(2) { width: 10%; }  /* 描述 */
+            #projectsTable th:nth-child(3), #projectsTable td:nth-child(3) { width: 6%; }   /* 乘客 */
+            #projectsTable th:nth-child(4), #projectsTable td:nth-child(4) { width: 12%; }  /* 客户公司 */
+            #projectsTable th:nth-child(5), #projectsTable td:nth-child(5) { width: 6%; }   /* 联系人 */
+            #projectsTable th:nth-child(6), #projectsTable td:nth-child(6) { width: 6%; }   /* 经办人 */
+            #projectsTable th:nth-child(7), #projectsTable td:nth-child(7) { width: 8%; }   /* 销售金额 */
+            #projectsTable th:nth-child(8), #projectsTable td:nth-child(8) { width: 8%; }   /* 成本 */
+            #projectsTable th:nth-child(9), #projectsTable td:nth-child(9) { width: 7%; }   /* 利润 */
+            #projectsTable th:nth-child(10), #projectsTable td:nth-child(10) { width: 7%; } /* 未付款 */
+            #projectsTable th:nth-child(11), #projectsTable td:nth-child(11) { width: 6%; } /* 结算 */
+            #projectsTable th:nth-child(12), #projectsTable td:nth-child(12) { width: 7%; } /* 创建时间 */
             #projectsTable th:nth-child(13), #projectsTable td:nth-child(13) { width: 4%; } /* 操作 */
             </style>
 
@@ -336,10 +336,10 @@
                         <tr>
                             <th>项目编号</th>
                             <th>描述</th>
+                            <th>乘客</th>
                             <th>客户公司</th>
                             <th>联系人</th>
                             <th>经办人</th>
-                            <th>类型</th>
                             <th>销售金额</th>
                             <th>成本</th>
                             <th>利润</th>
@@ -364,6 +364,7 @@
                                    title="复制项目"></i>
                             </td>
                             <td title="{{ project.display_desc or '-' }}">{{ project.display_desc or '-' }}</td>
+                            <td>{{ project.leader_member_name or '-' }}</td>
                             <td>
                                 <div class="company-editable" data-project-id="{{ project.id }}">
                                     <span class="company-display">
@@ -373,8 +374,8 @@
                                             <span class="text-muted">点击编辑</span>
                                         {% endif %}
                                     </span>
-                                    <input type="text" class="form-control form-control-sm company-input d-none" 
-                                           data-project-id="{{ project.id }}" 
+                                    <input type="text" class="form-control form-control-sm company-input d-none"
+                                           data-project-id="{{ project.id }}"
                                            value="{% if project.company %}{{ project.company.company_name }}{% endif %}"
                                            placeholder="输入公司名称...">
                                     <div class="company-suggestions d-none"></div>
@@ -382,9 +383,6 @@
                             </td>
                             <td>{{ project.contact or '未指定' }}</td>
                             <td>{{ project.staff_name or '-' }}</td>
-                            <td>
-                                <span class="badge bg-secondary">{{ project.type or '综合' }}</span>
-                            </td>
                             <td>
                                 {% set stats = project_stats.get(project.id, {}) %}
                                 <span class="fw-bold text-success">
