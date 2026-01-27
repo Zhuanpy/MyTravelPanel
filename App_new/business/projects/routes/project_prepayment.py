@@ -26,6 +26,8 @@ project_prepayment = Blueprint('project_prepayment', __name__, url_prefix='/prep
 @staff_only
 def list_prepayments():
     """预付账款列表页面"""
+    from sqlalchemy import func
+
     # 获取筛选参数
     supplier_id = request.args.get('supplier_id', type=int)
     status = request.args.get('status', '')
@@ -36,8 +38,42 @@ def list_prepayments():
         CustomerCompany.status == 'active'
     ).order_by(CustomerCompany.company_name).all()
 
-    # 如果没有选择供应商，不加载数据
+    # 如果没有选择供应商，显示所有账户汇总
     if not supplier_id:
+        # 按供应商汇总预付款数据
+        summary_data = db.session.query(
+            CustomerCompany.id.label('supplier_id'),
+            CustomerCompany.company_name,
+            func.sum(SupplierPrepayment.amount).label('total_amount'),
+            func.sum(SupplierPrepayment.balance_amount).label('total_balance'),
+            func.count(SupplierPrepayment.id).label('prepayment_count')
+        ).join(
+            SupplierPrepayment, CustomerCompany.id == SupplierPrepayment.supplier_id
+        ).filter(
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed'])
+        ).group_by(
+            CustomerCompany.id, CustomerCompany.company_name
+        ).order_by(func.sum(SupplierPrepayment.balance_amount).desc()).all()
+
+        # 转换为列表
+        account_summary = []
+        grand_total_amount = 0
+        grand_total_balance = 0
+        for item in summary_data:
+            total_amount = float(item.total_amount or 0)
+            total_balance = float(item.total_balance or 0)
+            total_used = total_amount - total_balance
+            account_summary.append({
+                'supplier_id': item.supplier_id,
+                'supplier_name': item.company_name,
+                'total_amount': total_amount,
+                'total_balance': total_balance,
+                'total_used': total_used,
+                'prepayment_count': item.prepayment_count
+            })
+            grand_total_amount += total_amount
+            grand_total_balance += total_balance
+
         return render_template('business/projects/prepayment/list.html',
                                prepayments=[],
                                suppliers=suppliers,
@@ -48,7 +84,10 @@ def list_prepayments():
                                total_used=0,
                                no_supplier_selected=True,
                                pending_eos=[],
-                               pending_eo_total=0)
+                               pending_eo_total=0,
+                               account_summary=account_summary,
+                               grand_total_amount=grand_total_amount,
+                               grand_total_balance=grand_total_balance)
 
     # 构建查询
     query = SupplierPrepayment.query.filter_by(supplier_id=supplier_id)

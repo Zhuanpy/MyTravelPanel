@@ -129,12 +129,98 @@
     </div>
 
     {% if no_supplier_selected %}
-    <!-- 未选择供应商时的提示 -->
+    <!-- 账户汇总卡片 -->
+    {% if account_summary %}
+    <div class="summary-card">
+        <div class="row">
+            <div class="col-md-4 summary-item">
+                <div class="summary-value">{{ account_summary|length }}</div>
+                <div class="summary-label">充值账户数</div>
+            </div>
+            <div class="col-md-4 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(grand_total_amount) }}</div>
+                <div class="summary-label">总充值金额 (SGD)</div>
+            </div>
+            <div class="col-md-4 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(grand_total_balance) }}</div>
+                <div class="summary-label">总剩余可用</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 账户汇总列表 -->
     <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="fas fa-hand-point-up fa-3x text-muted mb-3"></i>
-            <h5 class="text-muted">请先选择供应商</h5>
-            <p class="text-muted mb-0">选择供应商后将显示该供应商的预付账款记录</p>
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-list me-2"></i>充值账户汇总</h6>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>供应商/航司</th>
+                        <th class="text-center">充值笔数</th>
+                        <th class="text-end">总充值金额</th>
+                        <th class="text-end">已使用</th>
+                        <th class="text-end">剩余可用</th>
+                        <th>使用进度</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in account_summary %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.supplier_name }}</strong>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ item.prepayment_count }}</span>
+                        </td>
+                        <td class="text-end">{{ "%.2f"|format(item.total_amount) }} SGD</td>
+                        <td class="text-end text-muted">{{ "%.2f"|format(item.total_used) }}</td>
+                        <td class="text-end fw-bold {% if item.total_balance > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(item.total_balance) }}
+                        </td>
+                        <td style="width: 150px;">
+                            {% set usage_pct = (item.total_used / item.total_amount * 100) if item.total_amount > 0 else 0 %}
+                            <div class="progress progress-bar-usage">
+                                <div class="progress-bar {% if usage_pct >= 90 %}bg-danger{% elif usage_pct >= 70 %}bg-warning{% else %}bg-info{% endif %}"
+                                     style="width: {{ usage_pct }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ "%.1f"|format(usage_pct) }}%</small>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('business_projects.project_prepayment.list_prepayments', supplier_id=item.supplier_id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i>查看明细
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p class="mb-0">暂无预付账款记录</p>
+                            <a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-sm btn-primary mt-2">
+                                <i class="fas fa-plus me-1"></i>新增充值
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if account_summary %}
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td>合计</td>
+                        <td class="text-center">{{ account_summary|sum(attribute='prepayment_count') }}</td>
+                        <td class="text-end">{{ "%.2f"|format(grand_total_amount) }}</td>
+                        <td class="text-end">{{ "%.2f"|format(grand_total_amount - grand_total_balance) }}</td>
+                        <td class="text-end text-primary">{{ "%.2f"|format(grand_total_balance) }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
         </div>
     </div>
     {% else %}
