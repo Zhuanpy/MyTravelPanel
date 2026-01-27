@@ -331,23 +331,27 @@
     <!-- 统计面板 -->
     <div class="stats-panel">
         <div class="stat-item">
-            <div class="stat-label">可结算项目数</div>
+            <div class="stat-label">筛选结果</div>
+            <div class="stat-value">{{ stats.total_count or pagination.total }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">可结算</div>
             <div class="stat-value">{{ stats.can_settle_count }}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-label">已结算项目数</div>
+            <div class="stat-label">已结算</div>
             <div class="stat-value">{{ stats.settled_count }}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-label">未结算项目数</div>
+            <div class="stat-label">未结算</div>
             <div class="stat-value">{{ stats.unsettled_count }}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-label">当前页总利润</div>
+            <div class="stat-label">总利润</div>
             <div class="stat-value">S${{ "%.2f"|format(stats.page_total_profit) }}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-label">当前页总销售</div>
+            <div class="stat-label">总销售</div>
             <div class="stat-value">S${{ "%.2f"|format(stats.page_total_selling) }}</div>
         </div>
     </div>

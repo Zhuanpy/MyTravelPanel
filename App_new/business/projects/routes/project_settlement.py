@@ -98,12 +98,16 @@ def settlement_list():
         pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
         projects = pagination.items
 
-        # 获取项目统计信息
+        # 获取项目统计信息（当前页）
         project_ids = [p.id for p in projects]
         project_stats = _get_project_stats(project_ids)
 
-        # 计算统计数据
-        stats = _calculate_stats(project_stats, projects)
+        # 获取筛选后的全部项目ID（用于计算筛选后的汇总统计）
+        all_filtered_ids = [p.id for p in base_query.with_entities(ProjectHeader.id).all()]
+        all_filtered_stats = _get_project_stats(all_filtered_ids) if all_filtered_ids else {}
+
+        # 计算统计数据（基于筛选后的全部数据）
+        stats = _calculate_stats(all_filtered_stats, base_query)
 
         # 获取经办人列表
         staff_list = db.session.query(ProjectHeader.staff_name).filter(
@@ -327,33 +331,45 @@ def _get_project_stats(project_ids):
     return project_stats
 
 
-def _calculate_stats(project_stats, projects=None):
-    """计算统计数据"""
-    # 查询全局统计
-    can_settle_count = 0
-    settled_count = ProjectHeader.query.filter(ProjectHeader.is_settled == True).count()
-    unsettled_count = ProjectHeader.query.filter(ProjectHeader.is_settled == False).count()
+def _calculate_stats(project_stats, base_query=None):
+    """计算统计数据（基于筛选后的全部数据）"""
+    # 基于筛选后的数据计算结算状态统计
+    if base_query is not None:
+        # 从筛选后的查询中统计
+        settled_count = base_query.filter(ProjectHeader.is_settled == True).count()
+        unsettled_count = base_query.filter(ProjectHeader.is_settled == False).count()
+    else:
+        # 全局统计（兜底）
+        settled_count = ProjectHeader.query.filter(ProjectHeader.is_settled == True).count()
+        unsettled_count = ProjectHeader.query.filter(ProjectHeader.is_settled == False).count()
 
-    # 当前页统计
+    # 筛选后全部数据的汇总统计
     page_total_selling = sum(s.get('total_selling_price', 0) for s in project_stats.values())
     page_total_cost = sum(s.get('total_cost_price', 0) for s in project_stats.values())
     page_total_profit = sum(s.get('total_profit', 0) for s in project_stats.values())
     page_total_received = sum(s.get('total_received', 0) for s in project_stats.values())
     page_total_balance = sum(s.get('balance', 0) for s in project_stats.values())
 
-    # 计算可结算数量（当前页中）
+    # 计算可结算数量（筛选后全部数据中）
     can_settle_count = sum(1 for s in project_stats.values() if s.get('can_settle'))
 
-    # 利润分配汇总
+    # 利润分配汇总（需要从数据库查询筛选后的项目）
     page_operator_profit = 0
     page_sales_profit = 0
     page_company_profit = 0
 
-    if projects:
-        for project in projects:
-            page_operator_profit += float(project.operator_profit or 0)
-            page_sales_profit += float(project.sales_profit or 0)
-            page_company_profit += float(project.company_profit or 0)
+    if project_stats:
+        project_ids = list(project_stats.keys())
+        profit_data = db.session.query(
+            db.func.sum(ProjectHeader.operator_profit),
+            db.func.sum(ProjectHeader.sales_profit),
+            db.func.sum(ProjectHeader.company_profit)
+        ).filter(ProjectHeader.id.in_(project_ids)).first()
+
+        if profit_data:
+            page_operator_profit = float(profit_data[0] or 0)
+            page_sales_profit = float(profit_data[1] or 0)
+            page_company_profit = float(profit_data[2] or 0)
 
     return {
         'can_settle_count': can_settle_count,
@@ -366,7 +382,8 @@ def _calculate_stats(project_stats, projects=None):
         'page_total_balance': page_total_balance,
         'page_operator_profit': page_operator_profit,
         'page_sales_profit': page_sales_profit,
-        'page_company_profit': page_company_profit
+        'page_company_profit': page_company_profit,
+        'total_count': len(project_stats)  # 筛选后的总数
     }
 
 

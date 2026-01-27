@@ -2,407 +2,36 @@
 
 {% block title %}发票列表 Invoice List{% endblock %}
 
-{% block page_title %}发票列表 Invoice List{% endblock %}
-
 {% block extra_css %}
 <style>
-    .invoice-container {
-        max-width: 1600px;
-        margin: 0 auto;
+    .summary-card {
+        background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+        color: white;
+        border-radius: 10px;
         padding: 20px;
-    }
-
-    /* 统计卡片 */
-    .stats-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
         margin-bottom: 20px;
     }
-
-    @media (max-width: 992px) {
-        .stats-row { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (max-width: 576px) {
-        .stats-row { grid-template-columns: 1fr; }
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 10px;
-        padding: 16px 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-    }
-
-    .stat-card.total .stat-icon { background: #dbeafe; color: #2563eb; }
-    .stat-card.paid .stat-icon { background: #dcfce7; color: #16a34a; }
-    .stat-card.unpaid .stat-icon { background: #fee2e2; color: #dc2626; }
-    .stat-card.count .stat-icon { background: #f3e8ff; color: #7c3aed; }
-
-    .stat-content { flex: 1; }
-
-    .stat-value {
-        font-size: 1.35rem;
-        font-weight: 700;
-        font-family: 'SF Mono', Monaco, monospace;
-        color: #1e293b;
-    }
-
-    .stat-label {
-        font-size: 0.8rem;
-        color: #64748b;
-        margin-top: 2px;
-    }
-
-    /* 工具栏 */
-    .toolbar {
-        background: white;
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 16px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    .toolbar-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-    }
-
-    .quick-filters {
-        display: flex;
-        gap: 6px;
-    }
-
-    .quick-filter {
-        padding: 6px 14px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        text-decoration: none;
-        border: 1px solid #e2e8f0;
-        color: #64748b;
-        background: white;
-        transition: all 0.15s;
-    }
-
-    .quick-filter:hover {
-        border-color: #3b82f6;
-        color: #3b82f6;
-    }
-
-    .quick-filter.active {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-
-    .toolbar-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    .btn-icon {
-        padding: 8px 12px;
-        border: 1px solid #e2e8f0;
-        background: white;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        color: #64748b;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.15s;
-    }
-
-    .btn-icon:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-    }
-
-    /* 筛选表单 */
-    .filter-form {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        align-items: flex-end;
-    }
-
-    .filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .filter-group label {
-        font-size: 0.7rem;
-        color: #64748b;
-        font-weight: 500;
-        white-space: nowrap;
-    }
-
-    .filter-group input,
-    .filter-group select {
-        padding: 7px 10px;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        min-width: 120px;
-    }
-
-    .filter-group input:focus,
-    .filter-group select:focus {
-        outline: none;
-        border-color: #3b82f6;
-    }
-
-    .btn-search {
-        padding: 7px 16px;
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        cursor: pointer;
-    }
-
-    .btn-search:hover { background: #2563eb; }
-
-    .btn-reset {
-        padding: 7px 12px;
-        background: #f1f5f9;
-        color: #64748b;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .btn-reset:hover { background: #e2e8f0; }
-
-    /* 表格 */
-    .table-card {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        overflow: hidden;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    .invoice-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 900px;
-    }
-
-    .invoice-table th {
-        background: #f8fafc;
-        padding: 12px 14px;
-        text-align: left;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        border-bottom: 1px solid #e2e8f0;
-        white-space: nowrap;
-    }
-
-    .invoice-table td {
-        padding: 12px 14px;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 0.85rem;
-        color: #334155;
-        vertical-align: middle;
-    }
-
-    .invoice-table tbody tr:hover {
-        background: #f8fafc;
-    }
-
-    .invoice-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    /* 复选框列 */
-    .col-checkbox { width: 40px; text-align: center; }
-    .batch-checkbox { width: 16px; height: 16px; cursor: pointer; }
-
-    /* 发票号 */
-    .invoice-number {
-        font-weight: 600;
-        color: #2563eb;
-        text-decoration: none;
-    }
-    .invoice-number:hover { text-decoration: underline; }
-
-    /* 项目信息 */
-    .project-cell {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    .project-hid {
-        font-weight: 500;
-        color: #3b82f6;
-        text-decoration: none;
-        font-size: 0.85rem;
-    }
-    .project-hid:hover { text-decoration: underline; }
-    .project-desc {
-        font-size: 0.75rem;
-        color: #94a3b8;
-        max-width: 180px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* 客户信息 */
-    .customer-cell {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-    }
-    .customer-name {
-        font-weight: 500;
-        color: #1e293b;
-        font-size: 0.85rem;
-    }
-    .customer-company {
-        font-size: 0.75rem;
-        color: #94a3b8;
-    }
-
-    /* 金额 */
-    .amount-cell {
-        text-align: right;
-        font-family: 'SF Mono', Monaco, monospace;
-        white-space: nowrap;
-    }
-    .amount-main {
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-    .amount-sub {
-        font-size: 0.75rem;
-        color: #94a3b8;
-    }
-    .amount-paid { color: #16a34a; }
-    .amount-unpaid { color: #dc2626; }
-
-    /* 状态徽章 */
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-    .status-badge.unpaid { background: #fee2e2; color: #dc2626; }
-    .status-badge.partial_paid { background: #fef3c7; color: #b45309; }
-    .status-badge.paid { background: #dcfce7; color: #16a34a; }
-    .status-badge.confirmed { background: #dbeafe; color: #2563eb; }
-    .status-badge.cancelled { background: #f1f5f9; color: #64748b; }
-
-    /* 操作按钮 */
-    .row-actions {
-        display: flex;
-        gap: 4px;
-        justify-content: flex-end;
-    }
-    .row-actions a {
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        color: #64748b;
-        transition: all 0.15s;
-    }
-    .row-actions a:hover {
-        background: #e2e8f0;
-        color: #3b82f6;
-    }
-
-    /* 分页 */
-    .pagination-section {
-        padding: 14px 16px;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #fafafa;
-    }
-
-    .pagination-info {
-        font-size: 0.8rem;
-        color: #64748b;
-    }
-
-    .pagination-nav {
-        display: flex;
-        gap: 4px;
-    }
-
-    .pagination-nav a,
-    .pagination-nav span {
-        padding: 6px 10px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        text-decoration: none;
-    }
-
-    .pagination-nav a {
-        color: #64748b;
-        background: white;
-        border: 1px solid #e2e8f0;
-    }
-
-    .pagination-nav a:hover {
-        background: #f1f5f9;
-    }
-
-    .pagination-nav a.active {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-
-    .pagination-nav span.ellipsis {
-        color: #94a3b8;
-    }
-
-    /* 空状态 */
-    .empty-state {
+    .summary-card .summary-item {
         text-align: center;
-        padding: 60px 20px;
-        color: #94a3b8;
+        padding: 10px;
     }
-    .empty-state i { font-size: 2.5rem; margin-bottom: 12px; }
-    .empty-state p { font-size: 0.9rem; margin-bottom: 12px; }
+    .summary-card .summary-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .summary-card .summary-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+    .badge-unpaid { background-color: #dc3545; }
+    .badge-partial_paid { background-color: #ffc107; color: #212529; }
+    .badge-paid { background-color: #28a745; }
+    .badge-confirmed { background-color: #17a2b8; }
+    .badge-cancelled { background-color: #6c757d; }
+    .invoice-number { font-weight: 600; }
+    .amount-cell { text-align: right; font-family: 'SF Mono', Monaco, monospace; }
+    .amount-paid { color: #28a745; }
+    .amount-unpaid { color: #dc3545; }
 
     /* 批量操作面板 */
     .batch-panel {
@@ -417,61 +46,24 @@
         z-index: 1000;
         box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
     }
-
-    .batch-panel.show {
-        display: block;
-        animation: slideUp 0.25s ease;
-    }
-
-    @keyframes slideUp {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-    }
-
+    .batch-panel.show { display: block; }
     .batch-panel-content {
-        max-width: 1600px;
+        max-width: 1400px;
         margin: 0 auto;
         display: flex;
         align-items: center;
         justify-content: space-between;
     }
-
-    .batch-info {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-    }
-
-    .batch-count {
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
+    .batch-info { display: flex; align-items: center; gap: 24px; }
+    .batch-count { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
     .batch-count .count-number {
         background: rgba(255,255,255,0.2);
         padding: 3px 10px;
         border-radius: 4px;
         font-weight: 600;
     }
-
-    .batch-amount {
-        font-family: 'SF Mono', Monaco, monospace;
-        font-size: 1rem;
-    }
-
-    .batch-amount .label {
-        font-size: 0.8rem;
-        opacity: 0.8;
-        margin-right: 6px;
-    }
-
-    .batch-actions {
-        display: flex;
-        gap: 10px;
-    }
-
+    .batch-amount { font-family: 'SF Mono', Monaco, monospace; font-size: 1rem; }
+    .batch-actions { display: flex; gap: 10px; }
     .btn-batch {
         padding: 8px 20px;
         border-radius: 6px;
@@ -483,155 +75,126 @@
         align-items: center;
         gap: 6px;
     }
-
-    .btn-batch-pay {
-        background: #16a34a;
-        color: white;
-    }
-    .btn-batch-pay:hover { background: #15803d; }
-
-    .btn-batch-cancel {
-        background: rgba(255,255,255,0.15);
-        color: white;
-    }
+    .btn-batch-pay { background: #28a745; color: white; }
+    .btn-batch-pay:hover { background: #218838; }
+    .btn-batch-cancel { background: rgba(255,255,255,0.15); color: white; }
     .btn-batch-cancel:hover { background: rgba(255,255,255,0.25); }
-
-    /* 日期列 */
-    .date-cell {
-        white-space: nowrap;
-        font-size: 0.8rem;
-        color: #64748b;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="invoice-container">
-    <!-- 统计卡片 -->
-    <div class="stats-row">
-        <div class="stat-card total">
-            <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-            <div class="stat-content">
-                <div class="stat-value">{{ "%.2f"|format(summary.grand_total or 0) }}</div>
-                <div class="stat-label">发票总额 Total Amount</div>
-            </div>
+<div class="container-fluid py-4" style="max-width: 1400px;">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">
+            <i class="fas fa-file-invoice me-2"></i>发票列表 Invoice List
+        </h4>
+        <div>
+            <button class="btn btn-outline-secondary me-2" onclick="exportData('excel')">
+                <i class="fas fa-file-excel me-1"></i>导出 Export
+            </button>
         </div>
-        <div class="stat-card paid">
-            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-            <div class="stat-content">
-                <div class="stat-value">{{ "%.2f"|format(summary.total_paid or 0) }}</div>
-                <div class="stat-label">已收款 Paid</div>
+    </div>
+
+    <!-- 汇总卡片 -->
+    <div class="summary-card">
+        <div class="row">
+            <div class="col-md-3 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(summary.grand_total or 0) }}</div>
+                <div class="summary-label">发票总额 Total Amount</div>
             </div>
-        </div>
-        <div class="stat-card unpaid">
-            <div class="stat-icon"><i class="fas fa-clock"></i></div>
-            <div class="stat-content">
-                <div class="stat-value">{{ "%.2f"|format(summary.total_balance or 0) }}</div>
-                <div class="stat-label">未收款 Outstanding</div>
+            <div class="col-md-3 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(summary.total_paid or 0) }}</div>
+                <div class="summary-label">已收款 Paid</div>
             </div>
-        </div>
-        <div class="stat-card count">
-            <div class="stat-icon"><i class="fas fa-list-ol"></i></div>
-            <div class="stat-content">
-                <div class="stat-value">{{ pagination.total }}</div>
-                <div class="stat-label">发票数量 Invoices</div>
+            <div class="col-md-3 summary-item">
+                <div class="summary-value">{{ "%.2f"|format(summary.total_balance or 0) }}</div>
+                <div class="summary-label">未收款 Outstanding</div>
+            </div>
+            <div class="col-md-3 summary-item">
+                <div class="summary-value">{{ pagination.total }}</div>
+                <div class="summary-label">发票数量 Invoices</div>
             </div>
         </div>
     </div>
 
-    <!-- 工具栏 -->
-    <div class="toolbar">
-        <div class="toolbar-top">
-            <div class="quick-filters">
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}"
-                   class="quick-filter {% if not current_filters.payment_status %}active{% endif %}">全部 All</a>
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list', payment_status='unpaid') }}"
-                   class="quick-filter {% if current_filters.payment_status == 'unpaid' %}active{% endif %}">未付 Unpaid</a>
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list', payment_status='partial_paid') }}"
-                   class="quick-filter {% if current_filters.payment_status == 'partial_paid' %}active{% endif %}">部分 Partial</a>
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list', payment_status='paid') }}"
-                   class="quick-filter {% if current_filters.payment_status == 'paid' %}active{% endif %}">已付 Paid</a>
-            </div>
-            <div class="toolbar-actions">
-                <button class="btn-icon" onclick="exportData('excel')">
-                    <i class="fas fa-file-excel"></i> 导出 Export
-                </button>
-            </div>
+    <!-- 筛选栏 -->
+    <div class="card mb-4">
+        <div class="card-body py-2">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <select name="payment_status" class="form-select form-select-sm">
+                        {% for value, label in payment_statuses %}
+                        <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="status" class="form-select form-select-sm">
+                        {% for value, label in statuses %}
+                        <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="company_id" class="form-select form-select-sm">
+                        <option value="">全部公司 All</option>
+                        {% for company in companies %}
+                        <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>
+                            {{ company.company_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="start_date" class="form-control form-control-sm"
+                           value="{{ current_filters.start_date or '' }}" placeholder="开始日期">
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="end_date" class="form-control form-control-sm"
+                           value="{{ current_filters.end_date or '' }}" placeholder="结束日期">
+                </div>
+                <div class="col-auto">
+                    <input type="text" name="keyword" class="form-control form-control-sm"
+                           value="{{ current_filters.keyword or '' }}" placeholder="发票号/项目号/客户...">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-filter me-1"></i>筛选
+                    </button>
+                    <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置
+                    </a>
+                </div>
+            </form>
         </div>
-
-        <form method="GET" action="" class="filter-form">
-            <div class="filter-group">
-                <label>开始日期 From</label>
-                <input type="date" name="start_date" value="{{ current_filters.start_date or '' }}">
-            </div>
-            <div class="filter-group">
-                <label>结束日期 To</label>
-                <input type="date" name="end_date" value="{{ current_filters.end_date or '' }}">
-            </div>
-            <div class="filter-group">
-                <label>付款状态 Payment</label>
-                <select name="payment_status">
-                    {% for value, label in payment_statuses %}
-                    <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>发票状态 Status</label>
-                <select name="status">
-                    {% for value, label in statuses %}
-                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>公司 Company</label>
-                <select name="company_id">
-                    <option value="">全部 All</option>
-                    {% for company in companies %}
-                    <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>{{ company.company_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>搜索 Search</label>
-                <input type="text" name="keyword" value="{{ current_filters.keyword or '' }}"
-                       placeholder="发票号/项目号/客户" style="min-width: 160px;">
-            </div>
-            <button type="submit" class="btn-search"><i class="fas fa-search"></i> 搜索</button>
-            <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn-reset">重置 Reset</a>
-        </form>
     </div>
 
-    <!-- 表格 -->
-    <div class="table-card">
-        {% if invoices %}
-        <div class="table-responsive">
-            <table class="invoice-table">
-                <thead>
+    <!-- 发票列表 -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th class="col-checkbox">
-                            <input type="checkbox" id="selectAll" class="batch-checkbox" title="全选 Select All">
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="selectAll" title="全选">
                         </th>
                         <th>发票号 Invoice No</th>
                         <th>项目 Project</th>
                         <th>客户 Customer</th>
                         <th>日期 Date</th>
-                        <th style="text-align: right;">金额 Amount</th>
-                        <th style="text-align: right;">已付/余额 Paid/Balance</th>
+                        <th class="text-end">金额 Amount</th>
+                        <th class="text-end">已付/余额 Paid/Balance</th>
                         <th>状态 Status</th>
-                        <th style="width: 70px;"></th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for invoice in invoices %}
-                    <tr data-invoice-id="{{ invoice.id }}"
-                        data-amount="{{ invoice.amount }}"
-                        data-unpaid="{{ invoice.unpaid_amount }}"
-                        data-currency="{{ invoice.currency }}">
-                        <td class="col-checkbox">
+                    <tr>
+                        <td style="text-align: center;">
                             {% if invoice.payment_status != 'paid' %}
-                            <input type="checkbox" class="batch-checkbox invoice-checkbox"
+                            <input type="checkbox" class="invoice-checkbox"
                                    data-id="{{ invoice.id }}"
                                    data-amount="{{ invoice.amount }}"
                                    data-unpaid="{{ invoice.unpaid_amount }}"
@@ -639,52 +202,62 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
-                               class="invoice-number">{{ invoice.invoice_number }}</a>
+                            <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}" class="invoice-number text-primary">
+                                {{ invoice.invoice_number }}
+                            </a>
                         </td>
                         <td>
-                            <div class="project-cell">
-                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}"
-                                   class="project-hid">{{ invoice.project_hid or '-' }}</a>
-                                {% if invoice.company_name %}
-                                <span class="project-desc" title="{{ invoice.company_name }}">{{ invoice.company_name }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="customer-cell">
-                                <span class="customer-name">{{ invoice.customer_name or '-' }}</span>
-                                {% if invoice.customer_company %}
-                                <span class="customer-company">{{ invoice.customer_company }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="date-cell">
-                            {{ invoice.invoice_date.strftime('%d %b %Y') if invoice.invoice_date else '-' }}
-                        </td>
-                        <td class="amount-cell">
-                            <div class="amount-main">{{ invoice.currency }} {{ "%.2f"|format(invoice.amount or 0) }}</div>
-                        </td>
-                        <td class="amount-cell">
-                            <div class="amount-sub amount-paid">+{{ "%.2f"|format(invoice.paid_amount or 0) }}</div>
-                            {% if invoice.unpaid_amount > 0 %}
-                            <div class="amount-main amount-unpaid">{{ "%.2f"|format(invoice.unpaid_amount or 0) }}</div>
-                            {% else %}
-                            <div class="amount-main" style="color: #16a34a;">0.00</div>
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}" class="text-decoration-none">
+                                {{ invoice.project_hid or '-' }}
+                            </a>
+                            {% if invoice.company_name %}
+                            <br><small class="text-muted">{{ invoice.company_name }}</small>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="status-badge {{ invoice.payment_status }}">
+                            {{ invoice.customer_name or '-' }}
+                            {% if invoice.customer_company %}
+                            <br><small class="text-muted">{{ invoice.customer_company }}</small>
+                            {% endif %}
+                        </td>
+                        <td style="white-space: nowrap;">
+                            {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}
+                        </td>
+                        <td class="amount-cell fw-bold">
+                            {{ invoice.currency }} {{ "%.2f"|format(invoice.amount or 0) }}
+                        </td>
+                        <td class="amount-cell">
+                            <span class="amount-paid">+{{ "%.2f"|format(invoice.paid_amount or 0) }}</span>
+                            <br>
+                            {% if invoice.unpaid_amount > 0 %}
+                            <span class="amount-unpaid fw-bold">{{ "%.2f"|format(invoice.unpaid_amount or 0) }}</span>
+                            {% else %}
+                            <span class="text-success">0.00</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ invoice.payment_status }}">
                                 {{ invoice.payment_status_display }}
                             </span>
                         </td>
                         <td>
-                            <div class="row-actions">
+                            <div class="btn-group btn-group-sm">
                                 <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
-                                   title="View"><i class="fas fa-eye"></i></a>
+                                   class="btn btn-outline-primary" title="查看">
+                                    <i class="fas fa-eye"></i>
+                                </a>
                                 <a href="{{ url_for('business_projects.project_invoice.edit_invoice', invoice_id=invoice.id) }}"
-                                   title="Edit"><i class="fas fa-edit"></i></a>
+                                   class="btn btn-outline-secondary" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </a>
                             </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p class="mb-0">暂无发票数据 No invoices found</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -692,44 +265,43 @@
             </table>
         </div>
 
-        {% if pagination.pages > 1 %}
-        <div class="pagination-section">
-            <div class="pagination-info">
-                显示 Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} -
-                {{ [pagination.page * pagination.per_page, pagination.total] | min }} / 共 {{ pagination.total }} 条
+        <!-- 分页 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.pages }} 页
             </div>
-            <div class="pagination-nav">
-                {% if pagination.has_prev %}
-                <a href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-                {% endif %}
-
-                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                    {% if page_num %}
-                        <a href="?page={{ page_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}"
-                           class="{% if page_num == pagination.page %}active{% endif %}">
-                            {{ page_num }}
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
+                            <i class="fas fa-chevron-left"></i>
                         </a>
-                    {% else %}
-                        <span class="ellipsis">...</span>
+                    </li>
                     {% endif %}
-                {% endfor %}
 
-                {% if pagination.has_next %}
-                <a href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
+                    {% for p in range(1, pagination.pages + 1) %}
+                        {% if p == pagination.page %}
+                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                        {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ p }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">{{ p }}</a>
+                        </li>
+                        {% elif p == 2 or p == pagination.pages - 1 %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
 
-        {% else %}
-        <div class="empty-state">
-            <i class="fas fa-file-invoice"></i>
-            <p>暂无发票数据 No invoices found</p>
-            <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn-reset">清除筛选 Clear Filters</a>
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
         </div>
         {% endif %}
     </div>
@@ -741,24 +313,26 @@
         <div class="batch-info">
             <div class="batch-count">
                 <i class="fas fa-check-square"></i>
-                已选择 Selected <span class="count-number" id="selectedCount">0</span> 张发票
+                已选择 <span class="count-number" id="selectedCount">0</span> 张发票
             </div>
             <div class="batch-amount">
-                <span class="label">待收款总额 Outstanding:</span>
+                <span style="opacity: 0.8; margin-right: 6px;">待收款总额:</span>
                 <span id="selectedAmount">0.00</span>
             </div>
         </div>
         <div class="batch-actions">
             <button class="btn-batch btn-batch-cancel" onclick="clearSelection()">
-                <i class="fas fa-times"></i> 取消 Cancel
+                <i class="fas fa-times"></i> 取消
             </button>
             <button class="btn-batch btn-batch-pay" onclick="goToBatchReceipt()">
-                <i class="fas fa-money-bill-wave"></i> 批量收款 Batch Receipt
+                <i class="fas fa-money-bill-wave"></i> 批量收款
             </button>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 function exportData(format) {
     const params = new URLSearchParams(window.location.search);
@@ -812,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currencies.size === 1) {
                 selectedAmountEl.textContent = currencies.values().next().value + ' ' + totalUnpaid.toFixed(2);
             } else {
-                selectedAmountEl.textContent = totalUnpaid.toFixed(2) + ' (mixed currencies)';
+                selectedAmountEl.textContent = totalUnpaid.toFixed(2) + ' (多币种)';
             }
             batchPanel.classList.add('show');
         } else {
@@ -830,7 +404,7 @@ function clearSelection() {
 function goToBatchReceipt() {
     const checkedBoxes = document.querySelectorAll('.invoice-checkbox:checked');
     if (checkedBoxes.length === 0) {
-        alert('请至少选择一张发票 Please select at least one invoice');
+        alert('请至少选择一张发票');
         return;
     }
     const invoiceIds = Array.from(checkedBoxes).map(cb => cb.dataset.id);

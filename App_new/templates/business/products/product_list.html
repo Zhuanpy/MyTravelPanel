@@ -16,19 +16,86 @@
     </div>
 
     <!-- 分类统计卡片 -->
+    <style>
+        .category-card {
+            border-left: 4px solid;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .category-card.cat-tour { border-left-color: #0d6efd; }
+        .category-card.cat-visa { border-left-color: #198754; }
+        .category-card.cat-ticket { border-left-color: #fd7e14; }
+        .category-card.cat-car { border-left-color: #0dcaf0; }
+        .category-card.cat-cruise { border-left-color: #6f42c1; }
+        .category-card.cat-hotel { border-left-color: #dc3545; }
+        .category-card.cat-flight { border-left-color: #20c997; }
+        .category-card.cat-insurance { border-left-color: #6c757d; }
+        .category-card .cat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        .cat-tour .cat-icon { background: rgba(13,110,253,0.1); color: #0d6efd; }
+        .cat-visa .cat-icon { background: rgba(25,135,84,0.1); color: #198754; }
+        .cat-ticket .cat-icon { background: rgba(253,126,20,0.1); color: #fd7e14; }
+        .cat-car .cat-icon { background: rgba(13,202,240,0.1); color: #0dcaf0; }
+        .cat-cruise .cat-icon { background: rgba(111,66,193,0.1); color: #6f42c1; }
+        .cat-hotel .cat-icon { background: rgba(220,53,69,0.1); color: #dc3545; }
+        .cat-flight .cat-icon { background: rgba(32,201,151,0.1); color: #20c997; }
+        .cat-insurance .cat-icon { background: rgba(108,117,125,0.1); color: #6c757d; }
+        /* 自定义按钮颜色 */
+        .btn-outline-purple { color: #6f42c1; border-color: #6f42c1; }
+        .btn-outline-purple:hover, .btn-purple { background: #6f42c1; color: #fff; border-color: #6f42c1; }
+        .btn-outline-teal { color: #20c997; border-color: #20c997; }
+        .btn-outline-teal:hover, .btn-teal { background: #20c997; color: #fff; border-color: #20c997; }
+        .btn-outline-orange { color: #fd7e14; border-color: #fd7e14; }
+        .btn-outline-orange:hover, .btn-orange { background: #fd7e14; color: #fff; border-color: #fd7e14; }
+    </style>
     <div class="row mb-4">
         {% for cat_code, cat_info in category_counts.items() %}
+        {% set icons = {
+            'tour': 'fa-globe-asia',
+            'visa': 'fa-passport',
+            'ticket': 'fa-ticket-alt',
+            'car': 'fa-car',
+            'cruise': 'fa-ship',
+            'hotel': 'fa-hotel',
+            'flight': 'fa-plane',
+            'insurance': 'fa-shield-alt'
+        } %}
+        {% set btn_colors = {
+            'tour': 'primary',
+            'visa': 'success',
+            'ticket': 'orange',
+            'car': 'info',
+            'cruise': 'purple',
+            'hotel': 'danger',
+            'flight': 'teal',
+            'insurance': 'secondary'
+        } %}
         <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card h-100 {% if current_category == cat_code %}border-primary{% endif %}">
+            <div class="card h-100 category-card cat-{{ cat_code }} {% if current_category == cat_code %}shadow{% endif %}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">{{ cat_info.name }}</h6>
-                            <h3 class="mb-0">{{ cat_info.count }}</h3>
+                        <div class="cat-icon">
+                            <i class="fas {{ icons.get(cat_code, 'fa-box') }}"></i>
                         </div>
+                        <div class="text-end">
+                            <h6 class="text-muted mb-1">{{ cat_info.name }}</h6>
+                            <h3 class="mb-0 fw-bold">{{ cat_info.count }}</h3>
+                        </div>
+                    </div>
+                    <div class="mt-3">
                         <a href="{{ url_for('products.index', category=cat_code) }}"
-                           class="btn btn-sm {% if current_category == cat_code %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-                            查看
+                           class="btn btn-sm w-100 {% if current_category == cat_code %}btn-{{ btn_colors.get(cat_code, 'secondary') }}{% else %}btn-outline-{{ btn_colors.get(cat_code, 'secondary') }}{% endif %}">
+                            查看全部
                         </a>
                     </div>
                 </div>
