@@ -175,17 +175,28 @@ def list_projects():
         # 应用筛选条件
         if status:
             base_query = base_query.filter(ProjectHeader.status == status)
-        
+
         if search:
             search_lower = search.lower()
+            # 子查询：查找包含搜索关键词的项目成员所属的项目ID
+            from ..models.project_member import ProjectMember
+            member_subquery = db.session.query(ProjectMember.header_id).filter(
+                db.or_(
+                    ProjectMember.member_name.ilike(f'%{search_lower}%'),
+                    ProjectMember.member_name_en.ilike(f'%{search_lower}%')
+                )
+            ).subquery()
+
             base_query = base_query.filter(
                 db.or_(
-                    ProjectHeader.hid.like(f'%{search_lower}%'),
-                    ProjectHeader.desc.like(f'%{search_lower}%'),
-                    ProjectHeader.contact.like(f'%{search_lower}%')
+                    ProjectHeader.hid.ilike(f'%{search_lower}%'),
+                    ProjectHeader.desc.ilike(f'%{search_lower}%'),
+                    ProjectHeader.contact.ilike(f'%{search_lower}%'),
+                    ProjectHeader.leader_name.ilike(f'%{search_lower}%'),
+                    ProjectHeader.id.in_(member_subquery)  # 搜索乘客姓名
                 )
             )
-        
+
         if company:
             base_query = base_query.join(CustomerCompany).filter(
                 CustomerCompany.company_name.like(f'%{company}%')
@@ -1323,11 +1334,22 @@ def export_excel():
             base_query = base_query.filter(ProjectHeader.status == status)
         if search:
             search_lower = search.lower()
+            # 子查询：查找包含搜索关键词的项目成员所属的项目ID
+            from ..models.project_member import ProjectMember
+            member_subquery = db.session.query(ProjectMember.header_id).filter(
+                db.or_(
+                    ProjectMember.member_name.ilike(f'%{search_lower}%'),
+                    ProjectMember.member_name_en.ilike(f'%{search_lower}%')
+                )
+            ).subquery()
+
             base_query = base_query.filter(
                 db.or_(
-                    ProjectHeader.hid.like(f'%{search_lower}%'),
-                    ProjectHeader.desc.like(f'%{search_lower}%'),
-                    ProjectHeader.contact.like(f'%{search_lower}%')
+                    ProjectHeader.hid.ilike(f'%{search_lower}%'),
+                    ProjectHeader.desc.ilike(f'%{search_lower}%'),
+                    ProjectHeader.contact.ilike(f'%{search_lower}%'),
+                    ProjectHeader.leader_name.ilike(f'%{search_lower}%'),
+                    ProjectHeader.id.in_(member_subquery)  # 搜索乘客姓名
                 )
             )
         if company:
