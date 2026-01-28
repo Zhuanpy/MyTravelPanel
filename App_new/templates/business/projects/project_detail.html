@@ -447,7 +447,7 @@
                                 {% if ref.receipts %}
                                 <a href="{{ url_for('business_projects.project_receipt.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看收款记录"><i class="fas fa-list"></i></a>
                                 {% endif %}
-                                {% if ref.can_delete and not header.is_settled %}
+                                {% if ref.can_delete and not header.is_settled and not ref_invoices %}
                                 <a href="{{ url_for('business_projects.project_ref.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF"><i class="fas fa-trash"></i></a>
                                 {% endif %}
                             </div>

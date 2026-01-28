@@ -17,140 +17,27 @@
                 项目管理
             </h1> -->
             <script>
+            // 公司名称复制功能
             document.addEventListener('DOMContentLoaded', function() {
-                var companyEditables = document.querySelectorAll('.company-editable');
-                var currentEditing = null;
-                
-                companyEditables.forEach(function(editable) {
-                    var display = editable.querySelector('.company-display');
-                    var input = editable.querySelector('.company-input');
-                    var suggestions = editable.querySelector('.company-suggestions');
-                    var projectId = editable.getAttribute('data-project-id');
-                    
-                    // 点击显示区域进入编辑模式
-                    display.addEventListener('click', function() {
-                        if (currentEditing && currentEditing !== editable) {
-                            saveCurrentEdit();
-                        }
-                        enterEditMode(editable);
-                    });
-                    
-                    // 输入框失焦时保存
-                    input.addEventListener('blur', function() {
-                        setTimeout(function() {
-                            if (currentEditing === editable) {
-                                saveCurrentEdit();
-                            }
-                        }, 200);
-                    });
-                    
-                    // 输入时搜索公司
-                    input.addEventListener('input', function() {
-                        var query = this.value.trim();
-                        if (query.length > 0) {
-                            searchCompanies(query, suggestions, input, projectId);
-                        } else {
-                            suggestions.classList.add('d-none');
-                        }
-                    });
-                    
-                    // 回车键保存
-                    input.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter') {
-                            saveCurrentEdit();
-                        } else if (e.key === 'Escape') {
-                            cancelEdit(editable);
+                document.querySelectorAll('.company-copy').forEach(function(el) {
+                    el.addEventListener('click', function() {
+                        var companyName = this.dataset.companyName;
+                        if (companyName) {
+                            navigator.clipboard.writeText(companyName).then(function() {
+                                // 显示复制成功提示
+                                var icon = el.querySelector('i');
+                                if (icon) {
+                                    icon.className = 'fas fa-check text-success';
+                                    icon.style.opacity = '1';
+                                    setTimeout(function() {
+                                        icon.className = 'fas fa-copy text-muted';
+                                        icon.style.opacity = '0.6';
+                                    }, 1000);
+                                }
+                            });
                         }
                     });
                 });
-                
-                function enterEditMode(editable) {
-                    currentEditing = editable;
-                    var display = editable.querySelector('.company-display');
-                    var input = editable.querySelector('.company-input');
-                    
-                    display.classList.add('d-none');
-                    input.classList.remove('d-none');
-                    input.focus();
-                    input.select();
-                }
-                
-                function saveCurrentEdit() {
-                    if (!currentEditing) return;
-                    
-                    var input = currentEditing.querySelector('.company-input');
-                    var display = currentEditing.querySelector('.company-display');
-                    var projectId = currentEditing.getAttribute('data-project-id');
-                    var companyName = input.value.trim();
-                    
-                    // 保存到服务器
-                    fetch("/projects/list/api/update_company_name", {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            project_id: projectId, 
-                            company_name: companyName 
-                        })
-                    }).then(function(resp){ 
-                        return resp.json(); 
-                    }).then(function(data){
-                        if (data.success) {
-                            // 更新显示
-                            if (companyName) {
-                                display.textContent = companyName;
-                            } else {
-                                display.innerHTML = '<span class="text-muted">点击编辑</span>';
-                            }
-                        } else {
-                            alert('更新失败：' + (data.message || '未知错误'));
-                        }
-                    }).catch(function(){
-                        alert('网络错误，更新失败');
-                    });
-                    
-                    // 退出编辑模式
-                    input.classList.add('d-none');
-                    display.classList.remove('d-none');
-                    currentEditing = null;
-                }
-                
-                function cancelEdit(editable) {
-                    var display = editable.querySelector('.company-display');
-                    var input = editable.querySelector('.company-input');
-                    var suggestions = editable.querySelector('.company-suggestions');
-                    
-                    input.classList.add('d-none');
-                    display.classList.remove('d-none');
-                    suggestions.classList.add('d-none');
-                    currentEditing = null;
-                }
-                
-                function searchCompanies(query, suggestions, input, projectId) {
-                    fetch("/projects/list/api/search_companies?q=" + encodeURIComponent(query))
-                        .then(function(resp) { return resp.json(); })
-                        .then(function(data) {
-                            if (data.success && data.companies.length > 0) {
-                                suggestions.innerHTML = '';
-                                data.companies.forEach(function(company) {
-                                    var item = document.createElement('div');
-                                    item.className = 'suggestion-item';
-                                    item.textContent = company.company_name;
-                                    item.addEventListener('click', function() {
-                                        input.value = company.company_name;
-                                        suggestions.classList.add('d-none');
-                                        input.focus();
-                                    });
-                                    suggestions.appendChild(item);
-                                });
-                                suggestions.classList.remove('d-none');
-                            } else {
-                                suggestions.classList.add('d-none');
-                            }
-                        })
-                        .catch(function() {
-                            suggestions.classList.add('d-none');
-                        });
-                }
             });
             </script>
         </div>
@@ -176,31 +63,8 @@
             @media (max-width: 992px)  { #filterForm .filter-grid { grid-template-columns: repeat(4, 1fr); } }
             @media (max-width: 768px)  { #filterForm .filter-grid { grid-template-columns: repeat(2, 1fr); } }
             
-            /* 公司编辑样式 */
-            .company-editable { position: relative; cursor: pointer; }
-            .company-display { padding: 4px 8px; border-radius: 4px; }
-            .company-display:hover { background-color: #f8f9fa; }
-            .company-input { width: 100%; }
-            .company-suggestions { 
-                position: absolute; 
-                top: 100%; 
-                left: 0; 
-                right: 0; 
-                background: white; 
-                border: 1px solid #ddd; 
-                border-radius: 4px; 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-                z-index: 1000; 
-                max-height: 200px; 
-                overflow-y: auto; 
-            }
-            .suggestion-item { 
-                padding: 8px 12px; 
-                cursor: pointer; 
-                border-bottom: 1px solid #eee; 
-            }
-            .suggestion-item:hover { background-color: #f8f9fa; }
-            .suggestion-item:last-child { border-bottom: none; }
+            /* 公司名称复制样式 */
+            .company-copy:hover { background-color: #f8f9fa; border-radius: 4px; padding: 2px 4px; }
             
             /* 表格样式 - 自适应容器宽度 */
             .table-responsive {
@@ -365,21 +229,18 @@
                             </td>
                             <td title="{{ project.display_desc or '-' }}">{{ project.display_desc or '-' }}</td>
                             <td>{{ project.leader_member_name or '-' }}</td>
-                            <td>
-                                <div class="company-editable" data-project-id="{{ project.id }}">
-                                    <span class="company-display">
-                                        {% if project.company %}
-                                            {{ project.company.company_name }}
-                                        {% else %}
-                                            <span class="text-muted">点击编辑</span>
-                                        {% endif %}
+                            <td title="{{ project.company.company_name if project.company else '-' }}">
+                                {% if project.company %}
+                                    <span class="company-copy"
+                                          data-company-name="{{ project.company.company_name }}"
+                                          style="cursor: pointer;"
+                                          title="点击复制公司名称">
+                                        {{ project.company.company_name }}
+                                        <i class="fas fa-copy text-muted" style="font-size: 10px; margin-left: 2px; opacity: 0.6;"></i>
                                     </span>
-                                    <input type="text" class="form-control form-control-sm company-input d-none"
-                                           data-project-id="{{ project.id }}"
-                                           value="{% if project.company %}{{ project.company.company_name }}{% endif %}"
-                                           placeholder="输入公司名称...">
-                                    <div class="company-suggestions d-none"></div>
-                                </div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
                             </td>
                             <td>{{ project.contact or '未指定' }}</td>
                             <td>{{ project.staff_name or '-' }}</td>
