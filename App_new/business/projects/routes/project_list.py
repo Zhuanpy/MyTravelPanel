@@ -799,6 +799,7 @@ def list_projects():
                         'balance': balance,
                         'has_eo': has_eo,
                         'has_receipt': has_receipt,
+                        'has_invoice': invoiced_ref_count > 0,
                         # 结算相关
                         'ref_count': ref_count,
                         'invoiced_ref_count': invoiced_ref_count,
@@ -818,6 +819,7 @@ def list_projects():
                         'balance': 0,
                         'has_eo': False,
                         'has_receipt': False,
+                        'has_invoice': False,
                         'ref_count': 0,
                         'invoiced_ref_count': 0,
                         'eo_count': 0,
@@ -841,6 +843,13 @@ def list_projects():
                         ProjectReceipt.header_id == project_id
                     ).first() is not None
                     
+                    # 检查是否有发票
+                    from App_new.business.projects.models.invoice import ProjectInvoice
+                    has_invoice = db.session.query(ProjectInvoice).filter(
+                        ProjectInvoice.header_id == project_id,
+                        ProjectInvoice.status != 'cancelled'
+                    ).first() is not None
+
                     project_stats[project_id] = {
                         'total_selling_price': 0,
                         'total_cost_price': 0,
@@ -849,6 +858,7 @@ def list_projects():
                         'balance': 0,
                         'has_eo': has_eo,
                         'has_receipt': has_receipt,
+                        'has_invoice': has_invoice,
                         'ref_count': 0,
                         'invoiced_ref_count': 0,
                         'eo_count': 0,
@@ -866,6 +876,7 @@ def list_projects():
                         'balance': 0,
                         'has_eo': False,
                         'has_receipt': False,
+                        'has_invoice': False,
                         'ref_count': 0,
                         'invoiced_ref_count': 0,
                         'eo_count': 0,
@@ -1127,6 +1138,7 @@ def list_projects():
                                 'balance': balance,
                                 'has_eo': has_eo,
                                 'has_receipt': has_receipt,
+                                'has_invoice': invoiced_ref_count > 0,
                                 'ref_count': ref_count,
                                 'invoiced_ref_count': invoiced_ref_count,
                                 'eo_count': eo_count,
@@ -1142,6 +1154,7 @@ def list_projects():
                                 'balance': balance,
                                 'has_eo': has_eo,
                                 'has_receipt': has_receipt,
+                                'has_invoice': invoiced_ref_count > 0,
                                 'ref_count': ref_count,
                                 'invoiced_ref_count': invoiced_ref_count,
                                 'eo_count': eo_count,

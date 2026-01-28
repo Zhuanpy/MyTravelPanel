@@ -291,7 +291,7 @@
                             </td>
                             <td class="text-center">
                                 {% set stats = project_stats.get(project.id, {}) %}
-                                {% if not stats.has_eo and not stats.has_receipt %}
+                                {% if not stats.has_eo and not stats.has_receipt and not stats.has_invoice %}
                                 <button type="button" class="btn btn-outline-danger btn-sm delete-project"
                                         data-project-id="{{ project.id }}"
                                         data-project-hid="{{ project.hid }}"
