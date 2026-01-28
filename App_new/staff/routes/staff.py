@@ -252,120 +252,191 @@ def change_password():
 @login_required
 @staff_only
 def dashboard():
-    """员工仪表板 - 实现真实数据查询"""
+    """员工仪表板 - 显示财务统计和待办提醒（优化查询性能）"""
     try:
         # 导入必要的模型
-        from ...business.projects.models.project import ProjectHeader, CustomerCompany
+        from ...business.projects.models.project import ProjectHeader
         from ...business.projects.models.ref import ProjectRef
+        from ...business.projects.models.eo import ProjectEO
+        from ...business.projects.models.invoice import ProjectInvoice
+        from ...business.projects.models.receipt import ProjectReceipt
         from ...exts import db
-        
-        # 构建基础查询
-        base_query = ProjectHeader.query
-        
-        # 根据员工等级过滤项目
-        if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
-            if current_user.profile:
-                staff_level = current_user.profile.staff_level or 1
-            
-            if staff_level == 1:
-                # 1级员工只能看到自己创建的项目
-                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
-            # 2级员工可以看到所有项目，不需要额外过滤
-        
-        # 获取员工统计信息（真实数据）
-        total_projects = base_query.count()
-        active_projects = base_query.filter_by(status='active').count()
-        
-        # 计算本月完成的项目
+        from sqlalchemy import func
+        from sqlalchemy.orm import joinedload
+
+        # 获取本月起始时间
         current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        completed_this_month = base_query.filter(
-            ProjectHeader.status == 'completed',
-            ProjectHeader.updated_at >= current_month_start
-        ).count()
-        
-        # 计算待处理报价（状态为draft的项目）
-        pending_quotes = base_query.filter_by(status='draft').count()
-        
+
+        # ========== 财务统计（使用聚合查询）==========
+        # 本月销售额和成本（一次聚合查询）
+        month_stats = db.session.query(
+            func.coalesce(func.sum(ProjectRef.selling_price), 0).label('selling'),
+            func.coalesce(func.sum(ProjectRef.cost_price), 0).label('cost')
+        ).join(ProjectHeader).filter(
+            ProjectHeader.created_at >= current_month_start
+        ).first()
+
+        month_selling = float(month_stats.selling) if month_stats else 0
+        month_cost = float(month_stats.cost) if month_stats else 0
+        month_profit = month_selling - month_cost
+
+        # 待收款金额（聚合查询：未结算项目的销售总额 - 已收款总额）
+        unsettled_selling = db.session.query(
+            func.coalesce(func.sum(ProjectRef.selling_price), 0)
+        ).join(ProjectHeader).filter(
+            ProjectHeader.is_settled == False
+        ).scalar() or 0
+
+        total_received = db.session.query(
+            func.coalesce(func.sum(ProjectReceipt.amount), 0)
+        ).join(ProjectHeader).filter(
+            ProjectHeader.is_settled == False
+        ).scalar() or 0
+
+        total_receivable = float(unsettled_selling) - float(total_received)
+
+        # 待付款 EO 统计（聚合查询）
+        pending_eo_stats = db.session.query(
+            func.count(ProjectEO.id).label('count'),
+            func.coalesce(func.sum(ProjectRef.cost_price), 0).label('amount')
+        ).join(ProjectRef).filter(
+            ProjectEO.is_paid == False,
+            ProjectEO.status == 'confirmed'
+        ).first()
+
+        pending_eo_count = pending_eo_stats.count if pending_eo_stats else 0
+        pending_eo_amount = float(pending_eo_stats.amount) if pending_eo_stats else 0
+
         stats = {
-            'total_projects': total_projects,
-            'active_projects': active_projects,
-            'pending_quotes': pending_quotes,
-            'completed_this_month': completed_this_month,
+            'month_selling': month_selling,
+            'month_profit': month_profit,
+            'total_receivable': max(0, total_receivable),
+            'pending_eo_count': pending_eo_count,
+            'pending_eo_amount': pending_eo_amount,
         }
-        
-        # 获取最近的项目列表（真实数据，最近10个）
-        recent_projects_query = base_query.order_by(ProjectHeader.created_at.desc()).limit(10)
+
+        # ========== 待付款 EO 列表（使用 joinedload 预加载）==========
+        pending_eos = ProjectEO.query.options(
+            joinedload(ProjectEO.ref).joinedload(ProjectRef.header),
+            joinedload(ProjectEO.ref).joinedload(ProjectRef.supplier)
+        ).filter(
+            ProjectEO.is_paid == False,
+            ProjectEO.status == 'confirmed'
+        ).order_by(ProjectEO.created_at.desc()).limit(10).all()
+
+        pending_eo_list = []
+        for eo in pending_eos:
+            if eo.ref and eo.ref.header:
+                pending_eo_list.append({
+                    'id': eo.id,
+                    'eo_number': eo.eo_number,
+                    'hid': eo.ref.header.hid,
+                    'project_id': eo.ref.header.id,
+                    'supplier': eo.ref.supplier.company_name if eo.ref.supplier else '-',
+                    'amount': float(eo.ref.cost_price or 0),
+                    'currency': eo.ref.currency or 'SGD',
+                    'created_at': eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '',
+                })
+
+        # ========== 待开发票的 REF（优化查询）==========
+        # 获取所有已有发票的 REF ID
+        invoiced_ref_ids = db.session.query(
+            func.distinct(func.json_extract(ProjectInvoice.ref_ids, '$[*]'))
+        ).filter(ProjectInvoice.status != 'cancelled').all()
+
+        # 简化：直接查询有销售金额但没有EO发票关联的REF
+        pending_invoice_refs = []
+        refs_query = ProjectRef.query.options(
+            joinedload(ProjectRef.header)
+        ).join(ProjectHeader).filter(
+            ProjectHeader.is_settled == False,
+            ProjectRef.selling_price > 0
+        ).order_by(ProjectRef.created_at.desc()).limit(50).all()
+
+        for ref in refs_query:
+            # 快速检查是否有发票（通过查询而不是调用方法）
+            has_invoice = ProjectInvoice.query.filter(
+                ProjectInvoice.header_id == ref.header_id,
+                ProjectInvoice.status != 'cancelled',
+                ProjectInvoice.ref_ids.like(f'%{ref.id}%')
+            ).first() is not None
+
+            if not has_invoice:
+                pending_invoice_refs.append({
+                    'id': ref.id,
+                    'ref_number': ref.ref_number,
+                    'hid': ref.header.hid if ref.header else '-',
+                    'project_id': ref.header.id if ref.header else 0,
+                    'description': ref.description or ref.detailed_description or '-',
+                    'amount': float(ref.selling_price),
+                    'currency': ref.currency or 'SGD',
+                })
+                if len(pending_invoice_refs) >= 10:
+                    break
+
+        # ========== 最近项目（最近10个，优化查询）==========
+        # 先获取最近10个项目的ID
+        recent_headers = ProjectHeader.query.options(
+            joinedload(ProjectHeader.company)
+        ).order_by(ProjectHeader.created_at.desc()).limit(10).all()
+
+        recent_project_ids = [p.id for p in recent_headers]
+
+        # 一次性获取这些项目的财务汇总
+        project_stats = {}
+        if recent_project_ids:
+            stats_query = db.session.query(
+                ProjectRef.header_id,
+                func.coalesce(func.sum(ProjectRef.selling_price), 0).label('selling'),
+                func.coalesce(func.sum(ProjectRef.cost_price), 0).label('cost')
+            ).filter(
+                ProjectRef.header_id.in_(recent_project_ids)
+            ).group_by(ProjectRef.header_id).all()
+
+            for row in stats_query:
+                project_stats[row.header_id] = {
+                    'selling': float(row.selling),
+                    'cost': float(row.cost)
+                }
+
         recent_projects = []
-        
-        for project in recent_projects_query:
-            # 计算项目财务数据
-            refs = ProjectRef.query.filter_by(header_id=project.id).all()
-            total_selling_price = sum([float(ref.selling_price or 0) for ref in refs])
-            total_cost_price = sum([float(ref.cost_price or 0) for ref in refs])
-            total_profit = total_selling_price - total_cost_price
-            
-            # 获取客户公司名称
-            client_name = '未指定客户'
-            if project.company_id and project.company:
-                client_name = project.company.company_name
-            
-            # 构建项目数据
-            project_data = {
+        for project in recent_headers:
+            ps = project_stats.get(project.id, {'selling': 0, 'cost': 0})
+            recent_projects.append({
                 'id': project.id,
                 'hid': project.hid,
-                'name': project.desc or f'项目 {project.hid}',
-                'client': client_name,
-                'leader': project.leader_name or '未指定负责人',
-                'contact': project.contact or '未指定联系人',
-                'status': project.status,
-                'type': project.type or '综合',
-                'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else '',
-                'updated_at': project.updated_at.strftime('%Y-%m-%d %H:%M') if project.updated_at else '',
-                'total_selling': total_selling_price,
-                'total_cost': total_cost_price,
-                'total_profit': total_profit,
-                'ref_count': len(refs)
-            }
-            recent_projects.append(project_data)
-        
-        # 获取待处理任务（状态为draft的项目）
-        pending_tasks = []
-        draft_projects = base_query.filter_by(status='draft').limit(5).all()
-        
-        for project in draft_projects:
-            task_data = {
-                'id': project.id,
-                'hid': project.hid,
-                'name': project.desc or f'项目 {project.hid}',
-                'type': '项目创建',
-                'priority': 'medium',
-                'due_date': project.created_at + timedelta(days=7) if project.created_at else None
-            }
-            pending_tasks.append(task_data)
-        
-        # 渲染仪表板模板，传递真实数据
-        return render_template('staff/staff_dashboard.html', 
+                'desc': project.desc or '-',
+                'company': project.company.company_name if project.company else '-',
+                'total_selling': ps['selling'],
+                'total_profit': ps['selling'] - ps['cost'],
+                'is_settled': project.is_settled,
+                'created_at': project.created_at.strftime('%Y-%m-%d') if project.created_at else '',
+            })
+
+        return render_template('staff/staff_dashboard.html',
                              stats=stats,
-                             recent_projects=recent_projects,
-                             pending_tasks=pending_tasks)
-                             
+                             pending_eo_list=pending_eo_list,
+                             pending_invoice_refs=pending_invoice_refs,
+                             recent_projects=recent_projects)
+
     except Exception as e:
-        # 错误处理：记录错误并显示友好的错误信息
+        # 错误处理
         current_app.logger.error(f'加载员工仪表板失败: {str(e)}')
+        import traceback
+        traceback.print_exc()
         flash(f'加载仪表板失败：{str(e)}', 'error')
-        
-        # 返回空的仪表板，避免页面崩溃
+
         return render_template('staff/staff_dashboard.html',
                              stats={
-                                 'total_projects': 0,
-                                 'active_projects': 0,
-                                 'pending_quotes': 0,
-                                 'completed_this_month': 0
-                             }, 
-                             recent_projects=[], 
-                             pending_tasks=[])
+                                 'month_selling': 0,
+                                 'month_profit': 0,
+                                 'total_receivable': 0,
+                                 'pending_eo_count': 0,
+                                 'pending_eo_amount': 0,
+                             },
+                             pending_eo_list=[],
+                             pending_invoice_refs=[],
+                             recent_projects=[])
 
 # ==================== 项目管理功能已移至 projects.py ====================
 

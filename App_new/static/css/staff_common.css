@@ -138,6 +138,42 @@ body {
     box-shadow: none !important;
 }
 
+/* 笔记本屏幕导航栏紧凑样式（1500px以下） */
+@media (max-width: 1500px) {
+    .navbar .nav-link {
+        padding: 0.4rem 0.5rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    .navbar .dropdown-toggle::after {
+        margin-left: 0.2em !important;
+    }
+
+    .navbar-brand {
+        margin-right: 0.5rem !important;
+    }
+
+    .navbar-brand img {
+        height: 32px !important;
+    }
+
+    .navbar-brand .logo-text {
+        display: none !important;
+    }
+}
+
+/* 更小屏幕导航栏进一步压缩（1300px以下） */
+@media (max-width: 1300px) {
+    .navbar .nav-link {
+        padding: 0.3rem 0.4rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    .navbar .nav-link i {
+        display: none !important;
+    }
+}
+
 /* 侧边栏遮罩层 */
 .sidebar-overlay {
     position: fixed !important;
@@ -1306,8 +1342,8 @@ td .btn-group {
     }
 }
 
-/* 确保在大屏幕上侧边栏正常显示（1201px以上） */
-@media (min-width: 1201px) {
+/* 确保在大屏幕上侧边栏正常显示（1501px以上，仅大显示器） */
+@media (min-width: 1501px) {
     #sidebar {
         position: fixed !important;
         top: 56px !important;
@@ -1332,8 +1368,8 @@ td .btn-group {
     }
 }
 
-/* 中等屏幕（1200px以下）- 侧边栏浮动 */
-@media (max-width: 1200px) {
+/* 中等屏幕（1500px以下，包括笔记本）- 侧边栏浮动 */
+@media (max-width: 1500px) {
     #sidebar {
         position: fixed !important;
         top: 56px !important;
