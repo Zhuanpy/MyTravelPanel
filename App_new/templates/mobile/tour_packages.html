@@ -56,62 +56,9 @@
             font-weight: 600;
         }
 
-        .header-search {
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 18px;
-            text-decoration: none;
-        }
-
         /* 主内容区 */
         .main-content {
             padding-top: 56px;
-        }
-
-        /* 地区选项卡 */
-        .region-tabs {
-            background: white;
-            padding: 12px 0;
-            overflow-x: auto;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-
-        .region-tabs::-webkit-scrollbar {
-            display: none;
-        }
-
-        .region-tabs-inner {
-            display: inline-flex;
-            gap: 8px;
-            padding: 0 16px;
-        }
-
-        .region-tab {
-            display: inline-flex;
-            align-items: center;
-            padding: 8px 16px;
-            background: #f1f5f9;
-            border-radius: 20px;
-            font-size: 13px;
-            color: #64748b;
-            text-decoration: none;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-
-        .region-tab.active {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-        }
-
-        .region-tab:active {
-            transform: scale(0.95);
         }
 
         /* 筛选区 */
@@ -171,65 +118,6 @@
         .filter-btn-secondary {
             background: #f1f5f9;
             color: #64748b;
-        }
-
-        /* 搜索表单（可展开） */
-        .search-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px;
-            background: #f8fafc;
-            color: #64748b;
-            font-size: 13px;
-            cursor: pointer;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .search-toggle i {
-            margin-left: 6px;
-            transition: transform 0.3s;
-        }
-
-        .search-toggle.active i {
-            transform: rotate(180deg);
-        }
-
-        .search-form {
-            display: none;
-            padding: 16px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .search-form.show {
-            display: block;
-        }
-
-        .search-input-group {
-            margin-bottom: 12px;
-        }
-
-        .search-input-group label {
-            display: block;
-            font-size: 13px;
-            color: #64748b;
-            margin-bottom: 6px;
-        }
-
-        .search-input {
-            width: 100%;
-            height: 42px;
-            padding: 0 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 14px;
-            background: white;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #10b981;
         }
 
         /* 统计信息 */
@@ -527,31 +415,11 @@
         <i class="fas fa-arrow-left"></i>
     </a>
     <h1 class="header-title">旅游配套</h1>
-    <a href="javascript:void(0)" class="header-search" onclick="toggleSearch()">
-        <i class="fas fa-search"></i>
-    </a>
 </header>
 
 <main class="main-content">
-    <!-- 地区选项卡 -->
-    <div class="region-tabs">
-        <div class="region-tabs-inner">
-            <a href="{{ url_for('mobile.tour_packages') }}" class="region-tab {{ 'active' if not region else '' }}">全部</a>
-            <a href="{{ url_for('mobile.tour_packages', region='southeast_asia') }}" class="region-tab {{ 'active' if region == 'southeast_asia' else '' }}">东南亚</a>
-            <a href="{{ url_for('mobile.tour_packages', region='east_asia') }}" class="region-tab {{ 'active' if region == 'east_asia' else '' }}">东亚</a>
-            <a href="{{ url_for('mobile.tour_packages', region='europe') }}" class="region-tab {{ 'active' if region == 'europe' else '' }}">欧洲</a>
-            <a href="{{ url_for('mobile.tour_packages', region='america') }}" class="region-tab {{ 'active' if region == 'america' else '' }}">美洲</a>
-            <a href="{{ url_for('mobile.tour_packages', region='oceania') }}" class="region-tab {{ 'active' if region == 'oceania' else '' }}">大洋洲</a>
-            <a href="{{ url_for('mobile.tour_packages', region='middle_east') }}" class="region-tab {{ 'active' if region == 'middle_east' else '' }}">中东</a>
-            <a href="{{ url_for('mobile.tour_packages', region='south_asia') }}" class="region-tab {{ 'active' if region == 'south_asia' else '' }}">南亚</a>
-        </div>
-    </div>
-
     <!-- 筛选区 -->
     <form id="filterForm" class="filter-section" method="get" action="{{ url_for('mobile.tour_packages') }}">
-        {% if region %}
-        <input type="hidden" name="region" value="{{ region }}">
-        {% endif %}
 
         <div class="filter-row">
             <select name="country" class="filter-select" onchange="this.form.submit()">
@@ -568,58 +436,14 @@
             </select>
         </div>
 
-        {% if country or city or destination %}
+        {% if country or city %}
         <div class="filter-row">
-            <a href="{{ url_for('mobile.tour_packages', region=region) }}" class="filter-btn filter-btn-secondary" style="flex: 1; justify-content: center;">
+            <a href="{{ url_for('mobile.tour_packages') }}" class="filter-btn filter-btn-secondary" style="flex: 1; justify-content: center;">
                 <i class="fas fa-times"></i> 清除筛选
             </a>
         </div>
         {% endif %}
     </form>
-
-    <!-- 高级搜索（可展开） -->
-    <div class="search-toggle" onclick="toggleSearch()">
-        高级搜索 <i class="fas fa-chevron-down"></i>
-    </div>
-    <div class="search-form" id="searchForm">
-        <form method="get" action="{{ url_for('mobile.tour_packages') }}">
-            {% if region %}
-            <input type="hidden" name="region" value="{{ region }}">
-            {% endif %}
-
-            <div class="search-input-group">
-                <label>目的地关键词</label>
-                <input type="text" name="destination" class="search-input" placeholder="输入目的地..." value="{{ destination }}">
-            </div>
-
-            <div class="filter-row">
-                <div class="search-input-group" style="flex: 1; margin-bottom: 0;">
-                    <label>出发日期</label>
-                    <input type="date" name="departure_date" class="search-input" value="{{ departure_date }}">
-                </div>
-                <div class="search-input-group" style="flex: 1; margin-bottom: 0;">
-                    <label>返回日期</label>
-                    <input type="date" name="return_date" class="search-input" value="{{ return_date }}">
-                </div>
-            </div>
-
-            <div class="search-input-group">
-                <label>出行人数</label>
-                <select name="pax" class="filter-select" style="width: 100%;">
-                    <option value="">不限人数</option>
-                    <option value="1" {{ 'selected' if pax == '1' else '' }}>1人</option>
-                    <option value="2" {{ 'selected' if pax == '2' else '' }}>2人</option>
-                    <option value="3-5" {{ 'selected' if pax == '3-5' else '' }}>3-5人</option>
-                    <option value="6-10" {{ 'selected' if pax == '6-10' else '' }}>6-10人</option>
-                    <option value="10+" {{ 'selected' if pax == '10+' else '' }}>10人以上</option>
-                </select>
-            </div>
-
-            <button type="submit" class="filter-btn filter-btn-primary" style="width: 100%; justify-content: center;">
-                <i class="fas fa-search"></i> 搜索
-            </button>
-        </form>
-    </div>
 
     <!-- 统计信息 -->
     <div class="stats-bar">
@@ -678,7 +502,7 @@
     {% if pagination and pagination.pages > 1 %}
     <div class="pagination">
         {% if pagination.has_prev %}
-        <a href="{{ url_for('mobile.tour_packages', page=pagination.prev_num, region=region, country=country, city=city, destination=destination, pax=pax) }}" class="page-btn">
+        <a href="{{ url_for('mobile.tour_packages', page=pagination.prev_num, country=country, city=city) }}" class="page-btn">
             <i class="fas fa-chevron-left"></i>
         </a>
         {% else %}
@@ -688,7 +512,7 @@
         <span class="page-info">{{ pagination.page }} / {{ pagination.pages }}</span>
 
         {% if pagination.has_next %}
-        <a href="{{ url_for('mobile.tour_packages', page=pagination.next_num, region=region, country=country, city=city, destination=destination, pax=pax) }}" class="page-btn">
+        <a href="{{ url_for('mobile.tour_packages', page=pagination.next_num, country=country, city=city) }}" class="page-btn">
             <i class="fas fa-chevron-right"></i>
         </a>
         {% else %}
@@ -723,27 +547,6 @@
     </a>
 </nav>
 
-<script>
-// 切换高级搜索
-function toggleSearch() {
-    const form = document.getElementById('searchForm');
-    const toggle = document.querySelector('.search-toggle');
-    form.classList.toggle('show');
-    toggle.classList.toggle('active');
-}
-
-// 保持筛选参数
-document.querySelectorAll('.region-tab').forEach(tab => {
-    const url = new URL(tab.href);
-    const currentParams = new URLSearchParams(window.location.search);
-    ['country', 'city', 'destination', 'pax'].forEach(param => {
-        if (currentParams.get(param)) {
-            url.searchParams.set(param, currentParams.get(param));
-        }
-    });
-    tab.href = url.toString();
-});
-</script>
 
 <!-- 底部导航 -->
 {% set menu_type = 'public' %}
