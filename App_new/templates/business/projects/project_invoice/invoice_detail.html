@@ -398,11 +398,6 @@
                 </div>
                 {% endfor %}
             </div>
-            <div class="mt-2 text-end">
-                <button class="btn btn-sm btn-outline-success" onclick="copyAllFileNames()">
-                    <i class="fas fa-clipboard-list"></i> 复制全部
-                </button>
-            </div>
         </div>
     </div>
 
@@ -1035,23 +1030,6 @@ function copyFileName(inputId) {
             btn.innerHTML = originalHtml;
             btn.classList.remove('btn-success');
             btn.classList.add('btn-outline-primary');
-        }, 1500);
-    });
-}
-
-function copyAllFileNames() {
-    const inputs = document.querySelectorAll('[id^="invoiceFileName"], [id^="refFileName"]');
-    const fileNames = Array.from(inputs).map(input => input.value).join('\n');
-    navigator.clipboard.writeText(fileNames).then(() => {
-        const btn = event.target.closest('button');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
-        btn.classList.remove('btn-outline-success');
-        btn.classList.add('btn-success');
-        setTimeout(() => {
-            btn.innerHTML = originalHtml;
-            btn.classList.remove('btn-success');
-            btn.classList.add('btn-outline-success');
         }, 1500);
     });
 }

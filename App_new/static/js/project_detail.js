@@ -634,10 +634,14 @@ class ProjectDetailManager {
             // 向上查找最近的带有 data-action 的元素
             const target = event.target.closest('[data-action]');
             if (!target) return;
-            
+
             const action = target.getAttribute('data-action');
-            
+
             if (action === 'quick-create-eo') {
+                // 防止重复点击：检查按钮是否已禁用
+                if (target.disabled || target.classList.contains('is-loading')) {
+                    return;
+                }
                 const refId = target.getAttribute('data-ref-id');
                 this.quickCreateEO(refId);
             }
@@ -663,10 +667,16 @@ class ProjectDetailManager {
         const button = document.querySelector(`[data-action="quick-create-eo"][data-ref-id="${refId}"]`);
         if (!button) return;
 
+        // 防止重复点击：检查是否正在处理中
+        if (button.disabled || button.classList.contains('is-loading')) {
+            return;
+        }
+
         // 显示加载状态
         const originalHTML = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         button.disabled = true;
+        button.classList.add('is-loading');
 
         try {
             const response = await this.makeRequest(
@@ -706,12 +716,14 @@ class ProjectDetailManager {
                 // 恢复按钮状态
                 button.innerHTML = originalHTML;
                 button.disabled = false;
+                button.classList.remove('is-loading');
             }
         } catch (error) {
             this.showMessage('网络错误，生成EO编号失败', 'error');
             // 恢复按钮状态
             button.innerHTML = originalHTML;
             button.disabled = false;
+            button.classList.remove('is-loading');
         }
     }
 
