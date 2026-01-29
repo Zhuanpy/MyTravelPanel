@@ -19,7 +19,7 @@
     --info-color: #17a2b8;
     --light-color: #f8f9fa;
     --dark-color: #343a40;
-    --sidebar-width: 250px;
+    --sidebar-width: 200px;
     
     /* Visa/紫色主题系统 - 用于特定模块 */
     --visa-primary: #1a56db;
@@ -72,9 +72,14 @@
 }
 
 /* ==================== 全局样式 ==================== */
+html {
+    overflow-x: hidden;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fa;
+    overflow-x: hidden;
 }
 
 /* ==================== Logo样式 ==================== */
@@ -206,10 +211,11 @@ body {
 .sidebar .nav-link {
     font-weight: 500;
     color: var(--dark-color);
-    padding: 0.75rem 1rem;
-    margin: 0.125rem 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin: 0.125rem 0.375rem;
     border-radius: 0.5rem;
     transition: all 0.3s ease;
+    font-size: 0.85rem;
 }
 
 .sidebar .nav-link:hover {
@@ -228,10 +234,10 @@ body {
 }
 
 .sidebar-heading {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 0.875rem 1rem 0.5rem;
+    padding: 0.75rem 0.75rem 0.375rem;
     color: #6c757d;
     font-weight: 600;
 }
@@ -1380,7 +1386,7 @@ td .btn-group {
         position: fixed !important;
         top: 56px !important;
         left: -100% !important;
-        width: 280px !important;
+        width: 220px !important;
         height: calc(100vh - 56px) !important;
         z-index: 1000 !important;
         transition: left 0.3s ease !important;
