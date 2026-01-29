@@ -36,6 +36,80 @@
         align-items: center !important;
         justify-content: center !important;
     }
+
+    /* 打印收据样式 */
+    @media print {
+        body * { visibility: hidden; }
+        #printReceipt, #printReceipt * { visibility: visible !important; }
+        #printReceipt {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0;
+        }
+        .no-print, .container.mt-4 { display: none !important; height: 0 !important; overflow: hidden !important; }
+        @page {
+            margin: 10mm 15mm;
+            @top-left { content: none; }
+            @top-center { content: none; }
+            @top-right { content: none; }
+            @bottom-left { content: none; }
+            @bottom-center { content: none; }
+            @bottom-right { content: none; }
+        }
+    }
+    .print-receipt {
+        background: white;
+        padding: 20px 25px;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.3;
+        color: #333;
+        font-weight: bold;
+    }
+    .print-receipt .receipt-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .print-receipt .company-logo { text-align: center; }
+    .print-receipt .company-logo img { height: 60px; display: block; margin: 0 auto; }
+    .print-receipt .company-info { text-align: right; font-size: 11px; }
+    .print-receipt .company-name-cn { font-size: 18px; font-weight: bold; }
+    .print-receipt .company-name-en { font-size: 16px; font-weight: bold; }
+    .print-receipt .receipt-title { text-align: center; margin: 20px 0; }
+    .print-receipt .receipt-title span {
+        display: inline-block; padding: 5px 0;
+        font-size: 18px; font-weight: bold; text-transform: uppercase;
+    }
+    .print-receipt .receipt-info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .print-receipt .payer-info { width: 55%; }
+    .print-receipt .receipt-meta { width: 40%; }
+    .print-receipt .receipt-meta table { width: 100%; }
+    .print-receipt .receipt-meta td { padding: 2px 5px; }
+    .print-receipt .receipt-meta td:first-child { width: 100px; }
+    .print-receipt .detail-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .print-receipt .detail-table th {
+        border-top: 2px solid #333; border-bottom: 1px solid #333;
+        padding: 8px; text-align: left; background: transparent;
+    }
+    .print-receipt .detail-table td {
+        border: none; border-bottom: 1px solid #ddd;
+        padding: 8px; text-align: left;
+    }
+    .print-receipt .detail-table tbody tr:last-child td { border-bottom: 1px solid #333; }
+    .print-receipt .detail-table .text-right { text-align: right; }
+    .print-receipt .total-section { margin: 5px 0; }
+    .print-receipt .total-section table { width: 100%; }
+    .print-receipt .total-section td { padding: 3px 5px; }
+    .print-receipt .total-section .label { text-align: right; width: 85%; }
+    .print-receipt .total-section .value { text-align: right; width: 15%; }
+    .print-receipt .amount-words { font-weight: bold; margin: 8px 0; }
+    .print-receipt .bank-details { margin: 10px 0; font-size: 11px; }
+    .print-receipt .footer-note {
+        text-align: center;
+        margin-top: 50px;
+        margin-bottom: 20px;
+        font-size: 11px;
+        color: #333;
+    }
 </style>
 {% endblock %}
 
@@ -206,11 +280,31 @@
                                     <td class="text-center" style="vertical-align: middle !important; padding: 0.75rem !important;">
                                         <div class="d-flex align-items-center justify-content-center" style="min-height: 100%;">
                                             <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=receipt.id) }}" 
+                                            <button type="button" class="btn btn-outline-success" title="打印收据"
+                                                    onclick="printReceipt({
+                                                        id: {{ receipt.id }},
+                                                        receiptNumber: '{{ receipt.receipt_number }}',
+                                                        currency: '{{ receipt.currency }}',
+                                                        amount: {{ receipt.amount }},
+                                                        paymentMethod: '{{ receipt.payment_method_display }}',
+                                                        paymentDate: '{{ receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '' }}',
+                                                        payerName: '{{ receipt.payer_name|default('', true)|replace("'", "\\'") }}',
+                                                        payerCompany: '{{ receipt.payer_company|default('', true)|replace("'", "\\'") }}',
+                                                        payerContact: '{{ receipt.payer_contact|default('', true)|replace("'", "\\'") }}',
+                                                        bankName: '{{ receipt.bank_name|default('', true)|replace("'", "\\'") }}',
+                                                        accountNumber: '{{ receipt.account_number|default('', true)|replace("'", "\\'") }}',
+                                                        transactionId: '{{ receipt.transaction_id|default('', true)|replace("'", "\\'") }}',
+                                                        remarks: '{{ receipt.remarks|default('', true)|replace('\n', ' ')|replace("'", "\\'") }}',
+                                                        totalSelling: {{ header.total_selling_amount|default(0) }},
+                                                        totalReceived: {{ total_received|default(0) }}
+                                                    })">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                            <a href="{{ url_for('business_projects.project_receipt.receipt_detail', receipt_id=receipt.id) }}"
                                                class="btn btn-outline-info" title="查看详情">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{{ url_for('business_projects.project_receipt.edit_receipt', receipt_id=receipt.id) }}" 
+                                            <a href="{{ url_for('business_projects.project_receipt.edit_receipt', receipt_id=receipt.id) }}"
                                                class="btn btn-outline-warning" title="编辑">
                                                 <i class="fas fa-edit"></i>
                                             </a>
@@ -223,7 +317,7 @@
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                             {% if receipt.ref_id %}
-                                            <a href="{{ url_for('business_projects.project_receipt.ref_receipts', ref_id=receipt.ref_id) }}" 
+                                            <a href="{{ url_for('business_projects.project_receipt.ref_receipts', ref_id=receipt.ref_id) }}"
                                                class="btn btn-outline-primary" title="REF收款">
                                                 <i class="fas fa-list"></i>
                                             </a>
@@ -273,6 +367,143 @@
     </div>
 </div>
 
+<!-- 打印收据模板 -->
+{% set company = get_company_info() %}
+<div class="print-receipt" id="printReceipt" style="display: none;">
+    <!-- 收据头部 -->
+    <div class="receipt-header">
+        <div class="company-logo">
+            {% if '192.168' in request.host or 'localhost' in request.host %}
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+            {% elif company and company.logo_path %}
+                <img src="{{ url_for('static', filename=company.logo_path) }}"
+                     alt="{{ company.company_name }}"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
+            {% else %}
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+            {% endif %}
+            <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name or '' }}</div>
+        </div>
+        <div class="company-info">
+            <div class="company-name-cn">{{ company.company_name_cn }}</div>
+            <div class="company-name-en">{{ company.company_name }}</div>
+            <div>TA License No.: {{ company.ta_license or '' }}</div>
+            <div>Email: {{ company.email or '' }}</div>
+        </div>
+    </div>
+
+    <!-- 收据标题 -->
+    <div class="receipt-title">
+        <span>Official Receipt</span>
+    </div>
+
+    <!-- 付款方信息和收据元信息 -->
+    <div class="receipt-info-section">
+        <div class="payer-info">
+            <table>
+                <tr>
+                    <td style="width: 90px; vertical-align: top;"><strong>Received From</strong></td>
+                    <td style="vertical-align: top;">:</td>
+                    <td>
+                        <strong id="print-payer-company"></strong>
+                        <div id="print-payer-name"></div>
+                        <div id="print-payer-contact" style="font-size: 11px;"></div>
+                    </td>
+                </tr>
+                <tr><td colspan="3" style="height: 8px;"></td></tr>
+                <tr>
+                    <td><strong>Project</strong></td>
+                    <td>:</td>
+                    <td>{{ header.hid }} - {{ header.display_desc }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Customer</strong></td>
+                    <td>:</td>
+                    <td>{{ header.company.company_name if header.company else '-' }}</td>
+                </tr>
+            </table>
+        </div>
+        <div class="receipt-meta">
+            <table>
+                <tr><td>Receipt No</td><td>:</td><td><strong id="print-receipt-number"></strong></td></tr>
+                <tr><td>Payment Date</td><td>:</td><td><strong id="print-payment-date"></strong></td></tr>
+                <tr><td>Payment Method</td><td>:</td><td id="print-payment-method"></td></tr>
+                <tr><td>Bank/Account</td><td>:</td><td id="print-bank-account"></td></tr>
+                <tr><td>Transaction Ref</td><td>:</td><td id="print-transaction-id"></td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- 收据明细 -->
+    <table class="detail-table">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th style="width: 120px;" class="text-right">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td id="print-description">Payment received for services</td>
+                <td class="text-right" id="print-amount"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 金额汇总 -->
+    <div class="total-section">
+        <table style="width: 100%; margin-top: 0;">
+            <tr>
+                <td style="width: 70%;"></td>
+                <td style="text-align: right; padding: 5px;">Total Invoice Amount :</td>
+                <td style="text-align: right; width: 120px; padding: 5px;" id="print-invoice-amount"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td style="text-align: right; padding: 5px;">Previous Payment :</td>
+                <td style="text-align: right; padding: 5px;" id="print-previous-payment"></td>
+            </tr>
+            <tr>
+                <td><strong id="print-currency"></strong></td>
+                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>This Payment :</strong></td>
+                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong id="print-total"></strong></td>
+            </tr>
+            <tr>
+                <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td style="text-align: right; padding: 5px;"><strong>Balance Due :</strong></td>
+                <td style="text-align: right; padding: 5px;"><strong id="print-balance"></strong></td>
+            </tr>
+        </table>
+        <div style="border-bottom: 2px solid #333; margin-bottom: 5px;"></div>
+    </div>
+
+    <!-- 金额大写 -->
+    <div class="amount-words" id="print-amount-words"></div>
+
+    <!-- 备注 -->
+    <div id="print-remarks-section" style="display: none;">
+        <strong>Remarks:</strong>
+        <p id="print-remarks"></p>
+    </div>
+
+    <!-- 电子章 -->
+    <div style="text-align: right; margin: 20px 0;">
+        {% if company and company.stamp_path %}
+            <img src="{{ url_for('static', filename=company.stamp_path) }}"
+                 alt="Company Stamp" style="height: 80px;"
+                 onerror="this.style.display='none';">
+        {% endif %}
+    </div>
+
+    <!-- 底部文字 -->
+    <div class="footer-note">
+        This is a computer-generated receipt. No signature is required.
+    </div>
+</div>
+
 <script>
 function deleteReceipt(btn) {
     const receiptId = btn.dataset.receiptId;
@@ -283,6 +514,131 @@ function deleteReceipt(btn) {
 
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     deleteModal.show();
+}
+
+// 数字转英文大写
+function numberToWords(num, currency) {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                  'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                  'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    function convertHundreds(n) {
+        let str = '';
+        if (n >= 100) {
+            str += ones[Math.floor(n / 100)] + ' Hundred ';
+            n %= 100;
+        }
+        if (n >= 20) {
+            str += tens[Math.floor(n / 10)] + ' ';
+            n %= 10;
+        }
+        if (n > 0) {
+            str += ones[n] + ' ';
+        }
+        return str;
+    }
+
+    function convert(n) {
+        if (n === 0) return 'Zero';
+        let str = '';
+        if (n >= 1000000) {
+            str += convertHundreds(Math.floor(n / 1000000)) + 'Million ';
+            n %= 1000000;
+        }
+        if (n >= 1000) {
+            str += convertHundreds(Math.floor(n / 1000)) + 'Thousand ';
+            n %= 1000;
+        }
+        str += convertHundreds(n);
+        return str.trim();
+    }
+
+    const intPart = Math.floor(num);
+    const decPart = Math.round((num - intPart) * 100);
+
+    let currencyName = 'Dollars';
+    let centName = 'Cents';
+    if (currency === 'SGD') {
+        currencyName = 'Singapore Dollars';
+    } else if (currency === 'USD') {
+        currencyName = 'US Dollars';
+    } else if (currency === 'MYR') {
+        currencyName = 'Malaysian Ringgit';
+        centName = 'Sen';
+    }
+
+    let result = convert(intPart) + ' ' + currencyName;
+    if (decPart > 0) {
+        result += ' and ' + convert(decPart) + ' ' + centName;
+    }
+    return result + ' Only';
+}
+
+function printReceipt(data) {
+    const {
+        receiptNumber, currency, amount, paymentMethod, paymentDate,
+        payerName, payerCompany, payerContact, bankName, accountNumber,
+        transactionId, remarks, totalSelling, totalReceived
+    } = data;
+
+    // 填充打印模板
+    document.getElementById('print-receipt-number').textContent = receiptNumber;
+    document.getElementById('print-payer-company').textContent = payerCompany || '-';
+    document.getElementById('print-payer-name').textContent = payerName ? 'Attn: ' + payerName : '';
+    document.getElementById('print-payer-contact').textContent = payerContact ? 'Tel: ' + payerContact : '';
+    document.getElementById('print-payment-date').textContent = paymentDate || '-';
+    document.getElementById('print-payment-method').textContent = paymentMethod || '-';
+
+    // 银行/账户信息
+    let bankAccountText = '-';
+    if (bankName && accountNumber) {
+        bankAccountText = bankName + ' / ' + accountNumber;
+    } else if (bankName) {
+        bankAccountText = bankName;
+    } else if (accountNumber) {
+        bankAccountText = accountNumber;
+    }
+    document.getElementById('print-bank-account').textContent = bankAccountText;
+    document.getElementById('print-transaction-id').textContent = transactionId || '-';
+
+    // 金额信息
+    document.getElementById('print-currency').textContent = currency;
+    document.getElementById('print-amount').textContent = currency + ' ' + amount.toFixed(2);
+    document.getElementById('print-total').textContent = amount.toFixed(2);
+    document.getElementById('print-amount-words').textContent = numberToWords(amount, currency);
+    document.getElementById('print-description').textContent = 'Payment received for Project {{ header.hid }}';
+
+    // 发票金额和余额
+    const previousPayment = totalReceived - amount;
+    const balance = totalSelling - totalReceived;
+    document.getElementById('print-invoice-amount').textContent = currency + ' ' + totalSelling.toFixed(2);
+    document.getElementById('print-previous-payment').textContent = previousPayment > 0 ? currency + ' ' + previousPayment.toFixed(2) : '-';
+    document.getElementById('print-balance').textContent = currency + ' ' + balance.toFixed(2);
+
+    // 备注
+    if (remarks && remarks.trim()) {
+        document.getElementById('print-remarks-section').style.display = 'block';
+        document.getElementById('print-remarks').textContent = remarks;
+    } else {
+        document.getElementById('print-remarks-section').style.display = 'none';
+    }
+
+    // 保存原标题
+    var originalTitle = document.title;
+    document.title = ' ';
+
+    // 显示打印区域
+    document.getElementById('printReceipt').style.display = 'block';
+
+    // 打印
+    window.print();
+
+    // 打印后恢复
+    setTimeout(function() {
+        document.getElementById('printReceipt').style.display = 'none';
+        document.title = originalTitle;
+    }, 100);
 }
 </script>
 {% endblock %}

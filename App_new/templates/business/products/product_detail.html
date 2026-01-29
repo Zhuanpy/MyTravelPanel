@@ -155,20 +155,6 @@
             <h6 class="mb-0">描述信息</h6>
         </div>
         <div class="card-body">
-            {% if product.short_description %}
-            <div class="mb-3">
-                <h6 class="text-muted small">简短描述</h6>
-                <p class="mb-0">{{ product.short_description }}</p>
-            </div>
-            {% endif %}
-
-            {% if product.highlights %}
-            <div class="mb-3">
-                <h6 class="text-muted small">产品亮点</h6>
-                <div class="bg-light p-2 rounded small">{{ product.highlights | safe }}</div>
-            </div>
-            {% endif %}
-
             {% if product.description %}
             <div class="mb-3">
                 <h6 class="text-muted small">产品描述</h6>

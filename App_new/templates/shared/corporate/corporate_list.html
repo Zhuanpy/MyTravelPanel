@@ -4,6 +4,27 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
+{% block extra_css %}
+<style>
+    /* 公司列表页面：表格紧凑布局 */
+    .company-table th,
+    .company-table td {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.82rem;
+    }
+    .company-table .col-name {
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .company-table .col-narrow {
+        white-space: nowrap;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <div class="visa-container-lg">
@@ -109,89 +130,79 @@
         <div class="visa-card-body">
             {% if companies.items %}
                 <div class="table-responsive">
-                    <table class="visa-table">
+                    <table class="visa-table company-table" style="table-layout: fixed; width: 100%;">
                         <thead>
                             <tr>
-                                <th>公司名称</th>
-                                <th>角色</th>
-                                <th>集团/关联</th>
-                                <th>公司代码</th>
-                                <th>联系人</th>
-                                <th>联系电话</th>
-                                <th>状态</th>
-                                <th>点击次数</th>
-                                <th>创建时间</th>
-                                <th>操作</th>
+                                <th style="width: 25%;">公司名称</th>
+                                <th style="width: 7%;" class="col-narrow">角色</th>
+                                <th style="width: 12%;">集团/关联</th>
+                                <th style="width: 10%;">公司代码</th>
+                                <th style="width: 9%;">联系人</th>
+                                <th style="width: 11%;">联系电话</th>
+                                <th style="width: 6%;" class="col-narrow">状态</th>
+                                <th style="width: 6%;" class="col-narrow">点击</th>
+                                <th style="width: 8%;" class="col-narrow">创建时间</th>
+                                <th style="width: 6%;" class="col-narrow">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for company in companies.items %}
                             <tr>
-                                <td>
+                                <td class="col-name">
                                     <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
                                        class="text-decoration-none company-link"
-                                       data-company-id="{{ company.id }}">
+                                       data-company-id="{{ company.id }}"
+                                       title="{{ company.company_name }}">
                                         {{ company.company_name }}
                                     </a>
                                 </td>
-                                <td>
+                                <td class="col-narrow">
                                     {% if company.is_customer and company.is_supplier %}
-                                        <span class="visa-badge" style="background: #ddd6fe; color: #7c3aed;">
-                                            <i class="fas fa-exchange-alt" style="font-size: 0.65rem;"></i> 双重
-                                        </span>
+                                        <span class="visa-badge" style="background: #ddd6fe; color: #7c3aed;">双重</span>
                                     {% elif company.is_supplier %}
-                                        <span class="visa-badge" style="background: #fef3c7; color: #d97706;">
-                                            <i class="fas fa-truck" style="font-size: 0.65rem;"></i> 供应商
-                                        </span>
+                                        <span class="visa-badge" style="background: #fef3c7; color: #d97706;">供应商</span>
                                     {% else %}
-                                        <span class="visa-badge" style="background: #dbeafe; color: #2563eb;">
-                                            <i class="fas fa-user-tie" style="font-size: 0.65rem;"></i> 客户
-                                        </span>
+                                        <span class="visa-badge" style="background: #dbeafe; color: #2563eb;">客户</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.group_name or '' }}">
                                     {% if company.group_name %}
                                         <span class="visa-badge" style="background: #e0e7ff; color: #4338ca;">
-                                            <i class="fas fa-sitemap" style="font-size: 0.65rem;"></i>
                                             {{ company.group_name }}
                                         </span>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ company.company_code or '-' }}</td>
-                                <td>{{ company.contact_person or '-' }}</td>
-                                <td>{{ company.contact_phone or '-' }}</td>
-                                <td>
+                                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ company.company_code or '-' }}</td>
+                                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ company.contact_person or '-' }}</td>
+                                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ company.contact_phone or '-' }}</td>
+                                <td class="col-narrow">
                                     {% if company.status == 'active' %}
                                         <span class="visa-badge visa-badge-success">活跃</span>
                                     {% elif company.status == 'inactive' %}
-                                        <span class="visa-badge visa-badge-secondary" style="background: #e5e7eb; color: #6b7280;">非活跃</span>
+                                        <span class="visa-badge" style="background: #e5e7eb; color: #6b7280;">停用</span>
                                     {% elif company.status == 'suspended' %}
                                         <span class="visa-badge visa-badge-warning">暂停</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="col-narrow">
                                     <span class="click-count visa-badge visa-badge-info" data-company-id="{{ company.id }}">
                                         {{ company.click_count or 0 }}
                                     </span>
-                                    {% if company.last_clicked_at %}
-                                        <small class="text-muted d-block">
-                                            {{ company.last_clicked_at.strftime('%m-%d %H:%M') }}
-                                        </small>
-                                    {% endif %}
                                 </td>
-                                <td>{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else '-' }}</td>
-                                <td style="white-space: nowrap;">
-                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" 
-                                       class="visa-btn visa-btn-sm visa-btn-primary" title="查看">
+                                <td class="col-narrow" style="font-size: 0.78rem;">{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else '-' }}</td>
+                                <td class="col-narrow" style="white-space: nowrap;">
+                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
+                                       class="visa-btn visa-btn-sm visa-btn-primary" title="查看" style="padding: 2px 5px;">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" 
-                                       class="visa-btn visa-btn-sm visa-btn-warning" title="编辑">
+                                    <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}"
+                                       class="visa-btn visa-btn-sm visa-btn-warning" title="编辑" style="padding: 2px 5px;">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" title="删除"
+                                            style="padding: 2px 5px;"
                                             onclick="deleteCompany({{ company.id }}, '{{ company.company_name }}')">
                                         <i class="fas fa-trash"></i>
                                     </button>

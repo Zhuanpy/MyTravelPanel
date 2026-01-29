@@ -240,8 +240,11 @@ body {
     opacity: 0.7;
 }
 
-main {
+#mainContent {
     margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    max-width: none;
+    flex: none;
     padding-top: 80px;
     min-height: 100vh;
 }
@@ -1363,8 +1366,11 @@ td .btn-group {
         display: none !important;
     }
 
-    main {
+    #mainContent {
         margin-left: var(--sidebar-width) !important;
+        width: calc(100% - var(--sidebar-width)) !important;
+        max-width: none !important;
+        flex: none !important;
     }
 }
 
@@ -1392,9 +1398,11 @@ td .btn-group {
         left: -100% !important;
     }
 
-    main {
+    #mainContent {
         margin-left: 0 !important;
         width: 100% !important;
+        max-width: none !important;
+        flex: none !important;
     }
 
     #sidebarToggle {
@@ -1410,7 +1418,7 @@ td .btn-group {
     }
 
     /* 主内容区域全宽 */
-    main {
+    #mainContent {
         margin-left: 0 !important;
     }
 }
@@ -1424,7 +1432,7 @@ td .btn-group {
 
 /* 小屏幕布局调整 */
 @media (max-width: 767.98px) {
-    main {
+    #mainContent {
         margin-left: 0;
         padding-top: 80px;
     }

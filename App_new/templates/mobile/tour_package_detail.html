@@ -495,8 +495,8 @@
             {% if package.product_type %}
             <span class="info-tag type">{{ package.product_type }}</span>
             {% endif %}
-            {% for highlight in package.highlights[:4] %}
-            <span class="info-tag">{{ highlight }}</span>
+            {% for include in package.includes[:3] %}
+            <span class="info-tag">{{ include }}</span>
             {% endfor %}
         </div>
         <div class="info-destination">

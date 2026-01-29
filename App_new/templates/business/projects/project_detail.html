@@ -447,6 +447,9 @@
                                 {% if ref.receipts %}
                                 <a href="{{ url_for('business_projects.project_receipt.ref_receipts', ref_id=ref.id) }}" class="btn btn-sm btn-info" title="查看收款记录"><i class="fas fa-list"></i></a>
                                 {% endif %}
+                                {% if not header.is_settled %}
+                                <button type="button" class="btn btn-sm btn-warning" onclick="copyRef({{ ref.id }}, '{{ ref.ref_number }}')" title="复制REF"><i class="fas fa-copy"></i></button>
+                                {% endif %}
                                 {% if ref.can_delete and not header.is_settled and not ref_invoices %}
                                 <a href="{{ url_for('business_projects.project_ref.delete_ref', ref_id=ref.id) }}" class="btn btn-sm btn-danger" title="删除REF"><i class="fas fa-trash"></i></a>
                                 {% endif %}
@@ -2058,6 +2061,45 @@ function copyProject(projectId, hid) {
     .catch(error => {
         console.error('复制项目失败:', error);
         alert('复制项目时发生错误');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+// 复制REF功能
+function copyRef(refId, refNumber) {
+    if (!confirm(`确定要复制 REF ${refNumber} 吗？\n\n将复制：\n- REF基本信息\n- 机票航段（如有）\n- 乘客信息（如有）\n\n不会复制：票号、PNR、EO、收款、发票等记录`)) {
+        return;
+    }
+
+    // 显示加载状态
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    fetch(`/projects/ref/copy/${refId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // 刷新页面显示新复制的REF
+            window.location.reload();
+        } else {
+            alert('复制失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('复制REF失败:', error);
+        alert('复制REF时发生错误');
     })
     .finally(() => {
         btn.disabled = false;

@@ -158,9 +158,7 @@ def create_by_category(category):
                 destination=request.form.get('destination'),
                 base_price=request.form.get('base_price', type=float),
                 currency=request.form.get('currency', 'SGD'),
-                short_description=request.form.get('short_description'),
                 description=request.form.get('description'),
-                highlights=request.form.get('highlights'),
                 includes=request.form.get('includes'),
                 excludes=request.form.get('excludes'),
                 important_notes=request.form.get('important_notes'),
@@ -212,9 +210,7 @@ def edit(product_id):
             product.destination = request.form.get('destination')
             product.base_price = request.form.get('base_price', type=float)
             product.currency = request.form.get('currency', 'SGD')
-            product.short_description = request.form.get('short_description')
             product.description = request.form.get('description')
-            product.highlights = request.form.get('highlights')
             product.includes = request.form.get('includes')
             product.excludes = request.form.get('excludes')
             product.important_notes = request.form.get('important_notes')

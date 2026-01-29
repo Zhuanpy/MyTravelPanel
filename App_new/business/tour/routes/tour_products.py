@@ -424,7 +424,6 @@ def add_product():
                 single_room_supplement=single_supplement_val,
                 currency=request.form.get('currency', 'SGD'),
                 product_description=request.form.get('product_description') or None,
-                highlights=request.form.get('highlights') or None,
                 included_services=request.form.get('included_services') or None,
                 excluded_services=request.form.get('excluded_services') or None,
                 important_notes=request.form.get('important_notes') or None,
@@ -1018,7 +1017,6 @@ def edit_product(product_id):
             
             product.currency = request.form.get('currency', 'SGD')
             product.product_description = request.form.get('product_description') or None
-            product.highlights = request.form.get('highlights') or None
             product.included_services = request.form.get('included_services') or None
             product.excluded_services = request.form.get('excluded_services') or None
             product.important_notes = request.form.get('important_notes') or None
@@ -1400,7 +1398,6 @@ def export_excel():
                 '单房差': product.single_room_supplement or '',
                 '货币': product.currency or 'SGD',
                 '产品描述': product.product_description or '',
-                '产品亮点': product.highlights or '',
                 '包含服务': product.included_services or '',
                 '不包含服务': product.excluded_services or '',
                 '重要提示': product.important_notes or '',
@@ -1520,7 +1517,6 @@ def import_excel():
                     'single_room_supplement': float(row['单房差']) if pd.notna(row.get('单房差')) else None,
                     'currency': str(row['货币']).strip() if pd.notna(row.get('货币')) else 'SGD',
                     'product_description': str(row['产品描述']).strip() if pd.notna(row.get('产品描述')) else None,
-                    'highlights': str(row['产品亮点']).strip() if pd.notna(row.get('产品亮点')) else None,
                     'included_services': str(row['包含服务']).strip() if pd.notna(row.get('包含服务')) else None,
                     'excluded_services': str(row['不包含服务']).strip() if pd.notna(row.get('不包含服务')) else None,
                     'important_notes': str(row['重要提示']).strip() if pd.notna(row.get('重要提示')) else None,

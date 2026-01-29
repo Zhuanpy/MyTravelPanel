@@ -656,8 +656,8 @@
                         </span>
                     </div>
                     <div class="product-tags">
-                        {% for highlight in package.highlights[:3] %}
-                        <span class="product-tag">{{ highlight }}</span>
+                        {% for include in package.includes[:3] %}
+                        <span class="product-tag">{{ include }}</span>
                         {% endfor %}
                     </div>
                 </div>

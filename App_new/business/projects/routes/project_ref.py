@@ -2210,6 +2210,105 @@ def delete_ref(ref_id):
     return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 
+@project_ref.route('/copy/<int:ref_id>', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def copy_ref(ref_id):
+    """复制REF - 复制REF及其关联的机票航段和乘客"""
+    try:
+        # 获取原REF
+        original = ProjectRef.query.get_or_404(ref_id)
+        header = original.header
+
+        # 检查项目是否已结算
+        if header.is_settled:
+            return jsonify({
+                'success': False,
+                'message': '项目已结算，无法复制REF'
+            }), 400
+
+        # 生成新的REF编号
+        new_ref_number = ProjectRef.generate_ref_number()
+
+        # 复制REF基本信息
+        new_ref = ProjectRef(
+            header_id=original.header_id,
+            ref_number=new_ref_number,
+            description=original.description,
+            detailed_description=original.detailed_description,
+            ref_type_id=original.ref_type_id,
+            supplier_id=original.supplier_id,
+            selling_price=original.selling_price,
+            cost_price=original.cost_price,
+            currency=original.currency,
+            remarks=original.remarks,
+            extra_info=original.extra_info,
+            status='confirmed',
+            payment_status='unpaid',
+        )
+        db.session.add(new_ref)
+        db.session.flush()  # 获取新REF ID
+
+        # 复制机票航段
+        segment_count = 0
+        segments = ProjectFlightSegment.query.filter_by(ref_id=original.id).all()
+        for seg in segments:
+            new_segment = ProjectFlightSegment(
+                ref_id=new_ref.id,
+                flight_number=seg.flight_number,
+                departure_airport=seg.departure_airport,
+                arrival_airport=seg.arrival_airport,
+                departure_time=seg.departure_time,
+                arrival_time=seg.arrival_time,
+                cabin_class=seg.cabin_class,
+                cabin_code=seg.cabin_code,
+                status=seg.status,
+            )
+            db.session.add(new_segment)
+            segment_count += 1
+
+        # 复制机票乘客
+        passenger_count = 0
+        passengers = ProjectFlightPassenger.query.filter_by(ref_id=original.id).all()
+        for pax in passengers:
+            new_passenger = ProjectFlightPassenger(
+                ref_id=new_ref.id,
+                name=pax.name,
+                passenger_type=pax.passenger_type,
+                selling_price=pax.selling_price,
+                cost_price=pax.cost_price,
+                ticket_number=None,  # 不复制票号
+                pnr=None,  # 不复制PNR
+            )
+            db.session.add(new_passenger)
+            passenger_count += 1
+
+        db.session.commit()
+
+        # 构建成功消息
+        msg = f'REF复制成功！新REF编号: {new_ref_number}'
+        if segment_count > 0:
+            msg += f'，包含 {segment_count} 个航段'
+        if passenger_count > 0:
+            msg += f'，{passenger_count} 个乘客'
+
+        return jsonify({
+            'success': True,
+            'message': msg,
+            'new_ref_id': new_ref.id,
+            'new_ref_number': new_ref_number
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'复制失败：{str(e)}'
+        }), 500
+
+
 @project_ref.route('/update_status', methods=['POST'])
 @csrf.exempt
 def update_ref_status():

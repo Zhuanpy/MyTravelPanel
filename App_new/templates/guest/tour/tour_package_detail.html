@@ -510,17 +510,6 @@
                     <p style="color: #475569; line-height: 1.8; font-size: 1rem;">
                         {{ package.description or '探索这个精彩的旅游目的地，感受独特的自然风光和人文魅力。我们精心设计的行程将带您领略最具特色的景点和体验。' }}
                     </p>
-                    
-                    {% if package.highlights %}
-                    <div class="highlights-list">
-                        {% for highlight in package.highlights %}
-                        <span class="highlight-tag">
-                            <i class="fas fa-star"></i>
-                            {{ highlight }}
-                        </span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
                 </div>
                 
                 <!-- 详细行程 -->

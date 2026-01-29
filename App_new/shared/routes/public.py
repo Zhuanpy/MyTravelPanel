@@ -578,14 +578,6 @@ def tour_packages():
         # 转换为模板需要的格式
         packages = []
         for product in products:
-            # 解析亮点（可能是JSON或文本）
-            highlights = []
-            if product.highlights:
-                try:
-                    highlights = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
-                except:
-                    highlights = [h.strip() for h in product.highlights.split(',') if h.strip()]
-            
             # 解析包含服务
             includes = []
             if product.included_services:
@@ -615,7 +607,6 @@ def tour_packages():
                 'duration': duration_display,
                 'price': price_display,
                 'image': product.cover_image if product.cover_image else None,
-                'highlights': highlights[:5] if highlights else ['精彩行程', '专业服务'],
                 'includes': includes[:4] if includes else ['专业导游', '优质服务']
             })
         
@@ -700,15 +691,7 @@ def tour_package_detail(package_id):
                 notes = json.loads(product.important_notes) if product.important_notes.startswith('[') else product.important_notes.split('\n')
             except:
                 notes = [n.strip() for n in product.important_notes.split('\n') if n.strip()]
-        
-        # 解析亮点
-        highlights_list = []
-        if product.highlights:
-            try:
-                highlights_list = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
-            except:
-                highlights_list = [h.strip() for h in product.highlights.split(',') if h.strip()]
-        
+
         # 格式化价格
         price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
         if product.currency and product.currency != 'SGD':
@@ -748,7 +731,6 @@ def tour_package_detail(package_id):
             'child_price': f"{product.currency or 'SGD'} {product.child_price:,.0f}" if product.child_price else None,
             'image': product.cover_image,
             'description': product.product_description or '暂无详细描述，请联系我们的旅游顾问获取更多信息。',
-            'highlights': highlights_list,
             'includes': includes if includes else ['专业导游', '优质服务', '舒适住宿', '部分餐饮'],
             'excludes': excludes if excludes else ['个人消费', '小费', '旅游保险', '签证费用'],
             'notes': notes if notes else ['请确保护照有效期6个月以上', '建议购买旅游保险', '行程可能因天气调整'],

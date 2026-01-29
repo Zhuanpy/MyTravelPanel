@@ -46,7 +46,6 @@ class Product(db.Model):
     
     # 详细描述
     product_description = db.Column(db.Text, nullable=True, comment='产品描述')
-    highlights = db.Column(db.Text, nullable=True, comment='产品亮点')
     included_services = db.Column(db.Text, nullable=True, comment='包含服务')
     excluded_services = db.Column(db.Text, nullable=True, comment='不包含服务')
     important_notes = db.Column(db.Text, nullable=True, comment='重要提示')
@@ -198,7 +197,6 @@ class Product(db.Model):
             'single_room_supplement': self.single_room_supplement,
             'currency': self.currency,
             'product_description': self.product_description,
-            'highlights': self.highlights,
             'included_services': self.included_services,
             'excluded_services': self.excluded_services,
             'important_notes': self.important_notes,

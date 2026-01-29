@@ -150,9 +150,7 @@ class ProductsUnified(db.Model):
     video_url = db.Column(db.String(500), comment='视频链接')
 
     # ========== 描述信息 ==========
-    short_description = db.Column(db.String(500), comment='简短描述')
-    description = db.Column(db.Text, comment='产品详细描述')
-    highlights = db.Column(db.Text, comment='产品亮点')
+    description = db.Column(db.Text, comment='产品描述')
     includes = db.Column(db.Text, comment='费用包含')
     excludes = db.Column(db.Text, comment='费用不含')
     important_notes = db.Column(db.Text, comment='重要提示')
@@ -232,7 +230,7 @@ class ProductsUnified(db.Model):
             'base_price': float(self.base_price) if self.base_price else None,
             'currency': self.currency,
             'cover_image': self.cover_image,
-            'short_description': self.short_description,
+            'description': self.description,
             'valid_from': self.valid_from.isoformat() if self.valid_from else None,
             'valid_until': self.valid_until.isoformat() if self.valid_until else None,
             'view_count': self.view_count,
@@ -250,8 +248,6 @@ class ProductsUnified(db.Model):
             'destination': self.destination,
             'gallery_images': self.gallery_images,
             'video_url': self.video_url,
-            'description': self.description,
-            'highlights': self.highlights,
             'includes': self.includes,
             'excludes': self.excludes,
             'important_notes': self.important_notes,
