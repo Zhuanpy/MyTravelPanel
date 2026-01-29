@@ -966,4 +966,11 @@ def get_visa_documents(visa_type, identity):
         return jsonify({
             'success': False,
             'message': f'获取数据失败: {str(e)}'
-        }), 500 
+        }), 500
+
+
+@public.route('/attractions')
+def attractions():
+    """景点门票 - 即将推出占位页面"""
+    company_info = CompanyInfo.query.first()
+    return render_template('guest/attractions/coming_soon.html', company=company_info)
