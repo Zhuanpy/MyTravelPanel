@@ -279,20 +279,17 @@
                             <i class="fas fa-tools"></i> 文件处理
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('utils_process.files_home') }}">
-                                <i class="fas fa-home me-2"></i>文件处理首页  
-                            </a></li>
+                            <li><h6 class="dropdown-header">文档处理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('utils_process.file_processing') }}">
                                 <i class="fas fa-file-pdf me-2"></i>PDF处理
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">信件工具</h6></li>
+                            <li><h6 class="dropdown-header">文档生成</h6></li>
                             <li><a class="dropdown-item" href="/files/letter_generator">
                                 <i class="fas fa-envelope me-2"></i>信件生成器
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('staff.tasks') }}">
-                                <i class="fas fa-list-check me-2"></i>任务中心
+                            <li><a class="dropdown-item" href="{{ url_for('own_company.company_header') }}">
+                                <i class="fas fa-building me-2"></i>公司抬头
                             </a></li>
                         </ul>
                     </li>
