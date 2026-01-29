@@ -255,6 +255,117 @@ class CompanyFile(db.Model):
         }
 
 
+class ProjectFile(db.Model):
+    """项目文件/附件模型"""
+    __tablename__ = 'project_files'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id', ondelete='CASCADE'), nullable=False, comment='项目ID')
+    filename = db.Column(db.String(255), nullable=False, comment='原始文件名')
+    stored_filename = db.Column(db.String(255), nullable=False, comment='存储文件名')
+    file_path = db.Column(db.String(500), nullable=False, comment='文件存储路径')
+    file_size = db.Column(db.Integer, nullable=True, comment='文件大小（字节）')
+    file_type = db.Column(db.String(100), nullable=True, comment='文件类型/MIME类型')
+    description = db.Column(db.String(500), nullable=True, comment='文件描述')
+    uploaded_by = db.Column(db.String(100), nullable=True, comment='上传人')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='上传时间')
+
+    # 关联关系
+    header = db.relationship('ProjectHeader', backref=db.backref('files', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<ProjectFile {self.filename}>'
+
+    @property
+    def file_size_display(self):
+        """格式化显示文件大小"""
+        if not self.file_size:
+            return '未知'
+        if self.file_size < 1024:
+            return f'{self.file_size} B'
+        elif self.file_size < 1024 * 1024:
+            return f'{self.file_size / 1024:.1f} KB'
+        else:
+            return f'{self.file_size / (1024 * 1024):.1f} MB'
+
+    @property
+    def file_extension(self):
+        """获取文件扩展名"""
+        import os
+        _, ext = os.path.splitext(self.filename)
+        return ext.lower() if ext else ''
+
+    @property
+    def icon_class(self):
+        """根据文件类型返回图标类名"""
+        ext = self.file_extension
+        if ext in ['.pdf']:
+            return 'fa-file-pdf'
+        elif ext in ['.doc', '.docx']:
+            return 'fa-file-word'
+        elif ext in ['.xls', '.xlsx']:
+            return 'fa-file-excel'
+        elif ext in ['.ppt', '.pptx']:
+            return 'fa-file-powerpoint'
+        elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+            return 'fa-file-image'
+        elif ext in ['.zip', '.rar', '.7z']:
+            return 'fa-file-archive'
+        else:
+            return 'fa-file'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'header_id': self.header_id,
+            'filename': self.filename,
+            'stored_filename': self.stored_filename,
+            'file_size': self.file_size,
+            'file_size_display': self.file_size_display,
+            'file_type': self.file_type,
+            'file_extension': self.file_extension,
+            'icon_class': self.icon_class,
+            'description': self.description,
+            'uploaded_by': self.uploaded_by,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
+        }
+
+
+class ProjectReminder(db.Model):
+    """项目提醒模型 - 支持多条提醒"""
+    __tablename__ = 'project_reminders'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id', ondelete='CASCADE'), nullable=False, comment='项目ID')
+    reminder_event = db.Column(db.String(200), nullable=False, comment='提醒事件描述')
+    reminder_date = db.Column(db.Date, nullable=False, comment='提醒日期')
+    is_completed = db.Column(db.Boolean, default=False, comment='是否已完成')
+    reminder_sent = db.Column(db.Boolean, default=False, comment='是否已发送提醒')
+    created_by = db.Column(db.String(100), nullable=True, comment='创建人')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+
+    # 关联关系
+    header = db.relationship('ProjectHeader', backref=db.backref('reminders', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<ProjectReminder {self.id} - {self.reminder_event}>'
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'header_id': self.header_id,
+            'reminder_event': self.reminder_event,
+            'reminder_date': self.reminder_date.strftime('%Y-%m-%d') if self.reminder_date else None,
+            'reminder_date_display': self.reminder_date.strftime('%m-%d') if self.reminder_date else None,
+            'is_completed': self.is_completed,
+            'reminder_sent': self.reminder_sent,
+            'created_by': self.created_by,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
+        }
+
+
 class Customer(db.Model):
     """客户模型"""
     __tablename__ = 'customers'

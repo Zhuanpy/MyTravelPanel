@@ -46,7 +46,7 @@
 </div>
 {% endif %}
 
-<div class="container-fluid tw-px-2" style="max-width: 1600px;">
+<div class="container-fluid tw-px-2">
          <!-- 项目详情布局 -->
      <div class="project-detail-layout">
          
@@ -224,28 +224,6 @@
         <div class="section-header tw:flex tw:flex-col md:tw:flex-row tw:items-start md:tw:items-center tw:justify-between tw:gap-2">
             <div class="tw:flex tw:items-center tw:gap-3 tw:w-full md:tw:w-auto">
                 <h3 class="section-title tw:text-lg tw:font-semibold tw:mb-0">REF明细列表</h3>
-                <!-- 提醒事件 -->
-                {% if header.reminder_event %}
-                <div class="reminder-inline d-flex align-items-center gap-2 px-2 py-1" style="background-color: #fffbeb; border: 1px solid #ffc107; border-radius: 6px; font-size: 0.8rem;">
-                    <span style="color: #856404;">
-                        <i class="fas fa-bell text-warning"></i>
-                        <span class="reminder-event">{{ header.reminder_event }}</span>
-                        <span class="text-muted ms-1">({{ header.reminder_date.strftime('%m-%d') if header.reminder_date else '-' }})</span>
-                    </span>
-                    {% if not header.is_settled %}
-                    <button type="button" class="btn btn-link btn-sm p-0 text-warning" data-action="edit-reminder" title="编辑">
-                        <i class="fas fa-edit" style="font-size: 0.7rem;"></i>
-                    </button>
-                    <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-action="delete-reminder" title="删除">
-                        <i class="fas fa-times" style="font-size: 0.7rem;"></i>
-                    </button>
-                    {% endif %}
-                </div>
-                {% elif not header.is_settled %}
-                <button type="button" class="btn btn-outline-warning btn-sm" data-action="add-reminder">
-                    <i class="fas fa-bell"></i> 添加提醒
-                </button>
-                {% endif %}
             </div>
             <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
                 {% if not header.is_settled %}
@@ -493,7 +471,49 @@
 
 </div>
 
-    
+<!-- 底部功能区：项目文件 + 项目提醒 -->
+<div class="bottom-tools-section" style="margin: 1.5rem 0 3rem 0; display: flex; gap: 1.5rem; flex-wrap: wrap;">
+    <!-- 项目文件 -->
+    <div class="info-card" style="padding: 12px; width: 380px; max-width: 100%; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <h3 class="section-title" style="font-size: 0.9rem; margin: 0;">
+                <i class="fas fa-folder-open text-warning"></i> 项目文件
+                <span id="fileCount" class="badge bg-secondary ms-1" style="font-size: 0.65rem;">0</span>
+            </h3>
+            {% if not header.is_settled %}
+            <button type="button" class="btn btn-success btn-sm py-0 px-2" onclick="openFileUploadModal()" style="font-size: 0.7rem;">
+                <i class="fas fa-upload"></i> 上传
+            </button>
+            {% endif %}
+        </div>
+        <div id="projectFilesList" style="max-height: 150px; overflow-y: auto;">
+            <div class="text-center text-muted py-2" style="font-size: 0.8rem;">
+                <i class="fas fa-spinner fa-spin"></i> 加载中...
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目提醒 -->
+    <div class="info-card" style="padding: 12px; width: 380px; max-width: 100%; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <h3 class="section-title" style="font-size: 0.9rem; margin: 0;">
+                <i class="fas fa-bell text-warning"></i> 项目提醒
+                <span id="reminderCount" class="badge bg-secondary ms-1" style="font-size: 0.65rem;">0</span>
+            </h3>
+            {% if not header.is_settled %}
+            <button type="button" class="btn btn-warning btn-sm py-0 px-2" onclick="openReminderModal()" style="font-size: 0.7rem;">
+                <i class="fas fa-plus"></i> 添加
+            </button>
+            {% endif %}
+        </div>
+        <div id="remindersContainer" style="max-height: 150px; overflow-y: auto;">
+            <div class="text-center text-muted py-2" style="font-size: 0.8rem;">
+                <i class="fas fa-spinner fa-spin"></i> 加载中...
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 键盘导航提示 -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1000;">
     <div class="alert alert-info alert-dismissible fade show" role="alert" style="max-width: 300px;">
@@ -880,6 +900,7 @@ function deleteMember(memberId, memberName) {
         </div>
         <div class="modal-body">
             <form id="reminderForm">
+                <input type="hidden" id="reminderId" value="">
                 <div class="mb-3">
                     <label for="reminderEvent" class="form-label">提醒事件 <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="reminderEvent" placeholder="请输入提醒事件描述..." maxlength="200">
@@ -891,9 +912,19 @@ function deleteMember(memberId, memberName) {
                 </div>
             </form>
         </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="close-reminder-modal">取消</button>
-            <button type="button" class="btn btn-primary" data-action="save-reminder">保存</button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between;">
+            <div id="reminderEditActions" style="display: none;">
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="toggleReminderStatus(document.getElementById('reminderId').value)">
+                    <i class="fas fa-check"></i> 标记完成
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteReminder(document.getElementById('reminderId').value)">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+                <button type="button" class="btn btn-secondary" data-action="close-reminder-modal">取消</button>
+                <button type="button" class="btn btn-primary" data-action="save-reminder">保存</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1037,6 +1068,240 @@ function deleteMember(memberId, memberName) {
         </div>
     </div>
 </div>
+
+<!-- 文件上传模态框 -->
+<div id="fileUploadModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 12px 20px;">
+            <h5 class="modal-title" style="color: white; margin: 0;">
+                <i class="fas fa-upload"></i> 上传项目文件
+            </h5>
+            <span class="close" onclick="closeFileUploadModal()" style="color: white; font-size: 1.5rem; cursor: pointer;">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <form id="fileUploadForm" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">选择文件 <span class="text-danger">*</span></label>
+                    <input type="file" id="projectFileInput" class="form-control" multiple required>
+                    <small class="text-muted">支持多选 | PDF, Word, Excel, PPT, 图片, 压缩包等</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">文件描述</label>
+                    <textarea id="projectFileDescription" class="form-control" rows="2" placeholder="可选，添加文件描述..."></textarea>
+                </div>
+            </form>
+            <div id="fileUploadProgress" style="display: none;">
+                <div class="progress" style="height: 8px;">
+                    <div id="fileProgressBar" class="progress-bar bg-success" style="width: 0%;"></div>
+                </div>
+                <small id="fileUploadStatus" class="text-muted">正在上传...</small>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 12px 20px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeFileUploadModal()">取消</button>
+            <button type="button" class="btn btn-success btn-sm" onclick="uploadProjectFile()" id="fileUploadBtn">
+                <i class="fas fa-upload"></i> 上传
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 项目文件管理功能
+const headerId = {{ header.id }};
+
+// 页面加载时获取文件列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadProjectFiles();
+});
+
+function loadProjectFiles() {
+    fetch(`/projects/file/${headerId}/files`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                renderProjectFiles(result.files);
+            } else {
+                // API返回失败时显示暂无文件
+                renderProjectFiles([]);
+            }
+        })
+        .catch(error => {
+            // 网络错误或表不存在时也显示暂无文件
+            console.error('加载文件列表:', error);
+            renderProjectFiles([]);
+        });
+}
+
+function renderProjectFiles(files) {
+    const container = document.getElementById('projectFilesList');
+    const countBadge = document.getElementById('fileCount');
+
+    countBadge.textContent = files.length;
+
+    if (files.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-2" style="font-size: 0.85rem;">暂无文件</div>';
+        return;
+    }
+
+    let html = '<div class="table-responsive"><table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">';
+    html += '<thead><tr><th style="width: 40%;">文件名</th><th>大小</th><th>上传时间</th><th style="width: 80px;">操作</th></tr></thead><tbody>';
+
+    files.forEach(file => {
+        const iconColor = getFileIconColor(file.file_extension);
+        html += `<tr>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.filename}">
+                <i class="fas ${file.icon_class}" style="color: ${iconColor}; margin-right: 6px;"></i>
+                ${file.filename}
+            </td>
+            <td>${file.file_size_display}</td>
+            <td>${file.created_at}</td>
+            <td>
+                <a href="/projects/file/${headerId}/files/${file.id}/download" class="btn btn-link btn-sm p-0 me-2" title="下载">
+                    <i class="fas fa-download text-primary"></i>
+                </a>
+                {% if not header.is_settled %}
+                <button type="button" class="btn btn-link btn-sm p-0" onclick="deleteProjectFile(${file.id})" title="删除">
+                    <i class="fas fa-trash text-danger"></i>
+                </button>
+                {% endif %}
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function getFileIconColor(ext) {
+    if (ext === '.pdf') return '#ef4444';
+    if (['.doc', '.docx'].includes(ext)) return '#3b82f6';
+    if (['.xls', '.xlsx'].includes(ext)) return '#10b981';
+    if (['.ppt', '.pptx'].includes(ext)) return '#f97316';
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return '#8b5cf6';
+    if (['.zip', '.rar', '.7z'].includes(ext)) return '#eab308';
+    return '#6b7280';
+}
+
+function openFileUploadModal() {
+    document.getElementById('fileUploadModal').style.display = 'block';
+    document.getElementById('projectFileInput').value = '';
+    document.getElementById('projectFileDescription').value = '';
+    document.getElementById('fileUploadProgress').style.display = 'none';
+    document.getElementById('fileProgressBar').style.width = '0%';
+}
+
+function closeFileUploadModal() {
+    document.getElementById('fileUploadModal').style.display = 'none';
+}
+
+function uploadProjectFile() {
+    const fileInput = document.getElementById('projectFileInput');
+    const description = document.getElementById('projectFileDescription').value;
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('请选择要上传的文件');
+        return;
+    }
+
+    const files = Array.from(fileInput.files);
+    const totalFiles = files.length;
+    let uploadedCount = 0;
+    let failedFiles = [];
+
+    const uploadBtn = document.getElementById('fileUploadBtn');
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+    document.getElementById('fileUploadProgress').style.display = 'block';
+
+    // 递归上传每个文件
+    function uploadNextFile(index) {
+        if (index >= files.length) {
+            // 所有文件上传完成
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> 上传';
+
+            if (failedFiles.length > 0) {
+                alert(`上传完成，${uploadedCount} 个成功，${failedFiles.length} 个失败:\n${failedFiles.join('\n')}`);
+            }
+
+            closeFileUploadModal();
+            loadProjectFiles();
+            return;
+        }
+
+        const file = files[index];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('description', description);
+
+        // 更新状态显示
+        document.getElementById('fileUploadStatus').textContent = `正在上传 (${index + 1}/${totalFiles}): ${file.name}`;
+        document.getElementById('fileProgressBar').style.width = '0%';
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                document.getElementById('fileProgressBar').style.width = percent + '%';
+            }
+        });
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    if (result.success) {
+                        uploadedCount++;
+                    } else {
+                        failedFiles.push(`${file.name}: ${result.message}`);
+                    }
+                } else {
+                    failedFiles.push(`${file.name}: 上传失败`);
+                }
+                // 上传下一个文件
+                uploadNextFile(index + 1);
+            }
+        };
+
+        xhr.open('POST', `/projects/file/${headerId}/files/upload`);
+        xhr.send(formData);
+    }
+
+    // 开始上传第一个文件
+    uploadNextFile(0);
+}
+
+function deleteProjectFile(fileId) {
+    if (!confirm('确定要删除这个文件吗？')) {
+        return;
+    }
+
+    fetch(`/projects/file/${headerId}/files/${fileId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            loadProjectFiles();
+        } else {
+            alert('删除失败: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('删除文件失败:', error);
+        alert('删除文件时出错');
+    });
+}
+
+// 点击模态框外部关闭
+document.getElementById('fileUploadModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeFileUploadModal();
+    }
+});
+</script>
 
 <script>
 function toggleInvoiceExtra() {
@@ -2104,6 +2369,255 @@ function copyRef(refId, refNumber) {
     .finally(() => {
         btn.disabled = false;
         btn.innerHTML = originalText;
+    });
+}
+
+// ==================== 提醒管理功能 ====================
+
+// 页面加载时初始化提醒功能
+document.addEventListener('DOMContentLoaded', function() {
+    initRemindersManagement();
+});
+
+// 初始化提醒管理
+function initRemindersManagement() {
+    loadReminders();
+
+    // 关闭模态框按钮
+    document.querySelectorAll('[data-action="close-reminder-modal"]').forEach(btn => {
+        btn.addEventListener('click', closeReminderModal);
+    });
+
+    // 保存提醒按钮
+    document.querySelector('[data-action="save-reminder"]')?.addEventListener('click', saveReminder);
+
+    // 点击模态框外部关闭
+    document.getElementById('reminderModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeReminderModal();
+    });
+}
+
+// 加载提醒列表
+function loadReminders() {
+    const headerId = window.headerId;
+    if (!headerId) return;
+
+    const container = document.getElementById('remindersContainer');
+    if (container) {
+        container.innerHTML = '<div class="text-center text-muted py-2" style="font-size: 0.8rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+    }
+
+    fetch(`/projects/reminder/${headerId}/list`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderReminders(data.reminders);
+            } else {
+                console.error('加载提醒失败:', data.message);
+                if (container) {
+                    container.innerHTML = '<div class="text-center text-muted py-2" style="font-size: 0.8rem;">暂无提醒</div>';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('加载提醒列表失败:', error);
+            if (container) {
+                container.innerHTML = '<div class="text-center text-muted py-2" style="font-size: 0.8rem;">暂无提醒</div>';
+            }
+        });
+}
+
+// 渲染提醒列表
+function renderReminders(reminders) {
+    const container = document.getElementById('remindersContainer');
+    const countBadge = document.getElementById('reminderCount');
+    if (!container) return;
+
+    // 更新计数
+    if (countBadge) {
+        countBadge.textContent = reminders ? reminders.length : 0;
+    }
+
+    if (!reminders || reminders.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-2" style="font-size: 0.8rem;">暂无提醒</div>';
+        return;
+    }
+
+    container.innerHTML = reminders.map(reminder => {
+        const isOverdue = !reminder.is_completed && new Date(reminder.reminder_date) < new Date();
+        const statusColor = reminder.is_completed ? '#28a745' : (isOverdue ? '#dc3545' : '#ffc107');
+        const statusIcon = reminder.is_completed ? 'fa-check-circle' : (isOverdue ? 'fa-exclamation-circle' : 'fa-clock');
+        const textDecoration = reminder.is_completed ? 'text-decoration: line-through; opacity: 0.7;' : '';
+
+        return `
+            <div class="reminder-item d-flex align-items-center justify-content-between py-1 px-2"
+                 style="border-left: 3px solid ${statusColor}; background: #f8f9fa; margin-bottom: 6px; border-radius: 0 4px 4px 0; cursor: pointer;"
+                 onclick="editReminder(${reminder.id})"
+                 title="点击编辑">
+                <div class="d-flex align-items-center gap-2" style="flex: 1; min-width: 0;">
+                    <i class="fas ${statusIcon}" style="color: ${statusColor}; font-size: 0.8rem;"></i>
+                    <span style="font-size: 0.8rem; ${textDecoration} overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${reminder.reminder_event}
+                    </span>
+                </div>
+                <span style="font-size: 0.7rem; color: #666; flex-shrink: 0; margin-left: 8px;">
+                    ${reminder.reminder_date}
+                </span>
+            </div>
+        `;
+    }).join('');
+}
+
+// 格式化短日期
+function formatShortDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// 打开添加提醒模态框
+function openReminderModal() {
+    document.getElementById('reminderId').value = '';
+    document.getElementById('reminderEvent').value = '';
+    document.getElementById('reminderDate').value = '';
+    document.getElementById('reminderModalTitle').textContent = '添加提醒';
+    document.getElementById('reminderEditActions').style.display = 'none';
+    document.getElementById('reminderModal').style.display = 'block';
+}
+
+// 编辑提醒
+function editReminder(reminderId) {
+    const headerId = window.headerId;
+
+    // 获取提醒详情（从列表中找，避免额外请求）
+    fetch(`/projects/reminder/${headerId}/list`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const reminder = data.reminders.find(r => r.id === reminderId);
+                if (reminder) {
+                    document.getElementById('reminderId').value = reminder.id;
+                    document.getElementById('reminderEvent').value = reminder.reminder_event;
+                    document.getElementById('reminderDate').value = reminder.reminder_date;
+                    document.getElementById('reminderModalTitle').textContent = '编辑提醒';
+                    // 显示编辑操作按钮（标记完成/删除）
+                    const editActions = document.getElementById('reminderEditActions');
+                    editActions.style.display = 'flex';
+                    editActions.style.gap = '0.5rem';
+                    document.getElementById('reminderModal').style.display = 'block';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('获取提醒详情失败:', error);
+            alert('获取提醒详情失败');
+        });
+}
+
+// 关闭提醒模态框
+function closeReminderModal() {
+    document.getElementById('reminderModal').style.display = 'none';
+}
+
+// 保存提醒
+function saveReminder() {
+    const headerId = window.headerId;
+    const reminderId = document.getElementById('reminderId').value;
+    const reminderEvent = document.getElementById('reminderEvent').value.trim();
+    const reminderDate = document.getElementById('reminderDate').value;
+
+    if (!reminderEvent) {
+        alert('请输入提醒内容');
+        return;
+    }
+
+    if (!reminderDate) {
+        alert('请选择提醒日期');
+        return;
+    }
+
+    const url = reminderId
+        ? `/projects/reminder/${headerId}/update/${reminderId}`
+        : `/projects/reminder/${headerId}/create`;
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            reminder_event: reminderEvent,
+            reminder_date: reminderDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeReminderModal();
+            loadReminders();
+        } else {
+            alert(data.message || '保存失败');
+        }
+    })
+    .catch(error => {
+        console.error('保存提醒失败:', error);
+        alert('保存提醒时发生错误');
+    });
+}
+
+// 删除提醒
+function deleteReminder(reminderId) {
+    if (!confirm('确定要删除这条提醒吗？')) {
+        return;
+    }
+
+    const headerId = window.headerId;
+
+    fetch(`/projects/reminder/${headerId}/delete/${reminderId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeReminderModal();
+            loadReminders();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    })
+    .catch(error => {
+        console.error('删除提醒失败:', error);
+        alert('删除提醒时发生错误');
+    });
+}
+
+// 切换提醒完成状态
+function toggleReminderStatus(reminderId) {
+    const headerId = window.headerId;
+
+    fetch(`/projects/reminder/${headerId}/toggle/${reminderId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadReminders();
+        } else {
+            alert(data.message || '更新状态失败');
+        }
+    })
+    .catch(error => {
+        console.error('更新提醒状态失败:', error);
+        alert('更新状态时发生错误');
     });
 }
 </script>

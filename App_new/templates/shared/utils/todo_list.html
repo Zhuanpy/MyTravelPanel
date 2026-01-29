@@ -892,21 +892,29 @@ function renderTaskCard(todo, isOverdue) {
     const priorityClasses = { 1: 'priority-high', 2: 'priority-medium', 3: 'priority-low' };
     const priorityTexts = { 1: '高', 2: '中', 3: '低' };
 
+    // 检查是否为项目提醒（通过 source_type 判断）
+    const isProjectReminder = todo.source_type === 'project_reminder';
+
+    // 项目提醒使用特殊样式
+    const cardStyle = isProjectReminder ? 'border-left: 3px solid #f59e0b;' : '';
+    const titleIcon = isProjectReminder ? '<i class="fas fa-bell text-warning me-1"></i>' : '';
+
     return `
-        <div class="task-card ${isOverdue && !todo.is_completed ? 'overdue' : ''} ${todo.is_completed ? 'completed' : ''}">
+        <div class="task-card ${isOverdue && !todo.is_completed ? 'overdue' : ''} ${todo.is_completed ? 'completed' : ''}" style="${cardStyle}">
             <div class="checkbox-wrapper">
                 <input type="checkbox" class="form-check-input" ${todo.is_completed ? 'checked' : ''}
                     onchange="toggleTodoStatus(${todo.id}, this.checked)">
             </div>
             <div class="task-content">
-                <div class="task-title">${escapeHtml(todo.title)}</div>
+                <div class="task-title">${titleIcon}${escapeHtml(todo.title)}</div>
                 <div class="task-meta">
                     <span class="meta-tag ${priorityClasses[todo.priority]}">
                         <i class="fas fa-flag"></i> ${priorityTexts[todo.priority]}
                     </span>
-                    ${todo.category ? `<span class="meta-tag category-tag"><i class="fas fa-tag"></i> ${getCategoryDisplayName(todo.category)}</span>` : ''}
+                    ${todo.category ? `<span class="meta-tag category-tag" ${isProjectReminder ? 'style="background: #fef3c7; color: #92400e;"' : ''}><i class="fas fa-tag"></i> ${getCategoryDisplayName(todo.category)}</span>` : ''}
                     ${todo.due_date ? `<span class="meta-tag date-tag"><i class="fas fa-calendar"></i> ${formatDate(todo.due_date)}</span>` : ''}
                     ${todo.assignee_name ? `<span class="meta-tag user-tag"><i class="fas fa-user"></i> ${todo.assignee_name}</span>` : ''}
+                    ${isProjectReminder && todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="meta-tag" style="background: #e0f2fe; color: #0369a1; text-decoration: none;"><i class="fas fa-external-link-alt"></i> 查看项目</a>` : ''}
                 </div>
             </div>
             <div class="task-actions">
@@ -965,28 +973,36 @@ function renderTeamTasks(todos) {
         return;
     }
 
-    tbody.innerHTML = todos.map(todo => `
-        <tr class="${todo.is_completed ? 'table-light' : ''}">
-            <td class="text-center">
-                <input type="checkbox" class="form-check-input" ${todo.is_completed ? 'checked' : ''}
-                    onchange="toggleTodoStatus(${todo.id}, this.checked)">
-            </td>
-            <td>${escapeHtml(todo.title)}</td>
-            <td><div class="text-truncate" style="max-width: 200px;">${todo.description || ''}</div></td>
-            <td>${todo.assignee_name ? `<span class="visa-badge visa-badge-info">${todo.assignee_name}</span>` : '<span class="text-muted">未分配</span>'}</td>
-            <td><span class="visa-badge visa-badge-${todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info')}">${getPriorityText(todo.priority)}</span></td>
-            <td>${todo.due_date ? formatDate(todo.due_date) : ''}</td>
-            <td>${todo.estimated_hours ? todo.estimated_hours + 'h' : '-'}</td>
-            <td>${todo.actual_hours ? todo.actual_hours + 'h' : '-'}</td>
-            <td><span class="visa-badge ${todo.is_completed ? 'visa-badge-success' : 'visa-badge-warning'}">${todo.is_completed ? '已完成' : '未完成'}</span></td>
-            <td>${todo.completer_name ? `<span class="visa-badge visa-badge-success">${todo.completer_name}</span>` : '-'}</td>
-            <td>
-                <button class="visa-btn-link visa-btn-link-secondary me-1" title="分配" onclick="openAssignModal(${todo.id})"><i class="fas fa-user-plus"></i></button>
-                <button class="visa-btn-link visa-btn-link-primary me-1" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
-                <button class="visa-btn-link visa-btn-link-danger" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = todos.map(todo => {
+        // 检查是否为项目提醒（通过 source_type 判断）
+        const isProjectReminder = todo.source_type === 'project_reminder';
+        const rowStyle = isProjectReminder ? 'border-left: 3px solid #f59e0b;' : '';
+        const titleIcon = isProjectReminder ? '<i class="fas fa-bell text-warning me-1"></i>' : '';
+
+        return `
+            <tr class="${todo.is_completed ? 'table-light' : ''}" style="${rowStyle}">
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input" ${todo.is_completed ? 'checked' : ''}
+                        onchange="toggleTodoStatus(${todo.id}, this.checked)">
+                </td>
+                <td>${titleIcon}${escapeHtml(todo.title)}</td>
+                <td><div class="text-truncate" style="max-width: 200px;">${todo.description || ''}</div></td>
+                <td>${todo.assignee_name ? `<span class="visa-badge visa-badge-info">${todo.assignee_name}</span>` : (isProjectReminder ? '<span class="visa-badge" style="background: #fef3c7; color: #92400e;">项目提醒</span>' : '<span class="text-muted">未分配</span>')}</td>
+                <td><span class="visa-badge visa-badge-${todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info')}">${getPriorityText(todo.priority)}</span></td>
+                <td>${todo.due_date ? formatDate(todo.due_date) : ''}</td>
+                <td>${todo.estimated_hours ? todo.estimated_hours + 'h' : '-'}</td>
+                <td>${todo.actual_hours ? todo.actual_hours + 'h' : '-'}</td>
+                <td><span class="visa-badge ${todo.is_completed ? 'visa-badge-success' : 'visa-badge-warning'}">${todo.is_completed ? '已完成' : '未完成'}</span></td>
+                <td>${todo.completer_name ? `<span class="visa-badge visa-badge-success">${todo.completer_name}</span>` : '-'}</td>
+                <td>
+                    ${isProjectReminder && todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="visa-btn-link visa-btn-link-info me-1" title="查看项目"><i class="fas fa-eye"></i></a>` : ''}
+                    <button class="visa-btn-link visa-btn-link-secondary me-1" title="分配" onclick="openAssignModal(${todo.id})"><i class="fas fa-user-plus"></i></button>
+                    <button class="visa-btn-link visa-btn-link-primary me-1" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
+                    <button class="visa-btn-link visa-btn-link-danger" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // 时间范围变化处理

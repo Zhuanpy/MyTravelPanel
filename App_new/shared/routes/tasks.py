@@ -12,7 +12,9 @@ from App_new.exts import mail
 # 定义蓝图
 utils_blue = Blueprint('utils_blue', __name__)
 
+
 # Task相关路由已删除，现在只保留Todo相关功能
+# 注：项目提醒直接存储在 todos 表中（source_type='project_reminder', source_id=header_id）
 
 # 签证项目管理
 @utils_blue.route('/visa_project')
@@ -38,26 +40,26 @@ def render_todo_list():
 def list_todos():
     try:
         current_app.logger.info("开始获取待办事项列表")
-        
+
         # 获取查询参数
         priority = request.args.get('priority', '')
         status = request.args.get('status', '')
         search = request.args.get('search', '')
         category = request.args.get('category', '')
         project_id = request.args.get('project_id', '')
-        
+
         current_app.logger.info(f"查询参数: priority={priority}, status={status}, search={search}, category={category}, project_id={project_id}")
-        
+
         # 构建查询
         query = Todo.query
-        
+
         # 根据员工等级过滤待办事项
         if current_user.role and current_user.role.name == 'staff':
             # 检查用户资料中的员工等级
             staff_level = 1  # 默认等级
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
-            
+
             if staff_level == 1:
                 # 1级员工只能看到自己创建的或分配给自己的待办事项
                 from sqlalchemy import or_
@@ -68,7 +70,7 @@ def list_todos():
                     )
                 )
             # 2级员工可以看到所有待办事项，不需要额外过滤
-        
+
         # 应用过滤条件
         if priority:
             query = query.filter(Todo.priority == int(priority))
@@ -84,7 +86,7 @@ def list_todos():
                 (Todo.title.ilike(f'%项目ID: {project_id}%')) |
                 (Todo.description.ilike(f'%项目ID: {project_id}%'))
             )
-        
+
         # 新增筛选条件
         assigned_to_me = request.args.get('assigned_to_me', '')
         assigned_to = request.args.get('assigned_to', '')
@@ -107,27 +109,27 @@ def list_todos():
         elif assigned_to:
             # 指定用户的任务
             query = query.filter(Todo.assigned_to == int(assigned_to))
-        
+
         # 我分配的任务筛选（显示当前用户分配的任务）
         if assigned_by_me == 'true':
             query = query.filter(Todo.assigned_by == current_user.id)
-        
+
         # 我创建的任务筛选
         if created_by_me == 'true':
             query = query.filter(Todo.user_id == current_user.id)
-        
+
         # 来源类型筛选
         if source_type:
             query = query.filter(Todo.source_type == source_type)
-            
+
         # 执行查询
         todos = query.order_by(Todo.created_at.desc()).all()
-        
+
         current_app.logger.info(f"查询到 {len(todos)} 条待办事项")
-        
+
         # 转换为字典列表
         todos_list = [todo.to_dict() for todo in todos]
-            
+
         return jsonify({
             'success': True,
             'todos': todos_list
@@ -325,19 +327,23 @@ def update_todo():
             is_on_time = todo_old.is_on_time if hasattr(todo_old, 'is_on_time') else None
             delay_days = todo_old.delay_days if hasattr(todo_old, 'delay_days') else 0
         
+        # 保留原有的 source_type 和 source_id（如果前端没有传）
+        source_type = data.get('source_type') if 'source_type' in data else todo_old.source_type
+        source_id = data.get('source_id') if 'source_id' in data else todo_old.source_id
+
         update_payload = {
-            'title': data.get('title'),
-            'description': data.get('description'),
-            'priority': int(data.get('priority', 2)),
+            'title': data.get('title') if 'title' in data else todo_old.title,
+            'description': data.get('description') if 'description' in data else todo_old.description,
+            'priority': int(data.get('priority', todo_old.priority or 2)),
             'is_completed': is_completed,
-            'due_date': due_date,
-            'category': data.get('category'),
+            'due_date': due_date if 'due_date' in data else todo_old.due_date,
+            'category': data.get('category') if 'category' in data else todo_old.category,
             'recipient_email': new_recipient,
             'send_email': new_send_flag,
-            'source_type': data.get('source_type'),
-            'source_id': data.get('source_id'),
-            'reminder_days_before': int(data.get('reminder_days_before', 0)),
-            'auto_generated': bool(data.get('auto_generated', False)),
+            'source_type': source_type,
+            'source_id': source_id,
+            'reminder_days_before': int(data.get('reminder_days_before', todo_old.reminder_days_before or 0)),
+            'auto_generated': bool(data.get('auto_generated', todo_old.auto_generated or False)),
             'assigned_to': assigned_to,
             'assigned_by': assigned_by,
             'assigned_at': assigned_at,
@@ -345,8 +351,8 @@ def update_todo():
             'completed_at': completed_at,
             'is_on_time': is_on_time,
             'delay_days': delay_days,
-            'estimated_hours': float(data.get('estimated_hours', 0) or 0),
-            'actual_hours': float(data.get('actual_hours', 0) or 0)
+            'estimated_hours': float(data.get('estimated_hours', todo_old.estimated_hours or 0) or 0),
+            'actual_hours': float(data.get('actual_hours', todo_old.actual_hours or 0) or 0)
         }
 
         if reset_email_status:
@@ -355,13 +361,13 @@ def update_todo():
 
         # 更新待办事项
         todo = Todo.update(data['id'], **update_payload)
-        
+
         if not todo:
             return jsonify({
                 'success': False,
                 'message': '待办事项不存在'
             }), 404
-            
+
         return jsonify({
             'success': True,
             'message': '待办事项更新成功',
@@ -385,13 +391,13 @@ def delete_todo():
     try:
         data = request.get_json()
         current_app.logger.info(f"删除待办事项，ID: {data.get('id')}")
-        
+
         if not Todo.delete(data['id']):
             return jsonify({
                 'success': False,
                 'message': '待办事项不存在'
             }), 404
-            
+
         return jsonify({
             'success': True,
             'message': '待办事项删除成功'
