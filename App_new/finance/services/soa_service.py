@@ -171,7 +171,7 @@ class SOAService:
                     'booking_header_id': header.hid,
                     'corporate_name': header.company.company_name if header.company else None,
                     'book_date': header.created_at.strftime('%Y-%m-%d') if header.created_at else None,
-                    'client_name': header.leader_name or header.contact,
+                    'client_name': header.leader_member_name or header.leader_name or header.contact,
                     'dep_date': None,
                     'itin_desc': itin_desc,
                     'invoice_no': None,
@@ -335,7 +335,7 @@ class SOAService:
                     'HID': header.hid,
                     'COMPANY': header.company.company_name if header.company else '',
                     'BK.DATE': header.created_at.strftime('%Y-%m-%d') if header.created_at else '',
-                    'CLIENT NAME': header.leader_name or header.contact or '',
+                    'CLIENT NAME': header.leader_member_name or header.leader_name or header.contact or '',
                     'DP.DATE': '',  # 可以从 REF extra_info 获取
                     'ITIN DESCRIPTION': itin_desc or '',
                     'CCY': 'SGD',
@@ -558,7 +558,7 @@ class SOAService:
                     Paragraph(header.hid or '', batch_wrap_style),
                     Paragraph(header.company.company_name if header.company else '', batch_wrap_style),
                     Paragraph(header.created_at.strftime('%Y-%m-%d') if header.created_at else '', batch_wrap_style),
-                    Paragraph(header.leader_name or header.contact or '', batch_wrap_style),
+                    Paragraph(header.leader_member_name or header.leader_name or header.contact or '', batch_wrap_style),
                     Paragraph('', batch_wrap_style),  # DP.DATE
                     Paragraph(itin_desc or '', batch_wrap_style),
                     Paragraph('SGD', batch_wrap_style),
@@ -720,6 +720,9 @@ class SOAService:
             current_date = datetime.now().strftime('%Y-%m-%d')
             current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+            # 获取联系人名称：优先从人员名单获取leader，其次使用header的leader_name或contact
+            contact_name = header.leader_member_name or header.leader_name or header.contact or 'N/A'
+
             # 这里可以渲染一个新的模板，或者返回简单的HTML
             html_content = f"""
             <!DOCTYPE html>
@@ -740,7 +743,7 @@ class SOAService:
                 <h1>Statement of Account</h1>
                 <p><strong>Project:</strong> {header.hid}</p>
                 <p><strong>Company:</strong> {header.company.company_name if header.company else 'N/A'}</p>
-                <p><strong>Contact:</strong> {header.leader_name or header.contact or 'N/A'}</p>
+                <p><strong>Contact:</strong> {contact_name}</p>
                 <p><strong>Date:</strong> {current_date}</p>
 
                 <table>
@@ -827,12 +830,15 @@ class SOAService:
             story.append(Paragraph("Statement of Account", title_style))
             story.append(Spacer(1, 20))
 
+            # 获取联系人名称：优先从人员名单获取leader
+            contact_name = header.leader_member_name or header.leader_name or header.contact or 'N/A'
+
             # 项目信息
             company_info = [
                 ['Project Information', 'Statement Information'],
                 [f'Project: {header.hid}', f'Date: {datetime.now().strftime("%Y-%m-%d")}'],
                 [f'Company: {header.company.company_name if header.company else "N/A"}', f'Currency: SGD'],
-                [f'Contact: {header.leader_name or header.contact or "N/A"}', '']
+                [f'Contact: {contact_name}', '']
             ]
 
             company_table = Table(company_info, colWidths=[4.5*inch, 4.5*inch])
