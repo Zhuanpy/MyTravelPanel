@@ -718,14 +718,38 @@ def void_invoice():
         
         if invoice.status == 'paid':
             return jsonify({'success': False, 'message': '已付款的发票不能取消，请先处理退款'})
-        
+
+        # 冲销对应的日记账分录
+        journal_reversed = False
+        from App_new.finance.models.journal_entry import JournalEntry
+        journal_entry = JournalEntry.query.filter(
+            JournalEntry.source_type == 'invoice',
+            JournalEntry.source_id == invoice.id,
+            JournalEntry.status == 'posted'
+        ).first()
+
+        if journal_entry:
+            try:
+                from flask_login import current_user
+                reversal = journal_entry.reverse(user=current_user.username if current_user else None)
+                if reversal:
+                    db.session.add(reversal)
+                    journal_reversed = True
+            except Exception as je_err:
+                import logging
+                logging.getLogger(__name__).warning(f"冲销发票日记账失败: {str(je_err)}")
+
         # 更新状态为已取消
         invoice.status = 'cancelled'
         db.session.commit()
-        
+
+        message = f'发票 {invoice_number} 已取消'
+        if journal_reversed:
+            message += '，日记账已冲销'
+
         return jsonify({
             'success': True,
-            'message': f'发票 {invoice_number} 已取消'
+            'message': message
         })
         
     except Exception as e:

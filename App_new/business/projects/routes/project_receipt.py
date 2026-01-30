@@ -227,6 +227,24 @@ def delete_receipt(receipt_id):
     affected_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
 
     try:
+        # 冲销对应的日记账分录
+        from App_new.finance.models.journal_entry import JournalEntry
+        from flask_login import current_user
+        journal_entry = JournalEntry.query.filter(
+            JournalEntry.source_type == 'receipt',
+            JournalEntry.source_id == receipt.id,
+            JournalEntry.status == 'posted'
+        ).first()
+
+        if journal_entry:
+            try:
+                reversal = journal_entry.reverse(user=current_user.username if current_user else None)
+                if reversal:
+                    db.session.add(reversal)
+            except Exception as je_err:
+                import logging
+                logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
+
         # 删除分配记录（级联删除或手动删除）
         ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
 
@@ -271,9 +289,29 @@ def update_receipt_status(receipt_id):
         return jsonify({'success': False, 'message': '无效的状态'})
 
     receipt = ProjectReceipt.query.get_or_404(receipt_id)
+    old_status = receipt.status
 
     try:
         receipt.status = status
+
+        # 如果状态变更为 cancelled，冲销对应的日记账分录
+        if status == 'cancelled' and old_status != 'cancelled':
+            from App_new.finance.models.journal_entry import JournalEntry
+            from flask_login import current_user
+            journal_entry = JournalEntry.query.filter(
+                JournalEntry.source_type == 'receipt',
+                JournalEntry.source_id == receipt.id,
+                JournalEntry.status == 'posted'
+            ).first()
+
+            if journal_entry:
+                try:
+                    reversal = journal_entry.reverse(user=current_user.username if current_user else None)
+                    if reversal:
+                        db.session.add(reversal)
+                except Exception as je_err:
+                    import logging
+                    logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
 
         # 先提交收款记录状态更新
         db.session.flush()

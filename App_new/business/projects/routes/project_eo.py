@@ -1066,11 +1066,34 @@ def void_eo(eo_id):
             usage.status = 'reversed'
             usage.description = f'EO作废冲销 - {eo.eo_number}'
 
+        # 冲销对应的日记账分录（source_type='eo' 的记录）
+        journal_reversed = False
+        from App_new.finance.models.journal_entry import JournalEntry
+        journal_entry = JournalEntry.query.filter(
+            JournalEntry.source_type == 'eo',
+            JournalEntry.source_id == eo.id,
+            JournalEntry.status == 'posted'
+        ).first()
+
+        if journal_entry:
+            try:
+                reversal = journal_entry.reverse(user=current_user.username if current_user else None)
+                if reversal:
+                    db.session.add(reversal)
+                    journal_reversed = True
+            except Exception as je_err:
+                import logging
+                logging.getLogger(__name__).warning(f"冲销EO日记账失败: {str(je_err)}")
+
         # 更新状态为作废
         eo.status = 'void'
         db.session.commit()
 
-        return jsonify({'success': True, 'message': f'EO {eo.eo_number} 已作废'})
+        message = f'EO {eo.eo_number} 已作废'
+        if journal_reversed:
+            message += '，日记账已冲销'
+
+        return jsonify({'success': True, 'message': message})
 
     except Exception as e:
         db.session.rollback()
