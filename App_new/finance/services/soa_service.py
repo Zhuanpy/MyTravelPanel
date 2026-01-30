@@ -11,6 +11,7 @@ from App_new.business.projects.models.project import ProjectHeader, CustomerComp
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
 from App_new.business.projects.models.invoice import ProjectInvoice
+from App_new.business.flight.models.flight import ProjectFlightSegment
 from flask import render_template
 import io
 from reportlab.lib.pagesizes import A4, landscape
@@ -74,16 +75,17 @@ class SOAService:
             print(f"计算项目 {project_id} 余额时出错: {e}")
             return float(total_selling)
 
-    def _get_project_departure_date(self, header_id):
-        """从项目的第一个REF中获取出发日期"""
+    def _get_project_departure_date(self, ref_id):
+        """从REF的航段中获取出发日期"""
         try:
-            first_ref = ProjectRef.query.filter_by(header_id=header_id).first()
-            if first_ref and first_ref.extra_info:
-                extra_data = json.loads(first_ref.extra_info)
-                dep_date = extra_data.get('departure_date', '')
-                if dep_date:
-                    return dep_date
-        except (json.JSONDecodeError, TypeError, Exception):
+            # 获取第一个航段的出发时间
+            first_segment = ProjectFlightSegment.query.filter_by(
+                ref_id=ref_id
+            ).order_by(ProjectFlightSegment.departure_time).first()
+
+            if first_segment and first_segment.departure_time:
+                return first_segment.departure_time.strftime('%Y-%m-%d')
+        except Exception:
             pass
         return ''
 
@@ -180,14 +182,8 @@ class SOAService:
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
 
-                # 从REF的extra_info获取出发日期
-                dep_date = ''
-                if first_ref and first_ref.extra_info:
-                    try:
-                        extra_data = json.loads(first_ref.extra_info)
-                        dep_date = extra_data.get('departure_date', '')
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                # 从REF的航段获取出发日期
+                dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
 
                 all_headers_data.append({
                     'id': header.id,
@@ -353,14 +349,8 @@ class SOAService:
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
 
-                # 从REF的extra_info获取出发日期
-                dep_date = ''
-                if first_ref and first_ref.extra_info:
-                    try:
-                        extra_data = json.loads(first_ref.extra_info)
-                        dep_date = extra_data.get('departure_date', '')
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                # 从REF的航段获取出发日期
+                dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
 
                 # 构建Excel行数据
                 row_data = {
@@ -585,14 +575,8 @@ class SOAService:
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
 
-                # 从REF的extra_info获取出发日期
-                dep_date = ''
-                if first_ref and first_ref.extra_info:
-                    try:
-                        extra_data = json.loads(first_ref.extra_info)
-                        dep_date = extra_data.get('departure_date', '')
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                # 从REF的航段获取出发日期
+                dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
 
                 # 构建PDF行数据
                 row_data = [
