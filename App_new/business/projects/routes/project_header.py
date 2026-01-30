@@ -62,8 +62,9 @@ def edit_header(header_id):
     header = ProjectHeader.query.get_or_404(header_id)
     form = ProjectHeaderForm(obj=header)
 
-    # 处理company_id显示：None表示"个人"，需要转换为0才能正确显示在下拉框中
-    if header.company_id is None:
+    # 处理company_id显示：仅在 GET 请求时将 None 转换为 0 以正确显示"个人"
+    # POST 请求时不覆盖用户提交的值
+    if request.method == 'GET' and header.company_id is None:
         form.company_id.data = 0  # 显示"个人"
 
     # 获取第一个REF的描述（用于desc为空时的默认值）
