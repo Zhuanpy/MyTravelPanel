@@ -163,7 +163,6 @@
                         <th class="text-end">总充值金额</th>
                         <th class="text-end">已使用</th>
                         <th class="text-end">剩余可用</th>
-                        <th>使用进度</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -180,14 +179,6 @@
                         <td class="text-end text-muted">{{ "%.2f"|format(item.total_used) }}</td>
                         <td class="text-end fw-bold {% if item.total_balance > 0 %}text-success{% else %}text-danger{% endif %}">
                             {{ "%.2f"|format(item.total_balance) }}
-                        </td>
-                        <td style="width: 150px;">
-                            {% set usage_pct = (item.total_used / item.total_amount * 100) if item.total_amount > 0 else 0 %}
-                            <div class="progress progress-bar-usage">
-                                <div class="progress-bar {% if usage_pct >= 90 %}bg-danger{% elif usage_pct >= 70 %}bg-warning{% else %}bg-info{% endif %}"
-                                     style="width: {{ usage_pct }}%"></div>
-                            </div>
-                            <small class="text-muted">{{ "%.1f"|format(usage_pct) }}%</small>
                         </td>
                         <td>
                             <a href="{{ url_for('business_projects.project_prepayment.list_prepayments', supplier_id=item.supplier_id) }}"
@@ -236,7 +227,6 @@
                         <th class="text-end">充值金额</th>
                         <th class="text-end">已使用</th>
                         <th class="text-end">剩余</th>
-                        <th>使用进度</th>
                         <th>充值日期</th>
                         <th>支付方式</th>
                         <th>状态</th>
@@ -262,12 +252,6 @@
                         <td class="text-end">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
                         <td class="text-end">{{ "%.2f"|format(p._cached_used_amount) }}</td>
                         <td class="text-end fw-bold">{{ "%.2f"|format(p._cached_available_balance) }}</td>
-                        <td style="width: 120px;">
-                            <div class="progress progress-bar-usage">
-                                <div class="progress-bar bg-info" style="width: {{ p._cached_usage_percentage }}%"></div>
-                            </div>
-                            <small class="text-muted">{{ p._cached_usage_percentage }}%</small>
-                        </td>
                         <td>{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '-' }}</td>
                         <td>{{ p.payment_method_display }}</td>
                         <td>
