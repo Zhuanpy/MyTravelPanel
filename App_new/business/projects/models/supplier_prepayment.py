@@ -66,6 +66,11 @@ class SupplierPrepayment(db.Model):
     usages = db.relationship('PrepaymentUsage', backref='prepayment', cascade='all, delete-orphan', lazy='dynamic')
 
     @property
+    def confirmed_usages(self):
+        """只返回已确认的使用记录"""
+        return self.usages.filter_by(status='confirmed')
+
+    @property
     def company_name(self):
         """获取公司名称"""
         if self.supplier:
