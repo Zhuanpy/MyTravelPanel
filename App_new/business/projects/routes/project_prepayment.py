@@ -103,27 +103,29 @@ def list_prepayments():
     total_balance = sum(float(p.balance_amount or 0) for p in prepayments)
     total_used = total_amount - total_balance
 
-    # 查询待付款的EO（已创建但尚未从预付款扣减的EO）
-    # 条件：关联的REF属于该供应商，且EO状态不是paid/cancelled/void，且没有预付款使用记录
+    # 查询待付款的EO（已创建但尚未从预付款确认扣减的EO）
+    # 条件：关联的REF属于该供应商，且EO状态是confirmed，且没有confirmed状态的预付款使用记录
     try:
-        # 获取已经从预付款扣减过的EO ID列表
+        # 获取已经确认从预付款扣减的EO ID列表（只排除confirmed状态的使用记录）
         used_eo_ids = db.session.query(PrepaymentUsage.eo_id).join(
             SupplierPrepayment, PrepaymentUsage.prepayment_id == SupplierPrepayment.id
         ).filter(
             SupplierPrepayment.supplier_id == supplier_id,
-            PrepaymentUsage.eo_id.isnot(None)
+            PrepaymentUsage.eo_id.isnot(None),
+            PrepaymentUsage.status == 'confirmed'  # 只排除已确认的使用记录
         ).distinct().all()
         used_eo_ids = [eo_id for (eo_id,) in used_eo_ids]
 
-        # 查询待付款EO：未付款且未从预付款扣减
+        # 查询待付款EO：未付款且未从预付款确认扣减
         query = db.session.query(ProjectEO).join(
             ProjectRef, ProjectEO.ref_id == ProjectRef.id
         ).filter(
             ProjectRef.supplier_id == supplier_id,
             ProjectEO.status == 'confirmed',  # 待付款状态
+            ProjectEO.is_paid == False  # 且未付款
         )
         if used_eo_ids:
-            query = query.filter(~ProjectEO.id.in_(used_eo_ids))  # 排除已扣减的
+            query = query.filter(~ProjectEO.id.in_(used_eo_ids))  # 排除已确认扣减的
         pending_eos = query.order_by(ProjectEO.created_at.desc()).all()
     except Exception as e:
         print(f"查询待付款EO出错: {e}")
