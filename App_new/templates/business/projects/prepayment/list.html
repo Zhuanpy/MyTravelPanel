@@ -260,13 +260,13 @@
                         </td>
                         <td>{{ p.supplier.company_name if p.supplier else '-' }}</td>
                         <td class="text-end">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
-                        <td class="text-end">{{ "%.2f"|format(p.used_amount) }}</td>
-                        <td class="text-end fw-bold">{{ "%.2f"|format(p.available_balance) }}</td>
+                        <td class="text-end">{{ "%.2f"|format(p._cached_used_amount) }}</td>
+                        <td class="text-end fw-bold">{{ "%.2f"|format(p._cached_available_balance) }}</td>
                         <td style="width: 120px;">
                             <div class="progress progress-bar-usage">
-                                <div class="progress-bar bg-info" style="width: {{ p.usage_percentage }}%"></div>
+                                <div class="progress-bar bg-info" style="width: {{ p._cached_usage_percentage }}%"></div>
                             </div>
-                            <small class="text-muted">{{ p.usage_percentage }}%</small>
+                            <small class="text-muted">{{ p._cached_usage_percentage }}%</small>
                         </td>
                         <td>{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '-' }}</td>
                         <td>{{ p.payment_method_display }}</td>
