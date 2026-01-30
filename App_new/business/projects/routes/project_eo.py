@@ -269,13 +269,6 @@ def batch_pay():
             ProjectEO.is_paid == False  # 且未付款的
         )
 
-        # 排除已有预付使用记录的EO（这些EO已经在预付款中处理）
-        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
-        used_eo_subquery = db.session.query(PrepaymentUsage.eo_id).filter(
-            PrepaymentUsage.eo_id.isnot(None)
-        ).distinct().subquery()
-        query = query.filter(~ProjectEO.id.in_(used_eo_subquery))
-
         # 应用筛选条件
         if supplier_type:
             supplier_type_map = {
@@ -483,13 +476,6 @@ def batch_pay_export():
             ProjectEO.status == 'confirmed',  # 只显示已确认的
             ProjectEO.is_paid == False  # 且未付款的
         )
-
-        # 排除已有预付使用记录的EO（这些EO已经在预付款中处理）
-        from App_new.business.projects.models.supplier_prepayment import PrepaymentUsage
-        used_eo_subquery = db.session.query(PrepaymentUsage.eo_id).filter(
-            PrepaymentUsage.eo_id.isnot(None)
-        ).distinct().subquery()
-        query = query.filter(~ProjectEO.id.in_(used_eo_subquery))
 
         # 应用筛选条件
         if supplier_type:
