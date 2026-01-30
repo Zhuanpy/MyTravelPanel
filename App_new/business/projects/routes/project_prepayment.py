@@ -98,10 +98,10 @@ def list_prepayments():
     # 按编号倒序（最新的显示在最上面）
     prepayments = query.order_by(SupplierPrepayment.prepayment_number.desc()).all()
 
-    # 计算汇总（used_amount 只计算 confirmed 状态的使用记录）
+    # 计算汇总
     total_amount = sum(float(p.amount or 0) for p in prepayments)
     total_balance = sum(float(p.balance_amount or 0) for p in prepayments)
-    total_used = sum(float(p.used_amount or 0) for p in prepayments)
+    total_used = total_amount - total_balance
 
     # 查询待付款的EO（已创建但尚未付款的EO）
     try:
