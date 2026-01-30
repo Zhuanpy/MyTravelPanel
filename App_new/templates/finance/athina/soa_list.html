@@ -7,6 +7,8 @@
 <style>
     .soa-container {
         padding: 15px;
+        max-width: 1200px;
+        margin: 0 auto;
     }
     .page-header {
         margin-bottom: 15px;
@@ -52,10 +54,15 @@
     .table {
         margin-bottom: 0;
         font-size: 0.85rem;
+        table-layout: fixed;
+        width: 100%;
     }
     .table th, .table td {
         padding: 0.4rem 0.5rem;
         vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .table th {
         background-color: #f8f9fa;
@@ -63,22 +70,15 @@
         font-weight: 600;
         color: #495057;
         font-size: 0.8rem;
-        white-space: nowrap;
     }
-    /* 列宽设置 */
-    .table th:nth-child(1), .table td:nth-child(1) { width: 60px; }  /* HID */
-    .table th:nth-child(2), .table td:nth-child(2) { width: 120px; } /* COMPANY */
-    .table th:nth-child(3), .table td:nth-child(3) { width: 85px; }  /* BK.DATE */
-    .table th:nth-child(4), .table td:nth-child(4) { width: 120px; } /* CLIENT NAME */
-    .table th:nth-child(5), .table td:nth-child(5) { min-width: 150px; } /* ITIN DESCRIPTION */
-    .table th:nth-child(6), .table td:nth-child(6) { width: 45px; }  /* 货币 */
-    .table th:nth-child(7), .table td:nth-child(7) { width: 90px; }  /* BAL */
-    .table td:nth-child(5) {
-        max-width: 300px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+    /* 列宽设置 - 固定布局 */
+    .col-hid { width: 60px; }
+    .col-company { width: 140px; }
+    .col-date { width: 90px; }
+    .col-client { width: 140px; }
+    .col-itin { width: auto; }  /* 自动填充剩余空间 */
+    .col-currency { width: 50px; }
+    .col-balance { width: 100px; }
     .table tfoot td {
         font-weight: 600;
         background-color: #e3f2fd;
@@ -124,17 +124,17 @@
 
     <!-- 搜索区域 -->
     <div class="search-section">
-        <div class="row align-items-center">
-            <div class="col-md-2">
-                <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份">
+        <div class="row align-items-center g-2">
+            <div class="col-auto">
+                <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份" style="width: 140px;">
             </div>
-            <div class="col-md-2">
-                <select class="form-control form-control-sm" id="companyFilter">
+            <div class="col-auto">
+                <select class="form-control form-control-sm" id="companyFilter" style="width: 150px;">
                     <option value="">所有公司</option>
                 </select>
             </div>
-            <div class="col-md-1">
-                <div class="input-group input-group-sm">
+            <div class="col-auto">
+                <div class="input-group input-group-sm" style="width: 160px;">
                     <input type="text" class="form-control" id="searchInput" placeholder="搜索...">
                     <div class="input-group-append">
                         <button class="btn btn-outline-primary" type="button" id="searchBtn">
@@ -143,7 +143,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-1">
+            <div class="col-auto">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="balanceFilter">
                     <label class="form-check-label" for="balanceFilter" title="只显示余额大于0的记录">
@@ -151,15 +151,15 @@
                     </label>
                 </div>
             </div>
-            <div class="col-md-1">
-                <select class="form-control form-control-sm" id="profitLossFilter" title="盈亏筛选">
+            <div class="col-auto">
+                <select class="form-control form-control-sm" id="profitLossFilter" title="盈亏筛选" style="width: 100px;">
                     <option value="">全部盈亏</option>
                     <option value="profit">盈利</option>
                     <option value="loss">亏损</option>
                     <option value="even">持平</option>
                 </select>
             </div>
-            <div class="col-md-5 text-right">
+            <div class="col text-right">
                 <div class="btn-group btn-group-sm" role="group">
                     <button class="btn btn-success" id="batchDownloadBtn" title="下载Excel">
                         <i class="fas fa-file-excel"></i>
@@ -200,13 +200,13 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>HID</th>
-                        <th>COMPANY</th>
-                        <th>BK.DATE</th>
-                        <th>CLIENT NAME</th>
-                        <th>ITIN DESCRIPTION</th>
-                        <th>货币</th>
-                        <th class="text-right">BAL</th>
+                        <th class="col-hid">HID</th>
+                        <th class="col-company">COMPANY</th>
+                        <th class="col-date">BK.DATE</th>
+                        <th class="col-client">CLIENT NAME</th>
+                        <th class="col-itin">ITIN DESCRIPTION</th>
+                        <th class="col-currency">货币</th>
+                        <th class="col-balance text-right">BAL</th>
                     </tr>
                 </thead>
                 <tbody id="dataTableBody">
@@ -333,19 +333,20 @@ class SOAManager {
         const companyFilter = document.getElementById('companyFilter');
         if (companyFilter) {
             companyFilter.addEventListener('change', () => {
-            this.companyFilter = document.getElementById('companyFilter').value;
-            this.balanceFilter = document.getElementById('balanceFilter').checked;
-            this.currentPage = 1;
-            this.loadData();
-        });
+                this.companyFilter = document.getElementById('companyFilter').value;
+                this.balanceFilter = document.getElementById('balanceFilter').checked;
+                this.currentPage = 1;
+                this.loadData();
+            });
+        }
 
         // 余额过滤变化
         const balanceFilter = document.getElementById('balanceFilter');
         if (balanceFilter) {
             balanceFilter.addEventListener('change', () => {
-            this.balanceFilter = document.getElementById('balanceFilter').checked;
-            this.currentPage = 1;
-            this.loadData();
+                this.balanceFilter = document.getElementById('balanceFilter').checked;
+                this.currentPage = 1;
+                this.loadData();
             });
         }
 
@@ -353,9 +354,9 @@ class SOAManager {
         const profitLossFilter = document.getElementById('profitLossFilter');
         if (profitLossFilter) {
             profitLossFilter.addEventListener('change', () => {
-            this.profitLossFilter = document.getElementById('profitLossFilter').value;
-            this.currentPage = 1;
-            this.loadData();
+                this.profitLossFilter = document.getElementById('profitLossFilter').value;
+                this.currentPage = 1;
+                this.loadData();
             });
         }
 
@@ -393,15 +394,12 @@ class SOAManager {
                 this.resetAllFilters();
             });
         }
-        }
-
-        // 清除月份按钮已移除，功能合并到清除筛选按钮中
 
         // 批量下载Excel按钮
         const batchDownloadBtn = document.getElementById('batchDownloadBtn');
         if (batchDownloadBtn) {
             batchDownloadBtn.addEventListener('click', () => {
-            this.batchDownload();
+                this.batchDownload();
             });
         }
 
@@ -409,18 +407,9 @@ class SOAManager {
         const batchDownloadPdfBtn = document.getElementById('batchDownloadPdfBtn');
         if (batchDownloadPdfBtn) {
             batchDownloadPdfBtn.addEventListener('click', () => {
-            this.batchDownloadPdf();
+                this.batchDownloadPdf();
             });
         }
-
-        // 刷新按钮
-        const refreshBtn = document.getElementById('refreshBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
-                this.loadData();
-            });
-        }
-
     }
 
     resetAllFilters() {
@@ -497,10 +486,10 @@ class SOAManager {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><a href="/projects/detail/${header.id}" target="_blank">${header.booking_header_id}</a></td>
-                <td>${header.corporate_name || '-'}</td>
+                <td title="${header.corporate_name || ''}">${header.corporate_name || '-'}</td>
                 <td>${header.book_date || '-'}</td>
-                <td>${header.client_name || '-'}</td>
-                <td>${header.itin_desc || '-'}</td>
+                <td title="${header.client_name || ''}">${header.client_name || '-'}</td>
+                <td title="${header.itin_desc || ''}">${header.itin_desc || '-'}</td>
                 <td>SGD</td>
                 <td class="text-right ${header.sub_total_balance > 0 ? 'text-danger' : 'text-success'}">$${header.sub_total_balance.toFixed(2)}</td>
             `;
