@@ -4,6 +4,7 @@ SOA (Statement of Account) 生成服务
 用于生成客户对账单 - 基于 Project 数据
 """
 
+import json
 from datetime import datetime
 from App_new.exts import db
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
@@ -72,6 +73,19 @@ class SOAService:
         except Exception as e:
             print(f"计算项目 {project_id} 余额时出错: {e}")
             return float(total_selling)
+
+    def _get_project_departure_date(self, header_id):
+        """从项目的第一个REF中获取出发日期"""
+        try:
+            first_ref = ProjectRef.query.filter_by(header_id=header_id).first()
+            if first_ref and first_ref.extra_info:
+                extra_data = json.loads(first_ref.extra_info)
+                dep_date = extra_data.get('departure_date', '')
+                if dep_date:
+                    return dep_date
+        except (json.JSONDecodeError, TypeError, Exception):
+            pass
+        return ''
 
     def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, balance_positive=False, profit_loss=None):
         """获取可生成SOA的项目列表"""
@@ -162,9 +176,18 @@ class SOAService:
                     elif profit_loss == 'even' and profit != 0:
                         continue
 
-                # 获取第一个REF的描述
+                # 获取第一个REF的描述和出发日期
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
+
+                # 从REF的extra_info获取出发日期
+                dep_date = ''
+                if first_ref and first_ref.extra_info:
+                    try:
+                        extra_data = json.loads(first_ref.extra_info)
+                        dep_date = extra_data.get('departure_date', '')
+                    except (json.JSONDecodeError, TypeError):
+                        pass
 
                 all_headers_data.append({
                     'id': header.id,
@@ -172,7 +195,7 @@ class SOAService:
                     'corporate_name': header.company.company_name if header.company else None,
                     'book_date': header.created_at.strftime('%Y-%m-%d') if header.created_at else None,
                     'client_name': header.leader_member_name or header.leader_name or header.contact,
-                    'dep_date': None,
+                    'dep_date': dep_date,
                     'itin_desc': itin_desc,
                     'invoice_no': None,
                     'invoice_date': None,
@@ -326,9 +349,18 @@ class SOAService:
                     elif profit_loss == 'even' and profit != 0:
                         continue
 
-                # 获取第一个REF的描述
+                # 获取第一个REF的描述和出发日期
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
+
+                # 从REF的extra_info获取出发日期
+                dep_date = ''
+                if first_ref and first_ref.extra_info:
+                    try:
+                        extra_data = json.loads(first_ref.extra_info)
+                        dep_date = extra_data.get('departure_date', '')
+                    except (json.JSONDecodeError, TypeError):
+                        pass
 
                 # 构建Excel行数据
                 row_data = {
@@ -336,7 +368,7 @@ class SOAService:
                     'COMPANY': header.company.company_name if header.company else '',
                     'BK.DATE': header.created_at.strftime('%Y-%m-%d') if header.created_at else '',
                     'CLIENT NAME': header.leader_member_name or header.leader_name or header.contact or '',
-                    'DP.DATE': '',  # 可以从 REF extra_info 获取
+                    'DP.DATE': dep_date,
                     'ITIN DESCRIPTION': itin_desc or '',
                     'CCY': 'SGD',
                     'BAL': balance
@@ -549,9 +581,18 @@ class SOAService:
 
                 total_balance += balance
 
-                # 获取第一个REF的描述
+                # 获取第一个REF的描述和出发日期
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
+
+                # 从REF的extra_info获取出发日期
+                dep_date = ''
+                if first_ref and first_ref.extra_info:
+                    try:
+                        extra_data = json.loads(first_ref.extra_info)
+                        dep_date = extra_data.get('departure_date', '')
+                    except (json.JSONDecodeError, TypeError):
+                        pass
 
                 # 构建PDF行数据
                 row_data = [
@@ -559,7 +600,7 @@ class SOAService:
                     Paragraph(header.company.company_name if header.company else '', batch_wrap_style),
                     Paragraph(header.created_at.strftime('%Y-%m-%d') if header.created_at else '', batch_wrap_style),
                     Paragraph(header.leader_member_name or header.leader_name or header.contact or '', batch_wrap_style),
-                    Paragraph('', batch_wrap_style),  # DP.DATE
+                    Paragraph(dep_date, batch_wrap_style),  # DP.DATE
                     Paragraph(itin_desc or '', batch_wrap_style),
                     Paragraph('SGD', batch_wrap_style),
                     Paragraph(f"${balance:,.2f}", batch_wrap_style)
