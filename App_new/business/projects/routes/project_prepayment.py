@@ -125,13 +125,14 @@ def list_prepayments():
 
     # 查询待付款的EO（已创建但尚未付款的EO）
     try:
-        # 获取已确认扣减的EO ID（只排除confirmed状态的，pending状态的还需显示）
+        # 获取通过批量付款确认的EO ID（只排除"批量EO付款"类型的confirmed记录）
         confirmed_used_eo_ids = db.session.query(PrepaymentUsage.eo_id).join(
             SupplierPrepayment, PrepaymentUsage.prepayment_id == SupplierPrepayment.id
         ).filter(
             SupplierPrepayment.supplier_id == supplier_id,
             PrepaymentUsage.eo_id.isnot(None),
-            PrepaymentUsage.status == 'confirmed'
+            PrepaymentUsage.status == 'confirmed',
+            PrepaymentUsage.description.like('%批量EO付款%')
         ).distinct().all()
         confirmed_used_eo_ids = [eo_id for (eo_id,) in confirmed_used_eo_ids]
 
