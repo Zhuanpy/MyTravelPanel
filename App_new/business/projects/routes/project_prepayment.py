@@ -103,10 +103,10 @@ def list_prepayments():
     total_balance = sum(float(p.balance_amount or 0) for p in prepayments)
     total_used = total_amount - total_balance
 
-    # 查询待付款的EO（已创建但尚未付款的EO）
-    # 分两部分：1. 显示所有待付款EO  2. 计算预计扣减金额（排除已有预付使用记录的）
+    # 查询待付款的EO（已创建但尚未付款的EO，且没有任何预付使用记录）
     try:
-        # 获取所有有预付使用记录的EO ID（无论状态，用于计算预计扣减金额）
+        # 获取所有有预付使用记录的EO ID（无论状态）
+        # 有usage记录的EO表示已经在处理中，不应显示在待付款列表
         all_used_eo_ids = db.session.query(PrepaymentUsage.eo_id).join(
             SupplierPrepayment, PrepaymentUsage.prepayment_id == SupplierPrepayment.id
         ).filter(
@@ -115,17 +115,7 @@ def list_prepayments():
         ).distinct().all()
         all_used_eo_ids = [eo_id for (eo_id,) in all_used_eo_ids]
 
-        # 获取已确认扣减的EO ID（用于排除已完成付款的）
-        confirmed_used_eo_ids = db.session.query(PrepaymentUsage.eo_id).join(
-            SupplierPrepayment, PrepaymentUsage.prepayment_id == SupplierPrepayment.id
-        ).filter(
-            SupplierPrepayment.supplier_id == supplier_id,
-            PrepaymentUsage.eo_id.isnot(None),
-            PrepaymentUsage.status == 'confirmed'
-        ).distinct().all()
-        confirmed_used_eo_ids = [eo_id for (eo_id,) in confirmed_used_eo_ids]
-
-        # 查询待付款EO列表：未付款且未确认扣减（显示所有待付款的，包括pending状态的）
+        # 查询待付款EO列表：未付款且没有任何预付使用记录
         query = db.session.query(ProjectEO).join(
             ProjectRef, ProjectEO.ref_id == ProjectRef.id
         ).filter(
@@ -133,20 +123,17 @@ def list_prepayments():
             ProjectEO.status == 'confirmed',
             ProjectEO.is_paid == False
         )
-        if confirmed_used_eo_ids:
-            query = query.filter(~ProjectEO.id.in_(confirmed_used_eo_ids))
+        if all_used_eo_ids:
+            query = query.filter(~ProjectEO.id.in_(all_used_eo_ids))
         pending_eos = query.order_by(ProjectEO.created_at.desc()).all()
     except Exception as e:
         print(f"查询待付款EO出错: {e}")
         pending_eos = []
-        all_used_eo_ids = []
 
-    # 计算待付款总金额（只计算没有任何预付使用记录的EO，避免重复扣减）
-    # 因为有预付使用记录的EO成本已经从balance_amount中扣除了
+    # 计算待付款总金额（所有显示的EO成本之和）
     pending_eo_total = sum(
         float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
         for eo in pending_eos
-        if eo.id not in all_used_eo_ids  # 排除已有预付使用记录的
     )
 
     return render_template('business/projects/prepayment/list.html',
