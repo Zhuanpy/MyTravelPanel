@@ -457,16 +457,42 @@ def use_prepayment():
 @staff_only
 def get_supplier_prepayments(supplier_id):
     """获取供应商的可用预付账款（API）"""
+    from sqlalchemy import func
+
     prepayments = SupplierPrepayment.query.filter(
         SupplierPrepayment.supplier_id == supplier_id,
-        SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-        SupplierPrepayment.balance_amount > 0
+        SupplierPrepayment.status.in_(['confirmed', 'partial_used'])
     ).order_by(SupplierPrepayment.payment_date.asc()).all()
+
+    # 批量查询 confirmed 使用金额
+    prepayment_ids = [p.id for p in prepayments]
+    confirmed_usage_sums = {}
+    if prepayment_ids:
+        usage_query = db.session.query(
+            PrepaymentUsage.prepayment_id,
+            func.sum(PrepaymentUsage.amount).label('total')
+        ).filter(
+            PrepaymentUsage.prepayment_id.in_(prepayment_ids),
+            PrepaymentUsage.status == 'confirmed'
+        ).group_by(PrepaymentUsage.prepayment_id).all()
+        confirmed_usage_sums = {row.prepayment_id: float(row.total or 0) for row in usage_query}
+
+    # 计算可用余额（充值金额 - confirmed 使用）
+    total_available = 0
+    result_data = []
+    for p in prepayments:
+        used = confirmed_usage_sums.get(p.id, 0)
+        available = float(p.amount) - used
+        if available > 0:
+            p_dict = p.to_dict()
+            p_dict['available_balance'] = available
+            result_data.append(p_dict)
+            total_available += available
 
     return jsonify({
         'success': True,
-        'data': [p.to_dict() for p in prepayments],
-        'total_balance': sum(float(p.balance_amount) for p in prepayments)
+        'data': result_data,
+        'total_balance': total_available
     })
 
 
