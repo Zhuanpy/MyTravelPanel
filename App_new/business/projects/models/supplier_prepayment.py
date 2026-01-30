@@ -67,8 +67,11 @@ class SupplierPrepayment(db.Model):
 
     @property
     def confirmed_usages(self):
-        """只返回已确认的使用记录"""
-        return self.usages.filter_by(status='confirmed')
+        """只返回批量EO付款的使用记录（confirmed状态且description包含'批量EO付款'）"""
+        return self.usages.filter(
+            PrepaymentUsage.status == 'confirmed',
+            PrepaymentUsage.description.like('%批量EO付款%')
+        )
 
     @property
     def company_name(self):
