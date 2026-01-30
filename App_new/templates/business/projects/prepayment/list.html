@@ -261,7 +261,7 @@
                         <td>{{ p.supplier.company_name if p.supplier else '-' }}</td>
                         <td class="text-end">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
                         <td class="text-end">{{ "%.2f"|format(p.used_amount) }}</td>
-                        <td class="text-end fw-bold">{{ "%.2f"|format(p.balance_amount) }}</td>
+                        <td class="text-end fw-bold">{{ "%.2f"|format(p.available_balance) }}</td>
                         <td style="width: 120px;">
                             <div class="progress progress-bar-usage">
                                 <div class="progress-bar bg-info" style="width: {{ p.usage_percentage }}%"></div>

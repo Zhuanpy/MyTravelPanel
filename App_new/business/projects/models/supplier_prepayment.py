@@ -104,8 +104,19 @@ class SupplierPrepayment(db.Model):
 
     @property
     def used_amount(self):
-        """已使用金额（充值金额 - 剩余余额）"""
-        return self.amount - self.balance_amount
+        """已使用金额（只计算已确认的使用记录）"""
+        from sqlalchemy import func
+        from App_new.exts import db
+        confirmed_sum = db.session.query(func.sum(PrepaymentUsage.amount)).filter(
+            PrepaymentUsage.prepayment_id == self.id,
+            PrepaymentUsage.status == 'confirmed'
+        ).scalar()
+        return confirmed_sum or 0
+
+    @property
+    def available_balance(self):
+        """可用余额（充值金额 - 已确认使用）"""
+        return self.amount - self.used_amount
 
     @property
     def usage_percentage(self):
