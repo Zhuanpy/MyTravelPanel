@@ -219,7 +219,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=invoice.invoice_date or date.today(),
+            entry_date=invoice.created_at.date() if invoice.created_at else date.today(),
             source_type='invoice',
             source_id=invoice.id,
             source_number=invoice.invoice_number,
@@ -268,7 +268,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=receipt.payment_date or date.today(),
+            entry_date=receipt.created_at.date() if receipt.created_at else date.today(),
             source_type='receipt',
             source_id=receipt.id,
             source_number=receipt.receipt_number,
@@ -320,7 +320,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=eo.paid_date or date.today(),
+            entry_date=eo.created_at.date() if eo.created_at else date.today(),
             source_type='eo',
             source_id=eo.id,
             source_number=eo.eo_number,
@@ -372,7 +372,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=eo.paid_date or date.today(),
+            entry_date=eo.created_at.date() if eo.created_at else date.today(),
             source_type='eo',
             source_id=eo.id,
             source_number=eo.eo_number,
