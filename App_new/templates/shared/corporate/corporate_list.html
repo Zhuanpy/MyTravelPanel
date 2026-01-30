@@ -32,6 +32,17 @@
         max-width: 100%;
         padding: 0;
     }
+    /* 复制按钮样式 */
+    .copy-name-btn {
+        opacity: 0.3;
+        transition: opacity 0.2s;
+    }
+    .copy-name-btn:hover {
+        opacity: 1;
+    }
+    .col-name:hover .copy-name-btn {
+        opacity: 0.7;
+    }
 </style>
 {% endblock %}
 
@@ -159,12 +170,19 @@
                             {% for company in companies.items %}
                             <tr>
                                 <td class="col-name">
-                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
-                                       class="text-decoration-none company-link"
-                                       data-company-id="{{ company.id }}"
-                                       title="{{ company.company_name }}">
-                                        {{ company.company_name }}
-                                    </a>
+                                    <div class="d-flex align-items-center">
+                                        <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
+                                           class="text-decoration-none company-link flex-grow-1 text-truncate"
+                                           data-company-id="{{ company.id }}"
+                                           title="{{ company.company_name }}">
+                                            {{ company.company_name }}
+                                        </a>
+                                        <button type="button" class="btn btn-link btn-sm p-0 ms-1 copy-name-btn"
+                                                onclick="copyCompanyName('{{ company.company_name|e }}', this)"
+                                                title="复制公司名称">
+                                            <i class="fas fa-copy text-muted" style="font-size: 0.75rem;"></i>
+                                        </button>
+                                    </div>
                                 </td>
                                 <td class="col-narrow">
                                     {% if company.is_customer and company.is_supplier %}
@@ -397,6 +415,21 @@
 let currentStep = 1;
 let excelData = [];
 let uploadProgress = 0;
+
+// 复制公司名称
+function copyCompanyName(name, btn) {
+    navigator.clipboard.writeText(name).then(() => {
+        const icon = btn.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-check text-success';
+        icon.style.fontSize = '0.75rem';
+        setTimeout(() => {
+            icon.className = originalClass;
+        }, 1500);
+    }).catch(err => {
+        console.error('复制失败:', err);
+    });
+}
 
 function deleteCompany(companyId, companyName) {
     document.getElementById('companyName').textContent = companyName;

@@ -6,96 +6,117 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     .soa-container {
-        padding: 20px;
+        padding: 15px;
     }
     .page-header {
-        margin-bottom: 30px;
-        padding-bottom: 15px;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
         border-bottom: 2px solid #e9ecef;
+    }
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    .page-header p {
+        font-size: 0.85rem;
+        margin-bottom: 0;
     }
     .search-section {
         background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
     }
-    
     .search-section .row {
         margin: 0;
     }
-    
-    .search-section .col-md-2,
-    .search-section .col-md-6 {
-        padding: 0 8px;
+    .search-section .form-control-sm {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
     }
-    
     .search-section .btn-group .btn {
         margin-left: 2px;
+        padding: 0.2rem 0.5rem;
     }
-    
     .search-section .btn-group .btn:first-child {
         margin-left: 0;
     }
+    .search-section .form-check-label {
+        font-size: 0.8rem;
+    }
     .table-container {
         background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         overflow: hidden;
     }
     .table {
         margin-bottom: 0;
+        font-size: 0.85rem;
+    }
+    .table th, .table td {
+        padding: 0.4rem 0.5rem;
+        vertical-align: middle;
     }
     .table th {
         background-color: #f8f9fa;
         border-top: none;
         font-weight: 600;
         color: #495057;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    /* 列宽设置 */
+    .table th:nth-child(1), .table td:nth-child(1) { width: 60px; }  /* HID */
+    .table th:nth-child(2), .table td:nth-child(2) { width: 120px; } /* COMPANY */
+    .table th:nth-child(3), .table td:nth-child(3) { width: 85px; }  /* BK.DATE */
+    .table th:nth-child(4), .table td:nth-child(4) { width: 120px; } /* CLIENT NAME */
+    .table th:nth-child(5), .table td:nth-child(5) { min-width: 150px; } /* ITIN DESCRIPTION */
+    .table th:nth-child(6), .table td:nth-child(6) { width: 45px; }  /* 货币 */
+    .table th:nth-child(7), .table td:nth-child(7) { width: 90px; }  /* BAL */
+    .table td:nth-child(5) {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .table tfoot td {
+        font-weight: 600;
+        background-color: #e3f2fd;
     }
     .btn-group .btn {
-        margin-right: 5px;
+        margin-right: 3px;
     }
     .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
     }
     .pagination {
-        margin-top: 20px;
+        margin-top: 15px;
     }
     .no-data {
         text-align: center;
-        padding: 40px;
+        padding: 30px;
         color: #6c757d;
     }
     .loading {
         text-align: center;
-        padding: 20px;
+        padding: 15px;
     }
     .spinner-border-sm {
         width: 1rem;
         height: 1rem;
     }
-    /* 月份选择器样式 */
     #monthFilter {
         cursor: pointer;
     }
-    #monthFilter::-webkit-calendar-picker-indicator {
-        cursor: pointer;
-        color: #007bff;
-    }
-    #monthFilter::-webkit-calendar-picker-indicator:hover {
-        color: #0056b3;
-    }
     .input-group-append .btn {
         border-left: 0;
-    }
-    .input-group-append .btn:hover {
-        background-color: #e9ecef;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="soa-container">
+<div class="container-fluid soa-container">
     <div class="page-header">
         <h1 class="h3 mb-0">SOA 对账单管理</h1>
         <p class="text-muted">生成和下载客户对账单</p>
@@ -140,9 +161,6 @@
             </div>
             <div class="col-md-5 text-right">
                 <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-warning" id="batchResetBalanceBtn" title="批量清零余额" style="display: none;">
-                        <i class="fas fa-eraser"></i> 清零选中(<span id="selectedCount">0</span>)
-                    </button>
                     <button class="btn btn-success" id="batchDownloadBtn" title="下载Excel">
                         <i class="fas fa-file-excel"></i>
                     </button>
@@ -163,22 +181,6 @@
         </div>
     </div>
 
-    <!-- 余额统计 -->
-    <div id="statisticsDiv" class="card mb-3" style="display: none;">
-        <div class="card-body py-2">
-            <div class="row text-center">
-                <div class="col-md-6">
-                    <small class="text-muted d-block mb-1">筛选记录数</small>
-                    <strong class="h5 mb-0" id="statTotalCount">0</strong>
-                </div>
-                <div class="col-md-6">
-                    <small class="text-muted d-block mb-1">余额总和</small>
-                    <strong class="h5 mb-0 text-success" id="statTotalBalance">SGD $0.00</strong>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- 数据表格 -->
     <div class="table-container">
         <div class="loading" id="loadingDiv">
@@ -187,7 +189,7 @@
             </div>
             <span class="ml-2">加载数据中...</span>
         </div>
-        
+
         <div id="noDataDiv" class="no-data" style="display: none;">
             <i class="fas fa-inbox fa-3x mb-3"></i>
             <h5>暂无数据</h5>
@@ -198,20 +200,24 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" title="全选/取消全选"></th>
                         <th>HID</th>
                         <th>COMPANY</th>
                         <th>BK.DATE</th>
                         <th>CLIENT NAME</th>
-                        <th>DP.DATE</th>
                         <th>ITIN DESCRIPTION</th>
                         <th>货币</th>
-                        <th>BAL</th>
-                        <th>操作</th>
+                        <th class="text-right">BAL</th>
                     </tr>
                 </thead>
                 <tbody id="dataTableBody">
                 </tbody>
+                <tfoot id="tableFoot" style="display: none;">
+                    <tr class="table-info font-weight-bold">
+                        <td colspan="5" class="text-right">筛选记录数: <span id="statTotalCount">0</span> 条</td>
+                        <td>TOTAL</td>
+                        <td class="text-right" id="statTotalBalance">$0.00</td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
@@ -235,7 +241,6 @@ class SOAManager {
         this.companyFilter = '';
         this.balanceFilter = false;
         this.profitLossFilter = '';
-        this.selectedItems = new Set();
         this.init();
     }
 
@@ -254,6 +259,8 @@ class SOAManager {
         const currentYear = currentDate.getFullYear();
         const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
         monthFilter.value = `${currentYear}-${currentMonth}`;
+        // 同步更新 this.monthFilter
+        this.monthFilter = monthFilter.value;
     }
 
     async populateCompanyFilter() {
@@ -488,39 +495,17 @@ class SOAManager {
 
         data.headers.forEach(header => {
             const row = document.createElement('tr');
-            const isSelected = this.selectedItems.has(header.id);
             row.innerHTML = `
-                <td><input type="checkbox" class="row-checkbox" data-id="${header.id}" ${isSelected ? 'checked' : ''}></td>
-                <td>${header.booking_header_id}</td>
-                <td>${header.corporate_name || 'N/A'}</td>
-                <td>${header.book_date || 'N/A'}</td>
-                <td>${header.client_name || 'N/A'}</td>
-                <td>${header.dep_date || 'N/A'}</td>
-                <td>${header.itin_desc || 'N/A'}</td>
+                <td><a href="/projects/detail/${header.id}" target="_blank">${header.booking_header_id}</a></td>
+                <td>${header.corporate_name || '-'}</td>
+                <td>${header.book_date || '-'}</td>
+                <td>${header.client_name || '-'}</td>
+                <td>${header.itin_desc || '-'}</td>
                 <td>SGD</td>
-                <td class="text-right">$${header.sub_total_balance.toFixed(2)}</td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-outline-info" onclick="soaManager.previewSOA(${header.id})" title="预览">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="soaManager.downloadPDF(${header.id})" title="下载PDF">
-                            <i class="fas fa-file-pdf"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-success" onclick="soaManager.downloadHTML(${header.id})" title="下载HTML">
-                            <i class="fas fa-file-code"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-warning" onclick="soaManager.resetBalance(${header.id})" title="清零余额">
-                            <i class="fas fa-eraser"></i>
-                        </button>
-                    </div>
-                </td>
+                <td class="text-right ${header.sub_total_balance > 0 ? 'text-danger' : 'text-success'}">$${header.sub_total_balance.toFixed(2)}</td>
             `;
             tbody.appendChild(row);
         });
-
-        // 绑定复选框事件
-        this.bindCheckboxEvents();
 
         this.showTable();
         this.renderPagination(data);
@@ -529,12 +514,12 @@ class SOAManager {
 
     renderStatistics(statistics) {
         document.getElementById('statTotalCount').textContent = statistics.total_count || 0;
-        document.getElementById('statTotalBalance').textContent = `SGD $${(statistics.total_balance || 0).toFixed(2)}`;
-        document.getElementById('statisticsDiv').style.display = 'block';
+        document.getElementById('statTotalBalance').textContent = `$${(statistics.total_balance || 0).toFixed(2)}`;
+        document.getElementById('tableFoot').style.display = 'table-footer-group';
     }
 
     hideStatistics() {
-        document.getElementById('statisticsDiv').style.display = 'none';
+        document.getElementById('tableFoot').style.display = 'none';
     }
 
     renderPagination(data) {
@@ -576,18 +561,6 @@ class SOAManager {
         if (page < 1) return;
         this.currentPage = page;
         this.loadData();
-    }
-
-    previewSOA(headerId) {
-        window.open(`/statement/soa_preview/${headerId}`, '_blank');
-    }
-
-    downloadPDF(headerId) {
-        window.location.href = `/statement/soa_download/${headerId}`;
-    }
-
-    downloadHTML(headerId) {
-        window.location.href = `/statement/soa_download_html/${headerId}`;
     }
 
     updateBatchDownloadButton() {
@@ -726,129 +699,6 @@ class SOAManager {
         this.showNoData();
     }
 
-    bindCheckboxEvents() {
-        // 全选/取消全选
-        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', (e) => {
-                const checkboxes = document.querySelectorAll('.row-checkbox');
-                checkboxes.forEach(cb => {
-                    cb.checked = e.target.checked;
-                    const id = parseInt(cb.dataset.id);
-                    if (e.target.checked) {
-                        this.selectedItems.add(id);
-                    } else {
-                        this.selectedItems.delete(id);
-                    }
-                });
-                this.updateSelectedCount();
-            });
-        }
-
-        // 单个复选框事件
-        const checkboxes = document.querySelectorAll('.row-checkbox');
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', (e) => {
-                const id = parseInt(e.target.dataset.id);
-                if (e.target.checked) {
-                    this.selectedItems.add(id);
-                } else {
-                    this.selectedItems.delete(id);
-                }
-                this.updateSelectedCount();
-
-                // 更新全选复选框状态
-                const allChecked = document.querySelectorAll('.row-checkbox:checked').length === checkboxes.length;
-                document.getElementById('selectAllCheckbox').checked = allChecked;
-            });
-        });
-
-        // 批量清零按钮事件
-        const batchResetBtn = document.getElementById('batchResetBalanceBtn');
-        if (batchResetBtn) {
-            batchResetBtn.onclick = () => this.batchResetBalance();
-        }
-    }
-
-    updateSelectedCount() {
-        const countSpan = document.getElementById('selectedCount');
-        const batchBtn = document.getElementById('batchResetBalanceBtn');
-        const count = this.selectedItems.size;
-
-        countSpan.textContent = count;
-        batchBtn.style.display = count > 0 ? 'inline-block' : 'none';
-    }
-
-    getCSRFToken() {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        return meta ? meta.getAttribute('content') : '';
-    }
-
-    async resetBalance(headerId) {
-        if (!confirm('确定要将此记录的余额清零吗？此操作不可撤销！')) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/statement/soa_reset_balance/${headerId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken()
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                alert(data.message);
-                this.loadData();
-            } else {
-                alert('清零失败: ' + (data.message || '未知错误'));
-            }
-        } catch (error) {
-            console.error('清零余额失败:', error);
-            alert('清零余额失败，请稍后重试');
-        }
-    }
-
-    async batchResetBalance() {
-        const count = this.selectedItems.size;
-        if (count === 0) {
-            alert('请先选择要清零的记录');
-            return;
-        }
-
-        if (!confirm(`确定要将选中的 ${count} 条记录的余额全部清零吗？此操作不可撤销！`)) {
-            return;
-        }
-
-        try {
-            const headerIds = Array.from(this.selectedItems);
-            const response = await fetch('/statement/soa_batch_reset_balance', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken()
-                },
-                body: JSON.stringify({ header_ids: headerIds })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                alert(data.message);
-                this.selectedItems.clear();
-                this.updateSelectedCount();
-                this.loadData();
-            } else {
-                alert('批量清零失败: ' + (data.message || '未知错误'));
-            }
-        } catch (error) {
-            console.error('批量清零余额失败:', error);
-            alert('批量清零余额失败，请稍后重试');
-        }
-    }
 }
 
 // 初始化

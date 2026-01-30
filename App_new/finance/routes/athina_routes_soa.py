@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-SOA 相关路由 - 单独文件
+SOA 相关路由 - 基于 Project 数据
 """
 
 from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, make_response, current_app
 from flask_login import login_required
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
-from App_new.finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
+from App_new.business.projects.models.project import ProjectHeader
 from App_new.finance.services.soa_service import SOAService
 from datetime import datetime
 
@@ -191,17 +191,17 @@ def soa_batch_download_pdf():
 @login_required
 @staff_only
 def soa_preview(header_id):
-    """预览SOA"""
+    """预览SOA - 基于Project数据"""
     try:
         soa_service = SOAService()
         html_content, error = soa_service.generate_soa_html(header_id)
-        
+
         if error:
             flash(f'生成SOA预览失败: {error}', 'error')
             return redirect(url_for('soa_routes.soa_list'))
-        
+
         return html_content
-        
+
     except Exception as e:
         flash(f'预览SOA时出错: {str(e)}', 'error')
         return redirect(url_for('soa_routes.soa_list'))
@@ -211,28 +211,29 @@ def soa_preview(header_id):
 @login_required
 @staff_only
 def soa_download(header_id):
-    """下载SOA PDF"""
+    """下载SOA PDF - 基于Project数据"""
     try:
         soa_service = SOAService()
         pdf_content, error = soa_service.generate_soa_pdf(header_id)
-        
+
         if error:
             flash(f'生成SOA PDF失败: {error}', 'error')
             return redirect(url_for('soa_routes.soa_list'))
-        
-        # 获取头部信息用于文件名
-        header = AthinaBookingHeader.query.get(header_id)
-        filename = f"SOA_{header.booking_header_id}_{header.corporate_name or 'Unknown'}_{datetime.now().strftime('%Y%m%d')}.pdf"
-        
+
+        # 获取项目信息用于文件名
+        header = ProjectHeader.query.get(header_id)
+        company_name = header.company.company_name if header.company else 'Unknown'
+        filename = f"SOA_{header.hid}_{company_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
         # 清理文件名中的特殊字符
         filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
-        
+
         response = make_response(pdf_content)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
         return response
-        
+
     except Exception as e:
         flash(f'下载SOA时出错: {str(e)}', 'error')
         return redirect(url_for('soa_routes.soa_list'))
@@ -242,7 +243,7 @@ def soa_download(header_id):
 @login_required
 @staff_only
 def soa_download_html(header_id):
-    """下载SOA HTML"""
+    """下载SOA HTML - 基于Project数据"""
     try:
         soa_service = SOAService()
         html_content, error = soa_service.generate_soa_html(header_id)
@@ -251,9 +252,10 @@ def soa_download_html(header_id):
             flash(f'生成SOA HTML失败: {error}', 'error')
             return redirect(url_for('soa_routes.soa_list'))
 
-        # 获取头部信息用于文件名
-        header = AthinaBookingHeader.query.get(header_id)
-        filename = f"SOA_{header.booking_header_id}_{header.corporate_name or 'Unknown'}_{datetime.now().strftime('%Y%m%d')}.html"
+        # 获取项目信息用于文件名
+        header = ProjectHeader.query.get(header_id)
+        company_name = header.company.company_name if header.company else 'Unknown'
+        filename = f"SOA_{header.hid}_{company_name}_{datetime.now().strftime('%Y%m%d')}.html"
 
         # 清理文件名中的特殊字符
         filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
@@ -273,76 +275,19 @@ def soa_download_html(header_id):
 @login_required
 @staff_only
 def soa_reset_balance(header_id):
-    """重置单个SOA记录的余额为0"""
-    try:
-        header = AthinaBookingHeader.query.get(header_id)
-        if not header:
-            return jsonify({'success': False, 'message': '找不到指定的SOA记录'})
-
-        old_balance = header.sub_total_balance
-        header.sub_total_balance = 0
-
-        # 同时更新所有相关的detail记录的balance
-        for detail in header.details:
-            detail.balance = 0
-
-        db.session.commit()
-
-        current_app.logger.info(f"SOA余额重置成功 - Header ID: {header_id}, 原余额: {old_balance}, 新余额: 0")
-
-        return jsonify({
-            'success': True,
-            'message': f'余额已重置为0（原余额: ${old_balance:.2f}）',
-            'header_id': header_id,
-            'old_balance': old_balance,
-            'new_balance': 0
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception(f"SOA余额重置失败: {str(e)}")
-        return jsonify({'success': False, 'message': f'重置余额失败: {str(e)}'})
+    """重置余额功能 - 项目余额是动态计算的，无法直接重置"""
+    return jsonify({
+        'success': False,
+        'message': '项目余额是根据销售金额和收款记录动态计算的，请通过添加收款记录来清零余额'
+    })
 
 
 @soa_blue.route('/soa_batch_reset_balance', methods=['POST'])
 @login_required
 @staff_only
 def soa_batch_reset_balance():
-    """批量重置SOA记录的余额为0"""
-    try:
-        data = request.get_json()
-        header_ids = data.get('header_ids', [])
-
-        if not header_ids:
-            return jsonify({'success': False, 'message': '请选择要重置的记录'})
-
-        reset_count = 0
-        total_old_balance = 0
-
-        for header_id in header_ids:
-            header = AthinaBookingHeader.query.get(header_id)
-            if header:
-                total_old_balance += header.sub_total_balance
-                header.sub_total_balance = 0
-
-                # 同时更新所有相关的detail记录的balance
-                for detail in header.details:
-                    detail.balance = 0
-
-                reset_count += 1
-
-        db.session.commit()
-
-        current_app.logger.info(f"SOA批量余额重置成功 - 共{reset_count}条记录, 原总余额: {total_old_balance}")
-
-        return jsonify({
-            'success': True,
-            'message': f'已成功重置{reset_count}条记录的余额为0（原总余额: ${total_old_balance:.2f}）',
-            'reset_count': reset_count,
-            'total_old_balance': total_old_balance
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception(f"SOA批量余额重置失败: {str(e)}")
-        return jsonify({'success': False, 'message': f'批量重置余额失败: {str(e)}'})
+    """批量重置余额功能 - 项目余额是动态计算的，无法直接重置"""
+    return jsonify({
+        'success': False,
+        'message': '项目余额是根据销售金额和收款记录动态计算的，请通过添加收款记录来清零余额'
+    })
