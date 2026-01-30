@@ -293,7 +293,8 @@ def create_initial_balance(company_id):
 def get_company_prepayments(company_id):
     """获取公司的预付账款列表"""
     try:
-        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
+        from sqlalchemy import func
 
         # 获取公司信息
         company = CustomerCompany.query.get(company_id)
@@ -302,18 +303,39 @@ def get_company_prepayments(company_id):
         # 查询该公司的有效预付记录（按时间升序，用于 FIFO）
         prepayments = SupplierPrepayment.query.filter(
             SupplierPrepayment.supplier_id == company_id,
-            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-            SupplierPrepayment.balance_amount > 0
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used'])
         ).order_by(SupplierPrepayment.created_at.asc()).all()
 
-        # 计算总余额
-        total_balance = sum(float(p.balance_amount) for p in prepayments)
+        # 批量查询 confirmed 使用金额
+        prepayment_ids = [p.id for p in prepayments]
+        confirmed_usage_sums = {}
+        if prepayment_ids:
+            usage_query = db.session.query(
+                PrepaymentUsage.prepayment_id,
+                func.sum(PrepaymentUsage.amount).label('total')
+            ).filter(
+                PrepaymentUsage.prepayment_id.in_(prepayment_ids),
+                PrepaymentUsage.status == 'confirmed'
+            ).group_by(PrepaymentUsage.prepayment_id).all()
+            confirmed_usage_sums = {row.prepayment_id: float(row.total or 0) for row in usage_query}
+
+        # 计算可用余额（充值金额 - confirmed 使用）
+        total_available = 0
+        result_prepayments = []
+        for p in prepayments:
+            used = confirmed_usage_sums.get(p.id, 0)
+            available = float(p.amount) - used
+            if available > 0:
+                p_dict = p.to_dict()
+                p_dict['available_balance'] = available
+                result_prepayments.append(p_dict)
+                total_available += available
 
         return jsonify({
             'success': True,
-            'prepayments': [p.to_dict() for p in prepayments],
+            'prepayments': result_prepayments,
             'supplier_name': supplier_name,
-            'total_balance': total_balance
+            'total_balance': total_available
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
