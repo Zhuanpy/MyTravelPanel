@@ -312,6 +312,7 @@
                             <option value="reconciled" {% if filters.match_status=='reconciled' %}selected{% endif %}>已核对</option>
                             <option value="matched" {% if filters.match_status=='matched' %}selected{% endif %}>已匹配</option>
                             <option value="unmatched" {% if filters.match_status=='unmatched' %}selected{% endif %}>待匹配</option>
+                            <option value="diff_nonzero" {% if filters.match_status=='diff_nonzero' %}selected{% endif %}>差额非0</option>
                         </select>
                     </div>
                     <div class="col-auto">

@@ -40,6 +40,7 @@
             <col style="width: 68px;">  <!-- 匹配状态 -->
             <col style="width: 95px;">  <!-- 匹配单号 -->
             <col class="col-hide-1200" style="width: 80px;">  <!-- 匹配金额 -->
+            <col class="col-hide-1200" style="width: 70px;">  <!-- 匹配差额 -->
             <col class="col-hide-1200" style="width: 55px;">  <!-- 匹配分类 -->
             <col style="width: 110px;"> <!-- 操作 -->
             <col style="width: 100px;"> <!-- 备注 -->
@@ -58,6 +59,7 @@
                 <th>匹配状态</th>
                 <th>匹配单号</th>
                 <th class="col-hide-1200">匹配金额</th>
+                <th class="col-hide-1200">差额</th>
                 <th class="col-hide-1200">分类</th>
                 <th>操作</th>
                 <th>备注</th>
@@ -164,6 +166,36 @@
                         {% endif %}
                     {% endif %}
                 </td>
+                <!-- 匹配差额 = 金额 - 匹配金额 -->
+                <td class="col-hide-1200" style="white-space: nowrap; font-size: 12px; font-weight: 500;">
+                    {% set matched_amt = 0 %}
+                    {% if t.matched_receipt %}
+                        {% set matched_amt = t.matched_receipt.amount|float %}
+                    {% elif t.matched_eo %}
+                        {% set matched_amt = (t.matched_eo.pay_amount if t.matched_eo.pay_amount else (t.matched_eo.ref.cost_price if t.matched_eo.ref and t.matched_eo.ref.cost_price else 0))|float %}
+                    {% elif t.reconciliation_status == 'matched' and t.matched_payment %}
+                        {% set matched_amt = t.matched_payment.total_amount|float %}
+                    {% elif t.reconciliation_status == 'matched' and t.matched_prepayment %}
+                        {% set matched_amt = t.matched_prepayment.amount|float %}
+                    {% else %}
+                        {% set match_records = t.matches.all() if t.matches else [] %}
+                        {% if match_records %}
+                            {% set ns = namespace(total=0) %}
+                            {% for m in match_records %}
+                                {% set ns.total = ns.total + (m.allocated_amount|float if m.allocated_amount else 0) %}
+                            {% endfor %}
+                            {% set matched_amt = ns.total %}
+                        {% endif %}
+                    {% endif %}
+                    {% set diff = (t.amount|float - matched_amt)|round(2) %}
+                    {% if matched_amt == 0 %}
+                        -
+                    {% elif diff == 0 %}
+                        <span class="text-success" title="完全匹配">0</span>
+                    {% else %}
+                        <span class="text-danger" title="差额">{{ '%.2f'|format(diff) }}</span>
+                    {% endif %}
+                </td>
                 <td class="col-hide-1200" style="white-space: nowrap; font-size: 11px;">
                     {% if t.matched_receipt %}
                         <span class="badge bg-success">收据</span>
@@ -250,7 +282,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="15" class="text-center text-muted">暂无交易</td></tr>
+            <tr><td colspan="16" class="text-center text-muted">暂无交易</td></tr>
             {% endfor %}
         </tbody>
     </table>

@@ -149,6 +149,9 @@ def ocbc_bank():
             BankTransaction.accounting_ref.like(f'%{filters["ref"]}%')
         )
     
+    # 标记是否需要后置筛选差额非0
+    filter_diff_nonzero = False
+
     if filters['match_status']:
         if filters['match_status'] == 'reconciled':
             transactions_query = transactions_query.filter(
@@ -169,6 +172,16 @@ def ocbc_bank():
                 BankTransaction.matched_receipt_id.is_(None),
                 db.or_(BankTransaction.eo_id.is_(None), BankTransaction.eo_id == 0),
                 db.or_(BankTransaction.reconciliation_status != 'matched', BankTransaction.reconciliation_status.is_(None))
+            )
+        elif filters['match_status'] == 'diff_nonzero':
+            # 筛选差额非0：首先筛选已匹配的交易，然后在Python层面筛选差额非0的
+            filter_diff_nonzero = True
+            transactions_query = transactions_query.filter(
+                db.or_(
+                    BankTransaction.matched_receipt_id.isnot(None),
+                    BankTransaction.eo_id.isnot(None),
+                    BankTransaction.reconciliation_status == 'matched'
+                )
             )
 
     if filters['operation_status']:
@@ -238,12 +251,81 @@ def ocbc_bank():
     print(f"OCBC银行查询调试:")
     print(f"  筛选条件: {filters}")
     print(f"  查询语句: {transactions_query}")
-    
+
     # 分页处理
     page = request.args.get('page', 1, type=int)
-    pagination = transactions_query.paginate(page=page, per_page=30, error_out=False)
-    transactions = pagination.items
-    
+    per_page = 30
+
+    # 如果需要筛选差额非0，则需要在Python层面进行计算和筛选
+    if filter_diff_nonzero:
+        # 获取所有符合条件的交易（不分页）
+        all_matched_transactions = transactions_query.all()
+
+        # 计算每个交易的差额并筛选
+        diff_nonzero_transactions = []
+        for t in all_matched_transactions:
+            matched_amt = 0.0
+            # 计算匹配金额
+            if t.matched_receipt:
+                matched_amt = float(t.matched_receipt.amount or 0)
+            elif t.matched_eo:
+                if t.matched_eo.pay_amount:
+                    matched_amt = float(t.matched_eo.pay_amount)
+                elif t.matched_eo.ref and t.matched_eo.ref.cost_price:
+                    matched_amt = float(t.matched_eo.ref.cost_price)
+            elif t.reconciliation_status == 'matched' and hasattr(t, 'matched_payment') and t.matched_payment:
+                matched_amt = float(t.matched_payment.total_amount or 0)
+            elif t.reconciliation_status == 'matched' and hasattr(t, 'matched_prepayment') and t.matched_prepayment:
+                matched_amt = float(t.matched_prepayment.amount or 0)
+            else:
+                # 检查 BankTransactionMatch 表
+                match_records = t.matches.all() if t.matches else []
+                if match_records:
+                    matched_amt = sum(float(m.allocated_amount or 0) for m in match_records)
+
+            # 计算差额
+            diff = round(float(t.amount) - matched_amt, 2)
+            if diff != 0:
+                t._match_diff = diff  # 缓存差额值供模板使用
+                diff_nonzero_transactions.append(t)
+
+        # 手动分页
+        total = len(diff_nonzero_transactions)
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+        start = (page - 1) * per_page
+        end = start + per_page
+        transactions = diff_nonzero_transactions[start:end]
+
+        # 创建一个简单的分页对象
+        class SimplePagination:
+            def __init__(self, page, per_page, total, items):
+                self.page = page
+                self.per_page = per_page
+                self.total = total
+                self.items = items
+                self.pages = (total + per_page - 1) // per_page if total > 0 else 1
+                self.has_prev = page > 1
+                self.has_next = page < self.pages
+                self.prev_num = page - 1 if self.has_prev else None
+                self.next_num = page + 1 if self.has_next else None
+
+            def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+                last = 0
+                for num in range(1, self.pages + 1):
+                    if num <= left_edge or \
+                       (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                       num > self.pages - right_edge:
+                        if last + 1 != num:
+                            yield None
+                        yield num
+                        last = num
+
+        pagination = SimplePagination(page, per_page, total, transactions)
+        print(f"  差额非0筛选: 共 {total} 条记录符合条件")
+    else:
+        pagination = transactions_query.paginate(page=page, per_page=per_page, error_out=False)
+        transactions = pagination.items
+
     print(f"  查询结果: 找到 {len(transactions)} 个交易记录")
     print(f"  分页信息: 第 {pagination.page} 页 / 共 {pagination.pages} 页, 总计 {pagination.total} 条")
     

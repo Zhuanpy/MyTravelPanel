@@ -345,11 +345,8 @@
                         <option value="prepayment">PRE</option>
                         <option value="loan_repay">还款</option>
                     </select>
-                    <select class="form-select form-select-sm" id="eoSupplierFilter" style="width:120px;">
-                        <option value="">供应商</option>
-                    </select>
-                    <div class="input-group input-group-sm" style="width:160px;">
-                        <input type="text" class="form-control" id="eoSearchInput" placeholder="搜索...">
+                    <div class="input-group input-group-sm" style="width:200px;">
+                        <input type="text" class="form-control" id="eoSearchInput" placeholder="搜索编号/供应商...">
                         <button class="btn btn-outline-secondary" type="button" id="eoSearchBtn">
                             <i class="fas fa-search"></i>
                         </button>
@@ -660,9 +657,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
 
-                // 更新供应商筛选下拉框选项
-                updateEOSupplierFilterOptions();
-
                 renderTransactions();
                 renderRecords();
 
@@ -760,18 +754,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 搜索和筛选变量
     let eoSearchKeyword = '';
-    let eoSupplierFilterValue = '';
     let eoTypeFilterValue = '';
 
     // 类型筛选
     document.getElementById('eoTypeFilter').addEventListener('change', function() {
         eoTypeFilterValue = this.value;
-        renderRecords();
-    });
-
-    // 供应商筛选
-    document.getElementById('eoSupplierFilter').addEventListener('change', function() {
-        eoSupplierFilterValue = this.value;
         renderRecords();
     });
 
@@ -790,34 +777,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('eoClearSearchBtn').addEventListener('click', function() {
         document.getElementById('eoSearchInput').value = '';
-        document.getElementById('eoSupplierFilter').value = '';
         document.getElementById('eoTypeFilter').value = '';
         eoSearchKeyword = '';
-        eoSupplierFilterValue = '';
         eoTypeFilterValue = '';
         renderRecords();
     });
 
-    // 更新供应商筛选下拉框选项
-    function updateEOSupplierFilterOptions() {
-        const supplierFilterSelect = document.getElementById('eoSupplierFilter');
-        const currentValue = supplierFilterSelect.value;
-
-        const supplierNames = [...new Set(projectRecords
-            .map(r => r.supplier_name || r.record_supplier)
-            .filter(name => name && name.trim())
-        )].sort();
-
-        let optionsHtml = '<option value="">供应商</option>';
-        supplierNames.forEach(name => {
-            optionsHtml += `<option value="${escapeHtml(name)}">${escapeHtml(truncate(name, 15))}</option>`;
-        });
-        supplierFilterSelect.innerHTML = optionsHtml;
-
-        if (currentValue && supplierNames.includes(currentValue)) {
-            supplierFilterSelect.value = currentValue;
-        }
-    }
 
     // 获取记录类型标签
     function getRecordTypeBadge(recordType) {
@@ -844,11 +809,6 @@ document.addEventListener('DOMContentLoaded', function() {
             filtered = filtered.filter(r => r.record_type === eoTypeFilterValue);
         }
 
-        // 供应商筛选
-        if (eoSupplierFilterValue) {
-            filtered = filtered.filter(r => (r.supplier_name || r.record_supplier) === eoSupplierFilterValue);
-        }
-
         // 关键字搜索
         if (eoSearchKeyword) {
             filtered = filtered.filter(r => {
@@ -861,7 +821,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        const hasFilter = eoSearchKeyword || eoSupplierFilterValue || eoTypeFilterValue;
+        const hasFilter = eoSearchKeyword || eoTypeFilterValue;
 
         if (filtered.length === 0) {
             eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>';
