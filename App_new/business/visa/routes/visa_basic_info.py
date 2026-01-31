@@ -2502,24 +2502,11 @@ def batch_update_responsible_party():
             'message': f'批量更新失败: {str(e)}'
         }), 500
 
-# 签证类型管理主页面
+# 签证类型管理主页面（已废弃，重定向到签证类型列表）
 @visa_basic.route('/visa_type_management')
 def visa_type_management():
-    """签证类型管理主页面"""
-    try:
-        # 获取所有签证类型
-        visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
-        
-        # 为每个签证类型获取实际的身份选项
-        for vt in visa_types:
-            actual_identities = [identity.identity_zh for identity in vt.identities]
-            vt.actual_identities = actual_identities
-        
-        return render_template('business/visa/签证类型管理/visa_type_management.html',
-                             visa_types=visa_types)
-    except Exception as e:
-        flash(f'加载签证类型管理页面时出错: {str(e)}', 'error')
-        return redirect(url_for('visa_basic.visa_type_list'))
+    """签证类型管理主页面 - 重定向到签证类型列表"""
+    return redirect(url_for('visa_basic.visa_type_list'))
 
 
 # 模板文件管理相关路由
