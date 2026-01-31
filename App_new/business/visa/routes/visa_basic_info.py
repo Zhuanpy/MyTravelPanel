@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from App_new.exts import db, csrf
 from App_new.business.visa.models.Visamodels import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocuments, VisaDocumentsList, VisaLinks
 from App_new.utils.decorators import staff_only
@@ -456,7 +456,6 @@ def visa_type_list():
     visa_types = pagination.items
 
     # 为每个签证类型获取实际的身份选项和计算有效期
-    from datetime import datetime, timedelta
     for vt in visa_types:
         # 从 visa_type_identities 表获取该签证类型的实际身份选项
         # 使用多对多关系直接获取
