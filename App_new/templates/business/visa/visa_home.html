@@ -48,39 +48,17 @@
         </h2>
         
         <div class="quick-actions-grid">
-            <!-- 核心业务 -->
             <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="quick-action-btn btn-blue">
                 <i class="fas fa-project-diagram"></i> 项目管理
             </a>
             <a href="{{ url_for('visa_documents_list.documents_list') }}" class="quick-action-btn btn-purple">
                 <i class="fas fa-database"></i> 文档资料管理
             </a>
-            
-            <!-- 基础配置 -->
             <a href="{{ url_for('visa_basic.visa_type_list') }}" class="quick-action-btn btn-green">
                 <i class="fas fa-list"></i> 签证类型列表
             </a>
-            <a href="{{ url_for('visa_basic.manage_countries') }}" class="quick-action-btn btn-indigo">
-                <i class="fas fa-flag"></i> 签证国家管理
-            </a>
-            <a href="{{ url_for('visa_basic.manage_identities') }}" class="quick-action-btn btn-yellow">
-                <i class="fas fa-id-card"></i> 新加坡身份管理
-            </a>
-            
-            <!-- 关联配置 -->
-            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="quick-action-btn btn-blue">
+            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="quick-action-btn btn-orange">
                 <i class="fas fa-file-alt"></i> 签证文档配置
-            </a>
-            <a href="{{ url_for('visa_basic.visa_document_relations_manager') }}" class="quick-action-btn btn-purple">
-                <i class="fas fa-sitemap"></i> 文档关联管理
-            </a>
-            <a href="{{ url_for('visa_links.visa_link_page') }}" class="quick-action-btn btn-green">
-                <i class="fas fa-external-link-alt"></i> 签证链接管理
-            </a>
-            
-            <!-- 资源管理 -->
-            <a href="javascript:void(0);" onclick="openVisaRootFolder()" class="quick-action-btn btn-red">
-                <i class="fas fa-folder"></i> 资源文件夹
             </a>
         </div>
     </div>
