@@ -815,9 +815,19 @@ function renderAccountRow(account) {
     } else if (account.supplier_id) {
         // 如果有 supplier_id 但没有 supplier_name，尝试从本地查找
         if (typeof getSupplierName === 'function') {
-            supplierText = getSupplierName(account.supplier_id);
+            const localName = getSupplierName(account.supplier_id);
+            // 如果本地也找不到，可能供应商已被删除
+            if (localName && !localName.startsWith('ID:') && localName !== '加载中...') {
+                supplierText = localName;
+            } else {
+                supplierText = '供应商已删除';
+                supplierCell.style.color = '#999';
+                supplierCell.style.fontStyle = 'italic';
+            }
         } else {
-            supplierText = `ID:${account.supplier_id}`;
+            supplierText = '供应商已删除';
+            supplierCell.style.color = '#999';
+            supplierCell.style.fontStyle = 'italic';
         }
     }
     supplierCell.textContent = supplierText;

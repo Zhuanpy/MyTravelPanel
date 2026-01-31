@@ -263,19 +263,34 @@ def get_popular_accounts():
 def get_accounts():
     try:
         logger.info("Fetching all accounts")
-        
+
         # 构建查询
         query = Account.query
-        
+
         # 使用新的权限过滤函数
         query = filter_accounts_by_access(query, current_user)
-        
+
         accounts = query.all()
+
+        # 预先获取所有需要的供应商ID，批量查询供应商名称
+        supplier_ids = [acc.supplier_id for acc in accounts if acc.supplier_id]
+        supplier_names = {}
+        if supplier_ids:
+            suppliers = CustomerCompany.query.filter(CustomerCompany.id.in_(supplier_ids)).all()
+            supplier_names = {s.id: s.company_name for s in suppliers}
+
         accounts_data = []
         for account in accounts:
             # 检查编辑和删除权限
             can_edit, can_delete = check_account_permissions(account, current_user)
-            
+
+            # 获取供应商名称（优先使用批量查询结果）
+            supplier_name = None
+            if account.supplier_id:
+                supplier_name = supplier_names.get(account.supplier_id)
+                if not supplier_name and account.supplier:
+                    supplier_name = account.supplier.company_name
+
             accounts_data.append({
             'id': account.id,
             'platform': account.platform,
@@ -292,7 +307,7 @@ def get_accounts():
             'created_at': account.created_at.isoformat() if account.created_at else None,
             'updated_at': account.updated_at.isoformat() if account.updated_at else None,
             'supplier_id': account.supplier_id,
-            'supplier_name': account.supplier.company_name if account.supplier else None,
+            'supplier_name': supplier_name,
             'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
                 'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
                 'can_edit': can_edit,
