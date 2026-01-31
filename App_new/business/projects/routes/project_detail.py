@@ -816,7 +816,11 @@ def copy_project(project_id):
         # 生成新的HID
         new_hid = ProjectHeader.generate_hid()
 
-        # 复制项目主表
+        # 复制项目主表（日期使用当前时间）
+        from datetime import datetime
+        now = datetime.now()  # 使用本地时间而非UTC
+        print(f"[DEBUG] 复制项目 - 当前时间: {now}")
+
         new_header = ProjectHeader(
             hid=new_hid,
             desc=original.desc,
@@ -837,6 +841,9 @@ def copy_project(project_id):
             operator_names=original.operator_names,
             salesperson_ids=original.salesperson_ids,
             salesperson_names=original.salesperson_names,
+            # 显式设置日期为当前时间
+            created_at=now,
+            updated_at=now,
         )
         db.session.add(new_header)
         db.session.flush()  # 获取新项目ID
@@ -861,6 +868,9 @@ def copy_project(project_id):
                 extra_info=ref.extra_info,
                 status='confirmed',
                 payment_status='unpaid',
+                # 显式设置日期为当前时间
+                created_at=now,
+                updated_at=now,
             )
             db.session.add(new_ref)
             db.session.flush()  # 获取新REF ID
@@ -879,6 +889,9 @@ def copy_project(project_id):
                     cabin_class=seg.cabin_class,
                     cabin_code=seg.cabin_code,
                     status=seg.status,
+                    # 显式设置日期为当前时间
+                    created_at=now,
+                    updated_at=now,
                 )
                 db.session.add(new_segment)
                 segment_count += 1
@@ -894,6 +907,9 @@ def copy_project(project_id):
                     cost_price=pax.cost_price,
                     ticket_number=None,  # 不复制票号
                     pnr=None,  # 不复制PNR
+                    # 显式设置日期为当前时间
+                    created_at=now,
+                    updated_at=now,
                 )
                 db.session.add(new_passenger)
                 passenger_count += 1
@@ -913,6 +929,9 @@ def copy_project(project_id):
                 id_number=member.id_number,
                 is_leader=member.is_leader,
                 remarks=member.remarks,
+                # 显式设置日期为当前时间
+                created_at=now,
+                updated_at=now,
             )
             db.session.add(new_member)
             member_count += 1

@@ -152,21 +152,21 @@ class JournalEntry(db.Model):
         if self.status != 'posted':
             raise ValueError("Only posted entries can be reversed")
 
-        # 创建冲销分录
+        # 创建冲销分录（保留原始来源信息）
         reverse_entry = JournalEntry(
             entry_number=self._generate_entry_number(),
             entry_date=entry_date or date.today(),
-            source_type='manual',
-            source_id=self.id,
-            source_number=f'REV-{self.entry_number}',
+            source_type=self.source_type,  # 保留原来源类型
+            source_id=self.source_id,  # 保留原来源ID
+            source_number=f'REV-{self.source_number}' if self.source_number else f'REV-{self.entry_number}',
             header_id=self.header_id,
-            description=f'Reversal of {self.entry_number}',
+            description=f'Reversal: {self.description}' if self.description else f'Reversal of {self.entry_number}',
             currency=self.currency,
             status='posted',
             posted_at=datetime.utcnow(),
             posted_by=user,
             created_by=user,
-            remarks=f'Reversal entry for {self.entry_number}'
+            remarks=f'冲销 {self.entry_number} ({self.source_type}: {self.source_number})'
         )
 
         # 创建冲销分录行（借贷互换）
@@ -219,7 +219,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=invoice.created_at.date() if invoice.created_at else date.today(),
+            entry_date=invoice.invoice_date or date.today(),
             source_type='invoice',
             source_id=invoice.id,
             source_number=invoice.invoice_number,
@@ -268,7 +268,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=receipt.created_at.date() if receipt.created_at else date.today(),
+            entry_date=receipt.payment_date or date.today(),
             source_type='receipt',
             source_id=receipt.id,
             source_number=receipt.receipt_number,
@@ -320,7 +320,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=eo.created_at.date() if eo.created_at else date.today(),
+            entry_date=eo.paid_date or date.today(),
             source_type='eo',
             source_id=eo.id,
             source_number=eo.eo_number,
@@ -372,7 +372,7 @@ class JournalEntry(db.Model):
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
-            entry_date=eo.created_at.date() if eo.created_at else date.today(),
+            entry_date=eo.paid_date or date.today(),
             source_type='eo',
             source_id=eo.id,
             source_number=eo.eo_number,

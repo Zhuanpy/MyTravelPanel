@@ -231,16 +231,10 @@
                     <i class="fas fa-file-invoice"></i> 生成发票
                 </button>
                 {% endif %}
-                <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=header.id) }}" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-list"></i> 发票列表
-                </a>
                 <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
                 {% if not header.is_settled %}
-                <a href="{{ url_for('business_projects.project_receipt.create_header_receipt', header_id=header.id) }}" class="btn btn-warning btn-sm">
-                    <i class="fas fa-plus-circle"></i> 新增收款
-                </a>
                 <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plane"></i> 机票
                 </a>
@@ -1065,6 +1059,86 @@ function deleteMember(memberId, memberName) {
                     </div>
                 </div>
             </div>
+
+            <!-- 已生成发票列表 -->
+            <div style="border-top: 1px solid #dee2e6;">
+                <div style="padding: 10px 20px; background-color: #e3f2fd; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; color: #1565c0;">
+                        <i class="fas fa-list"></i> 已生成发票
+                        <span class="badge bg-primary ms-1">{{ header.invoices|selectattr('status', 'ne', 'cancelled')|list|length }}</span>
+                    </span>
+                </div>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    {% if header.invoices %}
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa;">
+                            <tr>
+                                <th style="padding: 6px 10px;">发票编号</th>
+                                <th style="padding: 6px 10px;">金额</th>
+                                <th style="padding: 6px 10px;">已付</th>
+                                <th style="padding: 6px 10px;">日期</th>
+                                <th style="padding: 6px 10px;">状态</th>
+                                <th style="padding: 6px 10px; width: 100px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in header.invoices %}
+                            <tr {% if invoice.status == 'cancelled' %}style="opacity: 0.5; background-color: #f5f5f5;"{% endif %}>
+                                <td style="padding: 6px 10px;">
+                                    <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
+                                       class="text-primary text-decoration-none" target="_blank">
+                                        {{ invoice.invoice_number }}
+                                    </a>
+                                </td>
+                                <td style="padding: 6px 10px;">
+                                    <span class="fw-bold">{{ invoice.currency }} {{ "%.2f"|format(invoice.amount) }}</span>
+                                </td>
+                                <td style="padding: 6px 10px;">
+                                    <span class="text-success">{{ "%.2f"|format(invoice.paid_amount or 0) }}</span>
+                                </td>
+                                <td style="padding: 6px 10px;">{{ invoice.invoice_date.strftime('%m-%d') if invoice.invoice_date else '-' }}</td>
+                                <td style="padding: 6px 10px;">
+                                    <span class="badge
+                                        {% if invoice.status == 'cancelled' %}bg-secondary
+                                        {% elif invoice.payment_status == 'paid' %}bg-success
+                                        {% elif invoice.payment_status == 'partial_paid' %}bg-warning
+                                        {% else %}bg-light text-dark{% endif %}"
+                                        style="font-size: 0.65rem;">
+                                        {% if invoice.status == 'cancelled' %}已作废
+                                        {% elif invoice.payment_status == 'paid' %}已付
+                                        {% elif invoice.payment_status == 'partial_paid' %}部分
+                                        {% else %}未付{% endif %}
+                                    </span>
+                                </td>
+                                <td style="padding: 6px 10px;">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
+                                           class="btn btn-outline-info py-0 px-1" title="查看" target="_blank" style="font-size: 0.7rem;">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if invoice.status != 'cancelled' and not header.is_settled %}
+                                        <a href="{{ url_for('business_projects.project_invoice.edit_invoice', invoice_id=invoice.id) }}"
+                                           class="btn btn-outline-warning py-0 px-1" title="编辑" target="_blank" style="font-size: 0.7rem;">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger py-0 px-1"
+                                                onclick="voidInvoiceFromDetail('{{ invoice.invoice_number }}')" title="作废" style="font-size: 0.7rem;">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <span class="text-muted" style="font-size: 0.85rem;">暂无发票记录</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1388,7 +1462,9 @@ function generateInvoice() {
     }
     
     // 收集表单数据（发票日期自动使用当天）
-    const today = new Date().toISOString().split('T')[0];
+    // 使用本地日期而非UTC
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const invoiceData = {
         header_id: window.headerId,
         invoice_date: today,
@@ -1584,7 +1660,75 @@ document.getElementById('invoiceModal')?.addEventListener('click', function(e) {
         closeInvoiceModal();
     }
 });
+
+// ========== 发票作废功能 ==========
+let currentVoidInvoiceNumber = null;
+
+function voidInvoiceFromDetail(invoiceNumber) {
+    currentVoidInvoiceNumber = invoiceNumber;
+    document.getElementById('voidInvoiceNumberDetail').textContent = invoiceNumber;
+    document.getElementById('voidInvoiceModalDetail').style.display = 'block';
+}
+
+function closeVoidInvoiceModal() {
+    document.getElementById('voidInvoiceModalDetail').style.display = 'none';
+    currentVoidInvoiceNumber = null;
+}
+
+function confirmVoidInvoice() {
+    if (!currentVoidInvoiceNumber) return;
+
+    fetch('{{ url_for("business_projects.project_invoice.void_invoice") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            header_id: {{ header.id }},
+            invoice_number: currentVoidInvoiceNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeVoidInvoiceModal();
+            location.reload();
+        } else {
+            alert('作废失败：' + data.message);
+        }
+    })
+    .catch(err => {
+        alert('作废失败：' + err);
+    });
+}
+
+document.getElementById('voidInvoiceModalDetail')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeVoidInvoiceModal();
+    }
+});
 </script>
+
+<!-- 发票作废确认模态框 -->
+<div id="voidInvoiceModalDetail" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header" style="background-color: #dc3545; color: white;">
+            <h5 class="modal-title" style="color: white; margin: 0;">
+                <i class="fas fa-ban"></i> 确认作废
+            </h5>
+            <span class="close" onclick="closeVoidInvoiceModal()" style="color: white; font-size: 24px; cursor: pointer;">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <p>确定要作废发票 <strong id="voidInvoiceNumberDetail"></strong> 吗？</p>
+            <p class="text-muted" style="font-size: 0.85rem;">作废后记录将保留，日记账分录将被冲销</p>
+        </div>
+        <div class="modal-footer" style="padding: 15px; border-top: 1px solid #dee2e6; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeVoidInvoiceModal()">取消</button>
+            <button type="button" class="btn btn-danger" onclick="confirmVoidInvoice()">确认作废</button>
+        </div>
+    </div>
+</div>
 
 <!-- 模态框样式 -->
 <style>

@@ -164,14 +164,16 @@
                                                class="btn btn-outline-info" title="查看详情">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{{ url_for('business_projects.project_invoice.edit_invoice', invoice_id=invoice.id) }}" 
+                                            {% if invoice.status != 'cancelled' %}
+                                            <a href="{{ url_for('business_projects.project_invoice.edit_invoice', invoice_id=invoice.id) }}"
                                                class="btn btn-outline-warning" title="编辑">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <button type="button" class="btn btn-outline-danger" 
-                                                    onclick="deleteInvoice({{ invoice.id }}, '{{ invoice.invoice_number }}')" title="删除">
-                                                <i class="fas fa-trash"></i>
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    onclick="voidInvoice('{{ invoice.invoice_number }}')" title="作废">
+                                                <i class="fas fa-ban"></i>
                                             </button>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -196,37 +198,63 @@
     </div>
 </div>
 
-<!-- 删除确认模态框 -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
+<!-- 作废确认模态框 -->
+<div class="modal fade" id="voidModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">确认删除</h5>
+                <h5 class="modal-title">确认作废</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>确定要删除发票 <strong id="invoiceNumber"></strong> 吗？</p>
-                <p class="text-danger">此操作不可撤销</p>
+                <p>确定要作废发票 <strong id="voidInvoiceNumber"></strong> 吗？</p>
+                <p class="text-muted">作废后记录将保留，日记账分录将被冲销</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger">确认删除</button>
-                </form>
+                <button type="button" class="btn btn-danger" id="confirmVoidBtn">确认作废</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-function deleteInvoice(invoiceId, invoiceNumber) {
-    document.getElementById('invoiceNumber').textContent = invoiceNumber;
-    document.getElementById('deleteForm').action = "{{ url_for('business_projects.project_invoice.delete_invoice', invoice_id=0) }}".replace('/0', '/' + invoiceId);
-    
-    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    deleteModal.show();
+let currentVoidInvoiceNumber = null;
+
+function voidInvoice(invoiceNumber) {
+    currentVoidInvoiceNumber = invoiceNumber;
+    document.getElementById('voidInvoiceNumber').textContent = invoiceNumber;
+
+    const voidModal = new bootstrap.Modal(document.getElementById('voidModal'));
+    voidModal.show();
 }
+
+document.getElementById('confirmVoidBtn').addEventListener('click', function() {
+    if (!currentVoidInvoiceNumber) return;
+
+    fetch('{{ url_for("business_projects.project_invoice.void_invoice") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            header_id: {{ header.id }},
+            invoice_number: currentVoidInvoiceNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('作废失败：' + data.message);
+        }
+    })
+    .catch(err => {
+        alert('作废失败：' + err);
+    });
+});
 </script>
 {% endblock %}
 

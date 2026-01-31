@@ -33,6 +33,16 @@ project_receipt = Blueprint('project_receipt', __name__)
 def create_receipt(ref_id):
     """创建REF级别收款记录"""
     ref = ProjectRef.query.get_or_404(ref_id)
+
+    # 检查是否有发票（必须先生成发票才能收款）
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    invoice_count = ProjectInvoice.query.filter_by(header_id=ref.header_id).filter(
+        ProjectInvoice.status != 'cancelled'
+    ).count()
+    if invoice_count == 0:
+        flash('请先生成发票后再创建收款记录', 'warning')
+        return redirect(url_for('business_projects.project_receipt.ref_receipts', ref_id=ref_id))
+
     form = ProjectReceiptForm()
 
     # 动态填充发票选择
@@ -230,20 +240,29 @@ def delete_receipt(receipt_id):
         # 冲销对应的日记账分录
         from App_new.finance.models.journal_entry import JournalEntry
         from flask_login import current_user
+
+        print(f"[DEBUG] 删除收款 - receipt.id={receipt.id}, receipt_number={receipt.receipt_number}")
+
         journal_entry = JournalEntry.query.filter(
             JournalEntry.source_type == 'receipt',
             JournalEntry.source_id == receipt.id,
             JournalEntry.status == 'posted'
         ).first()
 
+        print(f"[DEBUG] 查找日记账分录 - 找到: {journal_entry.entry_number if journal_entry else 'None'}")
+
         if journal_entry:
             try:
                 reversal = journal_entry.reverse(user=current_user.username if current_user else None)
                 if reversal:
                     db.session.add(reversal)
+                    print(f"[DEBUG] 冲销成功 - 原分录状态: {journal_entry.status}, 冲销分录: {reversal.entry_number}")
             except Exception as je_err:
                 import logging
                 logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
+                print(f"[DEBUG] 冲销失败: {str(je_err)}")
+        else:
+            print(f"[DEBUG] 未找到对应的日记账分录")
 
         # 删除分配记录（级联删除或手动删除）
         ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
@@ -294,10 +313,12 @@ def update_receipt_status(receipt_id):
     try:
         receipt.status = status
 
-        # 如果状态变更为 cancelled，冲销对应的日记账分录
+        # 如果状态变更为 cancelled，冲销对应的日记账分录并删除发票分配
         if status == 'cancelled' and old_status != 'cancelled':
             from App_new.finance.models.journal_entry import JournalEntry
             from flask_login import current_user
+
+            # 冲销日记账分录
             journal_entry = JournalEntry.query.filter(
                 JournalEntry.source_type == 'receipt',
                 JournalEntry.source_id == receipt.id,
@@ -312,6 +333,16 @@ def update_receipt_status(receipt_id):
                 except Exception as je_err:
                     import logging
                     logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
+
+            # 获取受影响的发票ID（在删除分配前）
+            affected_invoice_ids = [a.invoice_id for a in receipt.invoice_allocations]
+
+            # 删除发票分配记录
+            ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
+
+            # 更新受影响发票的已付金额
+            for inv_id in affected_invoice_ids:
+                ProjectReceipt.update_invoice_paid_amount(inv_id)
 
         # 先提交收款记录状态更新
         db.session.flush()
@@ -329,9 +360,10 @@ def update_receipt_status(receipt_id):
                 else:
                     ref.payment_status = 'unpaid'
 
-        # 更新所有分配发票的已付金额（状态变更会影响已付金额计算）
-        for allocation in receipt.invoice_allocations:
-            ProjectReceipt.update_invoice_paid_amount(allocation.invoice_id)
+        # 更新所有分配发票的已付金额（非取消状态时，取消状态已在上面处理）
+        if status != 'cancelled':
+            for allocation in receipt.invoice_allocations:
+                ProjectReceipt.update_invoice_paid_amount(allocation.invoice_id)
 
         db.session.commit()
 
@@ -433,6 +465,15 @@ def header_receipts(header_id):
 def create_header_receipt(header_id):
     """创建项目级别收款记录"""
     header = ProjectHeader.query.get_or_404(header_id)
+
+    # 检查是否有发票（必须先生成发票才能收款）
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    invoice_count = ProjectInvoice.query.filter_by(header_id=header_id).filter(
+        ProjectInvoice.status != 'cancelled'
+    ).count()
+    if invoice_count == 0:
+        flash('请先生成发票后再创建收款记录', 'warning')
+        return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
     # 检查是否还有未收款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
@@ -775,6 +816,25 @@ def delete_header_receipt(header_id, receipt_id):
     ref_id = receipt.ref_id  # 保存REF ID
 
     try:
+        # 冲销对应的日记账分录
+        from App_new.finance.models.journal_entry import JournalEntry
+        from flask_login import current_user
+
+        journal_entry = JournalEntry.query.filter(
+            JournalEntry.source_type == 'receipt',
+            JournalEntry.source_id == receipt.id,
+            JournalEntry.status == 'posted'
+        ).first()
+
+        if journal_entry:
+            try:
+                reversal = journal_entry.reverse(user=current_user.username if current_user else None)
+                if reversal:
+                    db.session.add(reversal)
+            except Exception as je_err:
+                import logging
+                logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
+
         # 删除分配记录
         ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
 
@@ -1370,10 +1430,16 @@ def create_company_receipt(company_id):
     from App_new.business.projects.forms.receipt_forms import CompanyReceiptForm
 
     company = CustomerCompany.query.get_or_404(company_id)
-    form = CompanyReceiptForm()
 
     # 获取公司未付发票
     unpaid_invoices = ProjectInvoice.get_company_unpaid_invoices(company_id)
+
+    # 检查是否有未付发票
+    if not unpaid_invoices:
+        flash('该公司没有未付款的发票，无法创建收款记录', 'warning')
+        return redirect(url_for('business_projects.project_receipt.receipt_list'))
+
+    form = CompanyReceiptForm()
 
     # 动态生成发票选择选项
     invoice_choices = [(inv.id, f"{inv.invoice_number} - {inv.currency} {float(inv.amount):.2f} (未付: {inv.unpaid_amount:.2f})")

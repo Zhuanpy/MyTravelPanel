@@ -715,9 +715,13 @@ def void_invoice():
         # 检查发票状态
         if invoice.status == 'cancelled':
             return jsonify({'success': False, 'message': '该发票已经被取消'})
-        
+
         if invoice.status == 'paid':
             return jsonify({'success': False, 'message': '已付款的发票不能取消，请先处理退款'})
+
+        # 检查是否有收款分配
+        if invoice.receipt_allocations and len(invoice.receipt_allocations) > 0:
+            return jsonify({'success': False, 'message': '该发票已分配收款，请先取消收款分配后再作废'})
 
         # 冲销对应的日记账分录
         journal_reversed = False
