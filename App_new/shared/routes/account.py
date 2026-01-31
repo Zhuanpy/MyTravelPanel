@@ -523,25 +523,22 @@ def update_account(account_id):
         if 'supplier_id' in data:
             supplier_id = data.get('supplier_id')
             # 处理空字符串和 null
-            if supplier_id == '' or supplier_id == 'null':
+            if supplier_id == '' or supplier_id == 'null' or supplier_id is None:
                 supplier_id = None
-            
-            if supplier_id is not None:
+            else:
                 # 验证供应商是否存在
                 try:
                     supplier_id = int(supplier_id)
                     supplier = CustomerCompany.query.get(supplier_id)
                     if not supplier:
-                        return jsonify({
-                            'success': False,
-                            'message': f'供应商ID {supplier_id} 不存在'
-                        }), 400
+                        # 供应商不存在，清除关联
+                        logger.warning(f"供应商ID {supplier_id} 不存在，清除关联")
+                        supplier_id = None
                 except (ValueError, TypeError):
-                    return jsonify({
-                        'success': False,
-                        'message': '供应商ID格式错误'
-                    }), 400
-            
+                    # 格式错误，清除关联
+                    logger.warning(f"供应商ID格式错误: {data.get('supplier_id')}，清除关联")
+                    supplier_id = None
+
             account.supplier_id = supplier_id
             logger.info(f"Updated supplier_id to: {supplier_id}")
 
