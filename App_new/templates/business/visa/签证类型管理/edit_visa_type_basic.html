@@ -145,27 +145,34 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.625rem 0.875rem;
-    background: var(--visa-bg-light);
-    border: 1px solid var(--visa-border);
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
     border-radius: var(--visa-radius-sm);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
 }
 
 .identity-checkbox:hover {
-    border-color: var(--visa-primary);
-    background: var(--visa-primary-light, #dbeafe);
+    border-color: #10b981;
+    background: #f0fdf4;
 }
 
 .identity-checkbox input {
     width: 18px;
     height: 18px;
     cursor: pointer;
+    accent-color: #10b981;
 }
 
 .identity-checkbox.checked {
-    border-color: var(--visa-primary);
-    background: var(--visa-primary-light, #dbeafe);
+    border-color: #10b981;
+    background: #ecfdf5;
+    box-shadow: 0 0 0 1px #10b981 inset;
+}
+
+.identity-checkbox.checked span {
+    color: #047857;
+    font-weight: 500;
 }
 
 .identity-checkbox span {
