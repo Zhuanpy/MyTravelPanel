@@ -85,9 +85,15 @@ class VisaTypes(db.Model):
     # 处理时间
     processing_time = db.Column(db.String(200), nullable=False)
 
-    # 申请费用
+    # 申请费用（售价）
     fee = db.Column(db.String(200), nullable=False)
-    
+
+    # 成本
+    cost = db.Column(db.String(200), nullable=True, comment='成本价格')
+
+    # 签证有效期（如：90天、1年多次）
+    validity_period = db.Column(db.String(100), nullable=True, comment='签证有效期')
+
     # 签证说明
     introduction = db.Column(db.Text, nullable=True)
     
@@ -133,6 +139,8 @@ class VisaTypes(db.Model):
             'visa_type': self.visa_type,
             'processing_time': self.processing_time,
             'fee': self.fee,
+            'cost': self.cost,
+            'validity_period': self.validity_period,
             'introduction': self.introduction,
             'country_id': self.country_id,
             'country_name': self.country.country_name_CN if self.country else None,

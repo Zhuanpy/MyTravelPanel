@@ -1,1708 +1,1137 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Visa Type Document Manager - MyTravelPanel{% endblock %}
+{% block title %}文档配置 - {{ selected_visa_type or '签证类型' }}{% endblock %}
 
-{% block page_title %}Visa Type Document Manager{% endblock %}
+{% block page_title %}签证文档配置{% endblock %}
 
 {% block extra_css %}
-<!-- FontAwesome 6.5.0 -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-<!-- 添加CSRF令牌 -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
-
 <style>
-    /* ========= 全局变量定义 ========= */
-    :root {
-        --color-primary: #2a5298;
-        --color-primary-hover: #1a365d;
-        --color-accent: #3a6ea5;
-        --color-accent-bg: #eaf1fb;
-        --color-accent-bg-hover: #d2e6fa;
-        --color-text-dark: #2d3a4b;
-        --color-text-gray: #6c7a89;
-        --color-border: #e2e8f0;
-        --color-light-bg: #f8f9fa;
-        --color-success: #10b981;
-        --color-warning: #f59e0b;
-        --color-danger: #ef4444;
-        --radius: 8px;
-        --radius-lg: 12px;
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-        --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    /* ========= 基础容器 ========= */
-    .visa-document-manager {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* ========= 页面头部 ========= */
-    .manager-header {
-        background: var(--color-light-bg);
-        padding: 24px;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        margin-bottom: 24px;
-        text-align: center;
-    }
-
-    .manager-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--color-text-dark);
-        margin-bottom: 12px;
-    }
-
-    .manager-subtitle {
-        color: var(--color-text-gray);
-        font-size: 1rem;
-    }
-
-    /* ========= 主要内容区域 ========= */
-    .manager-content {
-        display: flex;
-        gap: 24px;
-        flex: 1;
-        min-height: calc(100vh - 200px);
-    }
-
-    /* ========= 左侧签证类型列表 ========= */
-    .visa-types-panel {
-        width: 300px;
-        background: white;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-md);
-        padding: 20px;
-        height: fit-content;
-        max-height: calc(100vh - 250px);
-        overflow-y: auto;
-    }
-
-    .visa-types-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .visa-type-item {
-        padding: 12px 16px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        margin-bottom: 8px;
-        border: 1px solid var(--color-border);
-        background: var(--color-light-bg);
-    }
-
-    .visa-type-item:hover {
-        background: var(--color-accent-bg);
-        border-color: var(--color-accent);
-    }
-
-    .visa-type-item.active {
-        background: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary);
-    }
-
-    /* ========= 右侧配置区域 ========= */
-    .config-panel {
-        flex: 1;
-        background: white;
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-md);
-        padding: 24px;
-        min-height: calc(100vh - 250px);
-        overflow-y: auto;
-    }
-
-    .config-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .config-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .save-button {
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        font-weight: 500;
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .save-button:hover {
-        background: var(--color-primary-hover);
-    }
-
-    .save-button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
-
-    /* ========= 身份配置区域 ========= */
-    .identity-configs {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
-
-    .identity-config {
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 20px;
-        background: var(--color-light-bg);
-    }
-
-    .identity-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .identity-name {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .identity-badge {
-        background: var(--color-accent);
-        color: white;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    /* ========= 身份选择器样式 ========= */
-    .identity-selector-item {
-        transition: all 0.2s ease;
-    }
-
-    .identity-selector-item:hover {
-        background: var(--color-accent-bg) !important;
-        border-color: var(--color-accent) !important;
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
-    }
-
-    .identity-selector-item .fa-chevron-right {
-        transition: transform 0.2s ease;
-    }
-
-    /* ========= 文档选择区域 ========= */
-    .document-selection {
-        margin-bottom: 20px;
-    }
-
-    .document-selection h4 {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        margin-bottom: 12px;
-    }
-
-    .document-categories {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        overflow-y: auto;
-        padding: 8px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        background: white;
-    }
-
-    .document-category {
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        background: var(--color-light-bg);
-        overflow: hidden;
-    }
-
-    .category-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        background: var(--color-accent-bg);
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .category-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .category-title i {
-        color: var(--color-accent);
-    }
-
-    .category-count {
-        background: var(--color-accent);
-        color: white;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-
-    .category-documents {
-        padding: 12px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .document-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border: 1px solid #e2e8f0;
-        background: white;
-        font-size: 0.95rem;
-        min-width: 180px;
-        margin-bottom: 4px;
-        position: relative;
-    }
-
-    .document-item:hover {
-        background: var(--color-accent-bg);
-        border-color: var(--color-accent);
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
-    }
-
-    .document-item.selected {
-        background: var(--color-accent-bg);
-        border-color: var(--color-accent);
-        box-shadow: 0 0 0 2px rgba(58, 110, 165, 0.2);
-        transform: translateY(-1px);
-    }
-
-    .document-item.selected::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: var(--color-accent);
-        border-radius: 2px 0 0 2px;
-    }
-
-    .document-item input[type="checkbox"] {
-        margin: 0;
-        flex-shrink: 0;
-    }
-
-    .document-item label {
-        cursor: pointer;
-        color: var(--color-text-dark);
-        margin: 0;
-        flex: 1;
-        font-size: 0.95rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .document-item label i {
-        transition: all 0.2s ease;
-    }
-
-    /* ========= 准备方选择样式 ========= */
-    .responsible-party-checkboxes {
-        transition: all 0.2s ease;
-    }
-
-    .responsible-party-option {
-        transition: all 0.2s ease;
-    }
-
-    .responsible-party-option:hover {
-        background: var(--color-accent-bg) !important;
-        border-color: var(--color-accent) !important;
-    }
-
-    .responsible-party-option input[type="radio"] {
-        cursor: pointer;
-    }
-
-    .responsible-party-option input[type="radio"]:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
-
-    /* ========= 补充信息区域 ========= */
-    .additional-info h4 {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--color-text-dark);
-        margin-bottom: 8px;
-    }
-
-    .additional-info textarea {
-        width: 100%;
-        min-height: 80px;
-        padding: 12px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        resize: vertical;
-        font-family: inherit;
-        font-size: 0.9rem;
-    }
-
-    .additional-info textarea:focus {
-        outline: none;
-        border-color: var(--color-accent);
-        box-shadow: 0 0 0 2px rgba(58, 110, 165, 0.1);
-    }
-
-    /* ========= 加载状态 ========= */
-    .loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        padding: 40px;
-        color: var(--color-text-gray);
-        font-size: 1.1rem;
-    }
-
-    .loading i {
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    /* ========= 状态消息 ========= */
-    .status-message {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: var(--radius);
-        color: white;
-        font-weight: 500;
-        z-index: 1000;
-        display: none;
-    }
-
-    .status-message.success {
-        background: #10b981;
-    }
-
-    .status-message.error {
-        background: #ef4444;
-    }
-
-    .status-message.warning {
-        background: #f59e0b;
-    }
-
-    .status-message.info {
-        background: var(--color-accent);
-    }
-
-    /* ========= 复制对话框样式 ========= */
-    .copy-dialog {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 2000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .copy-dialog-content {
-        background: white;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-        width: 90%;
-        max-width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-
-    .copy-dialog-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--color-border);
-        background: var(--color-light-bg);
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    }
-
-    .copy-dialog-header h3 {
-        margin: 0;
-        color: var(--color-text-dark);
-        font-size: 1.25rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .close-dialog {
-        background: none;
-        border: none;
-        font-size: 1.2rem;
-        color: var(--color-text-gray);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-    }
-
-    .close-dialog:hover {
-        background: var(--color-accent-bg);
-        color: var(--color-accent);
-    }
-
-    .copy-dialog-body {
-        padding: 24px;
-    }
-
-    .copy-dialog-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        padding: 20px 24px;
-        border-top: 1px solid var(--color-border);
-        background: var(--color-light-bg);
-        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-    }
-
-    .btn-cancel {
-        background: var(--color-text-gray);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        font-weight: 500;
-        transition: background-color 0.2s;
-    }
-
-    .btn-cancel:hover {
-        background: #5a6c7d;
-    }
-
-    .btn-copy {
-        background: var(--color-accent);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: var(--radius);
-        cursor: pointer;
-        font-weight: 500;
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .btn-copy:hover:not(:disabled) {
-        background: var(--color-primary-hover);
-    }
-
-    .btn-copy:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
-
-    .copy-button:hover {
-        background: var(--color-primary-hover);
-    }
-
-    /* ========= 响应式设计 ========= */
-    @media (max-width: 1024px) {
-        .manager-content {
-            flex-direction: column;
-        }
-        
-        .visa-types-panel {
-            width: 100%;
-            max-height: 300px;
-        }
-        
-        .category-documents {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        }
-    }
-
-    @media (max-width: 768px) {
-        .visa-document-manager {
-            padding: 12px;
-        }
-        
-        .manager-header {
-            padding: 16px;
-        }
-        
-        .manager-title {
-            font-size: 1.5rem;
-        }
-        
-        .config-panel {
-            padding: 16px;
-        }
-        
-        .config-header {
-            flex-direction: column;
-            gap: 12px;
-            align-items: flex-start;
-        }
-        
-        .category-documents {
-            grid-template-columns: 1fr;
-        }
-    }
+:root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --danger: #ef4444;
+    --text-dark: #1f2937;
+    --text-gray: #6b7280;
+    --text-light: #9ca3af;
+    --border: #e5e7eb;
+    --bg-light: #f9fafb;
+    --bg-white: #ffffff;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* 页面容器 */
+.doc-manager {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* 头部 */
+.doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.doc-header-left h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0 0 0.25rem 0;
+}
+
+.doc-header-meta {
+    font-size: 0.875rem;
+    color: var(--text-gray);
+}
+
+.doc-header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.btn-secondary {
+    background: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 身份 Tab */
+.identity-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-light);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+}
+
+.identity-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-gray);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.identity-tab:hover {
+    background: white;
+    color: var(--text-dark);
+}
+
+.identity-tab.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: var(--shadow);
+}
+
+.identity-tab .count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--border);
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.identity-tab.active .count {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.identity-tab.has-config .count {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+/* 配置面板 */
+.config-panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.config-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border);
+}
+
+.config-panel-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.config-panel-body {
+    padding: 1.25rem;
+}
+
+/* 文档分类 */
+.doc-category {
+    margin-bottom: 1.5rem;
+}
+
+.doc-category:last-child {
+    margin-bottom: 0;
+}
+
+.doc-category-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.doc-category-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.doc-category-count {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+/* 文档网格 */
+.doc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.5rem;
+}
+
+/* 文档项 */
+.doc-item {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    transition: all 0.15s;
+    position: relative;
+    overflow: visible;
+}
+
+.doc-item:hover {
+    border-color: var(--primary);
+}
+
+.doc-item.selected {
+    background: var(--primary-light);
+    border-color: var(--primary);
+}
+
+.doc-item-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.doc-item-main:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.doc-item-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+
+.doc-item.selected .doc-item-checkbox {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.doc-item.selected .doc-item-checkbox::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.doc-item-name {
+    flex: 1;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.doc-item-party {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 0 5px 5px 0;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: all 0.15s;
+}
+
+.doc-item-party:hover {
+    filter: brightness(0.95);
+}
+
+.doc-item-party.applicant {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.doc-item-party.agent {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+/* 准备方选择弹出框 */
+.party-popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 100;
+    display: none;
+}
+
+.party-popup.show {
+    display: block;
+}
+
+.party-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.party-option:first-child {
+    border-radius: 6px 6px 0 0;
+}
+
+.party-option:last-child {
+    border-radius: 0 0 6px 6px;
+}
+
+.party-option:hover {
+    background: var(--bg-light);
+}
+
+.party-option.selected {
+    background: var(--primary-light);
+}
+
+.party-option i {
+    width: 16px;
+    text-align: center;
+}
+
+/* 补充信息 */
+.additional-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.additional-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .additional-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.additional-field label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-dark);
+    margin-bottom: 0.375rem;
+}
+
+.additional-field textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.625rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    resize: vertical;
+    transition: border-color 0.15s;
+}
+
+.additional-field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Toast 消息 */
+.toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    z-index: 1000;
+    transform: translateX(120%);
+    transition: transform 0.3s;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.info { background: var(--primary); }
+.toast.warning { background: var(--warning); }
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-gray);
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: block;
+    color: var(--text-light);
+}
+
+/* 加载状态 */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loading-spinner i {
+    font-size: 2rem;
+    color: var(--primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-document-manager">
-    <!-- 页面头部 -->
-    <div class="manager-header">
-        <h1 class="manager-title">签证文档管理器</h1>
-        <p class="manager-subtitle">为不同签证类型配置所需的文档和身份要求</p>
-        <a href="{{ url_for('visa_basic.visa_type_list') }}" class="back-link">
-            <i class="fas fa-arrow-left"></i>
-            返回签证类型管理
-        </a>
-    </div>
+<div class="doc-manager" id="docManager"
+     data-visa-type="{{ selected_visa_type or '' }}">
 
-    <!-- 状态消息 -->
-    <div id="statusMessage" class="status-message" style="display: none;"></div>
-
-    <!-- 复制配置对话框 -->
-    <div id="copyDialog" class="copy-dialog" style="display: none;">
-        <div class="copy-dialog-content">
-            <div class="copy-dialog-header">
-                <h3><i class="fas fa-copy"></i> 复制签证配置</h3>
-                <button class="close-dialog" onclick="hideCopyDialog()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="copy-dialog-body">
-                <p style="margin-bottom: 20px; color: var(--color-text-gray);">
-                    选择要复制配置的源签证类型，当前签证类型的所有配置将被覆盖。
-                </p>
-                <div class="source-visa-selector">
-                    <label for="sourceVisaType" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--color-text-dark);">
-                        选择源签证类型：
-                    </label>
-                    <select id="sourceVisaType" style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 1rem;">
-                        <option value="">请选择要复制的签证类型...</option>
-                    </select>
-                </div>
-                <div class="copy-preview" id="copyPreview" style="margin-top: 20px; padding: 15px; background: var(--color-light-bg); border-radius: var(--radius); border: 1px solid var(--color-border); display: none;">
-                    <h4 style="margin: 0 0 10px 0; color: var(--color-text-dark);">
-                        <i class="fas fa-eye"></i> 配置预览
-                    </h4>
-                    <div id="previewContent"></div>
-                </div>
-            </div>
-            <div class="copy-dialog-footer">
-                <button class="btn-cancel" onclick="hideCopyDialog()">取消</button>
-                <button class="btn-copy" onclick="executeCopy()" disabled>
-                    <i class="fas fa-copy"></i>
-                    确认复制
-                </button>
+    <!-- 头部 -->
+    <div class="doc-header">
+        <div class="doc-header-left">
+            <h1 id="currentVisaType">{{ selected_visa_type or '请选择签证类型' }}</h1>
+            <div class="doc-header-meta">
+                <span id="configSummary">加载中...</span>
             </div>
         </div>
-    </div>
-
-    <!-- 主要内容区域 -->
-    <div class="manager-content">
-        <!-- 左侧签证类型列表 -->
-        <div class="visa-types-panel" {% if selected_visa_type %}style="opacity: 0.9;"{% endif %}>
-            <h3 class="visa-types-title">
-                <i class="fas fa-passport"></i> 
-                {% if selected_visa_type %}
-                    当前签证类型
-                    <small style="font-size: 0.8rem; color: var(--color-primary); display: block; margin-top: 4px; font-weight: 500;">
-                        <i class="fas fa-lock"></i> 已锁定
-                    </small>
-                {% else %}
-                    选择签证类型
-                {% endif %}
-            </h3>
-            <div class="visa-type-list">
-                {% if selected_visa_type %}
-                    <!-- 当指定了签证类型时，只显示当前选中的签证类型 -->
-                    {% for visa_type in visa_types %}
-                        {% if visa_type.visa_type == selected_visa_type %}
-                            <div class="visa-type-item active" data-visa-type="{{ visa_type.visa_type }}" style="cursor: default; background: var(--color-accent-bg); color: var(--color-text-dark); font-weight: 600; border: 2px solid var(--color-primary);">
-                                {{ visa_type.visa_type }}
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                {% else %}
-                    <!-- 没有指定签证类型时，显示所有签证类型 -->
-                {% for visa_type in visa_types %}
-                    <div class="visa-type-item" data-visa-type="{{ visa_type.visa_type }}">
-                        {{ visa_type.visa_type }}
-                    </div>
+        <div class="doc-header-actions">
+            {% if not selected_visa_type %}
+            <select id="visaTypeSelect" class="btn btn-secondary" style="min-width: 200px;">
+                <option value="">选择签证类型...</option>
+                {% for vt in visa_types %}
+                <option value="{{ vt.visa_type }}">{{ vt.visa_type }}</option>
                 {% endfor %}
-                {% endif %}
-            </div>
+            </select>
+            {% endif %}
+            <button class="btn btn-secondary" onclick="showAddDocDialog()">
+                <i class="fas fa-plus"></i> 添加文档
+            </button>
+            <button class="btn btn-secondary" onclick="showCopyDialog()" id="copyBtn" disabled>
+                <i class="fas fa-copy"></i> 复制配置
+            </button>
+            <button class="btn btn-primary" onclick="saveAll()" id="saveBtn" disabled>
+                <i class="fas fa-save"></i> 保存
+            </button>
+            <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=selected_visa_type) if selected_visa_type else url_for('visa_basic.visa_type_list') }}"
+               class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回
+            </a>
         </div>
+    </div>
 
-        <!-- 右侧配置区域 -->
-        <div class="config-panel">
-            <div id="configContent">
-                <div class="loading">
-                    <i class="fas fa-spinner"></i>
-                    请选择一个签证类型开始配置
-                </div>
-            </div>
+    <!-- 身份 Tab -->
+    <div class="identity-tabs" id="identityTabs">
+        <div class="empty-state" style="padding: 1rem; width: 100%;">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+    </div>
+
+    <!-- 配置面板 -->
+    <div class="config-panel" id="configPanel">
+        <div class="empty-state">
+            <i class="fas fa-hand-pointer"></i>
+            <p>请选择签证类型开始配置</p>
         </div>
     </div>
 </div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 复制对话框 -->
+<div id="copyDialog" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 90%; max-width: 500px; overflow: hidden;">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.125rem;"><i class="fas fa-copy"></i> 复制签证配置</h3>
+            <button onclick="hideCopyDialog()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+        </div>
+        <div style="padding: 1.25rem;">
+            <p style="color: var(--text-gray); margin-bottom: 1rem;">选择源签证类型，将其配置复制到当前签证。</p>
+            <select id="sourceVisaType" style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem;">
+                <option value="">请选择...</option>
+            </select>
+        </div>
+        <div style="padding: 1rem 1.25rem; background: var(--bg-light); display: flex; justify-content: flex-end; gap: 0.5rem;">
+            <button class="btn btn-secondary" onclick="hideCopyDialog()">取消</button>
+            <button class="btn btn-primary" onclick="executeCopy()" id="confirmCopyBtn" disabled>确认复制</button>
+        </div>
+    </div>
+</div>
+
+<!-- 添加文档资料对话框 -->
+<div id="addDocDialog" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 90%; max-width: 500px; overflow: hidden;">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.125rem;"><i class="fas fa-file-alt"></i> 添加新文档资料</h3>
+            <button onclick="hideAddDocDialog()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+        </div>
+        <div style="padding: 1.25rem;">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-dark); margin-bottom: 0.375rem;">文档名称 *</label>
+                <input type="text" id="newDocName" placeholder="如：护照复印件" style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem;">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-dark); margin-bottom: 0.375rem;">分类</label>
+                <select id="newDocCategory" style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem;">
+                    <option value="">选择分类...</option>
+                </select>
+                <input type="text" id="newDocCategoryCustom" placeholder="或输入新分类名称" style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem; margin-top: 0.5rem;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-dark); margin-bottom: 0.375rem;">说明（可选）</label>
+                <textarea id="newDocDescription" placeholder="文档的详细说明..." rows="3" style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem; resize: vertical;"></textarea>
+            </div>
+        </div>
+        <div style="padding: 1rem 1.25rem; background: var(--bg-light); display: flex; justify-content: flex-end; gap: 0.5rem;">
+            <button class="btn btn-secondary" onclick="hideAddDocDialog()">取消</button>
+            <button class="btn btn-primary" onclick="addNewDocument()">
+                <i class="fas fa-plus"></i> 添加
+            </button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    let currentVisaType = {{ selected_visa_type|tojson if selected_visa_type else 'null' }};
-    let allDocuments = [];
-    let currentConfig = null;
-    let currentIdentities = [];
+// 全局状态
+const state = {
+    visaType: null,
+    identities: [],
+    documents: [],
+    configs: {},  // { identityId: { docs: [{id, party}], agentInfo: '', applicantInfo: '' } }
+    activeIdentityId: null
+};
 
-    // 初始化页面
-    document.addEventListener('DOMContentLoaded', function() {
-        // 初始时禁用保存按钮
-        const saveButton = document.querySelector('.save-button');
-        if (saveButton) {
-            saveButton.disabled = true;
-            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
-        }
-        
-        loadAllDocuments();
-        setupEventListeners();
-        if (currentVisaType) {
-            selectVisaType(currentVisaType);
-        } else {
-            // 如果没有选中的签证类型，默认选择第一个
-            const firstVisaTypeItem = document.querySelector('.visa-type-item');
-            if (firstVisaTypeItem) {
-                const firstVisaType = firstVisaTypeItem.dataset.visaType;
-                selectVisaType(firstVisaType);
+// DOM 元素
+const $manager = document.getElementById('docManager');
+const $tabs = document.getElementById('identityTabs');
+const $panel = document.getElementById('configPanel');
+const $toast = document.getElementById('toast');
+const $saveBtn = document.getElementById('saveBtn');
+const $copyBtn = document.getElementById('copyBtn');
+
+// 初始化
+document.addEventListener('DOMContentLoaded', async () => {
+    const visaType = $manager.dataset.visaType;
+
+    if (visaType) {
+        await loadVisaType(visaType);
+    }
+
+    // 签证类型选择器
+    const $select = document.getElementById('visaTypeSelect');
+    if ($select) {
+        $select.addEventListener('change', async (e) => {
+            if (e.target.value) {
+                await loadVisaType(e.target.value);
             }
+        });
+    }
+
+    // 点击外部关闭弹出框
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.doc-item')) {
+            document.querySelectorAll('.party-popup.show').forEach(p => p.classList.remove('show'));
+        }
+    });
+});
+
+// 加载签证类型配置
+async function loadVisaType(visaType) {
+    state.visaType = visaType;
+    document.getElementById('currentVisaType').textContent = visaType;
+
+    showLoading();
+
+    try {
+        // 加载文档列表
+        const docsRes = await fetch('/visa/basic/api/get_all_documents');
+        const docsData = await docsRes.json();
+        if (docsData.success) {
+            state.documents = docsData.documents;
+        }
+
+        // 加载签证配置
+        const configRes = await fetch(`/visa/basic/api/get_visa_documents/${encodeURIComponent(visaType)}`);
+        const configData = await configRes.json();
+
+        if (configData.success) {
+            state.identities = configData.data.identities || [];
+
+            // 解析已有配置
+            state.configs = {};
+            (configData.data.documents || []).forEach(doc => {
+                const identityId = doc.singapore_identity_id;
+                state.configs[identityId] = {
+                    docs: (doc.selected_documents || []).map(d => ({
+                        id: d.id,
+                        party: d.responsible_party || 'FOR_APPLICATION'
+                    })),
+                    agentInfo: doc.additional_info || '',
+                    applicantInfo: doc.applicant_additional_info || ''
+                };
+            });
+
+            renderTabs();
+
+            // 默认选中第一个身份
+            if (state.identities.length > 0) {
+                selectIdentity(state.identities[0].id);
+            }
+
+            updateSummary();
+            $saveBtn.disabled = false;
+            $copyBtn.disabled = false;
+        } else {
+            showToast('加载配置失败: ' + configData.message, 'error');
+        }
+    } catch (error) {
+        console.error('加载失败:', error);
+        showToast('加载失败，请重试', 'error');
+    }
+
+    hideLoading();
+}
+
+// 渲染身份 Tab
+function renderTabs() {
+    let html = '';
+
+    state.identities.forEach(identity => {
+        const config = state.configs[identity.id] || { docs: [] };
+        const count = config.docs.length;
+        const hasConfig = count > 0;
+        const isShare = identity.identity_zh === 'SHARE';
+        const name = isShare ? '共用文档' : identity.identity_zh;
+
+        html += `
+            <button class="identity-tab ${hasConfig ? 'has-config' : ''}"
+                    data-identity-id="${identity.id}"
+                    onclick="selectIdentity(${identity.id})">
+                ${isShare ? '<i class="fas fa-share-alt" style="font-size: 0.75rem;"></i>' : ''}
+                ${name}
+                <span class="count">${count}</span>
+            </button>
+        `;
+    });
+
+    $tabs.innerHTML = html;
+}
+
+// 选择身份
+function selectIdentity(identityId) {
+    state.activeIdentityId = identityId;
+
+    // 更新 Tab 状态
+    document.querySelectorAll('.identity-tab').forEach(tab => {
+        tab.classList.toggle('active', parseInt(tab.dataset.identityId) === identityId);
+    });
+
+    renderConfigPanel();
+}
+
+// 渲染配置面板
+function renderConfigPanel() {
+    const identity = state.identities.find(i => i.id === state.activeIdentityId);
+    if (!identity) return;
+
+    const config = state.configs[identity.id] || { docs: [], agentInfo: '', applicantInfo: '' };
+    const isShare = identity.identity_zh === 'SHARE';
+    const name = isShare ? '共用文档' : identity.identity_zh;
+
+    // 按分类组织文档
+    const categories = {};
+    state.documents.forEach(doc => {
+        const cat = doc.category || '其他';
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push(doc);
+    });
+
+    let categoriesHtml = '';
+    Object.keys(categories).forEach(cat => {
+        const docs = categories[cat];
+        let docsHtml = '';
+
+        docs.forEach(doc => {
+            const selected = config.docs.find(d => d.id === doc.id);
+            const isSelected = !!selected;
+            const party = selected?.party || 'FOR_APPLICATION';
+            const partyLabel = party === 'FOR_APPLICATION' ? '申请人' : '旅行社';
+            const partyClass = party === 'FOR_APPLICATION' ? 'applicant' : 'agent';
+
+            docsHtml += `
+                <div class="doc-item ${isSelected ? 'selected' : ''}"
+                     data-doc-id="${doc.id}">
+                    <div class="doc-item-main" onclick="toggleDoc(${doc.id})">
+                        <div class="doc-item-checkbox"></div>
+                        <span class="doc-item-name" title="${doc.name}">${doc.name}</span>
+                    </div>
+                    ${isSelected ? `
+                        <span class="doc-item-party ${partyClass}" onclick="showPartyPopup(event, ${doc.id})">
+                            ${partyLabel} <i class="fas fa-caret-down" style="font-size: 0.6rem; margin-left: 2px;"></i>
+                        </span>
+                        <div class="party-popup" onclick="event.stopPropagation()">
+                            <div class="party-option ${party === 'FOR_APPLICATION' ? 'selected' : ''}"
+                                 onclick="setParty(${doc.id}, 'FOR_APPLICATION')">
+                                <i class="fas fa-user"></i> 申请人准备
+                            </div>
+                            <div class="party-option ${party === 'FOR_AGENT' ? 'selected' : ''}"
+                                 onclick="setParty(${doc.id}, 'FOR_AGENT')">
+                                <i class="fas fa-building"></i> 旅行社准备
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+
+        categoriesHtml += `
+            <div class="doc-category">
+                <div class="doc-category-header">
+                    <i class="fas fa-folder" style="color: var(--primary);"></i>
+                    <h4 class="doc-category-title">${cat}</h4>
+                    <span class="doc-category-count">${docs.length} 项</span>
+                </div>
+                <div class="doc-grid">${docsHtml}</div>
+            </div>
+        `;
+    });
+
+    $panel.innerHTML = `
+        <div class="config-panel-header">
+            <h3 class="config-panel-title">
+                ${isShare ? '<i class="fas fa-share-alt"></i>' : '<i class="fas fa-user-tag"></i>'}
+                ${name} - 所需文档
+            </h3>
+            <span style="color: var(--text-gray); font-size: 0.875rem;">
+                已选 <strong>${config.docs.length}</strong> 项
+            </span>
+        </div>
+        <div class="config-panel-body">
+            ${categoriesHtml}
+
+            <div class="additional-section">
+                <div class="additional-row">
+                    <div class="additional-field">
+                        <label><i class="fas fa-building"></i> 旅行社补充信息</label>
+                        <textarea id="agentInfo" placeholder="输入旅行社需要的补充说明..."
+                                  onchange="updateAdditionalInfo('agent')">${config.agentInfo}</textarea>
+                    </div>
+                    <div class="additional-field">
+                        <label><i class="fas fa-user"></i> 申请人补充信息</label>
+                        <textarea id="applicantInfo" placeholder="输入申请人需要的补充说明..."
+                                  onchange="updateAdditionalInfo('applicant')">${config.applicantInfo}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 切换文档选择（点击主体区域切换选中状态）
+function toggleDoc(docId) {
+    const identityId = state.activeIdentityId;
+    if (!state.configs[identityId]) {
+        state.configs[identityId] = { docs: [], agentInfo: '', applicantInfo: '' };
+    }
+
+    const config = state.configs[identityId];
+    const index = config.docs.findIndex(d => d.id === docId);
+
+    if (index >= 0) {
+        // 已选中 - 取消选择
+        config.docs.splice(index, 1);
+    } else {
+        // 未选中 - 选中并默认申请人准备
+        config.docs.push({ id: docId, party: 'FOR_APPLICATION' });
+    }
+
+    updateUI();
+}
+
+// 显示准备方选择弹出框（点击party标签时调用）
+function showPartyPopup(event, docId) {
+    event.stopPropagation();  // 防止触发 toggleDoc
+
+    // 关闭其他弹出框
+    document.querySelectorAll('.party-popup.show').forEach(p => p.classList.remove('show'));
+
+    // 找到当前文档项的弹出框并显示
+    const $item = event.target.closest('.doc-item');
+    const $popup = $item.querySelector('.party-popup');
+    if ($popup) {
+        $popup.classList.add('show');
+    }
+}
+
+// 设置准备方（点击弹出框选项切换准备方）
+function setParty(docId, party) {
+    const identityId = state.activeIdentityId;
+    const config = state.configs[identityId];
+
+    if (!config) return;
+
+    const doc = config.docs.find(d => d.id === docId);
+    if (doc) {
+        // 切换准备方
+        doc.party = party;
+    }
+
+    // 关闭弹出框并更新UI
+    document.querySelectorAll('.party-popup.show').forEach(p => p.classList.remove('show'));
+    updateUI();
+}
+
+// 更新补充信息
+function updateAdditionalInfo(type) {
+    const identityId = state.activeIdentityId;
+    if (!state.configs[identityId]) {
+        state.configs[identityId] = { docs: [], agentInfo: '', applicantInfo: '' };
+    }
+
+    if (type === 'agent') {
+        state.configs[identityId].agentInfo = document.getElementById('agentInfo').value;
+    } else {
+        state.configs[identityId].applicantInfo = document.getElementById('applicantInfo').value;
+    }
+}
+
+// 更新 UI
+function updateUI() {
+    renderTabs();
+    renderConfigPanel();
+    updateSummary();
+
+    // 保持当前 tab 选中状态
+    document.querySelectorAll('.identity-tab').forEach(tab => {
+        tab.classList.toggle('active', parseInt(tab.dataset.identityId) === state.activeIdentityId);
+    });
+}
+
+// 更新摘要
+function updateSummary() {
+    let totalDocs = 0;
+    let configuredIdentities = 0;
+
+    Object.values(state.configs).forEach(config => {
+        if (config.docs.length > 0) {
+            configuredIdentities++;
+            totalDocs += config.docs.length;
         }
     });
 
-    // 设置事件监听器
-    function setupEventListeners() {
-        // 签证类型选择
-        document.querySelectorAll('.visa-type-item').forEach(item => {
-            item.addEventListener('click', function() {
-                // 如果指定了固定的签证类型，则不允许切换
-                const isFixedVisaType = {{ 'true' if selected_visa_type else 'false' }};
-                if (isFixedVisaType) {
-                    return;
-                }
-                const visaType = this.dataset.visaType;
-                selectVisaType(visaType);
-            });
-        });
-    }
+    document.getElementById('configSummary').textContent =
+        `${state.identities.length} 个身份，${configuredIdentities} 个已配置，共 ${totalDocs} 个文档`;
+}
 
-    // 加载所有文档
-    async function loadAllDocuments() {
-        try {
-            console.log('DEBUG: 开始加载所有文档...');
-            const response = await fetch('/visa/basic/api/get_all_documents');
-            const data = await response.json();
-            
-            if (data.success) {
-                allDocuments = data.documents;
-                console.log('DEBUG: 文档加载成功，数量:', allDocuments.length);
-                console.log('DEBUG: 前5个文档:', allDocuments.slice(0, 5));
-            } else {
-                console.error('DEBUG: 加载文档列表失败:', data.message);
-                showMessage('加载文档列表失败: ' + data.message, 'error');
-            }
-        } catch (error) {
-            console.error('DEBUG: 加载文档失败:', error);
-            showMessage('加载文档列表失败', 'error');
-        }
-    }
+// 保存全部
+async function saveAll() {
+    $saveBtn.disabled = true;
+    $saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
 
-    // 选择签证类型
-    async function selectVisaType(visaType) {
-        // 更新UI状态
-        document.querySelectorAll('.visa-type-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        document.querySelector(`[data-visa-type="${visaType}"]`).classList.add('active');
-        
-        currentVisaType = visaType;
-        
-        // 显示加载状态
-        document.getElementById('configContent').innerHTML = `
-            <div class="loading">
-                <i class="fas fa-spinner"></i>
-                加载配置中...
-            </div>
-        `;
-        
-        try {
-            if (!allDocuments || allDocuments.length === 0) {
-                await loadAllDocuments();
-            }
-            const response = await fetch(`/visa/basic/api/get_visa_documents/${encodeURIComponent(visaType)}`);
-            const data = await response.json();
-            if (data.success) {
-                currentConfig = data.data;
-                currentIdentities = data.data.identities || [];
-                renderConfigArea();
-                
-                // 默认选中共用文档
-                setTimeout(() => {
-                    const shareIdentity = currentIdentities.find(id => id.identity_zh === 'SHARE');
-                    if (shareIdentity) {
-                        const shareConfigItem = document.querySelector(`.identity-config[data-identity-id="${shareIdentity.id}"]`);
-                        const shareSelectorItem = document.querySelector(`.identity-selector-item[data-identity-id="${shareIdentity.id}"]`);
-                        
-                        if (shareConfigItem && shareSelectorItem) {
-                            // 显示共用文档配置
-                            shareConfigItem.style.display = 'block';
-                            shareSelectorItem.style.background = 'var(--color-accent-bg)';
-                            shareSelectorItem.style.borderColor = 'var(--color-accent)';
-                            shareSelectorItem.querySelector('.fa-chevron-right').style.transform = 'rotate(90deg)';
-                            
-                            // 更新配置摘要
-                            updateConfigSummary();
-                            showMessage('已默认选择共用文档', 'info');
-                        }
-                    }
-                }, 100);
-                
-                // 检查是否有已保存的数据
-                const hasExistingData = currentConfig.documents.some(doc => 
-                    (doc.selected_documents && doc.selected_documents.length > 0) || 
-                    (doc.additional_info && doc.additional_info.trim() !== '') ||
-                    (doc.applicant_additional_info && doc.applicant_additional_info.trim() !== '')
-                );
-                
-                if (hasExistingData) {
-                    showMessage('已加载保存的配置数据，您可以在此基础上继续修改', 'success');
-                } else {
-                    showMessage('开始配置新的签证类型文档', 'info');
-                }
-                
-                // 启用保存按钮
-                const saveButton = document.querySelector('.save-button');
-                if (saveButton) {
-                    saveButton.disabled = false;
-                    saveButton.innerHTML = '<i class="fas fa-save"></i> 保存全部';
-                }
-            } else {
-                showMessage('加载配置失败: ' + data.message, 'error');
-                renderEmptyConfig();
-                
-                // 保持保存按钮禁用状态
-                const saveButton = document.querySelector('.save-button');
-                if (saveButton) {
-                    saveButton.disabled = true;
-                    saveButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 加载失败';
-                }
-            }
-        } catch (error) {
-            console.error('加载配置失败:', error);
-            showMessage('加载配置失败', 'error');
-            renderEmptyConfig();
-            
-            // 保持保存按钮禁用状态
-            const saveButton = document.querySelector('.save-button');
-            if (saveButton) {
-                saveButton.disabled = true;
-                saveButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 加载失败';
-            }
-        }
-    }
-
-    // 渲染配置区域
-    function renderConfigArea() {
-        const configContent = document.getElementById('configContent');
-        
-        // 计算配置摘要
-        const summary = calculateConfigSummary();
-        
-        configContent.innerHTML = `
-            <div class="config-header">
-                <h2 class="config-title">
-                    <i class="fas fa-cog"></i>
-                    ${currentConfig.visa_type} - 文档配置
-                </h2>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="color: var(--color-text-gray); font-size: 0.9rem;">每个身份可单独保存</span>
-                    <button class="copy-button" onclick="showCopyDialog()" style="background: var(--color-accent); color: white; border: none; padding: 10px 20px; border-radius: var(--radius); cursor: pointer; font-weight: 500; transition: background-color 0.2s; display: flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-copy"></i>
-                        复制配置
-                    </button>
-                    <button class="save-button" onclick="saveConfiguration()">
-                        <i class="fas fa-save"></i>
-                        保存全部
-                    </button>
-                </div>
-            </div>
-            
-            <!-- 配置摘要 -->
-            <div class="config-summary" style="background: var(--color-light-bg); padding: 12px; border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--color-border);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <span style="font-weight: 600; color: var(--color-text-dark);">配置摘要：</span>
-                        <span style="color: var(--color-text-gray); margin-left: 8px;">
-                            共 ${summary.totalIdentities} 个身份，${summary.configuredIdentities} 个已配置，
-                            总计 ${summary.totalDocuments} 个文档
-                        </span>
-                        <span style="color: var(--color-text-gray); margin-left: 12px; font-weight: 500;">
-                            <i class="fas fa-user-times"></i> 未选择身份
-                        </span>
-                    </div>
-                    <div style="color: var(--color-success); font-weight: 500;">
-                        <i class="fas fa-check-circle"></i>
-                        数据已自动加载
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 身份选择区域 -->
-            <div style="background: var(--color-light-bg); padding: 16px; border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--color-border);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h4 style="margin: 0; color: var(--color-text-dark); font-size: 1rem;">
-                        <i class="fas fa-users"></i> 选择要配置的身份（单选模式）
-                    </h4>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="selectFirstIdentity()" style="background: var(--color-accent); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; cursor: pointer;">
-                            <i class="fas fa-play"></i> 选择第一个
-                        </button>
-                        <button onclick="clearAllIdentities()" style="background: var(--color-text-gray); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; cursor: pointer;">
-                            <i class="fas fa-times"></i> 清空
-                        </button>
-                    </div>
-                </div>
-                <div id="identitySelector" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    ${renderIdentitySelector()}
-                </div>
-            </div>
-            
-            <div class="identity-configs" id="identityConfigs">
-                ${renderIdentityConfigs()}
-            </div>
-        `;
-        
-        // 设置文档选择事件
-        setupDocumentSelection();
-    }
-
-    // 计算配置摘要
-    function calculateConfigSummary() {
-        const totalIdentities = currentConfig.documents.length;
-        let configuredIdentities = 0;
-        let totalDocuments = 0;
-        
-        currentConfig.documents.forEach(doc => {
-            const hasDocuments = doc.selected_documents && doc.selected_documents.length > 0;
-            const hasAdditionalInfo = doc.additional_info && doc.additional_info.trim() !== '';
-            const hasApplicantAdditionalInfo = doc.applicant_additional_info && doc.applicant_additional_info.trim() !== '';
-            
-            if (hasDocuments || hasAdditionalInfo || hasApplicantAdditionalInfo) {
-                configuredIdentities++;
-            }
-            
-            if (hasDocuments) {
-                totalDocuments += doc.selected_documents.length;
-            }
-        });
-        
-        return {
-            totalIdentities,
-            configuredIdentities,
-            totalDocuments
-        };
-    }
-
-    // 更新配置摘要显示
-    function updateConfigSummary() {
-        const summaryElement = document.querySelector('.config-summary');
-        if (summaryElement) {
-            const summary = calculateConfigSummary();
-            const selectedIdentity = document.querySelector('.identity-config[style*="display: block"]');
-            let selectedIdentityName = '';
-            
-            if (selectedIdentity) {
-                const identityId = selectedIdentity.dataset.identityId;
-                const identity = currentIdentities.find(id => id.id.toString() === identityId);
-                if (identity) {
-                    selectedIdentityName = identity.identity_zh === 'SHARE' ? '共用文档' : identity.identity_zh;
-                }
-            }
-            
-            summaryElement.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <span style="font-weight: 600; color: var(--color-text-dark);">配置摘要：</span>
-                        <span style="color: var(--color-text-gray); margin-left: 8px;">
-                            共 ${summary.totalIdentities} 个身份，${summary.configuredIdentities} 个已配置，
-                            总计 ${summary.totalDocuments} 个文档
-                        </span>
-                        ${selectedIdentityName ? 
-                            `<span style="color: var(--color-accent); margin-left: 12px; font-weight: 500;">
-                                <i class="fas fa-user-check"></i> 当前选中: ${selectedIdentityName}
-                                ${selectedIdentityName === '共用文档' ? '<span style="color: var(--color-warning);">(共用)</span>' : ''}
-                            </span>` : 
-                            `<span style="color: var(--color-text-gray); margin-left: 12px; font-weight: 500;">
-                                <i class="fas fa-user-times"></i> 未选择身份
-                            </span>`
-                        }
-                    </div>
-                    <div style="color: var(--color-success); font-weight: 500;">
-                        <i class="fas fa-check-circle"></i>
-                        数据已自动加载
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    // 渲染身份配置
-    function renderIdentityConfigs() {
-        // 直接使用后端API返回的currentIdentities，不再手动添加SHARE
-        const allIdentities = currentIdentities;
-        
-        return allIdentities.map(function(identity) {
-            const existingConfig = currentConfig.documents.find(function(d) { 
-                return d.singapore_identity_id === identity.id; 
-            });
-            const selectedDocIds = existingConfig ? (existingConfig.selected_documents.map(function(d) { return d.id; })) : [];
-            const hasExistingData = existingConfig && (selectedDocIds.length > 0 || (existingConfig.additional_info && existingConfig.additional_info.trim() !== '') || (existingConfig.applicant_additional_info && existingConfig.applicant_additional_info.trim() !== ''));
-            const statusText = hasExistingData ? '已配置' : '未配置';
-            const statusColor = hasExistingData ? 'var(--color-success)' : 'var(--color-text-gray)';
-            const identityName = identity.identity_zh === 'SHARE' ? '共用文档' : identity.identity_zh;
-            const identityId = identity.id;
-            const isShare = identity.identity_zh === 'SHARE';
-            
-            return `
-                <div class="identity-config" data-identity-id="${identityId}" style="display: none;">
-                    <div class="identity-header">
-                        <div class="identity-name">
-                            <i class="fas ${isShare ? 'fa-share-alt' : 'fa-user-tag'}"></i>
-                            ${identityName}
-                            ${isShare ? '<span style="color: var(--color-warning); font-size: 0.8rem; margin-left: 4px;">(共用)</span>' : ''}
-                            <span style="color: ${statusColor}; font-size: 0.8rem; margin-left: 8px;">(${statusText})</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="identity-badge">${selectedDocIds.length} 个文档</span>
-                        </div>
-                    </div>
-                    <div class="document-selection">
-                        <h4>选择所需文档</h4>
-                        <div class="document-categories">
-                            ${renderDocumentCategories(selectedDocIds, identityId)}
-                        </div>
-                    </div>
-                    <div class="additional-info">
-                        <h4>补充信息</h4>
-                        <div style="margin-bottom: 12px;">
-                            <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--color-text-dark);">
-                                <i class="fas fa-building"></i> 旅行社补充信息
-                            </label>
-                            <textarea id="additional_${identityId}" placeholder="输入旅行社补充信息...">${existingConfig ? (existingConfig.additional_info || '') : ''}</textarea>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px; font-weight: 600; color: var(--color-text-dark);">
-                                <i class="fas fa-user"></i> 申请人补充信息
-                            </label>
-                            <textarea id="applicant_additional_${identityId}" placeholder="输入申请人补充信息...">${existingConfig ? (existingConfig.applicant_additional_info || '') : ''}</textarea>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    // 渲染身份选择器
-    function renderIdentitySelector() {
-        if (!Array.isArray(currentIdentities)) return '';
-        
-        // 直接使用后端API返回的currentIdentities，不再手动添加SHARE
-        const allIdentities = currentIdentities;
-        
-        return allIdentities.map(function(identity) {
-            const existingConfig = currentConfig.documents.find(function(d) { 
-                return d.singapore_identity_id === identity.id; 
-            });
-            const hasExistingData = existingConfig && (
-                (existingConfig.selected_documents && existingConfig.selected_documents.length > 0) || 
-                (existingConfig.additional_info && existingConfig.additional_info.trim() !== '') ||
-                (existingConfig.applicant_additional_info && existingConfig.applicant_additional_info.trim() !== '')
-            );
-            const statusIcon = hasExistingData ? 'fa-check-circle' : 'fa-circle';
-            const statusColor = hasExistingData ? 'var(--color-success)' : 'var(--color-text-gray)';
-            const identityName = identity.identity_zh === 'SHARE' ? '共用文档' : identity.identity_zh;
-            const identityId = identity.id;
-            const isShare = identity.identity_zh === 'SHARE';
-            
-            return `
-                <div class="identity-selector-item" data-identity-id="${identityId}" onclick="toggleIdentitySelection('${identityId}')" style="
-                    display: flex; align-items: center; gap: 8px; padding: 8px 12px; 
-                    border: 1px solid var(--color-border); border-radius: 4px; 
-                    background: white; cursor: pointer; transition: all 0.2s ease;
-                    min-width: 140px; justify-content: space-between;
-                    ${isShare ? 'border-left: 4px solid var(--color-warning);' : ''}
-                ">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <i class="fas ${statusIcon}" style="color: ${statusColor}; font-size: 0.9rem;"></i>
-                        <span style="font-size: 0.9rem; color: var(--color-text-dark); font-weight: ${isShare ? '600' : '400'};">
-                            ${identityName}
-                            ${isShare ? '<span style="color: var(--color-warning); font-size: 0.8rem;">(共用)</span>' : ''}
-                        </span>
-                    </div>
-                    <i class="fas fa-chevron-right" style="color: var(--color-text-gray); font-size: 0.8rem;"></i>
-                </div>
-            `;
-        }).join('');
-    }
-
-    // 切换身份选择
-    function toggleIdentitySelection(identityId) {
-        const selectorItem = document.querySelector(`.identity-selector-item[data-identity-id="${identityId}"]`);
-        const configItem = document.querySelector(`.identity-config[data-identity-id="${identityId}"]`);
-        
-        if (!selectorItem || !configItem) return;
-        
-        const isVisible = configItem.style.display !== 'none';
-        
-        if (isVisible) {
-            // 隐藏当前配置
-            configItem.style.display = 'none';
-            selectorItem.style.background = 'white';
-            selectorItem.style.borderColor = 'var(--color-border)';
-            selectorItem.querySelector('.fa-chevron-right').style.transform = 'rotate(0deg)';
-        } else {
-            // 先隐藏所有其他身份配置
-            const allIdentityIds = currentIdentities.map(id => id.id.toString());
-            
-            allIdentityIds.forEach(id => {
-                if (id !== identityId.toString()) {
-                    const otherConfigItem = document.querySelector(`.identity-config[data-identity-id="${id}"]`);
-                    const otherSelectorItem = document.querySelector(`.identity-selector-item[data-identity-id="${id}"]`);
-                    
-                    if (otherConfigItem && otherSelectorItem) {
-                        otherConfigItem.style.display = 'none';
-                        otherSelectorItem.style.background = 'white';
-                        otherSelectorItem.style.borderColor = 'var(--color-border)';
-                        otherSelectorItem.querySelector('.fa-chevron-right').style.transform = 'rotate(0deg)';
-                    }
-                }
-            });
-            
-            // 显示当前配置
-            configItem.style.display = 'block';
-            selectorItem.style.background = 'var(--color-accent-bg)';
-            selectorItem.style.borderColor = 'var(--color-accent)';
-            selectorItem.querySelector('.fa-chevron-right').style.transform = 'rotate(90deg)';
-        }
-        
-        // 更新配置摘要
-        updateConfigSummary();
-    }
-
-    // 选择第一个身份（优先选择共用文档）
-    function selectFirstIdentity() {
-        // 查找SHARE身份（共用文档）
-        const shareIdentity = currentIdentities.find(id => id.identity_zh === 'SHARE');
-        
-        if (shareIdentity) {
-            // 优先选择共用文档
-            toggleIdentitySelection(shareIdentity.id.toString());
-            showMessage('已选择共用文档', 'info');
-        } else if (currentIdentities.length > 0) {
-            // 如果没有SHARE身份，选择第一个身份
-            const firstIdentity = currentIdentities[0];
-            toggleIdentitySelection(firstIdentity.id.toString());
-            showMessage(`已选择身份: ${firstIdentity.identity_zh}`, 'info');
-        } else {
-            showMessage('没有可用的身份', 'warning');
-        }
-    }
-
-    // 清空身份选择
-    function clearAllIdentities() {
-        // 清空所有身份
-        currentIdentities.forEach(identity => {
-            const configItem = document.querySelector(`.identity-config[data-identity-id="${identity.id}"]`);
-            const selectorItem = document.querySelector(`.identity-selector-item[data-identity-id="${identity.id}"]`);
-            
-            if (configItem && selectorItem) {
-                configItem.style.display = 'none';
-                selectorItem.style.background = 'white';
-                selectorItem.style.borderColor = 'var(--color-border)';
-                selectorItem.querySelector('.fa-chevron-right').style.transform = 'rotate(0deg)';
-            }
-        });
-        
-        // 更新配置摘要
-        updateConfigSummary();
-        showMessage('已清空所有身份选择', 'info');
-    }
-
-    // 设置文档选择事件
-    function setupDocumentSelection() {
-        document.querySelectorAll('.document-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const checkbox = this.querySelector('input[type="checkbox"]');
-                const icon = this.querySelector('i');
-                const label = this.querySelector('label');
-                const responsibleOptions = this.querySelectorAll('.responsible-party-option input[type="radio"]');
-                
-                checkbox.checked = !checkbox.checked;
-                this.classList.toggle('selected', checkbox.checked);
-                
-                // 更新图标
-                if (icon) {
-                    icon.className = checkbox.checked ? 'fas fa-check-square' : 'fas fa-square';
-                    icon.style.color = checkbox.checked ? 'var(--color-accent)' : '#ccc';
-                }
-                
-                // 启用/禁用准备方选择框
-                responsibleOptions.forEach(radio => {
-                    radio.disabled = !checkbox.checked;
-                });
-                
-                // 更新身份徽章
-                const identityId = this.dataset.identityId;
-                const identityConfig = this.closest('.identity-config');
-                const selectedCount = identityConfig.querySelectorAll('input[type="checkbox"]:checked').length;
-                identityConfig.querySelector('.identity-badge').textContent = `${selectedCount} 个文档`;
-                
-                console.log(`DEBUG: 文档选择状态改变 - 文档ID: ${this.dataset.docId}, 选中: ${checkbox.checked}`);
-            });
-        });
-    }
-
-    // 渲染空配置
-    function renderEmptyConfig() {
-        document.getElementById('configContent').innerHTML = `
-            <div class="loading">
-                <i class="fas fa-exclamation-triangle"></i>
-                无法加载配置，请重试
-            </div>
-        `;
-    }
-
-    // 保存配置
-    async function saveConfiguration() {
-        if (!currentVisaType) {
-            showMessage('请先选择签证类型', 'warning');
-            return;
-        }
-        
-        // 检查数据是否已加载
-        if (!currentIdentities || currentIdentities.length === 0) {
-            showMessage('数据正在加载中，请稍后再试', 'error');
-            return;
-        }
-        
-        const saveButton = document.querySelector('.save-button');
-        const originalText = saveButton.innerHTML;
-        
-        // 显示保存中状态
-        saveButton.disabled = true;
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
-        
-        try {
-            // 收集配置数据
-            const identityConfigs = [];
-            
-            // 使用API返回的currentIdentities
-            if (!Array.isArray(currentIdentities)) {
-                showMessage('身份数据无效，请重新加载页面', 'error');
-                return;
-            }
-            
-            console.log('DEBUG: 使用currentIdentities进行保存:', currentIdentities);
-            
-            // 为每个身份收集配置
-            currentIdentities.forEach(identity => {
-                const identityConfig = document.querySelector(`.identity-config[data-identity-id="${identity.id}"]`);
-                
-                if (identityConfig) {
-                    const selectedDocIds = Array.from(identityConfig.querySelectorAll('input[type="checkbox"]:checked'))
-                        .map(cb => parseInt(cb.id.split('_')[1]));
-                    const additionalInfo = identityConfig.querySelector('#additional_' + identity.id).value;
-                    const applicantAdditionalInfo = identityConfig.querySelector('#applicant_additional_' + identity.id).value;
-                    
-                    // 收集准备方信息
-                    const documentsWithResponsibleParty = [];
-                    selectedDocIds.forEach(docId => {
-                        const responsibleRadio = identityConfig.querySelector(`input[name="responsible_${docId}_${identity.id}"]:checked`);
-                        const responsibleParty = responsibleRadio ? responsibleRadio.value : 'FOR_APPLICATION';
-                        documentsWithResponsibleParty.push({
-                            document_id: docId,
-                            responsible_party: responsibleParty
-                        });
-                    });
-                    
-                    // 对于SHARE身份，发送'SHARE'作为identity_id
-                    const identityId = identity.identity_zh === 'SHARE' ? 'SHARE' : identity.id.toString();
-                    
-                    identityConfigs.push({
-                        identity_id: identityId,
-                        documents: documentsWithResponsibleParty,
-                        additional_info: additionalInfo,
-                        applicant_additional_info: applicantAdditionalInfo
-                    });
-                    
-                    const identityName = identity.identity_zh === 'SHARE' ? '共用文档' : identity.identity_zh;
-                    
-                    console.log(`DEBUG: 收集身份 ${identityName} 的配置:`, {
-                        identity_id: identityId,
-                        document_ids: selectedDocIds,
-                        additional_info: additionalInfo,
-                        applicant_additional_info: applicantAdditionalInfo
-                    });
-                } else {
-                    console.warn(`DEBUG: 找不到身份 ${identity.identity_zh} 的配置元素`);
-                    // 如果找不到配置元素，添加空配置
-                    const identityId = identity.identity_zh === 'SHARE' ? 'SHARE' : identity.id.toString();
-                    identityConfigs.push({
-                        identity_id: identityId,
-                        document_ids: [],
-                        additional_info: '',
-                        applicant_additional_info: ''
-                    });
-                }
-            });
-            
-            // 发送保存请求
-            const requestData = {
-                identity_configs: identityConfigs
+    try {
+        const identityConfigs = state.identities.map(identity => {
+            const config = state.configs[identity.id] || { docs: [], agentInfo: '', applicantInfo: '' };
+            return {
+                identity_id: identity.identity_zh === 'SHARE' ? 'SHARE' : identity.id.toString(),
+                documents: config.docs.map(d => ({
+                    document_id: d.id,
+                    responsible_party: d.party
+                })),
+                additional_info: config.agentInfo,
+                applicant_additional_info: config.applicantInfo
             };
-            console.log('DEBUG: 发送的数据:', requestData);
-            
-            // 从meta标签获取CSRF令牌
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            
-            const response = await fetch(`/visa/basic/api/save_visa_documents/${encodeURIComponent(currentVisaType)}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showMessage(data.message, 'success');
-                // 重新加载配置以更新数据
-                await selectVisaType(currentVisaType);
-            } else {
-                showMessage('保存失败: ' + data.message, 'error');
-            }
-        } catch (error) {
-            console.error('保存失败:', error);
-            showMessage('保存失败，请重试', 'error');
-        } finally {
-            // 恢复按钮状态
-            saveButton.disabled = false;
-            saveButton.innerHTML = originalText;
+        });
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const response = await fetch(`/visa/basic/api/save_visa_documents/${encodeURIComponent(state.visaType)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ identity_configs: identityConfigs })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('保存成功', 'success');
+        } else {
+            showToast('保存失败: ' + data.message, 'error');
         }
+    } catch (error) {
+        console.error('保存失败:', error);
+        showToast('保存失败，请重试', 'error');
     }
 
+    $saveBtn.disabled = false;
+    $saveBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+}
 
-    // 更新准备方
-    function updateResponsibleParty(docId, identityId, responsibleParty) {
-        try {
-            console.log(`DEBUG: 更新准备方 - 文档ID: ${docId}, 身份ID: ${identityId}, 准备方: ${responsibleParty}`);
-            
-            // 更新UI样式
-            const documentItem = document.querySelector(`[data-doc-id="${docId}"][data-identity-id="${identityId}"]`);
-            if (documentItem) {
-                const options = documentItem.querySelectorAll('.responsible-party-option');
-                options.forEach(option => {
-                    const radio = option.querySelector('input[type="radio"]');
-                    const span = option.querySelector('span');
-                    
-                    if (radio.value === responsibleParty) {
-                        option.style.background = 'var(--color-accent-bg)';
-                        option.style.borderColor = 'var(--color-accent)';
-                        span.style.color = 'var(--color-accent)';
-                        span.style.fontWeight = '500';
-                    } else {
-                        option.style.background = 'transparent';
-                        option.style.borderColor = '#ccc';
-                        span.style.color = '#666';
-                        span.style.fontWeight = '400';
-                    }
-                });
-            }
-            
-            // 显示提示信息
-            showMessage('准备方已更新，请点击"保存全部"保存更改', 'info');
-            
-        } catch (error) {
-            console.error('更新准备方失败:', error);
-            showMessage('更新准备方失败，请重试', 'error');
-        }
-    }
+// 复制对话框
+async function showCopyDialog() {
+    const $dialog = document.getElementById('copyDialog');
+    const $select = document.getElementById('sourceVisaType');
+    const $confirmBtn = document.getElementById('confirmCopyBtn');
 
-    // 显示消息
-    function showMessage(message, type = 'info') {
-        const statusMessage = document.getElementById('statusMessage');
-        statusMessage.textContent = message;
-        statusMessage.className = `status-message ${type}`;
-        statusMessage.style.display = 'block';
-        
-        // 3秒后自动隐藏
-        setTimeout(() => {
-            statusMessage.style.display = 'none';
-        }, 3000);
-    }
+    // 加载签证类型列表
+    try {
+        const response = await fetch('/visa/basic/api/get_all_visa_types');
+        const data = await response.json();
 
-    // 显示复制对话框
-    async function showCopyDialog() {
-        const dialog = document.getElementById('copyDialog');
-        const sourceSelect = document.getElementById('sourceVisaType');
-        const copyButton = document.querySelector('.btn-copy');
-        
-        // 清空选择器
-        sourceSelect.innerHTML = '<option value="">请选择要复制的签证类型...</option>';
-        
-        try {
-            // 获取所有签证类型
-            const response = await fetch('/visa/basic/api/get_all_visa_types');
-            const data = await response.json();
-            
-            if (data.success) {
-                // 排除当前签证类型
-                const otherTypes = data.visa_types.filter(type => type.visa_type !== currentVisaType);
-                
-                otherTypes.forEach(type => {
-                    const option = document.createElement('option');
-                    option.value = type.visa_type;
-                    option.textContent = type.visa_type;
-                    sourceSelect.appendChild(option);
-                });
-                
-                if (otherTypes.length === 0) {
-                    showMessage('没有其他签证类型可以复制', 'warning');
-                    return;
+        if (data.success) {
+            $select.innerHTML = '<option value="">请选择...</option>';
+            data.visa_types.forEach(vt => {
+                if (vt.visa_type !== state.visaType) {
+                    $select.innerHTML += `<option value="${vt.visa_type}">${vt.visa_type}</option>`;
                 }
-            } else {
-                showMessage('获取签证类型列表失败', 'error');
-                return;
-            }
-        } catch (error) {
-            console.error('获取签证类型失败:', error);
-            showMessage('获取签证类型列表失败', 'error');
-            return;
-        }
-        
-        // 设置选择事件监听器
-        sourceSelect.onchange = function() {
-            if (this.value) {
-                loadSourceConfigPreview(this.value);
-                copyButton.disabled = false;
-            } else {
-                document.getElementById('copyPreview').style.display = 'none';
-                copyButton.disabled = true;
-            }
-        };
-        
-        // 显示对话框
-        dialog.style.display = 'flex';
-        copyButton.disabled = true;
-    }
-
-    // 隐藏复制对话框
-    function hideCopyDialog() {
-        const dialog = document.getElementById('copyDialog');
-        dialog.style.display = 'none';
-        
-        // 重置状态
-        document.getElementById('sourceVisaType').value = '';
-        document.getElementById('copyPreview').style.display = 'none';
-        document.querySelector('.btn-copy').disabled = true;
-    }
-
-    // 加载源配置预览
-    async function loadSourceConfigPreview(sourceVisaType) {
-        const previewDiv = document.getElementById('copyPreview');
-        const previewContent = document.getElementById('previewContent');
-        
-        try {
-            const response = await fetch(`/visa/basic/api/get_visa_documents/${encodeURIComponent(sourceVisaType)}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                const config = data.data;
-                let previewHtml = `
-                    <div style="margin-bottom: 15px;">
-                        <strong>源签证类型：</strong> ${sourceVisaType}
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <strong>身份配置：</strong>
-                        <ul style="margin: 8px 0 0 20px; padding: 0;">
-                `;
-                
-                config.documents.forEach(doc => {
-                    const identityName = doc.identity_name === 'SHARE' ? '共用文档' : doc.identity_name;
-                    const docCount = doc.selected_documents ? doc.selected_documents.length : 0;
-                    previewHtml += `<li>${identityName}: ${docCount} 个文档</li>`;
-                });
-                
-                previewHtml += `
-                        </ul>
-                    </div>
-                    <div style="color: var(--color-warning); font-weight: 500;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        注意：复制后将覆盖当前签证类型的所有配置！
-                    </div>
-                `;
-                
-                previewContent.innerHTML = previewHtml;
-                previewDiv.style.display = 'block';
-            } else {
-                previewContent.innerHTML = '<div style="color: var(--color-danger);">无法加载源配置预览</div>';
-                previewDiv.style.display = 'block';
-            }
-        } catch (error) {
-            console.error('加载配置预览失败:', error);
-            previewContent.innerHTML = '<div style="color: var(--color-danger);">加载配置预览失败</div>';
-            previewDiv.style.display = 'block';
-        }
-    }
-
-    // 执行复制操作
-    async function executeCopy() {
-        const sourceVisaType = document.getElementById('sourceVisaType').value;
-        const copyButton = document.querySelector('.btn-copy');
-        const originalText = copyButton.innerHTML;
-        
-        if (!sourceVisaType) {
-            showMessage('请选择源签证类型', 'warning');
-            return;
-        }
-        
-        // 确认对话框
-        if (!confirm(`确定要将 "${sourceVisaType}" 的配置复制到 "${currentVisaType}" 吗？\n\n此操作将覆盖当前签证类型的所有配置！`)) {
-            return;
-        }
-        
-        // 显示加载状态
-        copyButton.disabled = true;
-        copyButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
-        
-        try {
-            // 从meta标签获取CSRF令牌
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            
-            const response = await fetch(`/visa/basic/api/copy_visa_documents/${encodeURIComponent(currentVisaType)}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    source_visa_type: sourceVisaType
-                })
             });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showMessage(data.message, 'success');
-                hideCopyDialog();
-                
-                // 重新加载当前配置
-                await selectVisaType(currentVisaType);
-            } else {
-                showMessage('复制失败: ' + data.message, 'error');
-            }
-        } catch (error) {
-            console.error('复制失败:', error);
-            showMessage('复制失败，请重试', 'error');
-        } finally {
-            // 恢复按钮状态
-            copyButton.disabled = false;
-            copyButton.innerHTML = originalText;
         }
+    } catch (error) {
+        console.error('加载签证类型失败:', error);
     }
 
-    // 渲染文档分类
-    function renderDocumentCategories(selectedDocIds, identityId) {
-        console.log('DEBUG: renderDocumentCategories called with:', { 
-            selectedDocIds, 
-            identityId, 
-            selectedDocIdsType: typeof selectedDocIds,
-            selectedDocIdsLength: selectedDocIds ? selectedDocIds.length : 0,
-            allDocumentsLength: allDocuments ? allDocuments.length : 0
-        });
-        
-        // 确保selectedDocIds是数组并转换为数字类型
-        if (!Array.isArray(selectedDocIds)) {
-            console.warn('selectedDocIds不是数组，转换为空数组');
-            selectedDocIds = [];
-        }
-        
-        // 将所有选中文档ID转换为数字类型，确保类型匹配
-        const selectedDocIdsNum = selectedDocIds.map(id => parseInt(id));
-        console.log('DEBUG: 转换后的数字ID数组:', selectedDocIdsNum);
-        
-        // 从currentConfig中获取准备方信息
-        const responsibleParties = {};
-        if (currentConfig && currentConfig.documents) {
-            const identityConfig = currentConfig.documents.find(doc => doc.singapore_identity_id === identityId);
-            if (identityConfig && identityConfig.selected_documents) {
-                identityConfig.selected_documents.forEach(doc => {
-                    responsibleParties[doc.id] = doc.responsible_party || 'FOR_APPLICATION';
-                });
-            }
-        }
-        console.log('DEBUG: 准备方信息映射:', responsibleParties);
-        
-        // 按分类组织文档
-        const categories = {};
-        allDocuments.forEach(doc => {
-            const category = doc.category || '其他';
-            if (!categories[category]) {
-                categories[category] = [];
-            }
-            categories[category].push(doc);
-        });
-        
-        console.log('DEBUG: Organized categories:', Object.keys(categories));
-        
-        // 生成分类HTML
-        const html = Object.keys(categories).map(category => {
-            const docs = categories[category];
-            return `
-                <div class="document-category">
-                    <div class="category-header">
-                        <h5 class="category-title">
-                            <i class="fas fa-folder"></i>
-                            ${category}
-                        </h5>
-                        <span class="category-count">${docs.length} 个文档</span>
-                    </div>
-                    <div class="category-documents">
-                        ${docs.map(doc => {
-                            // 使用转换后的数字ID数组进行匹配
-                            const docIdNum = parseInt(doc.id);
-                            const isSelected = selectedDocIdsNum.includes(docIdNum);
-                            
-                            // 获取准备方信息
-                            let responsibleParty = 'FOR_APPLICATION';
-                            if (isSelected) {
-                                responsibleParty = responsibleParties[docIdNum] || 'FOR_APPLICATION';
-                            }
-                            
-                            console.log(`DEBUG: 文档 ${doc.name} (ID: ${doc.id}, 数字ID: ${docIdNum}) - 选中状态: ${isSelected}, 准备方: ${responsibleParty}, selectedDocIdsNum: [${selectedDocIdsNum.join(', ')}]`);
-                            
-                            return `
-                                <div class="document-item ${isSelected ? 'selected' : ''}" data-identity-id="${identityId}" data-doc-id="${doc.id}">
-                                    <input type="checkbox" 
-                                           id="doc_${doc.id}_${identityId}" 
-                                           ${isSelected ? 'checked' : ''} 
-                                           style="display: none;">
-                                    <label for="doc_${doc.id}_${identityId}" style="cursor: pointer; flex: 1;">
-                                        <i class="fas ${isSelected ? 'fa-check-square' : 'fa-square'}" style="margin-right: 8px; color: ${isSelected ? 'var(--color-accent)' : '#ccc'};"></i>
-                                        ${doc.name}
-                                    </label>
-                                    <div class="responsible-party-checkboxes" style="margin-left: 8px; display: flex; gap: 8px; align-items: center; font-size: 0.8rem;">
-                                        <label class="responsible-party-option" style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 2px 6px; border-radius: 3px; background: ${responsibleParty === 'FOR_APPLICATION' ? 'var(--color-accent-bg)' : 'transparent'}; border: 1px solid ${responsibleParty === 'FOR_APPLICATION' ? 'var(--color-accent)' : '#ccc'};">
-                                            <input type="radio" 
-                                                   name="responsible_${doc.id}_${identityId}" 
-                                                   value="FOR_APPLICATION" 
-                                                   ${responsibleParty === 'FOR_APPLICATION' ? 'checked' : ''} 
-                                                   ${isSelected ? '' : 'disabled'}
-                                                   style="margin: 0;"
-                                                   onchange="updateResponsibleParty('${doc.id}', '${identityId}', 'FOR_APPLICATION')">
-                                            <span style="color: ${responsibleParty === 'FOR_APPLICATION' ? 'var(--color-accent)' : '#666'}; font-weight: ${responsibleParty === 'FOR_APPLICATION' ? '500' : '400'};">申请人</span>
-                                        </label>
-                                        <label class="responsible-party-option" style="display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 2px 6px; border-radius: 3px; background: ${responsibleParty === 'FOR_AGENT' ? 'var(--color-accent-bg)' : 'transparent'}; border: 1px solid ${responsibleParty === 'FOR_AGENT' ? 'var(--color-accent)' : '#ccc'};">
-                                            <input type="radio" 
-                                                   name="responsible_${doc.id}_${identityId}" 
-                                                   value="FOR_AGENT" 
-                                                   ${responsibleParty === 'FOR_AGENT' ? 'checked' : ''} 
-                                                   ${isSelected ? '' : 'disabled'}
-                                                   style="margin: 0;"
-                                                   onchange="updateResponsibleParty('${doc.id}', '${identityId}', 'FOR_AGENT')">
-                                            <span style="color: ${responsibleParty === 'FOR_AGENT' ? 'var(--color-accent)' : '#666'}; font-weight: ${responsibleParty === 'FOR_AGENT' ? '500' : '400'};">旅行社</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        console.log('DEBUG: Generated HTML length:', html.length);
-        return html;
+    $select.onchange = () => {
+        $confirmBtn.disabled = !$select.value;
+    };
+
+    $dialog.style.display = 'flex';
+}
+
+function hideCopyDialog() {
+    document.getElementById('copyDialog').style.display = 'none';
+}
+
+async function executeCopy() {
+    const source = document.getElementById('sourceVisaType').value;
+    if (!source) return;
+
+    if (!confirm(`确定要将「${source}」的配置复制到「${state.visaType}」吗？\n\n这将覆盖当前所有配置！`)) {
+        return;
     }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const response = await fetch(`/visa/basic/api/copy_visa_documents/${encodeURIComponent(state.visaType)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ source_visa_type: source })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('复制成功', 'success');
+            hideCopyDialog();
+            await loadVisaType(state.visaType);
+        } else {
+            showToast('复制失败: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('复制失败:', error);
+        showToast('复制失败，请重试', 'error');
+    }
+}
+
+// Toast
+function showToast(message, type = 'info') {
+    $toast.textContent = message;
+    $toast.className = `toast ${type} show`;
+    setTimeout(() => $toast.classList.remove('show'), 3000);
+}
+
+// Loading
+function showLoading() {
+    const $loading = document.createElement('div');
+    $loading.className = 'loading-overlay';
+    $loading.id = 'loadingOverlay';
+    $loading.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner"></i><span>加载中...</span></div>';
+    document.body.appendChild($loading);
+}
+
+function hideLoading() {
+    const $loading = document.getElementById('loadingOverlay');
+    if ($loading) $loading.remove();
+}
+
+// 添加文档资料管理
+async function showAddDocDialog() {
+    document.getElementById('addDocDialog').style.display = 'flex';
+    document.getElementById('newDocName').value = '';
+    document.getElementById('newDocCategory').value = '';
+    document.getElementById('newDocCategoryCustom').value = '';
+    document.getElementById('newDocDescription').value = '';
+
+    // 动态加载分类列表
+    await loadCategories();
+}
+
+async function loadCategories() {
+    const $select = document.getElementById('newDocCategory');
+    try {
+        const response = await fetch('/visa/basic/api/get_document_categories');
+        const data = await response.json();
+
+        $select.innerHTML = '<option value="">选择分类...</option>';
+        if (data.success && data.categories) {
+            data.categories.forEach(cat => {
+                $select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('加载分类失败:', error);
+    }
+}
+
+function hideAddDocDialog() {
+    document.getElementById('addDocDialog').style.display = 'none';
+}
+
+async function addNewDocument() {
+    const name = document.getElementById('newDocName').value.trim();
+    const selectedCategory = document.getElementById('newDocCategory').value;
+    const customCategory = document.getElementById('newDocCategoryCustom').value.trim();
+    const category = customCategory || selectedCategory;  // 优先使用自定义分类
+    const description = document.getElementById('newDocDescription').value.trim();
+
+    if (!name) {
+        showToast('请填写文档名称', 'warning');
+        return;
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const response = await fetch('/visa/basic/api/add_document_item', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ name, category, description })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('文档添加成功', 'success');
+            hideAddDocDialog();
+            // 重新加载文档列表
+            const docsRes = await fetch('/visa/basic/api/get_all_documents');
+            const docsData = await docsRes.json();
+            if (docsData.success) {
+                state.documents = docsData.documents;
+                renderConfigPanel();
+            }
+        } else {
+            showToast('添加失败: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('添加文档失败:', error);
+        showToast('添加失败，请重试', 'error');
+    }
+}
 </script>
-{% endblock %} 
+{% endblock %}

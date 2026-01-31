@@ -1,4 +1,4 @@
-﻿{% extends "staff_base.html" %}
+{% extends "staff_base.html" %}
 
 {% block title %}{{ visa_type.visa_type }} - 签证类型详情{% endblock %}
 
@@ -7,97 +7,273 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <style>
-/* 页面特定样式 - 统计卡片 */
-.stat-card {
-    background: var(--visa-bg-card);
-    padding: 1.5rem;
-    border-radius: var(--visa-radius-md);
-    text-align: center;
-    box-shadow: var(--visa-shadow-md);
-    border: 1px solid var(--visa-border);
-    transition: all 0.2s;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--visa-shadow-lg);
-}
-
-.stat-number {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: var(--visa-primary);
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--visa-text-secondary);
-    font-weight: 500;
-}
-
-/* 信息列表 */
-.info-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.info-item {
+/* 页面头部 */
+.page-header {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem 0;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
     border-bottom: 1px solid var(--visa-border);
 }
 
-.info-item:last-child {
-    border-bottom: none;
-}
-
-.info-label {
-    color: var(--visa-text-muted);
-    font-weight: 500;
-}
-
-.info-value {
-    color: var(--visa-text-primary);
+.page-header-left h1 {
+    font-size: 1.5rem;
     font-weight: 600;
+    color: var(--visa-text-primary);
+    margin: 0 0 0.25rem 0;
 }
 
-/* 身份标签 */
-.identity-tag {
-    background: var(--visa-bg-light);
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--visa-radius-sm);
-    border: 1px solid var(--visa-border);
-    color: var(--visa-text-primary);
+.page-header-meta {
+    display: flex;
+    gap: 1rem;
+    color: var(--visa-text-secondary);
     font-size: 0.875rem;
 }
 
-/* 身份选项卡 */
-.identity-tab {
-    padding: 0.625rem 1.25rem;
-    background: var(--visa-bg-light);
-    border: 2px solid var(--visa-border);
-    border-radius: var(--visa-radius-sm);
-    color: var(--visa-text-secondary);
+.page-header-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.page-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* 操作按钮样式 */
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.15s;
+    border: 1px solid transparent;
 }
 
-.identity-tab:hover {
-    background: var(--visa-bg-hover);
-    border-color: var(--visa-border-dark);
+.action-btn-back {
+    background: #f1f5f9;
+    color: #64748b;
+    border-color: #e2e8f0;
+}
+.action-btn-back:hover {
+    background: #e2e8f0;
+    color: #475569;
 }
 
-.identity-tab.active {
+.action-btn-edit {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+.action-btn-edit:hover {
+    background: #fde68a;
+    color: #92400e;
+}
+
+.action-btn-docs {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+}
+.action-btn-docs:hover {
+    background: #bfdbfe;
+    color: #1e40af;
+}
+
+.action-btn-template {
+    background: #f3e8ff;
+    color: #7c3aed;
+    border-color: #c4b5fd;
+}
+.action-btn-template:hover {
+    background: #e9d5ff;
+    color: #6d28d9;
+}
+
+.action-btn-sort {
+    background: #d1fae5;
+    color: #059669;
+    border-color: #6ee7b7;
+}
+.action-btn-sort:hover {
+    background: #a7f3d0;
+    color: #047857;
+}
+
+.action-btn-copy {
+    background: #fce7f3;
+    color: #be185d;
+    border-color: #f9a8d4;
+}
+.action-btn-copy:hover {
+    background: #fbcfe8;
+    color: #9d174d;
+}
+
+/* 基本信息条 */
+.info-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--visa-bg-light);
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.info-bar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.info-bar-label {
+    font-size: 0.75rem;
+    color: var(--visa-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-bar-value {
+    font-size: 0.9375rem;
+    color: var(--visa-text-primary);
+    font-weight: 500;
+}
+
+.info-bar-divider {
+    width: 1px;
+    background: var(--visa-border);
+    align-self: stretch;
+}
+
+/* 身份标签组 */
+.identity-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.identity-tag {
+    background: white;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--visa-radius-sm);
+    border: 1px solid var(--visa-border);
+    color: var(--visa-text-primary);
+    font-size: 0.8125rem;
+}
+
+/* 链接标签 */
+.link-tags {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.link-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
     background: var(--visa-primary);
-    border-color: var(--visa-primary);
+    color: white;
+    border-radius: var(--visa-radius-sm);
+    font-size: 0.75rem;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+
+.link-tag:hover {
+    opacity: 0.85;
     color: white;
 }
 
-/* 文档列表显示控制 */
+/* 主内容区 - 两栏布局 */
+.main-content {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 文档配置区 */
+.doc-section {
+    background: white;
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-md);
+    overflow: hidden;
+}
+
+.doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.875rem 1.25rem;
+    background: var(--visa-bg-light);
+    border-bottom: 1px solid var(--visa-border);
+}
+
+.doc-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 身份选项卡 */
+.identity-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--visa-border);
+    background: var(--visa-bg-card);
+    overflow-x: auto;
+}
+
+.identity-tab {
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--visa-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.identity-tab:hover {
+    color: var(--visa-text-primary);
+    background: var(--visa-bg-hover);
+}
+
+.identity-tab.active {
+    color: var(--visa-primary);
+    border-bottom-color: var(--visa-primary);
+}
+
+/* 文档内容 */
+.doc-content {
+    padding: 1.25rem;
+    min-height: 300px;
+}
+
 .documents-list {
     display: none;
 }
@@ -106,174 +282,393 @@
     display: block;
 }
 
-/* 模板卡片 */
-.template-name {
-    font-weight: 600;
-    color: var(--visa-text-primary);
+/* 文档项目列表 */
+.doc-items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.doc-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.625rem 0;
+    border-bottom: 1px solid var(--visa-border-light, #f0f0f0);
+}
+
+.doc-item:last-child {
+    border-bottom: none;
+}
+
+.doc-item-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--visa-primary);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.doc-item-content {
     flex: 1;
 }
 
-.template-type {
+.doc-item-title {
+    font-size: 0.9375rem;
+    color: var(--visa-text-primary);
+    font-weight: 500;
+    margin-bottom: 0.125rem;
+}
+
+.doc-item-note {
+    font-size: 0.8125rem;
+    color: var(--visa-text-secondary);
+}
+
+/* 补充信息样式 */
+.additional-info-box {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: var(--visa-radius-sm);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.additional-info-box:last-child {
+    margin-bottom: 0;
+}
+
+.additional-info-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.additional-info-content {
+    font-size: 0.875rem;
+    color: #78350f;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--visa-text-muted);
+}
+
+.empty-state i {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+/* 右侧边栏 */
+.right-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* 模板文件卡片 */
+.template-card {
+    background: white;
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-md);
+    overflow: hidden;
+}
+
+.template-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--visa-bg-light);
+    border-bottom: 1px solid var(--visa-border);
+}
+
+.template-card-header h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.template-card-header .count {
     background: var(--visa-primary);
     color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: var(--visa-radius-sm);
     font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.template-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.template-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--visa-border-light, #f0f0f0);
+    transition: background 0.15s;
+}
+
+.template-item:last-child {
+    border-bottom: none;
+}
+
+.template-item:hover {
+    background: var(--visa-bg-hover);
+}
+
+.template-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--visa-bg-light);
+    border-radius: var(--visa-radius-sm);
+    color: var(--visa-primary);
+    flex-shrink: 0;
+}
+
+.template-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.template-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--visa-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.template-meta {
+    font-size: 0.75rem;
+    color: var(--visa-text-muted);
+}
+
+.template-download {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    color: var(--visa-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.template-download:hover {
+    background: var(--visa-primary);
+    border-color: var(--visa-primary);
+    color: white;
+}
+
+/* 快捷操作卡片 */
+.quick-actions {
+    background: white;
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-md);
+    padding: 1rem;
+}
+
+.quick-actions h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--visa-text-primary);
+    margin: 0 0 0.75rem 0;
+}
+
+.quick-action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--visa-bg-light);
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-sm);
+    color: var(--visa-text-primary);
+    font-size: 0.8125rem;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.quick-action-btn:hover {
+    background: var(--visa-bg-hover);
+    border-color: var(--visa-primary);
+    color: var(--visa-primary);
+}
+
+.quick-action-btn i {
+    width: 16px;
+    text-align: center;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="visa-container" data-visa-type-id="{{ visa_type.id }}" data-visa-type="{{ visa_type.visa_type }}">
-    <h1 class="visa-page-title">{{ visa_type.visa_type }}</h1>
-    <p class="visa-text-center" style="color: var(--visa-text-secondary); margin-bottom: 2rem;">
-        <i class="fas fa-flag"></i> {{ visa_type.country.country_name_CN }}
-    </p>
 
-    <!-- 操作按钮栏 -->
-    <div class="visa-flex visa-gap-2 visa-mb-3" style="justify-content: center; flex-wrap: wrap;">
-        <button type="button" class="visa-btn visa-btn-secondary" data-action="open-template-modal">
-            <i class="fas fa-copy"></i> 套用模板
-        </button>
-        <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="visa-btn visa-btn-primary">
-            <i class="fas fa-cogs"></i> 配置文档
-        </a>
-        <a href="{{ url_for('visa_basic.visa_template_manager') }}?visa_type={{ visa_type.visa_type }}" class="visa-btn visa-btn-secondary">
-            <i class="fas fa-file-upload"></i> 管理模板
-        </a>
-        <a href="{{ url_for('visa_basic.document_order_manager', visa_type=visa_type.visa_type) }}" class="visa-btn visa-btn-secondary">
-            <i class="fas fa-sort"></i> 调整顺序
-        </a>
-        <a href="{{ url_for('visa_basic.visa_type_list') }}" class="visa-btn visa-btn-secondary">
-            <i class="fas fa-arrow-left"></i> 返回列表
-        </a>
-    </div>
-
-    <!-- 统计信息 -->
-    <div class="visa-grid-4 visa-mb-3">
-        <div class="stat-card">
-            <div class="stat-number">{{ document_stats.total_documents }}</div>
-            <div class="stat-label">配置文档</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ template_stats.total_templates }}</div>
-            <div class="stat-label">模板文件</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ visa_type.actual_identities|length }}</div>
-            <div class="stat-label">适用身份</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ project_stats.total_projects }}</div>
-            <div class="stat-label">相关项目</div>
-        </div>
-    </div>
-
-    <!-- 基本信息 -->
-    <div class="visa-grid-3 visa-mb-3">
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <h3><i class="fas fa-info-circle"></i> 基本信息</h3>
-            </div>
-            <div class="visa-card-body">
-                <ul class="info-list">
-                    <li class="info-item">
-                        <span class="info-label">签证类型</span>
-                        <span class="info-value">{{ visa_type.visa_type }}</span>
-                    </li>
-                    <li class="info-item">
-                        <span class="info-label">所属国家</span>
-                        <span class="info-value">{{ visa_type.country.country_name_CN }}</span>
-                    </li>
-                    <li class="info-item">
-                        <span class="info-label">申请费用</span>
-                        <span class="info-value">{{ visa_type.fee }}</span>
-                    </li>
-                    <li class="info-item">
-                        <span class="info-label">处理时间</span>
-                        <span class="info-value">{{ visa_type.processing_time }}</span>
-                    </li>
-                </ul>
+    <!-- 页面头部 -->
+    <div class="page-header">
+        <div class="page-header-left">
+            <h1>{{ visa_type.visa_type }}</h1>
+            <div class="page-header-meta">
+                <span><i class="fas fa-flag"></i> {{ visa_type.country.country_name_CN }}</span>
+                <span><i class="fas fa-clock"></i> {{ visa_type.processing_time or '未设置' }}</span>
+                <span><i class="fas fa-dollar-sign"></i> {{ visa_type.fee or '未设置' }}</span>
             </div>
         </div>
-
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <h3><i class="fas fa-users"></i> 适用身份</h3>
-            </div>
-            <div class="visa-card-body">
-                <div class="visa-flex visa-gap-2 visa-flex-wrap">
-                    {% for identity in visa_type.actual_identities %}
-                        <span class="identity-tag">{{ identity }}</span>
-                    {% else %}
-                        <span class="identity-tag" style="color: var(--visa-text-muted);">无配置身份</span>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <h3><i class="fas fa-link"></i> 相关链接</h3>
-            </div>
-            <div class="visa-card-body">
-                <ul class="info-list">
-                    {% if visa_type.links %}
-                        {% for link in visa_type.links %}
-                        <li class="info-item">
-                            <span class="info-label">{{ link.name }}</span>
-                            <span class="info-value">
-                                <a href="{{ link.link }}" target="_blank" class="visa-btn-link visa-btn-link-primary">
-                                    <i class="fas fa-external-link-alt"></i>
-                                </a>
-                            </span>
-                        </li>
-                        {% endfor %}
-                    {% else %}
-                        <li class="info-item">
-                            <span class="info-label">相关链接</span>
-                            <span class="info-value" style="color: var(--visa-text-muted);">暂无</span>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- 文档配置 -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header">
-            <h2><i class="fas fa-file-alt"></i> 文档配置</h2>
-            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="visa-btn visa-btn-sm visa-btn-secondary">
-                <i class="fas fa-edit"></i> 编辑配置
+        <div class="page-header-actions">
+            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="action-btn action-btn-back">
+                <i class="fas fa-arrow-left"></i> 返回
+            </a>
+            <a href="{{ url_for('visa_basic.edit_visa_type_basic', visa_type=visa_type.visa_type) }}" class="action-btn action-btn-edit">
+                <i class="fas fa-edit"></i> 基本信息
+            </a>
+            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="action-btn action-btn-docs">
+                <i class="fas fa-file-alt"></i> 文档配置
+            </a>
+            <a href="{{ url_for('visa_basic.visa_template_manager') }}?visa_type={{ visa_type.visa_type }}" class="action-btn action-btn-template">
+                <i class="fas fa-file-upload"></i> 模板文件
+            </a>
+            <a href="{{ url_for('visa_basic.document_order_manager', visa_type=visa_type.visa_type) }}" class="action-btn action-btn-sort">
+                <i class="fas fa-sort"></i> 文档顺序
+            </a>
+            <a href="javascript:void(0)" class="action-btn action-btn-copy" data-action="open-template-modal">
+                <i class="fas fa-copy"></i> 套用模板
             </a>
         </div>
+    </div>
 
-        <div class="visa-card-body">
-            <!-- 身份标签 -->
-            <div class="visa-flex visa-gap-2 visa-flex-wrap visa-mb-3">
-                <button class="identity-tab active" data-action="show-documents" data-identity="share">共用资料</button>
+    <!-- 基本信息条 -->
+    <div class="info-bar">
+        <div class="info-bar-item">
+            <span class="info-bar-label">适用身份</span>
+            <div class="identity-tags">
                 {% for identity in visa_type.actual_identities %}
-                    <button class="identity-tab" data-action="show-documents" data-identity="{{ identity }}">{{ identity }}</button>
+                    <span class="identity-tag">{{ identity }}</span>
+                {% else %}
+                    <span class="identity-tag" style="color: var(--visa-text-muted);">未配置</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if visa_type.links %}
+        <div class="info-bar-divider"></div>
+        <div class="info-bar-item">
+            <span class="info-bar-label">相关链接</span>
+            <div class="link-tags">
+                {% for link in visa_type.links %}
+                    <a href="{{ link.link }}" target="_blank" class="link-tag">
+                        {{ link.name }} <i class="fas fa-external-link-alt"></i>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 左侧：文档配置 -->
+        <div class="doc-section">
+            <div class="doc-header">
+                <h2><i class="fas fa-file-alt"></i> 所需材料</h2>
+                <span style="font-size: 0.8125rem; color: var(--visa-text-muted);">
+                    共 {{ document_stats.total_documents }} 项
+                </span>
+            </div>
+
+            <!-- 身份选项卡 -->
+            <div class="identity-tabs">
+                <button class="identity-tab active" data-action="show-documents" data-identity="share">
+                    共用资料
+                </button>
+                {% for identity in visa_type.actual_identities %}
+                    <button class="identity-tab" data-action="show-documents" data-identity="{{ identity }}">
+                        {{ identity }}
+                    </button>
                 {% endfor %}
                 <button class="identity-tab" data-action="show-documents" data-identity="additional">
-                    <i class="fas fa-info-circle"></i> 补充信息
+                    补充说明
                 </button>
             </div>
 
             <!-- 文档内容 -->
-            <div class="documents-content">
+            <div class="doc-content">
                 <!-- 共用资料 -->
                 <div id="documents-share" class="documents-list active">
                     {% if document_data.SHARE and document_data.SHARE.document_info %}
-                        <div id="document-list-share" class="sortable-document-list" style="display: none;">
-                            <!-- 排序模式下显示 -->
-                        </div>
-                        <div id="document-display-share">
-                            <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border); color: var(--visa-text-primary);">{{ document_data.SHARE.document_info }}</pre>
-                        </div>
+                        {% set doc_lines = document_data.SHARE.document_info.split('\n') %}
+                        <ul class="doc-items">
+                            {% for line in doc_lines %}
+                                {% set line = line.strip() %}
+                                {% if line and line.startswith('•') %}
+                                    {% set content = line[1:].strip() %}
+                                    {% if '：' in content %}
+                                        {% set parts = content.split('：', 1) %}
+                                        <li class="doc-item">
+                                            <span class="doc-item-icon"><i class="fas fa-check-circle"></i></span>
+                                            <div class="doc-item-content">
+                                                <div class="doc-item-title">{{ parts[0] }}</div>
+                                                {% if parts[1] %}
+                                                <div class="doc-item-note">{{ parts[1] }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </li>
+                                    {% else %}
+                                        <li class="doc-item">
+                                            <span class="doc-item-icon"><i class="fas fa-check-circle"></i></span>
+                                            <div class="doc-item-content">
+                                                <div class="doc-item-title">{{ content }}</div>
+                                            </div>
+                                        </li>
+                                    {% endif %}
+                                {% elif line and not line.startswith('【') and not line.startswith('━') %}
+                                    <li class="doc-item">
+                                        <span class="doc-item-icon"><i class="fas fa-info-circle"></i></span>
+                                        <div class="doc-item-content">
+                                            <div class="doc-item-note">{{ line }}</div>
+                                        </div>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
                     {% else %}
-                        <div class="visa-text-center" style="padding: 2rem; color: var(--visa-text-muted);">暂无共用资料配置</div>
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>暂无共用资料配置</p>
+                        </div>
                     {% endif %}
                 </div>
 
@@ -281,151 +676,193 @@
                 {% for identity in visa_type.actual_identities %}
                     <div id="documents-{{ identity }}" class="documents-list">
                         {% if document_data[identity] and document_data[identity].document_info %}
-                            <div id="document-list-{{ identity }}" class="sortable-document-list" style="display: none;">
-                                <!-- 排序模式下显示 -->
-                            </div>
-                            <div id="document-display-{{ identity }}">
-                                <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; padding: 1rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border); color: var(--visa-text-primary);">{{ document_data[identity].document_info }}</pre>
-                            </div>
+                            {% set doc_lines = document_data[identity].document_info.split('\n') %}
+                            <ul class="doc-items">
+                                {% for line in doc_lines %}
+                                    {% set line = line.strip() %}
+                                    {% if line and line.startswith('•') %}
+                                        {% set content = line[1:].strip() %}
+                                        {% if '：' in content %}
+                                            {% set parts = content.split('：', 1) %}
+                                            <li class="doc-item">
+                                                <span class="doc-item-icon"><i class="fas fa-check-circle"></i></span>
+                                                <div class="doc-item-content">
+                                                    <div class="doc-item-title">{{ parts[0] }}</div>
+                                                    {% if parts[1] %}
+                                                    <div class="doc-item-note">{{ parts[1] }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </li>
+                                        {% else %}
+                                            <li class="doc-item">
+                                                <span class="doc-item-icon"><i class="fas fa-check-circle"></i></span>
+                                                <div class="doc-item-content">
+                                                    <div class="doc-item-title">{{ content }}</div>
+                                                </div>
+                                            </li>
+                                        {% endif %}
+                                    {% elif line and not line.startswith('【') and not line.startswith('━') %}
+                                        <li class="doc-item">
+                                            <span class="doc-item-icon"><i class="fas fa-info-circle"></i></span>
+                                            <div class="doc-item-content">
+                                                <div class="doc-item-note">{{ line }}</div>
+                                            </div>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
                         {% else %}
-                            <div class="visa-text-center" style="padding: 2rem; color: var(--visa-text-muted);">暂无{{ identity }}身份文档配置</div>
+                            <div class="empty-state">
+                                <i class="fas fa-folder-open"></i>
+                                <p>暂无 {{ identity }} 身份文档配置</p>
+                            </div>
                         {% endif %}
                     </div>
                 {% endfor %}
-                
+
                 <!-- 补充信息 -->
                 <div id="documents-additional" class="documents-list">
-                    <div class="visa-mb-3">
-                        <h4 style="margin: 0 0 1rem 0; color: var(--visa-text-primary); font-size: 1.125rem;">
-                            <i class="fas fa-info-circle"></i> 补充信息汇总
-                        </h4>
-                        
-                        {% set has_additional_info = false %}
-                        
-                        <!-- 共用资料补充信息 -->
-                        {% if document_data.SHARE and document_data.SHARE.additional_info and document_data.SHARE.additional_info != '暂无补充信息' %}
+                    {% set has_additional_info = false %}
+
+                    {% if document_data.SHARE and document_data.SHARE.additional_info and document_data.SHARE.additional_info != '暂无补充信息' %}
+                        {% set has_additional_info = true %}
+                        <div class="additional-info-box">
+                            <div class="additional-info-title">
+                                <i class="fas fa-share-alt"></i> 共用资料补充
+                            </div>
+                            <div class="additional-info-content">{{ document_data.SHARE.additional_info }}</div>
+                        </div>
+                    {% endif %}
+
+                    {% for identity in visa_type.actual_identities %}
+                        {% if document_data[identity] and document_data[identity].additional_info and document_data[identity].additional_info != '暂无补充信息' %}
                             {% set has_additional_info = true %}
-                            <div class="visa-info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; margin-bottom: 1rem;">
-                                <i class="fas fa-share-alt"></i>
-                                <div>
-                                    <strong>共用资料补充信息</strong>
-                                    <pre style="white-space: pre-wrap; font-family: inherit; margin: 0.5rem 0 0 0; color: #856404;">{{ document_data.SHARE.additional_info }}</pre>
+                            <div class="additional-info-box" style="background: #eff6ff; border-color: #93c5fd;">
+                                <div class="additional-info-title" style="color: #1e40af;">
+                                    <i class="fas fa-user"></i> {{ identity }}补充
                                 </div>
+                                <div class="additional-info-content" style="color: #1e3a8a;">{{ document_data[identity].additional_info }}</div>
                             </div>
                         {% endif %}
-                        
-                        <!-- 各身份补充信息 -->
-                        {% for identity in visa_type.actual_identities %}
-                            {% if document_data[identity] and document_data[identity].additional_info and document_data[identity].additional_info != '暂无补充信息' %}
-                                {% set has_additional_info = true %}
-                                <div class="visa-info-box" style="background: #e3f2fd; border-color: #bbdefb; color: #1976d2; margin-bottom: 1rem;">
-                                    <i class="fas fa-user"></i>
-                                    <div>
-                                        <strong>{{ identity }}补充信息</strong>
-                                        <pre style="white-space: pre-wrap; font-family: inherit; margin: 0.5rem 0 0 0; color: #1976d2;">{{ document_data[identity].additional_info }}</pre>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if not has_additional_info %}
-                            <div class="visa-text-center" style="padding: 2rem; color: var(--visa-text-muted);">
-                                <i class="fas fa-info-circle fa-2x" style="display: block; margin-bottom: 1rem;"></i>
-                                暂无补充信息
-                            </div>
-                        {% endif %}
-                    </div>
+                    {% endfor %}
+
+                    {% if not has_additional_info %}
+                        <div class="empty-state">
+                            <i class="fas fa-info-circle"></i>
+                            <p>暂无补充说明</p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- 模板文件 -->
-    <div class="visa-card">
-        <div class="visa-card-header">
-            <h2><i class="fas fa-file-upload"></i> 模板文件</h2>
-            <a href="{{ url_for('visa_basic.visa_template_manager') }}?visa_type={{ visa_type.visa_type|urlencode }}" class="visa-btn visa-btn-sm visa-btn-primary">
-                <i class="fas fa-plus"></i> 上传模板
-            </a>
-        </div>
-
-        <div class="visa-card-body">
-            {% if template_files %}
-                <div class="visa-grid-auto-fit">
+        <!-- 右侧：侧边栏 -->
+        <div class="right-sidebar">
+            <!-- 模板文件 -->
+            <div class="template-card">
+                <div class="template-card-header">
+                    <h3><i class="fas fa-file-download"></i> 模板文件</h3>
+                    <span class="count">{{ template_files|length }}</span>
+                </div>
+                {% if template_files %}
+                <div class="template-list">
                     {% for template in template_files %}
-                    <div class="visa-card-simple">
-                        <div class="visa-flex-between visa-mb-2">
-                            <div class="template-name">{{ template.template_name }}</div>
-                            <span class="template-type">{{ template.template_type }}</span>
-                        </div>
-                        <div style="font-size: 0.8125rem; color: var(--visa-text-secondary); margin-bottom: 0.75rem;">
-                            <div style="margin-bottom: 0.25rem;"><strong>适用身份:</strong> {{ template.identity_name }}</div>
-                            <div style="margin-bottom: 0.25rem;"><strong>文件类型:</strong> {{ template.file_type.upper() }}</div>
-                            <div style="margin-bottom: 0.25rem;"><strong>文件大小:</strong> {{ template.file_size|filesizeformat }}</div>
-                            {% if template.description %}
-                            <div><strong>描述:</strong> {{ template.description }}</div>
+                    <div class="template-item">
+                        <div class="template-icon">
+                            {% if template.file_type == 'pdf' %}
+                                <i class="fas fa-file-pdf"></i>
+                            {% elif template.file_type in ['doc', 'docx'] %}
+                                <i class="fas fa-file-word"></i>
+                            {% elif template.file_type in ['xls', 'xlsx'] %}
+                                <i class="fas fa-file-excel"></i>
+                            {% elif template.file_type in ['jpg', 'jpeg', 'png'] %}
+                                <i class="fas fa-file-image"></i>
+                            {% else %}
+                                <i class="fas fa-file"></i>
                             {% endif %}
                         </div>
-                        <button class="visa-btn visa-btn-sm visa-btn-primary" style="width: 100%;" data-action="download-template" data-template-id="{{ template.id }}">
-                            <i class="fas fa-download"></i> 下载
+                        <div class="template-info">
+                            <div class="template-name" title="{{ template.template_name }}">{{ template.template_name }}</div>
+                            <div class="template-meta">{{ template.identity_name }} · {{ template.file_type.upper() }}</div>
+                        </div>
+                        <button class="template-download" data-action="download-template" data-template-id="{{ template.id }}" title="下载">
+                            <i class="fas fa-download"></i>
                         </button>
                     </div>
                     {% endfor %}
                 </div>
-            {% else %}
-                <div class="visa-text-center" style="padding: 3rem;">
-                    <i class="fas fa-inbox fa-3x" style="color: var(--visa-text-muted); margin-bottom: 1rem; display: block;"></i>
-                    <h4 style="color: var(--visa-text-secondary); margin-bottom: 0.5rem;">暂无模板文件</h4>
-                    <p style="color: var(--visa-text-muted);">点击"上传模板"按钮开始添加模板文件</p>
+                {% else %}
+                <div style="padding: 2rem 1rem; text-align: center; color: var(--visa-text-muted);">
+                    <i class="fas fa-inbox" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                    <p style="margin: 0; font-size: 0.875rem;">暂无模板</p>
                 </div>
-            {% endif %}
+                {% endif %}
+                <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--visa-border);">
+                    <a href="{{ url_for('visa_basic.visa_template_manager') }}?visa_type={{ visa_type.visa_type|urlencode }}"
+                       class="visa-btn visa-btn-sm visa-btn-secondary" style="width: 100%;">
+                        <i class="fas fa-cog"></i> 管理模板
+                    </a>
+                </div>
+            </div>
+
+            <!-- 快捷统计 -->
+            <div class="quick-actions">
+                <h3><i class="fas fa-chart-bar"></i> 统计信息</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div style="text-align: center; padding: 0.75rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm);">
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--visa-primary);">{{ document_stats.total_documents }}</div>
+                        <div style="font-size: 0.75rem; color: var(--visa-text-muted);">所需材料</div>
+                    </div>
+                    <div style="text-align: center; padding: 0.75rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-sm);">
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--visa-primary);">{{ project_stats.total_projects }}</div>
+                        <div style="font-size: 0.75rem; color: var(--visa-text-muted);">相关项目</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- 套用模板模态框 -->
 <div id="templateModal" class="visa-modal">
-    <div class="visa-modal-dialog visa-modal-dialog-lg">
+    <div class="visa-modal-dialog">
         <div class="visa-modal-header">
             <h3 class="visa-modal-title"><i class="fas fa-copy"></i> 套用签证模板</h3>
             <button class="visa-modal-close" data-action="close-template-modal">&times;</button>
         </div>
         <div class="visa-modal-body">
-            <p style="margin-bottom: 1.5rem; color: var(--visa-text-secondary);">选择要套用的签证类型作为模板，系统将复制其文档配置和模板文件到当前签证类型。</p>
-            
+            <p style="margin-bottom: 1.5rem; color: var(--visa-text-secondary);">
+                选择要套用的签证类型，系统将复制其配置到当前签证。
+            </p>
+
             <div class="visa-form-group">
-                <label class="visa-form-label">选择模板签证类型</label>
+                <label class="visa-form-label">选择模板</label>
                 <select id="templateVisaType" class="visa-form-select">
                     <option value="">请选择签证类型...</option>
                 </select>
             </div>
-            
+
             <div class="visa-form-group">
                 <label class="visa-form-label">套用选项</label>
-                <div class="visa-flex" style="flex-direction: column; gap: 0.5rem;">
-                    <label class="visa-flex" style="align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="copyDocuments" checked style="width: 18px; height: 18px;">
-                        <span style="color: var(--visa-text-secondary);">复制文档配置</span>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="copyDocuments" checked>
+                        <span>复制文档配置</span>
                     </label>
-                    <label class="visa-flex" style="align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="copyTemplates" checked style="width: 18px; height: 18px;">
-                        <span style="color: var(--visa-text-secondary);">复制模板文件</span>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="copyTemplates" checked>
+                        <span>复制模板文件</span>
                     </label>
-                    <label class="visa-flex" style="align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="copyIdentities" checked style="width: 18px; height: 18px;">
-                        <span style="color: var(--visa-text-secondary);">复制身份配置</span>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="copyIdentities" checked>
+                        <span>复制身份配置</span>
                     </label>
                 </div>
-            </div>
-            
-            <div id="templatePreview" style="display: none;">
-                <h4 style="margin-bottom: 0.75rem; color: var(--visa-text-primary);">模板预览</h4>
-                <div id="previewContent"></div>
             </div>
         </div>
         <div class="visa-modal-footer">
             <button type="button" class="visa-btn visa-btn-secondary" data-action="close-template-modal">取消</button>
-            <button type="button" class="visa-btn visa-btn-primary" data-action="apply-template">套用模板</button>
+            <button type="button" class="visa-btn visa-btn-primary" data-action="apply-template">确认套用</button>
         </div>
     </div>
 </div>
@@ -435,43 +872,25 @@
 
 {% block extra_js %}
 <script>
-// ==================== 全局变量 ====================
+// 全局变量
 const mainContainer = document.querySelector('.visa-container');
 const VISA_TYPE_ID = parseInt(mainContainer.dataset.visaTypeId);
 const VISA_TYPE = mainContainer.dataset.visaType;
 const CSRF_TOKEN = document.querySelector('input[name="csrf_token"]').value;
 
-let currentVisaTypeId = null;
-let currentIdentity = 'share';
-
-// ==================== 显示文档 ====================
+// 显示文档
 function showDocuments(identity) {
-    // 隐藏所有文档列表
-    document.querySelectorAll('.documents-list').forEach(list => {
-        list.classList.remove('active');
-    });
-    
-    // 移除所有标签的active状态
-    document.querySelectorAll('.identity-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // 显示选中的文档列表
+    document.querySelectorAll('.documents-list').forEach(list => list.classList.remove('active'));
+    document.querySelectorAll('.identity-tab').forEach(tab => tab.classList.remove('active'));
+
     const targetList = document.getElementById(`documents-${identity}`);
-    if (targetList) {
-        targetList.classList.add('active');
-    }
-    
-    // 激活对应的标签
     const targetTab = document.querySelector(`[data-identity="${identity}"]`);
-    if (targetTab) {
-        targetTab.classList.add('active');
-    }
-    
-    currentIdentity = identity;
+
+    if (targetList) targetList.classList.add('active');
+    if (targetTab) targetTab.classList.add('active');
 }
 
-// ==================== 模板管理 ====================
+// 模态框
 function openTemplateModal() {
     document.getElementById('templateModal').classList.add('active');
     loadTemplateVisaTypes();
@@ -487,54 +906,13 @@ function loadTemplateVisaTypes() {
         .then(data => {
             if (data.success) {
                 const select = document.getElementById('templateVisaType');
-                if (!select) return;
-                
                 select.innerHTML = '<option value="">请选择签证类型...</option>';
-                
                 data.visa_types.forEach(visaType => {
                     if (visaType !== VISA_TYPE) {
-                        const option = document.createElement('option');
-                        option.value = visaType;
-                        option.textContent = visaType;
-                        select.appendChild(option);
+                        select.innerHTML += `<option value="${visaType}">${visaType}</option>`;
                     }
                 });
             }
-        })
-        .catch(error => {
-            console.error('加载签证类型失败:', error);
-        });
-}
-
-function loadTemplatePreview(templateVisaType) {
-    fetch(`/visa/basic/api/get_template_preview?visa_type=${encodeURIComponent(templateVisaType)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const previewDiv = document.getElementById('previewContent');
-                if (!previewDiv) return;
-                
-                let previewHtml = '<div class="visa-info-box">';
-                
-                if (data.identities && data.identities.length > 0) {
-                    previewHtml += `<p><strong>适用身份:</strong> ${data.identities.join(', ')}</p>`;
-                }
-                
-                if (data.document_count > 0) {
-                    previewHtml += `<p><strong>文档配置:</strong> ${data.document_count} 项</p>`;
-                }
-                
-                if (data.template_count > 0) {
-                    previewHtml += `<p><strong>模板文件:</strong> ${data.template_count} 个</p>`;
-                }
-                
-                previewHtml += '</div>';
-                previewDiv.innerHTML = previewHtml;
-                document.getElementById('templatePreview').style.display = 'block';
-            }
-        })
-        .catch(error => {
-            console.error('加载模板预览失败:', error);
         });
 }
 
@@ -543,26 +921,19 @@ function applyTemplate() {
     const copyDocuments = document.getElementById('copyDocuments').checked;
     const copyTemplates = document.getElementById('copyTemplates').checked;
     const copyIdentities = document.getElementById('copyIdentities').checked;
-    
+
     if (!templateVisaType) {
         alert('请选择要套用的签证类型');
         return;
     }
-    
+
     if (!copyDocuments && !copyTemplates && !copyIdentities) {
         alert('请至少选择一个套用选项');
         return;
     }
-    
-    const options = [];
-    if (copyDocuments) options.push('• 文档配置');
-    if (copyTemplates) options.push('• 模板文件');
-    if (copyIdentities) options.push('• 身份配置');
-    
-    const confirmMessage = `确定要将"${templateVisaType}"的配置套用到"${VISA_TYPE}"吗？\n\n套用选项：\n${options.join('\n')}`;
-    
-    if (!confirm(confirmMessage)) return;
-    
+
+    if (!confirm(`确定要将"${templateVisaType}"的配置套用到当前签证吗？`)) return;
+
     fetch('/visa/basic/api/apply_template', {
         method: 'POST',
         headers: {
@@ -580,31 +951,25 @@ function applyTemplate() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('模板套用成功！页面将自动刷新。');
-            closeTemplateModal();
+            alert('模板套用成功！');
             window.location.reload();
         } else {
-            alert('模板套用失败: ' + data.message);
+            alert('套用失败: ' + data.message);
         }
-    })
-    .catch(error => {
-        console.error('套用模板失败:', error);
-        alert('套用模板失败，请稍后重试');
     });
 }
 
-// ==================== 下载模板 ====================
 function downloadTemplate(templateId) {
     window.open(`/visa/basic/api/visa_templates/download/${templateId}`, '_blank');
 }
 
-// ==================== 事件委托 ====================
+// 事件委托
 document.addEventListener('click', function(e) {
     const target = e.target.closest('[data-action]');
     if (!target) return;
-    
+
     const action = target.dataset.action;
-    
+
     switch(action) {
         case 'show-documents':
             showDocuments(target.dataset.identity);
@@ -624,28 +989,12 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ==================== 初始化 ====================
+// 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    // 默认显示共用资料
     showDocuments('share');
-    
-    // 绑定模板选择变化事件
-    const templateSelect = document.getElementById('templateVisaType');
-    if (templateSelect) {
-        templateSelect.addEventListener('change', function() {
-            if (this.value) {
-                loadTemplatePreview(this.value);
-            } else {
-                document.getElementById('templatePreview').style.display = 'none';
-            }
-        });
-    }
-    
-    // 点击模态框外部关闭
+
     document.getElementById('templateModal')?.addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeTemplateModal();
-        }
+        if (e.target === this) closeTemplateModal();
     });
 });
 </script>

@@ -26,13 +26,18 @@
     <h1 class="visa-page-title">签证类型列表</h1>
     
     <!-- 筛选栏 -->
-    <div class="visa-filter-bar">
-        <div class="visa-flex visa-gap-2" style="align-items: flex-end;">
-            <form method="GET" action="{{ url_for('visa_basic.visa_type_list') }}">
+    <div class="visa-card" style="margin-bottom: 1rem;">
+        <div class="visa-card-body" style="padding: 1rem;">
+            <form method="GET" action="{{ url_for('visa_basic.visa_type_list') }}" class="visa-flex visa-gap-3" style="flex-wrap: wrap; align-items: flex-end;">
                 <div class="visa-filter-item">
-                    <label class="visa-form-label">筛选国家：</label>
-                    <select name="country" onchange="this.form.submit()" class="visa-form-select">
-                        <option value="">显示全部</option>
+                    <label class="visa-form-label">搜索</label>
+                    <input type="text" name="keyword" class="visa-form-control" placeholder="签证类型名称..."
+                           value="{{ request.args.get('keyword', '') }}" style="min-width: 180px;">
+                </div>
+                <div class="visa-filter-item">
+                    <label class="visa-form-label">国家/地区</label>
+                    <select name="country" class="visa-form-select" style="min-width: 120px;">
+                        <option value="">全部</option>
                         {% for country in countries %}
                         <option value="{{ country.id }}" {% if request.args.get('country')|int == country.id %}selected{% endif %}>
                             {{ country.country_name_CN }}
@@ -40,18 +45,31 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="visa-filter-item">
+                    <label class="visa-form-label">状态</label>
+                    <select name="status" class="visa-form-select" style="min-width: 100px;">
+                        <option value="">全部</option>
+                        <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>已激活</option>
+                        <option value="inactive" {% if request.args.get('status') == 'inactive' %}selected{% endif %}>未激活</option>
+                    </select>
+                </div>
+                <div class="visa-flex visa-gap-2">
+                    <button type="submit" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                    <a href="{{ url_for('visa_basic.visa_type_list') }}" class="visa-btn visa-btn-secondary">
+                        <i class="fas fa-times"></i> 重置
+                    </a>
+                </div>
+                <div style="margin-left: auto;" class="visa-flex visa-gap-2">
+                    <button type="button" onclick="openAddModal()" class="visa-btn visa-btn-success">
+                        <i class="fas fa-plus"></i> 添加
+                    </button>
+                    <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="visa-btn visa-btn-secondary">
+                        <i class="fas fa-cogs"></i> 文档管理器
+                    </a>
+                </div>
             </form>
-            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="visa-btn visa-btn-secondary" style="white-space: nowrap;">
-                <i class="fas fa-times"></i> 清除筛选
-            </a>
-        </div>
-        <div class="visa-flex visa-gap-2">
-            <button onclick="openAddModal()" class="visa-btn visa-btn-primary">
-                <i class="fas fa-plus"></i> 添加签证类型
-            </button>
-            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="visa-btn visa-btn-success">
-                <i class="fas fa-cogs"></i> 签证文档管理器
-            </a>
         </div>
     </div>
 
@@ -60,15 +78,14 @@
         <table class="visa-table">
             <thead>
                 <tr>
-                    <th>所属国家</th>
+                    <th>国家/地区</th>
                     <th>签证类型名称</th>
-                    <th>处理时间</th>
-                    <th>申请费用</th>
-                    <th>创建时间</th>
-                    <th>更新时间</th>
                     <th>有效期</th>
-                    <th class="visa-text-center">激活状态</th>
-                    <th>新加坡身份</th>
+                    <th>处理时间</th>
+                    <th>售价</th>
+                    <th>成本</th>
+                    <th class="visa-text-center">状态</th>
+                    <th>适用身份</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -76,29 +93,15 @@
             {% for vt in visa_types %}
                 <tr>
                     <td>{{ vt.country.country_name_CN }}</td>
-                    <td>{{ vt.visa_type }}</td>
-                    <td>{{ vt.processing_time }}</td>
-                    <td>{{ vt.fee }}</td>
                     <td>
-                        {% if vt.created_at %}
-                            {{ vt.created_at.strftime('%m-%d %H:%M') }}
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
+                        <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=vt.visa_type) }}" class="visa-link">
+                            {{ vt.visa_type }}
+                        </a>
                     </td>
-                    <td>
-                        {% if vt.updated_at %}
-                            {{ vt.updated_at.strftime('%m-%d %H:%M') }}
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if vt.valid_until %}
-                            {{ vt.valid_until.strftime('%m-%d %H:%M') }}
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
+                    <td>{{ vt.validity_period or '-' }}</td>
+                    <td>{{ vt.processing_time or '-' }}</td>
+                    <td>{{ vt.fee or '-' }}</td>
+                    <td>{{ vt.cost or '-' }}</td>
                     </td>
                     <td class="visa-text-center">
                         <span class="visa-badge visa-badge-{% if vt.is_active %}success{% else %}danger{% endif %}" 
@@ -130,12 +133,12 @@
         {% if pagination.pages > 1 %}
         <div class="visa-pagination">
             {% if pagination.has_prev %}
-                <a href="{{ url_for('visa_basic.visa_type_list', page=pagination.prev_num, country=request.args.get('country')) }}" 
+                <a href="{{ url_for('visa_basic.visa_type_list', page=pagination.prev_num, country=request.args.get('country'), keyword=request.args.get('keyword'), status=request.args.get('status')) }}"
                    class="visa-pagination-btn">
                     上一页
                 </a>
             {% endif %}
-            
+
             {% for page in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
                 {% if page %}
                     {% if page == pagination.page %}
@@ -143,7 +146,7 @@
                             {{ page }}
                         </span>
                     {% else %}
-                        <a href="{{ url_for('visa_basic.visa_type_list', page=page, country=request.args.get('country')) }}"
+                        <a href="{{ url_for('visa_basic.visa_type_list', page=page, country=request.args.get('country'), keyword=request.args.get('keyword'), status=request.args.get('status')) }}"
                            class="visa-pagination-btn">
                             {{ page }}
                         </a>
@@ -152,9 +155,9 @@
                     <span class="visa-pagination-btn" style="cursor: default; pointer-events: none;">...</span>
                 {% endif %}
             {% endfor %}
-            
+
             {% if pagination.has_next %}
-                <a href="{{ url_for('visa_basic.visa_type_list', page=pagination.next_num, country=request.args.get('country')) }}"
+                <a href="{{ url_for('visa_basic.visa_type_list', page=pagination.next_num, country=request.args.get('country'), keyword=request.args.get('keyword'), status=request.args.get('status')) }}"
                    class="visa-pagination-btn">
                     下一页
                 </a>
@@ -215,7 +218,7 @@
         </div>
         <form id="addForm" method="POST" action="{{ url_for('visa_basic.add_visa_type') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
+
             <!-- 基本信息区域 -->
             <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
                 <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600; color: #374151;">基本信息</h3>
@@ -225,9 +228,9 @@
                         <input type="text" name="visa_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; transition: border-color 0.2s;" placeholder="请输入签证类型名称">
                     </div>
                     <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">所属国家 *</label>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">所属国家/地区 *</label>
                         <select name="country_id" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background-color: white;">
-                            <option value="">请选择国家</option>
+                            <option value="">请选择</option>
                             {% for country in countries %}
                             <option value="{{ country.id }}">{{ country.country_name_CN }}</option>
                             {% endfor %}
@@ -241,12 +244,20 @@
                 <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600; color: #374151;">费用和时间信息</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">有效期</label>
+                        <input type="text" name="validity_period" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：90天、1年多次">
+                    </div>
+                    <div>
                         <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">处理时间 *</label>
                         <input type="text" name="processing_time" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：5-7个工作日">
                     </div>
                     <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">申请费用 *</label>
-                        <input type="text" name="fee" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：$50">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">售价 *</label>
+                        <input type="text" name="fee" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：$150">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">成本</label>
+                        <input type="text" name="cost" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：$80">
                     </div>
                 </div>
             </div>
@@ -445,14 +456,22 @@
             <!-- 费用和时间信息 -->
             <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
                 <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600; color: #374151;">费用和时间信息</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">有效期</label>
+                        <input type="text" id="editValidityPeriod" name="validity_period" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：90天、1年多次">
+                    </div>
                     <div>
                         <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">处理时间 *</label>
                         <input type="text" id="editProcessingTime" name="processing_time" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：5-7个工作日">
                     </div>
                     <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">申请费用 *</label>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">售价 *</label>
                         <input type="text" id="editFee" name="fee" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：$50">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">成本</label>
+                        <input type="text" id="editCost" name="cost" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="如：$30">
                     </div>
                 </div>
             </div>
@@ -602,12 +621,12 @@ function openEditModal(field, visaType, currentValue = '') {
         `;
     }
     
-    modal.style.display = 'block';
+    modal.classList.add('active');
 }
 
 function closeEditModal() {
     const modal = document.getElementById('editModal');
-    modal.style.display = 'none';
+    modal.classList.remove('active');
 }
 
 // 点击模态框外部关闭
@@ -639,30 +658,30 @@ function openDeleteModal(visaType) {
     const modal = document.getElementById('deleteModal');
     const form = document.getElementById('deleteForm');
     const confirmText = document.getElementById('deleteConfirmText');
-    
+
     // 设置表单属性
     const countryId = new URLSearchParams(window.location.search).get('country');
     form.action = `/visa/basic/visa/delete_visa_type/${visaType}${countryId ? `?country=${countryId}` : ''}`;
-    
+
     // 设置确认文本
     confirmText.textContent = `确定要删除签证类型"${visaType}"吗？此操作不可恢复。`;
-    
-    modal.style.display = 'block';
+
+    modal.classList.add('active');
 }
 
 function closeDeleteModal() {
     const modal = document.getElementById('deleteModal');
-    modal.style.display = 'none';
+    modal.classList.remove('active');
 }
 
 function openAddModal() {
     const modal = document.getElementById('addModal');
-    modal.style.display = 'block';
+    modal.classList.add('active');
 }
 
 function closeAddModal() {
     const modal = document.getElementById('addModal');
-    modal.style.display = 'none';
+    modal.classList.remove('active');
 }
 
 function openCopyModal(visaType) {
@@ -766,7 +785,9 @@ function openEditAllModal(visaType, fee, processingTime) {
     
     // 获取签证说明字段
     const introductionInput = document.getElementById('editIntroduction');
-    
+    const costInput = document.getElementById('editCost');
+    const validityPeriodInput = document.getElementById('editValidityPeriod');
+
     // 获取签证类型数据并预填充国家信息和签证说明
     fetch(`/visa/basic/api/get_visa_type_data/${encodeURIComponent(visaType)}`)
         .then(response => response.json())
@@ -781,18 +802,26 @@ function openEditAllModal(visaType, fee, processingTime) {
                 if (introductionInput) {
                     introductionInput.value = visaData.introduction || '';
                 }
-                
+                // 预填充成本
+                if (costInput) {
+                    costInput.value = visaData.cost || '';
+                }
+                // 预填充有效期
+                if (validityPeriodInput) {
+                    validityPeriodInput.value = visaData.validity_period || '';
+                }
+
                 // 预填充激活状态
                 const isActiveInput = document.getElementById('edit_is_active');
                 if (isActiveInput) {
                     isActiveInput.checked = visaData.is_active || false;
                 }
-                
+
                 // 预填充时间字段
                 const createdAtInput = document.getElementById('editCreatedAt');
                 const updatedAtInput = document.getElementById('editUpdatedAt');
                 const validUntilInput = document.getElementById('editValidUntil');
-                
+
                 if (createdAtInput && visaData.created_at) {
                     const createdDate = new Date(visaData.created_at);
                     createdAtInput.value = createdDate.toISOString().slice(0, 10);

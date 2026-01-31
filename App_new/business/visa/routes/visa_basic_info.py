@@ -416,29 +416,41 @@ def edit_country(country_id):
 def visa_type_list():
     # 获取筛选参数
     country_id = request.args.get('country', type=int)
+    keyword = request.args.get('keyword', '').strip()
+    status = request.args.get('status', '')
     # 获取页码参数，默认为1
     page = request.args.get('page', 1, type=int)
     per_page = 20  # 每页显示20条数据
-    
+
     # 获取所有国家列表（用于筛选下拉框）
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
-    
+
     # 获取所有新加坡身份列表（用于添加签证类型）
     singapore_identities = VisaSingaporeIdentity.query\
         .filter(VisaSingaporeIdentity.identity_zh != 'SHARE')\
         .order_by(VisaSingaporeIdentity.identity_zh)\
         .all()
-    
+
     # 构建基础查询
     query = VisaTypes.query.join(VisaCountries).order_by(
         VisaCountries.country_name_CN.asc(),
         VisaTypes.visa_type.asc()
     )
-    
+
     # 应用国家筛选
     if country_id:
         query = query.filter(VisaTypes.country_id == country_id)
-    
+
+    # 应用关键词搜索
+    if keyword:
+        query = query.filter(VisaTypes.visa_type.ilike(f'%{keyword}%'))
+
+    # 应用状态筛选
+    if status == 'active':
+        query = query.filter(VisaTypes.is_active == True)
+    elif status == 'inactive':
+        query = query.filter(VisaTypes.is_active == False)
+
     # 获取分页数据
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     visa_types = pagination.items
@@ -465,6 +477,8 @@ def add_visa_type():
             visa_type = request.form.get('visa_type')
             processing_time = request.form.get('processing_time')
             fee = request.form.get('fee')
+            cost = request.form.get('cost')
+            validity_period = request.form.get('validity_period')
             introduction = request.form.get('introduction')
             country_id = request.form.get('country_id')
             identity_ids = request.form.getlist('identity_ids')  # 获取多个身份ID
@@ -500,6 +514,8 @@ def add_visa_type():
                 visa_type=visa_type,
                 processing_time=processing_time,
                 fee=fee,
+                cost=cost,
+                validity_period=validity_period,
                 introduction=introduction,
                 country_id=country_id,
                 created_at=created_at,
@@ -705,8 +721,11 @@ def get_visa_type_data(visa_type):
                 'visa_type': visa_type_record.visa_type,
                 'processing_time': visa_type_record.processing_time,
                 'fee': visa_type_record.fee,
+                'cost': visa_type_record.cost,
+                'validity_period': visa_type_record.validity_period,
                 'introduction': visa_type_record.introduction,
                 'country_id': visa_type_record.country_id,
+                'is_active': visa_type_record.is_active,
                 'created_at': visa_type_record.created_at.isoformat() if visa_type_record.created_at else None,
                 'updated_at': visa_type_record.updated_at.isoformat() if visa_type_record.updated_at else None,
                 'valid_until': visa_type_record.valid_until.isoformat() if visa_type_record.valid_until else None,
@@ -819,20 +838,9 @@ def edit_visa_type(visa_type, field):
                     print(f"DEBUG: 验证保存结果时出错: {str(e)}")
                 
                 flash('更新成功！', 'success')
-                
-                # 获取当前的国家筛选参数
-                country_id = request.args.get('country')
-                # 构建重定向URL，保持筛选状态，并添加时间戳强制刷新
-                redirect_url = url_for('visa_basic.visa_type_list')
-                params = []
-                if country_id:
-                    params.append(f'country={country_id}')
-                # 添加时间戳强制刷新
-                params.append(f't={int(time.time())}')
-                if params:
-                    redirect_url += '?' + '&'.join(params)
-                
-                return redirect(redirect_url)
+
+                # 重定向回签证类型详情页
+                return redirect(url_for('visa_basic.visa_type_detail', visa_type=visa_type))
                 
             except Exception as e:
                 print(f"DEBUG: 处理POST请求时发生异常: {str(e)}")  # 调试信息
@@ -841,7 +849,7 @@ def edit_visa_type(visa_type, field):
                 print(f"DEBUG: 异常堆栈: {traceback.format_exc()}")  # 调试信息
                 db.session.rollback()
                 flash(f'更新失败：{str(e)}', 'error')
-                return redirect(url_for('visa_basic.visa_type_list'))
+                return redirect(url_for('visa_basic.visa_type_detail', visa_type=visa_type))
 
         # GET 请求处理
         if field == 'identities':
@@ -893,19 +901,128 @@ def edit_visa_type(visa_type, field):
         flash(f'获取签证类型信息失败：{str(e)}', 'error')
         return redirect(url_for('visa_basic.visa_type_list'))
 
+@visa_basic.route('/visa/edit_visa_type_basic/<visa_type>', methods=['GET', 'POST'])
+@csrf.exempt
+def edit_visa_type_basic(visa_type):
+    """编辑签证类型基本信息（费用、处理时间、身份）"""
+    try:
+        # 获取签证类型记录
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
+
+        if request.method == 'GET':
+            # 获取当前身份配置
+            current_documents = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+            current_identities = []
+            for doc in current_documents:
+                if doc.singapore_identity:
+                    current_identities.append(doc.singapore_identity.identity_zh)
+                elif doc.singapore_identity_id is None:
+                    # 检查是否有SHARE身份
+                    share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+                    if share_identity and doc.singapore_identity_id == share_identity.id:
+                        current_identities.append('SHARE')
+
+            # 获取所有可用身份
+            all_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
+            all_identities = [identity.identity_zh for identity in all_identities]
+
+            return render_template('business/visa/签证类型管理/edit_visa_type_basic.html',
+                                   visa_type_record=visa_type_record,
+                                   current_identities=current_identities,
+                                   all_identities=all_identities)
+
+        # POST 请求处理
+        try:
+            # 更新费用
+            visa_type_record.fee = request.form.get('fee', '')
+
+            # 更新成本
+            visa_type_record.cost = request.form.get('cost', '')
+
+            # 更新有效期
+            visa_type_record.validity_period = request.form.get('validity_period', '')
+
+            # 更新处理时间
+            visa_type_record.processing_time = request.form.get('processing_time', '')
+
+            # 处理身份更新
+            selected_identities = request.form.getlist('identities')
+
+            # 更新 visa_type_identities 表
+            visa_type_record.identities.clear()
+            for identity_name in selected_identities:
+                if identity_name != 'SHARE':
+                    identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
+                    if identity:
+                        visa_type_record.identities.append(identity)
+
+            # 智能更新 VisaDocuments 表
+            existing_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
+            existing_identity_ids = {doc.singapore_identity_id for doc in existing_docs}
+
+            share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
+            share_identity_id = share_identity.id if share_identity else None
+
+            # 构建新的身份ID集合
+            new_identity_ids = set()
+            for identity_name in selected_identities:
+                if identity_name == 'SHARE':
+                    new_identity_ids.add(share_identity_id)
+                else:
+                    identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
+                    if identity:
+                        new_identity_ids.add(identity.id)
+
+            # 删除不再需要的
+            for doc in existing_docs:
+                if doc.singapore_identity_id not in new_identity_ids:
+                    db.session.delete(doc)
+
+            # 添加新的
+            for identity_name in selected_identities:
+                if identity_name == 'SHARE':
+                    if share_identity_id not in existing_identity_ids:
+                        new_doc = VisaDocuments(
+                            visa_type_id=visa_type_record.id,
+                            singapore_identity_id=share_identity_id
+                        )
+                        db.session.add(new_doc)
+                else:
+                    identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
+                    if identity and identity.id not in existing_identity_ids:
+                        new_doc = VisaDocuments(
+                            visa_type_id=visa_type_record.id,
+                            singapore_identity_id=identity.id
+                        )
+                        db.session.add(new_doc)
+
+            db.session.commit()
+            flash('基本信息更新成功！', 'success')
+            return redirect(url_for('visa_basic.visa_type_detail', visa_type=visa_type))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败：{str(e)}', 'error')
+            return redirect(url_for('visa_basic.visa_type_detail', visa_type=visa_type))
+
+    except Exception as e:
+        flash(f'获取签证类型信息失败：{str(e)}', 'error')
+        return redirect(url_for('visa_basic.visa_type_list'))
+
+
 @visa_basic.route('/visa/edit_visa_type_all/<visa_type>', methods=['POST'])
 @csrf.exempt
 def edit_visa_type_all(visa_type):
     """统一编辑签证类型的所有字段"""
     try:
         print(f"DEBUG: 开始处理统一编辑请求，visa_type={visa_type}")
-        
+
         # 获取签证类型记录
         visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
         if not visa_type_record:
             flash('签证类型不存在', 'error')
             return redirect(url_for('visa_basic.visa_type_list'))
-        
+
         if request.method == 'POST':
             try:
                 print(f"DEBUG: 开始处理POST请求")
@@ -940,7 +1057,17 @@ def edit_visa_type_all(visa_type):
                 if new_fee:
                     visa_type_record.fee = new_fee
                     print(f"DEBUG: 更新费用为: {new_fee}")
-                
+
+                # 处理成本更新
+                new_cost = request.form.get('cost')
+                visa_type_record.cost = new_cost if new_cost else None
+                print(f"DEBUG: 更新成本为: {new_cost}")
+
+                # 处理有效期更新
+                new_validity_period = request.form.get('validity_period')
+                visa_type_record.validity_period = new_validity_period if new_validity_period else None
+                print(f"DEBUG: 更新有效期为: {new_validity_period}")
+
                 # 处理时间更新
                 new_processing_time = request.form.get('processing_time')
                 if new_processing_time:
@@ -1090,32 +1217,40 @@ def delete_visa_type(visa_type):
         if not visa_type_record:
             flash('签证类型不存在', 'error')
             return redirect(url_for('visa_basic.visa_type_list'))
-        
+
         print(f"DEBUG: 找到签证类型记录: ID={visa_type_record.id}")
-        
+
         # 清空多对多关系
         visa_type_record.identities.clear()
         print(f"DEBUG: 清空了身份关联")
-        
+
         # 删除相关的文档记录
         try:
             deleted_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).delete()
             print(f"DEBUG: 删除了 {deleted_docs} 个相关文档记录")
         except Exception as e:
             print(f"DEBUG: 删除文档记录时出错: {str(e)}")
-        
+
         # 删除相关的链接记录
         try:
             deleted_links = VisaLinks.query.filter_by(visa_type_id=visa_type_record.id).delete()
             print(f"DEBUG: 删除了 {deleted_links} 个相关链接记录")
         except Exception as e:
             print(f"DEBUG: 删除链接记录时出错: {str(e)}")
-        
+
+        # 解除 products_visa_ext 的关联（设置为NULL）
+        try:
+            from App_new.business.products.models import ProductsVisaExt
+            updated_products = ProductsVisaExt.query.filter_by(visa_type_id=visa_type_record.id).update({'visa_type_id': None})
+            print(f"DEBUG: 解除了 {updated_products} 个产品扩展记录的关联")
+        except Exception as e:
+            print(f"DEBUG: 解除产品扩展记录关联时出错: {str(e)}")
+
         # 删除签证类型记录
         db.session.delete(visa_type_record)
         db.session.commit()
         print(f"DEBUG: 签证类型删除成功")
-        
+
         flash('签证类型删除成功！', 'success')
     except Exception as e:
         db.session.rollback()
@@ -1855,6 +1990,64 @@ def get_all_documents():
             'success': False,
             'message': f'获取文档列表失败: {str(e)}'
         })
+
+
+@visa_basic.route('/api/get_document_categories')
+def get_document_categories():
+    """获取所有文档分类"""
+    try:
+        # 从现有文档中获取所有不重复的分类
+        categories = db.session.query(VisaDocumentsList.category)\
+            .filter(VisaDocumentsList.category.isnot(None))\
+            .filter(VisaDocumentsList.category != '')\
+            .distinct()\
+            .order_by(VisaDocumentsList.category)\
+            .all()
+
+        category_list = [cat[0] for cat in categories if cat[0]]
+
+        return jsonify({
+            'success': True,
+            'categories': category_list
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@visa_basic.route('/api/add_document_item', methods=['POST'])
+@csrf.exempt
+def add_document_item():
+    """添加新的文档资料项目"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        category = data.get('category', '').strip()
+        description = data.get('description', '').strip()
+
+        if not name:
+            return jsonify({'success': False, 'message': '请填写文档名称'})
+
+        # 检查名称是否已存在
+        existing = VisaDocumentsList.query.filter_by(name=name).first()
+        if existing:
+            return jsonify({'success': False, 'message': '该文档名称已存在'})
+
+        new_doc = VisaDocumentsList(
+            name=name,
+            category=category if category else None,
+            description=description if description else None
+        )
+        db.session.add(new_doc)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '文档添加成功',
+            'document': new_doc.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
 
 
 @visa_basic.route('/api/get_all_visa_types')
@@ -3364,14 +3557,14 @@ def universal_visit_stats_data():
     try:
         from App_new.shared.services.visit_stats_service import VisitStatsService
         from datetime import datetime, timedelta
-        
+
         days = request.args.get('days', 30, type=int)
         product_type = request.args.get('product_type', '')
         product_id = request.args.get('product_id', type=int)
-        
+
         # 获取访问统计
         visit_stats = VisitStatsService.get_product_stats(product_type=product_type, days=days)
-        
+
         # 按日期分组统计
         daily_stats = {}
         for stat in visit_stats:
@@ -3379,7 +3572,7 @@ def universal_visit_stats_data():
             if date_key not in daily_stats:
                 daily_stats[date_key] = 0
             daily_stats[date_key] += 1
-        
+
         # 转换为列表格式
         chart_data = []
         for i in range(days):
@@ -3389,15 +3582,91 @@ def universal_visit_stats_data():
                 'date': date_key,
                 'visits': daily_stats.get(date_key, 0)
             })
-        
+
         chart_data.reverse()  # 按时间正序排列
-        
+
         return jsonify({
             'success': True,
             'chart_data': chart_data,
             'total_visits': len(visit_stats),
             'unique_visitors': len(set(stat.session_id for stat in visit_stats if stat.session_id))
         })
-        
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'获取统计数据失败: {str(e)}'})
+
+
+# ========== 签证资料链接管理 API ==========
+
+@visa_basic.route('/api/get_visa_links/<visa_type>')
+def get_visa_links(visa_type):
+    """获取签证类型的资料链接"""
+    try:
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+
+        links = VisaLinks.query.filter_by(visa_type_id=visa_type_record.id).all()
+
+        return jsonify({
+            'success': True,
+            'links': [link.to_dict() for link in links]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@visa_basic.route('/api/add_visa_link/<visa_type>', methods=['POST'])
+@csrf.exempt
+def add_visa_link(visa_type):
+    """添加签证类型的资料链接"""
+    try:
+        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        if not visa_type_record:
+            return jsonify({'success': False, 'message': '签证类型不存在'})
+
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        link = data.get('link', '').strip()
+
+        if not name or not link:
+            return jsonify({'success': False, 'message': '请填写链接名称和地址'})
+
+        new_link = VisaLinks(
+            visa_type_id=visa_type_record.id,
+            visa_countries_id=visa_type_record.country_id,
+            name=name,
+            link=link
+        )
+        db.session.add(new_link)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '链接添加成功',
+            'link': new_link.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@visa_basic.route('/api/delete_visa_link/<int:link_id>', methods=['DELETE'])
+@csrf.exempt
+def delete_visa_link(link_id):
+    """删除签证类型的资料链接"""
+    try:
+        link = VisaLinks.query.get(link_id)
+        if not link:
+            return jsonify({'success': False, 'message': '链接不存在'})
+
+        db.session.delete(link)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '链接已删除'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
