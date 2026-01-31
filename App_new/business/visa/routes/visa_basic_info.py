@@ -454,19 +454,28 @@ def visa_type_list():
     # 获取分页数据
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     visa_types = pagination.items
-    
-    # 为每个签证类型获取实际的身份选项
+
+    # 为每个签证类型获取实际的身份选项和计算有效期
+    from datetime import datetime, timedelta
     for vt in visa_types:
         # 从 visa_type_identities 表获取该签证类型的实际身份选项
         # 使用多对多关系直接获取
         actual_identities = [identity.identity_zh for identity in vt.identities]
         vt.actual_identities = actual_identities
-    
-    return render_template('business/visa/签证类型管理/visa_type_list.html', 
+
+        # 计算有效期显示：如果激活但没有设置有效期，从更新日期或创建日期加1年
+        if vt.is_active and not vt.valid_until:
+            base_date = vt.updated_at or vt.created_at or datetime.utcnow()
+            vt.calculated_valid_until = base_date + timedelta(days=365)
+        else:
+            vt.calculated_valid_until = vt.valid_until
+
+    return render_template('business/visa/签证类型管理/visa_type_list.html',
                          visa_types=visa_types,
                          countries=countries,
                          singapore_identities=singapore_identities,
-                         pagination=pagination)
+                         pagination=pagination,
+                         now=datetime.utcnow())
 
 @visa_basic.route('/add_visa_type', methods=['GET', 'POST'])
 @csrf.exempt

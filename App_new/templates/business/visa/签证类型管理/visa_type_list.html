@@ -130,6 +130,7 @@
                     <th>签证类型名称</th>
                     <th>有效期</th>
                     <th>处理时间</th>
+                    <th>有效期截止</th>
                     <th>售价</th>
                     <th>成本</th>
                     <th class="visa-text-center">状态</th>
@@ -148,6 +149,15 @@
                     </td>
                     <td>{{ vt.validity_period or '-' }}</td>
                     <td>{{ vt.processing_time or '-' }}</td>
+                    <td>
+                        {% if vt.calculated_valid_until %}
+                            <span class="{% if vt.calculated_valid_until < now %}text-danger{% else %}text-success{% endif %}">
+                                {{ vt.calculated_valid_until.strftime('%Y-%m-%d') }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td>{{ vt.fee or '-' }}</td>
                     <td>{{ vt.cost or '-' }}</td>
                     </td>
