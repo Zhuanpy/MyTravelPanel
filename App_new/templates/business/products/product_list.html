@@ -108,12 +108,21 @@
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" action="{{ url_for('products.index') }}" class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">产品分类</label>
                     <select name="category" class="form-select">
                         <option value="">全部分类</option>
                         {% for code, name in categories %}
                         <option value="{{ code }}" {% if current_category == code %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">国家/地区</label>
+                    <select name="country" class="form-select">
+                        <option value="">全部国家</option>
+                        {% for c in countries %}
+                        <option value="{{ c }}" {% if current_country == c %}selected{% endif %}>{{ c }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -126,10 +135,10 @@
                         <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>下架</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">搜索</label>
                     <input type="text" name="keyword" class="form-control"
-                           placeholder="产品名称/编号/国家" value="{{ keyword }}">
+                           placeholder="产品名称/编号" value="{{ keyword }}">
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">
@@ -181,10 +190,12 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-info">{{ product.category_label }}</span>
+                                <a href="{{ url_for('products.index', category=product.product_category) }}" class="badge bg-info text-decoration-none">{{ product.category_label }}</a>
                             </td>
                             <td>
-                                {{ product.country or '-' }}
+                                {% if product.country %}
+                                <a href="{{ url_for('products.index', country=product.country) }}" class="text-decoration-none">{{ product.country }}</a>
+                                {% else %}-{% endif %}
                                 {% if product.city %}
                                 <br><small class="text-muted">{{ product.city }}</small>
                                 {% endif %}
@@ -214,11 +225,11 @@
                             </td>
                             <td>
                                 {% if product.product_status == 'active' %}
-                                <span class="badge bg-success">上架</span>
+                                <a href="{{ url_for('products.index', status='active') }}" class="badge bg-success text-decoration-none">上架</a>
                                 {% elif product.product_status == 'draft' %}
-                                <span class="badge bg-secondary">草稿</span>
+                                <a href="{{ url_for('products.index', status='draft') }}" class="badge bg-secondary text-decoration-none">草稿</a>
                                 {% else %}
-                                <span class="badge bg-warning">下架</span>
+                                <a href="{{ url_for('products.index', status='inactive') }}" class="badge bg-warning text-decoration-none">下架</a>
                                 {% endif %}
                             </td>
                             <td>
@@ -270,7 +281,7 @@
                 <ul class="pagination mb-0 justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('products.index', page=pagination.prev_num, category=current_category, status=current_status, keyword=keyword) }}">
+                        <a class="page-link" href="{{ url_for('products.index', page=pagination.prev_num, category=current_category, country=current_country, status=current_status, keyword=keyword) }}">
                             上一页
                         </a>
                     </li>
@@ -284,7 +295,7 @@
                             </li>
                             {% else %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('products.index', page=page_num, category=current_category, status=current_status, keyword=keyword) }}">
+                                <a class="page-link" href="{{ url_for('products.index', page=page_num, category=current_category, country=current_country, status=current_status, keyword=keyword) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -296,7 +307,7 @@
 
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('products.index', page=pagination.next_num, category=current_category, status=current_status, keyword=keyword) }}">
+                        <a class="page-link" href="{{ url_for('products.index', page=pagination.next_num, category=current_category, country=current_country, status=current_status, keyword=keyword) }}">
                             下一页
                         </a>
                     </li>
@@ -323,6 +334,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <form id="deleteForm" method="post" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger">确认删除</button>
                 </form>
             </div>

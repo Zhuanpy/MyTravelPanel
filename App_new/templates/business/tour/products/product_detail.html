@@ -141,19 +141,15 @@
                 <h3 class="text-lg font-semibold text-green-700 mb-4 flex items-center">
                     <i class="fas fa-check-circle text-green-500 mr-2"></i> 包含服务
                 </h3>
-                <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
-                    {{ product.included_services or '未设置' }}
-                </div>
+                <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">{{ product.included_services or '未设置' }}</div>
             </div>
-            
+
             <!-- 不包含服务 -->
             <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                 <h3 class="text-lg font-semibold text-red-700 mb-4 flex items-center">
                     <i class="fas fa-times-circle text-red-500 mr-2"></i> 不包含服务
                 </h3>
-                <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
-                    {{ product.excluded_services or '未设置' }}
-                </div>
+                <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">{{ product.excluded_services or '未设置' }}</div>
             </div>
         </div>
 
@@ -163,9 +159,7 @@
             <h3 class="text-lg font-semibold text-yellow-700 mb-4 flex items-center">
                 <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> 重要提示
             </h3>
-            <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {{ product.important_notes }}
-            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product.important_notes }}</div>
         </div>
         {% endif %}
 
@@ -193,33 +187,34 @@
                     <!-- 行程内容 -->
                     <div class="p-4">
                         {% if itinerary.content %}
-                        <div class="text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">
-                            {{ itinerary.content }}
-                        </div>
+                        <div class="text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">{{ itinerary.content }}</div>
                         {% endif %}
                         
                         <!-- 行程图片 -->
                         {% if itinerary.image1 or itinerary.image2 or itinerary.image3 %}
-                        <div class="grid grid-cols-3 gap-3 mt-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                             {% if itinerary.image1 %}
-                            <div class="cursor-pointer overflow-hidden rounded-lg border border-gray-200">
-                                <img src="{{ url_for('static', filename=itinerary.image1) }}" 
-                                     class="w-full h-24 object-cover hover:scale-105 transition-transform"
-                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image1) }}')">
+                            <div class="cursor-pointer overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                <img src="{{ url_for('static', filename=itinerary.image1) }}"
+                                     class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image1) }}')"
+                                     alt="行程图片1">
                             </div>
                             {% endif %}
                             {% if itinerary.image2 %}
-                            <div class="cursor-pointer overflow-hidden rounded-lg border border-gray-200">
-                                <img src="{{ url_for('static', filename=itinerary.image2) }}" 
-                                     class="w-full h-24 object-cover hover:scale-105 transition-transform"
-                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image2) }}')">
+                            <div class="cursor-pointer overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                <img src="{{ url_for('static', filename=itinerary.image2) }}"
+                                     class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image2) }}')"
+                                     alt="行程图片2">
                             </div>
                             {% endif %}
                             {% if itinerary.image3 %}
-                            <div class="cursor-pointer overflow-hidden rounded-lg border border-gray-200">
-                                <img src="{{ url_for('static', filename=itinerary.image3) }}" 
-                                     class="w-full h-24 object-cover hover:scale-105 transition-transform"
-                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image3) }}')">
+                            <div class="cursor-pointer overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                <img src="{{ url_for('static', filename=itinerary.image3) }}"
+                                     class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                                     onclick="showImagePreview('{{ url_for('static', filename=itinerary.image3) }}')"
+                                     alt="行程图片3">
                             </div>
                             {% endif %}
                         </div>

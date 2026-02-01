@@ -30,6 +30,7 @@ def index():
     # 获取筛选参数
     category = request.args.get('category', '')
     status = request.args.get('status', '')
+    country = request.args.get('country', '')
     keyword = request.args.get('keyword', '')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -42,6 +43,9 @@ def index():
 
     if status:
         query = query.filter(ProductsUnified.product_status == status)
+
+    if country:
+        query = query.filter(ProductsUnified.country == country)
 
     if keyword:
         query = query.filter(
@@ -68,14 +72,23 @@ def index():
             'count': count
         }
 
+    # 获取所有国家/地区列表
+    countries_query = db.session.query(ProductsUnified.country).filter(
+        ProductsUnified.country.isnot(None),
+        ProductsUnified.country != ''
+    ).distinct().order_by(ProductsUnified.country)
+    countries = [c[0] for c in countries_query.all()]
+
     return render_template(
         'business/products/product_list.html',
         products=products,
         pagination=pagination,
         categories=ProductCategory.CHOICES,
         category_counts=category_counts,
+        countries=countries,
         current_category=category,
         current_status=status,
+        current_country=country,
         keyword=keyword,
         now=datetime.utcnow(),
     )
