@@ -668,21 +668,35 @@ def tour_package_detail(package_id):
         if product.valid_until and product.valid_until < today:
             return render_template('guest/shared/404.html', message='该旅游配套已过期'), 404
         
-        # 解析包含服务（可能是JSON或文本）
+        # 解析包含服务（可能是JSON或文本，支持换行和逗号分隔）
         includes = []
         if product.included_services:
             try:
-                includes = json.loads(product.included_services) if product.included_services.startswith('[') else product.included_services.split(',')
+                if product.included_services.startswith('['):
+                    includes = json.loads(product.included_services)
+                elif '\n' in product.included_services:
+                    # 按换行分割
+                    includes = [i.strip() for i in product.included_services.split('\n') if i.strip()]
+                else:
+                    # 按逗号分割
+                    includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
             except:
-                includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
-        
+                includes = [i.strip() for i in product.included_services.split('\n') if i.strip()]
+
         # 解析不包含服务
         excludes = []
         if product.excluded_services:
             try:
-                excludes = json.loads(product.excluded_services) if product.excluded_services.startswith('[') else product.excluded_services.split(',')
+                if product.excluded_services.startswith('['):
+                    excludes = json.loads(product.excluded_services)
+                elif '\n' in product.excluded_services:
+                    # 按换行分割
+                    excludes = [e.strip() for e in product.excluded_services.split('\n') if e.strip()]
+                else:
+                    # 按逗号分割
+                    excludes = [e.strip() for e in product.excluded_services.split(',') if e.strip()]
             except:
-                excludes = [e.strip() for e in product.excluded_services.split(',') if e.strip()]
+                excludes = [e.strip() for e in product.excluded_services.split('\n') if e.strip()]
         
         # 解析注意事项
         notes = []
@@ -706,8 +720,11 @@ def tour_package_detail(package_id):
             destination_display = f"{product.country} {destination_display}"
         
         # 获取行程数据
-        from App_new.business.tour.models.Packagemodels import ProductItinerary
+        from App_new.business.tour.models.Packagemodels import ProductItinerary, ProductPriceVariant
         itineraries = ProductItinerary.query.filter_by(product_id=package_id).order_by(ProductItinerary.day_number).all()
+
+        # 获取价格变体
+        price_variants = ProductPriceVariant.query.filter_by(product_id=package_id, is_active=True).all()
         itinerary_list = []
         for it in itineraries:
             day_data = {
@@ -738,7 +755,9 @@ def tour_package_detail(package_id):
             'min_pax': product.min_pax,
             'max_pax': product.max_pax,
             'product_type': product.product_type,
-            'supplier': product.display_company_name
+            'supplier': product.display_company_name,
+            'price_variants': [pv.to_dict() for pv in price_variants] if price_variants else [],
+            'currency': product.currency or 'SGD'
         }
 
         # 获取公司联系信息

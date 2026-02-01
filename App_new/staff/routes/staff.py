@@ -25,16 +25,16 @@ def allowed_file(filename, allowed_extensions):
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
-def compress_and_resize_image(file_path, max_size=1920, quality=85, generate_thumbnail=True, thumb_size=400):
+def compress_and_resize_image(file_path, max_size=1200, quality=80, generate_thumbnail=True, thumb_size=300):
     """
-    压缩和调整图片尺寸
+    压缩和调整图片尺寸（优化网页加载速度）
 
     参数:
         file_path: 图片文件路径
-        max_size: 最大宽度或高度（像素），默认1920
-        quality: JPEG压缩质量（1-100），默认85
+        max_size: 最大宽度或高度（像素），默认1200（适合网页显示）
+        quality: JPEG压缩质量（1-100），默认80
         generate_thumbnail: 是否生成缩略图，默认True
-        thumb_size: 缩略图尺寸，默认400
+        thumb_size: 缩略图尺寸，默认300
 
     返回:
         dict: {'width': 宽度, 'height': 高度, 'file_size': 文件大小, 'thumbnail_path': 缩略图路径}
@@ -91,10 +91,15 @@ def compress_and_resize_image(file_path, max_size=1920, quality=85, generate_thu
                 new_path = name + '.jpg'
                 img.save(new_path, 'JPEG', quality=quality, optimize=True)
 
-                # 如果原文件不是jpg，删除原文件
-                if file_path.lower() != new_path.lower() and os.path.exists(file_path):
-                    os.remove(file_path)
-                file_path = new_path
+                # 验证新文件确实创建成功后，再删除原文件
+                if os.path.exists(new_path) and os.path.getsize(new_path) > 0:
+                    # 如果原文件不是jpg，删除原文件
+                    if file_path.lower() != new_path.lower() and os.path.exists(file_path):
+                        os.remove(file_path)
+                    file_path = new_path
+                else:
+                    # 转换失败，保留原文件
+                    current_app.logger.warning(f"JPEG转换失败，保留原文件: {file_path}")
 
             result['width'] = width
             result['height'] = height
@@ -1512,36 +1517,55 @@ def image_library():
     """图片库管理页面"""
     from ...business.tour.models.Packagemodels import ImageLibrary
     from ...exts import db
-    
+    from collections import Counter
+
     try:
         # 获取查询参数
         category = request.args.get('category', '')
         search = request.args.get('search', '')
-        
+        tag_filter = request.args.get('tag', '')
+
         # 构建查询
         query = ImageLibrary.query
         if category:
             query = query.filter_by(category=category)
         if search:
             query = query.filter(
-                ImageLibrary.title.contains(search) | 
+                ImageLibrary.title.contains(search) |
                 ImageLibrary.tags.contains(search)
             )
-        
+        if tag_filter:
+            query = query.filter(ImageLibrary.tags.contains(tag_filter))
+
         images = query.order_by(ImageLibrary.created_at.desc()).all()
-        
+
         # 获取分类列表
         categories = db.session.query(ImageLibrary.category).distinct().all()
         categories = [c[0] for c in categories if c[0]]
-        
-        return render_template('staff/image_library.html', 
-                             images=images, 
+
+        # 统计所有标签及其使用次数
+        all_tags = []
+        all_images = ImageLibrary.query.all()
+        for img in all_images:
+            if img.tags:
+                # 分割标签（支持中英文逗号）
+                tags = [t.strip() for t in img.tags.replace('，', ',').split(',') if t.strip()]
+                all_tags.extend(tags)
+
+        # 统计标签出现次数，按次数降序排列
+        tag_counts = Counter(all_tags)
+        tags_with_counts = sorted(tag_counts.items(), key=lambda x: (-x[1], x[0]))
+
+        return render_template('staff/image_library.html',
+                             images=images,
                              categories=categories,
+                             tags_with_counts=tags_with_counts,
                              current_category=category,
-                             current_search=search)
+                             current_search=search,
+                             current_tag=tag_filter)
     except Exception as e:
         flash(f'加载图片库失败：{str(e)}', 'error')
-        return render_template('staff/image_library.html', images=[], categories=[])
+        return render_template('staff/image_library.html', images=[], categories=[], tags_with_counts=[], current_category='', current_search='', current_tag='')
 
 
 @staff.route('/image-library/upload', methods=['POST'])
@@ -1575,13 +1599,13 @@ def upload_image_library():
         file_path = os.path.join(upload_dir, new_filename)
         file.save(file_path)
 
-        # 压缩和调整图片尺寸
+        # 压缩和调整图片尺寸（优化网页加载速度）
         compress_result = compress_and_resize_image(
             file_path,
-            max_size=1920,  # 最大1920像素
-            quality=85,     # JPEG质量85%
+            max_size=1200,  # 最大1200像素，适合网页显示
+            quality=80,     # JPEG质量80%
             generate_thumbnail=True,
-            thumb_size=400
+            thumb_size=300  # 缩略图300px足够
         )
 
         # 获取压缩后的信息
@@ -1726,6 +1750,127 @@ def batch_delete_image_library():
         return jsonify({'success': False, 'message': f'批量删除失败：{str(e)}'}), 500
 
 
+@staff.route('/image-library/batch-download', methods=['POST'])
+@login_required
+@staff_only
+def batch_download_image_library():
+    """批量下载图片库中的图片（打包为ZIP，含Excel配置文件）"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    import zipfile
+    import io
+
+    try:
+        data = request.get_json()
+        if not data or 'image_ids' not in data:
+            return jsonify({'success': False, 'message': '请提供图片ID列表'}), 400
+
+        image_ids = data['image_ids']
+        if not image_ids:
+            return jsonify({'success': False, 'message': '请选择要下载的图片'}), 400
+
+        # 查询图片
+        images = ImageLibrary.query.filter(ImageLibrary.id.in_(image_ids)).all()
+        if not images:
+            return jsonify({'success': False, 'message': '未找到指定的图片'}), 404
+
+        # 创建内存中的ZIP文件
+        memory_file = io.BytesIO()
+
+        # 用于记录图片信息，生成Excel
+        image_data_for_excel = []
+        filename_mapping = {}  # 原始路径 -> ZIP中的文件名
+
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for image in images:
+                # 构建文件路径
+                file_path = os.path.join('App_new', 'static', image.image_path)
+                if os.path.exists(file_path):
+                    # 使用原始文件名（保持一致性，方便重新导入时匹配）
+                    original_filename = os.path.basename(image.image_path)
+                    zip_filename = original_filename
+
+                    # 确保文件名唯一
+                    counter = 1
+                    base_name, ext = os.path.splitext(original_filename)
+                    while zip_filename in [info.filename for info in zf.filelist]:
+                        zip_filename = f"{base_name}_{counter}{ext}"
+                        counter += 1
+
+                    zf.write(file_path, f"images/{zip_filename}")
+                    filename_mapping[image.id] = zip_filename
+
+                    # 记录图片信息
+                    image_data_for_excel.append({
+                        '文件名': zip_filename,
+                        '标题': image.title or '',
+                        '标签': image.tags or '',
+                        '分类': image.category or 'other',
+                    })
+
+            # 生成 Excel 配置文件
+            try:
+                import pandas as pd
+
+                # 创建数据表
+                df = pd.DataFrame(image_data_for_excel)
+
+                # 创建说明表
+                instructions = [
+                    ['图片库配置文件使用说明'],
+                    [''],
+                    ['此文件包含下载图片的元数据信息，您可以：'],
+                    ['1. 修改标题、标签、分类后，与图片一起重新上传'],
+                    ['2. 系统会根据文件名自动匹配并更新图片信息'],
+                    [''],
+                    ['字段说明：'],
+                    ['- 文件名：图片文件名（请勿修改，用于匹配）'],
+                    ['- 标题：图片的标题或描述'],
+                    ['- 标签：多个标签用英文逗号分隔，例如：风景,旅游,海滩'],
+                    ['- 分类：可选值 tour(旅游产品), destination(目的地), product(产品相关), other(其他)'],
+                    [''],
+                    ['重新导入步骤：'],
+                    ['1. 修改本文件中的标题、标签、分类'],
+                    ['2. 在图片库页面点击"批量导入"'],
+                    ['3. 上传此 Excel 文件'],
+                    ['4. 选择 images 文件夹中的图片'],
+                    ['5. 点击上传，系统会自动匹配并应用配置'],
+                ]
+                df_instructions = pd.DataFrame(instructions)
+
+                # 写入 Excel 到内存
+                excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    df.to_excel(writer, sheet_name='图片配置', index=False)
+                    df_instructions.to_excel(writer, sheet_name='使用说明', index=False, header=False)
+
+                excel_buffer.seek(0)
+                zf.writestr('图片配置.xlsx', excel_buffer.read())
+
+            except ImportError:
+                # 如果没有 pandas/openpyxl，使用 CSV 作为备选
+                import csv
+                csv_buffer = io.StringIO()
+                writer = csv.DictWriter(csv_buffer, fieldnames=['文件名', '标题', '标签', '分类'])
+                writer.writeheader()
+                writer.writerows(image_data_for_excel)
+                zf.writestr('图片配置.csv', csv_buffer.getvalue().encode('utf-8-sig'))
+
+        memory_file.seek(0)
+
+        # 返回ZIP文件
+        from flask import send_file
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'图片库_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"批量下载图片失败: {e}")
+        return jsonify({'success': False, 'message': f'批量下载失败：{str(e)}'}), 500
+
+
 @staff.route('/image-library/<int:image_id>/update', methods=['POST'])
 @login_required
 @staff_only
@@ -1757,11 +1902,82 @@ def update_image_library(image_id):
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
 
+@staff.route('/image-library/batch-update', methods=['POST'])
+@login_required
+@staff_only
+def batch_update_image_library():
+    """批量更新图片库标签（根据文件名匹配）"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+
+    try:
+        data = request.get_json()
+        if not data or 'updates' not in data:
+            return jsonify({'success': False, 'message': '请提供更新数据'}), 400
+
+        updates = data['updates']
+        if not updates:
+            return jsonify({'success': False, 'message': '没有可更新的数据'}), 400
+
+        updated_count = 0
+        not_found_count = 0
+        not_found_files = []
+
+        for item in updates:
+            filename = item.get('文件名', '').strip()
+            if not filename:
+                continue
+
+            # 根据文件名查找图片（支持完整路径或仅文件名）
+            # 尝试直接匹配 image_path 的文件名部分
+            image = ImageLibrary.query.filter(
+                ImageLibrary.image_path.endswith(filename)
+            ).first()
+
+            if image:
+                # 更新字段
+                if item.get('标题'):
+                    image.title = str(item['标题']).strip()
+                if item.get('标签'):
+                    # 标准化标签（将中文逗号转为英文逗号）
+                    tags = str(item['标签']).strip().replace('，', ',')
+                    image.tags = tags
+                if item.get('分类'):
+                    image.category = str(item['分类']).strip()
+
+                updated_count += 1
+            else:
+                not_found_count += 1
+                if len(not_found_files) < 5:
+                    not_found_files.append(filename)
+
+        db.session.commit()
+
+        # 构建返回消息
+        message = f'成功更新 {updated_count} 张图片'
+        if not_found_count > 0:
+            message += f'，{not_found_count} 张未找到匹配'
+            if not_found_files:
+                message += f'（如：{", ".join(not_found_files[:3])}）'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'updated_count': updated_count,
+            'not_found_count': not_found_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"批量更新图片失败: {e}")
+        return jsonify({'success': False, 'message': f'批量更新失败：{str(e)}'}), 500
+
+
 @staff.route('/image-library/batch-upload', methods=['POST'])
 @login_required
 @staff_only
 def batch_upload_image_library():
-    """批量上传图片到图片库（自动压缩）"""
+    """批量上传图片到图片库（自动压缩，支持Excel配置）"""
     from ...business.tour.models.Packagemodels import ImageLibrary
     from ...exts import db
     import random
@@ -1775,15 +1991,50 @@ def batch_upload_image_library():
         if not files or all(f.filename == '' for f in files):
             return jsonify({'success': False, 'message': '请选择至少一张图片'}), 400
 
-        # 获取批量设置的标签和分类
+        # 获取批量设置的标签和分类（默认值）
         default_tags = request.form.get('default_tags', '').strip()
         default_category = request.form.get('default_category', 'other').strip()
+
+        # 解析 Excel 配置文件（如果有）
+        excel_config = {}
+        excel_file = request.files.get('excel_config')
+        if excel_file and excel_file.filename:
+            try:
+                import pandas as pd
+                # 读取 Excel 文件
+                df = pd.read_excel(excel_file, sheet_name=0)
+                current_app.logger.info(f"Excel 列名: {list(df.columns)}")
+
+                # 标准化列名
+                df.columns = df.columns.str.strip()
+
+                # 构建文件名到配置的映射
+                for _, row in df.iterrows():
+                    filename = str(row.get('文件名', '')).strip()
+                    if filename:
+                        tags_value = row.get('标签', '')
+                        excel_config[filename] = {
+                            'title': str(row.get('标题', '')).strip() if pd.notna(row.get('标题')) else '',
+                            'tags': str(tags_value).strip() if pd.notna(tags_value) else '',
+                            'category': str(row.get('分类', '')).strip() if pd.notna(row.get('分类')) else ''
+                        }
+
+                current_app.logger.info(f"Excel 配置已加载，共 {len(excel_config)} 条记录")
+                # 打印前3条记录用于调试
+                for i, (fn, cfg) in enumerate(list(excel_config.items())[:3]):
+                    current_app.logger.info(f"  Excel记录{i+1}: 文件名={fn}, 标签={cfg.get('tags')}")
+
+            except Exception as e:
+                import traceback
+                current_app.logger.warning(f"解析 Excel 配置失败: {e}")
+                current_app.logger.warning(traceback.format_exc())
 
         upload_dir = os.path.join('App_new', 'static', 'uploads', 'image_library')
         os.makedirs(upload_dir, exist_ok=True)
 
         success_count = 0
         failed_files = []
+        matched_count = 0  # Excel 配置匹配计数
         total_original_size = 0
         total_compressed_size = 0
 
@@ -1797,6 +2048,7 @@ def batch_upload_image_library():
                     continue
 
                 # 保存原始图片
+                original_filename = file.filename  # 保留原始文件名用于匹配
                 filename = secure_filename(file.filename)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
                 random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
@@ -1810,13 +2062,13 @@ def batch_upload_image_library():
                 original_size = os.path.getsize(file_path)
                 total_original_size += original_size
 
-                # 压缩和调整图片尺寸
+                # 压缩和调整图片尺寸（优化网页加载速度）
                 compress_result = compress_and_resize_image(
                     file_path,
-                    max_size=1920,
-                    quality=85,
+                    max_size=1200,  # 降低至1200px，适合网页显示
+                    quality=80,     # 略微降低质量，减小文件体积
                     generate_thumbnail=True,
-                    thumb_size=400
+                    thumb_size=300  # 缩略图300px足够
                 )
 
                 # 获取压缩后的信息
@@ -1829,15 +2081,53 @@ def batch_upload_image_library():
                 # 更新文件名（可能已转换为jpg）
                 final_filename = os.path.basename(final_path)
 
-                # 使用文件名作为标题（去掉扩展名）
-                title = name
+                # 从 Excel 配置获取元数据，或使用默认值
+                # 尝试多种方式匹配文件名
+                config = excel_config.get(original_filename, {})
+
+                # 如果直接匹配失败，尝试只用文件名部分匹配（去掉路径）
+                if not config:
+                    import os as os_module
+                    base_filename = os_module.path.basename(original_filename)
+                    config = excel_config.get(base_filename, {})
+
+                # 如果还是失败，尝试不区分大小写匹配
+                if not config:
+                    for excel_filename, excel_data in excel_config.items():
+                        if excel_filename.lower() == original_filename.lower() or \
+                           excel_filename.lower() == base_filename.lower():
+                            config = excel_data
+                            break
+
+                if config:
+                    matched_count += 1
+                    current_app.logger.info(f"Excel匹配成功: {original_filename} -> 标签: {config.get('tags')}")
+                else:
+                    current_app.logger.info(f"Excel未匹配: {original_filename}, Excel中的文件名: {list(excel_config.keys())[:3]}")
+
+                # 标题：优先使用Excel配置，否则使用文件名
+                title = config.get('title') or name
+                # 标签：优先使用Excel配置，否则使用默认值
+                tags = config.get('tags') or default_tags
+                # 分类：优先使用Excel配置，否则使用默认值
+                category = config.get('category') or default_category or 'other'
+
+                # 标准化标签（将中文逗号转为英文逗号）
+                if tags:
+                    tags = tags.replace('，', ',')
+
+                # 验证文件确实存在后再创建数据库记录
+                if not os.path.exists(final_path):
+                    failed_files.append(f"{file.filename} (压缩后文件不存在)")
+                    current_app.logger.error(f"文件不存在: {final_path}")
+                    continue
 
                 # 创建数据库记录
                 image = ImageLibrary(
                     title=title,
                     image_path=f"uploads/image_library/{final_filename}",
-                    tags=default_tags or None,
-                    category=default_category or 'other',
+                    tags=tags or None,
+                    category=category,
                     file_size=file_size,
                     width=width,
                     height=height,
@@ -1852,15 +2142,17 @@ def batch_upload_image_library():
                 current_app.logger.error(f"Error uploading {file.filename}: {e}")
                 failed_files.append(f"{file.filename} ({str(e)})")
                 continue
-        
+
         db.session.commit()
 
-        # 构建返回消息（包含压缩统计）
+        # 构建返回消息（包含压缩统计和Excel匹配统计）
         message = f'成功上传 {success_count} 张图片'
+        if excel_config:
+            message += f'（{matched_count} 张匹配Excel配置）'
         if total_original_size > 0 and total_compressed_size > 0:
             saved_size = total_original_size - total_compressed_size
             saved_percent = (saved_size / total_original_size) * 100
-            message += f'（已压缩，节省 {saved_size/1024/1024:.1f}MB，压缩率 {saved_percent:.0f}%）'
+            message += f'，已压缩节省 {saved_size/1024/1024:.1f}MB'
 
         if failed_files:
             message += f'，{len(failed_files)} 张失败：' + ', '.join(failed_files[:5])
@@ -1873,6 +2165,7 @@ def batch_upload_image_library():
             'success_count': success_count,
             'failed_count': len(failed_files),
             'failed_files': failed_files,
+            'excel_matched_count': matched_count,
             'compression_stats': {
                 'original_size': total_original_size,
                 'compressed_size': total_compressed_size,
@@ -1954,4 +2247,49 @@ def list_image_library():
         })
         
     except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@staff.route('/image-library/cleanup', methods=['POST'])
+@login_required
+@staff_only
+def cleanup_image_library():
+    """清理无效的图片记录（原图文件不存在的记录）"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+
+    try:
+        images = ImageLibrary.query.all()
+        deleted_count = 0
+        deleted_ids = []
+
+        for image in images:
+            if image.image_path:
+                # 检查原图是否存在
+                full_path = os.path.join(current_app.static_folder, image.image_path)
+                if not os.path.exists(full_path):
+                    # 删除缩略图（如果存在）
+                    if image.thumbnail_path:
+                        thumb_full_path = os.path.join(current_app.static_folder, image.thumbnail_path)
+                        if os.path.exists(thumb_full_path):
+                            try:
+                                os.remove(thumb_full_path)
+                            except:
+                                pass
+
+                    deleted_ids.append(image.id)
+                    db.session.delete(image)
+                    deleted_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'已清理 {deleted_count} 条无效记录',
+            'deleted_count': deleted_count,
+            'deleted_ids': deleted_ids
+        })
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

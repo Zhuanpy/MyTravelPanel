@@ -1957,9 +1957,15 @@ textarea.visa-form-control,
     gap: var(--visa-spacing-md);
 }
 
-.visa-grid-4 { 
+.visa-grid-4 {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    gap: var(--visa-spacing-md);
+}
+
+.visa-grid-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--visa-spacing-md);
 }
 
@@ -2083,6 +2089,7 @@ textarea.visa-form-control,
 
 /* ==================== Visa响应式设计 ==================== */
 @media (max-width: 1200px) {
+    .visa-grid-5 { grid-template-columns: repeat(3, 1fr); }
     .visa-grid-4 { grid-template-columns: repeat(3, 1fr); }
     .visa-grid-3 { grid-template-columns: repeat(2, 1fr); }
 }
@@ -2094,6 +2101,7 @@ textarea.visa-form-control,
         padding: var(--visa-spacing-sm);
     }
     
+    .visa-grid-5,
     .visa-grid-4,
     .visa-grid-3,
     .visa-grid-2 {

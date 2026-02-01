@@ -117,21 +117,9 @@
                     <span>基本信息</span>
                     <span class="required-badge">必填</span>
                 </button>
-                <button type="button" class="tab-button" data-tab="pricing">
-                    <i class="fas fa-tag tab-icon"></i>
-                    <span>价格设置</span>
-                </button>
-                <button type="button" class="tab-button" data-tab="content">
-                    <i class="fas fa-align-left tab-icon"></i>
-                    <span>产品内容</span>
-                </button>
                 <button type="button" class="tab-button" data-tab="media">
                     <i class="fas fa-images tab-icon"></i>
                     <span>图片资源</span>
-                </button>
-                <button type="button" class="tab-button" data-tab="settings">
-                    <i class="fas fa-cog tab-icon"></i>
-                    <span>其他设置</span>
                 </button>
                 {% if product %}
                 <button type="button" class="tab-button" data-tab="itinerary">
@@ -221,134 +209,106 @@
                         <input type="number" name="min_pax" value="{{ product.min_pax if product and product.min_pax else '1' }}"
                                class="visa-form-control" min="1" placeholder="1">
                     </div>
+                </div>
+
+                <!-- 价格设置区域 -->
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
+                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
+                        <i class="fas fa-dollar-sign"></i> 基础价格
+                    </h4>
+                    <div class="visa-grid-5">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">成人价格</label>
+                            <input type="number" step="0.01" name="base_price" value="{{ product.base_price if product and product.base_price else '' }}"
+                                   class="visa-form-control" placeholder="如：1200.00">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">儿童价格</label>
+                            <input type="number" step="0.01" name="child_price" value="{{ product.child_price if product and product.child_price else '' }}"
+                                   class="visa-form-control" placeholder="如：800.00">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">婴儿价格</label>
+                            <input type="number" step="0.01" name="infant_price" value="{{ product.infant_price if product and product.infant_price else '' }}"
+                                   class="visa-form-control" placeholder="如：200.00">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">单房差</label>
+                            <input type="number" step="0.01" name="single_room_supplement" value="{{ product.single_room_supplement if product and product.single_room_supplement else '' }}"
+                                   class="visa-form-control" placeholder="如：300.00">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">货币</label>
+                            <select name="currency" class="visa-form-select">
+                                <option value="SGD" {% if not product or product.currency == 'SGD' %}selected{% endif %}>SGD</option>
+                                <option value="CNY" {% if product and product.currency == 'CNY' %}selected{% endif %}>CNY</option>
+                                <option value="USD" {% if product and product.currency == 'USD' %}selected{% endif %}>USD</option>
+                                <option value="EUR" {% if product and product.currency == 'EUR' %}selected{% endif %}>EUR</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 产品内容区域 -->
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
+                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
+                        <i class="fas fa-file-alt"></i> 产品内容
+                    </h4>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">最大人数</label>
-                        <input type="number" name="max_pax" value="{{ product.max_pax if product and product.max_pax else '' }}"
-                               class="visa-form-control" min="1" placeholder="如：20">
+                        <label class="visa-form-label">产品描述</label>
+                        <textarea name="product_description" rows="6" class="visa-form-control"
+                                  placeholder="简要描述产品特色...">{{ product.product_description if product and product.product_description else '' }}</textarea>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">出发城市</label>
-                        <input type="text" name="departure_city" value="{{ product.departure_city if product and product.departure_city else '' }}"
-                               class="visa-form-control" placeholder="如：新加坡">
+                        <label class="visa-form-label">包含服务</label>
+                        <textarea name="included_services" rows="8" class="visa-form-control"
+                                  placeholder="列出包含的服务项目，每行一项...">{{ product.included_services if product and product.included_services else '' }}</textarea>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">目的城市</label>
-                        <input type="text" name="destination_city" value="{{ product.destination_city if product and product.destination_city else '' }}"
-                               class="visa-form-control" placeholder="如：曼谷">
+                        <label class="visa-form-label">不包含服务</label>
+                        <textarea name="excluded_services" rows="8" class="visa-form-control"
+                                  placeholder="列出不包含的服务项目，每行一项...">{{ product.excluded_services if product and product.excluded_services else '' }}</textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">重要提示</label>
+                        <textarea name="important_notes" rows="5" class="visa-form-control"
+                                  placeholder="列出重要的注意事项...">{{ product.important_notes if product and product.important_notes else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- 其他设置区域 -->
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
+                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
+                        <i class="fas fa-cog"></i> 其他设置
+                    </h4>
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">产品状态</label>
+                            <select name="product_status" class="visa-form-select">
+                                <option value="draft" {% if product and product.product_status == 'draft' %}selected{% endif %}>草稿</option>
+                                <option value="active" {% if not product or product.product_status == 'active' %}selected{% endif %}>激活</option>
+                                <option value="inactive" {% if product and product.product_status == 'inactive' %}selected{% endif %}>停用</option>
+                            </select>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">有效开始</label>
+                            <input type="date" name="valid_from" value="{{ product.valid_from if product and product.valid_from else '' }}"
+                                   class="visa-form-control">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">有效结束</label>
+                            <input type="date" name="valid_until" value="{{ product.valid_until if product and product.valid_until else '' }}"
+                                   class="visa-form-control">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">标签</label>
+                            <input type="text" name="tags" id="tagsInput" value="{% if product and product.tags %}{{ product.tags|replace('[', '')|replace(']', '')|replace('"', '') }}{% endif %}"
+                                   class="visa-form-control" placeholder="蜜月,豪华,亲子">
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab 2: 价格设置 -->
-            <div id="tab-pricing" class="tab-content">
-                <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
-                    <i class="fas fa-dollar-sign"></i> 基础价格信息
-                </h3>
-                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-info-circle" style="color: #f59e0b;"></i>
-                        <strong style="color: #92400e;">说明：</strong>
-                    </div>
-                    <p style="margin: 0.5rem 0 0 0; color: #78350f; font-size: 0.9rem;">
-                        这里设置的是<strong>默认基础价格</strong>。当没有匹配的价格变体时，系统将使用这里的价格。
-                        <br>如需设置淡旺季、团队优惠等条件价格，请在下方的 <strong>"价格变体管理"</strong> 中添加。
-                    </p>
-                </div>
-                <div class="visa-grid-4">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">基础价格（成人）</label>
-                        <input type="number" step="0.01" name="base_price" value="{{ product.base_price if product and product.base_price else '' }}" 
-                               class="visa-form-control" placeholder="如：1200.00">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">儿童价格</label>
-                        <input type="number" step="0.01" name="child_price" value="{{ product.child_price if product and product.child_price else '' }}" 
-                               class="visa-form-control" placeholder="如：800.00">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">婴儿价格</label>
-                        <input type="number" step="0.01" name="infant_price" value="{{ product.infant_price if product and product.infant_price else '' }}" 
-                               class="visa-form-control" placeholder="如：200.00">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">单房差</label>
-                        <input type="number" step="0.01" name="single_room_supplement" value="{{ product.single_room_supplement if product and product.single_room_supplement else '' }}" 
-                               class="visa-form-control" placeholder="如：300.00">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">货币单位</label>
-                        <select name="currency" class="visa-form-select">
-                            <option value="SGD" {% if not product or product.currency == 'SGD' %}selected{% endif %}>SGD</option>
-                            <option value="CNY" {% if product and product.currency == 'CNY' %}selected{% endif %}>CNY</option>
-                            <option value="USD" {% if product and product.currency == 'USD' %}selected{% endif %}>USD</option>
-                            <option value="EUR" {% if product and product.currency == 'EUR' %}selected{% endif %}>EUR</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Tab 3: 产品内容 -->
-            <div id="tab-content" class="tab-content">
-                <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
-                    <i class="fas fa-file-alt"></i> 产品内容
-                </h3>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">产品描述</label>
-                    <textarea name="product_description" rows="6" class="visa-form-control"
-                              placeholder="简要描述产品特色...">{{ product.product_description if product and product.product_description else '' }}</textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">包含服务</label>
-                    <textarea name="included_services" rows="6" class="visa-form-control"
-                              placeholder="列出包含的服务项目，每行一项...&#10;例如：&#10;- 往返机票&#10;- 酒店住宿&#10;- 当地接送机&#10;- 景点门票">{{ product.included_services if product and product.included_services else '' }}</textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">不包含服务</label>
-                    <textarea name="excluded_services" rows="6" class="visa-form-control" 
-                              placeholder="列出不包含的服务项目，每行一项...&#10;例如：&#10;- 个人消费&#10;- 旅游保险&#10;- 签证费用&#10;- 小费">{{ product.excluded_services if product and product.excluded_services else '' }}</textarea>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">重要提示</label>
-                    <textarea name="important_notes" rows="4" class="visa-form-control" 
-                              placeholder="列出重要的注意事项...">{{ product.important_notes if product and product.important_notes else '' }}</textarea>
-                </div>
-            </div>
-            
-            <!-- Tab 5: 其他设置 -->
-            <div id="tab-settings" class="tab-content">
-                <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
-                    <i class="fas fa-cog"></i> 其他设置
-                </h3>
-                <div class="visa-grid-3">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">产品状态</label>
-                        <select name="product_status" class="visa-form-select">
-                            <option value="draft" {% if product and product.product_status == 'draft' %}selected{% endif %}>草稿</option>
-                            <option value="active" {% if not product or product.product_status == 'active' %}selected{% endif %}>激活</option>
-                            <option value="inactive" {% if product and product.product_status == 'inactive' %}selected{% endif %}>停用</option>
-                        </select>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">有效开始日期</label>
-                        <input type="date" name="valid_from" value="{{ product.valid_from if product and product.valid_from else '' }}" 
-                               class="visa-form-control">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">有效结束日期</label>
-                        <input type="date" name="valid_until" value="{{ product.valid_until if product and product.valid_until else '' }}" 
-                               class="visa-form-control">
-                    </div>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">标签（多个标签用逗号分隔）</label>
-                    <input type="text" name="tags" id="tagsInput" value="{% if product and product.tags %}{{ product.tags|replace('[', '')|replace(']', '')|replace('"', '') }}{% endif %}" 
-                           class="visa-form-control" placeholder="如：蜜月,豪华,亲子">
-                    <small style="color: var(--visa-text-secondary); font-size: 0.75rem;">
-                        建议标签：蜜月、亲子、豪华、经济、摄影、美食、文化、探险等
-                    </small>
-                </div>
-            </div>
-            
             <!-- Tab 4: 图片资源 -->
             <div id="tab-media" class="tab-content">
                 <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
@@ -385,10 +345,16 @@
                         <label class="visa-form-label">产品图片库（可选择多张）</label>
                         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <input type="file" name="gallery_images" accept="image/*" multiple class="visa-form-control" style="flex: 1;">
-                            <button type="button" onclick="openImageLibrary('gallery')" 
+                            <button type="button" onclick="openImageLibrary('gallery')"
                                     class="visa-btn visa-btn-info" style="white-space: nowrap;">
                                 <i class="fas fa-images mr-1"></i>从图片库选择
                             </button>
+                            {% if product and product.gallery_images %}
+                            <button type="button" onclick="clearAllGalleryImages()"
+                                    class="visa-btn visa-btn-danger" style="white-space: nowrap;" id="clearAllGalleryBtn">
+                                <i class="fas fa-trash-alt mr-1"></i>清除全部
+                            </button>
+                            {% endif %}
                         </div>
                         <input type="hidden" id="selectedGalleryImages" name="selected_gallery_images">
                         <small style="color: var(--visa-text-secondary); font-size: 0.75rem; display: block; margin-bottom: 0.5rem;">
@@ -462,6 +428,9 @@
                         </a>
                         <button type="button" onclick="document.getElementById('itineraryExcelUpload').click()" class="visa-btn visa-btn-warning">
                             <i class="fas fa-file-excel"></i> 导入Excel
+                        </button>
+                        <button type="button" onclick="addAllDaysItinerary()" class="visa-btn visa-btn-primary">
+                            <i class="fas fa-calendar-plus"></i> 一键添加全部 ({{ product.duration_days }}天)
                         </button>
                         <button type="button" onclick="showAddItineraryModal()" class="visa-btn visa-btn-success">
                             <i class="fas fa-plus"></i> 添加行程
@@ -866,6 +835,59 @@ function deleteProductFile(fileType, fileIndex = null) {
     });
 }
 
+// 清除全部图片库图片
+function clearAllGalleryImages() {
+    const container = document.getElementById('galleryImagesContainer');
+    if (!container) {
+        alert('没有可清除的图片');
+        return;
+    }
+
+    const images = container.querySelectorAll('[id^="galleryImage"]');
+    if (images.length === 0) {
+        alert('没有可清除的图片');
+        return;
+    }
+
+    if (!confirm(`确定要清除全部 ${images.length} 张图片吗？此操作不可撤销！`)) {
+        return;
+    }
+
+    const productId = {{ product.id if product else 0 }};
+    if (!productId) {
+        alert('产品ID无效');
+        return;
+    }
+
+    // 发送清除全部请求
+    fetch(`/tour/products/${productId}/clear-gallery`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 清除所有图片预览
+            container.innerHTML = '';
+            // 隐藏清除按钮
+            const clearBtn = document.getElementById('clearAllGalleryBtn');
+            if (clearBtn) {
+                clearBtn.style.display = 'none';
+            }
+            alert('已清除全部图片');
+        } else {
+            alert(data.message || '清除失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('清除时发生错误');
+    });
+}
+
 // 表单提交处理
 document.getElementById('productForm').addEventListener('submit', function(e) {
     // 可以在这里添加表单验证逻辑
@@ -1091,12 +1113,78 @@ function showAddItineraryModal() {
     document.getElementById('modalTitle').textContent = '添加行程';
     document.getElementById('itineraryId').value = '';
     document.getElementById('itineraryForm').reset();
-    
+
     // 自动填充天数（基于已有行程数量）
     const currentDays = {{ itineraries|length if itineraries else 0 }};
     document.getElementById('dayNumber').value = currentDays + 1;
-    
+
     showModal('itineraryModal');
+}
+
+// 一键添加全部日期行程
+async function addAllDaysItinerary() {
+    const totalDays = {{ product.duration_days if product and product.duration_days else 0 }};
+    const existingDays = [{% for it in itineraries %}{{ it.day_number }},{% endfor %}];
+
+    if (totalDays <= 0) {
+        alert('请先设置产品的行程天数');
+        return;
+    }
+
+    // 找出缺失的天数
+    const missingDays = [];
+    for (let day = 1; day <= totalDays; day++) {
+        if (!existingDays.includes(day)) {
+            missingDays.push(day);
+        }
+    }
+
+    if (missingDays.length === 0) {
+        alert('所有日期的行程已添加完成');
+        return;
+    }
+
+    if (!confirm(`将添加第 ${missingDays.join(', ')} 天的行程，共 ${missingDays.length} 天，确定吗？`)) {
+        return;
+    }
+
+    // 批量添加
+    let successCount = 0;
+    let failedDays = [];
+
+    for (const day of missingDays) {
+        try {
+            const formData = new FormData();
+            formData.append('day_number', day);
+            formData.append('day_title', `第${day}天`);
+            formData.append('content', '');
+
+            const response = await fetch('{{ url_for("tour_products.add_itinerary", product_id=product.id) }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                successCount++;
+            } else {
+                failedDays.push(day);
+            }
+        } catch (error) {
+            console.error(`添加第${day}天失败:`, error);
+            failedDays.push(day);
+        }
+    }
+
+    if (successCount > 0) {
+        alert(`成功添加 ${successCount} 天行程` + (failedDays.length > 0 ? `，${failedDays.length} 天失败` : ''));
+        location.reload();
+    } else {
+        alert('添加失败，请重试');
+    }
 }
 
 // 编辑行程

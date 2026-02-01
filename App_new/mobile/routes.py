@@ -877,21 +877,31 @@ def tour_package_detail(package_id):
         flash('该旅游配套已过期', 'warning')
         return redirect(url_for('mobile.tour_packages'))
 
-    # 解析包含服务
+    # 解析包含服务（支持换行和逗号分隔）
     includes = []
     if product.included_services:
         try:
-            includes = json.loads(product.included_services) if product.included_services.startswith('[') else product.included_services.split(',')
+            if product.included_services.startswith('['):
+                includes = json.loads(product.included_services)
+            elif '\n' in product.included_services:
+                includes = [i.strip() for i in product.included_services.split('\n') if i.strip()]
+            else:
+                includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
         except:
-            includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
+            includes = [i.strip() for i in product.included_services.split('\n') if i.strip()]
 
-    # 解析不包含服务
+    # 解析不包含服务（支持换行和逗号分隔）
     excludes = []
     if product.excluded_services:
         try:
-            excludes = json.loads(product.excluded_services) if product.excluded_services.startswith('[') else product.excluded_services.split(',')
+            if product.excluded_services.startswith('['):
+                excludes = json.loads(product.excluded_services)
+            elif '\n' in product.excluded_services:
+                excludes = [e.strip() for e in product.excluded_services.split('\n') if e.strip()]
+            else:
+                excludes = [e.strip() for e in product.excluded_services.split(',') if e.strip()]
         except:
-            excludes = [e.strip() for e in product.excluded_services.split(',') if e.strip()]
+            excludes = [e.strip() for e in product.excluded_services.split('\n') if e.strip()]
 
     # 解析注意事项
     notes = []
@@ -924,6 +934,10 @@ def tour_package_detail(package_id):
 
     # 获取行程数据
     itineraries = ProductItinerary.query.filter_by(product_id=package_id).order_by(ProductItinerary.day_number).all()
+
+    # 获取价格变体
+    from App_new.business.tour.models.Packagemodels import ProductPriceVariant
+    price_variants = ProductPriceVariant.query.filter_by(product_id=package_id, is_active=True).all()
     itinerary_list = []
     for it in itineraries:
         day_data = {
@@ -955,7 +969,9 @@ def tour_package_detail(package_id):
         'min_pax': product.min_pax,
         'max_pax': product.max_pax,
         'product_type': product.product_type,
-        'supplier': product.display_company_name
+        'supplier': product.display_company_name,
+        'price_variants': [pv.to_dict() for pv in price_variants] if price_variants else [],
+        'currency': product.currency or 'SGD'
     }
 
     return render_template('mobile/tour_package_detail.html',

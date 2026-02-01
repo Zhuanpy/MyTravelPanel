@@ -41,12 +41,18 @@
     .image-checkbox:checked {
         background-color: #6366f1;
     }
+    /* 响应式：小屏幕隐藏左侧标签栏 */
+    @media (max-width: 1024px) {
+        .tag-sidebar {
+            display: none;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="bg-gray-50 min-h-screen p-4 md:p-6">
-    <div class="max-w-7xl mx-auto">
+    <div id="imageLibraryContainer" class="max-w-[1800px] mx-auto">
         <!-- 页面标题 -->
         <div class="mb-6 flex justify-between items-center">
             <div>
@@ -62,8 +68,8 @@
         <div class="bg-white rounded-xl shadow-md p-4 mb-6">
             <form method="GET" class="flex gap-4 flex-wrap">
                 <div class="flex-1 min-w-[200px]">
-                    <input type="text" name="search" value="{{ current_search }}" 
-                           placeholder="搜索标题或标签..." 
+                    <input type="text" name="search" value="{{ current_search }}"
+                           placeholder="搜索标题或标签..."
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                 </div>
                 <div>
@@ -74,20 +80,86 @@
                         {% endfor %}
                     </select>
                 </div>
+                <input type="hidden" name="tag" id="tagFilterInput" value="{{ current_tag }}">
                 <button type="submit" class="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
                     <i class="fas fa-search mr-2"></i>搜索
                 </button>
-                <button type="button" onclick="document.getElementById('uploadModal').classList.remove('hidden')" 
+                <button type="button" onclick="document.getElementById('uploadModal').classList.remove('hidden')"
                         class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
                     <i class="fas fa-upload mr-2"></i>上传图片
                 </button>
-                <button type="button" onclick="document.getElementById('batchUploadModal').classList.remove('hidden')" 
+                <button type="button" onclick="document.getElementById('batchUploadModal').classList.remove('hidden')"
                         class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                     <i class="fas fa-images mr-2"></i>批量导入
                 </button>
+                <button type="button" onclick="document.getElementById('batchUpdateModal').classList.remove('hidden')"
+                        class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-edit mr-2"></i>批量更新标签
+                </button>
+                {% if images %}
+                <button type="button" onclick="selectAllImages()"
+                        class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-check-double mr-2"></i>全选 ({{ images|length }})
+                </button>
+                <button type="button" onclick="downloadAllFilteredImages()"
+                        class="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+                    <i class="fas fa-download mr-2"></i>下载全部
+                </button>
+                <button type="button" onclick="cleanupInvalidImages()"
+                        class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                        title="清理原图文件丢失的无效记录">
+                    <i class="fas fa-broom mr-2"></i>清理无效
+                </button>
+                {% endif %}
             </form>
         </div>
 
+        <!-- 主内容区域（左侧标签 + 右侧图片） -->
+        <div class="flex gap-6">
+            <!-- 左侧标签筛选 -->
+            <div class="w-64 flex-shrink-0 tag-sidebar hidden lg:block">
+                <div class="bg-white rounded-xl shadow-md p-4 sticky top-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-semibold text-gray-700">
+                            <i class="fas fa-tags mr-2 text-indigo-500"></i>标签筛选
+                        </h4>
+                        {% if current_tag %}
+                        <a href="{{ url_for('staff.image_library', search=current_search, category=current_category) }}"
+                           class="text-xs text-red-500 hover:text-red-700" title="清除筛选">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% if tags_with_counts %}
+                    <div class="text-xs text-gray-500 mb-3">共 {{ tags_with_counts|length }} 个标签</div>
+                    <div class="space-y-1 max-h-[60vh] overflow-y-auto pr-2">
+                        {% for tag, count in tags_with_counts %}
+                        <a href="{{ url_for('staff.image_library', tag=tag, search=current_search, category=current_category) }}"
+                           class="flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all
+                                  {% if current_tag == tag %}
+                                  bg-indigo-500 text-white
+                                  {% else %}
+                                  bg-gray-50 text-gray-700 hover:bg-indigo-50 hover:text-indigo-700
+                                  {% endif %}">
+                            <span class="truncate">{{ tag }}</span>
+                            <span class="ml-2 px-2 py-0.5 rounded-full text-xs flex-shrink-0
+                                        {% if current_tag == tag %}bg-indigo-400{% else %}bg-gray-200{% endif %}">
+                                {{ count }}
+                            </span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-6 text-gray-400 text-sm">
+                        <i class="fas fa-tag text-2xl mb-2 block"></i>
+                        暂无标签
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 右侧内容区 -->
+            <div class="flex-1 min-w-0">
         <!-- 批量操作栏 -->
         {% if images %}
         <div id="batchActionBar" class="bg-white rounded-xl shadow-md p-4 mb-4 hidden">
@@ -101,11 +173,15 @@
                     <span class="text-gray-600">已选择 <span id="selectedCount" class="font-bold text-indigo-600">0</span> 张图片</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button onclick="cancelBatchSelect()" 
+                    <button onclick="cancelBatchSelect()"
                             class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                         <i class="fas fa-times mr-2"></i>取消选择
                     </button>
-                    <button onclick="batchDeleteImages()" 
+                    <button onclick="batchDownloadImages()"
+                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-download mr-2"></i>批量下载
+                    </button>
+                    <button onclick="batchDeleteImages()"
                             class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
                         <i class="fas fa-trash mr-2"></i>批量删除
                     </button>
@@ -184,12 +260,14 @@
         <div class="bg-white rounded-xl shadow-md p-12 text-center">
             <i class="fas fa-images text-6xl text-gray-300 mb-4"></i>
             <p class="text-gray-500 text-lg">暂无图片</p>
-            <button onclick="document.getElementById('uploadModal').classList.remove('hidden')" 
+            <button onclick="document.getElementById('uploadModal').classList.remove('hidden')"
                     class="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
                 <i class="fas fa-upload mr-2"></i>上传第一张图片
             </button>
         </div>
         {% endif %}
+            </div><!-- 右侧内容区结束 -->
+        </div><!-- flex容器结束 -->
     </div>
 </div>
 
@@ -258,7 +336,7 @@
     <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div class="p-6 border-b border-gray-200 flex justify-between items-center">
             <h3 class="text-xl font-bold text-gray-800">批量导入图片</h3>
-            <button onclick="document.getElementById('batchUploadModal').classList.add('hidden')" 
+            <button onclick="document.getElementById('batchUploadModal').classList.add('hidden')"
                     class="text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times text-2xl"></i>
             </button>
@@ -267,20 +345,47 @@
             <!-- CSRF Token -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="space-y-6">
-                <!-- 批量设置标签和分类 -->
+                <!-- Excel 配置文件上传（可选） -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-semibold text-green-800">
+                            <i class="fas fa-file-excel mr-2"></i>Excel 图片配置（可选）
+                        </h4>
+                        <button type="button" onclick="downloadExcelTemplate()"
+                                class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-download mr-1"></i>下载模板
+                        </button>
+                    </div>
+                    <p class="text-sm text-green-700 mb-3">
+                        上传 Excel 文件可为每张图片单独设置标题、标签和分类（根据文件名匹配）
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <input type="file" id="excelConfigInput" name="excel_config" accept=".xlsx,.xls" class="hidden">
+                        <button type="button" onclick="document.getElementById('excelConfigInput').click()"
+                                class="px-4 py-2 border-2 border-dashed border-green-400 text-green-700 rounded-lg hover:bg-green-100 transition-colors">
+                            <i class="fas fa-file-upload mr-2"></i>选择 Excel 文件
+                        </button>
+                        <span id="excelFileName" class="text-sm text-gray-600">未选择文件</span>
+                        <button type="button" id="clearExcelBtn" onclick="clearExcelFile()"
+                                class="hidden px-2 py-1 text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 批量设置标签和分类（默认值） -->
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 class="font-semibold text-blue-800 mb-3">
-                        <i class="fas fa-cog mr-2"></i>批量设置（应用到所有图片）
+                        <i class="fas fa-cog mr-2"></i>默认设置（未在 Excel 中配置的图片将使用）
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">标签（可选，逗号分隔）</label>
-                            <input type="text" name="default_tags" placeholder="例如：旅游,风景,目的地" 
+                            <label class="block text-sm font-medium text-gray-700 mb-2">默认标签（逗号分隔）</label>
+                            <input type="text" name="default_tags" placeholder="例如：旅游,风景,目的地"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <small class="text-gray-500 text-xs mt-1">所有图片将应用相同的标签</small>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">默认分类</label>
                             <select name="default_category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 <option value="tour">旅游产品</option>
                                 <option value="destination">目的地</option>
@@ -290,17 +395,30 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 文件上传区域 -->
                 <div class="upload-zone" id="batchUploadZone">
                     <i class="fas fa-cloud-upload-alt text-5xl text-gray-400 mb-3"></i>
                     <p class="text-gray-600 text-lg mb-2">拖拽多张图片到此处或点击选择</p>
-                    <p class="text-sm text-gray-400 mb-4">支持 PNG、JPG、JPEG、GIF、WEBP 格式</p>
-                    <input type="file" id="batchImageInput" name="images" accept="image/*" multiple class="hidden" required>
-                    <button type="button" onclick="document.getElementById('batchImageInput').click()" 
-                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-folder-open mr-2"></i>选择文件夹或图片
-                    </button>
+                    <p class="text-sm text-gray-400 mb-2">支持 PNG、JPG、JPEG、GIF、WEBP 格式</p>
+                    <p class="text-xs text-blue-500 mb-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        建议尺寸：封面图 600×450px，详情图 800×600px（上传后自动压缩至最大1200px）
+                    </p>
+                    <!-- 多文件选择 -->
+                    <input type="file" id="batchImageInput" name="images" accept="image/*" multiple class="hidden">
+                    <!-- 文件夹选择 -->
+                    <input type="file" id="folderInput" name="folder" accept="image/*" webkitdirectory directory multiple class="hidden">
+                    <div class="flex gap-3 justify-center">
+                        <button type="button" onclick="document.getElementById('batchImageInput').click()"
+                                class="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-images mr-2"></i>选择多张图片
+                        </button>
+                        <button type="button" onclick="document.getElementById('folderInput').click()"
+                                class="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-folder-open mr-2"></i>选择文件夹
+                        </button>
+                    </div>
                     <div id="batchImagePreview" class="mt-6 hidden">
                         <div class="flex items-center justify-between mb-3">
                             <h5 class="font-semibold text-gray-700">已选择图片：</h5>
@@ -312,9 +430,9 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="mt-6 flex gap-3 justify-end">
-                <button type="button" onclick="document.getElementById('batchUploadModal').classList.add('hidden')" 
+                <button type="button" onclick="document.getElementById('batchUploadModal').classList.add('hidden')"
                         class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                     取消
                 </button>
@@ -374,9 +492,76 @@
         </form>
     </div>
 </div>
+
+<!-- 批量更新标签模态框 -->
+<div id="batchUpdateModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-edit mr-2 text-orange-500"></i>批量更新图片标签
+            </h3>
+            <button onclick="document.getElementById('batchUpdateModal').classList.add('hidden')"
+                    class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <form id="batchUpdateForm" class="p-6">
+            <!-- CSRF Token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="space-y-6">
+                <!-- 说明 -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-orange-800 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>使用说明
+                    </h4>
+                    <ol class="text-sm text-orange-700 space-y-1 list-decimal list-inside">
+                        <li>先点击上方"下载全部"按钮下载图片（包含配置Excel）</li>
+                        <li>编辑下载的 <strong>图片配置.xlsx</strong> 文件，修改标题、标签、分类</li>
+                        <li>上传修改后的 Excel 文件</li>
+                        <li>系统将根据文件名自动匹配并更新</li>
+                    </ol>
+                </div>
+
+                <!-- Excel 文件上传 -->
+                <div class="border-2 border-dashed border-orange-300 rounded-lg p-6 text-center">
+                    <i class="fas fa-file-excel text-5xl text-orange-400 mb-3"></i>
+                    <p class="text-gray-600 mb-3">上传修改后的 Excel 配置文件</p>
+                    <input type="file" id="updateExcelInput" name="excel_file" accept=".xlsx,.xls" class="hidden" required>
+                    <button type="button" onclick="document.getElementById('updateExcelInput').click()"
+                            class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-file-upload mr-2"></i>选择 Excel 文件
+                    </button>
+                    <div id="updateExcelFileName" class="mt-3 text-sm text-gray-500"></div>
+                </div>
+
+                <!-- 预览区域 -->
+                <div id="updatePreviewArea" class="hidden">
+                    <h4 class="font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-list mr-2"></i>待更新内容预览
+                    </h4>
+                    <div id="updatePreviewTable" class="max-h-64 overflow-y-auto border rounded-lg">
+                        <!-- 预览表格将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-3 justify-end">
+                <button type="button" onclick="document.getElementById('batchUpdateModal').classList.add('hidden')"
+                        class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    取消
+                </button>
+                <button type="submit" id="batchUpdateBtn" class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors" disabled>
+                    <i class="fas fa-save mr-2"></i>确认更新
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- SheetJS for Excel file creation -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
 // 上传区域交互
 const uploadZone = document.getElementById('uploadZone');
@@ -567,12 +752,55 @@ function updateBatchSelection() {
 function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const checkboxes = document.querySelectorAll('.image-checkbox');
-    
+
     checkboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
     });
-    
+
     updateBatchSelection();
+}
+
+// 一键全选所有图片
+function selectAllImages() {
+    const checkboxes = document.querySelectorAll('.image-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+    // 如果全部已选中，则取消全选；否则全选
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = !allChecked;
+    });
+
+    updateBatchSelection();
+}
+
+// 清理无效图片记录
+async function cleanupInvalidImages() {
+    if (!confirm('确定要清理无效的图片记录吗？\n\n这将删除原图文件丢失的记录及其缩略图。')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/staff/image-library/cleanup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            if (result.deleted_count > 0) {
+                location.reload();
+            }
+        } else {
+            alert('清理失败：' + result.message);
+        }
+    } catch (error) {
+        console.error('Cleanup error:', error);
+        alert('清理失败：' + error.message);
+    }
 }
 
 // 取消批量选择
@@ -582,6 +810,131 @@ function cancelBatchSelect() {
         checkbox.checked = false;
     });
     updateBatchSelection();
+}
+
+// 下载全部筛选结果
+function downloadAllFilteredImages() {
+    // 获取当前页面上所有图片的ID
+    const allImageCards = document.querySelectorAll('.image-card[data-image-id]');
+    const imageIds = Array.from(allImageCards).map(card => parseInt(card.dataset.imageId));
+
+    if (imageIds.length === 0) {
+        alert('没有可下载的图片');
+        return;
+    }
+
+    if (!confirm(`确定要下载全部 ${imageIds.length} 张图片吗？`)) {
+        return;
+    }
+
+    // 显示下载中提示
+    const downloadBtn = event.target.closest('button');
+    const originalText = downloadBtn.innerHTML;
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>打包中...';
+
+    // 获取CSRF令牌
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // 发送下载请求
+    fetch('{{ url_for("staff.batch_download_image_library") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ image_ids: imageIds })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || '下载失败');
+            });
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `图片库_${new Date().toISOString().slice(0,10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    })
+    .catch(error => {
+        alert('下载失败：' + error.message);
+    })
+    .finally(() => {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = originalText;
+    });
+}
+
+// 批量下载图片
+function batchDownloadImages() {
+    const checkedBoxes = document.querySelectorAll('.image-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert('请先选择要下载的图片');
+        return;
+    }
+
+    // 收集选中的图片ID
+    const imageIds = [];
+    checkedBoxes.forEach(checkbox => {
+        imageIds.push(parseInt(checkbox.dataset.id));
+    });
+
+    // 显示下载中提示
+    const downloadBtn = event.target.closest('button');
+    const originalText = downloadBtn.innerHTML;
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>打包中...';
+
+    // 获取CSRF令牌
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // 发送下载请求
+    fetch('{{ url_for("staff.batch_download_image_library") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ image_ids: imageIds })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || '下载失败');
+            });
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `图片库_${new Date().toISOString().slice(0,10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+
+        // 取消选择
+        cancelBatchSelect();
+    })
+    .catch(error => {
+        alert('批量下载失败：' + error.message);
+    })
+    .finally(() => {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = originalText;
+    });
 }
 
 // 批量删除图片
@@ -679,7 +1032,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // 添加选择模式提示条
-        const header = document.querySelector('.max-w-7xl.mx-auto');
+        const header = document.getElementById('imageLibraryContainer');
         if (header) {
             const alertDiv = document.createElement('div');
             alertDiv.id = 'selectModeAlert';
@@ -935,7 +1288,99 @@ const batchImageInput = document.getElementById('batchImageInput');
 const batchImagePreview = document.getElementById('batchImagePreview');
 const batchPreviewGrid = document.getElementById('batchPreviewGrid');
 const selectedCount = document.getElementById('selectedCount');
+const excelConfigInput = document.getElementById('excelConfigInput');
 let selectedFiles = [];
+
+// Excel 模板下载
+function downloadExcelTemplate() {
+    // 创建 Excel 模板数据
+    const templateData = [
+        ['文件名', '标题', '标签', '分类'],
+        ['example1.jpg', '示例图片1', '风景,旅游,海滩', 'destination'],
+        ['example2.png', '示例图片2', '城市,建筑', 'tour'],
+        ['example3.jpeg', '示例图片3', '美食,特色', 'product'],
+    ];
+
+    // 创建说明页数据
+    const instructionData = [
+        ['图片库导入模板使用说明'],
+        [''],
+        ['1. 文件名（必填）：上传图片的原始文件名，必须完全匹配（包括扩展名）'],
+        ['2. 标题（可选）：图片的标题或描述'],
+        ['3. 标签（可选）：多个标签用英文逗号分隔，例如：风景,旅游,海滩'],
+        ['4. 分类（可选）：可选值如下'],
+        ['   - tour：旅游产品'],
+        ['   - destination：目的地'],
+        ['   - product：产品相关'],
+        ['   - other：其他（默认）'],
+        [''],
+        ['注意事项：'],
+        ['- 文件名必须与上传的图片文件名完全一致'],
+        ['- 未在 Excel 中配置的图片将使用默认设置'],
+        ['- Excel 中配置但未上传的图片将被忽略'],
+    ];
+
+    // 使用 SheetJS 创建 Excel 文件
+    // 如果没有加载 SheetJS，使用简单的 CSV 下载
+    if (typeof XLSX !== 'undefined') {
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.aoa_to_sheet(templateData);
+        const ws2 = XLSX.utils.aoa_to_sheet(instructionData);
+
+        // 设置列宽
+        ws1['!cols'] = [
+            { wch: 25 },  // 文件名
+            { wch: 30 },  // 标题
+            { wch: 40 },  // 标签
+            { wch: 15 },  // 分类
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws1, '图片配置');
+        XLSX.utils.book_append_sheet(wb, ws2, '使用说明');
+
+        XLSX.writeFile(wb, '图片库导入模板.xlsx');
+    } else {
+        // 降级为 CSV 下载
+        const csvContent = templateData.map(row => row.join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = '图片库导入模板.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+}
+
+// Excel 文件选择处理
+excelConfigInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const fileNameEl = document.getElementById('excelFileName');
+    const clearBtn = document.getElementById('clearExcelBtn');
+
+    if (file) {
+        fileNameEl.textContent = file.name;
+        fileNameEl.classList.add('text-green-600', 'font-medium');
+        fileNameEl.classList.remove('text-gray-600');
+        clearBtn.classList.remove('hidden');
+    } else {
+        clearExcelFile();
+    }
+});
+
+// 清除 Excel 文件
+function clearExcelFile() {
+    excelConfigInput.value = '';
+    const fileNameEl = document.getElementById('excelFileName');
+    const clearBtn = document.getElementById('clearExcelBtn');
+
+    fileNameEl.textContent = '未选择文件';
+    fileNameEl.classList.remove('text-green-600', 'font-medium');
+    fileNameEl.classList.add('text-gray-600');
+    clearBtn.classList.add('hidden');
+}
+
+// 文件夹选择器
+const folderInput = document.getElementById('folderInput');
 
 // 批量上传区域交互
 batchUploadZone.addEventListener('dragover', (e) => {
@@ -956,9 +1401,30 @@ batchUploadZone.addEventListener('drop', (e) => {
     }
 });
 
+// 多文件选择
 batchImageInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-        handleBatchFiles(Array.from(e.target.files));
+        const imageFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length > 0) {
+            handleBatchFiles(imageFiles);
+        }
+    }
+});
+
+// 文件夹选择 - 自动过滤只保留图片文件
+folderInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        // 过滤只保留图片文件
+        const imageFiles = Array.from(e.target.files).filter(f => {
+            const ext = f.name.toLowerCase().split('.').pop();
+            return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+        });
+
+        if (imageFiles.length > 0) {
+            handleBatchFiles(imageFiles);
+        } else {
+            alert('所选文件夹中没有找到图片文件');
+        }
     }
 });
 
@@ -994,25 +1460,31 @@ function handleBatchFiles(files) {
 // 批量上传表单提交
 document.getElementById('batchUploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     if (selectedFiles.length === 0) {
         alert('请至少选择一张图片');
         return;
     }
-    
+
     const formData = new FormData(e.target);
-    
+
     // 确保CSRF token被包含（从表单或meta标签获取）
     if (!formData.has('csrf_token')) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
                        || document.querySelector('input[name="csrf_token"]')?.value;
         if (csrfToken) {
             formData.append('csrf_token', csrfToken);
         }
     }
-    
-    // 添加所有文件（注意：这会替换表单中已有的文件输入）
-    // 需要先清除旧的，然后添加新的
+
+    // 添加 Excel 配置文件（如果有）
+    const excelFile = excelConfigInput.files[0];
+    if (excelFile) {
+        formData.delete('excel_config');
+        formData.append('excel_config', excelFile);
+    }
+
+    // 添加所有图片文件
     formData.delete('images');  // 清除表单中的文件字段（如果有）
     selectedFiles.forEach(file => {
         formData.append('images', file);
@@ -1082,12 +1554,145 @@ document.getElementById('batchUploadForm').addEventListener('submit', async (e) 
 });
 
 // 重置批量上传表单
-document.getElementById('batchUploadModal').addEventListener('hidden.bs.modal', () => {
+function resetBatchUploadForm() {
     selectedFiles = [];
     batchImageInput.value = '';
     batchImagePreview.classList.add('hidden');
     batchPreviewGrid.innerHTML = '';
     selectedCount.textContent = '0 张';
+    clearExcelFile();
+}
+
+// 关闭模态框时重置
+document.getElementById('batchUploadModal').addEventListener('hidden.bs.modal', resetBatchUploadForm);
+
+// ========================================
+// 批量更新标签功能
+// ========================================
+let updateExcelData = [];
+
+const updateExcelInput = document.getElementById('updateExcelInput');
+const updateExcelFileName = document.getElementById('updateExcelFileName');
+const updatePreviewArea = document.getElementById('updatePreviewArea');
+const updatePreviewTable = document.getElementById('updatePreviewTable');
+const batchUpdateBtn = document.getElementById('batchUpdateBtn');
+
+// Excel 文件选择
+updateExcelInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    updateExcelFileName.innerHTML = `<i class="fas fa-file-excel text-green-500 mr-2"></i>${file.name}`;
+
+    // 解析 Excel 文件
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+            if (jsonData.length === 0) {
+                alert('Excel 文件中没有数据');
+                return;
+            }
+
+            // 过滤有效数据
+            updateExcelData = jsonData.filter(row => row['文件名']);
+
+            if (updateExcelData.length === 0) {
+                alert('Excel 文件中没有找到"文件名"列');
+                return;
+            }
+
+            // 显示预览
+            showUpdatePreview();
+            batchUpdateBtn.disabled = false;
+
+        } catch (error) {
+            alert('解析 Excel 文件失败：' + error.message);
+            console.error(error);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+// 显示更新预览
+function showUpdatePreview() {
+    updatePreviewArea.classList.remove('hidden');
+
+    let tableHtml = `
+        <table class="w-full text-sm">
+            <thead class="bg-gray-100 sticky top-0">
+                <tr>
+                    <th class="px-3 py-2 text-left">文件名</th>
+                    <th class="px-3 py-2 text-left">标题</th>
+                    <th class="px-3 py-2 text-left">标签</th>
+                    <th class="px-3 py-2 text-left">分类</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    updateExcelData.forEach((row, index) => {
+        tableHtml += `
+            <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
+                <td class="px-3 py-2 text-xs text-gray-600 max-w-[200px] truncate" title="${row['文件名'] || ''}">${row['文件名'] || ''}</td>
+                <td class="px-3 py-2">${row['标题'] || '-'}</td>
+                <td class="px-3 py-2"><span class="text-blue-600">${row['标签'] || '-'}</span></td>
+                <td class="px-3 py-2">${row['分类'] || '-'}</td>
+            </tr>
+        `;
+    });
+
+    tableHtml += '</tbody></table>';
+    tableHtml += `<div class="p-3 bg-gray-100 text-sm text-gray-600">共 ${updateExcelData.length} 条记录</div>`;
+
+    updatePreviewTable.innerHTML = tableHtml;
+}
+
+// 提交批量更新
+document.getElementById('batchUpdateForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    if (updateExcelData.length === 0) {
+        alert('请先选择 Excel 文件');
+        return;
+    }
+
+    const submitBtn = batchUpdateBtn;
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>更新中...';
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    try {
+        const response = await fetch('{{ url_for("staff.batch_update_image_library") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ updates: updateExcelData })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(result.message);
+            document.getElementById('batchUpdateModal').classList.add('hidden');
+            location.reload();
+        } else {
+            alert('更新失败：' + result.message);
+        }
+    } catch (error) {
+        alert('更新失败：' + error.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
 });
 </script>
 {% endblock %}

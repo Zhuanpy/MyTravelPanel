@@ -61,7 +61,7 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products', compress=Tru
 
         # 压缩图片
         if compress:
-            compress_result = compress_and_resize_image(filepath, max_size=1920, quality=85)
+            compress_result = compress_and_resize_image(filepath, max_size=1200, quality=80)
             if compress_result and compress_result.get('new_path'):
                 # 如果压缩后文件名改变了（如PNG转JPG），更新文件名
                 new_filepath = compress_result.get('new_path')
@@ -72,14 +72,14 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products', compress=Tru
     return None
 
 
-def compress_and_resize_image(file_path, max_size=1920, quality=85):
+def compress_and_resize_image(file_path, max_size=1200, quality=80):
     """
-    压缩和调整图片尺寸
+    压缩和调整图片尺寸（优化网页加载速度）
 
     参数:
         file_path: 图片文件路径
-        max_size: 最大宽度或高度（像素），默认1920
-        quality: JPEG压缩质量（1-100），默认85
+        max_size: 最大宽度或高度（像素），默认1200（适合网页显示）
+        quality: JPEG压缩质量（1-100），默认80
 
     返回:
         dict: {'width': 宽度, 'height': 高度, 'file_size': 文件大小, 'new_path': 新路径}
@@ -566,6 +566,49 @@ def delete_product_file(product_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@tour_products_bp.route('/<int:product_id>/clear-gallery', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def clear_gallery_images(product_id):
+    """清除产品的所有图库图片"""
+    try:
+        product = Product.query.get_or_404(product_id)
+
+        if not product.gallery_images:
+            return jsonify({'success': False, 'message': '没有可清除的图片'}), 400
+
+        # 解析图片列表
+        images = json.loads(product.gallery_images) if isinstance(product.gallery_images, str) else product.gallery_images
+
+        # 删除所有图片文件
+        deleted_count = 0
+        for image_path in images:
+            if image_path:
+                from flask import current_app
+                full_path = os.path.join(current_app.static_folder, image_path)
+                if os.path.exists(full_path):
+                    try:
+                        os.remove(full_path)
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"删除文件失败: {full_path}, 错误: {e}")
+
+        # 清空数据库中的图片列表
+        product.gallery_images = None
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'已清除 {deleted_count} 张图片',
+            'deleted_count': deleted_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @tour_products_bp.route('/<int:product_id>/itinerary/<int:itinerary_id>')
 @login_required
 @staff_only
@@ -1042,8 +1085,6 @@ def edit_product(product_id):
             sync_tour_product_to_unified(product, created_by=current_user.username)
 
             db.session.commit()
-
-            flash('产品更新成功！', 'success')
             return redirect(url_for('tour_products.edit_product', product_id=product.id))
 
         except Exception as e:
