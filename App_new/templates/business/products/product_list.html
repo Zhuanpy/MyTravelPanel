@@ -152,13 +152,14 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 150px;">产品编号</th>
-                            <th style="width: 280px;">产品名称</th>
-                            <th style="width: 80px;">分类</th>
-                            <th style="width: 120px;">国家/城市</th>
-                            <th style="width: 110px;">价格</th>
-                            <th style="width: 70px;">状态</th>
-                            <th style="width: 100px;">创建时间</th>
+                            <th style="width: 130px;">产品编号</th>
+                            <th style="width: 240px;">产品名称</th>
+                            <th style="width: 70px;">分类</th>
+                            <th style="width: 100px;">国家/城市</th>
+                            <th style="width: 90px;">售价</th>
+                            <th style="width: 90px;">成本</th>
+                            <th style="width: 100px;">有效期</th>
+                            <th style="width: 60px;">状态</th>
                             <th style="width: 110px;">操作</th>
                         </tr>
                     </thead>
@@ -196,6 +197,22 @@
                                 {% endif %}
                             </td>
                             <td>
+                                {% if product.cost_price %}
+                                {{ product.currency }} {{ "%.2f"|format(product.cost_price) }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if product.valid_until %}
+                                <small class="{% if product.valid_until.strftime('%Y-%m-%d') < now.strftime('%Y-%m-%d') %}text-danger{% else %}text-success{% endif %}">
+                                    {{ product.valid_until.strftime('%Y-%m-%d') }}
+                                </small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
                                 {% if product.product_status == 'active' %}
                                 <span class="badge bg-success">上架</span>
                                 {% elif product.product_status == 'draft' %}
@@ -205,18 +222,27 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <small>{{ product.created_at.strftime('%Y-%m-%d') if product.created_at else '-' }}</small>
-                            </td>
-                            <td>
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ url_for('products.detail', product_id=product.id) }}"
                                        class="btn btn-outline-primary" title="查看">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    {% if product.product_category == 'visa' %}
+                                    <a href="{{ url_for('products.edit_visa', product_id=product.id) }}"
+                                       class="btn btn-outline-secondary" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% elif product.product_category == 'tour' and product.ext_table_id %}
+                                    <a href="{{ url_for('tour_products.edit_product', product_id=product.ext_table_id) }}"
+                                       class="btn btn-outline-secondary" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% else %}
                                     <a href="{{ url_for('products.edit', product_id=product.id) }}"
                                        class="btn btn-outline-secondary" title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    {% endif %}
                                     <button type="button" class="btn btn-outline-danger" title="删除"
                                             onclick="confirmDelete({{ product.id }}, '{{ product.product_name }}')">
                                         <i class="fas fa-trash"></i>
@@ -226,7 +252,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="fas fa-box-open fa-3x mb-3"></i>
                                 <p class="mb-0">暂无产品数据</p>
                             </td>

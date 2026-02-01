@@ -1,8 +1,8 @@
 ﻿{% extends "staff_base.html" %}
 
-{% block title %}Visa Type List - MyTravelPanel{% endblock %}
+{% block title %}Visa Products - MyTravelPanel{% endblock %}
 
-{% block page_title %}Visa Type List{% endblock %}
+{% block page_title %}Visa Products{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -23,7 +23,7 @@
         {% endwith %}
     </div>
 
-    <h1 class="visa-page-title">签证类型列表</h1>
+    <h1 class="visa-page-title">签证产品列表</h1>
     
     <!-- 筛选栏 -->
     <div class="visa-card" style="margin-bottom: 1rem;">
@@ -31,7 +31,7 @@
             <form method="GET" action="{{ url_for('visa_basic.visa_type_list') }}" class="visa-flex visa-gap-3" style="flex-wrap: wrap; align-items: flex-end;">
                 <div class="visa-filter-item">
                     <label class="visa-form-label">搜索</label>
-                    <input type="text" name="keyword" class="visa-form-control" placeholder="签证类型名称..."
+                    <input type="text" name="keyword" class="visa-form-control" placeholder="签证产品名称..."
                            value="{{ request.args.get('keyword', '') }}" style="min-width: 180px;">
                 </div>
                 <div class="visa-filter-item">
@@ -62,11 +62,17 @@
                     </a>
                 </div>
                 <div style="margin-left: auto;" class="visa-flex visa-gap-2">
+                    <a href="{{ url_for('visa_basic.export_visa_excel') }}?country={{ request.args.get('country', '') }}&keyword={{ request.args.get('keyword', '') }}&status={{ request.args.get('status', '') }}" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-file-export"></i> 导出
+                    </a>
+                    <button type="button" onclick="openUploadModal()" class="visa-btn visa-btn-warning">
+                        <i class="fas fa-upload"></i> 导入
+                    </button>
                     <button type="button" onclick="openAddModal()" class="visa-btn visa-btn-success">
                         <i class="fas fa-plus"></i> 添加
                     </button>
                     <a href="{{ url_for('visa_basic.visa_type_document_manager') }}" class="visa-btn visa-btn-secondary">
-                        <i class="fas fa-cogs"></i> 文档管理器
+                        <i class="fas fa-cogs"></i> 文档
                     </a>
                 </div>
             </form>
@@ -78,9 +84,9 @@
         <table class="visa-table">
             <thead>
                 <tr>
+                    <th>产品编号</th>
                     <th>国家/地区</th>
-                    <th>签证类型名称</th>
-                    <th>有效期</th>
+                    <th>签证产品名称</th>
                     <th>处理时间</th>
                     <th>有效期截止</th>
                     <th>售价</th>
@@ -93,13 +99,21 @@
             <tbody>
             {% for vt in visa_types %}
                 <tr>
+                    <td>
+                        {% if vt.product_code %}
+                        <a href="{{ url_for('products.detail', product_id=vt.product_id) }}" class="visa-link" style="font-family: monospace; font-size: 0.85em;">
+                            {{ vt.product_code }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td>{{ vt.country.country_name_CN }}</td>
                     <td>
-                        <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=vt.visa_type) }}" class="visa-link">
+                        <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=vt.visa_type) }}" class="visa-link" style="color: #2563eb; font-weight: 500;">
                             {{ vt.visa_type }}
                         </a>
                     </td>
-                    <td>{{ vt.validity_period or '-' }}</td>
                     <td>{{ vt.processing_time or '-' }}</td>
                     <td>
                         {% if vt.calculated_valid_until %}
@@ -129,7 +143,6 @@
                     </td>
                     <td>
                         <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=vt.visa_type) }}" class="visa-btn-link visa-btn-link-success">详细</a>
-                        <button onclick="openCopyModal('{{ vt.visa_type }}')" class="visa-btn-link visa-btn-link-warning">复制</button>
                         <button onclick="openEditAllModal('{{ vt.visa_type }}', '{{ vt.fee }}', '{{ vt.processing_time }}')" class="visa-btn-link visa-btn-link-primary">编辑</button>
                         <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ vt.visa_type }}" class="visa-btn-link visa-btn-link-info">文档</a>
                         <button onclick="openDeleteModal('{{ vt.visa_type }}')" class="visa-btn-link visa-btn-link-danger">删除</button>
@@ -209,7 +222,7 @@
         <form id="deleteForm" method="POST">
             <div class="visa-modal-body">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <p id="deleteConfirmText">确定要删除这个签证类型吗？此操作不可恢复。</p>
+                <p id="deleteConfirmText">确定要删除这个签证产品吗？此操作不可恢复。</p>
             </div>
             <div class="visa-modal-footer">
                 <button type="button" onclick="closeDeleteModal()" class="visa-btn visa-btn-secondary">取消</button>
@@ -219,11 +232,11 @@
     </div>
 </div>
 
-<!-- 添加签证类型模态框 -->
+<!-- 添加签证产品模态框 -->
 <div id="addModal" class="visa-modal">
     <div class="visa-modal-dialog visa-modal-lg">
         <div class="visa-modal-header">
-            <h2 class="visa-modal-title">添加签证类型</h2>
+            <h2 class="visa-modal-title">添加签证产品</h2>
             <button type="button" class="visa-modal-close" onclick="closeAddModal()">&times;</button>
         </div>
         <form id="addForm" method="POST" action="{{ url_for('visa_basic.add_visa_type') }}">
@@ -234,8 +247,8 @@
                 <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600; color: #374151;">基本信息</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">签证类型名称 *</label>
-                        <input type="text" name="visa_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; transition: border-color 0.2s;" placeholder="请输入签证类型名称">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">签证产品名称 *</label>
+                        <input type="text" name="visa_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; transition: border-color 0.2s;" placeholder="请输入签证产品名称">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">所属国家/地区 *</label>
@@ -331,11 +344,11 @@
     </div>
 </div>
 
-<!-- 复制签证类型模态框 -->
+<!-- 复制签证产品模态框 -->
 <div id="copyModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
     <div class="modal-content" style="position: relative; background-color: white; margin: 5% auto; padding: 30px; width: 90%; max-width: 800px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;">
         <span class="close" onclick="closeCopyModal()" style="position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; color: #666;">&times;</span>
-        <h2 style="margin-bottom: 25px; font-size: 24px; font-weight: bold; color: #f59e0b; text-align: center;">复制签证类型</h2>
+        <h2 style="margin-bottom: 25px; font-size: 24px; font-weight: bold; color: #f59e0b; text-align: center;">复制签证产品</h2>
         <form id="copyForm" method="POST" action="{{ url_for('visa_basic.copy_visa_type') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" id="sourceVisaType" name="source_visa_type" value="">
@@ -345,8 +358,8 @@
                 <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600; color: #374151;">基本信息</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">新签证类型名称 *</label>
-                        <input type="text" name="new_visa_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="请输入新的签证类型名称">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">新签证产品名称 *</label>
+                        <input type="text" name="new_visa_type" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="请输入新的签证产品名称">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">所属国家 *</label>
@@ -434,11 +447,11 @@
     </div>
 </div>
 
-<!-- 编辑签证类型模态框 -->
+<!-- 编辑签证产品模态框 -->
 <div id="editAllModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
     <div class="modal-content" style="position: relative; background-color: white; margin: 5% auto; padding: 30px; width: 90%; max-width: 800px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;">
         <span class="close" onclick="closeEditAllModal()" style="position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; color: #666;">&times;</span>
-        <h2 style="margin-bottom: 25px; font-size: 24px; font-weight: bold; color: #059669; text-align: center;">编辑签证类型</h2>
+        <h2 style="margin-bottom: 25px; font-size: 24px; font-weight: bold; color: #059669; text-align: center;">编辑签证产品</h2>
         <form id="editAllForm" method="POST" action="">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" id="editVisaType" name="visa_type" value="">
@@ -448,8 +461,8 @@
                 <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600; color: #374151;">基本信息</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">签证类型名称 *</label>
-                        <input type="text" id="editVisaTypeName" name="visa_type_name" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="请输入签证类型名称">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">签证产品名称 *</label>
+                        <input type="text" id="editVisaTypeName" name="visa_type_name" required style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="请输入签证产品名称">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">所属国家 *</label>
@@ -535,6 +548,43 @@
             <div style="text-align: center; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <button type="button" onclick="closeEditAllModal()" style="background-color: #6b7280; color: white; border: none; padding: 12px 24px; border-radius: 6px; margin-right: 15px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">取消</button>
                 <button type="submit" style="background-color: #059669; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#047857'" onmouseout="this.style.backgroundColor='#059669'">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Excel上传模态框 -->
+<div id="uploadModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+    <div class="modal-content" style="position: relative; background-color: white; margin: 10% auto; padding: 30px; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <span class="close" onclick="closeUploadModal()" style="position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; color: #666;">&times;</span>
+        <h2 style="margin-bottom: 25px; font-size: 20px; font-weight: bold; color: #f59e0b; text-align: center;">
+            <i class="fas fa-file-excel" style="margin-right: 10px;"></i>Excel 批量导入
+        </h2>
+        <form id="uploadForm" method="POST" action="{{ url_for('visa_basic.upload_visa_excel') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 14px; color: #92400e;">
+                    <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
+                    <strong>说明：</strong>优先根据产品编号匹配，其次根据签证名称匹配。存在则更新（可改名），不存在则新增。
+                </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #374151;">选择 Excel 文件</label>
+                <input type="file" name="excel_file" accept=".xlsx,.xls" required
+                       style="width: 100%; padding: 10px; border: 2px dashed #d1d5db; border-radius: 6px; cursor: pointer;">
+                <small style="color: #6b7280; display: block; margin-top: 8px;">支持 .xlsx 和 .xls 格式</small>
+            </div>
+
+            <div style="text-align: center; padding-top: 15px;">
+                <a href="{{ url_for('visa_basic.download_visa_excel_template') }}" style="color: #2563eb; text-decoration: none; font-size: 14px; margin-right: 20px;">
+                    <i class="fas fa-download"></i> 下载模板
+                </a>
+                <button type="button" onclick="closeUploadModal()" style="background-color: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-right: 10px; cursor: pointer;">取消</button>
+                <button type="submit" style="background-color: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-upload"></i> 开始导入
+                </button>
             </div>
         </form>
     </div>
@@ -662,6 +712,20 @@ window.onclick = function(event) {
     if (event.target == editAllModal) {
         closeEditAllModal();
     }
+    const uploadModal = document.getElementById('uploadModal');
+    if (event.target == uploadModal) {
+        closeUploadModal();
+    }
+}
+
+function openUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    modal.style.display = 'block';
+}
+
+function closeUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    modal.style.display = 'none';
 }
 
 function openDeleteModal(visaType) {
@@ -674,7 +738,7 @@ function openDeleteModal(visaType) {
     form.action = `/visa/basic/visa/delete_visa_type/${visaType}${countryId ? `?country=${countryId}` : ''}`;
 
     // 设置确认文本
-    confirmText.textContent = `确定要删除签证类型"${visaType}"吗？此操作不可恢复。`;
+    confirmText.textContent = `确定要删除签证产品"${visaType}"吗？此操作不可恢复。`;
 
     modal.classList.add('active');
 }
@@ -704,18 +768,18 @@ function openCopyModal(visaType) {
         return;
     }
     
-    // 设置源签证类型
+    // 设置源签证产品
     sourceVisaTypeInput.value = visaType;
     
     // 清空表单
     document.getElementById('copyForm').reset();
     sourceVisaTypeInput.value = visaType;
     
-    // 预填充新签证类型名称（基于原名称）
+    // 预填充新签证产品名称（基于原名称）
     const newVisaTypeInput = document.querySelector('input[name="new_visa_type"]');
     newVisaTypeInput.value = visaType + ' - 副本';
     
-    // 获取源签证类型数据并预填充表单
+    // 获取源签证产品数据并预填充表单
     fetch(`/visa/basic/api/get_visa_type_data/${encodeURIComponent(visaType)}`)
         .then(response => response.json())
         .then(data => {
@@ -759,7 +823,7 @@ function openCopyModal(visaType) {
             }
         })
         .catch(error => {
-            console.error('获取签证类型数据失败:', error);
+            console.error('获取签证产品数据失败:', error);
         });
     
     modal.style.display = 'block';
@@ -798,7 +862,7 @@ function openEditAllModal(visaType, fee, processingTime) {
     const costInput = document.getElementById('editCost');
     const validityPeriodInput = document.getElementById('editValidityPeriod');
 
-    // 获取签证类型数据并预填充国家信息和签证说明
+    // 获取签证产品数据并预填充国家信息和签证说明
     fetch(`/visa/basic/api/get_visa_type_data/${encodeURIComponent(visaType)}`)
         .then(response => response.json())
         .then(data => {
@@ -847,7 +911,7 @@ function openEditAllModal(visaType, fee, processingTime) {
             }
         })
         .catch(error => {
-            console.error('获取签证类型数据失败:', error);
+            console.error('获取签证产品数据失败:', error);
         });
     
     // 获取当前身份选项

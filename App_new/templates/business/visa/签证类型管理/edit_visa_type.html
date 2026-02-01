@@ -49,11 +49,8 @@
         </div>
         
         <div class="visa-card-footer">
-            <a href="{{ url_for('visa_basic.visa_type_list') }}" class="visa-btn visa-btn-secondary">
-                <i class="fas fa-times"></i> 取消
-            </a>
-            <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type }}" class="visa-btn visa-btn-success">
-                <i class="fas fa-cogs"></i> 编辑文档
+            <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type) }}" class="visa-btn visa-btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回详情
             </a>
             <button type="submit" form="editForm" class="visa-btn visa-btn-primary">
                 <i class="fas fa-save"></i> 保存

@@ -1,81 +1,456 @@
-﻿{% extends "staff_base.html" %}
+{% extends "staff_base.html" %}
 
 {% block page_title %}Document Order Manager{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+/* 页面容器 */
+.order-manager-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* 页面标题 */
+.order-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.order-page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.order-page-title i {
+    color: var(--visa-primary);
+}
+
+/* 签证信息卡片 */
+.visa-info-card {
+    background: linear-gradient(135deg, var(--visa-gradient-start), var(--visa-gradient-end));
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.visa-info-card i {
+    font-size: 1.25rem;
+}
+
+/* 主卡片 */
+.order-main-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.order-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--visa-border);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.order-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+.order-card-subtitle {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+}
+
+/* 操作提示栏 */
+.order-tips-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: #fffbeb;
+    border-bottom: 1px solid #fef3c7;
+    font-size: 0.85rem;
+    color: #92400e;
+    flex-wrap: wrap;
+}
+
+.order-tips-bar i {
+    color: #d97706;
+}
+
+.tip-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* 未保存提示 */
+.unsaved-indicator {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #fef2f2;
+    border-bottom: 1px solid #fecaca;
+    color: #dc2626;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.unsaved-indicator.show {
+    display: flex;
+}
+
+.unsaved-indicator i {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 文档列表 */
+.order-document-list {
+    padding: 0.5rem;
+}
+
+/* 文档项 */
+.order-document-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    margin: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    cursor: grab;
+    user-select: none;
+}
+
+.order-document-item:hover {
+    background: #f1f5f9;
+    border-color: var(--visa-primary-light);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.order-document-item:active {
+    cursor: grabbing;
+}
+
+.order-document-item.dragging {
+    opacity: 0.5;
+    background: #dbeafe;
+    border-color: var(--visa-primary);
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.order-document-item.drag-over {
+    border-color: var(--visa-primary);
+    background: #eff6ff;
+}
+
+/* 序号 */
+.order-number {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--visa-primary);
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* 拖拽把手 */
+.order-drag-handle {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5rem;
+    color: #9ca3af;
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.order-drag-handle:active {
+    cursor: grabbing;
+    color: var(--visa-primary);
+}
+
+.order-drag-handle i {
+    font-size: 1rem;
+}
+
+/* 文档内容 */
+.order-document-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.order-document-name {
+    font-weight: 500;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+    word-break: break-word;
+}
+
+.order-document-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.order-identity-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 9999px;
+}
+
+/* 上下移动按钮 */
+.order-move-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.order-move-btn {
+    width: 28px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.order-move-btn:hover:not(:disabled) {
+    background: var(--visa-primary);
+    border-color: var(--visa-primary);
+    color: white;
+}
+
+.order-move-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* 卡片底部 */
+.order-card-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-top: 1px solid var(--visa-border);
+}
+
+/* 空状态 */
+.order-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.order-empty-state i {
+    font-size: 4rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+
+.order-empty-state h3 {
+    color: #6b7280;
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.order-empty-state p {
+    color: #9ca3af;
+    margin-bottom: 1.5rem;
+}
+
+/* 响应式 */
+@media (max-width: 640px) {
+    .order-manager-container {
+        padding: 1rem;
+    }
+
+    .order-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .order-document-item {
+        padding: 0.75rem;
+    }
+
+    .order-tips-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container" data-visa-type-id="{{ visa_type.id }}" data-visa-type="{{ visa_type.visa_type }}">
-    <h1 class="visa-page-title">
-        <i class="fas fa-sort"></i> 文档顺序管理
-    </h1>
-    
-    <!-- 签证类型信息 -->
-    <div class="visa-info-box" style="margin-bottom: 1.5rem;">
-        <i class="fas fa-flag"></i>
-        {{ visa_type.visa_type }} - {{ country.country_name_CN if country else '未知国家' }}
+<div class="order-manager-container" data-visa-type-id="{{ visa_type.id }}" data-visa-type="{{ visa_type.visa_type }}">
+    <!-- 页面标题 -->
+    <div class="order-page-header">
+        <h1 class="order-page-title">
+            <i class="fas fa-sort-amount-down"></i>
+            文档顺序管理
+        </h1>
+        <div class="visa-flex visa-gap-2">
+            <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type.visa_type) }}" class="visa-btn visa-btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回详情
+            </a>
+        </div>
     </div>
 
-    <!-- 文档列表卡片 -->
-    <div class="visa-card">
-        <div class="visa-card-header">
+    <!-- 签证信息 -->
+    <div class="visa-info-card">
+        <i class="fas fa-passport"></i>
+        <span>{{ visa_type.visa_type }}</span>
+        <span style="opacity: 0.8;">-</span>
+        <span>{{ country.country_name_CN if country else '未知国家' }}</span>
+    </div>
+
+    <!-- 主卡片 -->
+    <div class="order-main-card">
+        <!-- 卡片头部 -->
+        <div class="order-card-header">
             <div>
-                <h2><i class="fas fa-list-ol"></i> 申请人准备资料</h2>
-                <div style="font-size: 0.875rem; color: var(--visa-text-muted); margin-top: 0.25rem;">
-                    <i class="fas fa-info-circle"></i> 共 {{ documents|length }} 个文档 | <i class="fas fa-users"></i> 已合并去重
+                <h2 class="order-card-title">
+                    <i class="fas fa-file-alt"></i>
+                    申请人准备资料
+                </h2>
+                <div class="order-card-subtitle">
+                    共 {{ documents|length }} 个文档，拖拽或使用箭头调整顺序
                 </div>
             </div>
-            <div class="visa-flex visa-gap-2">
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="save-order">
-                    <i class="fas fa-save"></i> 保存顺序
-                </button>
-                <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type.visa_type) }}" class="visa-btn visa-btn-sm visa-btn-secondary">
-                    <i class="fas fa-arrow-left"></i> 返回详情
-                </a>
-            </div>
+            {% if documents %}
+            <button type="button" class="visa-btn visa-btn-primary" id="saveOrderBtn" data-action="save-order">
+                <i class="fas fa-save"></i> 保存顺序
+            </button>
+            {% endif %}
         </div>
 
-        <div class="visa-card-body">
+        <!-- 操作提示 -->
+        {% if documents %}
+        <div class="order-tips-bar">
+            <div class="tip-item">
+                <i class="fas fa-hand-pointer"></i>
+                <span>拖拽文档可调整顺序</span>
+            </div>
+            <div class="tip-item">
+                <i class="fas fa-arrows-alt-v"></i>
+                <span>点击箭头可上下移动</span>
+            </div>
+            <div class="tip-item">
+                <i class="fas fa-save"></i>
+                <span>调整后记得保存</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 未保存提示 -->
+        <div class="unsaved-indicator" id="unsavedIndicator">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>顺序已修改，请记得保存！</span>
+        </div>
+
+        <!-- 文档列表 -->
+        <div class="order-document-list" id="documentsList">
             {% if documents %}
-            <div id="documentsList" class="visa-drag-list">
                 {% for doc_data in documents %}
-                <div class="visa-drag-item" data-document-id="{{ doc_data.document.id }}" draggable="true">
-                    <div class="visa-drag-handle">
+                <div class="order-document-item" data-document-id="{{ doc_data.document.id }}" draggable="true">
+                    <div class="order-number">{{ loop.index }}</div>
+                    <div class="order-drag-handle" title="拖拽调整顺序">
                         <i class="fas fa-grip-vertical"></i>
                     </div>
-                    <div class="visa-drag-content">
-                        <div class="visa-drag-title">{{ doc_data.document.name }}</div>
-                        <div class="visa-drag-meta">
-                            <i class="fas fa-users"></i>
-                            适用身份:
+                    <div class="order-document-content">
+                        <div class="order-document-name">{{ doc_data.document.name }}</div>
+                        <div class="order-document-meta">
+                            <i class="fas fa-users" style="font-size: 0.7rem;"></i>
                             {% for assoc in doc_data.associations %}
-                                <span class="visa-badge visa-badge-info" style="margin-left: 0.25rem;">{{ assoc.identity_type }}</span>
+                                <span class="order-identity-badge">{{ assoc.identity_type }}</span>
                             {% endfor %}
                         </div>
                     </div>
-                    <div class="visa-drag-order">{{ loop.index }}</div>
+                    <div class="order-move-buttons">
+                        <button type="button" class="order-move-btn" data-direction="up" title="上移" {% if loop.first %}disabled{% endif %}>
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button type="button" class="order-move-btn" data-direction="down" title="下移" {% if loop.last %}disabled{% endif %}>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
                 </div>
                 {% endfor %}
-            </div>
             {% else %}
-            <div class="visa-text-center" style="padding: 3rem;">
-                <i class="fas fa-file-alt fa-3x" style="color: var(--visa-text-muted); margin-bottom: 1rem;"></i>
-                <h3 style="color: var(--visa-text-secondary); margin-bottom: 0.5rem;">暂无文档</h3>
-                <p style="color: var(--visa-text-muted); margin-bottom: 1.5rem;">该签证类型还没有配置申请人准备资料</p>
-                <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="visa-btn visa-btn-primary">
-                    <i class="fas fa-cogs"></i> 去配置文档
-                </a>
-            </div>
+                <div class="order-empty-state">
+                    <i class="fas fa-file-alt"></i>
+                    <h3>暂无文档</h3>
+                    <p>该签证类型还没有配置申请人准备资料</p>
+                    <a href="{{ url_for('visa_basic.visa_type_document_manager') }}?visa_type={{ visa_type.visa_type }}" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-cogs"></i> 去配置文档
+                    </a>
+                </div>
             {% endif %}
         </div>
 
         {% if documents %}
-        <div class="visa-card-footer">
-            <button type="button" class="visa-btn visa-btn-secondary" data-action="cancel">
+        <div class="order-card-footer">
+            <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type.visa_type) }}" class="visa-btn visa-btn-secondary">
                 <i class="fas fa-times"></i> 取消
-            </button>
+            </a>
             <button type="button" class="visa-btn visa-btn-primary" data-action="save-order">
                 <i class="fas fa-save"></i> 保存顺序
             </button>
@@ -89,134 +464,251 @@
 
 {% block extra_js %}
 <script>
-// ==================== 全局变量 ====================
-const mainContainer = document.querySelector('.visa-container');
-const VISA_TYPE_ID = parseInt(mainContainer.dataset.visaTypeId);
-const CSRF_TOKEN = document.querySelector('input[name="csrf_token"]')?.value || '';
+(function() {
+    // ==================== 全局变量 ====================
+    const container = document.querySelector('.order-manager-container');
+    const VISA_TYPE_ID = parseInt(container.dataset.visaTypeId);
+    const CSRF_TOKEN = document.querySelector('input[name="csrf_token"]')?.value || '';
+    const documentsList = document.getElementById('documentsList');
+    const unsavedIndicator = document.getElementById('unsavedIndicator');
 
-// ==================== 拖拽排序功能 ====================
-let draggedElement = null;
-let draggedIndex = -1;
+    let hasChanges = false;
+    let draggedElement = null;
 
-function initDragAndDrop() {
-    const documentItems = document.querySelectorAll('.visa-drag-item');
-    
-    documentItems.forEach((item, index) => {
-        item.addEventListener('dragstart', function(e) {
-            draggedElement = this;
-            draggedIndex = index;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        });
-        
-        item.addEventListener('dragend', function(e) {
-            this.classList.remove('dragging');
-            draggedElement = null;
-            draggedIndex = -1;
-        });
-        
-        item.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        });
-        
-        item.addEventListener('drop', function(e) {
-            e.preventDefault();
-            if (draggedElement && draggedElement !== this) {
-                const targetIndex = Array.from(document.getElementById('documentsList').children).indexOf(this);
-                
-                if (draggedIndex < targetIndex) {
-                    document.getElementById('documentsList').insertBefore(draggedElement, this.nextSibling);
-                } else {
-                    document.getElementById('documentsList').insertBefore(draggedElement, this);
+    // ==================== 拖拽排序 ====================
+    function initDragAndDrop() {
+        const items = documentsList.querySelectorAll('.order-document-item');
+
+        items.forEach(item => {
+            // 拖拽开始
+            item.addEventListener('dragstart', function(e) {
+                draggedElement = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.innerHTML);
+            });
+
+            // 拖拽结束
+            item.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.order-document-item').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+                draggedElement = null;
+            });
+
+            // 拖拽经过
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (draggedElement && draggedElement !== this) {
+                    this.classList.add('drag-over');
                 }
-                
-                updateOrderNumbers();
+            });
+
+            // 拖拽离开
+            item.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            // 放置
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+
+                if (draggedElement && draggedElement !== this) {
+                    const allItems = [...documentsList.querySelectorAll('.order-document-item')];
+                    const draggedIdx = allItems.indexOf(draggedElement);
+                    const targetIdx = allItems.indexOf(this);
+
+                    if (draggedIdx < targetIdx) {
+                        this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                    } else {
+                        this.parentNode.insertBefore(draggedElement, this);
+                    }
+
+                    updateDisplay();
+                    markAsChanged();
+                }
+            });
+        });
+    }
+
+    // ==================== 上下移动按钮 ====================
+    function initMoveButtons() {
+        documentsList.addEventListener('click', function(e) {
+            const btn = e.target.closest('.order-move-btn');
+            if (!btn || btn.disabled) return;
+
+            const item = btn.closest('.order-document-item');
+            const direction = btn.dataset.direction;
+
+            if (direction === 'up') {
+                const prev = item.previousElementSibling;
+                if (prev && prev.classList.contains('order-document-item')) {
+                    item.parentNode.insertBefore(item, prev);
+                    updateDisplay();
+                    markAsChanged();
+                }
+            } else if (direction === 'down') {
+                const next = item.nextElementSibling;
+                if (next && next.classList.contains('order-document-item')) {
+                    item.parentNode.insertBefore(next, item);
+                    updateDisplay();
+                    markAsChanged();
+                }
             }
         });
-    });
-}
-
-function updateOrderNumbers() {
-    const items = document.querySelectorAll('.visa-drag-item');
-    items.forEach((item, index) => {
-        const orderNumber = item.querySelector('.visa-drag-order');
-        if (orderNumber) {
-            orderNumber.textContent = index + 1;
-        }
-    });
-}
-
-function saveDocumentOrder() {
-    const items = document.querySelectorAll('.visa-drag-item');
-    const orders = [];
-    
-    items.forEach((item, index) => {
-        const documentId = parseInt(item.dataset.documentId);
-        orders.push({
-            document_id: documentId,
-            new_order: index
-        });
-    });
-    
-    const data = { document_orders: orders };
-    
-    // 显示加载状态
-    const saveButtons = document.querySelectorAll('[data-action="save-order"]');
-    saveButtons.forEach(btn => {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
-        btn.disabled = true;
-    });
-    
-    fetch(`/visa/basic/api/update_all_documents_order/${VISA_TYPE_ID}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': CSRF_TOKEN
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            alert('文档顺序保存成功！');
-            window.location.reload();
-        } else {
-            alert('保存失败: ' + result.message);
-        }
-    })
-    .catch(error => {
-        console.error('保存文档顺序失败:', error);
-        alert('保存失败，请稍后重试');
-    })
-    .finally(() => {
-        saveButtons.forEach(btn => {
-            btn.innerHTML = '<i class="fas fa-save"></i> 保存顺序';
-            btn.disabled = false;
-        });
-    });
-}
-
-// ==================== 事件委托 ====================
-document.addEventListener('click', function(e) {
-    const target = e.target.closest('[data-action]');
-    if (!target) return;
-    
-    const visaType = mainContainer.dataset.visaType;
-    
-    switch(target.dataset.action) {
-        case 'save-order':
-            saveDocumentOrder();
-            break;
-        case 'cancel':
-            window.location.href = `/visa/basic/visa/visa_type_detail?visa_type=${encodeURIComponent(visaType)}`;
-            break;
     }
-});
 
-// ==================== 初始化 ====================
-document.addEventListener('DOMContentLoaded', function() {
-    initDragAndDrop();
-});
+    // ==================== 更新显示 ====================
+    function updateDisplay() {
+        const items = documentsList.querySelectorAll('.order-document-item');
+        const count = items.length;
+
+        items.forEach((item, index) => {
+            // 更新序号
+            const orderNum = item.querySelector('.order-number');
+            if (orderNum) {
+                orderNum.textContent = index + 1;
+            }
+
+            // 更新上下按钮状态
+            const upBtn = item.querySelector('[data-direction="up"]');
+            const downBtn = item.querySelector('[data-direction="down"]');
+
+            if (upBtn) upBtn.disabled = index === 0;
+            if (downBtn) downBtn.disabled = index === count - 1;
+        });
+    }
+
+    // ==================== 标记为已修改 ====================
+    function markAsChanged() {
+        hasChanges = true;
+        if (unsavedIndicator) {
+            unsavedIndicator.classList.add('show');
+        }
+    }
+
+    // ==================== 保存顺序 ====================
+    function saveOrder() {
+        const items = documentsList.querySelectorAll('.order-document-item');
+        const orders = [];
+
+        items.forEach((item, index) => {
+            orders.push({
+                document_id: parseInt(item.dataset.documentId),
+                new_order: index
+            });
+        });
+
+        const saveButtons = document.querySelectorAll('[data-action="save-order"]');
+        saveButtons.forEach(btn => {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+            btn.disabled = true;
+        });
+
+        fetch(`/visa/basic/api/update_all_documents_order/${VISA_TYPE_ID}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ document_orders: orders })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                hasChanges = false;
+                if (unsavedIndicator) {
+                    unsavedIndicator.classList.remove('show');
+                }
+                // 显示成功提示
+                showToast('文档顺序保存成功！', 'success');
+            } else {
+                showToast('保存失败: ' + result.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('保存失败:', error);
+            showToast('保存失败，请稍后重试', 'error');
+        })
+        .finally(() => {
+            saveButtons.forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-save"></i> 保存顺序';
+                btn.disabled = false;
+            });
+        });
+    }
+
+    // ==================== Toast 提示 ====================
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: ${type === 'success' ? '#10b981' : '#ef4444'};
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 9999;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideIn 0.3s ease;
+        `;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+            ${message}
+        `;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // 添加动画样式
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ==================== 事件监听 ====================
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-action="save-order"]');
+        if (btn) {
+            saveOrder();
+        }
+    });
+
+    // 离开页面提示
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '您有未保存的更改，确定要离开吗？';
+            return e.returnValue;
+        }
+    });
+
+    // ==================== 初始化 ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        initDragAndDrop();
+        initMoveButtons();
+    });
+})();
 </script>
 {% endblock %}

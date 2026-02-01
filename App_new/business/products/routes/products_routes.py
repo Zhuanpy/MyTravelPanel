@@ -5,6 +5,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
+from datetime import datetime
 from App_new.exts import db
 from App_new.business.products.models import (
     ProductsUnified,
@@ -15,6 +16,9 @@ from App_new.business.products.models import (
     PriceType,
     PeopleType,
 )
+from App_new.business.products.models.products_visa_ext import ProductsVisaExt
+from App_new.business.products.services.visa_sync_service import VisaSyncService
+from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries, VisaSingaporeIdentity, VisaDocuments
 
 products_bp = Blueprint('products', __name__, url_prefix='/staff/products')
 
@@ -73,6 +77,7 @@ def index():
         current_category=category,
         current_status=status,
         keyword=keyword,
+        now=datetime.utcnow(),
     )
 
 
@@ -130,7 +135,7 @@ def create_by_category(category):
     if category == ProductCategory.TOUR:
         return redirect(url_for('tour_products.add_product'))
     elif category == ProductCategory.VISA:
-        return redirect(url_for('visa_basic.visa_type_list'))
+        return redirect(url_for('products.create_visa'))
     elif category == ProductCategory.FLIGHT:
         return redirect(url_for('flight_home.flight_home_page'))
 
@@ -368,3 +373,171 @@ def api_stats():
             'by_category': by_category,
         }
     })
+
+
+# ========== 签证产品管理 ==========
+
+@products_bp.route('/visa/create', methods=['GET', 'POST'])
+@login_required
+def create_visa():
+    """创建签证产品"""
+    if request.method == 'POST':
+        try:
+            # 获取表单数据
+            visa_type_name = request.form.get('visa_type')
+            processing_time = request.form.get('processing_time')
+            fee = request.form.get('fee')
+            cost = request.form.get('cost')
+            validity_period = request.form.get('validity_period')
+            introduction = request.form.get('introduction')
+            country_id = request.form.get('country_id')
+            identity_ids = request.form.getlist('identity_ids')
+            is_active = request.form.get('is_active') == 'on'
+
+            # 处理时间字段
+            valid_until = None
+            valid_until_str = request.form.get('valid_until')
+            if valid_until_str:
+                try:
+                    valid_until = datetime.fromisoformat(valid_until_str)
+                except ValueError:
+                    pass
+
+            # 创建签证类型记录
+            new_visa_type = VisaTypes(
+                visa_type=visa_type_name,
+                processing_time=processing_time,
+                fee=fee,
+                cost=cost,
+                validity_period=validity_period,
+                introduction=introduction,
+                country_id=country_id,
+                valid_until=valid_until,
+                is_active=is_active
+            )
+
+            # 添加身份关联
+            if identity_ids:
+                identities = VisaSingaporeIdentity.query.filter(
+                    VisaSingaporeIdentity.id.in_(identity_ids)
+                ).all()
+                for identity in identities:
+                    new_visa_type.identities.append(identity)
+                    # 创建文档记录
+                    new_doc = VisaDocuments(
+                        visa_type_id=new_visa_type.id,
+                        singapore_identity_id=identity.id
+                    )
+                    db.session.add(new_doc)
+
+            db.session.add(new_visa_type)
+            db.session.commit()
+
+            # 同步到统一产品系统
+            product = VisaSyncService.sync_visa_type_to_product(new_visa_type)
+            db.session.commit()
+
+            flash('签证产品创建成功！', 'success')
+            return redirect(url_for('products.detail', product_id=product.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败: {str(e)}', 'error')
+            return redirect(url_for('products.create_visa'))
+
+    # GET 请求 - 显示创建表单
+    countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+    singapore_identities = VisaSingaporeIdentity.query.filter(
+        VisaSingaporeIdentity.identity_zh != 'SHARE'
+    ).order_by(VisaSingaporeIdentity.identity_zh).all()
+
+    return render_template(
+        'business/products/visa/create_visa_product.html',
+        countries=countries,
+        singapore_identities=singapore_identities,
+    )
+
+
+@products_bp.route('/visa/edit/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_visa(product_id):
+    """编辑签证产品"""
+    product = ProductsUnified.query.get_or_404(product_id)
+    ext = ProductsVisaExt.query.filter_by(product_id=product_id).first()
+
+    if not ext or not ext.visa_type_id:
+        flash('未找到关联的签证类型', 'error')
+        return redirect(url_for('products.detail', product_id=product_id))
+
+    visa_type = VisaTypes.query.get(ext.visa_type_id)
+    if not visa_type:
+        flash('签证类型不存在', 'error')
+        return redirect(url_for('products.detail', product_id=product_id))
+
+    if request.method == 'POST':
+        try:
+            # 更新签证类型
+            new_name = request.form.get('visa_type')
+            if new_name and new_name != visa_type.visa_type:
+                # 检查名称是否已存在
+                existing = VisaTypes.query.filter_by(visa_type=new_name).first()
+                if existing:
+                    flash('签证类型名称已存在', 'error')
+                    return redirect(url_for('products.edit_visa', product_id=product_id))
+                visa_type.visa_type = new_name
+
+            visa_type.processing_time = request.form.get('processing_time')
+            visa_type.fee = request.form.get('fee')
+            visa_type.cost = request.form.get('cost')
+            visa_type.validity_period = request.form.get('validity_period')
+            visa_type.introduction = request.form.get('introduction')
+            visa_type.country_id = request.form.get('country_id')
+            visa_type.is_active = request.form.get('is_active') == 'on'
+
+            # 处理有效期
+            valid_until_str = request.form.get('valid_until')
+            if valid_until_str:
+                try:
+                    visa_type.valid_until = datetime.fromisoformat(valid_until_str)
+                except ValueError:
+                    pass
+
+            # 处理身份关联
+            identity_ids = request.form.getlist('identity_ids')
+            visa_type.identities.clear()
+            if identity_ids:
+                identities = VisaSingaporeIdentity.query.filter(
+                    VisaSingaporeIdentity.id.in_(identity_ids)
+                ).all()
+                for identity in identities:
+                    visa_type.identities.append(identity)
+
+            db.session.commit()
+
+            # 同步到统一产品
+            VisaSyncService.sync_visa_type_to_product(visa_type)
+            db.session.commit()
+
+            return redirect(url_for('products.detail', product_id=product_id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败: {str(e)}', 'error')
+
+    # GET 请求 - 显示编辑表单
+    countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+    singapore_identities = VisaSingaporeIdentity.query.filter(
+        VisaSingaporeIdentity.identity_zh != 'SHARE'
+    ).order_by(VisaSingaporeIdentity.identity_zh).all()
+
+    # 获取当前关联的身份ID
+    current_identity_ids = [i.id for i in visa_type.identities]
+
+    return render_template(
+        'business/products/visa/edit_visa_product.html',
+        product=product,
+        visa_type=visa_type,
+        countries=countries,
+        singapore_identities=singapore_identities,
+        current_identity_ids=current_identity_ids,
+    )

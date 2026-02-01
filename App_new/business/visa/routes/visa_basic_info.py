@@ -1,14 +1,17 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required
 from pathlib import Path
 from datetime import datetime, timedelta
 from App_new.exts import db, csrf
 from App_new.business.visa.models.Visamodels import VisaCountries, VisaTypes, VisaSingaporeIdentity, VisaDocuments, VisaDocumentsList, VisaLinks
 from App_new.utils.decorators import staff_only
+from App_new.business.products.services.visa_sync_service import VisaSyncService
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired
 import time
+import io
+import pandas as pd
 
 """
 管理 (visa_basic_info.py):
@@ -411,6 +414,270 @@ def edit_country(country_id):
 
 """ about visa type start """
 
+# 下载签证产品Excel模板
+@visa_basic.route('/visa/download_excel_template')
+@login_required
+@staff_only
+def download_visa_excel_template():
+    """下载签证产品导入模板"""
+    # 创建模板数据
+    template_data = {
+        '签证产品名称': ['日本单次旅游签证（示例）'],
+        '国家': ['日本'],
+        '售价': ['$150'],
+        '成本': ['$80'],
+        '处理时间': ['5-7个工作日'],
+        '有效期': ['90天'],
+        '激活状态': ['是'],
+        '签证说明': ['单次入境，停留15天'],
+    }
+
+    df = pd.DataFrame(template_data)
+
+    # 创建Excel文件
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='签证产品')
+
+        # 获取工作表并设置列宽
+        worksheet = writer.sheets['签证产品']
+        column_widths = [25, 15, 12, 12, 18, 15, 12, 40]
+        for i, width in enumerate(column_widths, 1):
+            worksheet.column_dimensions[chr(64 + i)].width = width
+
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='签证产品导入模板.xlsx'
+    )
+
+
+# 导出签证产品数据到Excel
+@visa_basic.route('/visa/export_excel')
+@login_required
+@staff_only
+def export_visa_excel():
+    """导出签证产品数据（支持筛选）"""
+    # 获取筛选参数
+    country_id = request.args.get('country', type=int)
+    keyword = request.args.get('keyword', '').strip()
+    status = request.args.get('status', '')
+
+    # 构建查询（使用外连接避免排除无国家的记录）
+    query = VisaTypes.query.outerjoin(VisaCountries).order_by(
+        VisaCountries.country_name_CN.asc(),
+        VisaTypes.visa_type.asc()
+    )
+
+    if country_id:
+        query = query.filter(VisaTypes.country_id == country_id)
+
+    if keyword:
+        query = query.filter(VisaTypes.visa_type.ilike(f'%{keyword}%'))
+
+    if status == 'active':
+        query = query.filter(VisaTypes.is_active == True)
+    elif status == 'inactive':
+        query = query.filter(VisaTypes.is_active == False)
+
+    visa_types = query.all()
+
+    # 导入产品扩展表获取产品编号
+    from App_new.business.products.models.products_visa_ext import ProductsVisaExt
+
+    # 构建数据
+    data = []
+    for vt in visa_types:
+        # 获取关联的产品编号
+        ext = ProductsVisaExt.query.filter_by(visa_type_id=vt.id).first()
+        product_code = ext.product.product_code if ext and ext.product else ''
+
+        data.append({
+            '产品编号': product_code,
+            '签证产品名称': vt.visa_type,
+            '国家': vt.country.country_name_CN if vt.country else '',
+            '售价': vt.fee or '',
+            '成本': vt.cost or '',
+            '处理时间': vt.processing_time or '',
+            '有效期': vt.validity_period or '',
+            '激活状态': '是' if vt.is_active else '否',
+            '签证说明': vt.introduction or '',
+        })
+
+    df = pd.DataFrame(data)
+
+    # 创建Excel文件
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='签证产品')
+
+        # 设置列宽
+        worksheet = writer.sheets['签证产品']
+        column_widths = [15, 30, 15, 12, 12, 18, 15, 12, 50]
+        for i, width in enumerate(column_widths, 1):
+            worksheet.column_dimensions[chr(64 + i)].width = width
+
+    output.seek(0)
+
+    # 生成文件名
+    filename = f'签证产品数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+# 上传Excel导入签证产品
+@visa_basic.route('/visa/upload_excel', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def upload_visa_excel():
+    """上传Excel批量导入签证产品"""
+    try:
+        if 'excel_file' not in request.files:
+            flash('请选择要上传的文件', 'error')
+            return redirect(url_for('visa_basic.visa_type_list'))
+
+        file = request.files['excel_file']
+        if file.filename == '':
+            flash('请选择要上传的文件', 'error')
+            return redirect(url_for('visa_basic.visa_type_list'))
+
+        # 检查文件类型
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            flash('只支持 .xlsx 和 .xls 格式的文件', 'error')
+            return redirect(url_for('visa_basic.visa_type_list'))
+
+        # 读取Excel文件
+        df = pd.read_excel(file)
+
+        # 验证必要的列
+        required_columns = ['签证产品名称', '国家']
+        for col in required_columns:
+            if col not in df.columns:
+                flash(f'缺少必要的列: {col}', 'error')
+                return redirect(url_for('visa_basic.visa_type_list'))
+
+        # 导入产品扩展表
+        from App_new.business.products.models.products_visa_ext import ProductsVisaExt
+        from App_new.business.products.models import ProductsUnified
+
+        added_count = 0
+        updated_count = 0
+        error_count = 0
+
+        for index, row in df.iterrows():
+            try:
+                visa_type_name = str(row.get('签证产品名称', '')).strip()
+                if not visa_type_name or visa_type_name == 'nan':
+                    continue
+
+                country_name = str(row.get('国家', '')).strip()
+                if not country_name or country_name == 'nan':
+                    continue
+
+                # 查找国家
+                country = VisaCountries.query.filter_by(country_name_CN=country_name).first()
+                if not country:
+                    print(f"国家不存在: {country_name}")
+                    error_count += 1
+                    continue
+
+                # 获取产品编号（如果有）
+                product_code = str(row.get('产品编号', '')).strip() if pd.notna(row.get('产品编号')) else None
+
+                # 优先根据产品编号查找现有签证产品
+                existing = None
+                if product_code and product_code != 'nan' and product_code != '':
+                    # 通过产品编号找到关联的签证类型
+                    product = ProductsUnified.query.filter_by(product_code=product_code).first()
+                    if product:
+                        ext = ProductsVisaExt.query.filter_by(product_id=product.id).first()
+                        if ext and ext.visa_type_id:
+                            existing = VisaTypes.query.get(ext.visa_type_id)
+
+                # 如果没有通过产品编号找到，再根据签证名称查找
+                if not existing:
+                    existing = VisaTypes.query.filter_by(visa_type=visa_type_name).first()
+
+                # 获取其他字段
+                fee = str(row.get('售价', '')).strip() if pd.notna(row.get('售价')) else None
+                cost = str(row.get('成本', '')).strip() if pd.notna(row.get('成本')) else None
+                processing_time = str(row.get('处理时间', '')).strip() if pd.notna(row.get('处理时间')) else None
+                validity_period = str(row.get('有效期', '')).strip() if pd.notna(row.get('有效期')) else None
+                introduction = str(row.get('签证说明', '')).strip() if pd.notna(row.get('签证说明')) else None
+                is_active_str = str(row.get('激活状态', '')).strip().lower()
+                is_active = is_active_str in ['是', 'yes', 'true', '1', '激活']
+
+                if existing:
+                    # 更新现有记录（包括名称）
+                    existing.visa_type = visa_type_name
+                    existing.country_id = country.id
+                    existing.fee = fee or existing.fee
+                    existing.cost = cost or existing.cost
+                    existing.processing_time = processing_time or existing.processing_time
+                    existing.validity_period = validity_period or existing.validity_period
+                    existing.introduction = introduction or existing.introduction
+                    existing.is_active = is_active
+                    existing.updated_at = datetime.utcnow()
+                    updated_count += 1
+
+                    # 同步到统一产品
+                    try:
+                        VisaSyncService.sync_visa_type_to_product(existing)
+                    except Exception as sync_error:
+                        print(f"同步失败: {sync_error}")
+                else:
+                    # 创建新记录
+                    new_visa = VisaTypes(
+                        visa_type=visa_type_name,
+                        country_id=country.id,
+                        fee=fee,
+                        cost=cost,
+                        processing_time=processing_time or '请咨询',
+                        validity_period=validity_period,
+                        introduction=introduction,
+                        is_active=is_active,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
+                    )
+                    db.session.add(new_visa)
+                    db.session.flush()  # 获取ID
+                    added_count += 1
+
+                    # 同步到统一产品
+                    try:
+                        VisaSyncService.sync_visa_type_to_product(new_visa)
+                    except Exception as sync_error:
+                        print(f"同步失败: {sync_error}")
+
+            except Exception as row_error:
+                print(f"处理第 {index + 2} 行时出错: {row_error}")
+                error_count += 1
+                continue
+
+        db.session.commit()
+
+        # 显示结果
+        result_msg = f'导入完成：新增 {added_count} 条，更新 {updated_count} 条'
+        if error_count > 0:
+            result_msg += f'，失败 {error_count} 条'
+        flash(result_msg, 'success' if error_count == 0 else 'warning')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'导入失败: {str(e)}', 'error')
+
+    return redirect(url_for('visa_basic.visa_type_list'))
+
+
 # visa_type_list
 @visa_basic.route('/visa/visa_type_list', methods=['GET'])
 def visa_type_list():
@@ -455,7 +722,10 @@ def visa_type_list():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     visa_types = pagination.items
 
-    # 为每个签证类型获取实际的身份选项和计算有效期
+    # 导入产品扩展表
+    from App_new.business.products.models.products_visa_ext import ProductsVisaExt
+
+    # 为每个签证类型获取实际的身份选项、计算有效期和产品编号
     for vt in visa_types:
         # 从 visa_type_identities 表获取该签证类型的实际身份选项
         # 使用多对多关系直接获取
@@ -468,6 +738,15 @@ def visa_type_list():
             vt.calculated_valid_until = base_date + timedelta(days=365)
         else:
             vt.calculated_valid_until = vt.valid_until
+
+        # 获取关联的产品编号
+        ext = ProductsVisaExt.query.filter_by(visa_type_id=vt.id).first()
+        if ext and ext.product:
+            vt.product_code = ext.product.product_code
+            vt.product_id = ext.product.id
+        else:
+            vt.product_code = None
+            vt.product_id = None
 
     return render_template('business/visa/签证类型管理/visa_type_list.html',
                          visa_types=visa_types,
@@ -570,6 +849,13 @@ def add_visa_type():
             # 保存到数据库
             db.session.add(new_visa_type)
             db.session.commit()
+
+            # 同步到统一产品系统
+            try:
+                VisaSyncService.sync_visa_type_to_product(new_visa_type)
+                db.session.commit()
+            except Exception as sync_error:
+                print(f"同步到统一产品系统失败: {str(sync_error)}")
 
             flash('签证类型添加成功！', 'success')
             return redirect(url_for('visa_basic.visa_type_list'))
@@ -912,110 +1198,27 @@ def edit_visa_type(visa_type, field):
 @visa_basic.route('/visa/edit_visa_type_basic/<visa_type>', methods=['GET', 'POST'])
 @csrf.exempt
 def edit_visa_type_basic(visa_type):
-    """编辑签证类型基本信息（费用、处理时间、身份）"""
-    try:
-        # 获取签证类型记录
-        visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
+    """编辑签证类型基本信息 - 重定向到统一产品编辑页面"""
+    from App_new.business.products.models.products_visa_ext import ProductsVisaExt
 
-        if request.method == 'GET':
-            # 获取当前身份配置
-            current_documents = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
-            current_identities = []
-            for doc in current_documents:
-                if doc.singapore_identity:
-                    current_identities.append(doc.singapore_identity.identity_zh)
-                elif doc.singapore_identity_id is None:
-                    # 检查是否有SHARE身份
-                    share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
-                    if share_identity and doc.singapore_identity_id == share_identity.id:
-                        current_identities.append('SHARE')
+    # 获取签证类型记录
+    visa_type_record = VisaTypes.query.filter_by(visa_type=visa_type).first_or_404()
 
-            # 获取所有可用身份
-            all_identities = VisaSingaporeIdentity.query.order_by(VisaSingaporeIdentity.identity_zh).all()
-            all_identities = [identity.identity_zh for identity in all_identities]
+    # 查找关联的统一产品
+    ext = ProductsVisaExt.query.filter_by(visa_type_id=visa_type_record.id).first()
 
-            return render_template('business/visa/签证类型管理/edit_visa_type_basic.html',
-                                   visa_type_record=visa_type_record,
-                                   current_identities=current_identities,
-                                   all_identities=all_identities)
-
-        # POST 请求处理
+    if ext and ext.product_id:
+        # 如果已有关联产品，跳转到统一产品编辑页面
+        return redirect(url_for('products.edit_visa', product_id=ext.product_id))
+    else:
+        # 如果没有关联产品，先同步再跳转
         try:
-            # 更新费用
-            visa_type_record.fee = request.form.get('fee', '')
-
-            # 更新成本
-            visa_type_record.cost = request.form.get('cost', '')
-
-            # 更新有效期
-            visa_type_record.validity_period = request.form.get('validity_period', '')
-
-            # 更新处理时间
-            visa_type_record.processing_time = request.form.get('processing_time', '')
-
-            # 处理身份更新
-            selected_identities = request.form.getlist('identities')
-
-            # 更新 visa_type_identities 表
-            visa_type_record.identities.clear()
-            for identity_name in selected_identities:
-                if identity_name != 'SHARE':
-                    identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
-                    if identity:
-                        visa_type_record.identities.append(identity)
-
-            # 智能更新 VisaDocuments 表
-            existing_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
-            existing_identity_ids = {doc.singapore_identity_id for doc in existing_docs}
-
-            share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
-            share_identity_id = share_identity.id if share_identity else None
-
-            # 构建新的身份ID集合
-            new_identity_ids = set()
-            for identity_name in selected_identities:
-                if identity_name == 'SHARE':
-                    new_identity_ids.add(share_identity_id)
-                else:
-                    identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
-                    if identity:
-                        new_identity_ids.add(identity.id)
-
-            # 删除不再需要的
-            for doc in existing_docs:
-                if doc.singapore_identity_id not in new_identity_ids:
-                    db.session.delete(doc)
-
-            # 添加新的
-            for identity_name in selected_identities:
-                if identity_name == 'SHARE':
-                    if share_identity_id not in existing_identity_ids:
-                        new_doc = VisaDocuments(
-                            visa_type_id=visa_type_record.id,
-                            singapore_identity_id=share_identity_id
-                        )
-                        db.session.add(new_doc)
-                else:
-                    identity = VisaSingaporeIdentity.query.filter_by(identity_zh=identity_name).first()
-                    if identity and identity.id not in existing_identity_ids:
-                        new_doc = VisaDocuments(
-                            visa_type_id=visa_type_record.id,
-                            singapore_identity_id=identity.id
-                        )
-                        db.session.add(new_doc)
-
+            product = VisaSyncService.sync_visa_type_to_product(visa_type_record)
             db.session.commit()
-            flash('基本信息更新成功！', 'success')
-            return redirect(url_for('visa_basic.visa_type_detail', visa_type=visa_type))
-
+            return redirect(url_for('products.edit_visa', product_id=product.id))
         except Exception as e:
-            db.session.rollback()
-            flash(f'更新失败：{str(e)}', 'error')
+            flash(f'同步产品失败: {str(e)}', 'error')
             return redirect(url_for('visa_basic.visa_type_detail', visa_type=visa_type))
-
-    except Exception as e:
-        flash(f'获取签证类型信息失败：{str(e)}', 'error')
-        return redirect(url_for('visa_basic.visa_type_list'))
 
 
 @visa_basic.route('/visa/edit_visa_type_all/<visa_type>', methods=['POST'])
@@ -1198,8 +1401,15 @@ def edit_visa_type_all(visa_type):
                 # 提交所有更改
                 db.session.commit()
                 print(f"DEBUG: 数据库提交成功")
-                
-                flash('签证类型更新成功！', 'success')
+
+                # 同步到统一产品系统
+                try:
+                    VisaSyncService.sync_visa_type_to_product(visa_type_record)
+                    db.session.commit()
+                    print(f"DEBUG: 同步到统一产品系统成功")
+                except Exception as sync_error:
+                    print(f"DEBUG: 同步到统一产品系统失败: {str(sync_error)}")
+
                 return redirect(url_for('visa_basic.visa_type_list'))
                 
             except Exception as e:
@@ -1246,13 +1456,12 @@ def delete_visa_type(visa_type):
         except Exception as e:
             print(f"DEBUG: 删除链接记录时出错: {str(e)}")
 
-        # 解除 products_visa_ext 的关联（设置为NULL）
+        # 删除关联的统一产品记录
         try:
-            from App_new.business.products.models import ProductsVisaExt
-            updated_products = ProductsVisaExt.query.filter_by(visa_type_id=visa_type_record.id).update({'visa_type_id': None})
-            print(f"DEBUG: 解除了 {updated_products} 个产品扩展记录的关联")
+            VisaSyncService.delete_product_for_visa_type(visa_type_record.id)
+            print(f"DEBUG: 删除了关联的统一产品记录")
         except Exception as e:
-            print(f"DEBUG: 解除产品扩展记录关联时出错: {str(e)}")
+            print(f"DEBUG: 删除关联产品记录时出错: {str(e)}")
 
         # 删除签证类型记录
         db.session.delete(visa_type_record)
@@ -3405,9 +3614,16 @@ def toggle_active_status(visa_type):
             visa_type_record.valid_until = datetime.utcnow() + timedelta(days=365)
         
         db.session.commit()
-        
+
+        # 同步到统一产品系统
+        try:
+            VisaSyncService.sync_visa_type_to_product(visa_type_record)
+            db.session.commit()
+        except Exception as sync_error:
+            print(f"同步到统一产品系统失败: {str(sync_error)}")
+
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'激活状态已更新为{"激活" if new_status else "未激活"}',
             'is_active': new_status,
             'valid_until': visa_type_record.valid_until.isoformat() if visa_type_record.valid_until else None

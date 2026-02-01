@@ -2926,7 +2926,13 @@ textarea.visa-form-control,
     overflow-y: auto;
 }
 
-.visa-modal-dialog-lg {
+.visa-modal-sm .visa-modal-dialog,
+.visa-modal-dialog-sm {
+    max-width: 400px;
+}
+
+.visa-modal-dialog-lg,
+.visa-modal-lg .visa-modal-dialog {
     max-width: 800px;
 }
 

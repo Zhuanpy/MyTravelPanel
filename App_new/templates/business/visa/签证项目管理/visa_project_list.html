@@ -23,7 +23,12 @@
         {% endwith %}
     </div>
 
-    <h1 class="visa-page-title">签证项目管理</h1>
+    <div class="visa-flex" style="justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h1 class="visa-page-title" style="margin-bottom: 0;">签证项目管理</h1>
+        <button type="button" class="visa-btn visa-btn-primary" onclick="showCreateProjectModal()">
+            <i class="fas fa-plus"></i> 创建项目
+        </button>
+    </div>
 
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
@@ -198,6 +203,60 @@
 
 <!-- Toast 容器 -->
 <div class="visa-flash-container" id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
+<!-- 创建项目模态框 -->
+<div id="createProjectModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 90%; max-width: 500px; max-height: 85vh; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+        <div style="padding: 1.25rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.125rem;"><i class="fas fa-plus-circle"></i> 创建新项目</h3>
+            <button onclick="hideCreateProjectModal()" style="background: rgba(255,255,255,0.2); border: none; width: 32px; height: 32px; border-radius: 50%; color: white; cursor: pointer; font-size: 1.25rem;">&times;</button>
+        </div>
+        <div style="padding: 1.25rem;">
+            <p style="color: #6b7280; margin-bottom: 1rem;">选择国家和签证类型：</p>
+            <!-- 筛选区域 -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <select id="countryFilterSelect" onchange="filterVisaTypes()"
+                        style="flex: 1; padding: 0.625rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem;">
+                    <option value="">全部国家</option>
+                    {% for country in countries %}
+                    <option value="{{ country.country_name_CN }}">{{ country.country_name_CN }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" id="visaTypeSearchInput" placeholder="搜索..."
+                       style="flex: 1; padding: 0.625rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem;"
+                       oninput="filterVisaTypes()">
+            </div>
+            <!-- 签证类型列表 -->
+            <div id="visaTypeListContainer" style="max-height: 320px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+                {% for type in visa_types %}
+                <a href="{{ url_for('visa_project.visa_processing', visa_type=type.visa_type) }}"
+                   class="visa-type-item"
+                   data-country="{{ type.country.country_name_CN if type.country else '' }}"
+                   style="display: flex; align-items: center; padding: 0.75rem 1rem; text-decoration: none; color: #1f2937; border-bottom: 1px solid #f3f4f6; transition: background 0.15s;"
+                   onmouseover="this.style.background='#f9fafb'"
+                   onmouseout="this.style.background='white'">
+                    <i class="fas fa-passport" style="color: #667eea; margin-right: 0.75rem; flex-shrink: 0;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500;">{{ type.visa_type }}</div>
+                        {% if type.country %}
+                        <div style="font-size: 0.75rem; color: #9ca3af;">{{ type.country.country_name_CN }}</div>
+                        {% endif %}
+                    </div>
+                    <i class="fas fa-chevron-right" style="color: #d1d5db; font-size: 0.75rem;"></i>
+                </a>
+                {% endfor %}
+            </div>
+            <div id="noResultsHint" style="display: none; text-align: center; padding: 2rem; color: #9ca3af;">
+                <i class="fas fa-search" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                没有找到匹配的签证类型
+            </div>
+        </div>
+        <div style="padding: 1rem 1.25rem; background: #f9fafb; display: flex; justify-content: space-between; align-items: center;">
+            <span id="visaTypeCount" style="font-size: 0.875rem; color: #6b7280;">共 {{ visa_types|length }} 个签证类型</span>
+            <button class="visa-btn visa-btn-secondary" onclick="hideCreateProjectModal()">取消</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -383,5 +442,61 @@
             });
         }
     }
+
+    // 创建项目模态框
+    function showCreateProjectModal() {
+        document.getElementById('createProjectModal').style.display = 'flex';
+        document.getElementById('visaTypeSearchInput').value = '';
+        document.getElementById('countryFilterSelect').value = '';
+        filterVisaTypes();
+        setTimeout(() => document.getElementById('countryFilterSelect').focus(), 100);
+    }
+
+    function hideCreateProjectModal() {
+        document.getElementById('createProjectModal').style.display = 'none';
+    }
+
+    function filterVisaTypes() {
+        const keyword = document.getElementById('visaTypeSearchInput').value.toLowerCase().trim();
+        const selectedCountry = document.getElementById('countryFilterSelect').value;
+        const items = document.querySelectorAll('#visaTypeListContainer .visa-type-item');
+        const noResultsHint = document.getElementById('noResultsHint');
+        const listContainer = document.getElementById('visaTypeListContainer');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const itemCountry = item.dataset.country || '';
+
+            const matchesKeyword = !keyword || text.includes(keyword);
+            const matchesCountry = !selectedCountry || itemCountry === selectedCountry;
+
+            if (matchesKeyword && matchesCountry) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        // 显示/隐藏无结果提示
+        if (visibleCount === 0) {
+            listContainer.style.display = 'none';
+            noResultsHint.style.display = 'block';
+        } else {
+            listContainer.style.display = 'block';
+            noResultsHint.style.display = 'none';
+        }
+
+        // 更新计数
+        document.getElementById('visaTypeCount').textContent = `显示 ${visibleCount} 个签证类型`;
+    }
+
+    // 点击模态框外部关闭
+    document.getElementById('createProjectModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideCreateProjectModal();
+        }
+    });
 </script>
 {% endblock %}

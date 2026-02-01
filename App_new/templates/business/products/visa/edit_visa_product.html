@@ -1,0 +1,178 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}编辑签证产品 - {{ visa_type.visa_type }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('products.index') }}">产品管理</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('products.index', category='visa') }}">签证产品</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('products.detail', product_id=product.id) }}">{{ visa_type.visa_type }}</a></li>
+                    <li class="breadcrumb-item active">编辑</li>
+                </ol>
+            </nav>
+            <h4 class="mb-0">编辑签证产品</h4>
+        </div>
+        <div>
+            <a href="{{ url_for('products.detail', product_id=product.id) }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-arrow-left me-1"></i> 返回详情
+            </a>
+            <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=visa_type.visa_type) }}" class="btn btn-outline-info">
+                <i class="fas fa-external-link-alt me-1"></i> 文档管理
+            </a>
+        </div>
+    </div>
+
+    <!-- 编辑表单 -->
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('products.edit_visa', product_id=product.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <!-- 基本信息 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>基本信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">产品编号</label>
+                                <input type="text" class="form-control" value="{{ product.product_code }}" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">签证产品名称 <span class="text-danger">*</span></label>
+                                <input type="text" name="visa_type" class="form-control" required
+                                       value="{{ visa_type.visa_type }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">所属国家/地区 <span class="text-danger">*</span></label>
+                                <select name="country_id" class="form-select" required>
+                                    <option value="">请选择</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country.id }}" {% if country.id == visa_type.country_id %}selected{% endif %}>
+                                        {{ country.country_name_CN }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 费用和时间信息 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>费用和时间信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">售价 <span class="text-danger">*</span></label>
+                                <input type="text" name="fee" class="form-control" required
+                                       value="{{ visa_type.fee or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">成本</label>
+                                <input type="text" name="cost" class="form-control"
+                                       value="{{ visa_type.cost or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">处理时间 <span class="text-danger">*</span></label>
+                                <input type="text" name="processing_time" class="form-control" required
+                                       value="{{ visa_type.processing_time or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">签证有效期</label>
+                                <input type="text" name="validity_period" class="form-control"
+                                       value="{{ visa_type.validity_period or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 时间设置 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-calendar me-2"></i>时间设置</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">产品有效期截止</label>
+                                <input type="date" name="valid_until" class="form-control"
+                                       value="{{ visa_type.valid_until.strftime('%Y-%m-%d') if visa_type.valid_until else '' }}">
+                                <small class="text-muted">产品在此日期后自动下架</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
+                                           {% if visa_type.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        激活状态（上架销售）
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">当前状态</label>
+                                <div>
+                                    {% if visa_type.is_active %}
+                                    <span class="badge bg-success">已上架</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">未上架</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 签证说明 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>签证说明</h6>
+                    </div>
+                    <div class="card-body">
+                        <textarea name="introduction" class="form-control" rows="4"
+                                  placeholder="请输入签证说明，包括停留期、入境次数等信息">{{ visa_type.introduction or '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- 适用身份 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-users me-2"></i>适用身份</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for identity in singapore_identities %}
+                            <div class="col-md-3 col-sm-4 col-6 mb-2">
+                                <div class="form-check">
+                                    <input type="checkbox" name="identity_ids" value="{{ identity.id }}"
+                                           class="form-check-input" id="identity_{{ identity.id }}"
+                                           {% if identity.id in current_identity_ids %}checked{% endif %}>
+                                    <label class="form-check-label" for="identity_{{ identity.id }}">
+                                        {{ identity.identity_zh }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('products.detail', product_id=product.id) }}" class="btn btn-secondary">取消</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> 保存更改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
