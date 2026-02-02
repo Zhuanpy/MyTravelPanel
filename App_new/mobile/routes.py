@@ -791,13 +791,14 @@ def tour_packages():
     # 转换为模板需要的格式
     packages = []
     for product in products:
-        # 解析亮点
+        # 解析亮点（使用 getattr 安全获取）
         highlights = []
-        if product.highlights:
+        product_highlights = getattr(product, 'highlights', None)
+        if product_highlights:
             try:
-                highlights = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
+                highlights = json.loads(product_highlights) if product_highlights.startswith('[') else product_highlights.split(',')
             except:
-                highlights = [h.strip() for h in product.highlights.split(',') if h.strip()]
+                highlights = [h.strip() for h in product_highlights.split(',') if h.strip()]
 
         # 格式化价格
         price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
@@ -911,13 +912,14 @@ def tour_package_detail(package_id):
         except:
             notes = [n.strip() for n in product.important_notes.split('\n') if n.strip()]
 
-    # 解析亮点
+    # 解析亮点（使用 getattr 安全获取）
     highlights_list = []
-    if product.highlights:
+    product_highlights = getattr(product, 'highlights', None)
+    if product_highlights:
         try:
-            highlights_list = json.loads(product.highlights) if product.highlights.startswith('[') else product.highlights.split(',')
+            highlights_list = json.loads(product_highlights) if product_highlights.startswith('[') else product_highlights.split(',')
         except:
-            highlights_list = [h.strip() for h in product.highlights.split(',') if h.strip()]
+            highlights_list = [h.strip() for h in product_highlights.split(',') if h.strip()]
 
     # 格式化价格
     price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
