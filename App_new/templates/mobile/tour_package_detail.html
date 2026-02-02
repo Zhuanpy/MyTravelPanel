@@ -495,9 +495,6 @@
             {% if package.product_type %}
             <span class="info-tag type">{{ package.product_type }}</span>
             {% endif %}
-            {% for include in package.includes[:3] %}
-            <span class="info-tag">{{ include }}</span>
-            {% endfor %}
         </div>
         <div class="info-destination">
             <i class="fas fa-map-marker-alt"></i>
@@ -529,6 +526,20 @@
 
     </div>
 
+    <!-- 产品描述 -->
+    {% if package.description %}
+    <div class="section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-info"></i>
+            </div>
+            <h2 class="section-title">产品介绍</h2>
+        </div>
+        <div class="section-content">
+            <p>{{ package.description }}</p>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 行程安排 -->
     {% if package.itinerary %}

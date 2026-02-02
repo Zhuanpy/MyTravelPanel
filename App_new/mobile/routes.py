@@ -962,7 +962,7 @@ def tour_package_detail(package_id):
         'price': price_display,
         'child_price': f"{product.currency or 'SGD'} {product.child_price:,.0f}" if product.child_price else None,
         'image': product.cover_image,
-        'description': product.product_description or '暂无详细描述，请联系我们的旅游顾问获取更多信息。',
+        'description': product.product_description or None,
         'highlights': highlights_list,
         'includes': includes if includes else ['专业导游', '优质服务', '舒适住宿', '部分餐饮'],
         'excludes': excludes if excludes else ['个人消费', '小费', '旅游保险', '签证费用'],
