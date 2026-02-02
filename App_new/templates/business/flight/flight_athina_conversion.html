@@ -329,6 +329,207 @@
             gap: 0.75rem;
         }
     }
+
+    /* 添加航班弹窗样式 */
+    .flight-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .flight-modal {
+        background: white;
+        border-radius: var(--visa-radius-lg, 12px);
+        width: 90%;
+        max-width: 700px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .flight-modal-header {
+        background: linear-gradient(135deg, var(--visa-success, #10b981), #059669);
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .flight-modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .flight-modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .flight-modal-close:hover {
+        opacity: 1;
+    }
+
+    .flight-modal-body {
+        padding: 1.5rem;
+        max-height: calc(90vh - 140px);
+        overflow-y: auto;
+    }
+
+    .flight-modal-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .flight-modal-field {
+        flex: 1;
+    }
+
+    .flight-modal-field label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--visa-text-primary, #1f2937);
+        margin-bottom: 0.5rem;
+    }
+
+    .flight-modal-field label .required {
+        color: #dc2626;
+    }
+
+    .flight-modal-input {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        border: 1px solid var(--visa-border, #e5e7eb);
+        border-radius: var(--visa-radius-sm, 6px);
+        font-size: 0.9375rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        text-transform: uppercase;
+    }
+
+    .flight-modal-input:focus {
+        outline: none;
+        border-color: var(--visa-success, #10b981);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+
+    .flight-modal-input:read-only {
+        background: #f9fafb;
+        color: #6b7280;
+    }
+
+    .flight-modal-input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .flight-modal-input-group .flight-modal-input {
+        flex: 1;
+    }
+
+    .flight-modal-search-btn {
+        padding: 0.625rem 1rem;
+        background: var(--visa-success, #10b981);
+        color: white;
+        border: none;
+        border-radius: var(--visa-radius-sm, 6px);
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .flight-modal-search-btn:hover {
+        background: #059669;
+    }
+
+    .flight-modal-search-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    .flight-modal-hint {
+        display: block;
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .flight-modal-divider {
+        display: flex;
+        align-items: center;
+        margin: 1.25rem 0;
+        color: #9ca3af;
+        font-size: 0.8125rem;
+    }
+
+    .flight-modal-divider::before,
+    .flight-modal-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e5e7eb;
+    }
+
+    .flight-modal-divider span {
+        padding: 0 1rem;
+    }
+
+    .flight-modal-footer {
+        padding: 1rem 1.5rem;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    @media (max-width: 640px) {
+        .flight-modal {
+            width: 95%;
+            margin: 1rem;
+        }
+
+        .flight-modal-row {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -520,9 +721,9 @@
                             <button class="visa-btn visa-btn-primary" onclick="sendData()">
                                 <i class="fas fa-magic"></i> 生成代码
                             </button>
-                            <a id="addScheduleBtn" href="{{ url_for('flights_schedule.input_flight_schedule') }}" class="visa-btn visa-btn-secondary" style="display: none;" target="_blank">
+                            <button id="addScheduleBtn" class="visa-btn visa-btn-secondary" style="display: none;" onclick="openAddFlightModal()">
                                 <i class="fas fa-plus-circle"></i> 添加航班时刻
-                            </a>
+                            </button>
                         </div>
                     </div>
                     <div style="position: relative;">
@@ -541,6 +742,75 @@
     </div><!-- /tool-content-container -->
     </div><!-- /athina-conversion-container -->
 </div><!-- /container-fluid -->
+
+<!-- 添加航班时刻弹窗 -->
+<div id="addFlightModal" class="flight-modal-overlay" style="display: none;">
+    <div class="flight-modal">
+        <div class="flight-modal-header">
+            <h3><i class="fas fa-plus-circle"></i> 添加航班时刻</h3>
+            <button class="flight-modal-close" onclick="closeAddFlightModal()">&times;</button>
+        </div>
+        <form id="addFlightForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="flight-modal-body">
+                <div class="flight-modal-row">
+                    <div class="flight-modal-field">
+                        <label>航班号 <span class="required">*</span></label>
+                        <div class="flight-modal-input-group">
+                            <input type="text" id="modalFlightNumber" name="flight_number" class="flight-modal-input" placeholder="TR100" required>
+                            <button type="button" class="flight-modal-search-btn" onclick="searchFlightAPIModal()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flight-modal-field">
+                        <label>航司代码</label>
+                        <input type="text" id="modalAirlineCode" name="airline_code" class="flight-modal-input" readonly>
+                    </div>
+                    <div class="flight-modal-field">
+                        <label>航班编号</label>
+                        <input type="text" id="modalAirlineNum" name="airline_num" class="flight-modal-input" readonly>
+                    </div>
+                </div>
+                <div class="flight-modal-row">
+                    <div class="flight-modal-field" style="flex: 1;">
+                        <label>起始地点 <span class="required">*</span></label>
+                        <input type="text" id="modalScheduleCity" name="schedule_city" class="flight-modal-input" placeholder="SIN PVG" required>
+                        <small class="flight-modal-hint">格式: 出发地 目的地</small>
+                    </div>
+                    <div class="flight-modal-field" style="flex: 1;">
+                        <label>起始时间 <span class="required">*</span></label>
+                        <input type="text" id="modalScheduleTiming" name="schedule_timing" class="flight-modal-input" placeholder="0800 1200" required>
+                        <small class="flight-modal-hint">格式: 出发时间 到达时间</small>
+                    </div>
+                </div>
+                <div class="flight-modal-divider">
+                    <span>可选信息</span>
+                </div>
+                <div class="flight-modal-row">
+                    <div class="flight-modal-field">
+                        <label>出发航站楼</label>
+                        <input type="text" id="modalDepTerminal" name="departure_terminal" class="flight-modal-input" placeholder="T1">
+                    </div>
+                    <div class="flight-modal-field">
+                        <label>到达航站楼</label>
+                        <input type="text" id="modalArrTerminal" name="arrival_terminal" class="flight-modal-input" placeholder="T2">
+                    </div>
+                    <div class="flight-modal-field">
+                        <label>机型</label>
+                        <input type="text" id="modalAircraft" name="aircraft" class="flight-modal-input" placeholder="A320">
+                    </div>
+                </div>
+            </div>
+            <div class="flight-modal-footer">
+                <button type="button" class="visa-btn visa-btn-secondary" onclick="closeAddFlightModal()">取消</button>
+                <button type="submit" class="visa-btn visa-btn-success">
+                    <i class="fas fa-save"></i> 保存航班
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- 添加提示框元素 -->
 <div id="copyToast" class="copy-toast">已复制到剪贴板</div>
@@ -1399,11 +1669,176 @@
         const originalText = copyBtn.innerHTML;
         copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
         copyBtn.classList.add('success');
-        
+
         setTimeout(() => {
             copyBtn.innerHTML = originalText;
             copyBtn.classList.remove('success');
         }, 2000);
+    }
+
+    // ========================================
+    // 添加航班弹窗功能
+    // ========================================
+
+    // 打开添加航班弹窗
+    function openAddFlightModal() {
+        const modal = document.getElementById('addFlightModal');
+        const form = document.getElementById('addFlightForm');
+        form.reset();
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        // 聚焦到航班号输入框
+        setTimeout(() => {
+            document.getElementById('modalFlightNumber').focus();
+        }, 100);
+    }
+
+    // 关闭添加航班弹窗
+    function closeAddFlightModal() {
+        const modal = document.getElementById('addFlightModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    // 点击遮罩层关闭弹窗
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('addFlightModal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeAddFlightModal();
+                }
+            });
+        }
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                closeAddFlightModal();
+            }
+        });
+
+        // 航班号自动拆分
+        const modalFlightNumber = document.getElementById('modalFlightNumber');
+        if (modalFlightNumber) {
+            modalFlightNumber.addEventListener('input', function() {
+                const val = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                this.value = val;
+                if (val.length >= 2) {
+                    document.getElementById('modalAirlineCode').value = val.substring(0, 2);
+                    document.getElementById('modalAirlineNum').value = val.substring(2);
+                } else {
+                    document.getElementById('modalAirlineCode').value = '';
+                    document.getElementById('modalAirlineNum').value = '';
+                }
+            });
+        }
+
+        // 其他输入框自动大写
+        const modalInputs = document.querySelectorAll('#addFlightModal .flight-modal-input:not([readonly])');
+        modalInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.id !== 'modalFlightNumber') {
+                    this.value = this.value.toUpperCase();
+                }
+            });
+        });
+
+        // 表单提交
+        const addFlightForm = document.getElementById('addFlightForm');
+        if (addFlightForm) {
+            addFlightForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalBtnText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+                const formData = new FormData(this);
+
+                // 添加必要的数组格式字段
+                const data = new FormData();
+                data.append('csrf_token', formData.get('csrf_token'));
+                data.append('flight_number[]', formData.get('flight_number'));
+                data.append('airline_code[]', formData.get('airline_code'));
+                data.append('airline_num[]', formData.get('airline_num'));
+                data.append('schedule_city[]', formData.get('schedule_city'));
+                data.append('schedule_timing[]', formData.get('schedule_timing'));
+                data.append('departure_terminal[]', formData.get('departure_terminal') || '');
+                data.append('arrival_terminal[]', formData.get('arrival_terminal') || '');
+                data.append('aircraft[]', formData.get('aircraft') || '');
+                data.append('departure_gate[]', '');
+                data.append('arrival_gate[]', '');
+                data.append('status[]', 'Unknown');
+
+                try {
+                    const response = await fetch('{{ url_for("flights_schedule.input_flight_schedule") }}', {
+                        method: 'POST',
+                        body: data
+                    });
+
+                    if (response.ok) {
+                        closeAddFlightModal();
+                        showToast('航班时刻添加成功！');
+
+                        // 隐藏添加按钮
+                        document.getElementById('addScheduleBtn').style.display = 'none';
+
+                        // 重新生成代码
+                        setTimeout(() => {
+                            sendData();
+                        }, 500);
+                    } else {
+                        const errorText = await response.text();
+                        throw new Error(errorText || '保存失败');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('保存失败: ' + error.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+            });
+        }
+    });
+
+    // 搜索航班API（弹窗内）
+    async function searchFlightAPIModal() {
+        const flightNumber = document.getElementById('modalFlightNumber').value.trim().toUpperCase();
+        if (!flightNumber) {
+            showToast('请输入航班号');
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const response = await fetch(`/flight_schedule/get-flight-info?flight_number=${flightNumber}&flight_date=${today}&source=aerodatabox`);
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                document.getElementById('modalScheduleCity').value = data.data.schedule_city || '';
+                document.getElementById('modalScheduleTiming').value = data.data.schedule_timing || '';
+                document.getElementById('modalDepTerminal').value = data.data.departure_terminal || '';
+                document.getElementById('modalArrTerminal').value = data.data.arrival_terminal || '';
+                document.getElementById('modalAircraft').value = data.data.aircraft || '';
+                showToast('航班信息已自动填充');
+            } else {
+                showToast('未找到航班信息，请手动输入');
+            }
+        } catch (error) {
+            showToast('搜索失败: ' + error.message);
+        } finally {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
     }
 </script>
 {% endblock %}
