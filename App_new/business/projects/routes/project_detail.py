@@ -818,8 +818,8 @@ def copy_project(project_id):
 
         # 复制项目主表（日期使用当前时间）
         from datetime import datetime
-        now = datetime.now()  # 使用本地时间而非UTC
-        print(f"[DEBUG] 复制项目 - 当前时间: {now}")
+        now = datetime.utcnow()  # 使用UTC时间，与模型默认值保持一致
+        print(f"[DEBUG] 复制项目 - 当前时间(UTC): {now}")
 
         new_header = ProjectHeader(
             hid=new_hid,
