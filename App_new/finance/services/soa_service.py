@@ -232,17 +232,22 @@ class SOAService:
                 'message': f'获取SOA列表失败: {str(e)}'
             }
 
-    def get_company_list(self):
-        """获取所有公司列表"""
+    def get_company_list(self, group=None):
+        """获取所有公司列表，支持按集团筛选"""
         try:
             # 获取所有有项目的不重复公司名称
-            companies = db.session.query(CustomerCompany.company_name).join(
+            query = db.session.query(CustomerCompany.company_name).join(
                 ProjectHeader, ProjectHeader.company_id == CustomerCompany.id
             ).filter(
                 CustomerCompany.company_name.isnot(None),
                 CustomerCompany.company_name != ''
-            ).distinct().all()
+            )
 
+            # 如果指定了集团，则只返回该集团下的公司
+            if group:
+                query = query.filter(CustomerCompany.group_name == group)
+
+            companies = query.distinct().all()
             company_list = [company[0] for company in companies if company[0]]
 
             return {

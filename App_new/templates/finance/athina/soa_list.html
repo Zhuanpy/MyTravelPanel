@@ -294,12 +294,19 @@ class SOAManager {
         }
     }
 
-    async populateCompanyFilter() {
+    async populateCompanyFilter(group = '') {
         const companyFilter = document.getElementById('companyFilter');
 
+        // 保存当前选中的公司
+        const currentValue = companyFilter.value;
+
+        // 清空现有选项（保留"所有公司"选项）
+        companyFilter.innerHTML = '<option value="">所有公司</option>';
+
         try {
-            // 获取所有公司列表
-            const response = await fetch('/statement/soa_companies');
+            // 获取公司列表，如果指定了集团则按集团筛选
+            const url = group ? `/statement/soa_companies?group=${encodeURIComponent(group)}` : '/statement/soa_companies';
+            const response = await fetch(url);
             const data = await response.json();
 
             if (data.success !== false && data.companies) {
@@ -312,6 +319,11 @@ class SOAManager {
                     option.textContent = company;
                     companyFilter.appendChild(option);
                 });
+
+                // 如果之前选中的公司仍在列表中，则恢复选中
+                if (currentValue && data.companies.includes(currentValue)) {
+                    companyFilter.value = currentValue;
+                }
             }
         } catch (error) {
             console.error('获取公司列表失败:', error);
@@ -365,10 +377,16 @@ class SOAManager {
         // 集团过滤变化
         const groupFilter = document.getElementById('groupFilter');
         if (groupFilter) {
-            groupFilter.addEventListener('change', () => {
+            groupFilter.addEventListener('change', async () => {
                 this.groupFilter = document.getElementById('groupFilter').value;
+                this.companyFilter = '';  // 清空公司筛选
+                document.getElementById('companyFilter').value = '';
                 this.balanceFilter = document.getElementById('balanceFilter').checked;
                 this.currentPage = 1;
+
+                // 重新加载公司列表（按集团筛选）
+                await this.populateCompanyFilter(this.groupFilter);
+
                 this.loadData();
             });
         }

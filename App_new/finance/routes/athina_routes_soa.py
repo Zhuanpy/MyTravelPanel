@@ -51,10 +51,11 @@ def soa_data():
 @login_required
 @staff_only
 def soa_companies():
-    """获取公司列表"""
+    """获取公司列表，支持按集团筛选"""
     try:
+        group = request.args.get('group', '')
         soa_service = SOAService()
-        result = soa_service.get_company_list()
+        result = soa_service.get_company_list(group=group if group else None)
 
         return jsonify(result)
 
