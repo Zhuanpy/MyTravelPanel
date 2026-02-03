@@ -128,7 +128,7 @@ def list_projects():
         balance_max = request.args.get('balance_max', '')
         payment_status = request.args.get('payment_status', '')
         settlement_status = request.args.get('settlement_status', '')  # 结算状态：settled/unsettled
-        sort_by = request.args.get('sort_by', 'created_at_desc')
+        sort_by = request.args.get('sort_by', 'hid_desc')
 
         # 使用服务层处理业务逻辑
         project_service = ProjectService()
@@ -1299,7 +1299,7 @@ def export_excel():
         balance_min = request.args.get('balance_min', '')
         balance_max = request.args.get('balance_max', '')
         payment_status = request.args.get('payment_status', '')
-        sort_by = request.args.get('sort_by', 'created_at_desc')
+        sort_by = request.args.get('sort_by', 'hid_desc')
         
         # 构建查询（与list_projects相同逻辑）
         base_query = ProjectHeader.query

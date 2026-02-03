@@ -242,9 +242,8 @@
                                 <i class="fas fa-plus me-2"></i>添加配套
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">签证产品</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_list') }}">
-                                <i class="fas fa-passport me-2"></i>签证类型
+                                <i class="fas fa-passport me-2"></i>签证产品
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">供应商</h6></li>
@@ -253,6 +252,10 @@
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('supplier.add_supplier') }}">
                                 <i class="fas fa-user-plus me-2"></i>添加供应商
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('staff.image_library') }}">
+                                <i class="fas fa-images me-2"></i>图片库管理
                             </a></li>
                         </ul>
                     </li>
@@ -493,7 +496,7 @@
                             <a class="nav-link {% if request.endpoint == 'visa_basic.visa_type_list' %}active{% endif %}"
                                href="{{ url_for('visa_basic.visa_type_list') }}">
                                 <i class="fas fa-passport me-2"></i>
-                                签证类型
+                                签证产品
                             </a>
                         </li>
                         <li class="nav-item">
@@ -501,6 +504,13 @@
                                href="{{ url_for('supplier.suppliers') }}">
                                 <i class="fas fa-building me-2"></i>
                                 供应商管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'staff.image_library' %}active{% endif %}"
+                               href="{{ url_for('staff.image_library') }}">
+                                <i class="fas fa-images me-2"></i>
+                                图片库管理
                             </a>
                         </li>
 
