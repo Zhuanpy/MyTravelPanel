@@ -89,7 +89,7 @@ class SOAService:
             pass
         return ''
 
-    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, balance_positive=False, profit_loss=None):
+    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None):
         """获取可生成SOA的项目列表"""
         try:
             query = ProjectHeader.query.options(
@@ -110,6 +110,9 @@ class SOAService:
             # 公司过滤
             if company:
                 query = query.join(CustomerCompany).filter(CustomerCompany.company_name == company)
+            elif group:
+                # 集团过滤（只在没有指定公司时生效）
+                query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
 
             # 月份过滤
             if month:
@@ -253,7 +256,31 @@ class SOAService:
                 'message': f'获取公司列表失败: {str(e)}'
             }
 
-    def batch_download_soa(self, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel'):
+    def get_group_list(self):
+        """获取所有集团/关联标签列表"""
+        try:
+            # 获取所有有项目的不重复集团名称
+            groups = db.session.query(CustomerCompany.group_name).join(
+                ProjectHeader, ProjectHeader.company_id == CustomerCompany.id
+            ).filter(
+                CustomerCompany.group_name.isnot(None),
+                CustomerCompany.group_name != ''
+            ).distinct().all()
+
+            group_list = [group[0] for group in groups if group[0]]
+
+            return {
+                'success': True,
+                'groups': group_list
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'获取集团列表失败: {str(e)}'
+            }
+
+    def batch_download_soa(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel'):
         """批量下载SOA - 生成Excel表格"""
         try:
             import pandas as pd
@@ -276,6 +303,9 @@ class SOAService:
 
             if company:
                 query = query.join(CustomerCompany).filter(CustomerCompany.company_name == company)
+            elif group:
+                # 集团过滤（只在没有指定公司时生效）
+                query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
 
             if month:
                 try:
@@ -466,7 +496,7 @@ class SOAService:
             traceback.print_exc()
             return None, f"生成Excel文件时出错: {str(e)}"
 
-    def batch_download_soa_pdf(self, company=None, month=None, search=None, balance_positive=None, profit_loss=None):
+    def batch_download_soa_pdf(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None):
         """批量下载SOA - 生成PDF文件"""
         try:
             # 构建查询条件
@@ -487,6 +517,9 @@ class SOAService:
 
             if company:
                 query = query.join(CustomerCompany).filter(CustomerCompany.company_name == company)
+            elif group:
+                # 集团过滤（只在没有指定公司时生效）
+                query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
 
             if month:
                 try:
