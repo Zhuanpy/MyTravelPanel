@@ -341,9 +341,16 @@ class SOAService:
                     pass
 
             # 获取所有符合条件的项目
-            headers = query.order_by(
-                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-            ).all()
+            # 如果按集团筛选，则先按公司名称排序，再按HID排序
+            if group:
+                headers = query.order_by(
+                    CustomerCompany.company_name,
+                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+                ).all()
+            else:
+                headers = query.order_by(
+                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+                ).all()
 
             if not headers:
                 return None, "没有找到符合条件的SOA数据"
@@ -555,9 +562,16 @@ class SOAService:
                     pass
 
             # 获取所有符合条件的项目
-            headers = query.order_by(
-                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-            ).all()
+            # 如果按集团筛选，则先按公司名称排序，再按HID排序
+            if group:
+                headers = query.order_by(
+                    CustomerCompany.company_name,
+                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+                ).all()
+            else:
+                headers = query.order_by(
+                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+                ).all()
 
             if not headers:
                 return None, "没有找到符合条件的SOA数据"
