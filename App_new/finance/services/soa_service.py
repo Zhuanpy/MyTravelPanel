@@ -137,9 +137,16 @@ class SOAService:
                     pass
 
             # 获取所有符合条件的项目（先不分页，因为需要计算余额后再过滤）
-            all_headers = query.order_by(
-                db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-            ).all()
+            # 如果按集团筛选，则先按公司名称排序，再按HID排序
+            if group:
+                all_headers = query.order_by(
+                    CustomerCompany.company_name,
+                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+                ).all()
+            else:
+                all_headers = query.order_by(
+                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
+                ).all()
 
             # 获取所有项目的财务数据
             all_project_ids = [h.id for h in all_headers]
