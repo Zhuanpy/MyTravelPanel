@@ -44,7 +44,12 @@ def create_invoice(header_id):
     
     # 预填充客户信息（从项目header获取）
     if request.method == 'GET':
-        form.customer_name.data = header.leader_name
+        # 优先使用项目成员中的 leader 名称
+        customer_name = header.leader_member_name
+        # 如果没有成员 leader，检查 leader_name 是否为真实客户名（非员工名）
+        if not customer_name and header.leader_name and header.leader_name != header.staff_name:
+            customer_name = header.leader_name
+        form.customer_name.data = customer_name
         if header.company:
             form.customer_company.data = header.company.company_name
     
@@ -621,6 +626,13 @@ def quick_create_invoice(header_id):
             from datetime import date
             invoice_date = date.today()
         
+        # 获取客户名称：优先项目成员 leader，其次真实客户名（非员工名），最后联系人
+        customer_name = header.leader_member_name
+        if not customer_name and header.leader_name and header.leader_name != header.staff_name:
+            customer_name = header.leader_name
+        if not customer_name:
+            customer_name = header.contact
+
         # 创建发票（直接为 confirmed 状态）
         invoice = ProjectInvoice(
             invoice_number=invoice_number,
@@ -629,7 +641,7 @@ def quick_create_invoice(header_id):
             amount=total_amount,
             currency=header.currency or 'SGD',
             invoice_type='full',
-            customer_name=header.leader_name or header.contact,
+            customer_name=customer_name,
             customer_company=header.company.company_name if header.company else None,
             ref_ids=json.dumps([ref.get('ref_id') for ref in refs_data]),
             remarks=', '.join(filter(None, [
