@@ -347,6 +347,11 @@ class UserProfile(db.Model):
     position = db.Column(db.String(50))
     address = db.Column(db.String(255))  # 地址
     avatar = db.Column(db.String(255))  # 头像文件路径
+    wechat_id = db.Column(db.String(50), comment='微信号')
+    wechat_qr = db.Column(db.String(255), comment='微信二维码图片路径')
+    whatsapp = db.Column(db.String(20), comment='WhatsApp号码')
+    whatsapp_qr = db.Column(db.String(255), comment='WhatsApp二维码图片路径')
+    is_public = db.Column(db.Boolean, default=False, comment='是否在联系页面公开显示')
     preferences = db.Column(db.JSON)  # 用户偏好设置
     staff_level = db.Column(db.Integer, default=1, comment='员工等级：1-初级员工(只能看自己的订单), 2-普通员工(可看部门/团队订单), 3-高级员工(可看所有订单)')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

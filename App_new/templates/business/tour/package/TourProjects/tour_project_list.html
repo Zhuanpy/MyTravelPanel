@@ -69,6 +69,7 @@
                         <th>联系方式</th>
                         <th>备注</th>
                         <th>编辑项目</th>
+                        <th>复制项目</th>
                         <th>打开项目</th>
                         <th>删除项目</th>
                     </tr>
@@ -104,7 +105,14 @@
                             <td>
                                 <a href="{{ url_for('tour_projects.edit_tour_project', project_id=project.id) }}" class="visa-btn visa-btn-info visa-btn-sm">编辑项目</a>
                             </td>
-                            
+
+                            <!-- 复制项目按钮 -->
+                            <td>
+                                <a href="#" class="visa-btn visa-btn-secondary visa-btn-sm" data-project-id="{{ project.id }}" onclick="copyProject(event, this)">
+                                    <i class="fas fa-copy"></i> 复制
+                                </a>
+                            </td>
+
                             <!-- 打开项目按钮 -->
                             <td>
                                 <a href="#" id="open-project-{{ project.id }}" class="visa-btn visa-btn-warning visa-btn-sm">打开项目</a>
@@ -179,6 +187,57 @@
         flashMessage.style.backgroundColor = isSuccess ? 'green' : 'red';
         flashMessage.style.display = 'block';
         setTimeout(() => flashMessage.style.display = 'none', 1000);
+    }
+
+    // 复制项目函数
+    function copyProject(event, element) {
+        event.preventDefault();
+
+        const projectId = element.getAttribute('data-project-id');
+        if (confirm("确定要复制此项目吗？将复制项目及其所有团组和行程安排。")) {
+            // 获取CSRF令牌
+            const csrfTokenElement = document.querySelector('input[name="csrf_token"]');
+            if (!csrfTokenElement) {
+                showFlashMessage("CSRF令牌未找到", false);
+                return;
+            }
+            const csrfToken = csrfTokenElement.value;
+
+            // 显示加载状态
+            element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
+            element.style.pointerEvents = 'none';
+
+            fetch(`/tour/projects/copy/${projectId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showFlashMessage("项目复制成功！正在跳转...", true);
+                    // 跳转到新项目的编辑页面
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1000);
+                } else {
+                    showFlashMessage("复制失败：" + data.message, false);
+                    // 恢复按钮状态
+                    element.innerHTML = '<i class="fas fa-copy"></i> 复制';
+                    element.style.pointerEvents = 'auto';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showFlashMessage("请求失败，请稍后重试！", false);
+                // 恢复按钮状态
+                element.innerHTML = '<i class="fas fa-copy"></i> 复制';
+                element.style.pointerEvents = 'auto';
+            });
+        }
     }
 
     // 删除项目函数

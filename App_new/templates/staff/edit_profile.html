@@ -84,7 +84,7 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="row g-3">
@@ -132,6 +132,81 @@
                     <label for="address">地址</label>
                     <input type="text" class="visa-form-control" id="address" name="address"
                            value="{{ user.profile.address if user.profile else '' }}" placeholder="请输入您的地址">
+                </div>
+
+                <!-- 联系方式区域 -->
+                <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #f3f4f6;">
+                    <h6 style="color: #374151; font-weight: 600; margin-bottom: 1rem;">
+                        <i class="fas fa-address-book me-2" style="color: #10b981;"></i>社交联系方式
+                    </h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-group mb-0">
+                                <label for="wechat_id">微信号</label>
+                                <input type="text" class="visa-form-control" id="wechat_id" name="wechat_id"
+                                       value="{{ user.profile.wechat_id if user.profile else '' }}" placeholder="请输入微信号">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-0">
+                                <label for="whatsapp">WhatsApp</label>
+                                <input type="text" class="visa-form-control" id="whatsapp" name="whatsapp"
+                                       value="{{ user.profile.whatsapp if user.profile else '' }}" placeholder="请输入WhatsApp号码">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <div class="form-group mb-0">
+                                <label for="wechat_qr">微信二维码</label>
+                                {% if user.profile and user.profile.wechat_qr %}
+                                <div style="margin-bottom: 0.75rem;">
+                                    <img src="{{ url_for('static', filename=user.profile.wechat_qr) }}"
+                                         alt="微信二维码" style="max-width: 120px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                    <div style="margin-top: 0.5rem;">
+                                        <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 0.8rem; color: #6b7280;">
+                                            <input type="checkbox" name="remove_wechat_qr" value="1" style="margin-right: 0.5rem;">
+                                            删除
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <input type="file" class="visa-form-control" id="wechat_qr" name="wechat_qr" accept="image/*">
+                                <div class="form-text">建议尺寸 200x200</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-0">
+                                <label for="whatsapp_qr">WhatsApp 二维码</label>
+                                {% if user.profile and user.profile.whatsapp_qr %}
+                                <div style="margin-bottom: 0.75rem;">
+                                    <img src="{{ url_for('static', filename=user.profile.whatsapp_qr) }}"
+                                         alt="WhatsApp二维码" style="max-width: 120px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                    <div style="margin-top: 0.5rem;">
+                                        <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 0.8rem; color: #6b7280;">
+                                            <input type="checkbox" name="remove_whatsapp_qr" value="1" style="margin-right: 0.5rem;">
+                                            删除
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <input type="file" class="visa-form-control" id="whatsapp_qr" name="whatsapp_qr" accept="image/*">
+                                <div class="form-text">建议尺寸 200x200</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" name="is_public" value="1"
+                                   {% if user.profile and user.profile.is_public %}checked{% endif %}
+                                   style="width: 18px; height: 18px; margin-right: 0.75rem; accent-color: #10b981;">
+                            <span>在公司联系页面公开显示我的联系方式</span>
+                        </label>
+                        <div class="form-text">勾选后，您的联系方式将显示在网站的"联系我们"页面</div>
+                    </div>
                 </div>
 
                 <div class="btn-actions">

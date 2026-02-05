@@ -316,6 +316,114 @@ def update_tour_project(project_id):
                           order=current_order,
                           page=current_page))
 
+@tour_projects.route('/copy/<int:project_id>', methods=['POST'])
+@csrf.exempt
+def copy_tour_project(project_id):
+    """复制旅游项目及其关联数据"""
+    try:
+        # 获取原项目
+        original_project = TourProject.query.get_or_404(project_id)
+
+        # 生成新的项目名称
+        new_project_name = f"{original_project.project_name} (副本)"
+
+        # 生成新的文件夹名称
+        from ....config import Config
+        tour_project_path = Config.TOUR_PROJECTS_PATH
+        creation_date = datetime.now().date()
+
+        if original_project.project_hid:
+            folder_name = f"{creation_date}_{original_project.project_hid}_{new_project_name}"
+        else:
+            folder_name = f"{creation_date}_{new_project_name}"
+
+        # 创建文件夹
+        create_folder(tour_project_path, folder_name)
+
+        # 创建新项目
+        new_project = TourProject(
+            project_name=new_project_name,
+            project_hid=original_project.project_hid,
+            project_type=original_project.project_type,
+            budget=original_project.budget,
+            project_status='处理中',  # 新复制的项目默认为处理中状态
+            folder_name=folder_name,
+            contact_person=original_project.contact_person,
+            contact_info=original_project.contact_info,
+            remarks=original_project.remarks,
+            departure_date=original_project.departure_date
+        )
+        # 复制货币单位（__init__不接受此参数，需单独设置）
+        new_project.currency = original_project.currency
+
+        db.session.add(new_project)
+        db.session.flush()  # 获取新项目ID
+
+        # 复制所有关联的团组
+        original_groups = TourGroup.query.filter_by(project_id=project_id).all()
+        for original_group in original_groups:
+            new_group = TourGroup(
+                title=original_group.title,
+                group_code=original_group.group_code,
+                group_status=original_group.group_status,
+                project_type=original_group.project_type,
+                departure_date=original_group.departure_date,
+                return_date=original_group.return_date,
+                pax=original_group.pax,
+                budget_per_person=original_group.budget_per_person,
+                agency=original_group.agency,
+                operator=original_group.operator,
+                included_items=original_group.included_items,
+                excluded_items=original_group.excluded_items,
+                important_notes=original_group.important_notes,
+                project_id=new_project.id
+            )
+
+            db.session.add(new_group)
+            db.session.flush()  # 获取新团组ID
+
+            # 复制该团组的所有行程安排
+            original_itineraries = TourItinerary.query.filter_by(tour_id=original_group.id).all()
+            for original_itinerary in original_itineraries:
+                new_itinerary = TourItinerary(
+                    tour_id=new_group.id,
+                    day_title=original_itinerary.day_title,
+                    date=original_itinerary.date,
+                    content=original_itinerary.content,
+                    image1=original_itinerary.image1,  # 图片路径共享（不复制物理文件）
+                    image2=original_itinerary.image2,
+                    image3=original_itinerary.image3
+                )
+                db.session.add(new_itinerary)
+
+        # 提交所有更改
+        db.session.commit()
+
+        # 返回响应
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': '项目复制成功！',
+                'new_project_id': new_project.id,
+                'redirect_url': url_for('tour_projects.edit_tour_project', project_id=new_project.id)
+            })
+        else:
+            flash('项目复制成功！', 'success')
+            return redirect(url_for('tour_projects.edit_tour_project', project_id=new_project.id))
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"复制项目失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'复制失败：{str(e)}'}), 500
+        else:
+            flash(f'复制失败：{str(e)}', 'error')
+            return redirect(url_for('tour_projects.manage_tour_projects'))
+
+
 @tour_projects.route('/delete/<int:project_id>', methods=['POST'])
 @csrf.exempt
 def delete_tour_project(project_id):

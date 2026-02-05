@@ -181,5 +181,61 @@
         </div>
     </div>
 </div>
+
+<!-- 社交联系方式 -->
+<div class="card info-card mt-4">
+    <div class="card-header">
+        <h5><i class="fas fa-address-book me-2"></i>社交联系方式</h5>
+    </div>
+    <div class="card-body">
+        <div class="info-row">
+            <div class="info-item">
+                <div class="info-label">微信号</div>
+                <div class="info-value {{ 'empty' if not (user.profile and user.profile.wechat_id) }}">
+                    {{ user.profile.wechat_id if user.profile and user.profile.wechat_id else '未设置' }}
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">WhatsApp</div>
+                <div class="info-value {{ 'empty' if not (user.profile and user.profile.whatsapp) }}">
+                    {{ user.profile.whatsapp if user.profile and user.profile.whatsapp else '未设置' }}
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">公开显示</div>
+                <div class="info-value">
+                    {% if user.profile and user.profile.is_public %}
+                        <span style="color: #10b981;"><i class="fas fa-check-circle me-1"></i>是</span>
+                    {% else %}
+                        <span class="empty">否</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if (user.profile and user.profile.wechat_qr) or (user.profile and user.profile.whatsapp_qr) %}
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;">
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                {% if user.profile.wechat_qr %}
+                <div>
+                    <div class="info-label" style="margin-bottom: 0.5rem;">微信二维码</div>
+                    <img src="{{ url_for('static', filename=user.profile.wechat_qr) }}"
+                         alt="微信二维码"
+                         style="max-width: 150px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                </div>
+                {% endif %}
+                {% if user.profile.whatsapp_qr %}
+                <div>
+                    <div class="info-label" style="margin-bottom: 0.5rem;">WhatsApp 二维码</div>
+                    <img src="{{ url_for('static', filename=user.profile.whatsapp_qr) }}"
+                         alt="WhatsApp二维码"
+                         style="max-width: 150px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
 </div>
 {% endblock %}

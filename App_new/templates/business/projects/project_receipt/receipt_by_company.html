@@ -246,6 +246,14 @@
           <label>To</label>
           <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
         </div>
+        <div class="search-item">
+          <label>付款状态</label>
+          <select class="form-select" name="payment_status">
+            <option value="all" {% if payment_status == 'all' %}selected{% endif %}>全部未付</option>
+            <option value="unpaid" {% if payment_status == 'unpaid' %}selected{% endif %}>未付款</option>
+            <option value="partial_paid" {% if payment_status == 'partial_paid' %}selected{% endif %}>部分付款</option>
+          </select>
+        </div>
         <div class="search-buttons">
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-search me-1"></i> 搜索

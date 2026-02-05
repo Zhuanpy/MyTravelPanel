@@ -159,7 +159,10 @@ def edit_profile():
     """编辑员工个人资料"""
     from ...auth.models.auth import UserProfile
     from ...exts import db
-    
+    from werkzeug.utils import secure_filename
+    import uuid
+    import os
+
     if request.method == 'POST':
         try:
             first_name = request.form.get('first_name', '').strip()
@@ -168,11 +171,47 @@ def edit_profile():
             company = request.form.get('company', '').strip().upper()
             position = request.form.get('position', '').strip()
             address = request.form.get('address', '').strip()
-            
+
+            # 新增联系方式字段
+            wechat_id = request.form.get('wechat_id', '').strip()
+            whatsapp = request.form.get('whatsapp', '').strip()
+            is_public = request.form.get('is_public') == '1'
+            remove_wechat_qr = request.form.get('remove_wechat_qr') == '1'
+            remove_whatsapp_qr = request.form.get('remove_whatsapp_qr') == '1'
+
             if not first_name:
                 flash('姓名不能为空', 'error')
                 return render_template('staff/edit_profile.html', user=current_user)
-            
+
+            # 辅助函数：处理二维码上传
+            def save_qr_image(file_key, prefix):
+                if file_key in request.files:
+                    file = request.files[file_key]
+                    if file and file.filename:
+                        filename = secure_filename(file.filename)
+                        name, ext = os.path.splitext(filename)
+                        unique_filename = f"{prefix}_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+
+                        upload_folder = os.path.join(current_app.static_folder, 'uploads', 'qr_codes')
+                        if not os.path.exists(upload_folder):
+                            os.makedirs(upload_folder)
+
+                        file_path = os.path.join(upload_folder, unique_filename)
+                        file.save(file_path)
+                        return f"uploads/qr_codes/{unique_filename}"
+                return None
+
+            # 辅助函数：删除旧二维码文件
+            def delete_old_qr(qr_path):
+                if qr_path:
+                    old_file = os.path.join(current_app.static_folder, qr_path)
+                    if os.path.exists(old_file):
+                        os.remove(old_file)
+
+            # 处理二维码上传
+            wechat_qr_path = save_qr_image('wechat_qr', 'wechat_qr')
+            whatsapp_qr_path = save_qr_image('whatsapp_qr', 'whatsapp_qr')
+
             # 更新用户资料
             if current_user.profile:
                 current_user.profile.first_name = first_name
@@ -181,6 +220,25 @@ def edit_profile():
                 current_user.profile.company = company
                 current_user.profile.position = position
                 current_user.profile.address = address
+                current_user.profile.wechat_id = wechat_id
+                current_user.profile.whatsapp = whatsapp
+                current_user.profile.is_public = is_public
+
+                # 处理微信二维码
+                if remove_wechat_qr:
+                    delete_old_qr(current_user.profile.wechat_qr)
+                    current_user.profile.wechat_qr = None
+                elif wechat_qr_path:
+                    delete_old_qr(current_user.profile.wechat_qr)
+                    current_user.profile.wechat_qr = wechat_qr_path
+
+                # 处理WhatsApp二维码
+                if remove_whatsapp_qr:
+                    delete_old_qr(current_user.profile.whatsapp_qr)
+                    current_user.profile.whatsapp_qr = None
+                elif whatsapp_qr_path:
+                    delete_old_qr(current_user.profile.whatsapp_qr)
+                    current_user.profile.whatsapp_qr = whatsapp_qr_path
             else:
                 # 如果用户没有资料，创建新的
                 profile = UserProfile(
@@ -192,16 +250,23 @@ def edit_profile():
                     position=position,
                     address=address
                 )
+                profile.wechat_id = wechat_id
+                profile.whatsapp = whatsapp
+                profile.is_public = is_public
+                if wechat_qr_path:
+                    profile.wechat_qr = wechat_qr_path
+                if whatsapp_qr_path:
+                    profile.whatsapp_qr = whatsapp_qr_path
                 db.session.add(profile)
-            
+
             db.session.commit()
             flash('资料更新成功', 'success')
             return redirect(url_for('staff.profile'))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-    
+
     return render_template('staff/edit_profile.html', user=current_user)
 
 @staff.route('/change-password', methods=['GET', 'POST'])

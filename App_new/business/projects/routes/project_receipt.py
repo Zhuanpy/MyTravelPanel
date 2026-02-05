@@ -1190,6 +1190,7 @@ def receipt_by_company():
     selected_company_id = request.args.get('company_id', type=int)
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
+    payment_status = request.args.get('payment_status', 'all')  # 付款状态筛选
 
     # 搜索结果
     unpaid_invoices = []
@@ -1202,9 +1203,16 @@ def receipt_by_company():
             # 查询未付发票（已确认且未全额付款）
             query = ProjectInvoice.query.join(ProjectHeader).filter(
                 ProjectHeader.company_id == selected_company_id,
-                ProjectInvoice.status == 'confirmed',
-                ProjectInvoice.payment_status.in_(['unpaid', 'partial_paid'])
+                ProjectInvoice.status == 'confirmed'
             )
+
+            # 付款状态筛选
+            if payment_status == 'unpaid':
+                query = query.filter(ProjectInvoice.payment_status == 'unpaid')
+            elif payment_status == 'partial_paid':
+                query = query.filter(ProjectInvoice.payment_status == 'partial_paid')
+            else:  # 'all' - 显示所有未付和部分付款
+                query = query.filter(ProjectInvoice.payment_status.in_(['unpaid', 'partial_paid']))
 
             # 日期筛选
             if date_from:
@@ -1373,6 +1381,7 @@ def receipt_by_company():
                           selected_company=selected_company,
                           date_from=date_from,
                           date_to=date_to,
+                          payment_status=payment_status,
                           unpaid_invoices=unpaid_invoices,
                           total_unpaid=total_unpaid,
                           today=date.today().strftime('%Y-%m-%d'))

@@ -376,21 +376,23 @@ def generate_form_for_project(project_id):
         
         # 检查项目必要字段
         missing_fields = []
-        if not project.hid_or_serial:
-            missing_fields.append('HID/序列号')
         if not project.applicant_name:
             missing_fields.append('申请人姓名')
         if not project.singapore_status:
             missing_fields.append('新加坡身份')
-            
+
         if missing_fields:
             current_app.logger.warning(f"项目信息不完整，缺少字段: {', '.join(missing_fields)}")
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'项目信息不完整，请确保以下字段已填写: {", ".join(missing_fields)}'
             }), 400
-        
-        # 生成表格的逻辑 - 直接使用数据库中保存的项目文件夹名称
+
+        # 如果没有HID，给出警告但不阻止（表格中HID字段会为空）
+        if not project.hid_or_serial:
+            current_app.logger.warning(f"项目没有HID/序列号，表格中该字段将为空")
+
+        # 生成表格的逻辑 - 优先使用数据库中保存的项目文件夹名称
         visa_folder = project.project_folder_name
         from App_new.config import Config
         static_path = Config.PROJECT_ROOT / "App_new" / "static"
@@ -2500,13 +2502,55 @@ def bulk_download_files():
 def copy_project(project_id):
     """复制签证项目（不复制HID和REF，会创建新的）"""
     try:
+        import shutil
+        from App_new.config import Config
+
         # 获取原项目
         original_project = VisaProject.query.get_or_404(project_id)
 
         # 生成新的项目文件夹名称
         from datetime import datetime
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        new_folder_name = f"{original_project.visa_type}_COPY_{timestamp}_{original_project.applicant_name}"
+        # 去除申请人姓名中的前后空格，避免文件夹名称问题
+        applicant_name = (original_project.applicant_name or '').strip()
+        new_folder_name = f"{original_project.visa_type}_COPY_{timestamp}_{applicant_name}"
+
+        # 创建新项目文件夹
+        new_project_folder = Config.VISA_PROJECTS_PATH / new_folder_name
+        os.makedirs(new_project_folder, exist_ok=True)
+        current_app.logger.info(f"创建新项目文件夹: {new_project_folder}")
+
+        # 复制原项目文件夹中的文件到新文件夹
+        original_folder_name = original_project.project_folder_name or original_project.name
+        original_project_folder = Config.VISA_PROJECTS_PATH / original_folder_name
+
+        files_copied = 0
+        if original_project_folder.exists():
+            for file in original_project_folder.iterdir():
+                if file.is_file():
+                    dst_path = new_project_folder / file.name
+                    shutil.copy2(file, dst_path)
+                    files_copied += 1
+                    current_app.logger.info(f"复制文件: {file.name}")
+            current_app.logger.info(f"共复制 {files_copied} 个文件")
+        else:
+            # 如果原项目文件夹不存在，从资源文件夹复制模板文件
+            current_app.logger.warning(f"原项目文件夹不存在: {original_project_folder}，尝试从资源文件夹复制")
+            visa_type = original_project.visa_type
+            singapore_status = original_project.singapore_status or 'PR'
+
+            source_path = Config.VISA_RESOURCES_PATH / visa_type
+            share_path = source_path / '共用资料'
+            id_path = source_path / singapore_status
+
+            for file_path in [share_path, id_path]:
+                if file_path.exists():
+                    for file in file_path.iterdir():
+                        if file.is_file():
+                            dst_path = new_project_folder / file.name
+                            shutil.copy2(file, dst_path)
+                            files_copied += 1
+            current_app.logger.info(f"从资源文件夹复制了 {files_copied} 个文件")
 
         # 创建新项目（复制基本信息，不复制HID和REF相关字段）
         new_project = VisaProject(
@@ -2517,8 +2561,8 @@ def copy_project(project_id):
         # 复制基本字段
         new_project.project_folder_name = new_folder_name
         new_project.visa_type = original_project.visa_type
-        new_project.applicant_name = original_project.applicant_name
-        new_project.contact_name = original_project.contact_name
+        new_project.applicant_name = applicant_name  # 使用去除空格后的姓名
+        new_project.contact_name = (original_project.contact_name or '').strip()
         new_project.singapore_status = original_project.singapore_status
         new_project.remarks = f"[复制自项目ID:{original_project.id}] {original_project.remarks or ''}"
         new_project.estimated_date = None  # 预估日期不复制，需要重新设置
@@ -2535,7 +2579,7 @@ def copy_project(project_id):
 
         return jsonify({
             'success': True,
-            'message': '项目复制成功',
+            'message': f'项目复制成功，已复制 {files_copied} 个文件',
             'new_project_id': new_project.id
         })
 
