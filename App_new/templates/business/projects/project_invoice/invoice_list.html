@@ -167,10 +167,11 @@
                         </th>
                         <th>发票号 Invoice No</th>
                         <th>项目 Project</th>
-                        <th>客户 Customer</th>
+                        <th>客户公司</th>
+                        <th>乘客</th>
                         <th>日期 Date</th>
-                        <th class="text-end">金额 Amount</th>
-                        <th class="text-end">已付/余额 Paid/Balance</th>
+                        <th>金额 Amount</th>
+                        <th>已付/余额 Paid/Balance</th>
                         <th>状态 Status</th>
                         <th>操作</th>
                     </tr>
@@ -196,25 +197,18 @@
                             <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}" class="text-decoration-none">
                                 {{ invoice.project_hid or '-' }}
                             </a>
-                            {% if invoice.company_name %}
-                            <br><small class="text-muted">{{ invoice.company_name }}</small>
-                            {% endif %}
                         </td>
-                        <td>
-                            {{ invoice.customer_name or '-' }}
-                            {% if invoice.customer_company %}
-                            <br><small class="text-muted">{{ invoice.customer_company }}</small>
-                            {% endif %}
-                        </td>
+                        <td>{{ invoice.customer_company or invoice.company_name or '-' }}</td>
+                        <td>{{ invoice.customer_name or '-' }}</td>
                         <td style="white-space: nowrap;">
                             {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}
                         </td>
-                        <td class="amount-cell fw-bold">
+                        <td class="fw-bold" style="white-space: nowrap;">
                             {{ invoice.currency }} {{ "%.2f"|format(invoice.amount or 0) }}
                         </td>
-                        <td class="amount-cell">
-                            <span class="amount-paid">+{{ "%.2f"|format(invoice.paid_amount or 0) }}</span>
-                            <br>
+                        <td style="white-space: nowrap;">
+                            <span class="amount-paid">{{ "%.2f"|format(invoice.paid_amount or 0) }}</span>
+                            <span class="text-muted">/</span>
                             {% if invoice.unpaid_amount > 0 %}
                             <span class="amount-unpaid fw-bold">{{ "%.2f"|format(invoice.unpaid_amount or 0) }}</span>
                             {% else %}
@@ -241,7 +235,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
+                        <td colspan="10" class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
                             <p class="mb-0">暂无发票数据 No invoices found</p>
                         </td>
