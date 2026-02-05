@@ -852,6 +852,43 @@ def todo_statistics():
             'message': f'获取统计失败: {str(e)}'
         }), 500
 
+# 获取当前用户逾期未完成的任务（用于全局提醒）
+@utils_blue.route('/todos/overdue')
+@login_required
+@staff_only
+def get_overdue_todos():
+    """获取当前用户已逾期未完成的任务"""
+    try:
+        from sqlalchemy import or_
+        now = datetime.now()
+
+        # 查询逾期未完成的任务（分配给当前用户的 + 当前用户创建但未分配的）
+        query = Todo.query.filter(
+            Todo.is_completed == False,
+            Todo.due_date.isnot(None),
+            Todo.due_date < now,
+            or_(
+                Todo.assigned_to == current_user.id,
+                (Todo.user_id == current_user.id) & (Todo.assigned_to.is_(None))
+            )
+        ).order_by(Todo.due_date.asc())
+
+        overdue_todos = query.all()
+
+        return jsonify({
+            'success': True,
+            'count': len(overdue_todos),
+            'todos': [todo.to_dict() for todo in overdue_todos]
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'获取逾期任务失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
 # 获取员工列表（用于任务分配）
 @utils_blue.route('/todos/staff-list')
 @login_required

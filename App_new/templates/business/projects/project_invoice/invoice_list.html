@@ -121,51 +121,37 @@
     <!-- 筛选栏 -->
     <div class="card mb-4">
         <div class="card-body py-2">
-            <form method="get" class="row g-2 align-items-center">
-                <div class="col-auto">
-                    <select name="payment_status" class="form-select form-select-sm">
-                        {% for value, label in payment_statuses %}
-                        <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <select name="status" class="form-select form-select-sm">
-                        {% for value, label in statuses %}
-                        <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <select name="company_id" class="form-select form-select-sm">
-                        <option value="">全部公司 All</option>
-                        {% for company in companies %}
-                        <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>
-                            {{ company.company_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <input type="date" name="start_date" class="form-control form-control-sm"
-                           value="{{ current_filters.start_date or '' }}" placeholder="开始日期">
-                </div>
-                <div class="col-auto">
-                    <input type="date" name="end_date" class="form-control form-control-sm"
-                           value="{{ current_filters.end_date or '' }}" placeholder="结束日期">
-                </div>
-                <div class="col-auto">
-                    <input type="text" name="keyword" class="form-control form-control-sm"
-                           value="{{ current_filters.keyword or '' }}" placeholder="发票号/项目号/客户...">
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-filter me-1"></i>筛选
-                    </button>
-                    <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-undo me-1"></i>重置
-                    </a>
-                </div>
+            <form method="get" class="d-flex flex-nowrap align-items-center gap-2">
+                <select name="payment_status" class="form-select form-select-sm" style="width: 130px;">
+                    {% for value, label in payment_statuses %}
+                    <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" class="form-select form-select-sm" style="width: 120px;">
+                    {% for value, label in statuses %}
+                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="company_id" class="form-select form-select-sm" style="width: 180px;">
+                    <option value="">全部公司 All</option>
+                    {% for company in companies %}
+                    <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>
+                        {{ company.company_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="start_date" class="form-control form-control-sm" style="width: 140px;"
+                       value="{{ current_filters.start_date or '' }}">
+                <input type="date" name="end_date" class="form-control form-control-sm" style="width: 140px;"
+                       value="{{ current_filters.end_date or '' }}">
+                <input type="text" name="keyword" class="form-control form-control-sm" style="width: 180px;"
+                       value="{{ current_filters.keyword or '' }}" placeholder="发票号/项目号/客户">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-filter me-1"></i>筛选
+                </button>
+                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-undo me-1"></i>重置
+                </a>
             </form>
         </div>
     </div>

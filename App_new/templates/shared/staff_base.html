@@ -822,5 +822,97 @@
     </script>
     
     {% block extra_js %}{% endblock %}
+
+    <!-- 逾期任务提醒弹窗 -->
+    <div class="modal fade" id="overdueTasksModal" tabindex="-1" aria-labelledby="overdueTasksModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="overdueTasksModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>逾期任务提醒
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">您有 <strong id="overdueCount" class="text-danger fs-4">0</strong> 个任务已逾期，请尽快处理：</p>
+                    <div id="overdueTasksList" style="max-height: 300px; overflow-y: auto;">
+                        <!-- 逾期任务列表将在这里动态生成 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">稍后处理</button>
+                    <a href="{{ url_for('utils_blue.render_todo_list') }}" class="btn btn-danger">
+                        <i class="fas fa-tasks me-1"></i>前往任务列表
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 逾期任务提醒检查
+        (function() {
+            // 使用 sessionStorage 避免同一会话重复提醒
+            const REMINDER_KEY = 'overdue_tasks_reminded';
+
+            // 如果本次会话已经提醒过，则不再提醒
+            if (sessionStorage.getItem(REMINDER_KEY)) {
+                return;
+            }
+
+            // 页面加载完成后检查逾期任务
+            document.addEventListener('DOMContentLoaded', function() {
+                fetch('/utils/todos/overdue')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.count > 0) {
+                            // 更新弹窗内容
+                            document.getElementById('overdueCount').textContent = data.count;
+
+                            // 生成任务列表
+                            const listContainer = document.getElementById('overdueTasksList');
+                            let html = '<ul class="list-group">';
+                            data.todos.slice(0, 5).forEach(todo => {
+                                const dueDate = todo.due_date ? new Date(todo.due_date).toLocaleDateString('zh-CN') : '未设置';
+                                const priorityClass = todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info');
+                                const priorityText = todo.priority === 1 ? '高' : (todo.priority === 2 ? '中' : '低');
+                                html += `
+                                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                                        <div class="ms-2 me-auto">
+                                            <div class="fw-bold">${escapeHtml(todo.title)}</div>
+                                            <small class="text-muted">截止: ${dueDate}</small>
+                                        </div>
+                                        <span class="badge bg-${priorityClass}">${priorityText}</span>
+                                    </li>
+                                `;
+                            });
+                            if (data.count > 5) {
+                                html += `<li class="list-group-item text-center text-muted">还有 ${data.count - 5} 个逾期任务...</li>`;
+                            }
+                            html += '</ul>';
+                            listContainer.innerHTML = html;
+
+                            // 显示弹窗
+                            const modal = new bootstrap.Modal(document.getElementById('overdueTasksModal'));
+                            modal.show();
+
+                            // 标记本次会话已提醒
+                            sessionStorage.setItem(REMINDER_KEY, 'true');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('检查逾期任务失败:', error);
+                    });
+            });
+
+            // HTML转义函数
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        })();
+    </script>
 </body>
 </html>
