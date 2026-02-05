@@ -321,12 +321,12 @@ def list_projects():
                     # 条件1：有REF且所有REF都有发票
                     ref_count_subq.c.ref_count > 0,
                     ref_count_subq.c.ref_count == db.func.coalesce(invoiced_ref_subq.c.invoiced_count, 0),
-                    # 条件2：所有EO已付款（或没有EO）
-                    db.or_(
-                        eo_count_subq.c.eo_count.is_(None),  # 没有EO
-                        eo_count_subq.c.eo_count == db.func.coalesce(paid_eo_subq.c.paid_count, 0)
-                    ),
-                    # 条件3：Balance = 0
+                    # 条件2：所有REF都生成了EO
+                    ref_count_subq.c.ref_count == db.func.coalesce(eo_count_subq.c.eo_count, 0),
+                    # 条件3：所有EO已付款
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) > 0,
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) == db.func.coalesce(paid_eo_subq.c.paid_count, 0),
+                    # 条件4：Balance = 0
                     db.func.abs(
                         db.func.coalesce(selling_subq.c.total_selling, 0) -
                         db.func.coalesce(receipt_subq.c.total_received, 0)
@@ -416,12 +416,15 @@ def list_projects():
                 ).outerjoin(
                     receipt_subq, receipt_subq.c.header_id == ref_count_subq.c.header_id
                 ).filter(
+                    # 条件1：有REF且所有REF都有发票
                     ref_count_subq.c.ref_count > 0,
                     ref_count_subq.c.ref_count == db.func.coalesce(invoiced_ref_subq.c.invoiced_count, 0),
-                    db.or_(
-                        eo_count_subq.c.eo_count.is_(None),
-                        eo_count_subq.c.eo_count == db.func.coalesce(paid_eo_subq.c.paid_count, 0)
-                    ),
+                    # 条件2：所有REF都生成了EO
+                    ref_count_subq.c.ref_count == db.func.coalesce(eo_count_subq.c.eo_count, 0),
+                    # 条件3：所有EO已付款
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) > 0,
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) == db.func.coalesce(paid_eo_subq.c.paid_count, 0),
+                    # 条件4：Balance = 0
                     db.func.abs(
                         db.func.coalesce(selling_subq.c.total_selling, 0) -
                         db.func.coalesce(receipt_subq.c.total_received, 0)
@@ -795,12 +798,13 @@ def list_projects():
                     eo_count = eo_count_dict.get(project_id, 0)
                     paid_eo_count = paid_eo_dict.get(project_id, 0)
 
-                    # 可结算条件：所有REF有发票 且 所有EO已付款 且 Balance=0
+                    # 可结算条件：所有REF生成EO 且 所有EO已付款 且 所有REF有发票 且 Balance=0
+                    all_refs_have_eo = ref_count > 0 and ref_count == eo_count
+                    all_eos_paid = eo_count > 0 and eo_count == paid_eo_count
                     all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
-                    all_eos_paid = eo_count == 0 or (eo_count > 0 and eo_count == paid_eo_count)
                     balance_cleared = abs(balance) < 0.01  # 考虑浮点精度
 
-                    can_settle = all_refs_invoiced and all_eos_paid and balance_cleared
+                    can_settle = all_refs_have_eo and all_eos_paid and all_refs_invoiced and balance_cleared
 
                     project_stats[project_id] = {
                         'total_selling_price': total_selling,
@@ -1133,11 +1137,13 @@ def list_projects():
                         eo_count = eo_count_dict.get(project_id, 0)
                         paid_eo_count = paid_eo_dict.get(project_id, 0)
 
+                        # 可结算条件：所有REF生成EO 且 所有EO已付款 且 所有REF有发票 且 Balance=0
+                        all_refs_have_eo = ref_count > 0 and ref_count == eo_count
+                        all_eos_paid = eo_count > 0 and eo_count == paid_eo_count
                         all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
-                        all_eos_paid = eo_count == 0 or (eo_count > 0 and eo_count == paid_eo_count)
                         balance_cleared = abs(balance) < 0.01
 
-                        can_settle = all_refs_invoiced and all_eos_paid and balance_cleared
+                        can_settle = all_refs_have_eo and all_eos_paid and all_refs_invoiced and balance_cleared
 
                         # 更新现有的统计数据
                         if project_id in project_stats:
