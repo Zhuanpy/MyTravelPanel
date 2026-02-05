@@ -621,21 +621,34 @@ class ProjectHeader(db.Model):
 
     @property
     def can_settle(self):
-        """判断项目是否可结算（所有 REF 的款项已收齐）
+        """判断项目是否可结算
 
         可结算条件：
-        - 项目有 REF 记录
-        - 所有 REF 的 payment_status 都是 'paid'
         - 项目尚未结算 (is_settled = False)
+        - 项目有 REF 记录
+        - 所有 REF 都已生成 EO
+        - 所有 EO 都已完成付款 (is_paid = True)
+        - 所有 REF 的 payment_status 都是 'paid'（收款已完成）
         """
         if self.is_settled:
             return False  # 已结算的项目不再显示为可结算
 
-        refs = self.refs
+        refs = list(self.refs)
         if not refs:
             return False  # 没有 REF 的项目不可结算
 
-        return all(ref.payment_status == 'paid' for ref in refs)
+        for ref in refs:
+            # 检查是否生成了 EO
+            if not ref.eos:
+                return False  # 有 REF 未生成 EO
+            # 检查 EO 是否已付款
+            if not ref.eos.is_paid:
+                return False  # 有 EO 未完成付款
+            # 检查 REF 收款状态
+            if ref.payment_status != 'paid':
+                return False  # 有 REF 未收齐款项
+
+        return True
 
 
 class EmailTemplate(db.Model):
