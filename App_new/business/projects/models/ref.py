@@ -2,6 +2,7 @@
 """REF相关模型 - 项目REF订单和订单项"""
 
 from App_new.exts import db
+from sqlalchemy import event
 from datetime import datetime
 
 
@@ -351,3 +352,26 @@ class RefOrderItem(db.Model):
     def calculate_total(self):
         """计算总价"""
         return float(self.unit_price * self.quantity)
+
+
+# ---- SQLAlchemy 事件监听：REF变更时自动更新项目type字段 ----
+
+def _update_header_type(mapper, connection, target):
+    """REF创建/修改后，更新所属项目的type字段"""
+    from .project import ProjectHeader
+    header = ProjectHeader.query.get(target.header_id)
+    if header:
+        header.update_type_from_refs()
+
+
+def _update_header_type_after_delete(mapper, connection, target):
+    """REF删除后，更新所属项目的type字段"""
+    from .project import ProjectHeader
+    header = ProjectHeader.query.get(target.header_id)
+    if header:
+        header.update_type_from_refs()
+
+
+event.listen(ProjectRef, 'after_insert', _update_header_type)
+event.listen(ProjectRef, 'after_update', _update_header_type)
+event.listen(ProjectRef, 'after_delete', _update_header_type_after_delete)

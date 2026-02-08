@@ -619,6 +619,45 @@ class ProjectHeader(db.Model):
             'total': total_count
         }
 
+    def update_type_from_refs(self):
+        """根据项目REF的业务类型自动更新项目type字段
+
+        规则：
+        - 所有REF类型相同 → 使用该类型的code
+        - 任何REF包含tour类型 → 使用 'tour'
+        - 其它混合类型 → 使用 'package'
+        """
+        from .ref import ProjectRef
+        from App_new.shared.models.business_types import BusinessType
+
+        # 获取所有未取消的REF的业务类型code
+        refs = ProjectRef.query.filter(
+            ProjectRef.header_id == self.id,
+            ProjectRef.status != 'cancelled'
+        ).all()
+
+        if not refs:
+            return
+
+        type_codes = set()
+        for ref in refs:
+            bt = BusinessType.query.get(ref.ref_type_id)
+            if bt:
+                type_codes.add(bt.code)
+
+        if not type_codes:
+            return
+
+        # 所有REF类型相同
+        if len(type_codes) == 1:
+            self.type = type_codes.pop()
+        # 包含tour类型
+        elif 'tour' in type_codes:
+            self.type = 'tour'
+        # 混合类型
+        else:
+            self.type = 'package'
+
     @property
     def can_settle(self):
         """判断项目是否可结算

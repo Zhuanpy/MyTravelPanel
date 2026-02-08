@@ -52,12 +52,12 @@
         </div>
         <div class="card-body">
             <style>
-            /* 过滤表单采用10列栅格布局 */
-            #filterForm .filter-grid { display: grid; grid-template-columns: repeat(10, minmax(90px, 1fr)); gap: 8px 12px; }
+            /* 过滤表单采用11列栅格布局 */
+            #filterForm .filter-grid { display: grid; grid-template-columns: repeat(11, minmax(80px, 1fr)); gap: 6px 8px; }
             #filterForm .filter-item { margin-bottom: 0; }
-            #filterForm .filter-item .form-label { font-size: 12px; margin-bottom: 4px; }
-            #filterForm .filter-item .form-control, 
-            #filterForm .filter-item .form-select { padding: 0.25rem 0.5rem; height: 32px; }
+            #filterForm .filter-item .form-label { font-size: 11px; margin-bottom: 2px; }
+            #filterForm .filter-item .form-control,
+            #filterForm .filter-item .form-select { padding: 0.2rem 0.4rem; height: 30px; font-size: 12px; }
             @media (max-width: 1400px) { #filterForm .filter-grid { grid-template-columns: repeat(8, 1fr); } }
             @media (max-width: 1200px) { #filterForm .filter-grid { grid-template-columns: repeat(6, 1fr); } }
             @media (max-width: 992px)  { #filterForm .filter-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -85,18 +85,19 @@
             }
             /* 列宽设置 */
             #projectsTable th:nth-child(1), #projectsTable td:nth-child(1) { width: 6%; }   /* 项目编号 */
-            #projectsTable th:nth-child(2), #projectsTable td:nth-child(2) { width: 10%; }  /* 描述 */
-            #projectsTable th:nth-child(3), #projectsTable td:nth-child(3) { width: 6%; }   /* 乘客 */
-            #projectsTable th:nth-child(4), #projectsTable td:nth-child(4) { width: 12%; }  /* 客户公司 */
-            #projectsTable th:nth-child(5), #projectsTable td:nth-child(5) { width: 6%; }   /* 联系人 */
-            #projectsTable th:nth-child(6), #projectsTable td:nth-child(6) { width: 6%; }   /* 经办人 */
-            #projectsTable th:nth-child(7), #projectsTable td:nth-child(7) { width: 8%; }   /* 销售金额 */
-            #projectsTable th:nth-child(8), #projectsTable td:nth-child(8) { width: 8%; }   /* 成本 */
-            #projectsTable th:nth-child(9), #projectsTable td:nth-child(9) { width: 7%; }   /* 利润 */
-            #projectsTable th:nth-child(10), #projectsTable td:nth-child(10) { width: 7%; } /* 未付款 */
-            #projectsTable th:nth-child(11), #projectsTable td:nth-child(11) { width: 6%; } /* 结算 */
-            #projectsTable th:nth-child(12), #projectsTable td:nth-child(12) { width: 7%; } /* 创建时间 */
-            #projectsTable th:nth-child(13), #projectsTable td:nth-child(13) { width: 4%; } /* 操作 */
+            #projectsTable th:nth-child(2), #projectsTable td:nth-child(2) { width: 5%; }   /* 类型 */
+            #projectsTable th:nth-child(3), #projectsTable td:nth-child(3) { width: 9%; }   /* 描述 */
+            #projectsTable th:nth-child(4), #projectsTable td:nth-child(4) { width: 6%; }   /* 乘客 */
+            #projectsTable th:nth-child(5), #projectsTable td:nth-child(5) { width: 11%; }  /* 客户公司 */
+            #projectsTable th:nth-child(6), #projectsTable td:nth-child(6) { width: 6%; }   /* 联系人 */
+            #projectsTable th:nth-child(7), #projectsTable td:nth-child(7) { width: 6%; }   /* 经办人 */
+            #projectsTable th:nth-child(8), #projectsTable td:nth-child(8) { width: 8%; }   /* 销售金额 */
+            #projectsTable th:nth-child(9), #projectsTable td:nth-child(9) { width: 7%; }   /* 成本 */
+            #projectsTable th:nth-child(10), #projectsTable td:nth-child(10) { width: 7%; } /* 利润 */
+            #projectsTable th:nth-child(11), #projectsTable td:nth-child(11) { width: 7%; } /* 未付款 */
+            #projectsTable th:nth-child(12), #projectsTable td:nth-child(12) { width: 6%; } /* 结算 */
+            #projectsTable th:nth-child(13), #projectsTable td:nth-child(13) { width: 7%; } /* 创建时间 */
+            #projectsTable th:nth-child(14), #projectsTable td:nth-child(14) { width: 4%; } /* 操作 */
             </style>
 
             <form method="GET" action="{{ url_for('business_projects.list.list_projects') }}" id="filterForm">
@@ -115,6 +116,21 @@
                         <label for="contact" class="form-label">联系人</label>
                         <input type="text" class="form-control filter-input" id="contact" name="contact" 
                                value="{{ filters.contact }}" placeholder="联系人姓名...">
+                    </div>
+                    <div class="filter-item">
+                        <label for="type" class="form-label">项目类型</label>
+                        <select class="form-select filter-input" id="type" name="type">
+                            <option value="">全部类型</option>
+                            <option value="flight" {{ 'selected' if filters.type == 'flight' }}>Flight</option>
+                            <option value="hotel" {{ 'selected' if filters.type == 'hotel' }}>Hotel</option>
+                            <option value="visa" {{ 'selected' if filters.type == 'visa' }}>Visa</option>
+                            <option value="tour" {{ 'selected' if filters.type == 'tour' }}>Tour</option>
+                            <option value="package" {{ 'selected' if filters.type == 'package' }}>Package</option>
+                            <option value="insurance" {{ 'selected' if filters.type == 'insurance' }}>Insurance</option>
+                            <option value="transport" {{ 'selected' if filters.type == 'transport' }}>Transport</option>
+                            <option value="attraction" {{ 'selected' if filters.type == 'attraction' }}>Attraction</option>
+                            <option value="other" {{ 'selected' if filters.type == 'other' }}>Other</option>
+                        </select>
                     </div>
                     <div class="filter-item">
                         <label for="payment_status" class="form-label">付款状态</label>
@@ -199,6 +215,7 @@
                     <thead>
                         <tr>
                             <th>项目编号</th>
+                            <th>类型</th>
                             <th>描述</th>
                             <th>乘客</th>
                             <th>客户公司</th>
@@ -226,6 +243,56 @@
                                    data-project-id="{{ project.id }}"
                                    data-project-hid="{{ project.hid }}"
                                    title="复制项目"></i>
+                            </td>
+                            <td>
+                                {% set type_map = {
+                                    'flight': 'Flight',
+                                    'hotel': 'Hotel',
+                                    'visa': 'Visa',
+                                    'tour': 'Tour',
+                                    'insurance': 'Insurance',
+                                    'transport': 'Transport',
+                                    'attraction': 'Attraction',
+                                    'car': 'Car Rental',
+                                    'cruise': 'Cruise',
+                                    'ferry': 'Ferry',
+                                    'land_tour': 'Land Tour',
+                                    'rail_coach': 'Rail/Coach',
+                                    'service_fee': 'Service Fee',
+                                    'ticket': 'Ticket',
+                                    'transfer': 'Transfer',
+                                    'tour_package': 'Tour Package',
+                                    'package': 'Package',
+                                    'voucher': 'Voucher',
+                                    'other': 'Other'
+                                } %}
+                                {% set type_color = {
+                                    'flight': '#0d6efd',
+                                    'hotel': '#0dcaf0',
+                                    'visa': '#ffc107',
+                                    'tour': '#198754',
+                                    'package': '#7c3aed',
+                                    'insurance': '#fd7e14',
+                                    'transport': '#20c997',
+                                    'attraction': '#e91e8c',
+                                    'car': '#0aa5c2',
+                                    'cruise': '#1565c0',
+                                    'ferry': '#00838f',
+                                    'land_tour': '#2e7d32',
+                                    'rail_coach': '#4e342e',
+                                    'service_fee': '#546e7a',
+                                    'ticket': '#d81b60',
+                                    'transfer': '#00897b',
+                                    'voucher': '#8e24aa',
+                                    'other': '#5c6bc0'
+                                } %}
+                                {% if project.type %}
+                                <span class="badge" style="font-size: 11px; background-color: {{ type_color.get(project.type, '#5c6bc0') }}; {{ 'color: #212529;' if project.type in ['visa'] else '' }}">
+                                    {{ type_map.get(project.type, project.type) }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
                             </td>
                             <td title="{{ project.display_desc or '-' }}">{{ project.display_desc or '-' }}</td>
                             <td>{{ project.leader_member_name or '-' }}</td>
@@ -305,7 +372,7 @@
                         <!-- 总计行 -->
                         {% if projects and summary_stats %}
                         <tr class="table-info fw-bold">
-                            <td colspan="6" class="text-end">总计：</td>
+                            <td colspan="7" class="text-end">总计：</td>
                             <td>
                                 <span class="text-success">
                                     S${{ "%.2f"|format(summary_stats.total_selling or 0) }}
@@ -350,7 +417,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, sort_by=filters.sort_by) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     </li>
@@ -360,7 +427,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, sort_by=filters.sort_by) }}">
+                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -378,7 +445,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, sort_by=filters.sort_by) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

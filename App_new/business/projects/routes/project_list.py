@@ -1201,6 +1201,7 @@ def list_projects():
                 'leader': leader,
                 'contact': contact,
                 'staff_name': staff_name,
+                'type': project_type,
                 'date_from': date_from,
                 'date_to': date_to,
                 'selling_min': selling_min,
