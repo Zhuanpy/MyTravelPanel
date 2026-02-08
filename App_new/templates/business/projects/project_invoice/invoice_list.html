@@ -320,6 +320,21 @@ function exportData(format) {
     window.location.href = '{{ url_for("business_projects.project_invoice.export_invoices") }}?' + params.toString();
 }
 
+// 跨页选择状态管理（使用 sessionStorage 持久化）
+const STORAGE_KEY = 'invoice_selected';
+
+function getSelectedMap() {
+    try {
+        return JSON.parse(sessionStorage.getItem(STORAGE_KEY)) || {};
+    } catch(e) {
+        return {};
+    }
+}
+
+function saveSelectedMap(map) {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const invoiceCheckboxes = document.querySelectorAll('.invoice-checkbox');
@@ -327,19 +342,50 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedCountEl = document.getElementById('selectedCount');
     const selectedAmountEl = document.getElementById('selectedAmount');
 
+    // 页面加载时，从 sessionStorage 恢复当前页的选中状态
+    const selectedMap = getSelectedMap();
+    invoiceCheckboxes.forEach(cb => {
+        const id = cb.dataset.id;
+        if (selectedMap[id]) {
+            cb.checked = true;
+        }
+    });
+    updateSelectAll();
+    updateBatchPanel();
+
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            invoiceCheckboxes.forEach(cb => cb.checked = this.checked);
+            invoiceCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+                syncCheckboxToStorage(cb);
+            });
             updateBatchPanel();
         });
     }
 
     invoiceCheckboxes.forEach(cb => {
         cb.addEventListener('change', function() {
+            syncCheckboxToStorage(this);
             updateSelectAll();
             updateBatchPanel();
         });
     });
+
+    // 将单个 checkbox 状态同步到 sessionStorage
+    function syncCheckboxToStorage(cb) {
+        const map = getSelectedMap();
+        const id = cb.dataset.id;
+        if (cb.checked) {
+            map[id] = {
+                amount: parseFloat(cb.dataset.amount) || 0,
+                unpaid: parseFloat(cb.dataset.unpaid) || 0,
+                currency: cb.dataset.currency
+            };
+        } else {
+            delete map[id];
+        }
+        saveSelectedMap(map);
+    }
 
     function updateSelectAll() {
         if (!selectAllCheckbox) return;
@@ -349,17 +395,19 @@ document.addEventListener('DOMContentLoaded', function() {
         selectAllCheckbox.indeterminate = checked > 0 && checked < total;
     }
 
+    // 根据 sessionStorage 中所有已选发票更新底部面板
     function updateBatchPanel() {
-        const checkedBoxes = document.querySelectorAll('.invoice-checkbox:checked');
-        const count = checkedBoxes.length;
+        const map = getSelectedMap();
+        const ids = Object.keys(map);
+        const count = ids.length;
 
         if (count > 0) {
             let totalUnpaid = 0;
             let currencies = new Set();
 
-            checkedBoxes.forEach(cb => {
-                totalUnpaid += parseFloat(cb.dataset.unpaid) || 0;
-                currencies.add(cb.dataset.currency);
+            ids.forEach(id => {
+                totalUnpaid += map[id].unpaid || 0;
+                currencies.add(map[id].currency);
             });
 
             selectedCountEl.textContent = count;
@@ -376,18 +424,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function clearSelection() {
+    sessionStorage.removeItem(STORAGE_KEY);
     document.querySelectorAll('.invoice-checkbox').forEach(cb => cb.checked = false);
     document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
     document.getElementById('batchPanel').classList.remove('show');
 }
 
 function goToBatchReceipt() {
-    const checkedBoxes = document.querySelectorAll('.invoice-checkbox:checked');
-    if (checkedBoxes.length === 0) {
+    const map = getSelectedMap();
+    const invoiceIds = Object.keys(map);
+    if (invoiceIds.length === 0) {
         alert('请至少选择一张发票');
         return;
     }
-    const invoiceIds = Array.from(checkedBoxes).map(cb => cb.dataset.id);
+    // 跳转后清除选择状态
+    sessionStorage.removeItem(STORAGE_KEY);
     window.location.href = '{{ url_for("business_projects.project_receipt.batch_invoice_receipt") }}?invoice_ids=' + invoiceIds.join(',');
 }
 </script>
