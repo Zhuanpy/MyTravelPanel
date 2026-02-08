@@ -198,7 +198,7 @@
                                 {{ invoice.project_hid or '-' }}
                             </a>
                         </td>
-                        <td>{{ invoice.customer_company or invoice.company_name or '-' }}</td>
+                        <td>{{ invoice.company_name or invoice.customer_company or '-' }}</td>
                         <td>{{ invoice.customer_name or '-' }}</td>
                         <td style="white-space: nowrap;">
                             {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}

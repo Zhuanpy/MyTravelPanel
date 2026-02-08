@@ -2,9 +2,11 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
+from App_new.business.projects.models.invoice import ProjectInvoice
 from ..services.project_service import ProjectService
 from ..forms.project_forms import ProjectEditForm
 from App_new.utils.decorators import staff_only
+from App_new.exts import db
 from datetime import datetime
 import traceback
 
@@ -53,6 +55,19 @@ def edit_project(project_id):
                 success = project_service.update_project(project_id, update_data)
 
                 if success:
+                    # 同步更新关联发票的客户公司信息
+                    new_company_id = form.company_id.data if form.company_id.data != 0 else None
+                    if new_company_id:
+                        company = CustomerCompany.query.get(new_company_id)
+                        new_company_name = company.company_name if company else None
+                    else:
+                        new_company_name = '个人'
+
+                    ProjectInvoice.query.filter_by(header_id=project_id).update(
+                        {'customer_company': new_company_name}
+                    )
+                    db.session.commit()
+
                     flash(f'项目 {project.hid} 更新成功！', 'success')
                     return redirect(url_for('business_projects.detail.project_detail', project_id=project_id))
                 else:
