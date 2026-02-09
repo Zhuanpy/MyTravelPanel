@@ -100,6 +100,49 @@ def fix_project_types():
 
         db.session.flush()
 
+        # ========== 第2.5步：修复有机票数据但 ref_type_id 指向错误类型的 REF ==========
+        print("\n--- 第2.5步：修复机票REF的类型指向 ---")
+        from App_new.business.flight.models.flight import ProjectFlightSegment, ProjectFlightPassenger
+
+        # 找到所有有航段数据的 REF ID
+        refs_with_segments = db.session.query(ProjectFlightSegment.ref_id).distinct().all()
+        refs_with_passengers = db.session.query(ProjectFlightPassenger.ref_id).distinct().all()
+        flight_ref_ids = set(r[0] for r in refs_with_segments) | set(r[0] for r in refs_with_passengers)
+        print(f"共发现 {len(flight_ref_ids)} 条有机票数据（航段/乘客）的 REF")
+
+        # 检查这些 REF 中 ref_type_id 不是 flight 的
+        wrong_type_refs = ProjectRef.query.filter(
+            ProjectRef.id.in_(flight_ref_ids),
+            ProjectRef.ref_type_id != standard_flight.id
+        ).all()
+
+        if wrong_type_refs:
+            print(f"其中 {len(wrong_type_refs)} 条 REF 的类型指向不正确，修复中:")
+            for ref in wrong_type_refs:
+                wrong_bt = BusinessType.query.get(ref.ref_type_id)
+                wrong_code = wrong_bt.code if wrong_bt else 'NULL'
+                print(f"  REF id={ref.id} ref_number='{ref.ref_number}': ref_type '{wrong_code}' → 'flight'")
+                ref.ref_type_id = standard_flight.id
+        else:
+            print("所有有机票数据的 REF 类型指向正确")
+
+        # 同时检查 extra_info 中 book_type 为 Air/Airline 的 REF
+        import json
+        air_type_refs = ProjectRef.query.filter(
+            ProjectRef.extra_info.ilike('%"book_type": "Air%'),
+            ProjectRef.ref_type_id != standard_flight.id
+        ).all()
+
+        if air_type_refs:
+            print(f"发现 {len(air_type_refs)} 条 extra_info 标记为 Air/Airline 但类型不正确的 REF:")
+            for ref in air_type_refs:
+                wrong_bt = BusinessType.query.get(ref.ref_type_id)
+                wrong_code = wrong_bt.code if wrong_bt else 'NULL'
+                print(f"  REF id={ref.id} ref_number='{ref.ref_number}': ref_type '{wrong_code}' → 'flight'")
+                ref.ref_type_id = standard_flight.id
+
+        db.session.flush()
+
         # ========== 第3步：重新计算所有项目的 type ==========
         print("\n--- 第3步：重新计算项目 type ---")
         projects = ProjectHeader.query.all()
