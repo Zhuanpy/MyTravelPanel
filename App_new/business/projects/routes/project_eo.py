@@ -38,6 +38,15 @@ def create_eo(ref_id):
                 status=form.status.data
             )
             db.session.add(eo)
+
+            # 根据当前REF描述更新项目描述
+            header = ref.header
+            if header:
+                active_refs = [r for r in header.refs if r.status != 'cancelled']
+                ref_descs = [r.description for r in active_refs if r.description]
+                if ref_descs:
+                    header.desc = ' / '.join(ref_descs)
+
             db.session.commit()
             flash('EO子明细创建成功！', 'success')
             return redirect(url_for('project_ref.ref_detail', ref_id=ref.id))
