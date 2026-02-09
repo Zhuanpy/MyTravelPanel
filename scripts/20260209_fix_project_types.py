@@ -2,15 +2,15 @@
 """
 修复项目类型数据不一致问题
 
-问题：
-1. 数据库中可能存在多条 name='机票' 的 BusinessType 记录，code 不同（如 'flight' 和 'airline'）
-2. 部分 REF 引用了错误的 BusinessType，导致项目 type 被设置为 'airline' 或 'other'
-3. Athina 导入映射 'Air' → 'air_ticket' 不存在，已修正为 'flight'
+数据库现状：
+  id=1, code='airline', name='机票'      → 应改为 code='flight'
+  id=9, code='miscellaneous', name='其他' → 应改为 code='other'
+  id=10, code='Train', name='火车'        → 应改为 code='train'（小写）
+  多条记录缺少 name_en
 
 修复逻辑：
-1. 检查并合并重复的 BusinessType 记录（保留 code='flight' 的标准记录）
-2. 将引用旧记录的 REF 更新为引用正确的 BusinessType
-3. 重新计算所有项目的 type 字段
+1. 修正 BusinessType 的 code 和 name_en 值
+2. 重新计算所有项目的 type 字段
 
 运行方式: python scripts/20260209_fix_project_types.py
 """
@@ -24,11 +24,27 @@ from App_new import create_app
 from App_new.exts import db
 
 
+# code 修正映射：旧code → (新code, name_en, product_code_prefix)
+CODE_FIXES = {
+    'airline': ('flight', 'Flight', 'FLT'),
+    'miscellaneous': ('other', 'Other', 'OTH'),
+    'Train': ('train', 'Train', 'TRN'),
+    'coach': ('coach', 'Coach', 'COH'),
+}
+
+# 补全缺失的 name_en（针对 name_en 为 None 的记录）
+NAME_EN_FIXES = {
+    'flight': 'Flight',
+    'other': 'Other',
+    'train': 'Train',
+    'coach': 'Coach',
+}
+
+
 def fix_project_types():
     app = create_app()
 
     with app.app_context():
-        from sqlalchemy import text
         from App_new.shared.models.business_types import BusinessType
         from App_new.business.projects.models.project import ProjectHeader
         from App_new.business.projects.models.ref import ProjectRef
@@ -37,114 +53,74 @@ def fix_project_types():
         print("修复项目类型数据")
         print("=" * 60)
 
-        # ========== 第1步：检查 BusinessType 数据 ==========
-        print("\n--- 第1步：检查 BusinessType 数据 ---")
-        all_types = BusinessType.query.all()
-        print(f"共有 {len(all_types)} 条 BusinessType 记录:")
+        # ========== 第1步：显示当前 BusinessType 数据 ==========
+        print("\n--- 第1步：当前 BusinessType 数据 ---")
+        all_types = BusinessType.query.order_by(BusinessType.id).all()
+        print(f"共有 {len(all_types)} 条记录:")
         for bt in all_types:
+            ref_count = ProjectRef.query.filter_by(ref_type_id=bt.id).count()
+            print(f"  id={bt.id}, code='{bt.code}', name='{bt.name}', name_en='{bt.name_en}', refs={ref_count}")
+
+        # ========== 第2步：修正 BusinessType 的 code 和 name_en ==========
+        print("\n--- 第2步：修正 BusinessType code 和 name_en ---")
+        fixed_count = 0
+
+        for bt in all_types:
+            changed = False
+
+            # 修正 code
+            if bt.code in CODE_FIXES:
+                new_code, new_name_en, new_prefix = CODE_FIXES[bt.code]
+                old_code = bt.code
+                bt.code = new_code
+                bt.name_en = new_name_en
+                if not bt.product_code_prefix:
+                    bt.product_code_prefix = new_prefix
+                print(f"  id={bt.id}: code '{old_code}' → '{new_code}', name_en → '{new_name_en}'")
+                changed = True
+
+            # 补全缺失的 name_en
+            elif bt.name_en is None or bt.name_en == 'None':
+                new_name_en = NAME_EN_FIXES.get(bt.code, bt.code.replace('_', ' ').title())
+                bt.name_en = new_name_en
+                print(f"  id={bt.id}: 补全 name_en → '{new_name_en}'")
+                changed = True
+
+            if changed:
+                fixed_count += 1
+
+        if fixed_count == 0:
+            print("  所有记录已是正确状态")
+
+        db.session.flush()
+
+        # ========== 第3步：添加缺失的标准业务类型 ==========
+        print("\n--- 第3步：检查缺失的标准业务类型 ---")
+        existing_codes = {bt.code for bt in BusinessType.query.all()}
+        missing_types = [
+            {'code': 'transport', 'name': '交通', 'name_en': 'Transport', 'product_code_prefix': 'TRP', 'sort_order': 6},
+            {'code': 'tour_package', 'name': '旅游套餐', 'name_en': 'Tour Package', 'product_code_prefix': 'PKG', 'sort_order': 16},
+            {'code': 'rail_coach', 'name': '火车/大巴', 'name_en': 'Rail/Coach', 'product_code_prefix': 'TRN', 'sort_order': 12},
+        ]
+
+        for type_info in missing_types:
+            if type_info['code'] not in existing_codes:
+                new_type = BusinessType(**type_info, is_active=True)
+                db.session.add(new_type)
+                print(f"  新增: code='{type_info['code']}', name='{type_info['name']}'")
+            else:
+                print(f"  已存在: code='{type_info['code']}'")
+
+        db.session.flush()
+
+        # ========== 第4步：重新计算所有项目的 type ==========
+        print("\n--- 第4步：重新计算项目 type ---")
+
+        # 先显示修正后的 BusinessType 数据
+        print("修正后的 BusinessType:")
+        for bt in BusinessType.query.order_by(BusinessType.id).all():
             print(f"  id={bt.id}, code='{bt.code}', name='{bt.name}', name_en='{bt.name_en}'")
 
-        # 查找所有 name='机票' 的记录
-        flight_types = BusinessType.query.filter_by(name='机票').all()
-        print(f"\nname='机票' 的记录数: {len(flight_types)}")
-        for bt in flight_types:
-            ref_count = ProjectRef.query.filter_by(ref_type_id=bt.id).count()
-            print(f"  id={bt.id}, code='{bt.code}', name_en='{bt.name_en}' → 关联 {ref_count} 条 REF")
-
-        # 确定标准的 flight BusinessType
-        standard_flight = BusinessType.query.filter_by(code='flight').first()
-        if not standard_flight:
-            print("\n[警告] 未找到 code='flight' 的标准记录，需要先运行 init_default_types()")
-            return
-
-        print(f"\n标准机票类型: id={standard_flight.id}, code='{standard_flight.code}'")
-
-        # ========== 第2步：合并重复的 BusinessType 记录 ==========
-        print("\n--- 第2步：合并重复的 BusinessType 记录 ---")
-        duplicate_flight_types = [bt for bt in flight_types if bt.id != standard_flight.id]
-
-        if not duplicate_flight_types:
-            print("未发现重复的机票类型记录")
-        else:
-            for dup in duplicate_flight_types:
-                # 将引用旧记录的 REF 更新为引用标准记录
-                affected_refs = ProjectRef.query.filter_by(ref_type_id=dup.id).count()
-                print(f"  将 {affected_refs} 条 REF 从 BusinessType id={dup.id}(code='{dup.code}') 迁移到 id={standard_flight.id}(code='flight')")
-
-                ProjectRef.query.filter_by(ref_type_id=dup.id).update(
-                    {'ref_type_id': standard_flight.id},
-                    synchronize_session=False
-                )
-
-                # 删除重复记录
-                db.session.delete(dup)
-                print(f"  已删除重复记录 id={dup.id}")
-
-        # 同样检查其他可能的重复类型（如 name='其他' 但 code 不是 'other'）
-        other_standard = BusinessType.query.filter_by(code='other').first()
-        if other_standard:
-            other_duplicates = BusinessType.query.filter(
-                BusinessType.name == '其他',
-                BusinessType.id != other_standard.id
-            ).all()
-            for dup in other_duplicates:
-                affected_refs = ProjectRef.query.filter_by(ref_type_id=dup.id).count()
-                if affected_refs > 0:
-                    print(f"  将 {affected_refs} 条 REF 从 '其他' BusinessType id={dup.id}(code='{dup.code}') 迁移到 id={other_standard.id}(code='other')")
-                    ProjectRef.query.filter_by(ref_type_id=dup.id).update(
-                        {'ref_type_id': other_standard.id},
-                        synchronize_session=False
-                    )
-                db.session.delete(dup)
-                print(f"  已删除重复记录 id={dup.id}")
-
-        db.session.flush()
-
-        # ========== 第2.5步：修复有机票数据但 ref_type_id 指向错误类型的 REF ==========
-        print("\n--- 第2.5步：修复机票REF的类型指向 ---")
-        from App_new.business.flight.models.flight import ProjectFlightSegment, ProjectFlightPassenger
-
-        # 找到所有有航段数据的 REF ID
-        refs_with_segments = db.session.query(ProjectFlightSegment.ref_id).distinct().all()
-        refs_with_passengers = db.session.query(ProjectFlightPassenger.ref_id).distinct().all()
-        flight_ref_ids = set(r[0] for r in refs_with_segments) | set(r[0] for r in refs_with_passengers)
-        print(f"共发现 {len(flight_ref_ids)} 条有机票数据（航段/乘客）的 REF")
-
-        # 检查这些 REF 中 ref_type_id 不是 flight 的
-        wrong_type_refs = ProjectRef.query.filter(
-            ProjectRef.id.in_(flight_ref_ids),
-            ProjectRef.ref_type_id != standard_flight.id
-        ).all()
-
-        if wrong_type_refs:
-            print(f"其中 {len(wrong_type_refs)} 条 REF 的类型指向不正确，修复中:")
-            for ref in wrong_type_refs:
-                wrong_bt = BusinessType.query.get(ref.ref_type_id)
-                wrong_code = wrong_bt.code if wrong_bt else 'NULL'
-                print(f"  REF id={ref.id} ref_number='{ref.ref_number}': ref_type '{wrong_code}' → 'flight'")
-                ref.ref_type_id = standard_flight.id
-        else:
-            print("所有有机票数据的 REF 类型指向正确")
-
-        # 同时检查 extra_info 中 book_type 为 Air/Airline 的 REF
-        import json
-        air_type_refs = ProjectRef.query.filter(
-            ProjectRef.extra_info.ilike('%"book_type": "Air%'),
-            ProjectRef.ref_type_id != standard_flight.id
-        ).all()
-
-        if air_type_refs:
-            print(f"发现 {len(air_type_refs)} 条 extra_info 标记为 Air/Airline 但类型不正确的 REF:")
-            for ref in air_type_refs:
-                wrong_bt = BusinessType.query.get(ref.ref_type_id)
-                wrong_code = wrong_bt.code if wrong_bt else 'NULL'
-                print(f"  REF id={ref.id} ref_number='{ref.ref_number}': ref_type '{wrong_code}' → 'flight'")
-                ref.ref_type_id = standard_flight.id
-
-        db.session.flush()
-
-        # ========== 第3步：重新计算所有项目的 type ==========
-        print("\n--- 第3步：重新计算项目 type ---")
         projects = ProjectHeader.query.all()
         updated_count = 0
         type_changes = {}
@@ -159,7 +135,7 @@ def fix_project_types():
                 change_key = f"'{old_type}' → '{new_type}'"
                 type_changes[change_key] = type_changes.get(change_key, 0) + 1
 
-        print(f"共检查 {len(projects)} 个项目，更新了 {updated_count} 个项目的 type:")
+        print(f"\n共检查 {len(projects)} 个项目，更新了 {updated_count} 个项目的 type:")
         for change, count in sorted(type_changes.items(), key=lambda x: -x[1]):
             print(f"  {change}: {count} 个")
 
