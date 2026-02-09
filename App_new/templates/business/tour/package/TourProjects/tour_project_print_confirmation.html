@@ -359,6 +359,21 @@
             background: white;
             padding: 20mm;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* 公司盖章覆盖在确认书标题区域 */
+        .stamp-overlay {
+            position: absolute;
+            top: 180px;
+            right: 120px;
+            z-index: 10;
+            opacity: 0.85;
+        }
+
+        .stamp-overlay img {
+            max-width: 150px;
+            max-height: 150px;
         }
 
         @media print {
@@ -624,14 +639,17 @@
             }
 
             /* 公司盖章打印样式 */
-            .stamp-section {
-                margin-top: 30px !important;
-                text-align: right !important;
+            .stamp-overlay {
+                position: absolute !important;
+                top: 150px !important;
+                right: 80px !important;
+                z-index: 10 !important;
+                opacity: 0.85 !important;
             }
 
-            .company-stamp img {
-                max-width: 100px !important;
-                max-height: 100px !important;
+            .stamp-overlay img {
+                max-width: 130px !important;
+                max-height: 130px !important;
             }
         }
     </style>
@@ -656,6 +674,18 @@
 </div>
 
 <div class="print-container">
+<!-- 公司盖章 - 覆盖在确认书标题区域 -->
+<div class="stamp-overlay">
+    {% if company and company.stamp_path %}
+    <img src="{{ url_for('static', filename=company.stamp_path) }}"
+         alt="Company Stamp"
+         onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/company digital stamp.png') }}';">
+    {% else %}
+    <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}"
+         alt="Company Stamp">
+    {% endif %}
+</div>
+
 <header>
     {% include 'shared/own_company/own_company_header_component.html' %}
 </header>
@@ -786,23 +816,6 @@
     {% if not tour.included_items and not tour.excluded_items and not tour.important_notes %}
     <div class="no-data">暂无价格信息 / No Price Information Available</div>
     {% endif %}
-</div>
-
-<!-- 公司盖章区域 -->
-<div class="stamp-section" style="margin-top: 40px; text-align: right;">
-    <div class="company-stamp" style="display: inline-block; text-align: center;">
-        <p style="margin-bottom: 10px; font-size: 10pt; color: #555;">公司盖章 / Company Stamp</p>
-        {% if company and company.stamp_path %}
-        <img src="{{ url_for('static', filename=company.stamp_path) }}"
-             alt="Company Stamp"
-             style="max-width: 120px; max-height: 120px;"
-             onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/company digital stamp.png') }}';">
-        {% else %}
-        <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}"
-             alt="Company Stamp"
-             style="max-width: 120px; max-height: 120px;">
-        {% endif %}
-    </div>
 </div>
 
 <footer>
