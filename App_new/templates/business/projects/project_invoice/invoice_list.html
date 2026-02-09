@@ -322,6 +322,17 @@ function exportData(format) {
 
 // 跨页选择状态管理（使用 sessionStorage 持久化）
 const STORAGE_KEY = 'invoice_selected';
+const FILTER_KEY = 'invoice_filter_params';
+
+// 筛选条件变化时清除选中状态，避免不同筛选结果的选中数据混在一起
+(function() {
+    const currentFilter = window.location.search;
+    const savedFilter = sessionStorage.getItem(FILTER_KEY);
+    if (savedFilter !== currentFilter) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        sessionStorage.setItem(FILTER_KEY, currentFilter);
+    }
+})();
 
 function getSelectedMap() {
     try {
