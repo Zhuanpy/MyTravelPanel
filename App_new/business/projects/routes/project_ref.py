@@ -64,14 +64,13 @@ def create_ref(header_id):
                 # 在应用上下文中生成REF编号
                 ref_number = ProjectRef.generate_ref_number("")
                 
-                # 自动设置REF类型为"其他"
-                other_business_type = BusinessType.query.filter_by(name='其他').first()
+                # 自动设置REF类型为"其他"（按code查找，确保唯一性）
+                other_business_type = BusinessType.query.filter_by(code='other').first()
                 if not other_business_type:
-                    # 如果"其他"类型不存在，创建一个
-                    other_business_type = BusinessType(name='其他', code='other', description='其他服务')
+                    other_business_type = BusinessType(name='其他', code='other', name_en='Other', description='其他服务')
                     db.session.add(other_business_type)
                     db.session.flush()
-                
+
                 # 处理描述字段，如果 detailed_description 为空，使用 description
                 description = form.description.data or '其他服务'
                 detailed_description = form.detailed_description.data or description
@@ -123,8 +122,8 @@ def create_ref(header_id):
         business_types = BusinessType.query.all()
         suppliers = CustomerCompany.query.filter(CustomerCompany.is_supplier == True).all()
         
-        # 设置默认REF类型为"其他"
-        other_business_type = BusinessType.query.filter_by(name='其他').first()
+        # 设置默认REF类型为"其他"（按code查找）
+        other_business_type = BusinessType.query.filter_by(code='other').first()
         if other_business_type:
             form.ref_type_id.data = other_business_type.id
         
@@ -233,8 +232,8 @@ def submit_flight_ref():
             header = ProjectHeader.query.get_or_404(header_id)
             ref_number = ProjectRef.generate_ref_number("")
 
-            # 获取机票业务类型ID
-            flight_business_type = BusinessType.query.filter_by(name='机票').first()
+            # 获取机票业务类型ID（按code查找，确保唯一性）
+            flight_business_type = BusinessType.query.filter_by(code='flight').first()
             if not flight_business_type:
                 flash('未找到机票业务类型，请先创建', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -623,8 +622,8 @@ def submit_hotel_ref():
                 # 如果生成失败，使用默认编号
                 ref_number = "R01"
 
-            # 获取酒店业务类型ID
-            hotel_business_type = BusinessType.query.filter_by(name='酒店').first()
+            # 获取酒店业务类型ID（按code查找，确保唯一性）
+            hotel_business_type = BusinessType.query.filter_by(code='hotel').first()
             if not hotel_business_type:
                 flash('未找到酒店业务类型，请先创建', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -914,8 +913,6 @@ def submit_visa_ref():
             # 获取签证业务类型ID
             visa_business_type = BusinessType.query.filter_by(code='visa').first()
             if not visa_business_type:
-                visa_business_type = BusinessType.query.filter_by(name='签证').first()
-            if not visa_business_type:
                 flash('Visa business type not found', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
@@ -971,8 +968,6 @@ def create_tour_ref(header_id):
 
                 # 获取旅游团业务类型ID（优先按code查询，避免名称差异导致ID不一致）
                 tour_business_type = BusinessType.query.filter_by(code='tour').first()
-                if not tour_business_type:
-                    tour_business_type = BusinessType.query.filter_by(name='旅游团').first()
                 if not tour_business_type:
                     flash('未找到旅游团业务类型，请先创建', 'error')
                     return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -1144,10 +1139,8 @@ def submit_tour_ref():
             header = ProjectHeader.query.get_or_404(header_id)
             ref_number = ProjectRef.generate_ref_number("")
 
-            # 获取旅游团业务类型ID
+            # 获取旅游团业务类型ID（按code查找，确保唯一性）
             tour_business_type = BusinessType.query.filter_by(code='tour').first()
-            if not tour_business_type:
-                tour_business_type = BusinessType.query.filter_by(name='旅游团').first()
             if not tour_business_type:
                 flash('Tour business type not found', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -1279,8 +1272,8 @@ def submit_insurance_ref():
             header = ProjectHeader.query.get_or_404(header_id)
             ref_number = ProjectRef.generate_ref_number("")
 
-            # 获取保险业务类型ID
-            insurance_business_type = BusinessType.query.filter_by(name='保险').first()
+            # 获取保险业务类型ID（按code查找，确保唯一性）
+            insurance_business_type = BusinessType.query.filter_by(code='insurance').first()
             if not insurance_business_type:
                 flash('未找到保险业务类型，请先创建', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -1426,10 +1419,8 @@ def submit_transport_ref():
             header = ProjectHeader.query.get_or_404(header_id)
             ref_number = ProjectRef.generate_ref_number("")
 
-            # 获取交通业务类型ID
+            # 获取交通业务类型ID（按code查找，确保唯一性）
             transport_business_type = BusinessType.query.filter_by(code='transport').first()
-            if not transport_business_type:
-                transport_business_type = BusinessType.query.filter_by(name='交通').first()
             if not transport_business_type:
                 transport_business_type = BusinessType.query.filter_by(code='transfer').first()
             if not transport_business_type:
@@ -2003,10 +1994,8 @@ def submit_attraction_ref():
             header = ProjectHeader.query.get_or_404(header_id)
             ref_number = ProjectRef.generate_ref_number("")
 
-            # 获取景点业务类型ID
+            # 获取景点业务类型ID（按code查找，确保唯一性）
             attraction_business_type = BusinessType.query.filter_by(code='attraction').first()
-            if not attraction_business_type:
-                attraction_business_type = BusinessType.query.filter_by(name='景点/活动').first()
             if not attraction_business_type:
                 # 自动创建景点业务类型
                 attraction_business_type = BusinessType(
@@ -2394,10 +2383,10 @@ def create_other_ref(header_id):
                 description = request.form.get('description') or 'Other Service'
                 detailed_description = request.form.get('detailed_description_hidden') or request.form.get('detailed_description') or description
 
-                # 自动设置REF类型为"其他"
-                other_business_type = BusinessType.query.filter_by(name='其他').first()
+                # 自动设置REF类型为"其他"（按code查找，确保唯一性）
+                other_business_type = BusinessType.query.filter_by(code='other').first()
                 if not other_business_type:
-                    other_business_type = BusinessType(name='其他', code='other', description='其他服务')
+                    other_business_type = BusinessType(name='其他', code='other', name_en='Other', description='其他服务')
                     db.session.add(other_business_type)
                     db.session.flush()
 

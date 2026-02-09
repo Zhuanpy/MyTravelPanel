@@ -158,13 +158,15 @@ def submit_order():
                 leader_flag = ' [Leader]' if is_leader else ''
                 print(f"创建项目人员: {pname} ({passenger_type_map.get(ptype, '成人')}){leader_flag}")
         
-        # 获取机票业务类型
-        flight_business_type = BusinessType.query.filter_by(name='机票').first()
+        # 获取机票业务类型（按code查找，确保唯一性）
+        flight_business_type = BusinessType.query.filter_by(code='flight').first()
         if not flight_business_type:
-            # 如果不存在，创建一个默认的机票业务类型
             flight_business_type = BusinessType(
+                code='flight',
                 name='机票',
-                description='机票订单业务',
+                name_en='Flight',
+                product_code_prefix='FLT',
+                description='航空机票服务',
                 is_active=True
             )
             db.session.add(flight_business_type)

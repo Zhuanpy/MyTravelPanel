@@ -30,10 +30,12 @@ class AthinaToProjectService:
 
     # Athina book_type 到 BusinessType.code 的映射
     BOOK_TYPE_MAPPING = {
-        'Air': 'air_ticket',
+        'Air': 'flight',
+        'Airline': 'flight',
+        'Flight': 'flight',
         'Hotel': 'hotel',
-        'Car': 'car_rental',
-        'Rail': 'rail',
+        'Car': 'car',
+        'Rail': 'rail_coach',
         'Insurance': 'insurance',
         'Tour': 'tour',
         'Cruise': 'cruise',
@@ -45,9 +47,9 @@ class AthinaToProjectService:
         'Miscellanous': 'other',  # Athina 杂项类型
         'Miscellaneous': 'other',  # 正确拼写版本
         'Misc': 'other',
-        # 其他可能的映射
+        # 缩写映射
         'HTL': 'hotel',
-        'FLT': 'air_ticket',
+        'FLT': 'flight',
         'TRF': 'transfer',
         'INS': 'insurance',
     }
