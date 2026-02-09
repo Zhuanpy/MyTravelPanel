@@ -35,8 +35,8 @@ def get_reminders(header_id):
                 'id': todo.id,
                 'header_id': header_id,
                 'reminder_event': todo.title.replace(f'[{header.hid}] ', ''),  # 移除项目编号前缀
-                'reminder_date': todo.due_date.strftime('%Y-%m-%d') if todo.due_date else None,
-                'reminder_date_display': todo.due_date.strftime('%m-%d') if todo.due_date else None,
+                'reminder_date': todo.due_date.strftime('%Y-%m-%dT%H:%M') if todo.due_date else None,
+                'reminder_date_display': todo.due_date.strftime('%m-%d %H:%M') if todo.due_date else None,
                 'is_completed': todo.is_completed,
                 'created_by': None,
                 'created_at': todo.created_at.strftime('%Y-%m-%d %H:%M') if todo.created_at else None
@@ -75,7 +75,11 @@ def create_reminder(header_id):
             return jsonify({'success': False, 'message': '请选择提醒日期'}), 400
 
         try:
-            reminder_date = datetime.strptime(reminder_date_str, '%Y-%m-%d')
+            # 支持datetime-local格式（含时间）和纯日期格式
+            if 'T' in reminder_date_str:
+                reminder_date = datetime.strptime(reminder_date_str, '%Y-%m-%dT%H:%M')
+            else:
+                reminder_date = datetime.strptime(reminder_date_str, '%Y-%m-%d')
         except ValueError:
             return jsonify({'success': False, 'message': '日期格式错误'}), 400
 
@@ -102,7 +106,7 @@ def create_reminder(header_id):
                 'id': todo.id,
                 'header_id': header_id,
                 'reminder_event': reminder_event,
-                'reminder_date': reminder_date.strftime('%Y-%m-%d'),
+                'reminder_date': reminder_date.strftime('%Y-%m-%dT%H:%M'),
                 'is_completed': todo.is_completed
             }
         })
@@ -143,7 +147,11 @@ def update_reminder(header_id, reminder_id):
 
         if 'reminder_date' in data:
             try:
-                todo.due_date = datetime.strptime(data['reminder_date'], '%Y-%m-%d')
+                date_str = data['reminder_date']
+                if 'T' in date_str:
+                    todo.due_date = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
+                else:
+                    todo.due_date = datetime.strptime(date_str, '%Y-%m-%d')
             except ValueError:
                 return jsonify({'success': False, 'message': '日期格式错误'}), 400
 
@@ -160,7 +168,7 @@ def update_reminder(header_id, reminder_id):
                 'id': todo.id,
                 'header_id': header_id,
                 'reminder_event': todo.title.replace(f'[{header.hid}] ', ''),
-                'reminder_date': todo.due_date.strftime('%Y-%m-%d') if todo.due_date else None,
+                'reminder_date': todo.due_date.strftime('%Y-%m-%dT%H:%M') if todo.due_date else None,
                 'is_completed': todo.is_completed
             }
         })

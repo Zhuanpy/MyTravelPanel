@@ -532,7 +532,7 @@ window.nextHeaderUrl = {% if next_header %}'{{ url_for("business_projects.detail
 window.listUrl = '{{ url_for("business_projects.list.list_projects") }}';
 window.headerId = {{ header.id }};
 window.headerReminderEvent = '{{ header.reminder_event or "" }}';
-window.headerReminderDate = '{{ header.reminder_date.strftime("%Y-%m-%d") if header.reminder_date else "" }}';
+window.headerReminderDate = '{{ header.reminder_date.strftime("%Y-%m-%dT%H:%M") if header.reminder_date else "" }}';
 window.isSettled = {{ 'true' if header.is_settled else 'false' }};
 
 // 检查项目是否已结算，阻止编辑操作
@@ -900,8 +900,8 @@ function deleteMember(memberId, memberName) {
                     <input type="text" class="form-control" id="reminderEvent" placeholder="请输入提醒事件描述..." maxlength="200">
                 </div>
                 <div class="mb-3">
-                    <label for="reminderDate" class="form-label">提醒日期 <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="reminderDate">
+                    <label for="reminderDate" class="form-label">提醒日期时间 <span class="text-danger">*</span></label>
+                    <input type="datetime-local" class="form-control" id="reminderDate">
                     <small class="form-text text-muted">系统将在提醒前一天发送邮件通知</small>
                 </div>
             </form>
@@ -2605,7 +2605,7 @@ function renderReminders(reminders) {
                     </span>
                 </div>
                 <span style="font-size: 0.7rem; color: #666; flex-shrink: 0; margin-left: 8px;">
-                    ${reminder.reminder_date}
+                    ${formatReminderDate(reminder.reminder_date)}
                 </span>
             </div>
         `;
@@ -2617,6 +2617,21 @@ function formatShortDate(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// 格式化提醒日期时间显示
+function formatReminderDate(dateStr) {
+    if (!dateStr) return '';
+    // 如果包含时间部分，显示 MM-DD HH:MM 格式
+    if (dateStr.includes('T') || dateStr.includes(' ')) {
+        const date = new Date(dateStr.replace(' ', 'T'));
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${month}-${day} ${hours}:${minutes}`;
+    }
+    return dateStr;
 }
 
 // 打开添加提醒模态框
@@ -2676,7 +2691,7 @@ function saveReminder() {
     }
 
     if (!reminderDate) {
-        alert('请选择提醒日期');
+        alert('请选择提醒日期时间');
         return;
     }
 

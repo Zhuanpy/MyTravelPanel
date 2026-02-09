@@ -590,15 +590,15 @@ class ProjectDetailManager {
         }
         
         if (!reminderDate) {
-            this.showMessage('请选择提醒日期', 'error');
+            this.showMessage('请选择提醒日期时间', 'error');
             return;
         }
-        
-        // 检查日期不能早于今天
-        const today = new Date();
+
+        // 检查日期时间不能早于当前
+        const now = new Date();
         const selectedDate = new Date(reminderDate);
-        if (selectedDate < today) {
-            this.showMessage('提醒日期不能早于今天', 'error');
+        if (selectedDate < now) {
+            this.showMessage('提醒时间不能早于当前时间', 'error');
             return;
         }
         
