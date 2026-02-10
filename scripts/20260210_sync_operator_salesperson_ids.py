@@ -188,7 +188,8 @@ def sync_operator_salesperson(dry_run=False):
         print("\n--- 第2步：扫描 project_headers ---")
         rows = db.session.execute(text(
             "SELECT id, hid, operator_ids, operator_names, "
-            "       salesperson_ids, salesperson_names "
+            "       salesperson_ids, salesperson_names, "
+            "       staff_id, staff_name "
             "FROM project_headers"
         )).fetchall()
         print(f"  共 {len(rows)} 条记录")
@@ -199,13 +200,18 @@ def sync_operator_salesperson(dry_run=False):
             'sp_ids_filled': 0,      # 补全了 salesperson_ids
             'op_names_synced': 0,    # 同步了 operator_names
             'sp_names_synced': 0,    # 同步了 salesperson_names
+            'staff_id_fixed': 0,     # 修复了 staff_id
             'staff_created': set(),  # 自动创建的员工名字
         }
 
-        # 收集所有无法匹配的名字（先扫描一遍）
+        # 收集所有无法匹配的名字（先扫描一遍，包括 staff_name）
         unmatched_names = set()
         for row in rows:
-            pid, hid, op_ids_str, op_names_str, sp_ids_str, sp_names_str = row
+            pid, hid, op_ids_str, op_names_str, sp_ids_str, sp_names_str, s_id, s_name = row
+            # staff_name 无法匹配且 staff_id 为空
+            if not s_id and s_name and s_name.strip():
+                if not resolve_name_to_id(s_name, name_map):
+                    unmatched_names.add(s_name.strip())
             if not op_ids_str and op_names_str:
                 for name in op_names_str.split(','):
                     name = name.strip()
@@ -235,8 +241,21 @@ def sync_operator_salesperson(dry_run=False):
         # 第4步：逐条处理项目记录
         print(f"\n--- 第4步：处理项目数据 ---")
         for row in rows:
-            pid, hid, op_ids_str, op_names_str, sp_ids_str, sp_names_str = row
+            pid, hid, op_ids_str, op_names_str, sp_ids_str, sp_names_str, s_id, s_name = row
             updates = {}
+
+            # --- 修复 staff_id（经办人）---
+            if not s_id and s_name and s_name.strip():
+                matched_uid = resolve_name_to_id(s_name, name_map)
+                if matched_uid:
+                    updates['staff_id'] = matched_uid
+                    updates['staff_name'] = id_to_display.get(matched_uid, s_name.strip())
+                    stats['staff_id_fixed'] += 1
+            elif s_id and s_id in id_to_display:
+                # staff_id 存在，同步 staff_name 为标准格式
+                expected_name = id_to_display[s_id]
+                if expected_name != (s_name or ''):
+                    updates['staff_name'] = expected_name
 
             # --- 处理操作员 ---
             if op_ids_str and op_ids_str.strip():
@@ -307,10 +326,11 @@ def sync_operator_salesperson(dry_run=False):
 
         # 第5步：输出结果
         print("\n--- 结果统计 ---")
-        print(f"  补全 operator_ids:    {stats['op_ids_filled']} 条")
-        print(f"  补全 salesperson_ids:  {stats['sp_ids_filled']} 条")
-        print(f"  同步 operator_names:   {stats['op_names_synced']} 条")
-        print(f"  同步 salesperson_names: {stats['sp_names_synced']} 条")
+        print(f"  修复 staff_id(经办人):  {stats['staff_id_fixed']} 条")
+        print(f"  补全 operator_ids:      {stats['op_ids_filled']} 条")
+        print(f"  补全 salesperson_ids:    {stats['sp_ids_filled']} 条")
+        print(f"  同步 operator_names:     {stats['op_names_synced']} 条")
+        print(f"  同步 salesperson_names:   {stats['sp_names_synced']} 条")
 
         if stats['staff_created']:
             print(f"\n  自动创建占位员工 {len(stats['staff_created'])} 个（is_verified=False，待处理）:")
