@@ -1436,6 +1436,114 @@ def athina_batch_settle_performance():
         }), 500
 
 
+@athina_blue.route('/athina_batch_settle_all_filtered', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def athina_batch_settle_all_filtered():
+    """结算全部筛选结果（跨分页），根据前端传来的筛选参数查询所有匹配项目"""
+    try:
+        from App_new.business.projects.models.project import ProjectHeader
+        from App_new.finance.models.settlement_batch import SettlementBatch
+        from decimal import Decimal
+
+        data = request.get_json()
+        filters = data.get('filters', {})
+        remarks = data.get('remarks', '')
+
+        # 用筛选参数构建查询（与列表页相同逻辑）
+        query = build_performance_settlement_query(
+            filters.get('search', ''),
+            filters.get('filter_consultant', ''),
+            filters.get('filter_sales_consultant', ''),
+            filters.get('filter_book_date_from', ''),
+            filters.get('filter_book_date_to', ''),
+            filters.get('filter_is_count_performance', ''),
+            filters.get('filter_balance', ''),
+            filters.get('filter_can_settle', ''),
+            filters.get('filter_order_type', '')
+        )
+
+        # 只取未结算的项目ID
+        all_ids = [r.id for r in query.filter(
+            ProjectHeader.is_settled == False
+        ).with_entities(ProjectHeader.id).all()]
+
+        if not all_ids:
+            return jsonify({'success': False, 'message': '没有符合条件的未结算项目'}), 400
+
+        # 校验可结算条件
+        can_settle_ids = _get_can_settle_project_ids()
+        cannot_settle_hids = []
+        settleable_ids = []
+
+        projects = ProjectHeader.query.filter(ProjectHeader.id.in_(all_ids)).all()
+        for p in projects:
+            if p.id in can_settle_ids:
+                settleable_ids.append(p)
+            else:
+                cannot_settle_hids.append(p.hid)
+
+        if not settleable_ids:
+            return jsonify({
+                'success': False,
+                'message': f'没有满足结算条件的项目（{len(cannot_settle_hids)} 个不满足条件）'
+            }), 400
+
+        # 创建结算单
+        batch = SettlementBatch()
+        batch.batch_number = SettlementBatch.generate_batch_number()
+        batch.settled_by = current_user.username if current_user else 'unknown'
+        batch.settlement_date = datetime.utcnow()
+        batch.remarks = remarks
+        db.session.add(batch)
+        db.session.flush()
+
+        total_profit = Decimal('0')
+        total_operator = Decimal('0')
+        total_sales = Decimal('0')
+        total_company = Decimal('0')
+
+        for project in settleable_ids:
+            project.is_settled = True
+            project.settled_at = datetime.utcnow()
+            project.settled_by = current_user.username if current_user else None
+            project.settlement_batch_id = batch.id
+
+            total_profit += Decimal(str(project.total_profit or 0))
+            total_operator += Decimal(str(project.operator_profit or 0))
+            total_sales += Decimal(str(project.sales_profit or 0))
+            total_company += Decimal(str(project.company_profit or 0))
+
+        batch.project_count = len(settleable_ids)
+        batch.total_profit = total_profit
+        batch.total_operator_profit = total_operator
+        batch.total_sales_profit = total_sales
+        batch.total_company_profit = total_company
+
+        db.session.commit()
+
+        msg = f'结算单 {batch.batch_number} 创建成功，包含 {len(settleable_ids)} 个项目'
+        if cannot_settle_hids:
+            msg += f'（跳过 {len(cannot_settle_hids)} 个不满足条件的项目）'
+
+        return jsonify({
+            'success': True,
+            'message': msg,
+            'count': len(settleable_ids),
+            'skipped': len(cannot_settle_hids),
+            'batch_number': batch.batch_number,
+            'batch_id': batch.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'批量结算失败: {str(e)}'
+        }), 500
+
+
 @athina_blue.route('/athina_calculate_profit_distribution', methods=['POST'])
 @csrf.exempt
 @login_required

@@ -433,6 +433,9 @@
         <button class="action-btn success" onclick="batchSettleSelected()">
             <i class="fas fa-check-double"></i> 选中-结算
         </button>
+        <button class="action-btn" onclick="batchSettleAllFiltered()" style="background-color: #E91E63;">
+            <i class="fas fa-check-circle"></i> 全部筛选结果-结算
+        </button>
         <button class="action-btn" onclick="exportToExcel()" style="background-color: #28a745;">
             <i class="fas fa-file-excel"></i> 导出Excel
         </button>
@@ -753,6 +756,52 @@
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({ header_ids: allIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                clearSelection();
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请稍后再试');
+        });
+    }
+
+    function batchSettleAllFiltered() {
+        const totalCount = {{ total_count|default(0) }};
+        if (totalCount === 0) {
+            alert('当前筛选结果为空');
+            return;
+        }
+
+        if (!confirm(`确定要结算全部筛选结果中的可结算项目吗？\n当前筛选共 ${totalCount} 条记录，不满足条件的将自动跳过。`)) {
+            return;
+        }
+
+        // 收集当前筛选参数
+        const filters = {
+            search: '{{ search|default("") }}',
+            filter_consultant: '{{ filter_consultant|default("") }}',
+            filter_sales_consultant: '{{ filter_sales_consultant|default("") }}',
+            filter_book_date_from: '{{ filter_book_date_from|default("") }}',
+            filter_book_date_to: '{{ filter_book_date_to|default("") }}',
+            filter_can_settle: '{{ filter_can_settle if filter_can_settle is not none else "" }}',
+            filter_is_count_performance: '{{ filter_is_count_performance if filter_is_count_performance is not none else "" }}',
+            filter_order_type: '{{ filter_order_type|default("") }}',
+            filter_balance: '{{ filter_balance|default("") }}'
+        };
+
+        fetch('/statement/athina_batch_settle_all_filtered', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ filters: filters })
         })
         .then(response => response.json())
         .then(data => {
