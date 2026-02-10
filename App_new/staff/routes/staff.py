@@ -841,10 +841,10 @@ def api_stats():
                 staff_level = current_user.profile.staff_level or 1
             
             if staff_level == 1:
-                # 1级员工只能看到自己创建的项目
-                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+                # 1级员工只能看到自己的项目
+                base_query = base_query.filter(ProjectHeader.staff_id == current_user.id)
             # 2级员工可以看到所有项目，不需要额外过滤
-        
+
         # 获取真实统计数据
         total_projects = base_query.count()
         active_projects = base_query.filter_by(status='active').count()
@@ -915,10 +915,10 @@ def api_recent_projects():
                 staff_level = current_user.profile.staff_level or 1
             
             if staff_level == 1:
-                # 1级员工只能看到自己创建的项目
-                base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+                # 1级员工只能看到自己的项目
+                base_query = base_query.filter(ProjectHeader.staff_id == current_user.id)
             # 2级员工可以看到所有项目，不需要额外过滤
-        
+
         # 获取最近的项目（最近10个）
         recent_projects_query = base_query.order_by(ProjectHeader.created_at.desc()).limit(10)
         projects = []

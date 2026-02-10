@@ -547,7 +547,7 @@ def flight_orders():
             # 通过关联的ProjectHeader表进行过滤
             from App_new.business.projects.models.project import ProjectHeader
             query = query.join(ProjectHeader, FlightOrder.project_header_id == ProjectHeader.id)\
-                         .filter(ProjectHeader.staff_name == current_user.username)
+                         .filter(ProjectHeader.staff_id == current_user.id)
         # 2级员工可以看到所有订单，不需要额外过滤
     
     # 应用筛选条件

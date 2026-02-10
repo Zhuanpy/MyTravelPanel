@@ -340,7 +340,7 @@
                     </td>
                     <td>{{ project.company.company_name if project.company else '-' }}</td>
                     <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
-                    <td>{{ project.staff_name or '-' }}</td>
+                    <td>{{ project.staff_display_name }}</td>
                     <td class="amount">{{ "%.2f"|format(pstats.total_selling_price or 0) }}</td>
                     <td class="amount">{{ "%.2f"|format(pstats.total_cost_price or 0) }}</td>
                     <td class="amount {{ 'positive' if (pstats.total_profit or 0) > 0 else 'negative' if (pstats.total_profit or 0) < 0 else '' }}">

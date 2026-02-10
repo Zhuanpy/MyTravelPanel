@@ -30,7 +30,7 @@ def order_list():
             # 1级员工只能看到自己创建的订单
             # 通过关联的ProjectHeader表进行过滤
             query = query.join(ProjectHeader, FlightOrder.project_header_id == ProjectHeader.id)\
-                         .filter(ProjectHeader.staff_name == current_user.username)
+                         .filter(ProjectHeader.staff_id == current_user.id)
         # 2级员工可以看到所有订单，不需要额外过滤
     
     # 根据出发日期筛选

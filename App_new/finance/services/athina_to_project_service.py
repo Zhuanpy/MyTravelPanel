@@ -562,9 +562,6 @@ class AthinaToProjectService:
             desc = group_data['refs'][0].get('itin_desc', '-') or '-'
 
         try:
-            # 获取 staff_name，优先使用 CSV 中的 consultant，如果没有则使用当前用户名
-            staff_name = group_data.get('consultant') or self.current_user_name
-
             # 检查是否已存在
             existing_header = ProjectHeader.query.filter_by(hid=hid).first()
 
@@ -573,19 +570,19 @@ class AthinaToProjectService:
                 project_header = existing_header
                 project_header.desc = desc[:200] if desc else project_header.desc
                 project_header.company_id = company_id or project_header.company_id
-                project_header.staff_name = staff_name or project_header.staff_name
+                if not project_header.staff_id:
+                    project_header.staff_id = self.current_user_id
                 project_header.operator_names = group_data.get('consultant') or project_header.operator_names
                 project_header.salesperson_names = group_data.get('sales_consultant') or project_header.salesperson_names
                 project_header.updated_at = datetime.utcnow()
                 self.stats['headers_updated'] += 1
             else:
-                # 创建新的 ProjectHeader
+                # 创建新的 ProjectHeader（staff_name 由事件自动同步）
                 project_header = ProjectHeader(
                     hid=hid,
                     desc=desc[:200] if desc else '-',
                     company_id=company_id,
                     staff_id=self.current_user_id,
-                    staff_name=staff_name,
                     operator_names=group_data.get('consultant'),
                     salesperson_names=group_data.get('sales_consultant'),
                     currency='SGD',

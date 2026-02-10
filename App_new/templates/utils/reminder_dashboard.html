@@ -128,7 +128,7 @@
                                             <div class="project-info">
                                                 <strong>项目:</strong> {{ reminder.hid }} - {{ reminder.desc }}<br>
                                                 <strong>联系人:</strong> {{ reminder.contact }}<br>
-                                                <strong>经办人:</strong> {{ reminder.staff_name }}<br>
+                                                <strong>经办人:</strong> {{ reminder.staff_display_name }}<br>
                                                 <strong>公司:</strong> {{ reminder.company.company_name if reminder.company else '个人' }}
                                             </div>
                                         </div>
@@ -189,7 +189,7 @@
                                     <td>{{ reminder.reminder_event }}</td>
                                     <td>{{ reminder.reminder_date.strftime('%Y-%m-%d %H:%M') if reminder.reminder_date else '-' }}</td>
                                     <td>{{ reminder.contact }}</td>
-                                    <td>{{ reminder.staff_name }}</td>
+                                    <td>{{ reminder.staff_display_name }}</td>
                                     <td>
                                         {% if reminder.reminder_sent %}
                                             <span class="badge bg-success">已发送</span>

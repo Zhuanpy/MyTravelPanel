@@ -31,7 +31,7 @@ def settlement_list():
     try:
         # 获取筛选参数
         search = request.args.get('search', '')
-        staff_name = request.args.get('staff_name', '')
+        staff_id = request.args.get('staff_id', '', type=int) if request.args.get('staff_id') else ''
         settlement_status = request.args.get('settlement_status', '')
         profit_status = request.args.get('profit_status', '')
         date_from = request.args.get('date_from', '')
@@ -54,8 +54,8 @@ def settlement_list():
             )
 
         # 经办人筛选
-        if staff_name:
-            base_query = base_query.filter(ProjectHeader.staff_name == staff_name)
+        if staff_id:
+            base_query = base_query.filter(ProjectHeader.staff_id == staff_id)
 
         # 日期筛选
         if date_from:
@@ -109,19 +109,42 @@ def settlement_list():
         # 计算统计数据（基于筛选后的全部数据）
         stats = _calculate_stats(all_filtered_stats, base_query)
 
-        # 获取经办人列表
-        staff_list = db.session.query(ProjectHeader.staff_name).filter(
-            ProjectHeader.staff_name.isnot(None),
-            ProjectHeader.staff_name != ''
-        ).distinct().order_by(ProjectHeader.staff_name).all()
-        staff_list = [s[0] for s in staff_list]
+        # 获取经办人列表（从员工表获取）
+        from App_new.auth.models.auth import AuthUser, Role, UserProfile
+        staff_role = Role.query.filter_by(name='staff').first()
+        admin_role = Role.query.filter_by(name='admin').first()
+        role_ids = []
+        if staff_role:
+            role_ids.append(staff_role.id)
+        if admin_role:
+            role_ids.append(admin_role.id)
+
+        staff_list = []
+        if role_ids:
+            staff_users = db.session.query(
+                AuthUser.id,
+                AuthUser.username,
+                UserProfile.first_name,
+                UserProfile.last_name
+            ).outerjoin(
+                UserProfile, AuthUser.id == UserProfile.user_id
+            ).filter(
+                AuthUser.role_id.in_(role_ids),
+                AuthUser.is_active == True
+            ).all()
+            for u in staff_users:
+                if u.first_name or u.last_name:
+                    display_name = f"{u.first_name or ''}{u.last_name or ''}".strip()
+                else:
+                    display_name = u.username
+                staff_list.append({'id': u.id, 'name': display_name})
 
         # 构建查询字符串用于分页
         query_params = []
         if search:
             query_params.append(f'search={search}')
-        if staff_name:
-            query_params.append(f'staff_name={staff_name}')
+        if staff_id:
+            query_params.append(f'staff_id={staff_id}')
         if settlement_status:
             query_params.append(f'settlement_status={settlement_status}')
         if profit_status:
@@ -142,7 +165,7 @@ def settlement_list():
             query_string=query_string,
             filters={
                 'search': search,
-                'staff_name': staff_name,
+                'staff_id': staff_id,
                 'settlement_status': settlement_status,
                 'profit_status': profit_status,
                 'date_from': date_from,
@@ -544,7 +567,7 @@ def export_excel():
     try:
         # 获取筛选参数
         search = request.args.get('search', '')
-        staff_name = request.args.get('staff_name', '')
+        staff_id = request.args.get('staff_id', '', type=int) if request.args.get('staff_id') else ''
         settlement_status = request.args.get('settlement_status', '')
         profit_status = request.args.get('profit_status', '')
         date_from = request.args.get('date_from', '')
@@ -563,8 +586,8 @@ def export_excel():
                 )
             )
 
-        if staff_name:
-            base_query = base_query.filter(ProjectHeader.staff_name == staff_name)
+        if staff_id:
+            base_query = base_query.filter(ProjectHeader.staff_id == staff_id)
 
         if date_from:
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
@@ -611,7 +634,7 @@ def export_excel():
                 'HID': project.hid or '',
                 '公司名称': project.company.company_name if project.company else '',
                 '创建日期': project.created_at.strftime('%Y-%m-%d') if project.created_at else '',
-                '经办人': project.staff_name or '',
+                '经办人': project.staff_display_name,
                 '销售金额': pstats.get('total_selling_price', 0),
                 '成本': pstats.get('total_cost_price', 0),
                 '利润': pstats.get('total_profit', 0),

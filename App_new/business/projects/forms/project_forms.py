@@ -298,7 +298,7 @@ class ProjectHeaderForm(FlaskForm):
 
     staff_id = IntegerField('经办人ID', [Optional()])
     staff_name = StringField('经办人姓名', [
-        DataRequired(message='经办人姓名不能为空'),
+        Optional(),
         Length(max=50, message='经办人姓名不能超过50个字符')
     ])
 

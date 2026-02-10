@@ -37,7 +37,7 @@ def staff_dashboard():
             staff_level = current_user.profile.staff_level or 1
 
         if staff_level == 1:
-            base_query = base_query.filter(ProjectHeader.staff_name == current_user.username)
+            base_query = base_query.filter(ProjectHeader.staff_id == current_user.id)
 
     # 统计数据
     total_projects = base_query.count()
@@ -985,9 +985,35 @@ def tour_package_detail(package_id):
 def contact():
     """手机端联系我们页面"""
     from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.auth.models.auth import AuthUser, UserProfile, Role
 
     # 获取公司信息
     company_info = CompanyInfo.query.first()
+
+    # 获取公开展示的员工列表
+    staff_role = Role.query.filter_by(name='staff').first()
+    staff_list = []
+    if staff_role:
+        # 查询所有设置为公开显示的员工
+        public_staff = db.session.query(AuthUser, UserProfile).join(
+            UserProfile, AuthUser.id == UserProfile.user_id
+        ).filter(
+            AuthUser.role_id == staff_role.id,
+            AuthUser.is_active == True,
+            UserProfile.is_public == True
+        ).all()
+
+        for user, profile in public_staff:
+            staff_list.append({
+                'name': profile.get_full_name() if profile else user.username,
+                'position': profile.position if profile else '旅游顾问',
+                'phone': profile.phone if profile else None,
+                'whatsapp': profile.whatsapp if profile else None,
+                'wechat_id': profile.wechat_id if profile else None,
+                'wechat_qr': profile.wechat_qr if profile else None,
+                'avatar': profile.avatar if profile else None,
+                'email': user.email
+            })
 
     # 构建联系信息对象
     if company_info:
@@ -1009,6 +1035,7 @@ def contact():
 
     return render_template('mobile/contact.html',
                          contact=contact_info,
+                         staff_list=staff_list,
                          company=company_info)
 
 

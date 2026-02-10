@@ -316,7 +316,7 @@
         <h1><i class="fas fa-calculator"></i> 项目结算</h1>
         <form class="search-form d-flex gap-2" method="GET" id="searchForm">
             <!-- 保留筛选参数 -->
-            <input type="hidden" name="staff_name" value="{{ filters.staff_name or '' }}">
+            <input type="hidden" name="staff_id" value="{{ filters.staff_id or '' }}">
             <input type="hidden" name="settlement_status" value="{{ filters.settlement_status or '' }}">
             <input type="hidden" name="date_from" value="{{ filters.date_from or '' }}">
             <input type="hidden" name="date_to" value="{{ filters.date_to or '' }}">
@@ -366,10 +366,10 @@
 
             <div class="filter-group">
                 <label class="filter-label">经办人</label>
-                <select name="staff_name" class="filter-select">
+                <select name="staff_id" class="filter-select">
                     <option value="">全部</option>
-                    {% for staff in staff_list %}
-                    <option value="{{ staff }}" {{ 'selected' if filters.staff_name == staff }}>{{ staff }}</option>
+                    {% for s in staff_list %}
+                    <option value="{{ s.id }}" {{ 'selected' if filters.staff_id|string == s.id|string }}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -487,7 +487,7 @@
                     {{ project.company.company_name if project.company else '-' }}
                 </td>
                 <td class="text-center">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
-                <td class="text-center">{{ project.staff_name or '-' }}</td>
+                <td class="text-center">{{ project.staff_display_name }}</td>
                 <td class="text-center">{{ project.operator_names or '-' }}</td>
                 <td class="text-center">{{ project.salesperson_names or '-' }}</td>
                 <td class="amount">{{ "%.2f"|format(pstats.total_selling_price or 0) }}</td>

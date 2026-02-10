@@ -118,6 +118,15 @@
                                value="{{ filters.contact }}" placeholder="联系人姓名...">
                     </div>
                     <div class="filter-item">
+                        <label for="staff_id" class="form-label">经办人</label>
+                        <select class="form-select filter-input" id="staff_id" name="staff_id">
+                            <option value="">全部</option>
+                            {% for s in staff_list|default([]) %}
+                            <option value="{{ s.id }}" {{ 'selected' if filters.staff_id|string == s.id|string }}>{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-item">
                         <label for="type" class="form-label">项目类型</label>
                         <select class="form-select filter-input" id="type" name="type">
                             <option value="">全部类型</option>
@@ -310,7 +319,7 @@
                                 {% endif %}
                             </td>
                             <td>{{ project.contact or '未指定' }}</td>
-                            <td>{{ project.staff_name or '-' }}</td>
+                            <td>{{ project.staff_display_name }}</td>
                             <td>
                                 {% set stats = project_stats.get(project.id, {}) %}
                                 <span class="fw-bold text-success">
@@ -417,7 +426,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.prev_num, search=filters.search, company=filters.company, contact=filters.contact, staff_id=filters.staff_id, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     </li>
@@ -427,7 +436,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
+                                <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=page_num, search=filters.search, company=filters.company, contact=filters.contact, staff_id=filters.staff_id, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -445,7 +454,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, search=filters.search, company=filters.company, contact=filters.contact, staff_name=filters.staff_name, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
+                        <a class="page-link" href="{{ url_for('business_projects.list.list_projects', page=pagination.next_num, search=filters.search, company=filters.company, contact=filters.contact, staff_id=filters.staff_id, date_from=filters.date_from, date_to=filters.date_to, selling_min=filters.selling_min, selling_max=filters.selling_max, profit_min=filters.profit_min, profit_max=filters.profit_max, profit_status=filters.profit_status, balance_min=filters.balance_min, balance_max=filters.balance_max, payment_status=filters.payment_status, settlement_status=filters.settlement_status, type=filters.type, sort_by=filters.sort_by) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

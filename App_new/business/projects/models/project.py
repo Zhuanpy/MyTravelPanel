@@ -3,6 +3,7 @@
 
 from App_new.exts import db
 from datetime import datetime
+from sqlalchemy import event
 
 
 class CustomerCompany(db.Model):
@@ -416,8 +417,8 @@ class ProjectHeader(db.Model):
     limit = db.Column(db.String(50), comment='额度限制')
     contact = db.Column(db.String(50), comment='联系人')
     dept = db.Column(db.String(50), comment='部门')
-    staff_id = db.Column(db.Integer, comment='经办人ID')
-    staff_name = db.Column(db.String(50), comment='经办人姓名')
+    staff_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='SET NULL'), nullable=True, comment='经办人ID')
+    staff_name = db.Column(db.String(50), comment='经办人姓名(缓存)')
     currency = db.Column(db.String(10), comment='币种')
     leader_name = db.Column(db.String(100), nullable=True)
     type = db.Column(db.String(50), comment='类型')
@@ -463,6 +464,21 @@ class ProjectHeader(db.Model):
     
     # 注意：CustomerCompany模型中已经定义了 backref='company'，这里不需要重复定义
 
+    # 经办人关联
+    staff = db.relationship('AuthUser', foreign_keys=[staff_id])
+
+    @property
+    def staff_display_name(self):
+        """获取经办人显示名称 - 优先从关联获取，回退到缓存字段"""
+        if self.staff:
+            profile = self.staff.profile
+            if profile:
+                name = profile.get_full_name()
+                if name and name != '未设置姓名':
+                    return name
+            return self.staff.username
+        return self.staff_name or '-'
+
     @property
     def display_desc(self):
         """
@@ -503,7 +519,7 @@ class ProjectHeader(db.Model):
             'contact': self.contact,
             'dept': self.dept,
             'staff_id': self.staff_id,
-            'staff_name': self.staff_name,
+            'staff_name': self.staff_display_name,
             'currency': self.currency,
             'leader_name': self.leader_name,
             'type': self.type,
@@ -761,3 +777,24 @@ class ProjectEmail(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None,
             'created_by': self.created_by
         }
+
+
+# staff_id 变更时自动同步 staff_name 缓存字段
+@event.listens_for(ProjectHeader.staff_id, 'set')
+def _sync_staff_name(target, value, oldvalue, initiator):
+    """当 staff_id 被设置时，自动从员工表同步 staff_name"""
+    if value is not None and value != oldvalue:
+        try:
+            from App_new.auth.models.auth import AuthUser
+            user = db.session.get(AuthUser, value)
+            if user:
+                if user.profile:
+                    name = user.profile.get_full_name()
+                    if name and name != '未设置姓名':
+                        target.staff_name = name
+                        return
+                target.staff_name = user.username
+        except Exception:
+            pass
+    elif value is None:
+        target.staff_name = None

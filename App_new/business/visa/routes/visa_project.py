@@ -636,25 +636,9 @@ def create_project_links(project_id):
         # 获取签证类型信息
         types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
         
-        # 自动获取当前登录员工的姓名
-        staff_name = ''
-        leader_name = ''
-        
-        if current_user:
-            # 获取员工档案信息
-            profile = UserProfile.query.filter_by(user_id=current_user.id).first()
-            if profile:
-                staff_name = profile.get_full_name()
-                leader_name = profile.get_full_name()  # 经办人和负责人都使用同一个员工姓名
-            else:
-                staff_name = current_user.username
-                leader_name = current_user.username
-        
-        # 如果没有获取到员工信息，使用申请人姓名作为备选
-        if not staff_name:
-            staff_name = project.applicant_name or '未知员工'
-            leader_name = project.applicant_name or '未知员工'
-        
+        # 获取经办人ID
+        staff_id_value = current_user.id if current_user else None
+
         # 创建或获取项目主表（HID）
         header = None
         if not project.header_id:
@@ -672,18 +656,18 @@ def create_project_links(project_id):
             # 生成HID
             hid = ProjectHeader.generate_hid()
 
-            # 创建项目主表
+            # 创建项目主表（staff_name 由事件自动同步）
             header = ProjectHeader(
                 hid=hid,
                 desc=f"{project.applicant_name} {project.visa_type}签证项目",
-                company_id=personal_company.id,  # 使用"个人"公司ID
+                company_id=personal_company.id,
                 contact=project.contact_name or project.applicant_name,
-                staff_name=staff_name or project.applicant_name,  # 使用选择的员工姓名作为经办人姓名
-                leader_name=leader_name or staff_name or project.applicant_name,  # 使用选择的员工姓名作为负责人姓名
+                staff_id=staff_id_value,
                 currency='SGD',
                 type='visa',
                 status='active'
             )
+            header.leader_name = header.staff_name or project.applicant_name
             db.session.add(header)
             db.session.flush()  # 获取header.id
             

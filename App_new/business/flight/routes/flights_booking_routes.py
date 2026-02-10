@@ -99,32 +99,24 @@ def submit_order():
         
         # 创建项目主表（HID）
         hid = ProjectHeader.generate_hid()
-        # 获取经办人信息
         staff_id_value = current_user.id if current_user else None
-        staff_name_value = current_user.profile.get_full_name() if current_user and current_user.profile and current_user.profile.get_full_name() != "未设置姓名" else (current_user.profile.first_name if current_user and current_user.profile else '系统')
-        # 获取操作员和业务员，默认使用经办人
-        operator_name = request.form.get('operator', '').strip() or staff_name_value
-        salesman_name = request.form.get('salesman', '').strip() or staff_name_value
-        # 如果操作员/业务员使用的是经办人，则同时设置ID
-        operator_id = str(staff_id_value) if operator_name == staff_name_value and staff_id_value else None
-        salesperson_id = str(staff_id_value) if salesman_name == staff_name_value and staff_id_value else None
 
         project_header = ProjectHeader(
             hid=hid,
             desc=f"机票订单 - {contact_name} - {first_departure_airport}>{last_arrival_airport}",
-            company_id=personal_company.id,  # 自动设置为"个人"公司
+            company_id=personal_company.id,
             contact=contact_name,
             staff_id=staff_id_value,
-            staff_name=staff_name_value,
-            operator_ids=operator_id,  # 操作员ID（默认为经办人ID）
-            operator_names=operator_name,  # 操作员姓名（默认为经办人）
-            salesperson_ids=salesperson_id,  # 业务员ID（默认为经办人ID）
-            salesperson_names=salesman_name,  # 业务员姓名（默认为经办人）
-            currency='SGD',  # 默认货币
+            currency='SGD',
             type='flight',
             status='active',
             remarks=request.form.get('remarks', '')
         )
+        # staff_name 已由事件自动同步，设置操作员和业务员默认值
+        project_header.operator_ids = str(staff_id_value) if staff_id_value else None
+        project_header.operator_names = project_header.staff_name
+        project_header.salesperson_ids = str(staff_id_value) if staff_id_value else None
+        project_header.salesperson_names = project_header.staff_name
         db.session.add(project_header)
         db.session.flush()  # 获取project_header.id
         print(f"创建项目主表: {hid}")
@@ -757,7 +749,7 @@ def order_list():
         
         if staff_level == 1:
             # 1级员工只能看到自己创建的订单
-            query = query.filter(ProjectHeader.staff_name == current_user.username)
+            query = query.filter(ProjectHeader.staff_id == current_user.id)
         # 2级员工可以看到所有订单，不需要额外过滤
     
     query = query.group_by(

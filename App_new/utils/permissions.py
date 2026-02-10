@@ -173,62 +173,42 @@ def get_all_roles():
 def is_project_owner(header, user):
     """
     检查用户是否是项目的创建者/所有者
-    
-    支持通过以下方式判断：
-    1. staff_id 匹配用户ID（最可靠）
-    2. staff_name 匹配用户名
-    3. staff_name 匹配用户全名
-    
+
+    主要通过 staff_id 外键匹配，staff_name 作为兼容回退
+
     Args:
         header: ProjectHeader 对象
         user: 当前用户对象
-    
+
     Returns:
         bool: 是否是项目所有者
     """
     if not header or not user:
-        print(f"DEBUG is_project_owner: header或user为空")
         return False
-    
-    print(f"DEBUG is_project_owner: 检查项目所有权")
-    print(f"  - header.id={header.id}, header.staff_id={header.staff_id}, header.staff_name={header.staff_name}")
-    print(f"  - user.id={user.id}, user.username={user.username}")
-    
-    # 优先检查 staff_id（转换为整数比较，避免类型不匹配）
+
+    # 主要判断：staff_id 外键匹配
     if header.staff_id is not None:
         try:
-            header_staff_id = int(header.staff_id)
-            user_id = int(user.id)
-            print(f"  - 比较 staff_id: {header_staff_id} == {user_id} ? {header_staff_id == user_id}")
-            if header_staff_id == user_id:
-                print(f"  - ✓ staff_id 匹配成功!")
+            if int(header.staff_id) == int(user.id):
                 return True
-        except (ValueError, TypeError) as e:
-            print(f"  - staff_id 比较出错: {e}")
+        except (ValueError, TypeError):
             pass
-    
-    # 检查 staff_name
+
+    # 兼容回退：staff_name 匹配（历史数据可能 staff_id 为空）
     if header.staff_name:
-        staff_name_lower = header.staff_name.lower() if header.staff_name else ''
-        username_lower = user.username.lower() if user.username else ''
-        
-        print(f"  - 比较 staff_name: '{staff_name_lower}' == username '{username_lower}' ? {staff_name_lower == username_lower}")
-        
-        # 匹配用户名（不区分大小写）
-        if staff_name_lower == username_lower:
-            print(f"  - ✓ username 匹配成功!")
+        staff_name_lower = header.staff_name.lower()
+
+        # 匹配用户名
+        if user.username and staff_name_lower == user.username.lower():
             return True
-        
-        # 匹配用户全名（不区分大小写）
+
+        # 匹配用户全名
         if hasattr(user, 'profile') and user.profile:
             user_full_name = user.profile.get_full_name()
-            print(f"  - 比较 staff_name: '{staff_name_lower}' == full_name '{user_full_name}' ?")
             if user_full_name and user_full_name != "未设置姓名":
                 if staff_name_lower == user_full_name.lower():
-                    print(f"  - ✓ full_name 匹配成功!")
                     return True
-    
-    print(f"  - ✗ 未找到匹配，返回 False")
+
     return False
 
 

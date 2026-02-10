@@ -116,7 +116,7 @@ def list_projects():
         company = request.args.get('company', '')
         leader = request.args.get('leader', '')
         contact = request.args.get('contact', '')
-        staff_name = request.args.get('staff_name', '')
+        staff_id = request.args.get('staff_id', '', type=int) if request.args.get('staff_id') else ''
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
         selling_min = request.args.get('selling_min', '')
@@ -144,34 +144,17 @@ def list_projects():
         
         # 根据员工等级过滤项目
         if current_user.role and current_user.role.name == 'staff':
-            # 检查用户资料中的员工等级
-            staff_level = 1  # 默认等级
+            staff_level = 1
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
-            
+
             if staff_level == 1:
-                # 1级员工只能看到自己创建的订单
-                # 支持 staff_id 或 staff_name（用户名/全名）匹配
-                user_full_name = current_user.profile.get_full_name() if current_user.profile else None
-                if user_full_name and user_full_name != "未设置姓名":
-                    # 匹配 staff_id 或 staff_name（用户名或全名）
-                    base_query = base_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username,
-                            ProjectHeader.staff_name == user_full_name
-                        )
-                    )
-                else:
-                    # 匹配 staff_id 或 staff_name（用户名）
-                    base_query = base_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username
-                        )
-                    )
+                # 1级员工只能看到自己的项目
+                base_query = base_query.filter(
+                    ProjectHeader.staff_id == current_user.id
+                )
             # 2级员工可以看到所有订单，不需要额外过滤
-        
+
         # 应用筛选条件
         if status:
             base_query = base_query.filter(ProjectHeader.status == status)
@@ -212,11 +195,9 @@ def list_projects():
                 ProjectHeader.contact.like(f'%{contact}%')
             )
         
-        if staff_name:
-            base_query = base_query.filter(
-                ProjectHeader.staff_name.like(f'%{staff_name}%')
-            )
-        
+        if staff_id:
+            base_query = base_query.filter(ProjectHeader.staff_id == staff_id)
+
         # 添加项目类型筛选
         project_type = request.args.get('type', '')
         if project_type:
@@ -1186,6 +1167,36 @@ def list_projects():
         # 提供客户公司列表用于前端下拉选择
         companies = CustomerCompany.query.order_by(CustomerCompany.company_name).all()
 
+        # 获取经办人列表（从员工表获取，统一名称）
+        from App_new.auth.models.auth import AuthUser, Role, UserProfile
+        staff_role = Role.query.filter_by(name='staff').first()
+        admin_role = Role.query.filter_by(name='admin').first()
+        role_ids = []
+        if staff_role:
+            role_ids.append(staff_role.id)
+        if admin_role:
+            role_ids.append(admin_role.id)
+
+        staff_list = []
+        if role_ids:
+            staff_users = db.session.query(
+                AuthUser.id,
+                AuthUser.username,
+                UserProfile.first_name,
+                UserProfile.last_name
+            ).outerjoin(
+                UserProfile, AuthUser.id == UserProfile.user_id
+            ).filter(
+                AuthUser.role_id.in_(role_ids),
+                AuthUser.is_active == True
+            ).all()
+            for u in staff_users:
+                if u.first_name or u.last_name:
+                    display_name = f"{u.first_name or ''}{u.last_name or ''}".strip()
+                else:
+                    display_name = u.username
+                staff_list.append({'id': u.id, 'name': display_name})
+
         return render_template(
             'business/projects/project_list.html',
             projects=projects,
@@ -1194,13 +1205,14 @@ def list_projects():
             total_stats=total_stats,
             summary_stats=summary_stats,
             companies=companies,
+            staff_list=staff_list,
             filters={
                 'status': status,
                 'search': search,
                 'company': company,
                 'leader': leader,
                 'contact': contact,
-                'staff_name': staff_name,
+                'staff_id': staff_id,
                 'type': project_type,
                 'date_from': date_from,
                 'date_to': date_to,
@@ -1296,7 +1308,7 @@ def export_excel():
         company = request.args.get('company', '')
         leader = request.args.get('leader', '')
         contact = request.args.get('contact', '')
-        staff_name = request.args.get('staff_name', '')
+        staff_id = request.args.get('staff_id', '', type=int) if request.args.get('staff_id') else ''
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
         selling_min = request.args.get('selling_min', '')
@@ -1317,31 +1329,17 @@ def export_excel():
             staff_level = 1
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
-            
+
             if staff_level == 1:
-                user_full_name = current_user.profile.get_full_name() if current_user.profile else None
-                if user_full_name and user_full_name != "未设置姓名":
-                    base_query = base_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username,
-                            ProjectHeader.staff_name == user_full_name
-                        )
-                    )
-                else:
-                    base_query = base_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username
-                        )
-                    )
-        
+                base_query = base_query.filter(
+                    ProjectHeader.staff_id == current_user.id
+                )
+
         # 应用筛选条件
         if status:
             base_query = base_query.filter(ProjectHeader.status == status)
         if search:
             search_lower = search.lower()
-            # 子查询：查找包含搜索关键词的项目成员所属的项目ID
             from ..models.project_member import ProjectMember
             member_subquery = db.session.query(ProjectMember.header_id).filter(
                 db.or_(
@@ -1356,7 +1354,7 @@ def export_excel():
                     ProjectHeader.desc.ilike(f'%{search_lower}%'),
                     ProjectHeader.contact.ilike(f'%{search_lower}%'),
                     ProjectHeader.leader_name.ilike(f'%{search_lower}%'),
-                    ProjectHeader.id.in_(member_subquery)  # 搜索乘客姓名
+                    ProjectHeader.id.in_(member_subquery)
                 )
             )
         if company:
@@ -1367,8 +1365,8 @@ def export_excel():
             base_query = base_query.filter(ProjectHeader.leader_name.like(f'%{leader}%'))
         if contact:
             base_query = base_query.filter(ProjectHeader.contact.like(f'%{contact}%'))
-        if staff_name:
-            base_query = base_query.filter(ProjectHeader.staff_name.like(f'%{staff_name}%'))
+        if staff_id:
+            base_query = base_query.filter(ProjectHeader.staff_id == staff_id)
         
         project_type = request.args.get('type', '')
         if project_type:
@@ -1592,7 +1590,7 @@ def export_excel():
                 '描述': project.desc or '',
                 '客户公司': project.company.company_name if project.company else '',
                 '联系人': project.contact or '',
-                '经办人': project.staff_name or '',
+                '经办人': project.staff_display_name,
                 '类型': project.type or '综合',
                 '销售金额': stats.get('total_selling_price', 0),
                 '成本': stats.get('total_cost_price', 0),

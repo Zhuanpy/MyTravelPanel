@@ -46,22 +46,10 @@ def index():
                 staff_level = current_user.profile.staff_level or 1
 
             if staff_level == 1:
-                user_full_name = current_user.profile.get_full_name() if current_user.profile else None
-                if user_full_name and user_full_name != "未设置姓名":
-                    recent_projects_query = recent_projects_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username,
-                            ProjectHeader.staff_name == user_full_name
-                        )
-                    )
-                else:
-                    recent_projects_query = recent_projects_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username
-                        )
-                    )
+                # 1级员工只能看到自己的项目
+                recent_projects_query = recent_projects_query.filter(
+                    ProjectHeader.staff_id == current_user.id
+                )
 
         recent_projects = recent_projects_query.limit(10).all()
 
@@ -82,22 +70,10 @@ def index():
                 staff_level = current_user.profile.staff_level or 1
 
             if staff_level == 1:
-                user_full_name = current_user.profile.get_full_name() if current_user.profile else None
-                if user_full_name and user_full_name != "未设置姓名":
-                    reminders_query = reminders_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username,
-                            ProjectHeader.staff_name == user_full_name
-                        )
-                    )
-                else:
-                    reminders_query = reminders_query.filter(
-                        db.or_(
-                            ProjectHeader.staff_id == current_user.id,
-                            ProjectHeader.staff_name == current_user.username
-                        )
-                    )
+                # 1级员工只能看到自己的项目提醒
+                reminders_query = reminders_query.filter(
+                    ProjectHeader.staff_id == current_user.id
+                )
 
         upcoming_reminders = reminders_query.limit(5).all()
 

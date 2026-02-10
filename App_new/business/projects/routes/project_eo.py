@@ -1364,7 +1364,7 @@ def eo_list():
 
             if staff_level == 1:
                 # 1级员工只能看到自己创建的项目的EO
-                filters.append(ProjectHeader.staff_name == current_user.username)
+                filters.append(ProjectHeader.staff_id == current_user.id)
             # 2级员工可以看到所有EO，不需要额外过滤
 
         # 当匹配状态筛选启用时，忽略其他筛选条件（搜索全部EO）
@@ -1840,7 +1840,7 @@ def eo_export():
             if current_user.profile:
                 staff_level = current_user.profile.staff_level or 1
             if staff_level == 1:
-                filters.append(ProjectHeader.staff_name == current_user.username)
+                filters.append(ProjectHeader.staff_id == current_user.id)
 
         if status:
             filters.append(ProjectEO.status == status)

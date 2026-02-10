@@ -129,9 +129,9 @@ def edit_header(header_id):
             header.contact = form.contact.data
             header.dept = form.dept.data
             header.staff_id = form.staff_id.data if form.staff_id.data else None
-            header.staff_name = form.staff_name.data
+            # staff_name 由模型事件自动同步
             # 如果负责人姓名为空，自动使用经办人姓名
-            header.leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
+            header.leader_name = form.leader_name.data if form.leader_name.data else header.staff_name
             header.currency = form.currency.data
             header.type = form.type.data
             header.status = form.status.data

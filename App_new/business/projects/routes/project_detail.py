@@ -829,7 +829,6 @@ def copy_project(project_id):
             contact=original.contact,
             dept=original.dept,
             staff_id=original.staff_id,
-            staff_name=original.staff_name,
             currency=original.currency,
             leader_name=original.leader_name,
             type=original.type,

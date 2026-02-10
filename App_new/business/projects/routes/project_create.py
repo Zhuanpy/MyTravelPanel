@@ -32,12 +32,8 @@ def create_header():
             # 0和None都表示"个人"，>0表示实际公司ID
             company_id = form.company_id.data if form.company_id.data and form.company_id.data > 0 else None
             
-            # 如果负责人姓名为空，自动使用经办人姓名
-            leader_name = form.leader_name.data if form.leader_name.data else form.staff_name.data
-
-            # 获取经办人信息，用于设置操作员和业务员
+            # 获取经办人ID（staff_name 由模型事件自动同步）
             staff_id = current_user.id if current_user.is_authenticated else None
-            staff_name = form.staff_name.data
 
             header = ProjectHeader(
                 hid=hid,
@@ -47,17 +43,21 @@ def create_header():
                 contact=form.contact.data,
                 dept=form.dept.data,
                 staff_id=staff_id,
-                staff_name=staff_name,
-                leader_name=leader_name,
-                operator_ids=str(staff_id) if staff_id else None,  # 操作员默认为经办人
-                operator_names=staff_name,  # 操作员姓名默认为经办人
-                salesperson_ids=str(staff_id) if staff_id else None,  # 业务员默认为经办人
-                salesperson_names=staff_name,  # 业务员姓名默认为经办人
                 currency=form.currency.data,
                 type=form.type.data,
                 status=form.status.data,
                 remarks=form.remarks.data
             )
+            # staff_name 已由事件自动同步，用它设置默认值
+            if not form.leader_name.data:
+                header.leader_name = header.staff_name
+            else:
+                header.leader_name = form.leader_name.data
+            # 操作员和业务员默认为经办人
+            header.operator_ids = str(staff_id) if staff_id else None
+            header.operator_names = header.staff_name
+            header.salesperson_ids = str(staff_id) if staff_id else None
+            header.salesperson_names = header.staff_name
             db.session.add(header)
             db.session.commit()
             
@@ -87,13 +87,9 @@ def create_header():
         import traceback
         print(f"DEBUG: 错误堆栈: {traceback.format_exc()}")  # 调试信息
     
-    # 预填充经办人姓名（当前登录用户）
+    # 预填充经办人ID（当前登录用户）
     if current_user.is_authenticated:
-        if hasattr(current_user, 'profile') and current_user.profile and current_user.profile.get_full_name() != "未设置姓名":
-            form.staff_name.data = current_user.profile.get_full_name()
-        else:
-            # 如果用户资料未设置姓名，使用用户名
-            form.staff_name.data = current_user.username
+        form.staff_id.data = current_user.id
     
     # 默认选择"请选择公司"占位符
     form.company_id.data = -1
