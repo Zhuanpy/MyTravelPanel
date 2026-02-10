@@ -304,31 +304,48 @@ class ProjectRef(db.Model):
 
     @classmethod
     def generate_ref_number(cls, project_hid=None):
-        """生成REF编号"""
+        """生成REF编号，保证唯一性"""
         try:
-            # 查找全局最后一个REF编号（按数字排序）
-            last_ref = cls.query.filter(
-                cls.ref_number.like('R%')
-            ).order_by(
-                db.func.cast(db.func.substring(cls.ref_number, 2), db.Integer).desc()
-            ).first()
+            # 查找当前最大的REF编号数字部分
+            from sqlalchemy import func
+            max_num = db.session.query(
+                func.max(
+                    func.cast(func.substring(cls.ref_number, 2), db.Integer)
+                )
+            ).filter(
+                cls.ref_number.regexp_match('^R[0-9]+$')
+            ).scalar()
 
-            if last_ref:
-                # 提取数字部分
-                try:
-                    last_number = int(last_ref.ref_number[1:])  # 去掉'R'前缀
-                    new_number = str(last_number + 1).zfill(2)
-                except ValueError:
-                    # 如果解析失败，从01开始
-                    new_number = '01'
-            else:
-                new_number = '01'
-
-            return f'R{new_number}'
+            next_num = (max_num or 0) + 1
         except Exception as e:
-            # 如果数据库查询失败，返回默认编号
-            print(f"Warning: Failed to generate REF number: {e}")
-            return 'R01'
+            # 查询失败时，用 Python 遍历取最大值
+            print(f"Warning: REF编号查询失败，使用备用方案: {e}")
+            try:
+                all_refs = cls.query.with_entities(cls.ref_number).filter(
+                    cls.ref_number.like('R%')
+                ).all()
+                max_num = 0
+                for (rn,) in all_refs:
+                    try:
+                        num = int(rn[1:])
+                        if num > max_num:
+                            max_num = num
+                    except (ValueError, IndexError):
+                        continue
+                next_num = max_num + 1
+            except Exception:
+                # 最后兜底：用当前时间戳避免冲突
+                import time
+                next_num = int(time.time()) % 100000
+
+        ref_number = f'R{str(next_num).zfill(2)}'
+
+        # 唯一性检查：如果生成的编号已存在，逐步递增
+        while cls.query.filter_by(ref_number=ref_number).first() is not None:
+            next_num += 1
+            ref_number = f'R{str(next_num).zfill(2)}'
+
+        return ref_number
 
 
 class RefOrderItem(db.Model):
