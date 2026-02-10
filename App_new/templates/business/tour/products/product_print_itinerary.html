@@ -209,7 +209,7 @@
             display: flex;
             flex-wrap: nowrap;
             gap: 8px;
-            justify-content: flex-start;
+            justify-content: center;
         }
 
         .day-image-item {
@@ -548,9 +548,14 @@
     <button class="print-btn primary" onclick="window.print()">
         <i class="fas fa-print"></i> 打印
     </button>
-    <button class="print-btn secondary" onclick="window.history.back()">
-        <i class="fas fa-arrow-left"></i> 返回
-    </button>
+    <label class="print-btn secondary" style="cursor: pointer; user-select: none;">
+        <input type="checkbox" id="togglePrice" checked onchange="toggleSection('priceSection', this.checked)" style="margin-right: 5px;">
+        显示价格
+    </label>
+    <label class="print-btn secondary" style="cursor: pointer; user-select: none;">
+        <input type="checkbox" id="toggleService" checked onchange="toggleSection('serviceSection', this.checked)" style="margin-right: 5px;">
+        包含/不包含
+    </label>
 </div>
 
 <div class="print-container">
@@ -625,6 +630,7 @@
 
 <!-- 价格信息 -->
 {% if product.base_price %}
+<div id="priceSection">
 <div class="section-title-bilingual">
     <span class="section-title-chinese">价格信息</span>
     <span class="section-title-english">Price Information</span>
@@ -649,10 +655,12 @@
         {% endif %}
     </div>
 </div>
+</div>
 {% endif %}
 
 <!-- 服务说明 -->
 {% if product.included_services or product.excluded_services %}
+<div id="serviceSection">
 <div class="section-title-bilingual">
     <span class="section-title-chinese">服务说明</span>
     <span class="section-title-english">Service Details</span>
@@ -668,6 +676,7 @@
             <div class="service-content">{{ product.excluded_services or '请咨询客服' }}</div>
         </div>
     </div>
+</div>
 </div>
 {% endif %}
 
@@ -687,6 +696,12 @@
 </div>
 
 <script>
+// 区域显示/隐藏
+function toggleSection(sectionId, show) {
+    const section = document.getElementById(sectionId);
+    if (section) section.style.display = show ? '' : 'none';
+}
+
 // 图片加载状态管理
 document.addEventListener('DOMContentLoaded', function() {
     const images = document.querySelectorAll('.itinerary-image');

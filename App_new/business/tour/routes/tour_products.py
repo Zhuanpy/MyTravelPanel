@@ -17,7 +17,7 @@ from sqlalchemy import or_
 from openpyxl.utils import get_column_letter
 
 from App_new.exts import db, csrf
-from App_new.business.tour.models.Packagemodels import Product, ProductItinerary, ProductPriceVariant
+from App_new.business.tour.models.Packagemodels import Product, ProductItinerary, ProductPriceVariant, ImageLibrary
 from App_new.business.projects.models.project import CustomerCompany
 from App_new.utils.decorators import staff_only
 
@@ -51,7 +51,10 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products', compress=Tru
         filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         name, ext = os.path.splitext(filename)
-        filename = f"{name}_{timestamp}{ext}"
+        # 防止中文文件名被secure_filename清空后多个文件同名覆盖
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        filename = f"{name}_{timestamp}_{unique_id}{ext}"
 
         upload_path = os.path.join('App_new/static', upload_folder)
         os.makedirs(upload_path, exist_ok=True)
@@ -70,6 +73,56 @@ def save_uploaded_file(file, upload_folder='uploads/tour_products', compress=Tru
         # 返回存入数据库使用的相对路径
         return os.path.join(upload_folder, filename).replace('\\', '/')
     return None
+
+
+def _save_to_image_library(img_path, original_filename, product):
+    """将行程图片同步保存到图片库，方便其它产品复用
+
+    参数:
+        img_path: 已保存的图片相对路径（相对于static）
+        original_filename: 原始文件名（用作图片标题）
+        product: Product对象（用于提取国家和城市标签）
+    """
+    try:
+        # 用原始文件名（去扩展名）作为图片标题
+        name_part = os.path.splitext(original_filename)[0]
+        # 去除secure_filename可能残留的下划线和时间戳
+        title = name_part.strip('_') if name_part else '行程图片'
+
+        # 构建标签：国家 + 城市
+        tag_parts = []
+        if product.country and product.country != '未知':
+            tag_parts.append(product.country)
+        if product.city_name:
+            tag_parts.append(product.city_name)
+        tags = ','.join(tag_parts) if tag_parts else None
+
+        # 获取文件信息
+        full_path = os.path.join('App_new/static', img_path)
+        file_size = os.path.getsize(full_path) if os.path.exists(full_path) else None
+        width, height = None, None
+        try:
+            from PIL import Image
+            with Image.open(full_path) as img:
+                width, height = img.size
+        except Exception:
+            pass
+
+        image_record = ImageLibrary(
+            title=title,
+            image_path=img_path,
+            tags=tags,
+            category='tour',
+            file_size=file_size,
+            width=width,
+            height=height,
+            is_active=True,
+            created_by=current_user.username if current_user else None
+        )
+        db.session.add(image_record)
+    except Exception as e:
+        # 保存图片库失败不影响行程保存
+        print(f"同步图片库失败: {e}")
 
 
 def compress_and_resize_image(file_path, max_size=1200, quality=80):
@@ -657,13 +710,16 @@ def add_itinerary(product_id):
             if img_field in request.files:
                 img_file = request.files[img_field]
                 if img_file and img_file.filename:
+                    original_name = img_file.filename
                     img_path = save_uploaded_file(img_file, upload_folder='uploads/tour_itinerary')
                     if img_path:
                         setattr(itinerary, img_field, img_path)
+                        # 同步保存到图片库
+                        _save_to_image_library(img_path, original_name, product)
 
         db.session.add(itinerary)
         db.session.commit()
-        
+
         print(f"✅ 行程添加成功！ID: {itinerary.id}")
         return jsonify({'success': True, 'message': '行程添加成功！'})
 
@@ -703,18 +759,22 @@ def update_itinerary(product_id, itinerary_id):
         itinerary.day_title = day_title
         itinerary.content = content
 
+        product = Product.query.get(product_id)
         for i in range(1, 4):
             img_field = f'image{i}'
             if img_field in request.files:
                 img_file = request.files[img_field]
                 if img_file and img_file.filename:
+                    original_name = img_file.filename
                     img_path = save_uploaded_file(img_file, upload_folder='uploads/tour_itinerary')
                     if img_path:
                         setattr(itinerary, img_field, img_path)
+                        # 同步保存到图片库
+                        _save_to_image_library(img_path, original_name, product)
 
         itinerary.updated_at = datetime.utcnow()
         db.session.commit()
-        
+
         print(f"✅ 行程更新成功！ID: {itinerary.id}")
         return jsonify({'success': True, 'message': '行程更新成功！'})
 
@@ -1109,6 +1169,20 @@ def edit_product(product_id):
     itineraries = ProductItinerary.query.filter_by(product_id=product_id).order_by(ProductItinerary.day_number).all()
     price_variants = ProductPriceVariant.query.filter_by(product_id=product_id).all()
 
+    # 批量查询行程图片对应的图片库信息（标题、标签）
+    all_image_paths = []
+    for it in itineraries:
+        for img in it.images:
+            all_image_paths.append(img)
+    image_lib_map = {}
+    if all_image_paths:
+        lib_records = ImageLibrary.query.filter(
+            ImageLibrary.image_path.in_(all_image_paths),
+            ImageLibrary.is_active == True
+        ).all()
+        for rec in lib_records:
+            image_lib_map[rec.image_path] = {'title': rec.title, 'tags': rec.tags}
+
     # 获取城市列表
     from App_new.business.tour.models.Packagemodels import ProductCity
     cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.city_name).all()
@@ -1118,7 +1192,8 @@ def edit_product(product_id):
                          suppliers=suppliers,
                          cities=cities,
                          itineraries=itineraries,
-                         price_variants=price_variants)
+                         price_variants=price_variants,
+                         image_lib_map=image_lib_map)
 
 
 @tour_products_bp.route('/<int:product_id>/toggle-status', methods=['POST'])

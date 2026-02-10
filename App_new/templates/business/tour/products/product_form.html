@@ -465,7 +465,7 @@
                             <th style="width: 100px;">天数</th>
                             <th style="width: 150px;">标题</th>
                             <th>行程正文</th>
-                            <th style="width: 200px;">图片</th>
+                            <th style="width: 300px;">图片</th>
                             <th style="width: 150px;">操作</th>
                         </tr>
                     </thead>
@@ -476,16 +476,21 @@
                             <td>{{ itinerary.day_title or '-' }}</td>
                             <td style="white-space: pre-wrap; max-width: 400px; overflow: hidden; text-overflow: ellipsis;">{{ (itinerary.content[:100] ~ '...') if itinerary.content and itinerary.content|length > 100 else (itinerary.content or '-') }}</td>
                             <td>
-                                <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                                    {% if itinerary.image1 %}
-                                    <img src="{{ url_for('static', filename=itinerary.image1) }}" alt="图片1" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="viewImage('{{ url_for('static', filename=itinerary.image1) }}')">
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    {% for img_path in [itinerary.image1, itinerary.image2, itinerary.image3] %}
+                                    {% if img_path %}
+                                    {% set lib_info = image_lib_map.get(img_path, {}) %}
+                                    <div style="text-align: center; max-width: 80px;">
+                                        <img src="{{ url_for('static', filename=img_path) }}" alt="" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="viewImage('{{ url_for('static', filename=img_path) }}')">
+                                        {% if lib_info.get('title') %}
+                                        <div style="font-size: 0.65rem; color: #334155; margin-top: 2px; line-height: 1.2; word-break: break-all;" title="{{ lib_info.get('title') }}">{{ lib_info.get('title')[:12] }}{{ '...' if lib_info.get('title')|length > 12 else '' }}</div>
+                                        {% endif %}
+                                        {% if lib_info.get('tags') %}
+                                        <div style="font-size: 0.6rem; color: #0ea5e9; margin-top: 1px;">{{ lib_info.get('tags') }}</div>
+                                        {% endif %}
+                                    </div>
                                     {% endif %}
-                                    {% if itinerary.image2 %}
-                                    <img src="{{ url_for('static', filename=itinerary.image2) }}" alt="图片2" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="viewImage('{{ url_for('static', filename=itinerary.image2) }}')">
-                                    {% endif %}
-                                    {% if itinerary.image3 %}
-                                    <img src="{{ url_for('static', filename=itinerary.image3) }}" alt="图片3" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="viewImage('{{ url_for('static', filename=itinerary.image3) }}')">
-                                    {% endif %}
+                                    {% endfor %}
                                     {% if not itinerary.image1 and not itinerary.image2 and not itinerary.image3 %}
                                     <span style="color: var(--visa-text-muted); font-size: 0.875rem;">无图片</span>
                                     {% endif %}

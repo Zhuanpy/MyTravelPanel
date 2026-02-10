@@ -491,11 +491,11 @@ def import_all_models():
         )
         # 银行关键词模型
         from .finance.models.bank_keywords import BankStatementKeyword, BankKeywordCategory
-        # Athina账单模型
-        from .finance.models.athina_booking import AthinaBookingHeader, AthinaBookingDetail
+        # Athina账单模型已删除（数据已迁移到 ProjectHeader）
         # 会计科目与日记账模型
         from .finance.models.chart_of_account import ChartOfAccount
         from .finance.models.journal_entry import JournalEntry, JournalEntryLine
+        from .finance.models.settlement_batch import SettlementBatch
         # 航班
         try:
             from .business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment

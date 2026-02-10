@@ -441,6 +441,7 @@ class ProjectHeader(db.Model):
     settled_at = db.Column(db.DateTime, nullable=True, comment='结算时间')
     settled_by = db.Column(db.String(50), nullable=True, comment='结算人')
     payment_voucher_id = db.Column(db.Integer, db.ForeignKey('payment_vouchers.id'), nullable=True, comment='付款凭证ID')
+    settlement_batch_id = db.Column(db.Integer, db.ForeignKey('settlement_batches.id'), nullable=True, comment='结算单ID')
 
     # 利润分配字段
     order_type = db.Column(db.String(20), nullable=True, comment='订单类型(小单/中单/大单等)')

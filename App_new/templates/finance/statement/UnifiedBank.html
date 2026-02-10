@@ -133,8 +133,8 @@
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <!-- 左侧：银行选择 -->
             <div class="d-flex align-items-center gap-2">
-                <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
                 <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="bank-btn {{ 'active' if bank_name == 'OCBC' else '' }}">OCBC银行</a>
+                <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
                 <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="bank-btn {{ 'active' if bank_name == 'CMB' else '' }}">招商银行</a>
                 <span class="mx-2 text-muted">|</span>
                 <a href="{{ url_for('reconciliation.bank_receipt_compare', bank_name=bank_name, account_name=filters.account_name or '') }}" class="btn btn-outline-info btn-sm">

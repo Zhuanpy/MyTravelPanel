@@ -39,29 +39,31 @@
     }
 
     .stats-panel {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 25px;
-        border-radius: 8px;
+        padding: 0;
         margin-bottom: 25px;
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
+        gap: 16px;
     }
 
     .stat-item {
         text-align: center;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px 15px;
     }
 
     .stat-label {
-        font-size: 14px;
-        opacity: 0.9;
+        font-size: 13px;
+        color: #6c757d;
         margin-bottom: 8px;
     }
 
     .stat-value {
         font-size: 28px;
         font-weight: bold;
+        color: #2d3748;
     }
 
     .filter-panel {
@@ -186,6 +188,7 @@
         font-weight: 600;
         position: sticky;
         top: 0;
+        white-space: nowrap;
     }
 
     .data-table td {
@@ -194,10 +197,21 @@
     }
 
     .data-table td.corporate-name-cell {
-        max-width: 150px;
+        max-width: 100px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .detail-link {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .detail-link:hover {
+        color: #0d47a1;
+        text-decoration: underline;
     }
 
     .data-table tr:hover {
@@ -298,7 +312,7 @@
             <input type="hidden" name="filter_book_date_to" value="{{ filter_book_date_to or '' }}">
             <input type="hidden" name="filter_is_count_performance" value="{{ filter_is_count_performance or '' }}">
             <input type="hidden" name="filter_balance" value="{{ filter_balance or '' }}">
-            <input type="text" name="search" class="search-input" placeholder="搜索HID、公司名称..." value="{{ search }}">
+            <input type="text" name="search" class="search-input" placeholder="搜索项目HID、公司名称..." value="{{ search }}">
             <button type="submit" class="search-btn">
                 <i class="fas fa-search"></i> 搜索
             </button>
@@ -316,11 +330,11 @@
             <div class="stat-value">${{ "%.2f"|format(total_profit) }}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-label">已核算业绩</div>
+            <div class="stat-label">已结算</div>
             <div class="stat-value">{{ settled_count }}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-label">待核算业绩</div>
+            <div class="stat-label">待结算</div>
             <div class="stat-value">{{ unsettled_count }}</div>
         </div>
     </div>
@@ -354,30 +368,42 @@
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">预订日期（从）</label>
+                <label class="filter-label">创建日期（从）</label>
                 <input type="date" name="filter_book_date_from" class="filter-input" value="{{ filter_book_date_from or '' }}">
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">预订日期（到）</label>
+                <label class="filter-label">创建日期（到）</label>
                 <input type="date" name="filter_book_date_to" class="filter-input" value="{{ filter_book_date_to or '' }}">
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">是否已核算业绩</label>
-                <select name="filter_is_count_performance" class="filter-select">
+                <label class="filter-label">可结算</label>
+                <select name="filter_can_settle" class="filter-select">
                     <option value="">全部</option>
-                    <option value="true" {{ 'selected' if filter_is_count_performance == 'true' }}>是</option>
-                    <option value="false" {{ 'selected' if filter_is_count_performance == 'false' }}>否</option>
+                    <option value="true" {{ 'selected' if filter_can_settle == 'true' }}>是</option>
+                    <option value="false" {{ 'selected' if filter_can_settle == 'false' }}>否</option>
                 </select>
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">余额</label>
-                <select name="filter_balance" class="filter-select">
+                <label class="filter-label">结算</label>
+                <select name="filter_is_count_performance" class="filter-select">
                     <option value="">全部</option>
-                    <option value="zero_or_negative" {{ 'selected' if filter_balance == 'zero_or_negative' }}>小于等于0</option>
-                    <option value="positive" {{ 'selected' if filter_balance == 'positive' }}>大于0</option>
+                    <option value="true" {{ 'selected' if filter_is_count_performance == 'true' }}>已结算</option>
+                    <option value="false" {{ 'selected' if filter_is_count_performance == 'false' }}>未结算</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">类型</label>
+                <select name="filter_order_type" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="小单" {{ 'selected' if filter_order_type == '小单' }}>小单</option>
+                    <option value="小单-中单过渡" {{ 'selected' if filter_order_type == '小单-中单过渡' }}>小单-中单过渡</option>
+                    <option value="中单" {{ 'selected' if filter_order_type == '中单' }}>中单</option>
+                    <option value="中单-大单过渡" {{ 'selected' if filter_order_type == '中单-大单过渡' }}>中单-大单过渡</option>
+                    <option value="大单" {{ 'selected' if filter_order_type == '大单' }}>大单</option>
                 </select>
             </div>
 
@@ -394,28 +420,29 @@
 
     <!-- 操作按钮 -->
     <div class="action-buttons">
+        <span id="selectedCount" style="display: none; padding: 8px 12px; background: #e3f2fd; color: #1565c0; border-radius: 6px; font-weight: 600; font-size: 14px;"></span>
+        <button class="action-btn" onclick="clearSelection()" style="background-color: #6c757d;">
+            <i class="fas fa-times"></i> 清除选择
+        </button>
         <button class="action-btn" onclick="calculateProfitDistribution()" style="background-color: #9C27B0;">
-            <i class="fas fa-calculator"></i> 计算利润分配
+            <i class="fas fa-calculator"></i> 选中-分配利润
         </button>
         <button class="action-btn" onclick="calculateAllUnsettledProfitDistribution()" style="background-color: #FF9800;">
-            <i class="fas fa-calculator"></i> 计算全部未结算单的利润分配
+            <i class="fas fa-calculator"></i> 全部-分配利润
         </button>
         <button class="action-btn success" onclick="batchSettleSelected()">
-            <i class="fas fa-check-double"></i> 批量结算选中记录
+            <i class="fas fa-check-double"></i> 选中-结算
         </button>
-        <button class="action-btn success" onclick="batchSettleAll()">
-            <i class="fas fa-check-circle"></i> 批量结算全部待核算记录
-        </button>
-        <a href="/statement/athina_header_data" class="action-btn">
-            <i class="fas fa-arrow-left"></i> 返回数据查看
-        </a>
         <button class="action-btn" onclick="exportToExcel()" style="background-color: #28a745;">
             <i class="fas fa-file-excel"></i> 导出Excel
         </button>
+        <a class="action-btn" href="{{ url_for('athina_routes.settlement_batch_list') }}" style="background-color: #607D8B;">
+            <i class="fas fa-list-alt"></i> 结算单列表
+        </a>
     </div>
 
     <!-- 数据表格 -->
-    {% if headers %}
+    {% if projects %}
     <div class="table-wrapper">
     <table class="data-table">
         <thead>
@@ -424,90 +451,92 @@
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
                 </th>
                 <th>HID</th>
-                <th style="width: 150px; max-width: 150px;">公司名称</th>
-                <th>预订日期</th>
-                <th>总金额</th>
+                <th style="width: 100px; max-width: 100px;">公司</th>
+                <th>日期</th>
+                <th>金额</th>
                 <th>成本</th>
                 <th>盈亏</th>
                 <th>余额</th>
                 <th>操作员</th>
                 <th>业务员</th>
-                <th>是否已开票</th>
-                <th>是否已核算业绩</th>
-                <th>订单类型</th>
-                <th>操作员利润</th>
-                <th>业务员利润</th>
+                <th>可结算</th>
+                <th>结算</th>
+                <th>类型</th>
+                <th>员工利润</th>
+                <th>销售利润</th>
                 <th>公司利润</th>
-                <th>操作</th>
+
             </tr>
         </thead>
         <tbody>
-            {% for header in headers %}
+            {% for project in projects %}
+            {% set fd = finance_data.get(project.id, {}) %}
             <tr>
                 <td>
-                    {% if not header.is_count_performance %}
-                    <input type="checkbox" class="record-checkbox" value="{{ header.id }}">
+                    {% if not project.is_settled %}
+                    <input type="checkbox" class="record-checkbox" value="{{ project.id }}">
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/statement/athina_detail/{{ header.id }}" class="detail-link">
-                        {{ header.booking_header_id }}
+                    <a href="/projects/detail/{{ project.id }}" target="_blank" class="detail-link">
+                        {{ project.hid }}
                     </a>
                 </td>
-                <td class="corporate-name-cell" title="{{ header.corporate_name or '-' }}">{{ header.corporate_name or '-' }}</td>
-                <td>{{ header.book_date.strftime('%Y-%m-%d') if header.book_date else '-' }}</td>
-                <td class="amount {{ 'positive' if header.sub_total_gross and header.sub_total_gross > 0 else '' }}">
-                    {{ "%.2f"|format(header.sub_total_gross) if header.sub_total_gross else '0.00' }}
+                <td class="corporate-name-cell" title="{{ project.company.company_name if project.company else '-' }}">{{ project.company.company_name if project.company else '-' }}</td>
+                <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
+                <td class="amount {{ 'positive' if fd.get('total_selling', 0) > 0 else '' }}">
+                    {{ "%.2f"|format(fd.get('total_selling', 0)) }}
                 </td>
                 <td class="amount">
-                    {{ "%.2f"|format(header.sub_total_cost) if header.sub_total_cost else '0.00' }}
+                    {{ "%.2f"|format(fd.get('total_cost', 0)) }}
                 </td>
-                <td class="amount {{ 'positive' if header.sub_total_pl and header.sub_total_pl > 0 else 'negative' if header.sub_total_pl and header.sub_total_pl < 0 else '' }}">
-                    {{ "%.2f"|format(header.sub_total_pl) if header.sub_total_pl else '0.00' }}
+                <td class="amount {{ 'positive' if fd.get('total_pl', 0) > 0 else 'negative' if fd.get('total_pl', 0) < 0 else '' }}">
+                    {{ "%.2f"|format(fd.get('total_pl', 0)) }}
                 </td>
                 <td class="amount">
-                    {{ "%.2f"|format(header.sub_total_balance) if header.sub_total_balance else '0.00' }}
+                    {{ "%.2f"|format(fd.get('total_balance', 0)) }}
                 </td>
-                <td>{{ header.consultant or '-' }}</td>
-                <td>{{ header.sales_consultant or '-' }}</td>
+                <td>{{ project.operator_names or '-' }}</td>
+                <td>{{ project.salesperson_names or '-' }}</td>
                 <td>
-                    {% if header.is_all_invoiced %}
+                    {% if fd.get('can_settle') %}
                         <span class="badge badge-success">是</span>
                     {% else %}
                         <span class="badge badge-secondary">否</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if header.is_count_performance %}
-                        <span class="badge badge-success">是</span>
+                    {% if project.is_settled %}
+                        {% if project.settlement_batch %}
+                            <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}" target="_blank" class="detail-link" style="font-size: 12px;">
+                                {{ project.settlement_batch.batch_number }}
+                            </a>
+                        {% else %}
+                            <span class="badge badge-success">已结算</span>
+                        {% endif %}
                     {% else %}
                         <span class="badge badge-secondary">否</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if header.order_type %}
-                        <span class="badge" style="background-color: #6c757d; color: white;">{{ header.order_type }}</span>
+                    {% if project.order_type %}
+                        <span class="badge" style="background-color: #6c757d; color: white;">{{ project.order_type }}</span>
                     {% else %}
                         <span class="badge badge-secondary">-</span>
                     {% endif %}
                 </td>
-                <td class="amount {{ 'positive' if header.operator_profit and header.operator_profit > 0 else '' }}">
-                    {{ "%.2f"|format(header.operator_profit) if header.operator_profit else '0.00' }}
+                <td class="amount {{ 'positive' if project.operator_profit and project.operator_profit > 0 else '' }}">
+                    {{ "%.2f"|format(project.operator_profit) if project.operator_profit else '0.00' }}
                 </td>
-                <td class="amount {{ 'positive' if header.sales_profit and header.sales_profit > 0 else '' }}">
-                    {{ "%.2f"|format(header.sales_profit) if header.sales_profit else '0.00' }}
+                <td class="amount {{ 'positive' if project.sales_profit and project.sales_profit > 0 else '' }}">
+                    {{ "%.2f"|format(project.sales_profit) if project.sales_profit else '0.00' }}
                 </td>
-                <td class="amount {{ 'positive' if header.company_profit and header.company_profit > 0 else '' }}">
-                    {{ "%.2f"|format(header.company_profit) if header.company_profit else '0.00' }}
-                </td>
-                <td>
-                    <a href="/statement/athina_detail/{{ header.id }}" class="detail-link">
-                        <i class="fas fa-eye"></i> 查看详情
-                    </a>
+                <td class="amount {{ 'positive' if project.company_profit and project.company_profit > 0 else '' }}">
+                    {{ "%.2f"|format(project.company_profit) if project.company_profit else '0.00' }}
                 </td>
             </tr>
             {% endfor %}
-            
+
             <!-- 汇总行 -->
             <tr class="summary-row">
                 <td colspan="2"></td>
@@ -583,7 +612,7 @@
     <div class="no-data">
         <i class="fas fa-database"></i>
         <h3>暂无符合结算标准的记录</h3>
-        <p>符合条件的记录必须：已全部开票（is_all_invoiced=True）且余额为0（sub_total_balance=0）</p>
+        <p>默认显示已开票的项目，使用筛选条件查看更多记录</p>
     </div>
     {% endif %}
 </div>
@@ -591,17 +620,79 @@
 
 {% block extra_js %}
 <script>
+    // 跨页选择：使用 sessionStorage 记住已选ID
+    const STORAGE_KEY = 'settlement_selected_ids';
+
+    function getStoredIds() {
+        try {
+            return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
+        } catch(e) { return []; }
+    }
+
+    function saveStoredIds(ids) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const ids = getStoredIds();
+        const counter = document.getElementById('selectedCount');
+        if (counter) {
+            counter.textContent = ids.length > 0 ? `已选 ${ids.length} 条` : '';
+            counter.style.display = ids.length > 0 ? 'inline-block' : 'none';
+        }
+    }
+
+    // 页面加载时恢复选中状态
+    document.addEventListener('DOMContentLoaded', function() {
+        const storedIds = getStoredIds();
+        document.querySelectorAll('.record-checkbox').forEach(cb => {
+            if (storedIds.includes(parseInt(cb.value))) {
+                cb.checked = true;
+            }
+        });
+        // 监听每个checkbox变化
+        document.querySelectorAll('.record-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                let ids = getStoredIds();
+                const val = parseInt(this.value);
+                if (this.checked) {
+                    if (!ids.includes(val)) ids.push(val);
+                } else {
+                    ids = ids.filter(id => id !== val);
+                }
+                saveStoredIds(ids);
+            });
+        });
+        updateSelectedCount();
+    });
+
     function toggleSelectAll() {
         const selectAll = document.getElementById('selectAll');
         const checkboxes = document.querySelectorAll('.record-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = selectAll.checked;
+        let ids = getStoredIds();
+        checkboxes.forEach(cb => {
+            cb.checked = selectAll.checked;
+            const val = parseInt(cb.value);
+            if (selectAll.checked) {
+                if (!ids.includes(val)) ids.push(val);
+            } else {
+                ids = ids.filter(id => id !== val);
+            }
         });
+        saveStoredIds(ids);
+    }
+
+    function clearSelection() {
+        sessionStorage.removeItem(STORAGE_KEY);
+        document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = false);
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) selectAll.checked = false;
+        updateSelectedCount();
     }
 
     function getSelectedIds() {
-        const checkboxes = document.querySelectorAll('.record-checkbox:checked');
-        return Array.from(checkboxes).map(cb => parseInt(cb.value));
+        return getStoredIds();
     }
 
     function batchSettleSelected() {
@@ -611,21 +702,20 @@
             return;
         }
 
-        if (!confirm(`确定要标记 ${selectedIds.length} 条记录为已核算业绩吗？`)) {
+        if (!confirm(`确定要结算 ${selectedIds.length} 条记录吗？`)) {
             return;
         }
 
         fetch('/statement/athina_batch_settle_performance', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({ header_ids: selectedIds })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                clearSelection();
                 alert(data.message);
                 location.reload();
             } else {
@@ -639,30 +729,28 @@
     }
 
     function batchSettleAll() {
-        if (!confirm('确定要批量结算所有待核算记录吗？此操作将标记所有符合条件且未核算的记录为已核算业绩。')) {
+        if (!confirm('确定要结算全部未结算记录吗？')) {
             return;
         }
 
-        // 获取所有未核算的记录ID
         const checkboxes = document.querySelectorAll('.record-checkbox');
         const allIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
 
         if (allIds.length === 0) {
-            alert('当前页面没有待核算的记录');
+            alert('当前页面没有待结算的记录');
             return;
         }
 
         fetch('/statement/athina_batch_settle_performance', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({ header_ids: allIds })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                clearSelection();
                 alert(data.message);
                 location.reload();
             } else {
@@ -687,6 +775,7 @@
         if (searchInput) {
             searchInput.value = '';
         }
+        clearSelection();
         form.submit();
     }
 
@@ -703,9 +792,7 @@
 
         fetch('/statement/athina_calculate_profit_distribution', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({ header_ids: selectedIds })
         })
@@ -716,6 +803,7 @@
                 if (data.error_count > 0 && data.errors) {
                     message += '\n\n错误详情：\n' + data.errors.join('\n');
                 }
+                clearSelection();
                 alert(message);
                 location.reload();
             } else {
@@ -729,15 +817,13 @@
     }
 
     function calculateAllUnsettledProfitDistribution() {
-        if (!confirm('确定要计算全部未结算单的利润分配吗？\n\n注意：此操作将筛选所有未结算单（is_count_performance = False），并根据盈亏金额自动计算并更新分配结果。已结算的单不会被计算。')) {
+        if (!confirm('确定要计算全部未结算单的利润分配吗？')) {
             return;
         }
 
         fetch('/statement/athina_calculate_all_unsettled_profit_distribution', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({})
         })

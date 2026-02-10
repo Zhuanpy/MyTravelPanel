@@ -320,28 +320,15 @@
                                 <i class="fas fa-file-invoice-dollar me-2"></i>银行支出对比
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_import') }}">
-                                <i class="fas fa-upload me-2"></i>Athina数据录入
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_header_data') }}">
-                                <i class="fas fa-table me-2"></i>Athina数据查看
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_to_project') }}">
-                                <i class="fas fa-file-import me-2"></i>Athina导入项目
-                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('soa_routes.soa_list') }}">
                                 <i class="fas fa-file-invoice me-2"></i>SOA对账单
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('statement_common_routes.to_company', bank_name='UOB') }}">
-                                <i class="fas fa-file-invoice-dollar me-2"></i>公司账单
-                            </a></li>
-               <li><hr class="dropdown-divider"></li>
                <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_performance_settlement') }}">
                    <i class="fas fa-calculator me-2"></i>业绩结算
                </a></li>
-               <li><a class="dropdown-item" href="{{ url_for('athina_routes.athina_analysis') }}">
-                   <i class="fas fa-chart-bar me-2"></i>LG业绩分析
+               <li><a class="dropdown-item" href="{{ url_for('athina_routes.settlement_batch_list') }}">
+                   <i class="fas fa-list-alt me-2"></i>结算单列表
                </a></li>
            </ul>
        </li>

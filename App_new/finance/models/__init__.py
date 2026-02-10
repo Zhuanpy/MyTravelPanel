@@ -14,6 +14,9 @@ from .journal_entry import JournalEntry, JournalEntryLine
 # 运营费用模型
 from .operating_expense import OperatingExpense
 
+# 结算单模型
+from .settlement_batch import SettlementBatch
+
 __all__ = [
     # 收款相关模型
     # 对账相关模型
@@ -28,4 +31,6 @@ __all__ = [
     'JournalEntryLine',
     # 运营费用
     'OperatingExpense',
+    # 结算单
+    'SettlementBatch',
 ]
