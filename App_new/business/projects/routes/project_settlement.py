@@ -139,6 +139,17 @@ def settlement_list():
                     display_name = u.username
                 staff_list.append({'id': u.id, 'name': display_name})
 
+        # 构建操作员/业务员名字映射（从员工表获取）
+        staff_name_map = {s['id']: s['name'] for s in staff_list}
+        project_staff_display = {}
+        for p in projects:
+            op_ids = [int(s.strip()) for s in (p.operator_ids or '').split(',') if s.strip() and s.strip().isdigit()]
+            sp_ids = [int(s.strip()) for s in (p.salesperson_ids or '').split(',') if s.strip() and s.strip().isdigit()]
+            project_staff_display[p.id] = {
+                'operator_names': ', '.join(staff_name_map.get(uid, f'ID:{uid}') for uid in op_ids) if op_ids else (p.operator_names or '-'),
+                'salesperson_names': ', '.join(staff_name_map.get(uid, f'ID:{uid}') for uid in sp_ids) if sp_ids else (p.salesperson_names or '-'),
+            }
+
         # 构建查询字符串用于分页
         query_params = []
         if search:
@@ -162,6 +173,7 @@ def settlement_list():
             pagination=pagination,
             stats=stats,
             staff_list=staff_list,
+            project_staff_display=project_staff_display,
             query_string=query_string,
             filters={
                 'search': search,

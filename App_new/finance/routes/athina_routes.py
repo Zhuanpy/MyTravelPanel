@@ -521,20 +521,55 @@ def compare_reports():
         return jsonify({'success': False, 'error': str(e)})
 
 
-def _extract_unique_names(column):
-    """从逗号分隔的名称字段中提取唯一名称列表"""
-    from App_new.business.projects.models.project import ProjectHeader
-    rows = db.session.query(column).filter(
-        column.isnot(None), column != ''
-    ).distinct().all()
-    names = set()
-    for row in rows:
-        if row[0]:
-            for name in row[0].split(','):
-                name = name.strip()
-                if name:
-                    names.add(name)
-    return sorted(names)
+def _get_staff_list():
+    """获取员工列表（staff和admin角色），返回 [{'id': ..., 'name': ...}]"""
+    from App_new.auth.models.auth import AuthUser, Role, UserProfile
+    staff_role = Role.query.filter_by(name='staff').first()
+    admin_role = Role.query.filter_by(name='admin').first()
+    role_ids = []
+    if staff_role:
+        role_ids.append(staff_role.id)
+    if admin_role:
+        role_ids.append(admin_role.id)
+    if not role_ids:
+        return []
+    staff_users = db.session.query(
+        AuthUser.id,
+        AuthUser.username,
+        UserProfile.first_name,
+        UserProfile.last_name
+    ).outerjoin(
+        UserProfile, AuthUser.id == UserProfile.user_id
+    ).filter(
+        AuthUser.role_id.in_(role_ids),
+        AuthUser.is_active == True
+    ).all()
+    result = []
+    for u in staff_users:
+        if u.first_name or u.last_name:
+            display_name = f"{u.first_name or ''}{u.last_name or ''}".strip()
+        else:
+            display_name = u.username
+        result.append({'id': u.id, 'name': display_name})
+    return result
+
+
+def _build_staff_name_map(staff_list):
+    """从 staff_list 构建 {id: name} 映射"""
+    return {s['id']: s['name'] for s in staff_list}
+
+
+def _resolve_project_staff_display(projects, staff_name_map):
+    """根据 operator_ids/salesperson_ids 解析每个项目的操作员/业务员显示名称"""
+    result = {}
+    for p in projects:
+        op_ids = [int(s.strip()) for s in (p.operator_ids or '').split(',') if s.strip() and s.strip().isdigit()]
+        sp_ids = [int(s.strip()) for s in (p.salesperson_ids or '').split(',') if s.strip() and s.strip().isdigit()]
+        result[p.id] = {
+            'operator_names': ', '.join(staff_name_map.get(uid, f'ID:{uid}') for uid in op_ids) if op_ids else (p.operator_names or '-'),
+            'salesperson_names': ', '.join(staff_name_map.get(uid, f'ID:{uid}') for uid in sp_ids) if sp_ids else (p.salesperson_names or '-'),
+        }
+    return result
 
 
 @athina_blue.route('/athina_performance_settlement')
@@ -719,9 +754,12 @@ def athina_performance_settlement():
         settled_count = total_query.filter(ProjectHeader.is_settled == True).count()
         unsettled_count = total_query.filter(ProjectHeader.is_settled == False).count()
 
-        # 获取唯一的操作员和业务员列表
-        consultants = _extract_unique_names(ProjectHeader.operator_names)
-        sales_consultants = _extract_unique_names(ProjectHeader.salesperson_names)
+        # 获取员工列表（用于筛选下拉和名称解析）
+        staff_list = _get_staff_list()
+        staff_name_map = _build_staff_name_map(staff_list)
+
+        # 解析每个项目的操作员/业务员显示名称
+        project_staff_display = _resolve_project_staff_display(projects, staff_name_map)
 
         return render_template('finance/athina/athina_performance_settlement.html',
                              projects=projects,
@@ -736,8 +774,8 @@ def athina_performance_settlement():
                              filter_balance=filter_balance,
                              filter_can_settle=filter_can_settle,
                              filter_order_type=filter_order_type,
-                             consultants=consultants,
-                             sales_consultants=sales_consultants,
+                             staff_list=staff_list,
+                             project_staff_display=project_staff_display,
                              total_count=total_count,
                              total_profit=float(total_profit_result),
                              settled_count=settled_count,
@@ -787,20 +825,18 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
         ).distinct().subquery()
         query = query.filter(ProjectHeader.id.in_(db.select(has_invoice_subquery)))
 
-    # 操作员筛选
+    # 操作员筛选（通过 operator_ids 匹配员工ID）
     if filter_consultant:
+        from sqlalchemy import func as sa_func
         query = query.filter(
-            ProjectHeader.operator_names.isnot(None),
-            ProjectHeader.operator_names != '',
-            ProjectHeader.operator_names.contains(filter_consultant)
+            sa_func.find_in_set(str(filter_consultant), ProjectHeader.operator_ids) > 0
         )
 
-    # 业务员筛选
+    # 业务员筛选（通过 salesperson_ids 匹配员工ID）
     if filter_sales_consultant:
+        from sqlalchemy import func as sa_func
         query = query.filter(
-            ProjectHeader.salesperson_names.isnot(None),
-            ProjectHeader.salesperson_names != '',
-            ProjectHeader.salesperson_names.contains(filter_sales_consultant)
+            sa_func.find_in_set(str(filter_sales_consultant), ProjectHeader.salesperson_ids) > 0
         )
 
     # 日期筛选（使用created_at）
@@ -993,11 +1029,17 @@ def athina_performance_settlement_export():
             ProjectInvoice.header_id.in_(project_ids), ProjectInvoice.status != 'cancelled'
         ).distinct().all()}
 
+        # 解析操作员/业务员显示名称
+        staff_list_export = _get_staff_list()
+        staff_name_map_export = _build_staff_name_map(staff_list_export)
+        project_staff_display = _resolve_project_staff_display(projects, staff_name_map_export)
+
         # 准备Excel数据
         data = []
         for project in projects:
             fm = finance_map.get(project.id, {'selling': 0, 'cost': 0})
             received = receipt_map.get(project.id, 0)
+            psd = project_staff_display.get(project.id, {})
             data.append({
                 'HID': project.hid,
                 '公司名称': project.company.company_name if project.company else '',
@@ -1006,8 +1048,8 @@ def athina_performance_settlement_export():
                 '成本': fm['cost'],
                 '盈亏': fm['selling'] - fm['cost'],
                 '余额': fm['selling'] - received,
-                '操作员': project.operator_names or '',
-                '业务员': project.salesperson_names or '',
+                '操作员': psd.get('operator_names', project.operator_names or ''),
+                '业务员': psd.get('salesperson_names', project.salesperson_names or ''),
                 '是否已开票': '是' if project.id in invoice_ids else '否',
                 '是否已核算业绩': '是' if project.is_settled else '否',
                 '订单类型': project.order_type or '',
@@ -1418,35 +1460,8 @@ def settlement_batch_detail(batch_id):
                 'total_pl': selling - cost,
             }
 
-    # 收集所有员工ID，通过数据库获取准确姓名
-    from App_new.auth.models.auth import AuthUser, UserProfile
-    all_staff_ids = set()
-    for p in projects:
-        for sid in (p.operator_ids or '').split(','):
-            sid = sid.strip()
-            if sid and sid.isdigit():
-                all_staff_ids.add(int(sid))
-        for sid in (p.salesperson_ids or '').split(','):
-            sid = sid.strip()
-            if sid and sid.isdigit():
-                all_staff_ids.add(int(sid))
-
-    # 批量查询员工姓名
-    staff_name_map = {}
-    if all_staff_ids:
-        staff_rows = db.session.query(
-            AuthUser.id,
-            AuthUser.username,
-            UserProfile.first_name,
-            UserProfile.last_name
-        ).outerjoin(
-            UserProfile, AuthUser.id == UserProfile.user_id
-        ).filter(AuthUser.id.in_(list(all_staff_ids))).all()
-        for row in staff_rows:
-            display_name = f"{row.first_name or ''}{row.last_name or ''}".strip()
-            if not display_name:
-                display_name = row.username
-            staff_name_map[row.id] = display_name
+    # 获取员工姓名映射
+    staff_name_map = _build_staff_name_map(_get_staff_list())
 
     # 按员工ID汇总利润分配
     staff_summary = {}
@@ -1489,11 +1504,15 @@ def settlement_batch_detail(batch_id):
     for s in staff_list:
         s['profit'] = round(s['profit'], 2)
 
+    # 解析每个项目的操作员/业务员显示名称
+    project_staff_display = _resolve_project_staff_display(projects, staff_name_map)
+
     return render_template('finance/athina/settlement_batch_detail.html',
                          batch=batch,
                          projects=projects,
                          finance_data=finance_data,
-                         staff_list=staff_list)
+                         staff_list=staff_list,
+                         project_staff_display=project_staff_display)
 
 
 @athina_blue.route('/settlement_batches/<int:batch_id>/cancel', methods=['POST'])

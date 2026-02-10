@@ -351,8 +351,8 @@
                 <label class="filter-label">操作员</label>
                 <select name="filter_consultant" class="filter-select">
                     <option value="">全部</option>
-                    {% for consultant in consultants %}
-                    <option value="{{ consultant }}" {{ 'selected' if filter_consultant == consultant }}>{{ consultant }}</option>
+                    {% for s in staff_list|default([]) %}
+                    <option value="{{ s.id }}" {{ 'selected' if filter_consultant|string == s.id|string }}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -361,8 +361,8 @@
                 <label class="filter-label">业务员</label>
                 <select name="filter_sales_consultant" class="filter-select">
                     <option value="">全部</option>
-                    {% for consultant in sales_consultants %}
-                    <option value="{{ consultant }}" {{ 'selected' if filter_sales_consultant == consultant }}>{{ consultant }}</option>
+                    {% for s in staff_list|default([]) %}
+                    <option value="{{ s.id }}" {{ 'selected' if filter_sales_consultant|string == s.id|string }}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -496,8 +496,9 @@
                 <td class="amount">
                     {{ "%.2f"|format(fd.get('total_balance', 0)) }}
                 </td>
-                <td>{{ project.operator_names or '-' }}</td>
-                <td>{{ project.salesperson_names or '-' }}</td>
+                {% set psd = project_staff_display.get(project.id, {}) %}
+                <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
+                <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td>
                     {% if fd.get('can_settle') %}
                         <span class="badge badge-success">是</span>

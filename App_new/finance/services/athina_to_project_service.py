@@ -63,6 +63,7 @@ class AthinaToProjectService:
         """
         self.current_user_id = current_user_id
         self.current_user_name = current_user_name
+        self._staff_name_map = None  # 懒加载的姓名→ID映射
         self.errors = []
         self.warnings = []
         self.stats = {
@@ -80,6 +81,64 @@ class AthinaToProjectService:
             'payment_vouchers_created': 0,
             'payment_vouchers_updated': 0,
         }
+
+    def _get_staff_name_map(self):
+        """懒加载并返回姓名→ID映射（小写匹配）"""
+        if self._staff_name_map is not None:
+            return self._staff_name_map
+
+        from App_new.auth.models.auth import AuthUser, UserProfile
+        rows = db.session.query(
+            AuthUser.id, AuthUser.username,
+            UserProfile.first_name, UserProfile.last_name
+        ).outerjoin(UserProfile, AuthUser.id == UserProfile.user_id
+        ).filter(AuthUser.is_active == True).all()
+
+        name_map = {}  # lowercase name → (user_id, display_name)
+        for uid, username, first_name, last_name in rows:
+            first_name = (first_name or '').strip()
+            last_name = (last_name or '').strip()
+            username = (username or '').strip()
+
+            if first_name or last_name:
+                display_name = f"{first_name}{last_name}".strip()
+            else:
+                display_name = username
+
+            # 注册多种名字变体（全部小写作为 key）
+            candidates = set()
+            if username:
+                candidates.add(username.lower())
+            if first_name and last_name:
+                candidates.add(f"{first_name}{last_name}".lower())
+                candidates.add(f"{first_name} {last_name}".lower())
+                candidates.add(f"{last_name}{first_name}".lower())
+                candidates.add(f"{last_name} {first_name}".lower())
+            if first_name:
+                candidates.add(first_name.lower())
+            if last_name:
+                candidates.add(last_name.lower())
+
+            for c in candidates:
+                if c and c not in name_map:
+                    name_map[c] = (uid, display_name)
+
+        self._staff_name_map = name_map
+        return name_map
+
+    def _resolve_consultant_to_id(self, name):
+        """将 consultant 名字解析为 (user_id, display_name)，匹配失败返回 (None, name)"""
+        if not name or not name.strip():
+            return None, name
+        name_map = self._get_staff_name_map()
+        key = name.strip().lower()
+        if key in name_map:
+            return name_map[key]
+        # 去掉空格再试
+        key_no_space = key.replace(' ', '')
+        if key_no_space in name_map:
+            return name_map[key_no_space]
+        return None, name.strip()
 
     def _get_or_create_other_type(self):
         """获取或创建 'other' 业务类型"""
@@ -565,6 +624,12 @@ class AthinaToProjectService:
             # 检查是否已存在
             existing_header = ProjectHeader.query.filter_by(hid=hid).first()
 
+            # 解析操作员和业务员名字到 ID
+            consultant_name = group_data.get('consultant')
+            sales_consultant_name = group_data.get('sales_consultant')
+            op_uid, op_display = self._resolve_consultant_to_id(consultant_name)
+            sp_uid, sp_display = self._resolve_consultant_to_id(sales_consultant_name)
+
             if existing_header:
                 # 更新已存在的 ProjectHeader
                 project_header = existing_header
@@ -572,8 +637,19 @@ class AthinaToProjectService:
                 project_header.company_id = company_id or project_header.company_id
                 if not project_header.staff_id:
                     project_header.staff_id = self.current_user_id
-                project_header.operator_names = group_data.get('consultant') or project_header.operator_names
-                project_header.salesperson_names = group_data.get('sales_consultant') or project_header.salesperson_names
+                # 操作员：优先用解析到的 ID，保留已有数据
+                if consultant_name:
+                    if op_uid:
+                        project_header.operator_ids = str(op_uid)
+                        project_header.operator_names = op_display
+                    else:
+                        project_header.operator_names = consultant_name
+                if sales_consultant_name:
+                    if sp_uid:
+                        project_header.salesperson_ids = str(sp_uid)
+                        project_header.salesperson_names = sp_display
+                    else:
+                        project_header.salesperson_names = sales_consultant_name
                 project_header.updated_at = datetime.utcnow()
                 self.stats['headers_updated'] += 1
             else:
@@ -583,8 +659,10 @@ class AthinaToProjectService:
                     desc=desc[:200] if desc else '-',
                     company_id=company_id,
                     staff_id=self.current_user_id,
-                    operator_names=group_data.get('consultant'),
-                    salesperson_names=group_data.get('sales_consultant'),
+                    operator_ids=str(op_uid) if op_uid else None,
+                    operator_names=op_display if consultant_name else None,
+                    salesperson_ids=str(sp_uid) if sp_uid else None,
+                    salesperson_names=sp_display if sales_consultant_name else None,
                     currency='SGD',
                     status='active',
                     created_at=group_data.get('book_date') or datetime.utcnow(),

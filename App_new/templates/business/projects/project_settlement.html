@@ -488,8 +488,9 @@
                 </td>
                 <td class="text-center">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
                 <td class="text-center">{{ project.staff_display_name }}</td>
-                <td class="text-center">{{ project.operator_names or '-' }}</td>
-                <td class="text-center">{{ project.salesperson_names or '-' }}</td>
+                {% set psd = project_staff_display.get(project.id, {}) %}
+                <td class="text-center">{{ psd.get('operator_names', project.operator_names or '-') }}</td>
+                <td class="text-center">{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td class="amount">{{ "%.2f"|format(pstats.total_selling_price or 0) }}</td>
                 <td class="amount">{{ "%.2f"|format(pstats.total_cost_price or 0) }}</td>
                 <td class="amount {{ 'positive' if (pstats.total_profit or 0) > 0 else 'negative' if (pstats.total_profit or 0) < 0 else '' }}">
