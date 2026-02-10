@@ -572,6 +572,70 @@ def _resolve_project_staff_display(projects, staff_name_map):
     return result
 
 
+def _get_can_settle_project_ids():
+    """获取所有可结算项目的 ID 集合（ref>0, ref==eo, eo==paid, ref==invoiced, balance==0）"""
+    from sqlalchemy import func
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.receipt import ProjectReceipt
+    from App_new.business.projects.models.eo import ProjectEO
+    from App_new.business.projects.models.invoice import InvoiceItem
+
+    ref_count_subq = db.session.query(
+        ProjectRef.header_id,
+        func.count(ProjectRef.id).label('ref_count')
+    ).group_by(ProjectRef.header_id).subquery()
+
+    invoiced_ref_subq = db.session.query(
+        ProjectRef.header_id,
+        func.count(db.distinct(InvoiceItem.ref_id)).label('inv_ref_count')
+    ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
+    ).group_by(ProjectRef.header_id).subquery()
+
+    eo_count_subq = db.session.query(
+        ProjectRef.header_id,
+        func.count(ProjectEO.id).label('eo_count')
+    ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id
+    ).group_by(ProjectRef.header_id).subquery()
+
+    paid_eo_subq = db.session.query(
+        ProjectRef.header_id,
+        func.count(ProjectEO.id).label('paid_count')
+    ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id
+    ).filter(ProjectEO.is_paid == True
+    ).group_by(ProjectRef.header_id).subquery()
+
+    sell_subq = db.session.query(
+        ProjectRef.header_id,
+        func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_sell')
+    ).group_by(ProjectRef.header_id).subquery()
+
+    rcpt_subq = db.session.query(
+        ProjectReceipt.header_id,
+        func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_rcpt')
+    ).filter(ProjectReceipt.status == 'confirmed'
+    ).group_by(ProjectReceipt.header_id).subquery()
+
+    rows = db.session.query(ref_count_subq.c.header_id).outerjoin(
+        eo_count_subq, ref_count_subq.c.header_id == eo_count_subq.c.header_id
+    ).outerjoin(
+        paid_eo_subq, ref_count_subq.c.header_id == paid_eo_subq.c.header_id
+    ).outerjoin(
+        invoiced_ref_subq, ref_count_subq.c.header_id == invoiced_ref_subq.c.header_id
+    ).outerjoin(
+        sell_subq, ref_count_subq.c.header_id == sell_subq.c.header_id
+    ).outerjoin(
+        rcpt_subq, ref_count_subq.c.header_id == rcpt_subq.c.header_id
+    ).filter(
+        ref_count_subq.c.ref_count > 0,
+        ref_count_subq.c.ref_count == func.coalesce(eo_count_subq.c.eo_count, 0),
+        func.coalesce(eo_count_subq.c.eo_count, 0) == func.coalesce(paid_eo_subq.c.paid_count, 0),
+        ref_count_subq.c.ref_count == func.coalesce(invoiced_ref_subq.c.inv_ref_count, 0),
+        func.abs(func.coalesce(sell_subq.c.total_sell, 0) - func.coalesce(rcpt_subq.c.total_rcpt, 0)) < 0.01
+    ).all()
+
+    return {r[0] for r in rows}
+
+
 @athina_blue.route('/athina_performance_settlement')
 @login_required
 @staff_only
@@ -1235,7 +1299,7 @@ def athina_batch_settle_performance():
 @login_required
 @staff_only
 def athina_calculate_profit_distribution():
-    """计算并更新利润分配（基于ProjectHeader）"""
+    """计算并更新利润分配（仅可结算项目）"""
     try:
         from App_new.finance.utils.profit_distribution import calculate_profit_distribution, get_order_type
         from App_new.business.projects.models.project import ProjectHeader
@@ -1250,21 +1314,23 @@ def athina_calculate_profit_distribution():
                 'message': '请选择要计算利润分配的记录'
             }), 400
 
+        # 获取可结算项目集合
+        can_settle_ids = _get_can_settle_project_ids()
+
         projects = ProjectHeader.query.filter(
             ProjectHeader.id.in_(project_ids)
         ).all()
 
-        if len(projects) != len(project_ids):
-            return jsonify({
-                'success': False,
-                'message': '部分记录不存在'
-            }), 400
-
         success_count = 0
+        skip_count = 0
         error_count = 0
         errors = []
 
         for project in projects:
+            # 跳过不可结算的项目
+            if project.id not in can_settle_ids:
+                skip_count += 1
+                continue
             try:
                 # 从REF聚合计算利润
                 profit = Decimal(str(project.total_profit))
@@ -1292,7 +1358,9 @@ def athina_calculate_profit_distribution():
 
         db.session.commit()
 
-        message = f'成功计算 {success_count} 条记录的利润分配'
+        message = f'成功计算 {success_count} 条可结算记录的利润分配'
+        if skip_count > 0:
+            message += f'，跳过 {skip_count} 条不可结算记录'
         if error_count > 0:
             message += f'，{error_count} 条记录失败'
 
@@ -1300,6 +1368,7 @@ def athina_calculate_profit_distribution():
             'success': True,
             'message': message,
             'success_count': success_count,
+            'skip_count': skip_count,
             'error_count': error_count,
             'errors': errors if errors else None
         })
@@ -1320,21 +1389,25 @@ def athina_calculate_profit_distribution():
 @login_required
 @staff_only
 def athina_calculate_all_unsettled_profit_distribution():
-    """计算全部未结算单的利润分配（基于ProjectHeader）"""
+    """计算全部可结算的未结算单的利润分配（基于ProjectHeader）"""
     try:
         from App_new.finance.utils.profit_distribution import calculate_profit_distribution, get_order_type
         from App_new.business.projects.models.project import ProjectHeader
         from decimal import Decimal
 
-        # 查询所有未结算的项目
+        # 获取可结算项目集合
+        can_settle_ids = _get_can_settle_project_ids()
+
+        # 查询所有未结算且可结算的项目
         projects = ProjectHeader.query.filter(
-            ProjectHeader.is_settled == False
+            ProjectHeader.is_settled == False,
+            ProjectHeader.id.in_(can_settle_ids) if can_settle_ids else False
         ).all()
 
         if not projects:
             return jsonify({
                 'success': True,
-                'message': '没有找到未结算单',
+                'message': '没有找到可结算的未结算单',
                 'success_count': 0,
                 'error_count': 0
             })
@@ -1369,7 +1442,7 @@ def athina_calculate_all_unsettled_profit_distribution():
 
         db.session.commit()
 
-        message = f'成功计算 {success_count} 条未结算单的利润分配'
+        message = f'成功计算 {success_count} 条可结算未结算单的利润分配'
         if error_count > 0:
             message += f'，{error_count} 条记录失败'
 

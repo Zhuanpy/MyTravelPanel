@@ -692,7 +692,7 @@ def export_excel():
 @login_required
 @staff_only
 def calculate_profit_distribution():
-    """计算并更新利润分配（选中项目）"""
+    """计算并更新利润分配（仅可结算项目）"""
     try:
         from App_new.finance.utils.profit_distribution import calculate_profit_distribution as calc_profit, get_order_type
         from decimal import Decimal
@@ -703,12 +703,22 @@ def calculate_profit_distribution():
         if not project_ids:
             return jsonify({'success': False, 'message': '请选择要计算的项目'})
 
+        # 获取可结算状态
+        project_stats = _get_project_stats(project_ids)
+        can_settle_ids = {pid for pid, s in project_stats.items() if s.get('can_settle')}
+
         success_count = 0
+        skip_count = 0
         error_count = 0
         errors = []
 
         for project_id in project_ids:
             try:
+                # 跳过不可结算的项目
+                if project_id not in can_settle_ids:
+                    skip_count += 1
+                    continue
+
                 project = ProjectHeader.query.get(project_id)
                 if not project:
                     error_count += 1
@@ -745,10 +755,17 @@ def calculate_profit_distribution():
 
         db.session.commit()
 
+        message = f'成功计算 {success_count} 个可结算项目的利润分配'
+        if skip_count > 0:
+            message += f'，跳过 {skip_count} 个不可结算项目'
+        if error_count > 0:
+            message += f'，{error_count} 个失败'
+
         return jsonify({
             'success': True,
-            'message': f'成功计算 {success_count} 个项目的利润分配' + (f'，{error_count} 个失败' if error_count > 0 else ''),
+            'message': message,
             'success_count': success_count,
+            'skip_count': skip_count,
             'error_count': error_count,
             'errors': errors[:10] if errors else []
         })
@@ -764,16 +781,24 @@ def calculate_profit_distribution():
 @login_required
 @staff_only
 def calculate_all_unsettled_profit_distribution():
-    """计算全部未结算项目的利润分配"""
+    """计算全部可结算的未结算项目的利润分配"""
     try:
         from App_new.finance.utils.profit_distribution import calculate_profit_distribution as calc_profit, get_order_type
         from decimal import Decimal
 
         # 查询所有未结算项目
-        unsettled_projects = ProjectHeader.query.filter(ProjectHeader.is_settled == False).all()
+        all_unsettled = ProjectHeader.query.filter(ProjectHeader.is_settled == False).all()
+        if not all_unsettled:
+            return jsonify({'success': False, 'message': '没有未结算的项目'})
+
+        # 只保留可结算的项目
+        unsettled_ids = [p.id for p in all_unsettled]
+        project_stats = _get_project_stats(unsettled_ids)
+        can_settle_ids = {pid for pid, s in project_stats.items() if s.get('can_settle')}
+        unsettled_projects = [p for p in all_unsettled if p.id in can_settle_ids]
 
         if not unsettled_projects:
-            return jsonify({'success': False, 'message': '没有未结算的项目'})
+            return jsonify({'success': False, 'message': '没有可结算的未结算项目'})
 
         success_count = 0
         error_count = 0
@@ -813,7 +838,7 @@ def calculate_all_unsettled_profit_distribution():
 
         return jsonify({
             'success': True,
-            'message': f'成功计算 {success_count} 个未结算项目的利润分配' + (f'，{error_count} 个失败' if error_count > 0 else ''),
+            'message': f'成功计算 {success_count} 个可结算项目的利润分配' + (f'，{error_count} 个失败' if error_count > 0 else ''),
             'success_count': success_count,
             'error_count': error_count,
             'errors': errors[:10] if errors else []
