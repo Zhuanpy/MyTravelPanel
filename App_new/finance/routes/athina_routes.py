@@ -670,25 +670,39 @@ def athina_performance_settlement():
         )
 
         # 汇总统计（基于筛选条件，不分页）
-        summary_query_base = query
-        summary_operator_profit = summary_query_base.with_entities(
+        filtered_ids_query = query.with_entities(ProjectHeader.id)
+
+        # 利润分配汇总
+        summary_operator_profit = query.with_entities(
             func.sum(ProjectHeader.operator_profit)
         ).scalar() or 0
-        summary_sales_profit = summary_query_base.with_entities(
+        summary_sales_profit = query.with_entities(
             func.sum(ProjectHeader.sales_profit)
         ).scalar() or 0
-        summary_company_profit = summary_query_base.with_entities(
+        summary_company_profit = query.with_entities(
             func.sum(ProjectHeader.company_profit)
         ).scalar() or 0
 
-        # 盈亏汇总需要从REF聚合
-        # 获取筛选后所有项目ID
-        filtered_ids_query = summary_query_base.with_entities(ProjectHeader.id)
-        summary_total_pl_result = db.session.query(
-            func.sum(ProjectRef.selling_price) - func.sum(ProjectRef.cost_price)
+        # 从REF聚合金额、成本、盈亏
+        ref_summary = db.session.query(
+            func.coalesce(func.sum(ProjectRef.selling_price), 0),
+            func.coalesce(func.sum(ProjectRef.cost_price), 0)
         ).filter(
             ProjectRef.header_id.in_(filtered_ids_query)
+        ).first()
+        summary_total_selling = float(ref_summary[0]) if ref_summary else 0
+        summary_total_cost = float(ref_summary[1]) if ref_summary else 0
+        summary_total_pl_result = summary_total_selling - summary_total_cost
+
+        # 余额汇总（售价 - 收款）
+        from App_new.business.projects.models.receipt import ProjectReceipt
+        summary_total_received = db.session.query(
+            func.coalesce(func.sum(ProjectReceipt.amount), 0)
+        ).filter(
+            ProjectReceipt.header_id.in_(filtered_ids_query),
+            ProjectReceipt.status == 'confirmed'
         ).scalar() or 0
+        summary_total_balance = summary_total_selling - float(summary_total_received)
 
         # 按HID数字排序
         query = query.order_by(ProjectHeader.id.asc())
@@ -799,24 +813,11 @@ def athina_performance_settlement():
                 )
                 finance_data[pid]['can_settle'] = can_settle
 
-        # 全局统计（有发票的项目）
-        has_invoice_subquery = db.session.query(ProjectInvoice.header_id).filter(
-            ProjectInvoice.status != 'cancelled'
-        ).distinct().subquery()
-        total_query = ProjectHeader.query.filter(
-            ProjectHeader.id.in_(db.select(has_invoice_subquery))
-        )
-        total_count = total_query.count()
-
-        # 总利润（从REF聚合）
-        total_profit_result = db.session.query(
-            func.sum(ProjectRef.selling_price) - func.sum(ProjectRef.cost_price)
-        ).filter(
-            ProjectRef.header_id.in_(db.select(has_invoice_subquery))
-        ).scalar() or 0
-
-        settled_count = total_query.filter(ProjectHeader.is_settled == True).count()
-        unsettled_count = total_query.filter(ProjectHeader.is_settled == False).count()
+        # 统计面板（基于筛选结果）
+        total_count = query.count()
+        total_profit_result = summary_total_pl_result
+        settled_count = query.filter(ProjectHeader.is_settled == True).count()
+        unsettled_count = query.filter(ProjectHeader.is_settled == False).count()
 
         # 获取员工列表（用于筛选下拉和名称解析）
         staff_list = _get_staff_list()
@@ -844,7 +845,10 @@ def athina_performance_settlement():
                              total_profit=float(total_profit_result),
                              settled_count=settled_count,
                              unsettled_count=unsettled_count,
+                             summary_total_selling=summary_total_selling,
+                             summary_total_cost=summary_total_cost,
                              summary_total_pl=float(summary_total_pl_result),
+                             summary_total_balance=summary_total_balance,
                              summary_operator_profit=float(summary_operator_profit),
                              summary_sales_profit=float(summary_sales_profit),
                              summary_company_profit=float(summary_company_profit))

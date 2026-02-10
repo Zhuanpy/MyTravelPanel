@@ -319,10 +319,10 @@
         </form>
     </div>
 
-    <!-- 统计面板 -->
+    <!-- 统计面板（基于筛选结果） -->
     <div class="stats-panel">
         <div class="stat-item">
-            <div class="stat-label">符合结算标准总数</div>
+            <div class="stat-label">筛选结果总数</div>
             <div class="stat-value">{{ total_count }}</div>
         </div>
         <div class="stat-item">
@@ -538,24 +538,28 @@
             </tr>
             {% endfor %}
 
-            <!-- 汇总行 -->
+            <!-- 汇总行（全部筛选结果） -->
             <tr class="summary-row">
-                <td colspan="2"></td>
-                <td colspan="5" style="text-align: right; font-weight: 600;">汇总：</td>
+                <td></td>
+                <td colspan="3" style="text-align: right; font-weight: 600;">筛选结果汇总（{{ total_count }} 条）：</td>
+                <td class="amount">{{ "%.2f"|format(summary_total_selling|default(0)) }}</td>
+                <td class="amount">{{ "%.2f"|format(summary_total_cost|default(0)) }}</td>
                 <td class="amount {{ 'positive' if summary_total_pl and summary_total_pl > 0 else 'negative' if summary_total_pl and summary_total_pl < 0 else '' }}">
-                    {{ "%.2f"|format(summary_total_pl) if summary_total_pl else '0.00' }}
+                    {{ "%.2f"|format(summary_total_pl|default(0)) }}
+                </td>
+                <td class="amount {{ 'negative' if summary_total_balance and summary_total_balance > 0.01 else '' }}">
+                    {{ "%.2f"|format(summary_total_balance|default(0)) }}
                 </td>
                 <td colspan="5"></td>
                 <td class="amount {{ 'positive' if summary_operator_profit and summary_operator_profit > 0 else '' }}">
-                    {{ "%.2f"|format(summary_operator_profit) if summary_operator_profit else '0.00' }}
+                    {{ "%.2f"|format(summary_operator_profit|default(0)) }}
                 </td>
                 <td class="amount {{ 'positive' if summary_sales_profit and summary_sales_profit > 0 else '' }}">
-                    {{ "%.2f"|format(summary_sales_profit) if summary_sales_profit else '0.00' }}
+                    {{ "%.2f"|format(summary_sales_profit|default(0)) }}
                 </td>
                 <td class="amount {{ 'positive' if summary_company_profit and summary_company_profit > 0 else '' }}">
-                    {{ "%.2f"|format(summary_company_profit) if summary_company_profit else '0.00' }}
+                    {{ "%.2f"|format(summary_company_profit|default(0)) }}
                 </td>
-                <td></td>
             </tr>
         </tbody>
     </table>
