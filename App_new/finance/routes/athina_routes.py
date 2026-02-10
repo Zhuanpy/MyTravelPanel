@@ -1309,9 +1309,9 @@ def athina_batch_settle_performance():
         # 校验所有项目是否满足可结算条件
         from sqlalchemy import func
         from App_new.business.projects.models.ref import ProjectRef
-        from App_new.business.projects.models.receipt import ProjectReceipt
+        from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
         from App_new.business.projects.models.eo import ProjectEO
-        from App_new.business.projects.models.invoice import InvoiceItem
+        from App_new.business.projects.models.invoice import InvoiceItem, ProjectInvoice
 
         unsettled_ids = [p.id for p in unsettled]
 
@@ -1339,10 +1339,36 @@ def athina_batch_settle_performance():
             ProjectRef.header_id, func.sum(ProjectRef.selling_price).label('total')
         ).filter(ProjectRef.header_id.in_(unsettled_ids)).group_by(ProjectRef.header_id).all()}
 
-        receipt_map = {r.header_id: float(r.total or 0) for r in db.session.query(
-            ProjectReceipt.header_id, func.sum(ProjectReceipt.amount).label('total')
-        ).filter(ProjectReceipt.header_id.in_(unsettled_ids), ProjectReceipt.status == 'confirmed'
-        ).group_by(ProjectReceipt.header_id).all()}
+        # 收款计算：使用发票分配表正确处理跨项目收款
+        # 方式1: 项目级别收款通过发票分配表统计
+        alloc_data = db.session.query(
+            ProjectInvoice.header_id,
+            func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total')
+        ).join(
+            ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
+            ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+        ).filter(
+            ProjectInvoice.header_id.in_(unsettled_ids),
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id == None
+        ).group_by(ProjectInvoice.header_id).all()
+
+        # 方式2: REF级别直接收款
+        ref_rcpt_data = db.session.query(
+            ProjectReceipt.header_id,
+            func.sum(ProjectReceipt.amount).label('total')
+        ).filter(
+            ProjectReceipt.header_id.in_(unsettled_ids),
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id.isnot(None)
+        ).group_by(ProjectReceipt.header_id).all()
+
+        receipt_map = {}
+        for r in alloc_data:
+            receipt_map[r.header_id] = float(r.total or 0)
+        for r in ref_rcpt_data:
+            receipt_map[r.header_id] = receipt_map.get(r.header_id, 0) + float(r.total or 0)
 
         cannot_settle = []
         for p in unsettled:
