@@ -704,8 +704,8 @@ def athina_performance_settlement():
         ).scalar() or 0
         summary_total_balance = summary_total_selling - float(summary_total_received)
 
-        # 按HID数字排序
-        query = query.order_by(ProjectHeader.id.asc())
+        # 按HID数字部分排序（H309 → 309, H1000 → 1000）
+        query = query.order_by(func.cast(func.substring(ProjectHeader.hid, 2), db.Integer).asc())
 
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         projects = pagination.items
@@ -1063,7 +1063,8 @@ def athina_performance_settlement_export():
             filter_is_count_performance, filter_balance,
             filter_can_settle, filter_order_type
         )
-        query = query.order_by(ProjectHeader.id.asc())
+        from sqlalchemy import func as sa_func
+        query = query.order_by(sa_func.cast(sa_func.substring(ProjectHeader.hid, 2), db.Integer).asc())
         projects = query.all()
 
         if not projects:
