@@ -1317,9 +1317,11 @@ def export_excel():
         profit_max = request.args.get('profit_max', '')
         balance_min = request.args.get('balance_min', '')
         balance_max = request.args.get('balance_max', '')
+        profit_status = request.args.get('profit_status', '')  # 盈亏状态：profit/loss/zero
         payment_status = request.args.get('payment_status', '')
+        settlement_status = request.args.get('settlement_status', '')  # 结算状态
         sort_by = request.args.get('sort_by', 'hid_desc')
-        
+
         # 构建查询（与list_projects相同逻辑）
         base_query = ProjectHeader.query
         base_query = base_query.options(db.joinedload(ProjectHeader.company))
@@ -1371,7 +1373,189 @@ def export_excel():
         project_type = request.args.get('type', '')
         if project_type:
             base_query = base_query.filter(ProjectHeader.type == project_type)
-        
+
+        # 结算状态筛选
+        if settlement_status:
+            if settlement_status == 'settled':
+                base_query = base_query.filter(ProjectHeader.is_settled == True)
+            elif settlement_status == 'unsettled':
+                base_query = base_query.filter(ProjectHeader.is_settled == False)
+            elif settlement_status == 'can_settle':
+                from App_new.business.projects.models.eo import ProjectEO
+                from App_new.business.projects.models.invoice import InvoiceItem
+
+                base_query = base_query.filter(ProjectHeader.is_settled == False)
+
+                ref_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectRef.id).label('ref_count')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                invoiced_ref_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_count')
+                ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                eo_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('eo_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                paid_eo_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('paid_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).filter(ProjectEO.is_paid == True
+                ).group_by(ProjectRef.header_id).subquery()
+
+                selling_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                from App_new.business.projects.models.invoice import ProjectInvoice as PI
+                from sqlalchemy import union_all
+
+                invoice_alloc_q = db.session.query(
+                    PI.header_id.label('header_id'),
+                    ReceiptInvoiceAllocation.allocated_amount.label('amount')
+                ).join(
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == PI.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None
+                )
+
+                ref_receipt_q = db.session.query(
+                    ProjectReceipt.header_id.label('header_id'),
+                    ProjectReceipt.amount.label('amount')
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id.isnot(None)
+                )
+
+                combined = union_all(invoice_alloc_q, ref_receipt_q).alias('combined_receipts')
+                receipt_subq = db.session.query(
+                    combined.c.header_id,
+                    db.func.coalesce(db.func.sum(combined.c.amount), 0).label('total_received')
+                ).group_by(combined.c.header_id).subquery()
+
+                can_settle_subq = db.session.query(ref_count_subq.c.header_id).outerjoin(
+                    invoiced_ref_subq, invoiced_ref_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    eo_count_subq, eo_count_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    paid_eo_subq, paid_eo_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    selling_subq, selling_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    receipt_subq, receipt_subq.c.header_id == ref_count_subq.c.header_id
+                ).filter(
+                    ref_count_subq.c.ref_count > 0,
+                    ref_count_subq.c.ref_count == db.func.coalesce(invoiced_ref_subq.c.invoiced_count, 0),
+                    ref_count_subq.c.ref_count == db.func.coalesce(eo_count_subq.c.eo_count, 0),
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) > 0,
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) == db.func.coalesce(paid_eo_subq.c.paid_count, 0),
+                    db.func.abs(
+                        db.func.coalesce(selling_subq.c.total_selling, 0) -
+                        db.func.coalesce(receipt_subq.c.total_received, 0)
+                    ) < 0.01
+                )
+
+                base_query = base_query.filter(ProjectHeader.id.in_(can_settle_subq))
+
+            elif settlement_status == 'incomplete':
+                from App_new.business.projects.models.eo import ProjectEO
+                from App_new.business.projects.models.invoice import InvoiceItem
+
+                base_query = base_query.filter(ProjectHeader.is_settled == False)
+
+                ref_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectRef.id).label('ref_count')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                invoiced_ref_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_count')
+                ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                eo_count_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('eo_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).group_by(ProjectRef.header_id).subquery()
+
+                paid_eo_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.count(ProjectEO.id).label('paid_count')
+                ).join(ProjectEO, ProjectEO.ref_id == ProjectRef.id
+                ).filter(ProjectEO.is_paid == True
+                ).group_by(ProjectRef.header_id).subquery()
+
+                selling_subq = db.session.query(
+                    ProjectRef.header_id,
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+                ).group_by(ProjectRef.header_id).subquery()
+
+                from App_new.business.projects.models.invoice import ProjectInvoice as PI
+                from sqlalchemy import union_all
+
+                invoice_alloc_q = db.session.query(
+                    PI.header_id.label('header_id'),
+                    ReceiptInvoiceAllocation.allocated_amount.label('amount')
+                ).join(
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == PI.id
+                ).join(
+                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id == None
+                )
+
+                ref_receipt_q = db.session.query(
+                    ProjectReceipt.header_id.label('header_id'),
+                    ProjectReceipt.amount.label('amount')
+                ).filter(
+                    ProjectReceipt.status == 'confirmed',
+                    ProjectReceipt.ref_id.isnot(None)
+                )
+
+                combined = union_all(invoice_alloc_q, ref_receipt_q).alias('combined_receipts')
+                receipt_subq = db.session.query(
+                    combined.c.header_id,
+                    db.func.coalesce(db.func.sum(combined.c.amount), 0).label('total_received')
+                ).group_by(combined.c.header_id).subquery()
+
+                can_settle_ids = db.session.query(ref_count_subq.c.header_id).outerjoin(
+                    invoiced_ref_subq, invoiced_ref_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    eo_count_subq, eo_count_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    paid_eo_subq, paid_eo_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    selling_subq, selling_subq.c.header_id == ref_count_subq.c.header_id
+                ).outerjoin(
+                    receipt_subq, receipt_subq.c.header_id == ref_count_subq.c.header_id
+                ).filter(
+                    ref_count_subq.c.ref_count > 0,
+                    ref_count_subq.c.ref_count == db.func.coalesce(invoiced_ref_subq.c.invoiced_count, 0),
+                    ref_count_subq.c.ref_count == db.func.coalesce(eo_count_subq.c.eo_count, 0),
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) > 0,
+                    db.func.coalesce(eo_count_subq.c.eo_count, 0) == db.func.coalesce(paid_eo_subq.c.paid_count, 0),
+                    db.func.abs(
+                        db.func.coalesce(selling_subq.c.total_selling, 0) -
+                        db.func.coalesce(receipt_subq.c.total_received, 0)
+                    ) < 0.01
+                )
+
+                base_query = base_query.filter(~ProjectHeader.id.in_(can_settle_ids))
+
         # 付款状态筛选 - 基于发票数据判断
         if payment_status:
             from App_new.business.projects.models.invoice import ProjectInvoice
@@ -1471,6 +1655,58 @@ def export_excel():
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
         if date_to:
             base_query = base_query.filter(ProjectHeader.created_at <= date_to + ' 23:59:59')
+
+        # 金额筛选（selling/profit/balance/profit_status）
+        if selling_min or selling_max or profit_min or profit_max or balance_min or balance_max or profit_status:
+            try:
+                subquery = db.session.query(ProjectRef.header_id).group_by(ProjectRef.header_id)
+
+                if selling_min:
+                    subquery = subquery.having(db.func.sum(ProjectRef.selling_price) >= float(selling_min))
+                if selling_max:
+                    subquery = subquery.having(db.func.sum(ProjectRef.selling_price) <= float(selling_max))
+                if profit_min:
+                    subquery = subquery.having(
+                        db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) >= float(profit_min)
+                    )
+                if profit_max:
+                    subquery = subquery.having(
+                        db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) <= float(profit_max)
+                    )
+                if profit_status:
+                    if profit_status == 'loss':
+                        subquery = subquery.having(
+                            db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) < 0
+                        )
+                    elif profit_status == 'profit':
+                        subquery = subquery.having(
+                            db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) > 0
+                        )
+                    elif profit_status == 'zero':
+                        subquery = subquery.having(
+                            db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) == 0
+                        )
+                if balance_min or balance_max:
+                    subquery = subquery.outerjoin(
+                        ProjectReceipt,
+                        ProjectRef.header_id == ProjectReceipt.header_id
+                    ).group_by(ProjectRef.header_id)
+                    if balance_min:
+                        subquery = subquery.having(
+                            (db.func.sum(ProjectRef.selling_price) - db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)) > 0
+                        )
+                        if float(balance_min) > 0:
+                            subquery = subquery.having(
+                                (db.func.sum(ProjectRef.selling_price) - db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)) >= float(balance_min)
+                            )
+                    if balance_max:
+                        subquery = subquery.having(
+                            (db.func.sum(ProjectRef.selling_price) - db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)) <= float(balance_max)
+                        )
+
+                base_query = base_query.filter(ProjectHeader.id.in_(subquery))
+            except (ValueError, TypeError):
+                pass
 
         # 应用排序
         if sort_by == 'created_at_desc':

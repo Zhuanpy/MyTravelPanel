@@ -573,12 +573,17 @@ def _resolve_project_staff_display(projects, staff_name_map):
 
 
 def _get_can_settle_project_ids():
-    """获取所有可结算项目的 ID 集合（ref>0, ref==eo, eo==paid, ref==invoiced, balance==0）"""
-    from sqlalchemy import func
+    """获取所有可结算项目的 ID 集合（ref>0, ref==eo, eo==paid, ref==invoiced, balance==0）
+
+    收款计算方式与项目列表一致，使用发票分配表正确处理跨项目收款：
+    - 方式1: 项目级别收款通过发票分配表统计
+    - 方式2: REF级别直接收款
+    """
+    from sqlalchemy import func, union_all
     from App_new.business.projects.models.ref import ProjectRef
-    from App_new.business.projects.models.receipt import ProjectReceipt
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
     from App_new.business.projects.models.eo import ProjectEO
-    from App_new.business.projects.models.invoice import InvoiceItem
+    from App_new.business.projects.models.invoice import InvoiceItem, ProjectInvoice
 
     ref_count_subq = db.session.query(
         ProjectRef.header_id,
@@ -609,11 +614,34 @@ def _get_can_settle_project_ids():
         func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_sell')
     ).group_by(ProjectRef.header_id).subquery()
 
+    # 收款计算：与项目列表保持一致，使用发票分配表
+    # 方式1: 项目级别收款通过发票分配表统计（正确处理跨项目收款）
+    invoice_alloc_q = db.session.query(
+        ProjectInvoice.header_id.label('header_id'),
+        ReceiptInvoiceAllocation.allocated_amount.label('amount')
+    ).join(
+        ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+    ).join(
+        ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+    ).filter(
+        ProjectReceipt.status == 'confirmed',
+        ProjectReceipt.ref_id == None  # 仅项目级别收款
+    )
+
+    # 方式2: REF级别直接收款
+    ref_receipt_q = db.session.query(
+        ProjectReceipt.header_id.label('header_id'),
+        ProjectReceipt.amount.label('amount')
+    ).filter(
+        ProjectReceipt.status == 'confirmed',
+        ProjectReceipt.ref_id.isnot(None)
+    )
+
+    combined = union_all(invoice_alloc_q, ref_receipt_q).alias('combined_receipts')
     rcpt_subq = db.session.query(
-        ProjectReceipt.header_id,
-        func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_rcpt')
-    ).filter(ProjectReceipt.status == 'confirmed'
-    ).group_by(ProjectReceipt.header_id).subquery()
+        combined.c.header_id,
+        func.coalesce(func.sum(combined.c.amount), 0).label('total_rcpt')
+    ).group_by(combined.c.header_id).subquery()
 
     rows = db.session.query(ref_count_subq.c.header_id).outerjoin(
         eo_count_subq, ref_count_subq.c.header_id == eo_count_subq.c.header_id
@@ -694,15 +722,34 @@ def athina_performance_settlement():
         summary_total_cost = float(ref_summary[1]) if ref_summary else 0
         summary_total_pl_result = summary_total_selling - summary_total_cost
 
-        # 余额汇总（售价 - 收款）
-        from App_new.business.projects.models.receipt import ProjectReceipt
-        summary_total_received = db.session.query(
+        # 余额汇总（售价 - 收款，使用发票分配表正确处理跨项目收款）
+        from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+        from sqlalchemy import union_all
+
+        # 方式1: 项目级别收款通过发票分配表统计
+        summary_alloc = db.session.query(
+            func.coalesce(func.sum(ReceiptInvoiceAllocation.allocated_amount), 0)
+        ).join(
+            ProjectInvoice, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
+            ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+        ).filter(
+            ProjectInvoice.header_id.in_(filtered_ids_query),
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id == None
+        ).scalar() or 0
+
+        # 方式2: REF级别直接收款
+        summary_ref_rcpt = db.session.query(
             func.coalesce(func.sum(ProjectReceipt.amount), 0)
         ).filter(
             ProjectReceipt.header_id.in_(filtered_ids_query),
-            ProjectReceipt.status == 'confirmed'
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id.isnot(None)
         ).scalar() or 0
-        summary_total_balance = summary_total_selling - float(summary_total_received)
+
+        summary_total_received = float(summary_alloc) + float(summary_ref_rcpt)
+        summary_total_balance = summary_total_selling - summary_total_received
 
         # 按HID数字部分排序（H309 → 309, H1000 → 1000）
         query = query.order_by(func.cast(func.substring(ProjectHeader.hid, 2), db.Integer).asc())
@@ -730,17 +777,40 @@ def athina_performance_settlement():
                     'total_balance': 0  # 下面计算
                 }
 
-            # 批量查询收款数据
-            from App_new.business.projects.models.receipt import ProjectReceipt
-            receipt_data = db.session.query(
+            # 批量查询收款数据（与项目列表一致，使用发票分配表正确处理跨项目收款）
+            from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+            from sqlalchemy import union_all
+
+            # 方式1: 项目级别收款通过发票分配表统计
+            alloc_q = db.session.query(
+                ProjectInvoice.header_id,
+                func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total_alloc')
+            ).join(
+                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+            ).join(
+                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+            ).filter(
+                ProjectInvoice.header_id.in_(project_ids),
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id == None
+            ).group_by(ProjectInvoice.header_id).all()
+
+            # 方式2: REF级别直接收款
+            ref_rcpt_q = db.session.query(
                 ProjectReceipt.header_id,
-                func.sum(ProjectReceipt.amount).label('total_received')
+                func.sum(ProjectReceipt.amount).label('total_direct')
             ).filter(
                 ProjectReceipt.header_id.in_(project_ids),
-                ProjectReceipt.status == 'confirmed'
+                ProjectReceipt.status == 'confirmed',
+                ProjectReceipt.ref_id.isnot(None)
             ).group_by(ProjectReceipt.header_id).all()
 
-            receipt_map = {row.header_id: float(row.total_received or 0) for row in receipt_data}
+            receipt_map = {}
+            for row in alloc_q:
+                receipt_map[row.header_id] = float(row.total_alloc or 0)
+            for row in ref_rcpt_q:
+                receipt_map[row.header_id] = receipt_map.get(row.header_id, 0) + float(row.total_direct or 0)
+
             for pid, data in finance_data.items():
                 received = receipt_map.get(pid, 0)
                 data['total_balance'] = data['total_selling'] - received
@@ -919,11 +989,12 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
         is_settled = filter_is_count_performance.lower() == 'true'
         query = query.filter(ProjectHeader.is_settled == is_settled)
 
-    # 余额筛选 - 需要子查询计算未付款金额
+    # 余额筛选 - 使用发票分配表正确计算收款
     if filter_balance != '':
-        from sqlalchemy import func
+        from sqlalchemy import func, union_all
         from App_new.business.projects.models.ref import ProjectRef
-        from App_new.business.projects.models.receipt import ProjectReceipt
+        from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+        from App_new.business.projects.models.invoice import ProjectInvoice
 
         # 子查询：每个项目的总售价
         selling_subq = db.session.query(
@@ -931,13 +1002,30 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
             func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_selling')
         ).group_by(ProjectRef.header_id).subquery()
 
-        # 子查询：每个项目的总收款
-        receipt_subq = db.session.query(
-            ProjectReceipt.header_id,
-            func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_received')
+        # 收款子查询：使用发票分配表正确处理跨项目收款
+        invoice_alloc_bal = db.session.query(
+            ProjectInvoice.header_id.label('header_id'),
+            ReceiptInvoiceAllocation.allocated_amount.label('amount')
+        ).join(
+            ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
+            ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
         ).filter(
-            ProjectReceipt.status == 'confirmed'
-        ).group_by(ProjectReceipt.header_id).subquery()
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id == None
+        )
+        ref_rcpt_bal = db.session.query(
+            ProjectReceipt.header_id.label('header_id'),
+            ProjectReceipt.amount.label('amount')
+        ).filter(
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id.isnot(None)
+        )
+        combined_bal = union_all(invoice_alloc_bal, ref_rcpt_bal).alias('combined_receipts_bal')
+        receipt_subq = db.session.query(
+            combined_bal.c.header_id,
+            func.coalesce(func.sum(combined_bal.c.amount), 0).label('total_received')
+        ).group_by(combined_bal.c.header_id).subquery()
 
         if filter_balance == 'zero_or_negative':
             # 余额 <= 0：收款 >= 售价
@@ -960,11 +1048,11 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
 
     # 可结算状态筛选
     if filter_can_settle != '':
-        from sqlalchemy import func
+        from sqlalchemy import func, union_all
         from App_new.business.projects.models.ref import ProjectRef
-        from App_new.business.projects.models.receipt import ProjectReceipt
+        from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
         from App_new.business.projects.models.eo import ProjectEO
-        from App_new.business.projects.models.invoice import InvoiceItem
+        from App_new.business.projects.models.invoice import InvoiceItem, ProjectInvoice
 
         # 子查询：每个项目的REF数
         ref_count_subq = db.session.query(
@@ -994,17 +1082,40 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
         ).filter(ProjectEO.is_paid == True
         ).group_by(ProjectRef.header_id).subquery()
 
-        # 子查询：每个项目的余额（售价 - 收款）
+        # 子查询：每个项目的售价
         sell_subq = db.session.query(
             ProjectRef.header_id,
             func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_sell')
         ).group_by(ProjectRef.header_id).subquery()
 
+        # 收款子查询：使用发票分配表正确处理跨项目收款
+        # 方式1: 项目级别收款通过发票分配表统计
+        invoice_alloc_q = db.session.query(
+            ProjectInvoice.header_id.label('header_id'),
+            ReceiptInvoiceAllocation.allocated_amount.label('amount')
+        ).join(
+            ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
+            ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+        ).filter(
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id == None
+        )
+
+        # 方式2: REF级别直接收款
+        ref_receipt_q = db.session.query(
+            ProjectReceipt.header_id.label('header_id'),
+            ProjectReceipt.amount.label('amount')
+        ).filter(
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id.isnot(None)
+        )
+
+        combined = union_all(invoice_alloc_q, ref_receipt_q).alias('combined_receipts')
         rcpt_subq = db.session.query(
-            ProjectReceipt.header_id,
-            func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_rcpt')
-        ).filter(ProjectReceipt.status == 'confirmed'
-        ).group_by(ProjectReceipt.header_id).subquery()
+            combined.c.header_id,
+            func.coalesce(func.sum(combined.c.amount), 0).label('total_rcpt')
+        ).group_by(combined.c.header_id).subquery()
 
         # 可结算项目：ref>0, ref==eo, eo==paid_eo, ref==inv_ref, balance==0
         can_settle_query = db.session.query(ref_count_subq.c.header_id).outerjoin(

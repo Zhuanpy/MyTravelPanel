@@ -18,7 +18,10 @@ from sqlalchemy import text
 
 
 def get_can_settle_ids():
-    """获取所有可结算项目ID（ref>0, ref==eo, eo==paid, ref==invoiced, balance==0）"""
+    """获取所有可结算项目ID（ref>0, ref==eo, eo==paid, ref==invoiced, balance==0）
+
+    收款使用发票分配表正确处理跨项目收款（与项目列表一致）
+    """
     rows = db.session.execute(text("""
         SELECT rc.header_id
         FROM (
@@ -51,10 +54,19 @@ def get_can_settle_ids():
             GROUP BY header_id
         ) sc ON rc.header_id = sc.header_id
         LEFT JOIN (
-            SELECT header_id, COALESCE(SUM(amount), 0) AS total_rcpt
-            FROM project_receipts
-            WHERE status = 'confirmed'
-            GROUP BY header_id
+            SELECT combined.header_id, COALESCE(SUM(combined.amount), 0) AS total_rcpt
+            FROM (
+                SELECT pi.header_id, ria.allocated_amount AS amount
+                FROM receipt_invoice_allocations ria
+                JOIN project_invoices pi ON ria.invoice_id = pi.id
+                JOIN project_receipts pr2 ON ria.receipt_id = pr2.id
+                WHERE pr2.status = 'confirmed' AND pr2.ref_id IS NULL
+                UNION ALL
+                SELECT pr3.header_id, pr3.amount
+                FROM project_receipts pr3
+                WHERE pr3.status = 'confirmed' AND pr3.ref_id IS NOT NULL
+            ) combined
+            GROUP BY combined.header_id
         ) rcp ON rc.header_id = rcp.header_id
         WHERE rc.ref_count > 0
           AND rc.ref_count = COALESCE(ec.eo_count, 0)
