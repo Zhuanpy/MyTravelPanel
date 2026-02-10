@@ -565,12 +565,14 @@
     {% if pagination.pages > 1 %}
     {% set query_params = [] %}
     {% if search %}{% set _ = query_params.append('search=' + search|urlencode) %}{% endif %}
-    {% if filter_consultant %}{% set _ = query_params.append('filter_consultant=' + filter_consultant|urlencode) %}{% endif %}
-    {% if filter_sales_consultant %}{% set _ = query_params.append('filter_sales_consultant=' + filter_sales_consultant|urlencode) %}{% endif %}
+    {% if filter_consultant %}{% set _ = query_params.append('filter_consultant=' + filter_consultant|string|urlencode) %}{% endif %}
+    {% if filter_sales_consultant %}{% set _ = query_params.append('filter_sales_consultant=' + filter_sales_consultant|string|urlencode) %}{% endif %}
     {% if filter_book_date_from %}{% set _ = query_params.append('filter_book_date_from=' + filter_book_date_from) %}{% endif %}
     {% if filter_book_date_to %}{% set _ = query_params.append('filter_book_date_to=' + filter_book_date_to) %}{% endif %}
-    {% if filter_is_count_performance %}{% set _ = query_params.append('filter_is_count_performance=' + filter_is_count_performance|urlencode) %}{% endif %}
+    {% if filter_is_count_performance is not none and filter_is_count_performance != '' %}{% set _ = query_params.append('filter_is_count_performance=' + filter_is_count_performance|urlencode) %}{% endif %}
     {% if filter_balance %}{% set _ = query_params.append('filter_balance=' + filter_balance|urlencode) %}{% endif %}
+    {% if filter_can_settle is not none and filter_can_settle != '' %}{% set _ = query_params.append('filter_can_settle=' + filter_can_settle|urlencode) %}{% endif %}
+    {% if filter_order_type %}{% set _ = query_params.append('filter_order_type=' + filter_order_type|urlencode) %}{% endif %}
     {% set query_string = '&'.join(query_params) %}
     {% set prefix = '?' + query_string + '&' if query_string else '?' %}
     
