@@ -372,23 +372,76 @@ class RefOrderItem(db.Model):
 
 
 # ---- SQLAlchemy 事件监听：REF变更时自动更新项目type字段 ----
+# 注意：after_insert/after_update/after_delete 在 flush 期间触发，
+# 必须用 connection.execute() 直接执行 SQL，不能走 ORM（否则修改会丢失）
 
-def _update_header_type(mapper, connection, target):
-    """REF创建/修改后，更新所属项目的type字段"""
-    from .project import ProjectHeader
-    header = ProjectHeader.query.get(target.header_id)
-    if header:
-        header.update_type_from_refs()
+def _update_header_via_sql(connection, header_id):
+    """通过原生SQL更新项目type和desc字段（flush安全）
+
+    类型规则：
+    - 所有REF类型相同 → 使用该类型code
+    - 包含tour → 'tour'
+    - 混合类型 → 'package'
+
+    描述规则：
+    - 收集所有活跃REF的description，用 " / " 拼接
+    """
+    from sqlalchemy import text
+
+    # 查询该项目所有未取消REF的业务类型code和描述
+    rows = connection.execute(
+        text("SELECT r.description, bt.code FROM project_refs r "
+             "LEFT JOIN business_types bt ON r.ref_type_id = bt.id "
+             "WHERE r.header_id = :hid AND r.status != 'cancelled' "
+             "ORDER BY r.id"),
+        {"hid": header_id}
+    ).fetchall()
+
+    if not rows:
+        return
+
+    # 更新类型
+    type_codes = {row[1] for row in rows if row[1]}
+    new_type = None
+    if type_codes:
+        if len(type_codes) == 1:
+            new_type = type_codes.pop()
+        elif 'tour' in type_codes:
+            new_type = 'tour'
+        else:
+            new_type = 'package'
+
+    # 更新描述
+    ref_descs = [row[0] for row in rows if row[0]]
+    new_desc = ' / '.join(ref_descs) if ref_descs else None
+
+    # 构建UPDATE
+    updates = []
+    params = {"id": header_id}
+    if new_type is not None:
+        updates.append("type = :type")
+        params["type"] = new_type
+    if new_desc is not None:
+        updates.append("`desc` = :desc")
+        params["desc"] = new_desc
+
+    if updates:
+        connection.execute(
+            text(f"UPDATE project_headers SET {', '.join(updates)} WHERE id = :id"),
+            params
+        )
 
 
-def _update_header_type_after_delete(mapper, connection, target):
-    """REF删除后，更新所属项目的type字段"""
-    from .project import ProjectHeader
-    header = ProjectHeader.query.get(target.header_id)
-    if header:
-        header.update_type_from_refs()
+def _on_ref_change(mapper, connection, target):
+    """REF创建/修改后，更新所属项目的type和desc"""
+    _update_header_via_sql(connection, target.header_id)
 
 
-event.listen(ProjectRef, 'after_insert', _update_header_type)
-event.listen(ProjectRef, 'after_update', _update_header_type)
-event.listen(ProjectRef, 'after_delete', _update_header_type_after_delete)
+def _on_ref_delete(mapper, connection, target):
+    """REF删除后，更新所属项目的type和desc"""
+    _update_header_via_sql(connection, target.header_id)
+
+
+event.listen(ProjectRef, 'after_insert', _on_ref_change)
+event.listen(ProjectRef, 'after_update', _on_ref_change)
+event.listen(ProjectRef, 'after_delete', _on_ref_delete)
