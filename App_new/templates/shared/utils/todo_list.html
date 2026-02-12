@@ -995,10 +995,12 @@ function renderTeamTasks(todos) {
                 <td><span class="visa-badge ${todo.is_completed ? 'visa-badge-success' : 'visa-badge-warning'}">${todo.is_completed ? '已完成' : '未完成'}</span></td>
                 <td>${todo.completer_name ? `<span class="visa-badge visa-badge-success">${todo.completer_name}</span>` : '-'}</td>
                 <td>
-                    ${isProjectReminder && todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="visa-btn-link visa-btn-link-info me-1" title="查看项目"><i class="fas fa-eye"></i></a>` : ''}
-                    <button class="visa-btn-link visa-btn-link-secondary me-1" title="分配" onclick="openAssignModal(${todo.id})"><i class="fas fa-user-plus"></i></button>
-                    <button class="visa-btn-link visa-btn-link-primary me-1" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
+                    <div style="display:flex;gap:4px;white-space:nowrap;">
+                    ${isProjectReminder && todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="visa-btn-link visa-btn-link-info" title="查看项目"><i class="fas fa-eye"></i></a>` : ''}
+                    <button class="visa-btn-link visa-btn-link-secondary" title="分配" onclick="openAssignModal(${todo.id})"><i class="fas fa-user-plus"></i></button>
+                    <button class="visa-btn-link visa-btn-link-primary" title="编辑" onclick="editTodo(${todo.id})"><i class="fas fa-edit"></i></button>
                     <button class="visa-btn-link visa-btn-link-danger" title="删除" onclick="deleteTodo(${todo.id})"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;

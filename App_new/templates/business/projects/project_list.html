@@ -179,14 +179,14 @@
                                value="{{ filters.date_to }}" placeholder="结束日期">
                     </div>
                     <div class="filter-item d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-search"></i> 筛选
-                        </button>
-                    </div>
-                    <div class="filter-item d-flex align-items-end">
-                        <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-secondary w-100">
-                            <i class="fas fa-undo"></i> 重置
-                        </a>
+                        <div class="d-flex gap-2" style="white-space:nowrap;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> 筛选
+                            </button>
+                            <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-secondary">
+                                <i class="fas fa-undo"></i> 重置
+                            </a>
+                        </div>
                     </div>
                 </div>
             </form>
