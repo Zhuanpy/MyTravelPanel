@@ -39,13 +39,16 @@ def create_eo(ref_id):
             )
             db.session.add(eo)
 
-            # 根据当前REF描述更新项目描述
+            # 根据当前REF更新项目描述和类型
             header = ref.header
             if header:
                 active_refs = [r for r in header.refs if r.status != 'cancelled']
                 ref_descs = [r.description for r in active_refs if r.description]
                 if ref_descs:
                     header.desc = ' / '.join(ref_descs)
+
+                # 根据当前REF类型更新项目类型
+                header.update_type_from_refs()
 
             db.session.commit()
             flash('EO子明细创建成功！', 'success')

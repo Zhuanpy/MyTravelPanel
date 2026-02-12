@@ -64,8 +64,10 @@ def create_ref(header_id):
                 # 在应用上下文中生成REF编号
                 ref_number = ProjectRef.generate_ref_number("")
                 
-                # 自动设置REF类型为"其他"（按code查找，确保唯一性）
+                # 自动设置REF类型为"其他"（按code或name查找）
                 other_business_type = BusinessType.query.filter_by(code='other').first()
+                if not other_business_type:
+                    other_business_type = BusinessType.query.filter_by(name='其他').first()
                 if not other_business_type:
                     other_business_type = BusinessType(name='其他', code='other', name_en='Other', description='其他服务')
                     db.session.add(other_business_type)
@@ -2383,8 +2385,10 @@ def create_other_ref(header_id):
                 description = request.form.get('description') or 'Other Service'
                 detailed_description = request.form.get('detailed_description_hidden') or request.form.get('detailed_description') or description
 
-                # 自动设置REF类型为"其他"（按code查找，确保唯一性）
+                # 自动设置REF类型为"其他"（按code或name查找）
                 other_business_type = BusinessType.query.filter_by(code='other').first()
+                if not other_business_type:
+                    other_business_type = BusinessType.query.filter_by(name='其他').first()
                 if not other_business_type:
                     other_business_type = BusinessType(name='其他', code='other', name_en='Other', description='其他服务')
                     db.session.add(other_business_type)

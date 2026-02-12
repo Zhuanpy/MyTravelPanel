@@ -57,10 +57,33 @@
         overflow: hidden;
     }
 
+    .expense-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .expense-table th,
+    .expense-table td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
+
     .expense-table th {
         background-color: #f8f9fa;
         font-weight: 600;
     }
+
+    /* 各列宽度分配 */
+    .expense-table .col-no { width: 14%; }
+    .expense-table .col-date { width: 10%; }
+    .expense-table .col-account { width: 15%; }
+    .expense-table .col-desc { width: 22%; }
+    .expense-table .col-payee { width: 12%; }
+    .expense-table .col-amount { width: 10%; }
+    .expense-table .col-status { width: 8%; }
+    .expense-table .col-actions { width: 9%; }
 
     .status-badge {
         padding: 4px 10px;
@@ -143,14 +166,14 @@
         <table class="table table-hover expense-table mb-0">
             <thead>
                 <tr>
-                    <th>Expense No. 费用单号</th>
-                    <th>Date 日期</th>
-                    <th>Account 科目</th>
-                    <th>Description 描述</th>
-                    <th>Payee 收款方</th>
-                    <th class="text-end">Amount 金额</th>
-                    <th>Status 状态</th>
-                    <th>Actions 操作</th>
+                    <th class="col-no">Expense No. 费用单号</th>
+                    <th class="col-date">Date 日期</th>
+                    <th class="col-account">Account 科目</th>
+                    <th class="col-desc">Description 描述</th>
+                    <th class="col-payee">Payee 收款方</th>
+                    <th class="col-amount text-end">Amount 金额</th>
+                    <th class="col-status">Status 状态</th>
+                    <th class="col-actions">Actions 操作</th>
                 </tr>
             </thead>
             <tbody>
