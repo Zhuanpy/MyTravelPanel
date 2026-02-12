@@ -1827,6 +1827,27 @@ def settlement_batch_detail(batch_id):
     for s in staff_list:
         s['profit'] = round(s['profit'], 2)
 
+    # 按员工汇总利润（同一人可能既是操作员又是业务员）
+    person_profit_map = {}
+    for key, s in staff_summary.items():
+        uid = int(key.split('_')[-1])
+        if uid not in person_profit_map:
+            person_profit_map[uid] = {
+                'name': s['name'],
+                'total_profit': 0,
+                'roles': []
+            }
+        person_profit_map[uid]['total_profit'] += s['profit']
+        person_profit_map[uid]['roles'].append(s['role'])
+
+    person_totals = sorted(person_profit_map.values(), key=lambda x: -x['total_profit'])
+    for p in person_totals:
+        p['total_profit'] = round(p['total_profit'], 2)
+        p['roles'] = ' + '.join(p['roles'])
+
+    # 员工利润合计
+    staff_total_profit = round(sum(p['total_profit'] for p in person_totals), 2)
+
     # 解析每个项目的操作员/业务员显示名称
     project_staff_display = _resolve_project_staff_display(projects, staff_name_map)
 
@@ -1835,6 +1856,8 @@ def settlement_batch_detail(batch_id):
                          projects=projects,
                          finance_data=finance_data,
                          staff_list=staff_list,
+                         person_totals=person_totals,
+                         staff_total_profit=staff_total_profit,
                          project_staff_display=project_staff_display)
 
 

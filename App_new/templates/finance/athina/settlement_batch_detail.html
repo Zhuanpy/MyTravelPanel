@@ -246,10 +246,51 @@
                 </td>
             </tr>
             {% endfor %}
+            <tr style="background-color: #e8f5e9; font-weight: 700; border-top: 2px solid #2E7D32;">
+                <td>员工利润小计</td>
+                <td></td>
+                <td></td>
+                <td style="color: #2E7D32;">${{ "%.2f"|format(staff_total_profit) }}</td>
+            </tr>
             <tr style="background-color: #f0f0f0; font-weight: 700;">
                 <td>公司利润</td>
                 <td></td>
                 <td>{{ batch.project_count }}</td>
+                <td style="color: #2E7D32;">${{ "%.2f"|format(batch.total_company_profit) }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- 员工利润汇总（按人合计） -->
+    {% if person_totals %}
+    <h3 class="section-title"><i class="fas fa-user-check"></i> 员工利润汇总（按人合计）</h3>
+    <table class="data-table" style="margin-bottom: 25px; max-width: 600px;">
+        <thead>
+            <tr>
+                <th>姓名</th>
+                <th>角色</th>
+                <th>应分配利润合计</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in person_totals %}
+            <tr>
+                <td style="font-weight: 600;">{{ p.name }}</td>
+                <td>{{ p.roles }}</td>
+                <td style="font-weight: 600; color: {% if p.total_profit > 0 %}#2E7D32{% elif p.total_profit < 0 %}#dc3545{% else %}#333{% endif %};">
+                    ${{ "%.2f"|format(p.total_profit) }}
+                </td>
+            </tr>
+            {% endfor %}
+            <tr style="background-color: #e8f5e9; font-weight: 700; border-top: 2px solid #2E7D32;">
+                <td>员工合计</td>
+                <td></td>
+                <td style="color: #2E7D32;">${{ "%.2f"|format(staff_total_profit) }}</td>
+            </tr>
+            <tr style="background-color: #f0f0f0; font-weight: 700;">
+                <td>公司利润</td>
+                <td></td>
                 <td style="color: #2E7D32;">${{ "%.2f"|format(batch.total_company_profit) }}</td>
             </tr>
         </tbody>
