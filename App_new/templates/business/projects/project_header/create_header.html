@@ -277,6 +277,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const companySelect = document.getElementById('company_id_simple');
     if (companySelect) {
         companySelect.addEventListener('change', function() {
+            // 切换公司时清空联系人字段，方便重新选择
+            document.getElementById('contact').value = '';
             loadCompanyContacts(this.value);
         });
         
