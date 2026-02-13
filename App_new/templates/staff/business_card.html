@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ user.profile.get_full_name() if user.profile else user.username }} - Business Card</title>
+    <link rel="icon" href="{{ url_for('static', filename='logo.ico') }}" type="image/x-icon">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .page-wrapper {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        /* ====== 名片主卡 ====== */
+        .biz-card {
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 12px 40px rgba(0,0,0,0.07);
+            aspect-ratio: 9 / 5.4;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ====== 顶部风景横幅 ====== */
+        .photo-banner {
+            width: 100%;
+            height: 30%;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .photo-banner img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 60%;
+            display: block;
+        }
+        /* 底部渐变遮罩：风景照片 → 白色卡片自然过渡 */
+        .photo-banner::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.6) 70%, #ffffff 100%);
+            pointer-events: none;
+        }
+        /* 底部绿色装饰线 */
+        .photo-banner .banner-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(to right, transparent, #10b981 20%, #059669 80%, transparent);
+            z-index: 2;
+        }
+
+        /* ====== 名片主体区域 ====== */
+        .card-main {
+            flex: 1;
+            display: flex;
+            padding: 0;
+            min-height: 0;
+        }
+
+        /* ====== 左侧：Logo + 二维码 ====== */
+        .card-left {
+            width: 34%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6% 6%;
+            gap: 8%;
+        }
+        .logo-area {
+            text-align: center;
+        }
+        .logo-area img {
+            max-height: 60px;
+            max-width: 140px;
+            object-fit: contain;
+        }
+        .logo-text {
+            margin-top: 6px;
+            font-size: 0.65rem;
+            color: #059669;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .qr-area {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .qr-box {
+            text-align: center;
+        }
+        .qr-box img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        .qr-box .qr-label {
+            font-size: 0.55rem;
+            color: #6b7280;
+            margin-top: 3px;
+        }
+
+        /* ====== 竖向分隔线 ====== */
+        .card-divider-v {
+            width: 1px;
+            background: linear-gradient(to bottom, transparent 10%, #d1d5db 30%, #d1d5db 70%, transparent 90%);
+            flex-shrink: 0;
+        }
+
+        /* ====== 右侧：姓名 + 联系方式 ====== */
+        .card-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 5% 6%;
+            gap: 4%;
+        }
+
+        /* 姓名区域 */
+        .name-block {
+            margin-bottom: 2px;
+        }
+        .name-cn {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: #1f2937;
+            letter-spacing: 6px;
+            line-height: 1.2;
+            display: inline;
+        }
+        .name-title {
+            font-size: 0.75rem;
+            color: #059669;
+            font-weight: 600;
+            margin-left: 10px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        .name-en {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        /* 公司名 */
+        .company-block {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .company-cn {
+            font-size: 0.8rem;
+            color: #059669;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+        }
+        .company-en {
+            font-size: 0.7rem;
+            color: #6b7280;
+            letter-spacing: 0.3px;
+        }
+
+        /* 联系信息 */
+        .contact-block {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .c-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+        }
+        a.c-row:hover .c-val { color: #059669; }
+        .c-icon {
+            width: 16px;
+            text-align: center;
+            color: #10b981;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .c-val {
+            font-size: 0.72rem;
+            color: #374151;
+            transition: color 0.15s;
+            white-space: nowrap;
+        }
+
+        /* ====== 底部绿色线条 ====== */
+        .accent-line {
+            height: 3px;
+            background: linear-gradient(to right, #10b981, #059669, #10b981);
+            flex-shrink: 0;
+        }
+
+        /* ====== 操作栏 ====== */
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .action-btn.primary {
+            background: #059669;
+            color: #fff;
+        }
+        .action-btn.primary:hover {
+            background: #047857;
+            box-shadow: 0 4px 12px rgba(5,150,105,0.3);
+        }
+        .action-btn.secondary {
+            background: #fff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        .action-btn.secondary:hover {
+            background: #f9fafb;
+            border-color: #10b981;
+            color: #059669;
+        }
+
+        /* ====== Toast ====== */
+        .toast-msg {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #1f2937;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 999;
+        }
+        .toast-msg.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ====== 响应式 ====== */
+        @media (max-width: 560px) {
+            body { padding: 12px; }
+            .biz-card {
+                aspect-ratio: auto;
+                min-height: 360px;
+            }
+            .card-main {
+                flex-direction: column;
+            }
+            .card-left {
+                width: 100%;
+                flex-direction: row;
+                padding: 4% 6%;
+                justify-content: space-between;
+            }
+            .card-divider-v {
+                width: auto;
+                height: 1px;
+                background: linear-gradient(to right, transparent 10%, #d1d5db 30%, #d1d5db 70%, transparent 90%);
+            }
+            .card-right {
+                padding: 5% 6% 6%;
+            }
+            .name-cn { font-size: 1.4rem; letter-spacing: 4px; }
+            .qr-box img { width: 96px; height: 96px; }
+        }
+
+        /* ====== 打印（Save PDF 用浏览器打印 → 另存为PDF） ====== */
+        @media print {
+            @page { size: 90mm 54mm; margin: 0; }
+            html, body {
+                width: 90mm;
+                height: 54mm;
+                margin: 0;
+                padding: 0;
+                background: #fff;
+            }
+            .page-wrapper { max-width: none; width: 90mm; }
+            .biz-card {
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+                width: 90mm;
+                height: 54mm;
+                aspect-ratio: auto;
+            }
+            .action-bar, .toast-msg { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <div class="biz-card" id="bizCard">
+
+        <!-- 顶部风景照片横幅 -->
+        <!-- 替换横幅：将 images/card/default_banner.jpg 换成你喜欢的风景照即可 -->
+        <div class="photo-banner">
+            <img src="{{ banner_image or url_for('static', filename='images/card/default_banner.jpg') }}" alt="Banner">
+            <div class="banner-line"></div>
+        </div>
+
+        <!-- 名片主体内容 -->
+        <div class="card-main">
+
+            <!-- 左侧：Logo + 二维码 -->
+            <div class="card-left">
+                <div class="logo-area">
+                    {% if company and company.logo_path %}
+                    <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo">
+                    {% endif %}
+                    {% if company and company.company_short_name %}
+                    <div class="logo-text">{{ company.company_short_name }}</div>
+                    {% endif %}
+                </div>
+
+                {% if user.profile and (user.profile.wechat_qr or user.profile.whatsapp_qr) %}
+                <div class="qr-area">
+                    {% if user.profile.wechat_qr %}
+                    <div class="qr-box">
+                        <img src="{{ url_for('static', filename=user.profile.wechat_qr) }}" alt="WeChat">
+                        <div class="qr-label">WeChat</div>
+                    </div>
+                    {% endif %}
+                    {% if user.profile.whatsapp_qr %}
+                    <div class="qr-box">
+                        <img src="{{ url_for('static', filename=user.profile.whatsapp_qr) }}" alt="WhatsApp">
+                        <div class="qr-label">WhatsApp</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- 竖向分隔线 -->
+            <div class="card-divider-v"></div>
+
+            <!-- 右侧：姓名 + 联系方式 -->
+            <div class="card-right">
+                <!-- 姓名 -->
+                <div class="name-block">
+                    <span class="name-cn">
+                        {{ user.profile.get_full_name() if user.profile else user.username }}
+                    </span>
+                    {% if user.profile and user.profile.position %}
+                    <span class="name-title">{{ user.profile.position }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- 公司名 -->
+                <div class="company-block">
+                    {% if company and company.company_name_cn %}
+                    <div class="company-cn">{{ company.company_name_cn }}</div>
+                    {% endif %}
+                    {% if company %}
+                    <div class="company-en">{{ company.company_name }}</div>
+                    {% elif user.profile and user.profile.company %}
+                    <div class="company-en">{{ user.profile.company }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- 联系方式 -->
+                <div class="contact-block">
+                    {% if user.profile and user.profile.phone %}
+                    <a href="tel:{{ user.profile.phone }}" class="c-row">
+                        <span class="c-icon"><i class="fas fa-phone-alt"></i></span>
+                        <span class="c-val">{{ user.profile.phone }}</span>
+                    </a>
+                    {% endif %}
+
+                    {% if user.profile and user.profile.whatsapp %}
+                    <a href="https://wa.me/{{ user.profile.whatsapp | replace('+', '') | replace(' ', '') | replace('-', '') }}" target="_blank" class="c-row">
+                        <span class="c-icon"><i class="fab fa-whatsapp"></i></span>
+                        <span class="c-val">{{ user.profile.whatsapp }}</span>
+                    </a>
+                    {% endif %}
+
+                    {% if user.profile and user.profile.wechat_id %}
+                    <div class="c-row">
+                        <span class="c-icon"><i class="fab fa-weixin"></i></span>
+                        <span class="c-val">{{ user.profile.wechat_id }}</span>
+                    </div>
+                    {% endif %}
+
+                    <a href="mailto:{{ user.email }}" class="c-row">
+                        <span class="c-icon"><i class="fas fa-envelope"></i></span>
+                        <span class="c-val">{{ user.email }}</span>
+                    </a>
+
+                    {% if company and company.website %}
+                    <a href="{{ company.website }}" target="_blank" class="c-row">
+                        <span class="c-icon"><i class="fas fa-globe"></i></span>
+                        <span class="c-val">{{ company.website | replace('https://', '') | replace('http://', '') }}</span>
+                    </a>
+                    {% endif %}
+
+                    {% if user.profile and user.profile.address %}
+                    <div class="c-row">
+                        <span class="c-icon"><i class="fas fa-map-marker-alt"></i></span>
+                        <span class="c-val">{{ user.profile.address }}</span>
+                    </div>
+                    {% elif company and company.address %}
+                    <div class="c-row">
+                        <span class="c-icon"><i class="fas fa-map-marker-alt"></i></span>
+                        <span class="c-val">{{ company.address }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部绿色线条 -->
+        <div class="accent-line"></div>
+    </div>
+
+    <!-- 操作栏（仅自己可见） -->
+    {% if is_owner %}
+    <div class="action-bar">
+        <button class="action-btn primary" onclick="downloadImage()">
+            <i class="fas fa-image"></i> Save PNG
+        </button>
+        <button class="action-btn primary" onclick="downloadPDF()">
+            <i class="fas fa-file-pdf"></i> Save PDF
+        </button>
+        <button class="action-btn secondary" onclick="copyLink()">
+            <i class="fas fa-link"></i> Copy Link
+        </button>
+        <button class="action-btn secondary" onclick="shareCard()">
+            <i class="fas fa-share-alt"></i> Share
+        </button>
+        <a href="{{ url_for('staff.profile') }}" class="action-btn secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Toast提示 -->
+<div class="toast-msg" id="toastMsg"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.4.5/dist/dom-to-image-more.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+    var cardName = '{{ user.profile.get_full_name() if user.profile else user.username }}'.replace(/\s+/g, '_');
+
+    function showToast(msg) {
+        var el = document.getElementById('toastMsg');
+        el.textContent = msg;
+        el.classList.add('show');
+        setTimeout(function() { el.classList.remove('show'); }, 2000);
+    }
+
+    function copyLink() {
+        var url = window.location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function() {
+                showToast('Link copied!');
+            }).catch(function() { fallbackCopy(url); });
+        } else {
+            fallbackCopy(url);
+        }
+    }
+
+    function fallbackCopy(text) {
+        var input = document.createElement('input');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        showToast('Link copied!');
+    }
+
+    function shareCard() {
+        if (navigator.share) {
+            navigator.share({
+                title: document.title,
+                text: '{{ user.profile.get_full_name() if user.profile else user.username }} - Business Card',
+                url: window.location.href
+            }).catch(function() {});
+        } else {
+            copyLink();
+        }
+    }
+
+    // 下载PNG图片（3倍分辨率高清）
+    function downloadImage() {
+        showToast('Generating image...');
+        var card = document.getElementById('bizCard');
+        var rect = card.getBoundingClientRect();
+        domtoimage.toPng(card, {
+            width: rect.width * 3,
+            height: rect.height * 3,
+            style: {
+                transform: 'scale(3)',
+                transformOrigin: 'top left'
+            }
+        }).then(function(dataUrl) {
+            var link = document.createElement('a');
+            link.download = cardName + '_card.png';
+            link.href = dataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Image saved!');
+        }).catch(function(e) {
+            console.error('Download failed:', e);
+            showToast('Failed: ' + e.message);
+        });
+    }
+
+    // 直接下载PDF文件（名片尺寸 90mm x 54mm）
+    function downloadPDF() {
+        showToast('Generating PDF...');
+        var card = document.getElementById('bizCard');
+        var rect = card.getBoundingClientRect();
+        domtoimage.toPng(card, {
+            width: rect.width * 3,
+            height: rect.height * 3,
+            style: {
+                transform: 'scale(3)',
+                transformOrigin: 'top left'
+            }
+        }).then(function(dataUrl) {
+            var jsPDF = window.jspdf.jsPDF;
+            // 名片标准尺寸，横向
+            var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [90, 54] });
+            pdf.addImage(dataUrl, 'PNG', 0, 0, 90, 54);
+            pdf.save(cardName + '_card.pdf');
+            showToast('PDF saved!');
+        }).catch(function(e) {
+            console.error('PDF failed:', e);
+            showToast('Failed: ' + e.message);
+        });
+    }
+</script>
+</body>
+</html>

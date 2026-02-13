@@ -152,6 +152,23 @@ def profile():
     """员工个人资料页面"""
     return render_template('staff/profile.html', user=current_user)
 
+
+@staff.route('/card/<int:user_id>')
+def business_card(user_id):
+    """电子名片 - 公开页面，无需登录"""
+    from ...auth.models.auth import AuthUser, UserProfile
+    from ...business.tour.models.Packagemodels import CompanyInfo
+
+    user = AuthUser.query.get_or_404(user_id)
+    # 检查用户是否有资料且设置为公开，或者是当前登录用户自己查看
+    is_owner = current_user.is_authenticated and current_user.id == user_id
+    if not is_owner and (not user.profile or not user.profile.is_public):
+        flash('该名片不存在或未公开', 'warning')
+        return redirect(url_for('auth.login'))
+
+    company = CompanyInfo.query.first()
+    return render_template('staff/business_card.html', user=user, company=company, is_owner=is_owner)
+
 @staff.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
 @staff_only

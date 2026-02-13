@@ -62,11 +62,20 @@
                 </div>
 
                 <div class="visa-form-group">
+                    <label for="website" class="visa-form-label">
+                        <i class="fas fa-globe"></i> 公司网址
+                    </label>
+                    <input type="text" class="visa-form-control" id="website" name="website"
+                           value="{{ company.website if company else '' }}"
+                           placeholder="如：https://www.example.com">
+                </div>
+
+                <div class="visa-form-group">
                     <label for="ta_license" class="visa-form-label">
                         <i class="fas fa-id-card"></i> TA License Number
                     </label>
-                    <input type="text" class="visa-form-control" id="ta_license" name="ta_license" 
-                           value="{{ company.ta_license if company else '' }}" 
+                    <input type="text" class="visa-form-control" id="ta_license" name="ta_license"
+                           value="{{ company.ta_license if company else '' }}"
                            placeholder="如：TA03652">
                 </div>
                 

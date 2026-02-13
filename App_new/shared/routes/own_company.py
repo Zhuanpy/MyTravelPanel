@@ -56,7 +56,8 @@ def get_company_info_api():
             'phone': company.phone,
             'email': company.email,
             'company_description': company.company_description,
-            'logo_path': company.logo_path
+            'logo_path': company.logo_path,
+            'website': company.website
         })
     return jsonify({}), 404
 
@@ -72,7 +73,8 @@ def create_company_info():
         phone=data.get('phone', ''),
         email=data.get('email', ''),
         company_description=data.get('company_description', ''),
-        logo_path=data.get('logo_path')
+        logo_path=data.get('logo_path'),
+        website=data.get('website')
     )
     db.session.add(company)
     db.session.commit()
@@ -85,7 +87,8 @@ def create_company_info():
         'phone': company.phone,
         'email': company.email,
         'company_description': company.company_description,
-        'logo_path': company.logo_path
+        'logo_path': company.logo_path,
+        'website': company.website
     })
 
 @own_company.route('/api/company_info/<int:company_id>', methods=['PUT'])
@@ -102,7 +105,8 @@ def update_company_info_api(company_id):
     company.email = data.get('email', company.email)
     company.company_description = data.get('company_description', company.company_description)
     company.logo_path = data.get('logo_path', company.logo_path)
-    
+    company.website = data.get('website', company.website)
+
     db.session.commit()
     return jsonify({
         'id': company.id,
@@ -113,7 +117,8 @@ def update_company_info_api(company_id):
         'phone': company.phone,
         'email': company.email,
         'company_description': company.company_description,
-        'logo_path': company.logo_path
+        'logo_path': company.logo_path,
+        'website': company.website
     })
 
 @own_company.route('/company/edit', methods=['GET', 'POST'])
@@ -134,8 +139,9 @@ def edit_company_info():
             company.phone = request.form['phone']
             company.email = request.form['email']
             company.address = request.form['address']
+            company.website = request.form.get('website', '')
             company.ta_license = request.form.get('ta_license', '')
-            
+
             # 处理logo上传
             if 'logo' in request.files:
                 logo = request.files['logo']
