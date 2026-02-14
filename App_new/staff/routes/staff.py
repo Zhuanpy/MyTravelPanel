@@ -185,9 +185,7 @@ def edit_profile():
             first_name = request.form.get('first_name', '').strip()
             last_name = request.form.get('last_name', '').strip()
             phone = request.form.get('phone', '').strip()
-            company = request.form.get('company', '').strip().upper()
             position = request.form.get('position', '').strip()
-            address = request.form.get('address', '').strip()
 
             # 新增联系方式字段
             wechat_id = request.form.get('wechat_id', '').strip()
@@ -234,9 +232,7 @@ def edit_profile():
                 current_user.profile.first_name = first_name
                 current_user.profile.last_name = last_name
                 current_user.profile.phone = phone
-                current_user.profile.company = company
                 current_user.profile.position = position
-                current_user.profile.address = address
                 current_user.profile.wechat_id = wechat_id
                 current_user.profile.whatsapp = whatsapp
                 current_user.profile.is_public = is_public
@@ -263,9 +259,7 @@ def edit_profile():
                     first_name=first_name,
                     last_name=last_name,
                     phone=phone,
-                    company=company,
-                    position=position,
-                    address=address
+                    position=position
                 )
                 profile.wechat_id = wechat_id
                 profile.whatsapp = whatsapp

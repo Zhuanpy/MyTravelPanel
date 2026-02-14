@@ -126,10 +126,7 @@
                         {% else %}
                             员工
                         {% endif %}
-                        {% if user.profile and user.profile.company %}
-                            <span class="ms-2">@ {{ user.profile.company }}</span>
-                        {% endif %}
-                    </p>
+                        </p>
                     <span class="badge">
                         <i class="fas fa-user-tie me-1"></i>{{ user.role.name if user.role else '员工' }}
                     </span>
@@ -161,12 +158,6 @@
                 <div class="info-label">联系电话</div>
                 <div class="info-value {{ 'empty' if not (user.profile and user.profile.phone) }}">
                     {{ user.profile.phone if user.profile and user.profile.phone else '未设置' }}
-                </div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">地址</div>
-                <div class="info-value {{ 'empty' if not (user.profile and user.profile.address) }}">
-                    {{ user.profile.address if user.profile and user.profile.address else '未设置' }}
                 </div>
             </div>
             <div class="info-item">

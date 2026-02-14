@@ -409,8 +409,6 @@
                     {% endif %}
                     {% if company %}
                     <div class="company-en">{{ company.company_name }}</div>
-                    {% elif user.profile and user.profile.company %}
-                    <div class="company-en">{{ user.profile.company }}</div>
                     {% endif %}
                 </div>
 
@@ -449,12 +447,7 @@
                     </a>
                     {% endif %}
 
-                    {% if user.profile and user.profile.address %}
-                    <div class="c-row">
-                        <span class="c-icon"><i class="fas fa-map-marker-alt"></i></span>
-                        <span class="c-val">{{ user.profile.address }}</span>
-                    </div>
-                    {% elif company and company.address %}
+                    {% if company and company.address %}
                     <div class="c-row">
                         <span class="c-icon"><i class="fas fa-map-marker-alt"></i></span>
                         <span class="c-val">{{ company.address }}</span>
