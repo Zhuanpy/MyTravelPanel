@@ -141,6 +141,7 @@ def edit_company_info():
             company.address = request.form['address']
             company.website = request.form.get('website', '')
             company.ta_license = request.form.get('ta_license', '')
+            company.uen = request.form.get('uen', '')
 
             # 处理logo上传
             if 'logo' in request.files:

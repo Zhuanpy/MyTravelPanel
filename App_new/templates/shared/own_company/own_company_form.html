@@ -61,6 +61,24 @@
                     </div>
                 </div>
 
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label for="phone" class="visa-form-label">
+                            <i class="fas fa-phone"></i> 联系电话
+                        </label>
+                        <input type="text" class="visa-form-control" id="phone" name="phone"
+                               value="{{ company.phone if company else '' }}" required>
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label for="email" class="visa-form-label">
+                            <i class="fas fa-envelope"></i> 电子邮箱
+                        </label>
+                        <input type="email" class="visa-form-control" id="email" name="email"
+                               value="{{ company.email if company else '' }}" required>
+                    </div>
+                </div>
+
                 <div class="visa-form-group">
                     <label for="website" class="visa-form-label">
                         <i class="fas fa-globe"></i> 公司网址
@@ -71,48 +89,39 @@
                 </div>
 
                 <div class="visa-form-group">
-                    <label for="ta_license" class="visa-form-label">
-                        <i class="fas fa-id-card"></i> TA License Number
+                    <label for="address" class="visa-form-label">
+                        <i class="fas fa-map-marker-alt"></i> 公司地址
                     </label>
-                    <input type="text" class="visa-form-control" id="ta_license" name="ta_license"
-                           value="{{ company.ta_license if company else '' }}"
-                           placeholder="如：TA03652">
+                    <textarea class="visa-form-control" id="address" name="address"
+                              rows="2" required>{{ company.address if company else '' }}</textarea>
                 </div>
-                
+
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label for="ta_license" class="visa-form-label">
+                            <i class="fas fa-id-card"></i> TA License Number
+                        </label>
+                        <input type="text" class="visa-form-control" id="ta_license" name="ta_license"
+                               value="{{ company.ta_license if company else '' }}"
+                               placeholder="如：TA03652">
+                    </div>
+
+                    <div class="visa-form-group">
+                        <label for="uen" class="visa-form-label">
+                            <i class="fas fa-fingerprint"></i> UEN
+                        </label>
+                        <input type="text" class="visa-form-control" id="uen" name="uen"
+                               value="{{ company.uen if company else '' }}"
+                               placeholder="如：202012345A">
+                    </div>
+                </div>
+
                 <div class="visa-form-group">
                     <label for="company_description" class="visa-form-label">
                         <i class="fas fa-align-left"></i> 公司简介
                     </label>
-                    <textarea class="visa-form-control" id="company_description" name="company_description" 
+                    <textarea class="visa-form-control" id="company_description" name="company_description"
                               rows="3" required>{{ company.company_description if company else '' }}</textarea>
-                </div>
-                
-                <div class="visa-grid-2">
-                    <div class="visa-form-group">
-                        <label for="phone" class="visa-form-label">
-                            <i class="fas fa-phone"></i> 联系电话
-                        </label>
-                        <input type="text" class="visa-form-control" id="phone" name="phone" 
-                               value="{{ company.phone if company else '' }}" required>
-                    </div>
-                    
-                    <div class="visa-form-group">
-                        <label for="email" class="visa-form-label">
-                            <i class="fas fa-envelope"></i> 电子邮箱
-                        </label>
-                        <input type="email" class="visa-form-control" id="email" name="email" 
-                               value="{{ company.email if company else '' }}" required>
-                    </div>
-                </div>
-                
-    
-                
-                <div class="visa-form-group">
-                    <label for="address" class="visa-form-label">
-                        <i class="fas fa-map-marker-alt"></i> 公司地址
-                    </label>
-                    <textarea class="visa-form-control" id="address" name="address" 
-                              rows="2" required>{{ company.address if company else '' }}</textarea>
                 </div>
                 
                 <div class="visa-grid-2">
