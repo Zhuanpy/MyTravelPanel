@@ -157,7 +157,8 @@ def profile():
 def business_card(user_id):
     """电子名片 - 公开页面，无需登录"""
     from ...auth.models.auth import AuthUser, UserProfile
-    from ...business.tour.models.Packagemodels import CompanyInfo
+    from ...business.tour.models.Packagemodels import CompanyInfo, HomeBanner
+    import random
 
     user = AuthUser.query.get_or_404(user_id)
     # 检查用户是否有资料且设置为公开，或者是当前登录用户自己查看
@@ -167,7 +168,16 @@ def business_card(user_id):
         return redirect(url_for('auth.login'))
 
     company = CompanyInfo.query.first()
-    return render_template('staff/business_card.html', user=user, company=company, is_owner=is_owner)
+
+    # 从轮播图库中随机选取一张作为名片背景
+    banners = HomeBanner.get_active_banners()
+    banner_image = None
+    if banners:
+        banner = random.choice(banners)
+        banner_image = url_for('static', filename=banner.image_path)
+
+    return render_template('staff/business_card.html', user=user, company=company,
+                           is_owner=is_owner, banner_image=banner_image)
 
 @staff.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
