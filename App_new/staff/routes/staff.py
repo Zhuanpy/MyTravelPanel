@@ -1489,6 +1489,51 @@ def upload_home_banner():
         return jsonify({'success': False, 'message': f'上传失败：{str(e)}'}), 500
 
 
+@staff.route('/home-banners/from-library', methods=['POST'])
+@login_required
+@staff_only
+def banner_from_library():
+    """从图片库选择图片作为轮播图"""
+    from ...business.tour.models.Packagemodels import HomeBanner, ImageLibrary
+    from ...exts import db
+
+    try:
+        data = request.get_json()
+        image_id = data.get('image_id')
+        if not image_id:
+            return jsonify({'success': False, 'message': '请选择图片'}), 400
+
+        image = ImageLibrary.query.get(image_id)
+        if not image:
+            return jsonify({'success': False, 'message': '图片不存在'}), 404
+
+        title = data.get('title', '').strip()
+        description = data.get('description', '').strip()
+        link_url = data.get('link_url', '').strip()
+
+        max_order = db.session.query(db.func.max(HomeBanner.sort_order)).scalar() or 0
+
+        banner = HomeBanner(
+            title=title or image.title or None,
+            description=description or None,
+            image_path=image.image_path,
+            link_url=link_url or None,
+            sort_order=max_order + 1,
+            is_active=True,
+            created_by=current_user.username
+        )
+
+        db.session.add(banner)
+        image.increment_usage()
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '轮播图添加成功'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'添加失败：{str(e)}'}), 500
+
+
 @staff.route('/home-banners/<int:banner_id>/delete', methods=['POST'])
 @login_required
 @staff_only

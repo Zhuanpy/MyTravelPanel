@@ -387,6 +387,107 @@
     color: #d97706;
     margin-right: 6px;
 }
+
+/* 模态框标签页 */
+.tab-switch {
+    display: flex;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 20px;
+}
+.tab-switch .tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+.tab-switch .tab-btn.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+.tab-switch .tab-btn:hover:not(.active) {
+    color: #64748b;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* 图片库选择器 */
+.lib-search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.lib-search .form-control { flex: 1; }
+.lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 4px;
+}
+.lib-item {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    aspect-ratio: 16 / 10;
+}
+.lib-item:hover { border-color: #93c5fd; }
+.lib-item.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
+.lib-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.lib-item .lib-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    background: #3b82f6;
+    color: white;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+}
+.lib-item.selected .lib-check { display: flex; }
+.lib-item .lib-title {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 3px 6px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lib-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
+.lib-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
 </style>
 {% endblock %}
 
@@ -399,7 +500,7 @@
         </h1>
         <button class="btn-upload" data-bs-toggle="modal" data-bs-target="#uploadModal">
             <i class="fas fa-plus"></i>
-            上传图片
+            添加图片
         </button>
     </div>
 
@@ -455,52 +556,95 @@
     {% endif %}
 </div>
 
-<!-- 上传模态框 -->
+<!-- 添加图片模态框 -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-cloud-upload-alt me-2"></i>上传轮播图</h5>
+                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>添加轮播图</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="upload-zone" id="uploadZone">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <p>点击或拖拽图片到此处上传</p>
-                        <small>支持 PNG、JPG、JPEG、GIF、WEBP 格式</small>
-                        <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+                <!-- 标签页切换 -->
+                <div class="tab-switch">
+                    <button class="tab-btn active" data-tab="upload"><i class="fas fa-cloud-upload-alt me-2"></i>上传图片</button>
+                    <button class="tab-btn" data-tab="library"><i class="fas fa-photo-video me-2"></i>从图片库选择</button>
+                </div>
+
+                <!-- 上传图片标签页 -->
+                <div class="tab-panel active" id="tab-upload">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="upload-zone" id="uploadZone">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>点击或拖拽图片到此处上传</p>
+                            <small>支持 PNG、JPG、JPEG、GIF、WEBP 格式</small>
+                            <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+                        </div>
+
+                        <div class="preview-container" id="previewContainer">
+                            <img id="previewImage" class="preview-image" alt="预览">
+                        </div>
+
+                        <div class="size-hint">
+                            <i class="fas fa-lightbulb"></i>
+                            推荐尺寸：1920 × 600 像素，文件大小不超过 5MB
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">标题（可选）</label>
+                                <input type="text" class="form-control" name="title" placeholder="输入图片标题">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">链接地址（可选）</label>
+                                <input type="text" class="form-control" name="link_url" placeholder="点击图片跳转的链接">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">描述（可选）</label>
+                            <textarea class="form-control" name="description" rows="2" placeholder="输入图片描述"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-submit" id="submitBtn" disabled>
+                            <i class="fas fa-upload me-2"></i>上传图片
+                        </button>
+                    </form>
+                </div>
+
+                <!-- 图片库选择标签页 -->
+                <div class="tab-panel" id="tab-library">
+                    <div class="lib-search">
+                        <input type="text" class="form-control" id="libSearch" placeholder="搜索图片标题或标签...">
+                        <select class="form-control" id="libCategory" style="max-width: 140px;">
+                            <option value="">全部分类</option>
+                        </select>
                     </div>
-                    
-                    <div class="preview-container" id="previewContainer">
-                        <img id="previewImage" class="preview-image" alt="预览">
-                    </div>
-                    
-                    <div class="size-hint">
-                        <i class="fas fa-lightbulb"></i>
-                        推荐尺寸：1920 × 600 像素，文件大小不超过 5MB
+
+                    <div class="lib-grid" id="libGrid">
+                        <div class="lib-loading"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>
                     </div>
 
                     <div class="row mt-4">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">标题（可选）</label>
-                            <input type="text" class="form-control" name="title" placeholder="输入图片标题">
+                            <input type="text" class="form-control" id="libTitle" placeholder="留空则使用图片库中的标题">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">链接地址（可选）</label>
-                            <input type="text" class="form-control" name="link_url" placeholder="点击图片跳转的链接">
+                            <input type="text" class="form-control" id="libLinkUrl" placeholder="点击图片跳转的链接">
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">描述（可选）</label>
-                        <textarea class="form-control" name="description" rows="2" placeholder="输入图片描述"></textarea>
+                        <textarea class="form-control" id="libDescription" rows="2" placeholder="输入图片描述"></textarea>
                     </div>
-                    
-                    <button type="submit" class="btn btn-submit" id="submitBtn" disabled>
-                        <i class="fas fa-upload me-2"></i>上传图片
+
+                    <button type="button" class="btn btn-submit" id="libSubmitBtn" disabled>
+                        <i class="fas fa-check me-2"></i>添加为轮播图
                     </button>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -509,159 +653,250 @@
 
 {% block extra_js %}
 <script>
+var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
 document.addEventListener('DOMContentLoaded', function() {
-    const uploadZone = document.getElementById('uploadZone');
-    const imageInput = document.getElementById('imageInput');
-    const previewContainer = document.getElementById('previewContainer');
-    const previewImage = document.getElementById('previewImage');
-    const submitBtn = document.getElementById('submitBtn');
-    const uploadForm = document.getElementById('uploadForm');
-    
-    // 点击上传区域
-    uploadZone.addEventListener('click', () => imageInput.click());
-    
-    // 拖拽上传
-    uploadZone.addEventListener('dragover', (e) => {
+    // ==================== 标签页切换 ====================
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    var libLoaded = false;
+
+    tabBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            tabBtns.forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+            // 第一次切换到图片库时加载数据
+            if (btn.dataset.tab === 'library' && !libLoaded) {
+                libLoaded = true;
+                loadLibraryImages();
+            }
+        });
+    });
+
+    // ==================== 上传图片 ====================
+    var uploadZone = document.getElementById('uploadZone');
+    var imageInput = document.getElementById('imageInput');
+    var previewContainer = document.getElementById('previewContainer');
+    var previewImage = document.getElementById('previewImage');
+    var submitBtn = document.getElementById('submitBtn');
+    var uploadForm = document.getElementById('uploadForm');
+
+    uploadZone.addEventListener('click', function() { imageInput.click(); });
+
+    uploadZone.addEventListener('dragover', function(e) {
         e.preventDefault();
         uploadZone.classList.add('dragover');
     });
-    
-    uploadZone.addEventListener('dragleave', () => {
+
+    uploadZone.addEventListener('dragleave', function() {
         uploadZone.classList.remove('dragover');
     });
-    
-    uploadZone.addEventListener('drop', (e) => {
+
+    uploadZone.addEventListener('drop', function(e) {
         e.preventDefault();
         uploadZone.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFile(files[0]);
-        }
+        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
     });
-    
-    // 文件选择
-    imageInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFile(e.target.files[0]);
-        }
+
+    imageInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) handleFile(e.target.files[0]);
     });
-    
+
     function handleFile(file) {
-        if (!file.type.startsWith('image/')) {
-            alert('请选择图片文件');
-            return;
-        }
-        
-        if (file.size > 5 * 1024 * 1024) {
-            alert('图片大小不能超过 5MB');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+        if (file.size > 5 * 1024 * 1024) { alert('图片大小不能超过 5MB'); return; }
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
             previewImage.src = e.target.result;
             previewContainer.classList.add('show');
             submitBtn.disabled = false;
         };
         reader.readAsDataURL(file);
-        
-        // 将文件设置到input
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        imageInput.files = dataTransfer.files;
+
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        imageInput.files = dt.files;
     }
-    
-    // 表单提交
-    uploadForm.addEventListener('submit', async (e) => {
+
+    uploadForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
-        if (!imageInput.files.length) {
-            alert('请选择图片');
-            return;
-        }
-        
+        if (!imageInput.files.length) { alert('请选择图片'); return; }
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>上传中...';
-        
-        const formData = new FormData(uploadForm);
-        
+
         try {
-            const response = await fetch('{{ url_for("staff.upload_home_banner") }}', {
+            var formData = new FormData(uploadForm);
+            var response = await fetch('{{ url_for("staff.upload_home_banner") }}', {
                 method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
                 body: formData
             });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('上传成功！');
-                location.reload();
-            } else {
-                alert(result.message || '上传失败');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-upload me-2"></i>上传图片';
-            }
+            var result = await response.json();
+            if (result.success) { alert('上传成功！'); location.reload(); }
+            else { alert(result.message || '上传失败'); submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-upload me-2"></i>上传图片'; }
         } catch (error) {
-            console.error('上传错误:', error);
             alert('上传失败，请重试');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-upload me-2"></i>上传图片';
         }
+    });
+
+    // ==================== 图片库选择 ====================
+    var selectedImageId = null;
+    var libSearchInput = document.getElementById('libSearch');
+    var libCategorySelect = document.getElementById('libCategory');
+    var libSubmitBtn = document.getElementById('libSubmitBtn');
+    var searchTimer = null;
+
+    // 搜索防抖
+    libSearchInput.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() { loadLibraryImages(); }, 300);
+    });
+
+    libCategorySelect.addEventListener('change', function() { loadLibraryImages(); });
+
+    async function loadLibraryImages() {
+        var grid = document.getElementById('libGrid');
+        grid.innerHTML = '<div class="lib-loading"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</div>';
+
+        var params = new URLSearchParams({ per_page: '50' });
+        var search = libSearchInput.value.trim();
+        var category = libCategorySelect.value;
+        if (search) params.set('search', search);
+        if (category) params.set('category', category);
+
+        try {
+            var response = await fetch('{{ url_for("staff.list_image_library") }}?' + params.toString());
+            var result = await response.json();
+
+            if (!result.success) { grid.innerHTML = '<div class="lib-empty">加载失败</div>'; return; }
+
+            // 填充分类下拉（仅首次）
+            if (libCategorySelect.options.length <= 1 && result.images.length > 0) {
+                var cats = new Set();
+                result.images.forEach(function(img) { if (img.category) cats.add(img.category); });
+                cats.forEach(function(cat) {
+                    var opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = cat;
+                    libCategorySelect.appendChild(opt);
+                });
+            }
+
+            if (result.images.length === 0) {
+                grid.innerHTML = '<div class="lib-empty"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>暂无图片</div>';
+                return;
+            }
+
+            grid.innerHTML = '';
+            result.images.forEach(function(img) {
+                var item = document.createElement('div');
+                item.className = 'lib-item';
+                item.dataset.id = img.id;
+                item.dataset.title = img.title || '';
+                item.innerHTML = '<img src="/static/' + img.image_path + '" alt="' + (img.title || '') + '" loading="lazy">' +
+                    '<span class="lib-check"><i class="fas fa-check"></i></span>' +
+                    (img.title ? '<span class="lib-title">' + img.title + '</span>' : '');
+
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.lib-item.selected').forEach(function(el) { el.classList.remove('selected'); });
+                    item.classList.add('selected');
+                    selectedImageId = img.id;
+                    libSubmitBtn.disabled = false;
+                    // 自动填充标题
+                    if (img.title && !document.getElementById('libTitle').value) {
+                        document.getElementById('libTitle').value = img.title;
+                    }
+                });
+
+                grid.appendChild(item);
+            });
+        } catch (error) {
+            grid.innerHTML = '<div class="lib-empty">加载失败，请重试</div>';
+        }
+    }
+
+    // 从图片库添加
+    libSubmitBtn.addEventListener('click', async function() {
+        if (!selectedImageId) { alert('请选择一张图片'); return; }
+
+        libSubmitBtn.disabled = true;
+        libSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>添加中...';
+
+        try {
+            var response = await fetch('{{ url_for("staff.banner_from_library") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({
+                    image_id: selectedImageId,
+                    title: document.getElementById('libTitle').value.trim(),
+                    description: document.getElementById('libDescription').value.trim(),
+                    link_url: document.getElementById('libLinkUrl').value.trim()
+                })
+            });
+            var result = await response.json();
+            if (result.success) { alert('添加成功！'); location.reload(); }
+            else { alert(result.message || '添加失败'); libSubmitBtn.disabled = false; libSubmitBtn.innerHTML = '<i class="fas fa-check me-2"></i>添加为轮播图'; }
+        } catch (error) {
+            alert('添加失败，请重试');
+            libSubmitBtn.disabled = false;
+            libSubmitBtn.innerHTML = '<i class="fas fa-check me-2"></i>添加为轮播图';
+        }
+    });
+
+    // 模态框关闭时重置状态
+    document.getElementById('uploadModal').addEventListener('hidden.bs.modal', function() {
+        selectedImageId = null;
+        document.querySelectorAll('.lib-item.selected').forEach(function(el) { el.classList.remove('selected'); });
+        libSubmitBtn.disabled = true;
+        libSubmitBtn.innerHTML = '<i class="fas fa-check me-2"></i>添加为轮播图';
+        document.getElementById('libTitle').value = '';
+        document.getElementById('libDescription').value = '';
+        document.getElementById('libLinkUrl').value = '';
     });
 });
 
 // 切换状态
 async function toggleBanner(id, btn) {
     try {
-        const response = await fetch(`/staff/home-banners/${id}/toggle`, {
+        var response = await fetch('/staff/home-banners/' + id + '/toggle', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            location.reload();
-        } else {
-            alert(result.message || '操作失败');
-        }
+        var result = await response.json();
+        if (result.success) { location.reload(); }
+        else { alert(result.message || '操作失败'); }
     } catch (error) {
-        console.error('操作错误:', error);
         alert('操作失败，请重试');
     }
 }
 
 // 删除轮播图
 async function deleteBanner(id, btn) {
-    if (!confirm('确定要删除这张轮播图吗？此操作不可撤销。')) {
-        return;
-    }
-    
+    if (!confirm('确定要删除这张轮播图吗？此操作不可撤销。')) return;
+
     try {
-        const response = await fetch(`/staff/home-banners/${id}/delete`, {
+        var response = await fetch('/staff/home-banners/' + id + '/delete', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
         });
-        
-        const result = await response.json();
-        
+        var result = await response.json();
         if (result.success) {
-            const card = btn.closest('.banner-card');
+            var card = btn.closest('.banner-card');
             card.style.transition = 'all 0.3s ease';
             card.style.opacity = '0';
             card.style.transform = 'scale(0.9)';
-            setTimeout(() => {
+            setTimeout(function() {
                 card.remove();
-                // 如果没有轮播图了，刷新页面显示空状态
-                if (document.querySelectorAll('.banner-card').length === 0) {
-                    location.reload();
-                }
+                if (document.querySelectorAll('.banner-card').length === 0) location.reload();
             }, 300);
-        } else {
-            alert(result.message || '删除失败');
-        }
+        } else { alert(result.message || '删除失败'); }
     } catch (error) {
-        console.error('删除错误:', error);
         alert('删除失败，请重试');
     }
 }
