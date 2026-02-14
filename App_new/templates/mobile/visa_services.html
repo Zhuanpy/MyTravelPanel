@@ -149,86 +149,104 @@
             color: #10b981;
         }
 
-        /* 国家列表 */
-        .country-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            padding: 16px;
+        /* 国家列表 - 横向卡片布局 */
+        .country-list {
+            padding: 12px 16px;
         }
 
         .country-card {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
             background: white;
             border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 10px;
             text-decoration: none;
             color: inherit;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+        }
+
+        .country-card:active {
+            background: #f8fafc;
+            transform: scale(0.99);
         }
 
         .country-flag {
-            height: 80px;
+            width: 56px;
+            height: 40px;
+            flex-shrink: 0;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             background: linear-gradient(135deg, #667eea, #764ba2);
-            background-size: cover;
-            background-position: center;
-            position: relative;
         }
 
-        .country-flag-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.2);
+        .country-flag img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
-        .country-body {
-            padding: 12px;
+        .country-flag-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .country-info {
+            flex: 1;
+            margin-left: 14px;
+            min-width: 0;
         }
 
         .country-name {
             font-size: 15px;
             font-weight: 600;
             color: #1e293b;
-            margin-bottom: 2px;
+            line-height: 1.3;
         }
 
         .country-name-en {
             font-size: 11px;
             color: #94a3b8;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .country-services {
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
-            margin-bottom: 8px;
         }
 
         .service-tag {
+            display: inline-block;
             padding: 2px 8px;
-            background: #f0fdf4;
-            border-radius: 10px;
+            background: #f1f5f9;
+            border-radius: 4px;
             font-size: 10px;
-            color: #16a34a;
-        }
-
-        .country-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .visa-count {
-            font-size: 12px;
             color: #64748b;
         }
 
+        .service-tag-more {
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+
         .country-arrow {
-            color: #94a3b8;
-            font-size: 12px;
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #cbd5e1;
+            margin-left: 8px;
         }
 
         /* 空状态 */
@@ -311,16 +329,19 @@
 
     <!-- 国家列表 -->
     {% if visa_services %}
-    <div class="country-grid">
+    <div class="country-list">
         {% for service in visa_services %}
         <a href="{{ url_for('mobile.visa_country', country_name=service.country) }}" class="country-card">
-            <div class="country-flag"
-                 {% if service.flag_file %}style="background-image: url('{{ url_for('static', filename='images/flags/' + service.flag_file) }}');"{% endif %}>
+            <div class="country-flag">
                 {% if service.flag_file %}
-                <div class="country-flag-overlay"></div>
+                <img src="{{ url_for('static', filename='images/flags/' + service.flag_file) }}" alt="{{ service.country }}">
+                {% else %}
+                <div class="country-flag-placeholder">
+                    <i class="fas fa-globe"></i>
+                </div>
                 {% endif %}
             </div>
-            <div class="country-body">
+            <div class="country-info">
                 <div class="country-name">{{ service.country }}</div>
                 <div class="country-name-en">{{ service.country_en }}</div>
                 {% if service.services %}
@@ -329,14 +350,13 @@
                     <span class="service-tag">{{ visa_service }}</span>
                     {% endfor %}
                     {% if service.services|length > 2 %}
-                    <span class="service-tag">+{{ service.services|length - 2 }}</span>
+                    <span class="service-tag service-tag-more">+{{ service.services|length - 2 }}</span>
                     {% endif %}
                 </div>
                 {% endif %}
-                <div class="country-meta">
-                    <span class="visa-count">{{ service.visa_count }}种签证</span>
-                    <i class="fas fa-chevron-right country-arrow"></i>
-                </div>
+            </div>
+            <div class="country-arrow">
+                <i class="fas fa-chevron-right"></i>
             </div>
         </a>
         {% endfor %}

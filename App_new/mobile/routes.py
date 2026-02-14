@@ -1005,6 +1005,7 @@ def contact():
 
         for user, profile in public_staff:
             staff_list.append({
+                'id': user.id,
                 'name': profile.get_full_name() if profile else user.username,
                 'position': profile.position if profile else '旅游顾问',
                 'phone': profile.phone if profile else None,

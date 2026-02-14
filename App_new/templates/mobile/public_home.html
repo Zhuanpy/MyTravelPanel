@@ -117,70 +117,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* 统计卡片 */
-        .stats-cards {
-            display: flex;
-            gap: 10px;
-            padding: 0 16px;
-            margin-top: -40px;
-            position: relative;
-            z-index: 10;
-        }
-
-        .stat-card {
-            flex: 1;
-            background: white;
-            border-radius: 12px;
-            padding: 16px 10px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            text-decoration: none;
-            color: inherit;
-            transition: transform 0.2s;
-        }
-
-        .stat-card:active {
-            transform: scale(0.98);
-        }
-
-        .stat-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 8px;
-            font-size: 16px;
-        }
-
-        .stat-icon.packages {
-            background: #fef3c7;
-            color: #d97706;
-        }
-
-        .stat-icon.destinations {
-            background: #dbeafe;
-            color: #2563eb;
-        }
-
-        .stat-icon.visa {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .stat-num {
-            font-size: 20px;
-            font-weight: 700;
-            color: #1e293b;
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: #64748b;
-            margin-top: 2px;
-        }
-
         /* 区块标题 */
         .section {
             padding: 24px 16px;
@@ -517,31 +453,6 @@
         <p class="hero-subtitle">专业旅游服务 · 签证办理 · 机票预订</p>
     </div>
 </section>
-
-<!-- 统计卡片 -->
-<div class="stats-cards">
-    <a href="{{ url_for('mobile.tour_packages') }}" class="stat-card">
-        <div class="stat-icon packages">
-            <i class="fas fa-suitcase-rolling"></i>
-        </div>
-        <div class="stat-num">{{ stats.packages }}+</div>
-        <div class="stat-label">精选配套</div>
-    </a>
-    <a href="{{ url_for('mobile.tour_packages') }}" class="stat-card">
-        <div class="stat-icon destinations">
-            <i class="fas fa-globe-asia"></i>
-        </div>
-        <div class="stat-num">{{ stats.destinations }}+</div>
-        <div class="stat-label">热门目的地</div>
-    </a>
-    <a href="{{ url_for('mobile.visa_services') }}" class="stat-card">
-        <div class="stat-icon visa">
-            <i class="fas fa-passport"></i>
-        </div>
-        <div class="stat-num">{{ stats.visa_countries }}+</div>
-        <div class="stat-label">签证国家</div>
-    </a>
-</div>
 
 <!-- 精选旅游产品 -->
 <section class="section">

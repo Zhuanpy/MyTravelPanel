@@ -2,248 +2,410 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1e3a5f">
     <title>员工登录 - MyTravelPanel</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --accent-color: #e74c3c;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --light-bg: #ecf0f1;
-            --dark-text: #2c3e50;
-            --staff-color: #27ae60;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            background: linear-gradient(135deg, var(--staff-color) 0%, var(--secondary-color) 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .auth-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem 1rem;
-        }
-
-        .auth-card {
-            background: white;
-            border-radius: 20px;
-            padding: 3rem 2.5rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
+        /* Hero区域 - 与首页统一 */
+        .hero {
             position: relative;
+            height: 220px;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
             overflow: hidden;
         }
 
-        .auth-card::before {
-            content: '';
+        .hero-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 5px;
-            background: linear-gradient(90deg, var(--staff-color), var(--secondary-color));
+            bottom: 0;
+            background: linear-gradient(
+                180deg,
+                rgba(0,0,0,0.2) 0%,
+                rgba(0,0,0,0.3) 50%,
+                rgba(0,0,0,0.4) 100%
+            );
         }
 
-        .auth-header {
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
             text-align: center;
-            margin-bottom: 2rem;
+            color: white;
         }
 
-        .auth-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--staff-color), var(--secondary-color));
+        /* 顶部导航 */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            z-index: 10;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .back-btn i {
+            font-size: 14px;
+        }
+
+        /* Logo和标题 */
+        .hero-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1.5rem;
-            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.3);
+            margin-bottom: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
 
-        .auth-icon i {
-            font-size: 2rem;
+        .hero-icon i {
+            font-size: 28px;
             color: white;
         }
 
-        .auth-title {
-            color: var(--dark-text);
-            font-size: 1.8rem;
+        .hero-title {
+            font-size: 24px;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            margin-bottom: 8px;
         }
 
-        .auth-subtitle {
-            color: #7f8c8d;
-            font-size: 0.95rem;
-            margin-bottom: 0;
+        .hero-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
         }
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-label {
-            color: var(--dark-text);
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            display: block;
-        }
-
-        .form-control {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            background-color: #f8f9fa;
-        }
-
-        .form-control:focus {
-            border-color: var(--staff-color);
-            box-shadow: 0 0 0 0.2rem rgba(39, 174, 96, 0.25);
-            background-color: white;
-        }
-
-        .form-check {
-            margin: 1rem 0;
-        }
-
-        .form-check-input:checked {
-            background-color: var(--staff-color);
-            border-color: var(--staff-color);
-        }
-
-        .form-check-input:focus {
-            border-color: var(--staff-color);
-            box-shadow: 0 0 0 0.2rem rgba(39, 174, 96, 0.25);
-        }
-
-        .btn-staff {
-            background: linear-gradient(135deg, var(--staff-color), var(--secondary-color));
-            border: none;
-            color: white;
-            padding: 0.8rem 2rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1rem;
-            width: 100%;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-        }
-
-        .btn-staff:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
-            color: white;
-        }
-
-        .divider {
-            text-align: center;
-            margin: 2rem 0;
-            position: relative;
-        }
-
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: #e9ecef;
-        }
-
-        .divider span {
+        /* 登录卡片 */
+        .login-card {
             background: white;
-            padding: 0 1rem;
-            color: #7f8c8d;
-            font-size: 0.9rem;
-        }
-
-        .auth-links {
-            text-align: center;
-        }
-
-        .auth-links a {
-            color: var(--staff-color);
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: inline-block;
-            margin: 0 0.5rem;
-        }
-
-        .auth-links a:hover {
-            color: var(--secondary-color);
-            text-decoration: none;
-        }
-
-        .back-link {
-            position: absolute;
-            top: 2rem;
-            left: 2rem;
-            color: white;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            margin: -40px auto 30px;
+            border-radius: 20px;
+            padding: 32px 28px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            position: relative;
             z-index: 10;
+            max-width: 420px;
+            width: calc(100% - 40px);
         }
 
-        .back-link:hover {
-            color: #ecf0f1;
-            text-decoration: none;
-            transform: translateX(-5px);
+        .login-header {
+            text-align: center;
+            margin-bottom: 28px;
         }
 
+        .login-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .login-icon i {
+            font-size: 24px;
+            color: white;
+        }
+
+        .login-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        /* 提示消息 */
         .alert {
+            padding: 14px 16px;
             border-radius: 12px;
-            border: none;
-            margin-bottom: 1.5rem;
-            font-weight: 500;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .alert-success {
-            background-color: rgba(39, 174, 96, 0.1);
-            color: var(--success-color);
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
         }
 
         .alert-danger {
-            background-color: rgba(231, 76, 60, 0.1);
-            color: var(--accent-color);
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
         }
 
         .alert-info {
-            background-color: rgba(52, 152, 219, 0.1);
-            color: var(--secondary-color);
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
         }
 
-        /* 响应式设计 */
-        @media (max-width: 576px) {
-            .auth-card {
-                padding: 2rem 1.5rem;
-                margin: 0 1rem;
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .form-label i {
+            margin-right: 8px;
+            color: #10b981;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 50px;
+            padding: 0 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #94a3b8;
+        }
+
+        /* 记住我 */
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #10b981;
+        }
+
+        .forgot-link {
+            font-size: 14px;
+            color: #10b981;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .forgot-link:hover {
+            color: #059669;
+        }
+
+        /* 登录按钮 */
+        .btn-login {
+            width: 100%;
+            height: 52px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 26px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        /* 分隔线 */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 28px 0;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        .divider span {
+            padding: 0 16px;
+        }
+
+        /* 其他登录选项 */
+        .auth-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .auth-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .auth-link:hover {
+            background: #e2e8f0;
+            color: #10b981;
+        }
+
+        .auth-link i {
+            font-size: 14px;
+        }
+
+        /* 页脚信息 */
+        .footer-info {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .footer-info i {
+            margin-right: 6px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 24px 20px;
+                margin: -40px 16px 24px;
             }
-            
-            .back-link {
-                top: 1rem;
-                left: 1rem;
+
+            .hero {
+                height: 200px;
+            }
+
+            .hero-icon {
+                width: 56px;
+                height: 56px;
+            }
+
+            .hero-icon i {
+                font-size: 24px;
+            }
+
+            .hero-title {
+                font-size: 20px;
+            }
+
+            .auth-links {
+                gap: 12px;
+            }
+
+            .auth-link {
+                padding: 8px 14px;
+                font-size: 12px;
             }
         }
 
+        /* 动画 */
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -251,88 +413,108 @@
             }
         }
 
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease-out;
+        .login-card {
+            animation: fadeInUp 0.5s ease-out;
         }
     </style>
 </head>
 <body>
-    <a href="{{ url_for('public.index') }}" class="back-link">
-        <i class="fas fa-arrow-left me-2"></i>返回首页
-    </a>
 
-    <div class="auth-container">
-        <div class="auth-card fade-in-up">
-            <div class="auth-header">
-                <div class="auth-icon">
-                    <i class="fas fa-user-tie"></i>
-                </div>
-                <h1 class="auth-title">员工登录</h1>
-                <p class="auth-subtitle">请输入您的员工凭据</p>
-            </div>
+<!-- Hero区域 -->
+<section class="hero">
+    <div class="hero-overlay"></div>
 
-            <!-- 显示消息 -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ 'success' if category == 'success' else ('info' if category == 'info' else 'danger') }}" role="alert">
-                            <i class="fas fa-{{ 'check-circle' if category == 'success' else ('info-circle' if category == 'info' else 'exclamation-triangle') }} me-2"></i>
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
-            <form method="POST" action="{{ url_for('auth_profile.staff_login') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                
-                <div class="form-group">
-                    <label for="email" class="form-label">
-                        <i class="fas fa-envelope me-2"></i>邮箱地址
-                    </label>
-                    <input type="email" class="form-control" id="email" name="email" 
-                           placeholder="请输入您的邮箱地址" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="password" class="form-label">
-                        <i class="fas fa-lock me-2"></i>密码
-                    </label>
-                    <input type="password" class="form-control" id="password" name="password" 
-                           placeholder="请输入您的密码" required>
-                </div>
-
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="remember" name="remember">
-                    <label class="form-check-label" for="remember">
-                        记住我的登录状态
-                    </label>
-                </div>
-
-                <button type="submit" class="btn btn-staff">
-                    <i class="fas fa-sign-in-alt me-2"></i>登录
-                </button>
-            </form>
-
-            <div class="divider">
-                <span>其他选项</span>
-            </div>
-
-            <div class="auth-links">
-                <a href="{{ url_for('auth_profile.forgot_password') }}">
-                    <i class="fas fa-key me-1"></i>忘记密码？
-                </a>
-                <a href="{{ url_for('auth_profile.member_login') }}">
-                    <i class="fas fa-user me-1"></i>会员登录
-                </a>
-                <a href="{{ url_for('admin_auth.login') }}">
-                    <i class="fas fa-user-shield me-1"></i>管理员
-                </a>
-            </div>
-        </div>
+    <!-- 顶部返回 -->
+    <div class="top-bar">
+        <a href="{{ url_for('public.index') }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            返回首页
+        </a>
     </div>
 
-    <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="hero-content">
+        <div class="hero-icon">
+            <i class="fas fa-user-tie"></i>
+        </div>
+        <h1 class="hero-title">员工登录</h1>
+        <p class="hero-subtitle">MyTravelPanel 内部系统</p>
+    </div>
+</section>
+
+<!-- 登录卡片 -->
+<main class="login-card">
+    <div class="login-header">
+        <div class="login-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <h2 class="login-title">欢迎回来</h2>
+        <p class="login-subtitle">请输入您的员工凭据</p>
+    </div>
+
+    <!-- 显示消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else ('info' if category == 'info' else 'danger') }}">
+                <i class="fas fa-{{ 'check-circle' if category == 'success' else ('info-circle' if category == 'info' else 'exclamation-triangle') }}"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth_profile.staff_login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-envelope"></i>邮箱地址
+            </label>
+            <input type="email" name="email" class="form-input" placeholder="请输入您的邮箱地址" required autofocus>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">
+                <i class="fas fa-lock"></i>密码
+            </label>
+            <input type="password" name="password" class="form-input" placeholder="请输入您的密码" required>
+        </div>
+
+        <div class="form-options">
+            <label class="remember-me">
+                <input type="checkbox" name="remember" value="1">
+                记住我的登录状态
+            </label>
+            <a href="{{ url_for('auth_profile.forgot_password') }}" class="forgot-link">忘记密码？</a>
+        </div>
+
+        <button type="submit" class="btn-login">
+            <i class="fas fa-sign-in-alt"></i>
+            登录
+        </button>
+    </form>
+
+    <div class="divider">
+        <span>其他选项</span>
+    </div>
+
+    <div class="auth-links">
+        <a href="{{ url_for('auth_profile.member_login') }}" class="auth-link">
+            <i class="fas fa-user"></i>
+            会员登录
+        </a>
+        <a href="{{ url_for('admin_auth.login') }}" class="auth-link">
+            <i class="fas fa-user-shield"></i>
+            管理员
+        </a>
+    </div>
+</main>
+
+<!-- 页脚信息 -->
+<div class="footer-info">
+    <i class="fas fa-shield-alt"></i>
+    您的信息将被安全加密保护
+</div>
+
 </body>
 </html>

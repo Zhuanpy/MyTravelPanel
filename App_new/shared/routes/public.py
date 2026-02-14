@@ -782,9 +782,35 @@ def contact():
     if is_mobile_device():
         return redirect(url_for('mobile.contact'))
 
+    from ...auth.models.auth import AuthUser, UserProfile, Role
+
     # 从数据库获取公司信息
     company_info = CompanyInfo.query.first()
-    
+
+    # 获取公开展示的员工列表
+    staff_role = Role.query.filter_by(name='staff').first()
+    staff_list = []
+    if staff_role:
+        public_staff = db.session.query(AuthUser, UserProfile).join(
+            UserProfile, AuthUser.id == UserProfile.user_id
+        ).filter(
+            AuthUser.role_id == staff_role.id,
+            AuthUser.is_active == True,
+            UserProfile.is_public == True
+        ).all()
+
+        for user, profile in public_staff:
+            staff_list.append({
+                'id': user.id,
+                'name': profile.get_full_name() if profile else user.username,
+                'position': profile.position if profile else '旅游顾问',
+                'phone': profile.phone if profile else None,
+                'whatsapp': profile.whatsapp if profile else None,
+                'wechat_id': profile.wechat_id if profile else None,
+                'avatar': profile.avatar if profile else None,
+                'email': user.email
+            })
+
     # 构建联系信息对象
     if company_info:
         contact_info = {
@@ -803,8 +829,8 @@ def contact():
             'wechat': 'MyTravelPanel',
             'business_hours': '周一至周五: 9:00 AM - 6:00 PM'
         }
-    
-    return render_template('guest/main/contact.html', contact=contact_info)
+
+    return render_template('guest/main/contact.html', contact=contact_info, staff_list=staff_list)
 
 @public.route('/api/visa-countries')
 def api_visa_countries():
