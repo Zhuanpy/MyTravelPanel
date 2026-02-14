@@ -2424,3 +2424,95 @@ def cleanup_image_library():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ==================== 客户咨询管理 ====================
+
+@staff.route('/inquiries')
+@login_required
+@staff_only
+def inquiry_list():
+    """客户咨询列表"""
+    from ...shared.models.contact_inquiry import ContactInquiry
+    from ...exts import db
+
+    status_filter = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    query = ContactInquiry.query
+
+    if status_filter:
+        query = query.filter(ContactInquiry.status == status_filter)
+
+    query = query.order_by(ContactInquiry.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # 统计各状态数量
+    stats = {
+        'total': ContactInquiry.query.count(),
+        'new': ContactInquiry.query.filter_by(status='new').count(),
+        'read': ContactInquiry.query.filter_by(status='read').count(),
+        'replied': ContactInquiry.query.filter_by(status='replied').count(),
+        'closed': ContactInquiry.query.filter_by(status='closed').count(),
+    }
+
+    return render_template('staff/inquiries/inquiry_list.html',
+                           inquiries=pagination.items,
+                           pagination=pagination,
+                           status_filter=status_filter,
+                           stats=stats)
+
+
+@staff.route('/inquiries/<int:inquiry_id>/status', methods=['POST'])
+@login_required
+@staff_only
+def inquiry_update_status(inquiry_id):
+    """更新咨询状态"""
+    from ...shared.models.contact_inquiry import ContactInquiry
+    from ...exts import db
+
+    inquiry = ContactInquiry.query.get_or_404(inquiry_id)
+    data = request.get_json()
+    new_status = data.get('status')
+
+    if new_status not in ('new', 'read', 'replied', 'closed'):
+        return jsonify({'success': False, 'message': '无效的状态'}), 400
+
+    inquiry.status = new_status
+    if new_status == 'read' and not inquiry.read_at:
+        inquiry.read_at = datetime.utcnow()
+    elif new_status == 'replied' and not inquiry.replied_at:
+        inquiry.replied_at = datetime.utcnow()
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': '状态已更新'})
+
+
+@staff.route('/inquiries/<int:inquiry_id>/notes', methods=['POST'])
+@login_required
+@staff_only
+def inquiry_update_notes(inquiry_id):
+    """更新内部备注"""
+    from ...shared.models.contact_inquiry import ContactInquiry
+    from ...exts import db
+
+    inquiry = ContactInquiry.query.get_or_404(inquiry_id)
+    data = request.get_json()
+    inquiry.staff_notes = data.get('notes', '')
+    db.session.commit()
+    return jsonify({'success': True, 'message': '备注已保存'})
+
+
+@staff.route('/inquiries/<int:inquiry_id>/delete', methods=['POST'])
+@login_required
+@staff_only
+def inquiry_delete(inquiry_id):
+    """删除咨询记录"""
+    from ...shared.models.contact_inquiry import ContactInquiry
+    from ...exts import db
+
+    inquiry = ContactInquiry.query.get_or_404(inquiry_id)
+    db.session.delete(inquiry)
+    db.session.commit()
+    return jsonify({'success': True, 'message': '已删除'})

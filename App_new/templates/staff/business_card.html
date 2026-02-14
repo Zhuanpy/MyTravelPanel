@@ -831,7 +831,6 @@
     </div>
 
     <!-- 操作栏（仅自己可见） -->
-    {% if is_owner %}
     <div class="action-bar">
         <button class="action-btn primary" onclick="downloadImage()">
             <i class="fas fa-image"></i> Save PNG
@@ -845,11 +844,12 @@
         <button class="action-btn secondary" onclick="shareCard()">
             <i class="fas fa-share-alt"></i> Share
         </button>
+        {% if is_owner %}
         <a href="{{ url_for('staff.profile') }}" class="action-btn secondary">
             <i class="fas fa-arrow-left"></i> Back
         </a>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 
 <!-- Toast提示 -->

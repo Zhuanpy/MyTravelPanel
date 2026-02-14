@@ -515,6 +515,7 @@ def import_all_models():
             # Supplier 已合并到 CustomerCompany，保留导入用于向后兼容
             from .shared.models.Suppliers import Supplier  # 这是 CustomerCompany 的别名
             from .shared.models.Utilsmodels import Todo, TodoChecklist, TodoChecklistItem
+            from .shared.models.contact_inquiry import ContactInquiry
         except Exception:
             pass
     except Exception:

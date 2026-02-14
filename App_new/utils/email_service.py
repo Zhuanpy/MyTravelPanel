@@ -242,3 +242,164 @@ def send_verification_email(to_email, username, verification_code):
         print(f"发送验证码邮件失败: {str(e)}")
         raise
 
+
+def send_inquiry_notification(inquiry):
+    """
+    通知员工有新的客户咨询
+
+    Args:
+        inquiry: ContactInquiry 对象
+    """
+    try:
+        mail = Mail(current_app)
+
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@joyesc.com')
+        sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
+        # 发送给管理员邮箱
+        recipients_str = current_app.config.get('MAIL_DEFAULT_RECIPIENTS', 'admin@joyesc.com')
+        recipients = [r.strip() for r in recipients_str.split(',') if r.strip()]
+
+        service_map = {
+            'visa': 'Visa Application',
+            'tour': 'Tour Package',
+            'flight': 'Flight Booking',
+            'hotel': 'Hotel Booking',
+            'other': 'Other Services',
+        }
+        service_display = service_map.get(inquiry.service_type, 'Not specified')
+
+        subject = f'【新客户咨询】{inquiry.name} - {service_display}'
+
+        html_body = f'''
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
+                <tr>
+                    <td style="background:linear-gradient(135deg,#1e3a5f,#0d7377);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+                        <h1 style="color:#fff;margin:0;font-size:22px;">📩 新客户咨询</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:30px;border:1px solid #e9ecef;border-top:none;">
+                        <table width="100%" style="border-collapse:collapse;">
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:80px;">姓名</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-weight:600;font-size:14px;">{inquiry.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">电话</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{inquiry.phone}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">邮箱</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{inquiry.email}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">服务</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{service_display}</td>
+                            </tr>
+                        </table>
+
+                        <div style="margin-top:20px;background:#f8fafb;border-radius:8px;padding:15px;">
+                            <p style="color:#6b7280;font-size:12px;margin:0 0 8px;text-transform:uppercase;">咨询内容</p>
+                            <p style="color:#1f2937;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">{inquiry.message}</p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background:#f8f9fa;padding:20px 30px;text-align:center;border:1px solid #e9ecef;border-top:none;border-radius:0 0 10px 10px;">
+                        <p style="color:#999;font-size:12px;margin:0;">请登录后台查看并处理该咨询</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        '''
+
+        msg = Message(
+            subject=subject,
+            sender=sender_str,
+            recipients=recipients,
+            html=html_body
+        )
+        mail.send(msg)
+        print(f"[邮件服务] 新咨询通知已发送给: {recipients}")
+        return True
+
+    except Exception as e:
+        print(f"[邮件服务] 发送咨询通知失败: {str(e)}")
+        return False
+
+
+def send_inquiry_auto_reply(inquiry):
+    """
+    给客户发送自动回复确认邮件
+
+    Args:
+        inquiry: ContactInquiry 对象
+    """
+    try:
+        mail = Mail(current_app)
+
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@joyesc.com')
+        sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
+        subject = 'Thank you for your inquiry - Joyeful Escapes'
+
+        html_body = f'''
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
+                <tr>
+                    <td style="background:linear-gradient(135deg,#059669,#0d7377);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+                        <h1 style="color:#fff;margin:0;font-size:22px;">Thank You!</h1>
+                        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">We have received your inquiry</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:30px;border:1px solid #e9ecef;border-top:none;">
+                        <p style="color:#333;font-size:15px;margin:0 0 15px;">Dear <strong>{inquiry.name}</strong>,</p>
+
+                        <p style="color:#666;font-size:14px;line-height:1.7;margin:0 0 20px;">
+                            Thank you for reaching out to us. We have received your inquiry and our team will get back to you as soon as possible, usually within 1 business day.
+                        </p>
+
+                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:15px;margin:20px 0;">
+                            <p style="color:#166534;font-size:13px;margin:0;font-weight:600;">Your inquiry reference: #{inquiry.id:04d}</p>
+                        </div>
+
+                        <p style="color:#666;font-size:14px;line-height:1.7;margin:0;">
+                            If you need immediate assistance, please feel free to call us or send a WhatsApp message.
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background:#f8f9fa;padding:20px 30px;text-align:center;border:1px solid #e9ecef;border-top:none;border-radius:0 0 10px 10px;">
+                        <p style="color:#999;font-size:12px;margin:0 0 5px;">This is an automated message, please do not reply directly.</p>
+                        <p style="color:#999;font-size:12px;margin:0;">&copy; 2025 Joyeful Escapes Pte Ltd. All rights reserved.</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        '''
+
+        msg = Message(
+            subject=subject,
+            sender=sender_str,
+            recipients=[inquiry.email],
+            html=html_body
+        )
+        mail.send(msg)
+        print(f"[邮件服务] 自动回复已发送给客户: {inquiry.email}")
+        return True
+
+    except Exception as e:
+        print(f"[邮件服务] 发送自动回复失败: {str(e)}")
+        return False
+

@@ -775,13 +775,61 @@ def about():
     """关于我们页面"""
     return render_template('guest/main/about.html')
 
-@public.route('/contact')
+@public.route('/contact', methods=['GET', 'POST'])
 def contact():
     """联系我们页面"""
     # 移动设备跳转到手机版
-    if is_mobile_device():
+    if is_mobile_device() and request.method == 'GET':
         return redirect(url_for('mobile.contact'))
 
+    # POST: 处理表单提交
+    if request.method == 'POST':
+        from ..models.contact_inquiry import ContactInquiry
+
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+
+            name = (data.get('name') or '').strip()
+            phone = (data.get('phone') or '').strip()
+            email = (data.get('email') or '').strip()
+            service_type = (data.get('service_type') or '').strip() or None
+            message = (data.get('message') or '').strip()
+
+            # 基本验证
+            if not name or not phone or not email or not message:
+                return jsonify({'success': False, 'message': '请填写所有必填项'}), 400
+
+            # 保存到数据库
+            inquiry = ContactInquiry(
+                name=name,
+                phone=phone,
+                email=email,
+                service_type=service_type,
+                message=message,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent', '')[:500]
+            )
+            db.session.add(inquiry)
+            db.session.commit()
+
+            # 发送邮件通知（失败不影响提交结果）
+            try:
+                from App_new.utils.email_service import send_inquiry_notification, send_inquiry_auto_reply
+                send_inquiry_notification(inquiry)
+                send_inquiry_auto_reply(inquiry)
+            except Exception as e:
+                current_app.logger.error(f"发送咨询邮件失败: {e}")
+
+            return jsonify({'success': True, 'message': '感谢您的咨询，我们会尽快回复您！'})
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"保存客户咨询失败: {e}")
+            return jsonify({'success': False, 'message': '提交失败，请稍后重试'}), 500
+
+    # GET: 渲染页面
     from ...auth.models.auth import AuthUser, UserProfile, Role
 
     # 从数据库获取公司信息
@@ -811,26 +859,7 @@ def contact():
                 'email': user.email
             })
 
-    # 构建联系信息对象
-    if company_info:
-        contact_info = {
-            'address': company_info.address,
-            'phone': company_info.phone,
-            'email': company_info.email,
-            'wechat': 'MyTravelPanel',  # 默认微信
-            'business_hours': '周一至周五: 9:00 AM - 6:00 PM'  # 默认营业时间
-        }
-    else:
-        # 默认联系信息
-        contact_info = {
-            'address': '新加坡市中心商业区',
-            'phone': '+65 1234 5678',
-            'email': 'info@joyesc.com',
-            'wechat': 'MyTravelPanel',
-            'business_hours': '周一至周五: 9:00 AM - 6:00 PM'
-        }
-
-    return render_template('guest/main/contact.html', contact=contact_info, staff_list=staff_list)
+    return render_template('guest/main/contact.html', company=company_info, staff_list=staff_list)
 
 @public.route('/api/visa-countries')
 def api_visa_countries():
