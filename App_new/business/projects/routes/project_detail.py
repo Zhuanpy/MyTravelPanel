@@ -403,6 +403,269 @@ def project_documents(project_id):
         }), 500
 
 
+# ==================== 打印REF价格单 ====================
+
+@bp.route('/<int:project_id>/print-statement')
+@login_required
+@staff_only
+def print_statement(project_id):
+    """打印REF价格单（Price Statement）"""
+    try:
+        from App_new.business.projects.models.project import ProjectHeader
+        from App_new.business.projects.models.project_member import ProjectMember
+        import json
+
+        header = ProjectHeader.query.get_or_404(project_id)
+
+        # 权限检查
+        if not can_access_project(header, current_user):
+            flash('您没有权限访问此项目', 'error')
+            return redirect(url_for('business_projects.list.list_projects'))
+
+        # 加载REF数据
+        refs = ProjectRef.query.filter_by(header_id=project_id).all()
+
+        # 为每个REF构建extra_data（复用invoice的逻辑）
+        def build_ref_extra_data(ref):
+            extra_data = {}
+            if ref.extra_info:
+                try:
+                    extra_data = json.loads(ref.extra_info)
+                except (json.JSONDecodeError, TypeError):
+                    extra_data = {}
+
+            # 机票类型：从flight_passengers表获取乘客信息
+            if hasattr(ref, 'flight_passengers') and ref.flight_passengers:
+                pax_names = [p.name for p in ref.flight_passengers if p.name]
+                extra_data['pax_names_display'] = ', '.join(pax_names)
+                if hasattr(ref, 'flight_segments') and ref.flight_segments:
+                    seg = ref.flight_segments[0]
+                    if seg.departure_time:
+                        extra_data['departure_date'] = seg.departure_time.strftime('%Y-%m-%d')
+            elif not extra_data.get('pax_names_display'):
+                # 非机票类型：从项目成员表获取
+                pax_names_ids = extra_data.get('pax_names', [])
+                if pax_names_ids:
+                    members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
+                    pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+                    extra_data['pax_names_display'] = ', '.join(pax_names_list)
+                else:
+                    extra_data['pax_names_display'] = extra_data.get('pax_name', '')
+
+            return extra_data
+
+        for ref in refs:
+            ref.extra_data = build_ref_extra_data(ref)
+
+        # 获取项目leader
+        leader_member = ProjectMember.query.filter_by(
+            header_id=project_id, is_leader=True
+        ).first()
+        if not leader_member:
+            leader_member = ProjectMember.query.filter_by(header_id=project_id).first()
+
+        leader_name = ''
+        if leader_member:
+            leader_name = leader_member.member_name
+            if leader_member.title:
+                leader_name = f"{leader_member.title} {leader_member.member_name}"
+
+        # 客户公司信息
+        customer_company_display = None
+        customer_company_address = None
+        if header.company:
+            company_name = header.company.company_name
+            if company_name and company_name.lower() in ['个人', 'cash', '现金']:
+                customer_company_display = header.contact if header.contact else leader_name
+            else:
+                customer_company_display = company_name
+            customer_company_address = header.company.address
+
+        # 计算总金额
+        total_amount = sum(float(ref.selling_price or 0) for ref in refs)
+
+        return render_template('business/projects/ref_statement_print.html',
+                               header=header,
+                               refs=refs,
+                               leader_name=leader_name,
+                               customer_company_display=customer_company_display,
+                               customer_company_address=customer_company_address,
+                               project_contact=header.contact,
+                               total_amount=total_amount,
+                               consultant=current_user.username if current_user.is_authenticated else '-',
+                               print_date=datetime.now())
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f'生成价格单失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=project_id))
+
+
+# ==================== 导出REF Excel ====================
+
+@bp.route('/<int:project_id>/export-refs')
+@login_required
+@staff_only
+def export_refs(project_id):
+    """导出项目REF明细为Excel"""
+    try:
+        from App_new.business.projects.models.project import ProjectHeader
+        from io import BytesIO
+        from flask import send_file
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+        header = ProjectHeader.query.get_or_404(project_id)
+
+        # 权限检查
+        if not can_access_project(header, current_user):
+            flash('您没有权限导出此项目', 'error')
+            return redirect(url_for('business_projects.list.list_projects'))
+
+        # 加载REF数据
+        refs = ProjectRef.query.filter_by(header_id=project_id).all()
+
+        # 创建Excel工作簿
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "REF List"
+
+        # 样式定义
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="343A40", end_color="343A40", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        total_font = Font(bold=True, size=11)
+        total_fill = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+
+        # 项目信息行
+        ws.merge_cells('A1:K1')
+        title_cell = ws.cell(row=1, column=1, value=f"Project: {header.hid} - {header.desc or ''}")
+        title_cell.font = Font(bold=True, size=14)
+        title_cell.alignment = Alignment(vertical="center")
+        ws.row_dimensions[1].height = 28
+
+        ws.merge_cells('A2:K2')
+        info_cell = ws.cell(row=2, column=1, value=f"Company: {header.company.company_name if header.company else '-'}    Currency: {header.currency or 'SGD'}    Contact: {header.contact or '-'}")
+        info_cell.font = Font(size=10, color="666666")
+        ws.row_dimensions[2].height = 20
+
+        # 表头（第3行）
+        headers_list = ['REF No', 'Type', 'Description', 'Invoice No', 'EO No',
+                        'Selling Price', 'Cost Price', 'Profit', 'Unpaid Amount',
+                        'Supplier', 'Currency']
+        for col, h in enumerate(headers_list, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        # 数据行
+        total_selling = 0
+        total_cost = 0
+        total_profit = 0
+        total_unpaid = 0
+
+        for row_idx, ref in enumerate(refs, 4):
+            selling = float(ref.selling_price or 0)
+            cost = float(ref.cost_price or 0)
+            profit = float(ref.ref_profit) if hasattr(ref, 'ref_profit') else selling - cost
+            unpaid = float(ref.unpaid_amount) if hasattr(ref, 'unpaid_amount') else selling
+
+            total_selling += selling
+            total_cost += cost
+            total_profit += profit
+            total_unpaid += unpaid
+
+            # Invoice编号
+            invoice_str = ''
+            if hasattr(ref, 'get_invoices') and callable(ref.get_invoices):
+                invoices = ref.get_invoices()
+                if invoices:
+                    invoice_str = ', '.join(inv.invoice_number for inv in invoices)
+
+            # EO编号
+            eo_str = ''
+            if ref.eos and hasattr(ref.eos, 'eo_number') and ref.eos.status != 'void':
+                eo_str = ref.eos.eo_number
+
+            row_data = [
+                ref.ref_number,
+                ref.ref_type.name if ref.ref_type else '',
+                ref.description or ref.detailed_description or '',
+                invoice_str,
+                eo_str,
+                selling,
+                cost,
+                profit,
+                unpaid,
+                ref.supplier.company_name if ref.supplier else '',
+                ref.currency or header.currency or 'SGD'
+            ]
+
+            for col, val in enumerate(row_data, 1):
+                cell = ws.cell(row=row_idx, column=col, value=val)
+                cell.border = thin_border
+                # 数字列右对齐并格式化
+                if col in (6, 7, 8, 9):
+                    cell.alignment = Alignment(horizontal="right")
+                    cell.number_format = '#,##0.00'
+
+        # 总计行
+        total_row = 4 + len(refs)
+        ws.cell(row=total_row, column=5, value='TOTAL').font = total_font
+        ws.cell(row=total_row, column=5).fill = total_fill
+        ws.cell(row=total_row, column=5).alignment = Alignment(horizontal="center")
+        ws.cell(row=total_row, column=5).border = thin_border
+
+        for col, val in [(6, total_selling), (7, total_cost), (8, total_profit), (9, total_unpaid)]:
+            cell = ws.cell(row=total_row, column=col, value=val)
+            cell.font = total_font
+            cell.fill = total_fill
+            cell.alignment = Alignment(horizontal="right")
+            cell.number_format = '#,##0.00'
+            cell.border = thin_border
+
+        # 空单元格也加样式
+        for col in [1, 2, 3, 4, 10, 11]:
+            cell = ws.cell(row=total_row, column=col)
+            cell.fill = total_fill
+            cell.border = thin_border
+
+        # 调整列宽
+        column_widths = [15, 10, 30, 15, 15, 14, 14, 14, 14, 25, 8]
+        for col, width in enumerate(column_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
+
+        # 保存到内存
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        hid = header.hid or f'P{project_id}'
+        filename = f"{hid}_REF_List_{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f'导出失败：{str(e)}', 'error')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=project_id))
+
+
 # ==================== 邮件功能 ====================
 
 @bp.route('/<int:project_id>/email/templates')

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Statement - {{ header.hid }}</title>
+    <style>
+        @media print {
+            @page {
+                margin: 10mm 15mm;
+                @top-left { content: none; }
+                @top-center { content: none; }
+                @top-right { content: none; }
+                @bottom-left { content: none; }
+                @bottom-center { content: none; }
+                @bottom-right { content: none; }
+            }
+            .no-print { display: none !important; }
+            .print-invoice {
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+            }
+            .print-invoice .footer-note {
+                margin-top: auto;
+                padding-top: 40px;
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f0f0f0; }
+
+        .no-print {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        .no-print button {
+            padding: 8px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            margin: 0 5px;
+        }
+        .no-print .btn-print {
+            background: #059669;
+            color: white;
+        }
+        .no-print .btn-back {
+            background: #6b7280;
+            color: white;
+        }
+
+        .print-invoice {
+            background: white;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px 25px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #333;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .print-invoice .invoice-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .print-invoice .company-logo { text-align: center; }
+        .print-invoice .company-logo img { height: 60px; display: block; margin: 0 auto; }
+        .print-invoice .company-info { text-align: right; font-size: 11px; }
+        .print-invoice .company-name-cn { font-size: 18px; font-weight: bold; }
+        .print-invoice .company-name-en { font-size: 16px; font-weight: bold; }
+        .print-invoice .invoice-title { text-align: center; margin: 20px 0; }
+        .print-invoice .invoice-title span {
+            display: inline-block; padding: 5px 0;
+            font-size: 18px; font-weight: bold; text-transform: uppercase;
+        }
+        .print-invoice .invoice-info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .print-invoice .customer-info { width: 55%; }
+        .print-invoice .invoice-meta { width: 40%; }
+        .print-invoice .invoice-meta table { width: 100%; }
+        .print-invoice .invoice-meta td { padding: 2px 5px; }
+        .print-invoice .invoice-meta td:first-child { width: 80px; }
+        .print-invoice .detail-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .print-invoice .detail-table th {
+            border-top: 2px solid #333; border-bottom: 1px solid #333;
+            padding: 8px; text-align: left; background: transparent;
+        }
+        .print-invoice .detail-table td {
+            border: none; border-bottom: 1px solid #ddd;
+            padding: 8px; text-align: left;
+        }
+        .print-invoice .detail-table tbody tr:last-child td { border-bottom: 1px solid #333; }
+        .print-invoice .detail-table .text-right { text-align: right; }
+        .print-invoice .total-section { margin: 5px 0; }
+        .print-invoice .total-section table { width: 100%; }
+        .print-invoice .total-section td { padding: 3px 5px; }
+        .print-invoice .total-section .label { text-align: right; width: 85%; }
+        .print-invoice .total-section .value { text-align: right; width: 15%; }
+        .print-invoice .amount-words { font-weight: bold; margin: 8px 0; }
+        .print-invoice .bank-details { margin: 10px 0; font-size: 11px; }
+        .print-invoice .footer-note {
+            text-align: center;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            font-size: 11px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- 操作栏（打印时隐藏） -->
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()"><b>🖨 打印 / Print</b></button>
+        <button class="btn-back" onclick="window.close()"><b>✕ 关闭</b></button>
+    </div>
+
+    {% set company = get_company_info() %}
+    <div class="print-invoice" id="printStatement">
+        <!-- 公司抬头 -->
+        <div class="invoice-header">
+            <div class="company-logo">
+                {% if '192.168' in request.host or 'localhost' in request.host %}
+                    <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+                {% elif company and company.logo_path %}
+                    <img src="{{ url_for('static', filename=company.logo_path) }}"
+                         alt="{{ company.company_name }}"
+                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
+                {% else %}
+                    <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+                {% endif %}
+                <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name or '' }}</div>
+            </div>
+            <div class="company-info">
+                <div class="company-name-cn">{{ company.company_name_cn }}</div>
+                <div class="company-name-en">{{ company.company_name }}</div>
+                <div>TA License No.: {{ company.ta_license or '' }}</div>
+                <div>Email: {{ company.email or '' }}</div>
+            </div>
+        </div>
+
+        <!-- 标题 -->
+        <div class="invoice-title">
+            <span>Price Statement</span>
+        </div>
+
+        <!-- 客户信息和元信息 -->
+        <div class="invoice-info-section">
+            <div class="customer-info">
+                <table>
+                    <tr>
+                        <td style="width: 50px; vertical-align: top;"><strong>To</strong></td>
+                        <td style="vertical-align: top;">:</td>
+                        <td>
+                            <strong>{{ customer_company_display or header.contact or '-' }}</strong>
+                            {% if customer_company_address %}<br>{{ customer_company_address }}{% endif %}
+                        </td>
+                    </tr>
+                    <tr><td colspan="3" style="height: 10px;"></td></tr>
+                    <tr>
+                        <td><strong>Attn</strong></td>
+                        <td>:</td>
+                        <td>{{ project_contact or leader_name or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="invoice-meta">
+                <table>
+                    <tr><td>Ref</td><td>:</td><td><strong>{{ header.hid }}</strong></td></tr>
+                    <tr><td>Date</td><td>:</td><td>{{ print_date.strftime('%d/%m/%Y') }}</td></tr>
+                    <tr><td>Consultant</td><td>:</td><td>{{ consultant or '-' }}</td></tr>
+                    <tr><td>Hd Id</td><td>:</td><td>{{ header.hid }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- REF明细表 -->
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Ref/Type</th>
+                    <th>Description</th>
+                    <th style="width: 80px;" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ref in refs %}
+                <tr>
+                    <td style="vertical-align: top;">
+                        {% if ref.ref_type %}
+                            {% set type_code = ref.ref_type.code|default('') %}
+                            {% set type_name = ref.ref_type.name|default('') %}
+                            {% if type_code == 'flight' or type_name == '机票' %}Air Ticket
+                            {% elif type_code == 'hotel' or type_name == '酒店' %}Hotel
+                            {% elif type_code == 'visa' or type_name == '签证' %}Visa
+                            {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}Tour
+                            {% elif type_code == 'insurance' or type_name == '保险' %}Insurance
+                            {% elif type_code == 'transport' or type_name == '交通' %}Transport
+                            {% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}Attraction
+                            {% elif type_code == 'cruise' or type_name == '邮轮' %}Cruise
+                            {% elif type_code == 'other' or type_name == '其他' %}Miscellaneous
+                            {% else %}Service{% endif %}
+                        {% else %}Service{% endif %}
+                        <br>({{ ref.ref_number }})
+                    </td>
+                    <td style="vertical-align: top; line-height: 1.8;">
+                        {% set type_code = ref.ref_type.code|default('') if ref.ref_type else '' %}
+                        {% set type_name = ref.ref_type.name|default('') if ref.ref_type else '' %}
+                        {% if type_code == 'flight' or type_name == '机票' %}
+                            {# 机票类型详细显示 #}
+                            {% set segments = ref.flight_segments %}
+                            {% set passengers = ref.flight_passengers %}
+                            {% set first_pnr = passengers[0].pnr if passengers else '' %}
+
+                            <table style="border: none; font-size: 11px; width: 100%;">
+                                <tr>
+                                    <td style="width: 60px; border: none;">Itin</td>
+                                    <td style="width: 10px; border: none;">:</td>
+                                    <td style="border: none;">{{ ref.description or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: none;">Detail</td>
+                                    <td style="border: none;">:</td>
+                                    <td style="border: none;"></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" style="border: none; padding-left: 20px;">
+                                        Air ticket details -- {% if first_pnr %}(PNR:{{ first_pnr }}){% endif %}
+                                    </td>
+                                </tr>
+                                {% for pax in passengers %}
+                                <tr>
+                                    <td style="border: none;">Pax</td>
+                                    <td style="border: none;">:</td>
+                                    <td style="border: none;">
+                                        <table style="width: 100%; border: none;">
+                                            <tr>
+                                                <td style="border: none;">{{ loop.index }}. {{ pax.name }}</td>
+                                                <td style="border: none; text-align: right; width: 120px;">Airfare :</td>
+                                                <td style="border: none; text-align: right; width: 60px;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="border: none; padding-left: 20px;">TKT: {{ pax.ticket_number or 'T.B.A' }}</td>
+                                                <td style="border: none; text-align: right;">Tax :</td>
+                                                <td style="border: none; text-align: right;">0.00</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
+                                {% for seg in segments %}
+                                <tr>
+                                    <td style="border: none;">Itin</td>
+                                    <td style="border: none;">:</td>
+                                    <td style="border: none;">
+                                        {{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }}
+                                        {{ seg.departure_airport }}-{{ seg.arrival_airport }}
+                                        {{ seg.cabin_code }} {{ seg.status or 'HK' }}
+                                        {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }}
+                                        {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
+                                {% if ref.remarks %}
+                                <tr>
+                                    <td style="border: none;">Note</td>
+                                    <td style="border: none;">:</td>
+                                    <td style="border: none;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
+                            {# Tour类型 #}
+                            {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}
+                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+                                <tr>
+                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Tour</td>
+                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.tour_name if extra_data.tour_name is defined and extra_data.tour_name else ref.description or '-' }}</td>
+                                </tr>
+                                {% if extra_data.departure_date is defined and extra_data.departure_date %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}
+                                        {% if extra_data.days is defined and extra_data.days %} ({{ extra_data.days }} Days){% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if extra_data.confirmation_number is defined and extra_data.confirmation_number %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Conf#</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.confirmation_number }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display if extra_data.pax_names_display is defined and extra_data.pax_names_display else '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {% set qty_parts = [] %}
+                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.single_room_qty is defined and extra_data.single_room_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.single_room_qty|string + ' Single Occupancy') %}
+                                        {% endif %}
+                                        {{ qty_parts|join(', ') if qty_parts else '1 Adult' }}
+                                    </td>
+                                </tr>
+                                {% if extra_data.itinerary is defined and extra_data.itinerary %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Itin</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.itinerary | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if ref.remarks %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        {% else %}
+                            {# 其他类型通用显示 #}
+                            {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}
+                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+                                <tr>
+                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Descrp</td>
+                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.description or '-' }}</td>
+                                </tr>
+                                {% if extra_data.pax_names_display is defined and extra_data.pax_names_display %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.pax_names_display }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if extra_data.departure_date is defined and extra_data.departure_date %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}</td>
+                                </tr>
+                                {% endif %}
+                                {% if extra_data.adult_qty is defined or extra_data.child_qty is defined or extra_data.infant_qty is defined %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {% set qty_parts = [] %}
+                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
+                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
+                                        {% endif %}
+                                        {{ qty_parts|join(', ') if qty_parts else '-' }}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if ref.remarks %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.remarks | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        {% endif %}
+                    </td>
+                    <td class="text-right" style="vertical-align: top;">{{ "%.2f"|format(ref.selling_price or 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 金额汇总 -->
+        <div class="total-section">
+            <table style="width: 100%; margin-top: 0;">
+                <tr>
+                    <td style="width: 75%;"></td>
+                    <td style="text-align: right; padding: 5px;">Sub Total :</td>
+                    <td style="text-align: right; width: 100px; padding: 5px;">{{ "%.2f"|format(total_amount) }}</td>
+                </tr>
+                <tr>
+                    <td><strong>{{ header.currency or 'SGD' }}</strong></td>
+                    <td style="text-align: right; padding: 5px; white-space: nowrap;">Total Amount :</td>
+                    <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>{{ "%.2f"|format(total_amount) }}</strong></td>
+                </tr>
+            </table>
+            <div style="border-bottom: 2px solid #333; margin-bottom: 5px;"></div>
+        </div>
+
+        <!-- 金额大写 -->
+        <div class="amount-words">
+            {{ total_amount|amount_in_words(header.currency or 'SGD') }}
+        </div>
+
+        <!-- 银行信息 -->
+        <div class="bank-details">
+            <strong>Bank Details:</strong>
+            <ul style="margin: 5px 0; padding-left: 30px; list-style: disc;">
+                {% if company.bank_name or company.bank_account %}
+                <li>{{ company.bank_name or 'OCBC Bank Singapore' }}{% if company.bank_account %}, AC No.: {{ company.bank_account }}{% endif %}</li>
+                {% else %}
+                <li>OCBC Bank Singapore, AC No.: 5956-7793-1001</li>
+                {% endif %}
+                {% if company.uen %}
+                <li>PayNow UEN: {{ company.uen }}</li>
+                {% else %}
+                <li>PayNow UEN: 202337627W</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- 底部说明 -->
+        <div class="footer-note">
+            <p>THIS IS A COMPUTER-GENERATED DOCUMENT. NO SIGNATURE IS REQUIRED.</p>
+            <p style="margin-top: 10px;"><strong>E. & O.E</strong></p>
+        </div>
+    </div>
+
+    <script>
+        // 自动打印（如果URL带?print=1参数）
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('print') === '1') {
+            window.onload = function() {
+                setTimeout(function() {
+                    document.title = ' ';
+                    window.print();
+                }, 500);
+            };
+        }
+    </script>
+</body>
+</html>

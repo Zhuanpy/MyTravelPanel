@@ -225,7 +225,16 @@
             <div class="tw:flex tw:items-center tw:gap-3 tw:w-full md:tw:w-auto">
                 <h3 class="section-title tw:text-lg tw:font-semibold tw:mb-0">REF明细列表</h3>
             </div>
-            <div class="add-ref-buttons tw:flex tw:flex-wrap tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
+            <div class="add-ref-buttons tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:w-full md:tw:w-auto tw:mt-1 md:tw:mt-0">
+                {% if header.refs %}
+                <a href="{{ url_for('business_projects.detail.print_statement', project_id=header.id) }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-print"></i> 打印价格单
+                </a>
+                <a href="{{ url_for('business_projects.detail.export_refs', project_id=header.id) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-file-excel"></i> 导出Excel
+                </a>
+                <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
+                {% endif %}
                 {% if not header.is_settled %}
                 <button type="button" class="btn btn-primary btn-sm" onclick="openInvoiceModal()">
                     <i class="fas fa-file-invoice"></i> 生成发票
@@ -235,6 +244,7 @@
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
                 {% if not header.is_settled %}
+                <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
                 <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plane"></i> 机票
                 </a>
