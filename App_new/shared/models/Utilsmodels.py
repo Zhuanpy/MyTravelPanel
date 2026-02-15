@@ -229,7 +229,7 @@ class TodoChecklist(db.Model):
     # 重复设置
     is_recurring = db.Column(db.Boolean, default=False, comment='是否为重复任务')
     recurrence_type = db.Column(db.String(20), comment='重复类型: daily, weekly, monthly')
-    recurrence_days = db.Column(db.String(50), comment='重复的星期几（用于weekly）：1,2,3,4,5,6,0（周一到周日）')
+    recurrence_days = db.Column(db.String(50), comment='weekly: 星期几(1=一,0=日); monthly: 日期(1-31)，逗号分隔')
     recurrence_time = db.Column(db.String(10), comment='重复的时间: HH:MM')
 
     is_active = db.Column(db.Boolean, default=True, comment='是否启用')
@@ -282,6 +282,7 @@ class TodoChecklistItem(db.Model):
     # 新增字段
     assigned_to = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='默认分配给的员工ID')
     due_days_offset = db.Column(db.Integer, default=0, comment='截止天数偏移（生成后多少天截止）')
+    estimated_hours = db.Column(db.Float, nullable=True, default=0, comment='预估工时（小时）')
 
     # 关系
     assignee = db.relationship('AuthUser', foreign_keys=[assigned_to])
@@ -296,6 +297,7 @@ class TodoChecklistItem(db.Model):
             'priority': self.priority,
             'order_index': self.order_index,
             'assigned_to': self.assigned_to,
+            'estimated_hours': self.estimated_hours or 0,
             'due_days_offset': self.due_days_offset or 0,
             'assignee_name': self.assignee.username if self.assignee else None
         }

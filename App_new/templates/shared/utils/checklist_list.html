@@ -36,8 +36,7 @@
 
 {% block content %}
 <div class="container" style="max-width: 900px;">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="visa-page-title mb-0">任务清单管理</h1>
+    <div class="d-flex justify-content-end align-items-center mb-3">
         <div>
             <a href="{{ url_for('utils_blue.render_todo_list') }}" class="btn btn-outline-secondary btn-sm me-2">
                 <i class="fas fa-list"></i> 返回待办
@@ -77,10 +76,9 @@
                         </div>
                         <div class="col-3">
                             <select class="form-select form-select-sm" id="checklistCategory" name="category">
-                                <option value="公司日常">公司日常</option>
-                                <option value="个人事务">个人事务</option>
-                                <option value="产品报价">产品报价</option>
+                                <option value="我的任务">我的任务</option>
                                 <option value="项目提醒">项目提醒</option>
+                                <option value="团队任务">团队任务</option>
                             </select>
                         </div>
                         <div class="col-3">
@@ -106,6 +104,7 @@
                                     <option value="monthly">每月</option>
                                 </select>
                             </div>
+                            <!-- 每周：星期选择 -->
                             <div class="col" id="recurrenceDaysGroup">
                                 <div class="d-flex gap-1 flex-wrap">
                                     <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="1">一</label>
@@ -115,6 +114,17 @@
                                     <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="5">五</label>
                                     <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="6">六</label>
                                     <label class="btn btn-outline-secondary btn-sm py-0 px-1"><input type="checkbox" class="d-none recurrence-day" value="0">日</label>
+                                </div>
+                            </div>
+                            <!-- 每月：日期选择 -->
+                            <div class="col" id="recurrenceMonthDaysGroup" style="display: none;">
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <script>
+                                        // 动态生成1-31号按钮
+                                        for (let d = 1; d <= 31; d++) {
+                                            document.write(`<label class="btn btn-outline-secondary btn-sm py-0 px-1" style="min-width:28px;"><input type="checkbox" class="d-none recurrence-month-day" value="${d}">${d}</label>`);
+                                        }
+                                    </script>
                                 </div>
                             </div>
                             <div class="col-auto">
@@ -133,9 +143,10 @@
 
                     <!-- 任务项表头 -->
                     <div class="row g-2 mb-1 text-muted small" id="itemsHeader" style="display:none;">
-                        <div class="col-5">标题</div>
-                        <div class="col-3">负责人</div>
+                        <div class="col-4">标题</div>
+                        <div class="col-2">负责人</div>
                         <div class="col-2 text-center">优先级</div>
+                        <div class="col-2 text-center">预估工时</div>
                         <div class="col-2 text-center">截止天数</div>
                     </div>
 
@@ -169,8 +180,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 保存清单
     document.getElementById('saveChecklist').addEventListener('click', saveChecklist);
 
-    // 星期按钮点击切换
-    document.querySelectorAll('.recurrence-day').forEach(cb => {
+    // 星期按钮和月份日期按钮点击切换
+    document.querySelectorAll('.recurrence-day, .recurrence-month-day').forEach(cb => {
         cb.closest('label').addEventListener('click', function(e) {
             e.preventDefault();
             const checkbox = this.querySelector('input');
@@ -313,10 +324,10 @@ function addItem(prefill = {}) {
 
     const itemHtml = `
         <div class="row g-2 mb-1 item-card align-items-center" data-item-id="${itemCounter}">
-            <div class="col-5">
+            <div class="col-4">
                 <input type="text" class="form-control form-control-sm item-title" placeholder="任务标题" required value="${prefill.title || ''}">
             </div>
-            <div class="col-3">
+            <div class="col-2">
                 <select class="form-select form-select-sm item-assigned-to">
                     <option value="">未指定</option>
                     ${staffOptions}
@@ -329,10 +340,16 @@ function addItem(prefill = {}) {
                     <option value="3" ${prefill.priority === 3 ? 'selected' : ''}>低</option>
                 </select>
             </div>
+            <div class="col-2">
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control form-control-sm item-estimated-hours" min="0" step="0.5" value="${prefill.estimated_hours || ''}" placeholder="0">
+                    <span class="input-group-text" style="font-size:0.7rem;">h</span>
+                </div>
+            </div>
             <div class="col-2 d-flex align-items-center">
-                <input type="number" class="form-control form-control-sm item-due-days" min="0" value="${prefill.due_days_offset || 0}" style="width:55px;">
+                <input type="number" class="form-control form-control-sm item-due-days" min="0" value="${prefill.due_days_offset || 0}" style="width:50px;">
                 <span class="ms-1 small text-muted">天</span>
-                <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2" onclick="removeItem(${itemCounter})" title="删除">
+                <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-1" onclick="removeItem(${itemCounter})" title="删除">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -364,8 +381,8 @@ function toggleRecurringSettings() {
 
 function updateRecurrenceOptions() {
     const type = document.getElementById('recurrenceType').value;
-    const daysGroup = document.getElementById('recurrenceDaysGroup');
-    daysGroup.style.display = type === 'weekly' ? 'block' : 'none';
+    document.getElementById('recurrenceDaysGroup').style.display = type === 'weekly' ? 'block' : 'none';
+    document.getElementById('recurrenceMonthDaysGroup').style.display = type === 'monthly' ? 'block' : 'none';
 }
 
 function saveChecklist() {
@@ -395,6 +412,10 @@ function saveChecklist() {
             const selectedDays = Array.from(document.querySelectorAll('.recurrence-day:checked'))
                 .map(cb => cb.value);
             data.recurrence_days = selectedDays.join(',');
+        } else if (data.recurrence_type === 'monthly') {
+            const selectedDays = Array.from(document.querySelectorAll('.recurrence-month-day:checked'))
+                .map(cb => cb.value);
+            data.recurrence_days = selectedDays.join(',');
         }
     }
     
@@ -405,11 +426,13 @@ function saveChecklist() {
         if (title) {
             const assignedTo = card.querySelector('.item-assigned-to')?.value;
             const dueDays = card.querySelector('.item-due-days')?.value;
+            const estHours = card.querySelector('.item-estimated-hours')?.value;
             items.push({
                 title: title,
                 description: '',
                 priority: parseInt(card.querySelector('.item-priority').value),
                 assigned_to: assignedTo ? parseInt(assignedTo) : null,
+                estimated_hours: estHours ? parseFloat(estHours) : 0,
                 due_days_offset: dueDays ? parseInt(dueDays) : 0
             });
         }
@@ -458,13 +481,13 @@ function editChecklist(id) {
                 document.getElementById('checklistId').value = checklist.id;
                 document.getElementById('checklistName').value = checklist.name;
                 document.getElementById('checklistDescription').value = checklist.description || '';
-                document.getElementById('checklistCategory').value = checklist.category || '公司日常';
+                document.getElementById('checklistCategory').value = checklist.category || '我的任务';
                 document.getElementById('isRecurring').checked = checklist.is_recurring;
                 
                 toggleRecurringSettings();
                 
-                // 重置所有星期按钮
-                document.querySelectorAll('.recurrence-day').forEach(cb => {
+                // 重置所有星期按钮和月份日期按钮
+                document.querySelectorAll('.recurrence-day, .recurrence-month-day').forEach(cb => {
                     cb.checked = false;
                     cb.closest('label').classList.remove('btn-primary');
                     cb.closest('label').classList.add('btn-outline-secondary');
@@ -476,9 +499,11 @@ function editChecklist(id) {
 
                     updateRecurrenceOptions();
 
-                    if (checklist.recurrence_type === 'weekly' && checklist.recurrence_days) {
+                    if (checklist.recurrence_days) {
                         const days = checklist.recurrence_days.split(',');
-                        document.querySelectorAll('.recurrence-day').forEach(cb => {
+                        // 根据类型回填对应的选择器
+                        const selector = checklist.recurrence_type === 'monthly' ? '.recurrence-month-day' : '.recurrence-day';
+                        document.querySelectorAll(selector).forEach(cb => {
                             if (days.includes(cb.value)) {
                                 cb.checked = true;
                                 cb.closest('label').classList.remove('btn-outline-secondary');
@@ -500,6 +525,7 @@ function editChecklist(id) {
                         description: item.description,
                         priority: item.priority,
                         assigned_to: item.assigned_to,
+                        estimated_hours: item.estimated_hours,
                         due_days_offset: item.due_days_offset
                     });
                 });

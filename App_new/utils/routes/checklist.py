@@ -91,7 +91,8 @@ def create_checklist():
                 priority=item_data.get('priority', 2),
                 order_index=index,
                 assigned_to=item_data.get('assigned_to'),
-                due_days_offset=item_data.get('due_days_offset', 0)
+                due_days_offset=item_data.get('due_days_offset', 0),
+                estimated_hours=item_data.get('estimated_hours', 0)
             )
             db.session.add(item)
         
@@ -261,6 +262,7 @@ def generate_todos():
                 assigned_to=assigned_to,
                 assigned_by=assigned_by,
                 assigned_at=assigned_at,
+                estimated_hours=item.estimated_hours or 0,
                 source_type='checklist',
                 source_id=checklist.id
             )

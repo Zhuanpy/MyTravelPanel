@@ -52,9 +52,15 @@ def auto_generate_checklist_todos():
                     if python_weekday in configured_days:
                         should_generate = True
             elif checklist.recurrence_type == 'monthly':
-                # 每月1号生成
-                if current_day == 1:
-                    should_generate = True
+                # 检查今天是否在配置的日期里（如 "1,15" 表示每月1号和15号）
+                if checklist.recurrence_days:
+                    configured_days = [int(d) for d in checklist.recurrence_days.split(',') if d]
+                    if current_day in configured_days:
+                        should_generate = True
+                else:
+                    # 未配置日期，默认每月1号
+                    if current_day == 1:
+                        should_generate = True
 
             if not should_generate:
                 continue
@@ -80,6 +86,7 @@ def auto_generate_checklist_todos():
                     assigned_to=item.assigned_to,
                     assigned_by=checklist.user_id if item.assigned_to else None,
                     assigned_at=now if item.assigned_to else None,
+                    estimated_hours=item.estimated_hours or 0,
                     source_type='checklist',
                     source_id=checklist.id,
                     auto_generated=True

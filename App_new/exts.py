@@ -80,7 +80,21 @@ def init_exts(app):
                     replace_existing=True
                 )
                 print("Registered job: auto_generate_reminders (daily at 2:00 AM)")
-                
+
+                # 任务3：自动从重复清单生成待办事项（每天早上8点）
+                def job_generate_checklist_todos():
+                    with app.app_context():
+                        from App_new.utils.scheduler import auto_generate_checklist_todos
+                        auto_generate_checklist_todos()
+
+                scheduler.add_job(
+                    id='auto_generate_checklist_todos',
+                    func=job_generate_checklist_todos,
+                    trigger=CronTrigger(hour=8, minute=0),  # 每天早上8点
+                    replace_existing=True
+                )
+                print("Registered job: auto_generate_checklist_todos (daily at 8:00 AM)")
+
             except Exception as je:
                 print(f"注册定时任务失败: {je}")
 
