@@ -2516,3 +2516,132 @@ def inquiry_delete(inquiry_id):
     db.session.delete(inquiry)
     db.session.commit()
     return jsonify({'success': True, 'message': '已删除'})
+
+
+# ==================== 会员订单管理 ====================
+
+@staff.route('/member-orders')
+@login_required
+@staff_only
+def member_order_list():
+    """会员订单列表"""
+    from ...member.models.order import Order, OrderStatus
+    from ...exts import db
+
+    status_filter = request.args.get('status', '')
+    service_filter = request.args.get('service_type', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    query = Order.query
+
+    if status_filter:
+        query = query.filter(Order.status == status_filter)
+    if service_filter:
+        query = query.filter(Order.service_type == service_filter)
+
+    query = query.order_by(Order.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # 统计各状态数量
+    stats = {
+        'total': Order.query.count(),
+        'pending': Order.query.filter_by(status=OrderStatus.PENDING.value).count(),
+        'confirmed': Order.query.filter_by(status=OrderStatus.CONFIRMED.value).count(),
+        'in_progress': Order.query.filter_by(status=OrderStatus.IN_PROGRESS.value).count(),
+        'completed': Order.query.filter_by(status=OrderStatus.COMPLETED.value).count(),
+        'cancelled': Order.query.filter_by(status=OrderStatus.CANCELLED.value).count(),
+    }
+
+    return render_template('staff/member_orders/order_list.html',
+                           orders=pagination.items,
+                           pagination=pagination,
+                           status_filter=status_filter,
+                           service_filter=service_filter,
+                           stats=stats)
+
+
+@staff.route('/member-orders/<int:order_id>')
+@login_required
+@staff_only
+def member_order_detail(order_id):
+    """会员订单详情"""
+    from ...member.models.order import Order
+
+    order = Order.query.get_or_404(order_id)
+
+    # 标记为已读（pending → confirmed 提示员工处理）
+    return render_template('staff/member_orders/order_detail.html', order=order)
+
+
+@staff.route('/member-orders/<int:order_id>/status', methods=['POST'])
+@login_required
+@staff_only
+def member_order_update_status(order_id):
+    """更新订单状态"""
+    from ...member.models.order import Order, OrderStatus
+    from ...exts import db
+
+    order = Order.query.get_or_404(order_id)
+    data = request.get_json()
+    new_status = data.get('status')
+
+    valid_statuses = [s.value for s in OrderStatus]
+    if new_status not in valid_statuses:
+        return jsonify({'success': False, 'message': '无效的状态'}), 400
+
+    order.status = new_status
+    now = datetime.utcnow()
+    if new_status == OrderStatus.CONFIRMED.value and not order.confirmed_at:
+        order.confirmed_at = now
+    elif new_status == OrderStatus.COMPLETED.value and not order.completed_at:
+        order.completed_at = now
+    elif new_status == OrderStatus.CANCELLED.value and not order.cancelled_at:
+        order.cancelled_at = now
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': '状态已更新'})
+
+
+@staff.route('/member-orders/<int:order_id>/price', methods=['POST'])
+@login_required
+@staff_only
+def member_order_update_price(order_id):
+    """更新订单价格"""
+    from ...member.models.order import Order
+    from ...exts import db
+    from decimal import Decimal
+
+    order = Order.query.get_or_404(order_id)
+    data = request.get_json()
+
+    try:
+        base_price = Decimal(str(data.get('base_price', order.base_price)))
+        additional_fees = Decimal(str(data.get('additional_fees', order.additional_fees or 0)))
+        discount_amount = Decimal(str(data.get('discount_amount', order.discount_amount or 0)))
+
+        order.base_price = base_price
+        order.additional_fees = additional_fees
+        order.discount_amount = discount_amount
+        order.total_amount = base_price + additional_fees - discount_amount
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': '价格已更新', 'total': float(order.total_amount)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+
+@staff.route('/member-orders/<int:order_id>/notes', methods=['POST'])
+@login_required
+@staff_only
+def member_order_update_notes(order_id):
+    """更新订单备注"""
+    from ...member.models.order import Order
+    from ...exts import db
+
+    order = Order.query.get_or_404(order_id)
+    data = request.get_json()
+    order.notes = data.get('notes', '')
+    db.session.commit()
+    return jsonify({'success': True, 'message': '备注已保存'})

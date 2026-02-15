@@ -1,0 +1,169 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}会员订单管理 - MyTravelPanel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+    .stat-row { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat-card {
+        flex: 1; min-width: 80px;
+        background: white; border-radius: 10px; padding: 12px 14px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+        text-align: center; cursor: pointer;
+        border: 2px solid transparent; transition: all 0.2s;
+        text-decoration: none; color: inherit;
+    }
+    .stat-card:hover { border-color: #10b981; }
+    .stat-card.active { border-color: #10b981; background: #f0fdf4; }
+    .stat-num { font-size: 1.4rem; font-weight: 700; }
+    .stat-label { font-size: 0.72rem; color: #9ca3af; margin-top: 2px; }
+
+    .order-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .order-table thead th {
+        background: #f8fafb; padding: 10px 14px;
+        font-size: 0.75rem; color: #6b7280; text-transform: uppercase;
+        letter-spacing: 0.3px; font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .order-table tbody tr {
+        cursor: pointer; transition: background 0.15s;
+    }
+    .order-table tbody tr:hover { background: #f0fdf4; }
+    .order-table td {
+        padding: 12px 14px; font-size: 0.85rem;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+    .order-num { font-weight: 600; color: #1f2937; font-size: 0.82rem; }
+    .order-customer { font-weight: 500; }
+    .order-service { font-size: 0.75rem; color: #6b7280; }
+    .order-amount { font-weight: 700; color: #059669; }
+
+    .badge-status {
+        display: inline-block; padding: 3px 10px;
+        border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+    }
+    .badge-status.pending { background: #fef3c7; color: #b45309; }
+    .badge-status.confirmed { background: #dbeafe; color: #2563eb; }
+    .badge-status.in_progress { background: #ede9fe; color: #7c3aed; }
+    .badge-status.completed { background: #dcfce7; color: #16a34a; }
+    .badge-status.cancelled { background: #fee2e2; color: #dc2626; }
+    .badge-status.draft { background: #f3f4f6; color: #6b7280; }
+    .badge-status.refunded { background: #f3f4f6; color: #374151; }
+
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #9ca3af; }
+    .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.3; }
+
+    .table-wrap {
+        background: white; border-radius: 12px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <h1 class="visa-page-title">
+        <i class="fas fa-shopping-cart"></i> 会员订单管理
+    </h1>
+
+    <!-- 统计卡片 -->
+    <div class="stat-row">
+        <a href="{{ url_for('staff.member_order_list') }}" class="stat-card {{ 'active' if not status_filter }}">
+            <div class="stat-num" style="color:#6b7280;">{{ stats.total }}</div>
+            <div class="stat-label">全部</div>
+        </a>
+        <a href="{{ url_for('staff.member_order_list', status='pending') }}" class="stat-card {{ 'active' if status_filter == 'pending' }}">
+            <div class="stat-num" style="color:#d97706;">{{ stats.pending }}</div>
+            <div class="stat-label">待处理</div>
+        </a>
+        <a href="{{ url_for('staff.member_order_list', status='confirmed') }}" class="stat-card {{ 'active' if status_filter == 'confirmed' }}">
+            <div class="stat-num" style="color:#2563eb;">{{ stats.confirmed }}</div>
+            <div class="stat-label">已确认</div>
+        </a>
+        <a href="{{ url_for('staff.member_order_list', status='in_progress') }}" class="stat-card {{ 'active' if status_filter == 'in_progress' }}">
+            <div class="stat-num" style="color:#7c3aed;">{{ stats.in_progress }}</div>
+            <div class="stat-label">处理中</div>
+        </a>
+        <a href="{{ url_for('staff.member_order_list', status='completed') }}" class="stat-card {{ 'active' if status_filter == 'completed' }}">
+            <div class="stat-num" style="color:#16a34a;">{{ stats.completed }}</div>
+            <div class="stat-label">已完成</div>
+        </a>
+        <a href="{{ url_for('staff.member_order_list', status='cancelled') }}" class="stat-card {{ 'active' if status_filter == 'cancelled' }}">
+            <div class="stat-num" style="color:#dc2626;">{{ stats.cancelled }}</div>
+            <div class="stat-label">已取消</div>
+        </a>
+    </div>
+
+    <!-- 订单列表 -->
+    {% if orders %}
+    <div class="table-wrap">
+        <table class="order-table">
+            <thead>
+                <tr>
+                    <th>订单号</th>
+                    <th>客户</th>
+                    <th>服务</th>
+                    <th>金额</th>
+                    <th>状态</th>
+                    <th>提交时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr onclick="location.href='{{ url_for('staff.member_order_detail', order_id=order.id) }}'">
+                    <td><span class="order-num">{{ order.order_number }}</span></td>
+                    <td>
+                        <div class="order-customer">{{ order.customer_name }}</div>
+                        <div class="order-service">{{ order.customer_phone or '' }}</div>
+                    </td>
+                    <td>
+                        <div>{{ order.service_name }}</div>
+                        <div class="order-service">{{ order.service_type }}</div>
+                    </td>
+                    <td><span class="order-amount">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</span></td>
+                    <td><span class="badge-status {{ order.status }}">{{ order.status_display }}</span></td>
+                    <td style="font-size:0.78rem;color:#9ca3af;">{{ order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('staff.member_order_list', page=pagination.prev_num, status=status_filter, service_type=service_filter) }}">上一页</a>
+            </li>
+            {% endif %}
+            {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if p %}
+                <li class="page-item {{ 'active' if p == pagination.page }}">
+                    <a class="page-link" href="{{ url_for('staff.member_order_list', page=p, status=status_filter, service_type=service_filter) }}">{{ p }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('staff.member_order_list', page=pagination.next_num, status=status_filter, service_type=service_filter) }}">下一页</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>暂无{{ '该状态的' if status_filter else '' }}订单</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

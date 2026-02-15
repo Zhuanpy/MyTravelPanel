@@ -403,3 +403,164 @@ def send_inquiry_auto_reply(inquiry):
         print(f"[邮件服务] 发送自动回复失败: {str(e)}")
         return False
 
+
+def send_order_notification(order):
+    """
+    通知员工有新的会员订单
+
+    Args:
+        order: Order 对象
+    """
+    try:
+        mail = Mail(current_app)
+
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@joyesc.com')
+        sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
+        recipients_str = current_app.config.get('MAIL_DEFAULT_RECIPIENTS', 'admin@joyesc.com')
+        recipients = [r.strip() for r in recipients_str.split(',') if r.strip()]
+
+        subject = f'【新会员订单】{order.order_number} - {order.service_name}'
+
+        html_body = f'''
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
+                <tr>
+                    <td style="background:linear-gradient(135deg,#059669,#10b981);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+                        <h1 style="color:#fff;margin:0;font-size:22px;">🛒 新会员订单</h1>
+                        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">订单号: {order.order_number}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:30px;border:1px solid #e9ecef;border-top:none;">
+                        <table width="100%" style="border-collapse:collapse;">
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:80px;">客户</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-weight:600;font-size:14px;">{order.customer_name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">邮箱</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{order.customer_email}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">电话</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{order.customer_phone or '-'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">服务</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{order.service_name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">金额</td>
+                                <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;font-weight:700;color:#059669;">{order.currency} {order.total_amount}</td>
+                            </tr>
+                        </table>
+
+                        {('<div style="margin-top:20px;background:#f8fafb;border-radius:8px;padding:15px;"><p style="color:#6b7280;font-size:12px;margin:0 0 8px;">特殊要求</p><p style="color:#1f2937;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">' + order.special_requirements + '</p></div>') if order.special_requirements else ''}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background:#f8f9fa;padding:20px 30px;text-align:center;border:1px solid #e9ecef;border-top:none;border-radius:0 0 10px 10px;">
+                        <p style="color:#999;font-size:12px;margin:0;">请登录后台查看并处理该订单</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        '''
+
+        msg = Message(
+            subject=subject,
+            sender=sender_str,
+            recipients=recipients,
+            html=html_body
+        )
+        mail.send(msg)
+        print(f"[邮件服务] 新订单通知已发送给: {recipients}")
+        return True
+
+    except Exception as e:
+        print(f"[邮件服务] 发送订单通知失败: {str(e)}")
+        return False
+
+
+def send_order_confirmation(order):
+    """
+    给客户发送订单确认邮件
+
+    Args:
+        order: Order 对象
+    """
+    try:
+        mail = Mail(current_app)
+
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@joyesc.com')
+        sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
+        subject = f'Order Confirmation - {order.order_number} | Joyeful Escapes'
+
+        html_body = f'''
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
+                <tr>
+                    <td style="background:linear-gradient(135deg,#059669,#10b981);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+                        <h1 style="color:#fff;margin:0;font-size:22px;">Order Received!</h1>
+                        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">Thank you for your booking</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:30px;border:1px solid #e9ecef;border-top:none;">
+                        <p style="color:#333;font-size:15px;margin:0 0 15px;">Dear <strong>{order.customer_name}</strong>,</p>
+
+                        <p style="color:#666;font-size:14px;line-height:1.7;margin:0 0 20px;">
+                            Thank you for your booking with Joyeful Escapes. We have received your order and our team will review it shortly.
+                        </p>
+
+                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:15px;margin:20px 0;">
+                            <p style="color:#166534;font-size:13px;margin:0 0 5px;font-weight:600;">Order Number: {order.order_number}</p>
+                            <p style="color:#166534;font-size:13px;margin:0;">Service: {order.service_name}</p>
+                        </div>
+
+                        <table width="100%" style="border-collapse:collapse;margin:15px 0;">
+                            <tr>
+                                <td style="padding:8px 0;color:#6b7280;font-size:14px;">Estimated Total</td>
+                                <td style="padding:8px 0;text-align:right;font-weight:700;font-size:14px;color:#059669;">{order.currency} {order.total_amount}</td>
+                            </tr>
+                        </table>
+
+                        <p style="color:#666;font-size:14px;line-height:1.7;margin:20px 0 0;">
+                            Our team will contact you within 1 business day to confirm the details. If you have any questions, feel free to reach out to us.
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background:#f8f9fa;padding:20px 30px;text-align:center;border:1px solid #e9ecef;border-top:none;border-radius:0 0 10px 10px;">
+                        <p style="color:#999;font-size:12px;margin:0 0 5px;">This is an automated message, please do not reply directly.</p>
+                        <p style="color:#999;font-size:12px;margin:0;">&copy; 2025 Joyeful Escapes Pte Ltd. All rights reserved.</p>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        '''
+
+        msg = Message(
+            subject=subject,
+            sender=sender_str,
+            recipients=[order.customer_email],
+            html=html_body
+        )
+        mail.send(msg)
+        print(f"[邮件服务] 订单确认邮件已发送给: {order.customer_email}")
+        return True
+
+    except Exception as e:
+        print(f"[邮件服务] 发送订单确认邮件失败: {str(e)}")
+        return False
+

@@ -595,6 +595,14 @@ def book_tour(product_id):
 
                 db.session.commit()
 
+                # 发送邮件通知（不阻塞主流程）
+                try:
+                    from App_new.utils.email_service import send_order_notification, send_order_confirmation
+                    send_order_notification(order)
+                    send_order_confirmation(order)
+                except Exception as mail_err:
+                    current_app.logger.warning(f'订单邮件发送失败: {str(mail_err)}')
+
                 flash('预订提交成功！我们的工作人员将尽快与您确认价格和行程详情。', 'success')
                 return redirect(url_for('orders.order_detail', order_id=order.id))
 

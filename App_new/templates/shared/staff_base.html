@@ -257,6 +257,13 @@
                             <li><a class="dropdown-item" href="{{ url_for('staff.image_library') }}">
                                 <i class="fas fa-images me-2"></i>图片库管理
                             </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('staff.inquiry_list') }}">
+                                <i class="fas fa-inbox me-2"></i>客户咨询
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('staff.member_order_list') }}">
+                                <i class="fas fa-shopping-cart me-2"></i>会员订单
+                            </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -505,6 +512,13 @@
                                href="{{ url_for('staff.inquiry_list') }}">
                                 <i class="fas fa-inbox me-2"></i>
                                 客户咨询
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint in ('staff.member_order_list', 'staff.member_order_detail') %}active{% endif %}"
+                               href="{{ url_for('staff.member_order_list') }}">
+                                <i class="fas fa-shopping-cart me-2"></i>
+                                会员订单
                             </a>
                         </li>
 
