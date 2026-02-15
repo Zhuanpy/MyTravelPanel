@@ -83,12 +83,13 @@
         background: #fff;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
         display: flex;
         align-items: flex-start;
-        gap: 1rem;
+        gap: 0.75rem;
         transition: all 0.2s;
+        max-width: 720px;
     }
     .task-card:hover {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -123,26 +124,38 @@
     }
 
     /* 统计卡片样式 */
-    .stat-card {
+    /* 统计概览横排 */
+    .stat-overview {
+        display: flex;
+        align-items: center;
+        gap: 0;
         background: #fff;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        padding: 1.25rem;
+        padding: 0.75rem 0;
+    }
+    .stat-overview .stat-item {
+        flex: 1;
         text-align: center;
+        padding: 0.25rem 0.5rem;
     }
-    .stat-card .stat-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-    }
-    .stat-card .stat-value {
-        font-size: 1.75rem;
+    .stat-overview .stat-num {
+        display: block;
+        font-size: 1.5rem;
         font-weight: 700;
         color: #1f2937;
+        line-height: 1.2;
     }
-    .stat-card .stat-label {
-        font-size: 0.85rem;
+    .stat-overview .stat-desc {
+        display: block;
+        font-size: 0.75rem;
         color: #64748b;
-        margin-top: 0.25rem;
+        margin-top: 2px;
+    }
+    .stat-overview .stat-divider {
+        width: 1px;
+        height: 36px;
+        background: #e2e8f0;
     }
 
     /* 员工工作量表格 */
@@ -151,14 +164,16 @@
     }
     .staff-workload-table th {
         text-align: left;
-        padding: 0.75rem;
+        padding: 0.5rem 0.75rem;
         border-bottom: 2px solid #e2e8f0;
         font-weight: 600;
+        font-size: 0.8rem;
         color: #374151;
     }
     .staff-workload-table td {
-        padding: 0.75rem;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 0.4rem 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.85rem;
     }
     .progress-bar-wrapper {
         background: #e2e8f0;
@@ -289,6 +304,10 @@
             <i class="fas fa-user"></i>我的任务
             <span class="badge" id="myTasksCount">0</span>
         </button>
+        <button class="task-tab" data-tab="project-reminders" onclick="switchTab('project-reminders')">
+            <i class="fas fa-bell"></i>项目提醒
+            <span class="badge" id="projectRemindersCount">0</span>
+        </button>
         <button class="task-tab" data-tab="team-tasks" onclick="switchTab('team-tasks')" id="teamTasksTab" style="display:none;">
             <i class="fas fa-users"></i>团队任务
             <span class="badge" id="teamTasksCount">0</span>
@@ -315,11 +334,9 @@
                 <label>类型：</label>
                 <select class="visa-form-select" id="myCategoryFilter" onchange="loadMyTasks()">
                     <option value="">全部</option>
-                    <option value="公司日常">公司日常</option>
-                    <option value="个人事务">个人事务</option>
-                    <option value="产品报价">产品报价</option>
+                    <option value="我的任务">我的任务</option>
                     <option value="项目提醒">项目提醒</option>
-                    <option value="visa_reminder">签证提醒</option>
+                    <option value="团队任务">团队任务</option>
                 </select>
             </div>
             <div class="filter-item">
@@ -337,6 +354,29 @@
 
         <!-- 任务列表（按时间分组） -->
         <div id="myTasksContainer">
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                加载中...
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目提醒面板 -->
+    <div class="tab-panel" id="project-reminders-panel" style="display:none;">
+        <div class="filter-bar">
+            <div class="filter-item">
+                <label>状态：</label>
+                <select class="visa-form-select" id="reminderStatusFilter" onchange="loadProjectReminders()">
+                    <option value="pending" selected>未完成</option>
+                    <option value="completed">已完成</option>
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <input type="text" class="visa-form-control" id="reminderSearchInput" placeholder="搜索项目编号..." onkeyup="debounceSearch(loadProjectReminders, 300)">
+            </div>
+        </div>
+        <div id="projectRemindersContainer">
             <div class="text-center py-4 text-muted">
                 <i class="fas fa-spinner fa-spin me-2"></i>
                 加载中...
@@ -439,234 +479,194 @@
             </div>
         </div>
 
-        <!-- 概览统计 -->
-        <div class="row mb-4">
-            <div class="col-md-3 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-secondary"><i class="fas fa-tasks"></i></div>
-                    <div class="stat-value" id="statTotalTasks">0</div>
-                    <div class="stat-label">总任务数</div>
-                </div>
+        <!-- 概览 + 工时 合并为一行紧凑卡片 -->
+        <div class="stat-overview">
+            <div class="stat-item">
+                <span class="stat-num" id="statTotalTasks">0</span>
+                <span class="stat-desc">总任务</span>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-warning"><i class="fas fa-clock"></i></div>
-                    <div class="stat-value" id="statPendingTasks">0</div>
-                    <div class="stat-label">待处理</div>
-                </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num text-warning" id="statPendingTasks">0</span>
+                <span class="stat-desc">待处理</span>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-success"><i class="fas fa-check-circle"></i></div>
-                    <div class="stat-value" id="statCompletedTasks">0</div>
-                    <div class="stat-label">已完成</div>
-                </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num text-success" id="statCompletedTasks">0</span>
+                <span class="stat-desc">已完成</span>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-danger"><i class="fas fa-exclamation-circle"></i></div>
-                    <div class="stat-value" id="statOverdueTasks">0</div>
-                    <div class="stat-label">已逾期</div>
-                </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num text-danger" id="statOverdueTasks">0</span>
+                <span class="stat-desc">已逾期</span>
             </div>
-        </div>
-
-        <!-- 工时统计 -->
-        <div class="row mb-4">
-            <div class="col-md-4 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-info"><i class="fas fa-hourglass-start"></i></div>
-                    <div class="stat-value" id="statEstimatedHours">0</div>
-                    <div class="stat-label">总预估工时</div>
-                </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num text-info" id="statEstimatedHours">0</span>
+                <span class="stat-desc">预估工时</span>
             </div>
-            <div class="col-md-4 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-primary"><i class="fas fa-hourglass-end"></i></div>
-                    <div class="stat-value" id="statActualHours">0</div>
-                    <div class="stat-label">总实际工时</div>
-                </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num text-primary" id="statActualHours">0</span>
+                <span class="stat-desc">实际工时</span>
             </div>
-            <div class="col-md-4 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon text-success"><i class="fas fa-percentage"></i></div>
-                    <div class="stat-value" id="statHoursEfficiency">--%</div>
-                    <div class="stat-label">工时效率</div>
-                </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num text-success" id="statOnTimeRate">--%</span>
+                <span class="stat-desc">准时率</span>
             </div>
         </div>
 
-        <!-- 员工工作量 -->
-        <div class="row">
-            <div class="col-md-6 mb-4">
-                <div class="visa-card">
-                    <h5 class="mb-3"><i class="fas fa-user-clock me-2"></i>员工待办任务</h5>
+        <!-- 详情表格区域 -->
+        <div class="row mt-3">
+            <div class="col-md-6 mb-3">
+                <div class="visa-card" style="padding: 1rem;">
+                    <h6 class="mb-2" style="font-weight: 600; color: #374151;"><i class="fas fa-user-clock me-1"></i>员工待办</h6>
                     <table class="staff-workload-table">
                         <thead>
                             <tr>
                                 <th>员工</th>
-                                <th width="80">待办</th>
-                                <th width="150">任务量</th>
+                                <th width="60">待办</th>
+                                <th width="140">任务量</th>
                             </tr>
                         </thead>
                         <tbody id="staffWorkloadTbody">
-                            <tr>
-                                <td colspan="3" class="text-center py-3 text-muted">加载中...</td>
-                            </tr>
+                            <tr><td colspan="3" class="text-center py-2 text-muted">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="col-md-6 mb-4">
-                <div class="visa-card">
-                    <h5 class="mb-3"><i class="fas fa-clock me-2"></i>员工工时统计</h5>
+            <div class="col-md-6 mb-3">
+                <div class="visa-card" style="padding: 1rem;">
+                    <h6 class="mb-2" style="font-weight: 600; color: #374151;"><i class="fas fa-clock me-1"></i>员工工时</h6>
                     <table class="staff-workload-table">
                         <thead>
                             <tr>
                                 <th>员工</th>
-                                <th width="100">实际工时</th>
-                                <th width="150">占比</th>
+                                <th width="80">实际工时</th>
+                                <th width="140">占比</th>
                             </tr>
                         </thead>
                         <tbody id="staffHoursTbody">
-                            <tr>
-                                <td colspan="3" class="text-center py-3 text-muted">加载中...</td>
-                            </tr>
+                            <tr><td colspan="3" class="text-center py-2 text-muted">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="col-md-6 mb-4">
-                <div class="visa-card">
-                    <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>准时完成率</h5>
-                    <div class="row">
-                        <div class="col-6 text-center">
-                            <div class="stat-value text-success" id="statOnTimeRate">--%</div>
-                            <div class="stat-label">准时完成</div>
-                        </div>
-                        <div class="col-6 text-center">
-                            <div class="stat-value text-danger" id="statDelayedRate">--%</div>
-                            <div class="stat-label">延迟完成</div>
-                        </div>
-                    </div>
-                    <hr>
-                    <h6 class="mb-2">按类型统计</h6>
-                    <div id="categoryStats">
-                        <div class="text-center text-muted py-2">加载中...</div>
-                    </div>
-                </div>
+        </div>
+
+        <!-- 按类型统计 -->
+        <div class="visa-card" style="padding: 1rem;">
+            <h6 class="mb-2" style="font-weight: 600; color: #374151;"><i class="fas fa-chart-pie me-1"></i>按类型统计</h6>
+            <div id="categoryStats">
+                <div class="text-center text-muted py-2">加载中...</div>
             </div>
         </div>
+
+        <!-- 隐藏的统计值（保持JS兼容） -->
+        <span id="statHoursEfficiency" style="display:none;">--%</span>
+        <span id="statDelayedRate" style="display:none;">--%</span>
     </div>
 </div>
 
 <!-- 待办事项模态框（添加/编辑共用） -->
 <div class="modal fade" id="todoModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">添加任务</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header" style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb;">
+                <h6 class="modal-title mb-0" id="modalTitle" style="font-weight: 600;">添加任务</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1rem;">
                 <form id="todoForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" id="todoId" name="id">
 
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="visa-form-group">
-                                <label for="todoTitle" class="visa-form-label">标题 <span class="text-danger">*</span></label>
-                                <input type="text" class="visa-form-control" id="todoTitle" name="title" required>
+                    <!-- 标题 -->
+                    <div class="mb-3">
+                        <label for="todoTitle" class="form-label small mb-1">标题 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="todoTitle" name="title" required placeholder="请输入任务标题">
+                    </div>
+
+                    <!-- 类型 + 优先级 + 截止日期 同一行 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label for="todoCategory" class="form-label small mb-1">类型</label>
+                            <select class="form-select form-select-sm" id="todoCategory" name="category">
+                                <option value="我的任务">我的任务</option>
+                                <option value="项目提醒">项目提醒</option>
+                                <option value="团队任务">团队任务</option>
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <label for="todoPriority" class="form-label small mb-1">优先级</label>
+                            <select class="form-select form-select-sm" id="todoPriority" name="priority">
+                                <option value="1">高</option>
+                                <option value="2" selected>中</option>
+                                <option value="3">低</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label for="todoDueDate" class="form-label small mb-1">截止日期</label>
+                            <input type="datetime-local" class="form-control form-control-sm" id="todoDueDate" name="due_date" step="900">
+                        </div>
+                    </div>
+
+                    <!-- 描述 -->
+                    <div class="mb-3">
+                        <label for="todoDescription" class="form-label small mb-1">描述</label>
+                        <textarea class="form-control form-control-sm" id="todoDescription" name="description" rows="2" placeholder="任务描述（可选）"></textarea>
+                    </div>
+
+                    <!-- 分配 + 邮件提醒 同一行 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6" id="assignGroup">
+                            <label for="todoAssignedTo" class="form-label small mb-1">分配给</label>
+                            <select class="form-select form-select-sm" id="todoAssignedTo" name="assigned_to">
+                                <option value="">自己处理</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="todoRecipientEmail" class="form-label small mb-1">邮件通知</label>
+                            <input type="text" class="form-control form-control-sm" id="todoRecipientEmail" placeholder="邮箱，多个用逗号分隔">
+                        </div>
+                    </div>
+
+                    <!-- 工时 同一行 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="todoEstimatedHours" class="form-label small mb-1">预估工时</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control form-control-sm" id="todoEstimatedHours" name="estimated_hours" min="0" step="0.5" placeholder="0">
+                                <span class="input-group-text">小时</span>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="visa-form-group">
-                                <label for="todoCategory" class="visa-form-label">类型</label>
-                                <select class="visa-form-select" id="todoCategory" name="category">
-                                    <option value="">未分类</option>
-                                    <option value="公司日常">公司日常</option>
-                                    <option value="个人事务">个人事务</option>
-                                    <option value="产品报价">产品报价</option>
-                                    <option value="项目提醒">项目提醒</option>
-                                    <option value="visa_reminder">签证提醒</option>
-                                </select>
+                        <div class="col-6">
+                            <label for="todoActualHours" class="form-label small mb-1">实际工时</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control form-control-sm" id="todoActualHours" name="actual_hours" min="0" step="0.5" placeholder="0">
+                                <span class="input-group-text">小时</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="visa-form-group">
-                        <label for="todoDescription" class="visa-form-label">描述</label>
-                        <textarea class="visa-form-control" id="todoDescription" name="description" rows="3" placeholder="请输入任务描述..."></textarea>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="visa-form-group">
-                                <label for="todoDueDate" class="visa-form-label">截止日期</label>
-                                <input type="datetime-local" class="visa-form-control" id="todoDueDate" name="due_date">
-                            </div>
+                    <!-- 底部选项 -->
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="form-check mb-0">
+                            <input type="checkbox" class="form-check-input" id="todoSendEmail">
+                            <label class="form-check-label small" for="todoSendEmail">发送邮件提醒</label>
                         </div>
-                        <div class="col-md-6">
-                            <div class="visa-form-group">
-                                <label for="todoPriority" class="visa-form-label">优先级</label>
-                                <select class="visa-form-select" id="todoPriority" name="priority">
-                                    <option value="1">高</option>
-                                    <option value="2" selected>中</option>
-                                    <option value="3">低</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="visa-form-group">
-                        <label for="todoRecipientEmail" class="visa-form-label">邮件提醒</label>
-                        <input type="text" class="visa-form-control" id="todoRecipientEmail" placeholder="收件邮箱，多个用逗号分隔">
-                        <div class="form-text">留空则默认发送至当前用户邮箱</div>
-                    </div>
-
-                    <div class="visa-form-group" id="assignGroup">
-                        <label for="todoAssignedTo" class="visa-form-label">分配给</label>
-                        <select class="visa-form-select" id="todoAssignedTo" name="assigned_to">
-                            <option value="">不分配（自己处理）</option>
-                        </select>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="visa-form-group">
-                                <label for="todoEstimatedHours" class="visa-form-label">预估工时（小时）</label>
-                                <input type="number" class="visa-form-control" id="todoEstimatedHours" name="estimated_hours" min="0" step="0.5" placeholder="0">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="visa-form-group">
-                                <label for="todoActualHours" class="visa-form-label">实际工时（小时）</label>
-                                <input type="number" class="visa-form-control" id="todoActualHours" name="actual_hours" min="0" step="0.5" placeholder="0">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="todoSendEmail">
-                                <label class="form-check-label" for="todoSendEmail">发送邮件提醒</label>
-                            </div>
-                        </div>
-                        <div class="col-md-6" id="completedGroup" style="display: none;">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="todoIsCompleted" name="is_completed">
-                                <label class="form-check-label" for="todoIsCompleted">标记为已完成</label>
-                            </div>
+                        <div class="form-check mb-0" id="completedGroup" style="display: none;">
+                            <input type="checkbox" class="form-check-input" id="todoIsCompleted" name="is_completed">
+                            <label class="form-check-label small" for="todoIsCompleted">标记为已完成</label>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="visa-btn visa-btn-primary" id="saveTodo">
-                    <i class="fas fa-save me-2"></i>保存
+            <div class="modal-footer" style="padding: 0.5rem 1rem; border-top: 1px solid #e5e7eb;">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-sm btn-primary" id="saveTodo">
+                    <i class="fas fa-save me-1"></i>保存
                 </button>
             </div>
         </div>
@@ -711,6 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化
     checkPermissionsAndLoadStaff();
     loadMyTasks();
+    loadProjectReminders();  // 加载项目提醒数量badge
 
     // 保存按钮事件
     document.getElementById('saveTodo').addEventListener('click', saveTodo);
@@ -734,6 +735,8 @@ function switchTab(tabName) {
     // 加载对应数据
     if (tabName === 'my-tasks') {
         loadMyTasks();
+    } else if (tabName === 'project-reminders') {
+        loadProjectReminders();
     } else if (tabName === 'team-tasks') {
         loadTeamTasks();
     } else if (tabName === 'statistics') {
@@ -802,8 +805,10 @@ function loadMyTasks() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                renderMyTasks(data.todos);
-                document.getElementById('myTasksCount').textContent = data.todos.filter(t => !t.is_completed).length;
+                // 未指定类型筛选时，过滤掉项目提醒（项目提醒有专属标签页）
+                const myTodos = category ? data.todos : data.todos.filter(t => t.source_type !== 'project_reminder');
+                renderMyTasks(myTodos);
+                document.getElementById('myTasksCount').textContent = myTodos.filter(t => !t.is_completed).length;
             }
         })
         .catch(error => {
@@ -887,6 +892,14 @@ function renderMyTasks(todos) {
     `;
 }
 
+// 将标题中的项目编号 [Hxxx] 转为可点击链接
+function linkifyProjectHid(title, sourceId) {
+    if (!sourceId) return escapeHtml(title);
+    const escaped = escapeHtml(title);
+    // 匹配 [Hxxx] 格式的项目编号
+    return escaped.replace(/\[(H\d+)\]/, `<a href="/projects/detail/${sourceId}" style="color: #0369a1; text-decoration: none; font-weight: 600;">[$1]</a>`);
+}
+
 // 渲染任务卡片
 function renderTaskCard(todo, isOverdue) {
     const priorityClasses = { 1: 'priority-high', 2: 'priority-medium', 3: 'priority-low' };
@@ -906,7 +919,7 @@ function renderTaskCard(todo, isOverdue) {
                     onchange="toggleTodoStatus(${todo.id}, this.checked)">
             </div>
             <div class="task-content">
-                <div class="task-title">${titleIcon}${escapeHtml(todo.title)}</div>
+                <div class="task-title">${titleIcon}${linkifyProjectHid(todo.title, todo.source_id)}</div>
                 <div class="task-meta">
                     <span class="meta-tag ${priorityClasses[todo.priority]}">
                         <i class="fas fa-flag"></i> ${priorityTexts[todo.priority]}
@@ -930,6 +943,70 @@ function renderTaskCard(todo, isOverdue) {
     `;
 }
 
+// 加载项目提醒
+function loadProjectReminders() {
+    const status = document.getElementById('reminderStatusFilter').value;
+    const search = document.getElementById('reminderSearchInput').value;
+
+    const params = new URLSearchParams({
+        source_type: 'project_reminder',
+        status: status || '',
+        search: search || ''
+    });
+
+    fetch(`/utils/todos/list?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderProjectReminders(data.todos);
+                document.getElementById('projectRemindersCount').textContent = data.todos.filter(t => !t.is_completed).length;
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// 渲染项目提醒列表
+function renderProjectReminders(todos) {
+    const container = document.getElementById('projectRemindersContainer');
+
+    if (!todos || todos.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                <p>暂无项目提醒</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = todos.map(todo => `
+        <div class="task-card ${todo.is_completed ? 'completed' : ''}" style="border-left: 3px solid #f59e0b;">
+            <div class="checkbox-wrapper">
+                <input type="checkbox" class="form-check-input" ${todo.is_completed ? 'checked' : ''}
+                    onchange="toggleTodoStatus(${todo.id}, this.checked)">
+            </div>
+            <div class="task-content">
+                <div class="task-title">
+                    <i class="fas fa-bell text-warning me-1"></i>${linkifyProjectHid(todo.title, todo.source_id)}
+                </div>
+                <div class="task-meta">
+                    ${todo.due_date ? `<span class="meta-tag date-tag"><i class="fas fa-calendar"></i> ${formatDate(todo.due_date)}</span>` : ''}
+                    ${todo.assignee_name ? `<span class="meta-tag user-tag"><i class="fas fa-user"></i> ${todo.assignee_name}</span>` : ''}
+                    ${todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="meta-tag" style="background: #e0f2fe; color: #0369a1; text-decoration: none;"><i class="fas fa-external-link-alt"></i> 查看项目</a>` : ''}
+                </div>
+            </div>
+            <div class="task-actions">
+                <button class="visa-btn-link visa-btn-link-primary" title="编辑" onclick="editTodo(${todo.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="visa-btn-link visa-btn-link-danger" title="删除" onclick="deleteTodo(${todo.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
 // 加载团队任务
 function loadTeamTasks() {
     const staffId = document.getElementById('teamStaffFilter').value;
@@ -951,8 +1028,10 @@ function loadTeamTasks() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                renderTeamTasks(data.todos);
-                document.getElementById('teamTasksCount').textContent = data.todos.filter(t => !t.is_completed).length;
+                // 过滤掉项目提醒，项目提醒只是通知，不属于团队任务
+                const teamTodos = data.todos.filter(t => t.source_type !== 'project_reminder');
+                renderTeamTasks(teamTodos);
+                document.getElementById('teamTasksCount').textContent = teamTodos.filter(t => !t.is_completed).length;
             }
         })
         .catch(error => console.error('Error:', error));
@@ -985,7 +1064,7 @@ function renderTeamTasks(todos) {
                     <input type="checkbox" class="form-check-input" ${todo.is_completed ? 'checked' : ''}
                         onchange="toggleTodoStatus(${todo.id}, this.checked)">
                 </td>
-                <td>${titleIcon}${escapeHtml(todo.title)}</td>
+                <td>${titleIcon}${linkifyProjectHid(todo.title, todo.source_id)}</td>
                 <td><div class="text-truncate" style="max-width: 200px;">${todo.description || ''}</div></td>
                 <td>${todo.assignee_name ? `<span class="visa-badge visa-badge-info">${todo.assignee_name}</span>` : (isProjectReminder ? '<span class="visa-badge" style="background: #fef3c7; color: #92400e;">项目提醒</span>' : '<span class="text-muted">未分配</span>')}</td>
                 <td><span class="visa-badge visa-badge-${todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info')}">${getPriorityText(todo.priority)}</span></td>
@@ -1224,7 +1303,7 @@ function refreshCurrentTab() {
 // 打开添加模态框
 function openAddModal() {
     document.getElementById('modalTitle').textContent = '添加任务';
-    document.getElementById('saveTodo').innerHTML = '<i class="fas fa-save me-2"></i>保存';
+    document.getElementById('saveTodo').innerHTML = '<i class="fas fa-save me-1"></i>保存';
     document.getElementById('todoId').value = '';
     document.getElementById('completedGroup').style.display = 'none';
     document.getElementById('todoForm').reset();
@@ -1393,10 +1472,9 @@ function getPriorityText(priority) {
 function getCategoryDisplayName(category) {
     const map = {
         'visa_reminder': '签证提醒',
-        '公司日常': '公司日常',
-        '个人事务': '个人事务',
-        '产品报价': '产品报价',
-        '项目提醒': '项目提醒'
+        '我的任务': '我的任务',
+        '项目提醒': '项目提醒',
+        '团队任务': '团队任务'
     };
     return map[category] || category || '未分类';
 }
