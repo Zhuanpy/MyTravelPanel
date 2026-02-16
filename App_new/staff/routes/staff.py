@@ -2574,11 +2574,12 @@ def inquiry_delete(inquiry_id):
 @staff_only
 def member_order_list():
     """会员订单列表"""
-    from ...member.models.order import Order, OrderStatus
+    from ...member.models.order import Order, OrderStatus, ServiceType
     from ...exts import db
 
     status_filter = request.args.get('status', '')
     service_filter = request.args.get('service_type', '')
+    keyword = request.args.get('keyword', '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = 20
 
@@ -2588,6 +2589,15 @@ def member_order_list():
         query = query.filter(Order.status == status_filter)
     if service_filter:
         query = query.filter(Order.service_type == service_filter)
+    if keyword:
+        query = query.filter(
+            db.or_(
+                Order.order_number.ilike(f'%{keyword}%'),
+                Order.customer_name.ilike(f'%{keyword}%'),
+                Order.customer_phone.ilike(f'%{keyword}%'),
+                Order.service_name.ilike(f'%{keyword}%'),
+            )
+        )
 
     query = query.order_by(Order.created_at.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -2602,12 +2612,24 @@ def member_order_list():
         'cancelled': Order.query.filter_by(status=OrderStatus.CANCELLED.value).count(),
     }
 
+    # 服务类型列表
+    service_type_labels = {
+        'visa': '签证服务',
+        'flight': '机票预订',
+        'hotel': '酒店预订',
+        'tour': '旅游套餐',
+        'insurance': '旅游保险',
+        'transfer': '接送服务',
+    }
+
     return render_template('staff/member_orders/order_list.html',
                            orders=pagination.items,
                            pagination=pagination,
                            status_filter=status_filter,
                            service_filter=service_filter,
-                           stats=stats)
+                           keyword=keyword,
+                           stats=stats,
+                           service_type_labels=service_type_labels)
 
 
 @staff.route('/member-orders/<int:order_id>')

@@ -12,7 +12,7 @@
         display: flex;
         border-bottom: 2px solid #e2e8f0;
         margin: 0 auto 1.5rem;
-        max-width: 720px;
+        max-width: 960px;
         gap: 0;
     }
     .task-tab {
@@ -53,7 +53,7 @@
     /* 时间分组样式 */
     .time-group {
         margin: 0 auto 1.5rem;
-        max-width: 720px;
+        max-width: 960px;
     }
     .time-group-header {
         display: flex;
@@ -91,7 +91,7 @@
         align-items: flex-start;
         gap: 0.75rem;
         transition: all 0.2s;
-        max-width: 720px;
+        max-width: 960px;
     }
     .task-card:hover {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -197,7 +197,7 @@
         gap: 1.25rem;
         align-items: center;
         margin: 0 auto 1.25rem;
-        max-width: 720px;
+        max-width: 960px;
         padding: 0.75rem 1rem;
         background: #f8fafc;
         border-radius: 8px;
@@ -289,19 +289,8 @@
 
 {% block content %}
 <div class="visa-container-lg">
-    <div class="d-flex justify-content-end align-items-center mb-3" style="max-width: 720px; margin: 0 auto;">
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('checklist.index') }}" class="visa-btn visa-btn-info">
-                <i class="fas fa-list-check"></i> 任务清单管理
-            </a>
-            <button class="visa-btn visa-btn-primary" onclick="openAddModal()">
-                <i class="fas fa-plus"></i> 添加任务
-            </button>
-        </div>
-    </div>
-
     <!-- 标签页导航 -->
-    <div class="task-tabs">
+    <div class="task-tabs" style="display: flex; align-items: center;">
         <button class="task-tab active" data-tab="my-tasks" onclick="switchTab('my-tasks')">
             <i class="fas fa-user"></i>我的任务
             <span class="badge" id="myTasksCount">0</span>
@@ -317,6 +306,14 @@
         <button class="task-tab" data-tab="statistics" onclick="switchTab('statistics')" id="statisticsTab" style="display:none;">
             <i class="fas fa-chart-bar"></i>任务统计
         </button>
+        <div style="margin-left: auto; display: flex; gap: 0.4rem;">
+            <a href="{{ url_for('checklist.index') }}" class="visa-btn visa-btn-info visa-btn-sm">
+                <i class="fas fa-list-check"></i> 任务清单
+            </a>
+            <button class="visa-btn visa-btn-primary visa-btn-sm" onclick="openAddModal()">
+                <i class="fas fa-plus"></i> 添加任务
+            </button>
+        </div>
     </div>
 
     <!-- 我的任务面板 -->
