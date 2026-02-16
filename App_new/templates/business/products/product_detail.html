@@ -3,7 +3,7 @@
 {% block title %}{{ product.product_name }} - 产品详情{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-4" style="max-width: 820px;">
     <!-- 面包屑导航 -->
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
@@ -35,7 +35,10 @@
                 {% endif %}
             </div>
         </div>
-        <div class="btn-group">
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> 返回列表
+            </a>
             {% if product.product_category == 'visa' %}
             <a href="{{ url_for('products.edit_visa', product_id=product.id) }}" class="btn btn-primary">
                 <i class="fas fa-edit me-1"></i> 编辑

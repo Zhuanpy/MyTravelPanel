@@ -261,12 +261,12 @@ def delete(product_id):
     try:
         db.session.delete(product)
         db.session.commit()
-        flash('产品删除成功', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败: {str(e)}', 'error')
 
-    return redirect(url_for('products.index'))
+    # 保留筛选状态
+    return redirect(request.referrer or url_for('products.index'))
 
 
 @products_bp.route('/status/<int:product_id>', methods=['POST'])

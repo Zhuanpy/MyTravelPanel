@@ -1670,6 +1670,13 @@ def image_library():
 
         images = query.order_by(ImageLibrary.created_at.desc()).all()
 
+        # 检测原图文件是否存在
+        import os
+        static_folder = current_app.static_folder
+        for img in images:
+            file_path = os.path.join(static_folder, img.image_path.replace('/', os.sep))
+            img.file_exists = os.path.isfile(file_path)
+
         # 获取分类列表
         categories = db.session.query(ImageLibrary.category).distinct().all()
         categories = [c[0] for c in categories if c[0]]
@@ -1879,6 +1886,48 @@ def batch_delete_image_library():
         db.session.rollback()
         current_app.logger.error(f"批量删除图片失败: {e}")
         return jsonify({'success': False, 'message': f'批量删除失败：{str(e)}'}), 500
+
+
+@staff.route('/image-library/clean-missing', methods=['POST'])
+@login_required
+@staff_only
+def clean_missing_images():
+    """清理文件丢失的图片记录"""
+    from ...business.tour.models.Packagemodels import ImageLibrary
+    from ...exts import db
+
+    try:
+        images = ImageLibrary.query.all()
+        static_folder = current_app.static_folder
+        deleted_count = 0
+
+        for img in images:
+            file_path = os.path.join(static_folder, img.image_path.replace('/', os.sep))
+            if not os.path.isfile(file_path):
+                # 同时删除缩略图（如果存在）
+                thumb_path = img.image_path.replace(
+                    'uploads/image_library/',
+                    'uploads/image_library/thumbnails/thumb_'
+                )
+                thumb_full = os.path.join(static_folder, thumb_path.replace('/', os.sep))
+                if os.path.isfile(thumb_full):
+                    try:
+                        os.remove(thumb_full)
+                    except Exception:
+                        pass
+                db.session.delete(img)
+                deleted_count += 1
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'已清理 {deleted_count} 条丢失记录',
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"清理丢失图片失败: {e}")
+        return jsonify({'success': False, 'message': f'清理失败：{str(e)}'}), 500
 
 
 @staff.route('/image-library/batch-download', methods=['POST'])

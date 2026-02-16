@@ -114,7 +114,7 @@ class ProductsTicketExt(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
 
     # ========== 关联关系 ==========
-    product = db.relationship('ProductsUnified', backref=db.backref('ticket_ext', uselist=False))
+    product = db.relationship('ProductsUnified', backref=db.backref('ticket_ext', uselist=False, cascade='all, delete-orphan'))
 
     def __repr__(self):
         return f'<ProductsTicketExt {self.id}: {self.venue_name}>'

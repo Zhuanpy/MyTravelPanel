@@ -1,106 +1,69 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}统一产品管理{% endblock %}
+{% block title %}产品中心{% endblock %}
+{% block page_title %}产品中心{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- 页面标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="mb-1">统一产品管理</h4>
-            <p class="text-muted mb-0">管理所有产品类型：旅游、签证、门票、用车、邮轮、酒店、机票、保险</p>
-        </div>
-        <a href="{{ url_for('products.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i> 新增产品
-        </a>
-    </div>
-
     <!-- 分类统计卡片 -->
     <style>
-        .category-card {
-            border-left: 4px solid;
-            transition: transform 0.2s, box-shadow 0.2s;
+        .cat-bar {
+            display: flex;
+            gap: 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
         }
-        .category-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .category-card.cat-tour { border-left-color: #0d6efd; }
-        .category-card.cat-visa { border-left-color: #198754; }
-        .category-card.cat-ticket { border-left-color: #fd7e14; }
-        .category-card.cat-car { border-left-color: #0dcaf0; }
-        .category-card.cat-cruise { border-left-color: #6f42c1; }
-        .category-card.cat-hotel { border-left-color: #dc3545; }
-        .category-card.cat-flight { border-left-color: #20c997; }
-        .category-card.cat-insurance { border-left-color: #6c757d; }
-        .category-card .cat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
+        .cat-bar-item {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            gap: 0.5rem;
+            padding: 0.6rem 0.5rem;
+            text-decoration: none;
+            color: #374151;
+            border-right: 1px solid #f1f5f9;
+            transition: background 0.15s;
+            font-size: 0.95rem;
         }
-        .cat-tour .cat-icon { background: rgba(13,110,253,0.1); color: #0d6efd; }
-        .cat-visa .cat-icon { background: rgba(25,135,84,0.1); color: #198754; }
-        .cat-ticket .cat-icon { background: rgba(253,126,20,0.1); color: #fd7e14; }
-        .cat-car .cat-icon { background: rgba(13,202,240,0.1); color: #0dcaf0; }
-        .cat-cruise .cat-icon { background: rgba(111,66,193,0.1); color: #6f42c1; }
-        .cat-hotel .cat-icon { background: rgba(220,53,69,0.1); color: #dc3545; }
-        .cat-flight .cat-icon { background: rgba(32,201,151,0.1); color: #20c997; }
-        .cat-insurance .cat-icon { background: rgba(108,117,125,0.1); color: #6c757d; }
-        /* 自定义按钮颜色 */
-        .btn-outline-purple { color: #6f42c1; border-color: #6f42c1; }
-        .btn-outline-purple:hover, .btn-purple { background: #6f42c1; color: #fff; border-color: #6f42c1; }
-        .btn-outline-teal { color: #20c997; border-color: #20c997; }
-        .btn-outline-teal:hover, .btn-teal { background: #20c997; color: #fff; border-color: #20c997; }
-        .btn-outline-orange { color: #fd7e14; border-color: #fd7e14; }
-        .btn-outline-orange:hover, .btn-orange { background: #fd7e14; color: #fff; border-color: #fd7e14; }
+        .cat-bar-item:last-child { border-right: none; }
+        .cat-bar-item:hover { background: #f8fafc; color: #1f2937; }
+        .cat-bar-item.active { background: #f0f7ff; font-weight: 600; }
+        .cat-bar-item i { font-size: 1rem; }
+        .cat-bar-item .cat-count {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+        .cat-tour i { color: #0d6efd; }
+        .cat-visa i { color: #198754; }
+        .cat-ticket i { color: #fd7e14; }
+        .cat-car i { color: #0dcaf0; }
+        .cat-cruise i { color: #6f42c1; }
+        .cat-hotel i { color: #dc3545; }
+        .cat-flight i { color: #20c997; }
+        .cat-insurance i { color: #6c757d; }
     </style>
-    <div class="row mb-4">
+    {% set icons = {
+        'tour': 'fa-globe-asia',
+        'visa': 'fa-passport',
+        'ticket': 'fa-ticket-alt',
+        'car': 'fa-car',
+        'cruise': 'fa-ship',
+        'hotel': 'fa-hotel',
+        'flight': 'fa-plane',
+        'insurance': 'fa-shield-alt'
+    } %}
+    <div class="cat-bar">
         {% for cat_code, cat_info in category_counts.items() %}
-        {% set icons = {
-            'tour': 'fa-globe-asia',
-            'visa': 'fa-passport',
-            'ticket': 'fa-ticket-alt',
-            'car': 'fa-car',
-            'cruise': 'fa-ship',
-            'hotel': 'fa-hotel',
-            'flight': 'fa-plane',
-            'insurance': 'fa-shield-alt'
-        } %}
-        {% set btn_colors = {
-            'tour': 'primary',
-            'visa': 'success',
-            'ticket': 'orange',
-            'car': 'info',
-            'cruise': 'purple',
-            'hotel': 'danger',
-            'flight': 'teal',
-            'insurance': 'secondary'
-        } %}
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card h-100 category-card cat-{{ cat_code }} {% if current_category == cat_code %}shadow{% endif %}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="cat-icon">
-                            <i class="fas {{ icons.get(cat_code, 'fa-box') }}"></i>
-                        </div>
-                        <div class="text-end">
-                            <h6 class="text-muted mb-1">{{ cat_info.name }}</h6>
-                            <h3 class="mb-0 fw-bold">{{ cat_info.count }}</h3>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ url_for('products.index', category=cat_code) }}"
-                           class="btn btn-sm w-100 {% if current_category == cat_code %}btn-{{ btn_colors.get(cat_code, 'secondary') }}{% else %}btn-outline-{{ btn_colors.get(cat_code, 'secondary') }}{% endif %}">
-                            查看全部
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <a href="{{ url_for('products.index', category=cat_code) }}"
+           class="cat-bar-item cat-{{ cat_code }} {% if current_category == cat_code %}active{% endif %}">
+            <i class="fas {{ icons.get(cat_code, 'fa-box') }}"></i>
+            <span>{{ cat_info.name }}</span>
+            <span class="cat-count">{{ cat_info.count }}</span>
+        </a>
         {% endfor %}
     </div>
 
@@ -140,11 +103,14 @@
                     <input type="text" name="keyword" class="form-control"
                            placeholder="产品名称/编号" value="{{ keyword }}">
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search me-1"></i> 搜索
                     </button>
                     <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary">重置</a>
+                    <a href="{{ url_for('products.create') }}" class="btn btn-success ms-auto">
+                        <i class="fas fa-plus me-1"></i> 新增
+                    </a>
                 </div>
             </form>
         </div>

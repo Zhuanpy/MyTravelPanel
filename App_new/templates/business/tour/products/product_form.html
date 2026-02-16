@@ -1,6 +1,19 @@
 {% extends 'shared/staff_base.html' %}
 
 {% block title %}{{ '编辑产品' if product else '添加产品' }} - 旅游产品管理{% endblock %}
+{% block page_title %}{{ '编辑产品' if product else '添加产品' }}{% if product %} <small class="text-muted fw-normal" style="font-size: 0.6em;">产品ID: {{ product.id }}</small>{% endif %}{% endblock %}
+{% block page_actions %}
+{% if product %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" target="_blank" class="btn btn-outline-info btn-sm">
+        <i class="fas fa-print me-1"></i> 打印行程
+    </a>
+    <a href="{{ url_for('tour_products.product_list') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> 返回列表
+    </a>
+</div>
+{% endif %}
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -69,27 +82,6 @@
 {% block content %}
 <div class="bg-gray-50 min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto">
-        <!-- 页面头部 -->
-        <div class="mb-8">
-            <div class="text-center">
-                <h1 class="text-4xl font-bold mb-4 text-gray-800">
-                    {% if product %}编辑产品{% else %}添加产品{% endif %}
-                </h1>
-                <p class="text-gray-600 text-lg">
-                    {% if product %}产品ID: {{ product.id }}{% else %}创建新的旅游产品模板{% endif %}
-                </p>
-            </div>
-            {% if product %}
-            <div class="flex justify-center gap-3 mt-4">
-                <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" target="_blank" class="visa-btn visa-btn-info">
-                    <i class="fas fa-print"></i> 打印行程
-                </a>
-                <a href="{{ url_for('tour_products.product_list') }}" class="visa-btn visa-btn-secondary">
-                    <i class="fas fa-arrow-left"></i> 返回列表
-                </a>
-            </div>
-            {% endif %}
-        </div>
 
         <!-- 闪现消息 -->
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -117,22 +109,22 @@
                     <span>基本信息</span>
                     <span class="required-badge">必填</span>
                 </button>
-                <button type="button" class="tab-button" data-tab="media">
-                    <i class="fas fa-images tab-icon"></i>
-                    <span>图片资源</span>
-                </button>
                 {% if product %}
+                <button type="button" class="tab-button" data-tab="variants">
+                    <i class="fas fa-tags tab-icon"></i>
+                    <span>价格设置</span>
+                    <span class="visa-badge visa-badge-warning" style="font-size: 0.7rem;">{{ price_variants|length if price_variants else 0 }}</span>
+                </button>
                 <button type="button" class="tab-button" data-tab="itinerary">
                     <i class="fas fa-route tab-icon"></i>
                     <span>每日行程</span>
                     <span class="visa-badge visa-badge-info" style="font-size: 0.7rem;">{{ itineraries|length if itineraries else 0 }}</span>
                 </button>
-                <button type="button" class="tab-button" data-tab="variants">
-                    <i class="fas fa-tags tab-icon"></i>
-                    <span>价格变体</span>
-                    <span class="visa-badge visa-badge-warning" style="font-size: 0.7rem;">{{ price_variants|length if price_variants else 0 }}</span>
-                </button>
                 {% endif %}
+                <button type="button" class="tab-button" data-tab="media">
+                    <i class="fas fa-images tab-icon"></i>
+                    <span>图片资源</span>
+                </button>
             </div>
             
             <!-- Tab 1: 基本信息 -->
@@ -211,71 +203,6 @@
                     </div>
                 </div>
 
-                <!-- 价格设置区域 -->
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
-                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
-                        <i class="fas fa-dollar-sign"></i> 基础价格
-                    </h4>
-                    <div class="visa-grid-5">
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">成人价格</label>
-                            <input type="number" step="0.01" name="base_price" value="{{ product.base_price if product and product.base_price else '' }}"
-                                   class="visa-form-control" placeholder="如：1200.00">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">儿童价格</label>
-                            <input type="number" step="0.01" name="child_price" value="{{ product.child_price if product and product.child_price else '' }}"
-                                   class="visa-form-control" placeholder="如：800.00">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">婴儿价格</label>
-                            <input type="number" step="0.01" name="infant_price" value="{{ product.infant_price if product and product.infant_price else '' }}"
-                                   class="visa-form-control" placeholder="如：200.00">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">单房差</label>
-                            <input type="number" step="0.01" name="single_room_supplement" value="{{ product.single_room_supplement if product and product.single_room_supplement else '' }}"
-                                   class="visa-form-control" placeholder="如：300.00">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">货币</label>
-                            <select name="currency" class="visa-form-select">
-                                <option value="SGD" {% if not product or product.currency == 'SGD' %}selected{% endif %}>SGD</option>
-                                <option value="CNY" {% if product and product.currency == 'CNY' %}selected{% endif %}>CNY</option>
-                                <option value="USD" {% if product and product.currency == 'USD' %}selected{% endif %}>USD</option>
-                                <option value="EUR" {% if product and product.currency == 'EUR' %}selected{% endif %}>EUR</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 产品内容区域 -->
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
-                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
-                        <i class="fas fa-file-alt"></i> 产品内容
-                    </h4>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">产品描述</label>
-                        <textarea name="product_description" rows="6" class="visa-form-control"
-                                  placeholder="简要描述产品特色...">{{ product.product_description if product and product.product_description else '' }}</textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">包含服务</label>
-                        <textarea name="included_services" rows="8" class="visa-form-control"
-                                  placeholder="列出包含的服务项目，每行一项...">{{ product.included_services if product and product.included_services else '' }}</textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">不包含服务</label>
-                        <textarea name="excluded_services" rows="8" class="visa-form-control"
-                                  placeholder="列出不包含的服务项目，每行一项...">{{ product.excluded_services if product and product.excluded_services else '' }}</textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">重要提示</label>
-                        <textarea name="important_notes" rows="5" class="visa-form-control"
-                                  placeholder="列出重要的注意事项...">{{ product.important_notes if product and product.important_notes else '' }}</textarea>
-                    </div>
-                </div>
-
                 <!-- 其他设置区域 -->
                 <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
                     <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
@@ -305,6 +232,33 @@
                             <input type="text" name="tags" id="tagsInput" value="{% if product and product.tags %}{{ product.tags|replace('[', '')|replace(']', '')|replace('"', '') }}{% endif %}"
                                    class="visa-form-control" placeholder="蜜月,豪华,亲子">
                         </div>
+                    </div>
+                </div>
+
+                <!-- 产品内容区域 -->
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
+                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
+                        <i class="fas fa-file-alt"></i> 产品内容
+                    </h4>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">产品描述</label>
+                        <textarea name="product_description" rows="6" class="visa-form-control"
+                                  placeholder="简要描述产品特色...">{{ product.product_description if product and product.product_description else '' }}</textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">包含服务</label>
+                        <textarea name="included_services" rows="8" class="visa-form-control"
+                                  placeholder="列出包含的服务项目，每行一项...">{{ product.included_services if product and product.included_services else '' }}</textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">不包含服务</label>
+                        <textarea name="excluded_services" rows="8" class="visa-form-control"
+                                  placeholder="列出不包含的服务项目，每行一项...">{{ product.excluded_services if product and product.excluded_services else '' }}</textarea>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">重要提示</label>
+                        <textarea name="important_notes" rows="5" class="visa-form-control"
+                                  placeholder="列出重要的注意事项...">{{ product.important_notes if product and product.important_notes else '' }}</textarea>
                     </div>
                 </div>
             </div>
@@ -522,14 +476,14 @@
             {% endif %}
             </div>
             
-            <!-- Tab 7: 价格变体 -->
+            <!-- Tab 7: 价格设置 -->
             <div id="tab-variants" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                     <h3 style="color: #f59e0b; margin: 0;">
-                        <i class="fas fa-tags"></i> 价格变体管理（条件价格）
+                        <i class="fas fa-tags"></i> 价格设置管理（条件价格）
                     </h3>
                     <button type="button" onclick="showAddPriceVariantModal()" class="visa-btn" style="background: #f59e0b; color: white;">
-                        <i class="fas fa-plus"></i> 添加价格变体
+                        <i class="fas fa-plus"></i> 添加价格设置
                     </button>
                 </div>
             <div style="background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
@@ -543,7 +497,7 @@
                     <li><strong>早鸟优惠：</strong>如提前30天预订优惠价格</li>
                 </ul>
                 <p style="margin: 0.75rem 0 0 0; color: #075985; font-size: 0.85rem;">
-                    💡 <strong>提示：</strong>系统会优先使用价格变体，如果没有匹配的变体，则使用上方的基础价格。
+                    💡 <strong>提示：</strong>所有价格通过价格设置统一管理，请在此添加不同场景的价格方案。
                 </p>
             </div>
             {% if price_variants %}
@@ -595,9 +549,9 @@
             {% else %}
             <div class="visa-text-center" style="padding: 2rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-md);">
                 <i class="fas fa-tags" style="font-size: 2.5rem; color: var(--visa-text-muted); margin-bottom: 0.75rem;"></i>
-                <p style="color: var(--visa-text-secondary); margin-bottom: 1rem;">暂无价格变体</p>
+                <p style="color: var(--visa-text-secondary); margin-bottom: 1rem;">暂无价格设置</p>
                 <button type="button" onclick="showAddPriceVariantModal()" class="visa-btn" style="background: #f59e0b; color: white;">
-                    <i class="fas fa-plus"></i> 添加第一个价格变体
+                    <i class="fas fa-plus"></i> 添加第一个价格设置
                 </button>
             </div>
             {% endif %}
@@ -624,11 +578,11 @@
     </div>
 </div>
 
-<!-- 添加/编辑价格变体模态框 -->
+<!-- 添加/编辑价格设置模态框 -->
 <div id="priceVariantModal" class="visa-modal" style="display: none;">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
-            <h3 class="visa-modal-title" style="color: white;" id="priceModalTitle">添加价格变体</h3>
+            <h3 class="visa-modal-title" style="color: white;" id="priceModalTitle">添加价格设置</h3>
             <button class="visa-modal-close" onclick="closePriceVariantModal()" style="color: white; font-size: 1.5rem;" title="关闭">&times;</button>
         </div>
         <div class="visa-modal-body">
@@ -923,7 +877,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% if product %}
 // ========================================
-// 价格变体管理功能
+// 价格设置管理功能
 // ========================================
 
 // 日期格式化辅助函数
@@ -950,9 +904,9 @@ function formatDate(dateString) {
     }
 }
 
-// 显示添加价格变体模态框
+// 显示添加价格设置模态框
 function showAddPriceVariantModal() {
-    document.getElementById('priceModalTitle').textContent = '添加价格变体';
+    document.getElementById('priceModalTitle').textContent = '添加价格设置';
     document.getElementById('variantId').value = '';
     document.getElementById('priceVariantForm').reset();
     document.getElementById('variantCurrency').value = 'SGD';
@@ -960,9 +914,9 @@ function showAddPriceVariantModal() {
     showModal('priceVariantModal');
 }
 
-// 编辑价格变体
+// 编辑价格设置
 function editPriceVariant(id) {
-    document.getElementById('priceModalTitle').textContent = '编辑价格变体';
+    document.getElementById('priceModalTitle').textContent = '编辑价格设置';
     document.getElementById('variantId').value = id;
     
     fetch(`{{ url_for('tour_products.get_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${id}`), {
@@ -986,18 +940,18 @@ function editPriceVariant(id) {
             document.getElementById('isActive').value = v.is_active ? '1' : '0';
             showModal('priceVariantModal');
         } else {
-            alert('获取价格变体失败：' + data.message);
+            alert('获取价格设置失败：' + data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('获取价格变体时发生错误');
+        alert('获取价格设置时发生错误');
     });
 }
 
-// 复制价格变体
+// 复制价格设置
 function copyPriceVariant(id) {
-    document.getElementById('priceModalTitle').textContent = '复制价格变体';
+    document.getElementById('priceModalTitle').textContent = '复制价格设置';
     document.getElementById('variantId').value = ''; // 清空ID，创建新变体
     
     fetch(`{{ url_for('tour_products.get_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${id}`), {
@@ -1025,16 +979,16 @@ function copyPriceVariant(id) {
             document.getElementById('isActive').value = v.is_active ? '1' : '0';
             showModal('priceVariantModal');
         } else {
-            alert('获取价格变体失败：' + data.message);
+            alert('获取价格设置失败：' + data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('复制价格变体时发生错误');
+        alert('复制价格设置时发生错误');
     });
 }
 
-// 保存价格变体
+// 保存价格设置
 function savePriceVariant() {
     const variantId = document.getElementById('variantId').value;
     const formData = new FormData(document.getElementById('priceVariantForm'));
@@ -1061,13 +1015,13 @@ function savePriceVariant() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('保存价格变体时发生错误');
+        alert('保存价格设置时发生错误');
     });
 }
 
-// 删除价格变体
+// 删除价格设置
 function deletePriceVariant(id) {
-    if (confirm('确定要删除这个价格变体吗？')) {
+    if (confirm('确定要删除这个价格设置吗？')) {
         const formData = new FormData();
         formData.append('csrf_token', '{{ csrf_token() }}');
         
@@ -1089,23 +1043,22 @@ function deletePriceVariant(id) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('删除价格变体时发生错误');
+            alert('删除价格设置时发生错误');
         });
     }
 }
 
-// 关闭价格变体模态框
+// 关闭价格设置模态框
 function closePriceVariantModal() {
-    // 检查表单是否有数据，提示用户确认关闭
     const variantName = document.getElementById('variantName').value;
-    const adultPrice = document.getElementById('adultPrice').value;
-    
-    if (variantName || adultPrice) {
+    const singlePrice = document.getElementById('singlePrice').value;
+
+    if (variantName || singlePrice) {
         if (!confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) {
             return;
         }
     }
-    
+
     document.getElementById('priceVariantModal').style.display = 'none';
 }
 
