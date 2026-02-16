@@ -3,6 +3,11 @@
 {% block title %}机票订单详情 - MyTravelPanel{% endblock %}
 
 {% block page_title %}机票订单详情{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i>返回订单列表
+</a>
+{% endblock %}
 
 {% block extra_css %}
 <!-- 添加 Font Awesome -->
@@ -289,7 +294,6 @@
 
     <!-- 操作按钮 -->
     <div class="text-center mb-4">
-        <a href="{{ url_for('flights_booking.order_list') }}" class="btn btn-secondary">返回订单列表</a>
         {% if order.project_header %}
         <a href="{{ url_for('business_projects.detail.project_detail', project_id=order.project_header.id) }}" class="btn btn-primary" target="_blank">查看HID详情</a>
         {% endif %}

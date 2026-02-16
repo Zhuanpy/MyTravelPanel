@@ -573,47 +573,36 @@ def print_itinerary(product_id):
 @staff_only
 @csrf.exempt
 def delete_product_file(product_id):
-    """删除产品相关文件（封面图、图库图片、供应商文件）"""
+    """移除产品关联文件（仅清除引用，不删除物理文件，物理文件通过图片库管理删除）"""
     try:
         product = Product.query.get_or_404(product_id)
         file_type = request.json.get('file_type')
         file_index = request.json.get('file_index')  # 用于图库图片
-        
-        def try_delete_file(relative_path):
-            """尝试删除文件"""
-            if relative_path:
-                from flask import current_app
-                full_path = os.path.join(current_app.static_folder, relative_path)
-                if os.path.exists(full_path):
-                    os.remove(full_path)
-        
+
         if file_type == 'cover_image':
             if product.cover_image:
-                try_delete_file(product.cover_image)
                 product.cover_image = None
                 db.session.commit()
-                return jsonify({'success': True, 'message': '封面图已删除'})
-        
+                return jsonify({'success': True, 'message': '封面图已移除'})
+
         elif file_type == 'gallery_image':
             if product.gallery_images:
                 images = json.loads(product.gallery_images) if isinstance(product.gallery_images, str) else product.gallery_images
                 if file_index is not None and 0 <= file_index < len(images):
-                    try_delete_file(images[file_index])
                     images.pop(file_index)
                     product.gallery_images = json.dumps(images) if images else None
                     db.session.commit()
-                    return jsonify({'success': True, 'message': '图片已删除'})
-        
+                    return jsonify({'success': True, 'message': '图片已移除'})
+
         elif file_type == 'supplier_document':
             if product.supplier_document:
-                try_delete_file(product.supplier_document)
                 product.supplier_document = None
                 product.supplier_document_name = None
                 db.session.commit()
-                return jsonify({'success': True, 'message': '供应商文件已删除'})
-        
+                return jsonify({'success': True, 'message': '供应商文件已移除'})
+
         return jsonify({'success': False, 'message': '文件类型无效或文件不存在'}), 400
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1145,7 +1134,7 @@ def edit_product(product_id):
             sync_tour_product_to_unified(product, created_by=current_user.username)
 
             db.session.commit()
-            return redirect(url_for('tour_products.edit_product', product_id=product.id))
+            return redirect(url_for('tour_products.product_list'))
 
         except Exception as e:
             db.session.rollback()

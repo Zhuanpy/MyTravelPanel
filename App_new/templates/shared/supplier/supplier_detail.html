@@ -1,5 +1,19 @@
 {% extends "shared/staff_base.html" %}
 {% block title %}{{ supplier.name }} - 供应商详情 - MyTravelPanel{% endblock %}
+{% block page_title %}{{ supplier.name }}{% endblock %}
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <button onclick="openSupplierFolder({{ supplier.supplier_id }})" class="btn btn-outline-info btn-sm" title="打开本地供应商文件夹">
+        <i class="fas fa-folder-open me-1"></i> 打开文件夹
+    </button>
+    <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-outline-warning btn-sm">
+        <i class="fas fa-edit me-1"></i> 编辑
+    </a>
+    <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <!-- 引入统一设计系统 -->
@@ -9,26 +23,6 @@
 {% block content %}
 <div class="visa-container">
     <div style="max-width: 1400px; margin: 0 auto;">
-        <!-- 页面头部 -->
-        <div class="visa-flex-between visa-mb-4">
-        <div>
-                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
-                    <i class="fas fa-truck"></i> {{ supplier.name }}
-            </h1>
-                <p class="visa-text-muted">供应商详细信息</p>
-        </div>
-            <div class="visa-flex visa-gap-2">
-                <button onclick="openSupplierFolder({{ supplier.supplier_id }})" class="visa-btn visa-btn-info" title="打开本地供应商文件夹">
-                    <i class="fas fa-folder-open"></i> 打开文件夹
-                </button>
-                <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="visa-btn visa-btn-warning">
-                <i class="fas fa-edit"></i> 编辑
-            </a>
-                <a href="{{ url_for('supplier.suppliers') }}" class="visa-btn visa-btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
-            </a>
-        </div>
-    </div>
     
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

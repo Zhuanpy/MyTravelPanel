@@ -1,5 +1,16 @@
 {% extends "staff_base.html" %}
 {% block title %}{{ company.company_name }} - 公司详情 - MyTravelPanel{% endblock %}
+{% block page_title %}{{ company.company_name }}{% endblock %}
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" class="btn btn-outline-warning btn-sm">
+        <i class="fas fa-edit me-1"></i> 编辑
+    </a>
+    <a href="{{ url_for('corporate.list_companies') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -8,22 +19,6 @@
 {% block content %}
 <div class="visa-container">
     <div style="max-width: 1400px; margin: 0 auto;">
-        <div class="visa-flex-between visa-mb-4">
-            <div>
-                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
-                    <i class="fas fa-building"></i> {{ company.company_name }}
-                </h1>
-                <p class="visa-text-muted">客户公司详细信息</p>
-            </div>
-            <div class="visa-flex visa-gap-2">
-                <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" class="visa-btn visa-btn-warning">
-                    <i class="fas fa-edit"></i> 编辑
-                </a>
-                <a href="{{ url_for('corporate.list_companies') }}" class="visa-btn visa-btn-secondary" onclick="returnToList()">
-                    <i class="fas fa-arrow-left"></i> 返回列表
-                </a>
-            </div>
-        </div>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

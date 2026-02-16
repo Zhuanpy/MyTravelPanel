@@ -855,29 +855,16 @@ def edit_itinerary(itinerary_id):
             itinerary.date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
             itinerary.content = request.form.get('content')
             
-            # 处理删除标记
+            # 处理删除标记（仅清除引用，不删除物理文件，物理文件通过图片库管理删除）
             remove_image1 = request.form.get('remove_image1') == '1'
             remove_image2 = request.form.get('remove_image2') == '1'
             remove_image3 = request.form.get('remove_image3') == '1'
 
-            def try_delete_file(relative_path: str):
-                try:
-                    if not relative_path:
-                        return
-                    abs_path = os.path.join('App_new', 'static', relative_path.replace('/', os.sep))
-                    if os.path.exists(abs_path):
-                        os.remove(abs_path)
-                except Exception:
-                    pass
-
             if remove_image1 and itinerary.image1:
-                try_delete_file(itinerary.image1)
                 itinerary.image1 = None
             if remove_image2 and itinerary.image2:
-                try_delete_file(itinerary.image2)
                 itinerary.image2 = None
             if remove_image3 and itinerary.image3:
-                try_delete_file(itinerary.image3)
                 itinerary.image3 = None
 
             # 处理图片上传

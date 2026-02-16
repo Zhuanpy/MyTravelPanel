@@ -1,6 +1,12 @@
 {% extends "shared/staff_base.html" %}
 
 {% block title %}订单详情 {{ order.order_number }} - MyTravelPanel{% endblock %}
+{% block page_title %}会员订单 <small class="text-muted fw-normal" style="font-size: 0.6em;">{{ order.order_number }}</small>{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('staff.member_order_list') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i> 返回列表
+</a>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -92,18 +98,9 @@
 
 {% block content %}
 <div class="visa-container">
-    <!-- 顶部：标题 + 返回按钮 -->
-    <div class="detail-header">
-        <div>
-            <h2>
-                订单详情
-                <span class="order-num">{{ order.order_number }}</span>
-            </h2>
-            <span class="badge-status {{ order.status }}">{{ order.status_display }}</span>
-        </div>
-        <a href="{{ url_for('staff.member_order_list') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left"></i> 返回列表
-        </a>
+    <!-- 顶部：状态标签 -->
+    <div class="mb-3">
+        <span class="badge-status {{ order.status }}">{{ order.status_display }}</span>
     </div>
 
     <div class="row g-3">

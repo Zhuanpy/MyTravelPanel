@@ -1,5 +1,11 @@
 {% extends 'staff_base.html' %}
 {% block title %}新增预付充值{% endblock %}
+{% block page_title %}新增预付充值{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i>返回列表
+</a>
+{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
 <style>
@@ -12,16 +18,6 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <!-- 页面标题 -->
-    <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary me-3">
-            <i class="fas fa-arrow-left"></i>
-        </a>
-        <h4 class="mb-0">
-            <i class="fas fa-plus-circle me-2"></i>新增预付充值
-        </h4>
-    </div>
-
     <!-- 表单卡片 -->
     <div class="card form-card">
         <div class="card-header">

@@ -1,6 +1,12 @@
 {% extends 'shared/staff_base.html' %}
 
 {% block title %}旅游产品列表 - 产品管理{% endblock %}
+{% block page_title %}旅游产品管理{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('tour_products.add_product') }}" class="btn btn-success btn-sm">
+    <i class="fas fa-plus me-1"></i> 添加产品
+</a>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -43,62 +49,28 @@
 
 {% block content %}
 <div class="visa-container-lg">
-    <!-- 页面标题 -->
-    <div class="visa-flex-between visa-mb-4">
-        <h1 class="visa-page-title" style="margin: 0;">
-            <i class="fas fa-th-large"></i> 旅游产品库
-        </h1>
-        <a href="{{ url_for('tour_products.add_product') }}" class="visa-btn visa-btn-success">
-            <i class="fas fa-plus"></i> 添加产品
-        </a>
-    </div>
-
     <!-- 统计卡片 -->
-    <div class="visa-grid-4 visa-mb-4" style="gap: 1rem;">
-        <div class="visa-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
-            <div class="visa-card-body" style="padding: 1.5rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">总产品数</div>
-                        <div style="font-size: 2rem; font-weight: 700;">{{ stats.total }}</div>
-                    </div>
-                    <i class="fas fa-box-open" style="font-size: 2.5rem; opacity: 0.3;"></i>
-                </div>
-            </div>
-        </div>
-        <div class="visa-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;">
-            <div class="visa-card-body" style="padding: 1.5rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">激活产品</div>
-                        <div style="font-size: 2rem; font-weight: 700;">{{ stats.active }}</div>
-                    </div>
-                    <i class="fas fa-check-circle" style="font-size: 2.5rem; opacity: 0.3;"></i>
-                </div>
-            </div>
-        </div>
-        <div class="visa-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none;">
-            <div class="visa-card-body" style="padding: 1.5rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">草稿产品</div>
-                        <div style="font-size: 2rem; font-weight: 700;">{{ stats.draft }}</div>
-                    </div>
-                    <i class="fas fa-file-alt" style="font-size: 2.5rem; opacity: 0.3;"></i>
-                </div>
-            </div>
-        </div>
-        <div class="visa-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none;">
-            <div class="visa-card-body" style="padding: 1.5rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">停用产品</div>
-                        <div style="font-size: 2rem; font-weight: 700;">{{ stats.inactive }}</div>
-                    </div>
-                    <i class="fas fa-ban" style="font-size: 2.5rem; opacity: 0.3;"></i>
-                </div>
-            </div>
-        </div>
+    <div style="display: flex; gap: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 1rem;">
+        <a href="{{ url_for('tour_products.product_list') }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; text-decoration: none; color: #374151; border-right: 1px solid #f1f5f9; font-size: 0.95rem; {% if not request.args.get('status') %}background: #f0f7ff; font-weight: 600;{% endif %}">
+            <i class="fas fa-box-open" style="color: #667eea;"></i>
+            <span>全部</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.total }}</span>
+        </a>
+        <a href="{{ url_for('tour_products.product_list', status='active') }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; text-decoration: none; color: #374151; border-right: 1px solid #f1f5f9; font-size: 0.95rem; {% if request.args.get('status') == 'active' %}background: #f0f7ff; font-weight: 600;{% endif %}">
+            <i class="fas fa-check-circle" style="color: #10b981;"></i>
+            <span>激活</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.active }}</span>
+        </a>
+        <a href="{{ url_for('tour_products.product_list', status='draft') }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; text-decoration: none; color: #374151; border-right: 1px solid #f1f5f9; font-size: 0.95rem; {% if request.args.get('status') == 'draft' %}background: #f0f7ff; font-weight: 600;{% endif %}">
+            <i class="fas fa-file-alt" style="color: #f59e0b;"></i>
+            <span>草稿</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.draft }}</span>
+        </a>
+        <a href="{{ url_for('tour_products.product_list', status='inactive') }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; text-decoration: none; color: #374151; font-size: 0.95rem; {% if request.args.get('status') == 'inactive' %}background: #f0f7ff; font-weight: 600;{% endif %}">
+            <i class="fas fa-ban" style="color: #ef4444;"></i>
+            <span>停用</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.inactive }}</span>
+        </a>
     </div>
 
     <!-- 筛选栏 -->
@@ -159,20 +131,19 @@
                     <i class="fas fa-redo"></i> 重置
                 </a>
             </div>
+            <!-- Excel 导入导出按钮 -->
+            <div class="visa-filter-item" style="display: flex; align-items: flex-end; gap: 0.5rem; margin-left: auto;">
+                <a href="{{ url_for('tour_products.download_template') }}" class="visa-btn visa-btn-info">
+                    <i class="fas fa-file-download"></i> 导入模板
+                </a>
+                <button type="button" onclick="document.getElementById('excelUpload').click()" class="visa-btn visa-btn-warning">
+                    <i class="fas fa-file-upload"></i> 导入
+                </button>
+                <a href="{{ url_for('tour_products.export_excel', supplier=current_filters.supplier or '', country=current_filters.country or '', city=current_filters.city or '', status=current_filters.status or '', keyword=current_filters.keyword or '') }}" class="visa-btn visa-btn-success">
+                    <i class="fas fa-file-excel"></i> 导出
+                </a>
+            </div>
         </form>
-        
-        <!-- Excel 导入导出按钮 -->
-        <div class="visa-flex visa-gap-2" style="margin-top: 1rem;">
-            <a href="{{ url_for('tour_products.download_template') }}" class="visa-btn visa-btn-info">
-                <i class="fas fa-file-download"></i> 下载导入模板
-            </a>
-            <button type="button" onclick="document.getElementById('excelUpload').click()" class="visa-btn visa-btn-warning">
-                <i class="fas fa-file-upload"></i> 导入Excel
-            </button>
-            <a href="{{ url_for('tour_products.export_excel', supplier=current_filters.supplier or '', country=current_filters.country or '', city=current_filters.city or '', status=current_filters.status or '', keyword=current_filters.keyword or '') }}" class="visa-btn visa-btn-success">
-                <i class="fas fa-file-excel"></i> 导出筛选产品
-            </a>
-        </div>
         
         <!-- 隐藏的文件上传表单 -->
         <form action="{{ url_for('tour_products.import_excel') }}" method="POST" enctype="multipart/form-data" id="excelUploadForm" style="display: none;">
@@ -184,7 +155,10 @@
     <!-- 产品列表（按供应商分组） -->
     {% if products %}
     <div style="display: flex; flex-direction: column; gap: 2rem;">
-        {% for supplier_name, supplier_products in products|groupby('supplier_display_name') %}
+        {% set grouped = products|groupby('supplier_display_name')|list %}
+        {% set named_groups = grouped|selectattr('grouper')|list %}
+        {% set empty_groups = grouped|rejectattr('grouper')|list %}
+        {% for supplier_name, supplier_products in named_groups + empty_groups %}
         <div class="visa-card supplier-group" data-supplier="{{ supplier_name or '未设置供应商' }}" style="border-left: 4px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
             <!-- 供应商头部 -->
             <div class="visa-card-header" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-bottom: 1px solid #cbd5e1;">
@@ -241,40 +215,72 @@
                          style="background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(0,0,0,0.06); transition: all 0.3s ease;"
                          onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)';"
                          onmouseout="this.style.transform=''; this.style.boxShadow='';">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
                             <!-- 产品选择复选框 -->
-                            <label class="product-checkbox-wrapper" style="display: flex; align-items: flex-start; padding-top: 0.5rem; cursor: pointer;">
+                            <label class="product-checkbox-wrapper" style="display: flex; align-items: flex-start; padding-top: 0.25rem; cursor: pointer;">
                                 <input type="checkbox" class="product-checkbox"
                                        data-product-id="{{ product.id }}"
                                        data-product-name="{{ product.product_name }}"
                                        data-supplier="{{ supplier_name or '未设置供应商' }}"
                                        onchange="updateSelectionState()"
-                                       style="width: 1.25rem; height: 1.25rem; cursor: pointer; accent-color: #3b82f6; flex-shrink: 0;">
+                                       style="width: 1.1rem; height: 1.1rem; cursor: pointer; accent-color: #3b82f6; flex-shrink: 0;">
                             </label>
                             <!-- 产品封面图 -->
                             {% if product.cover_image %}
-                            <div style="width: 120px; height: 120px; flex-shrink: 0; border-radius: 0.5rem; overflow: hidden; background: #f3f4f6;">
-                                <img src="{{ url_for('static', filename=product.cover_image) }}" 
-                                     alt="{{ product.product_name }}" 
+                            <div style="width: 90px; height: 90px; flex-shrink: 0; border-radius: 0.5rem; overflow: hidden; background: #f3f4f6;">
+                                <img src="{{ url_for('static', filename=product.cover_image) }}"
+                                     alt="{{ product.product_name }}"
                                      style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                             {% else %}
-                            <div style="width: 120px; height: 120px; flex-shrink: 0; border-radius: 0.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-image" style="font-size: 2rem; color: white; opacity: 0.5;"></i>
+                            <div style="width: 90px; height: 90px; flex-shrink: 0; border-radius: 0.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-image" style="font-size: 1.5rem; color: white; opacity: 0.5;"></i>
                             </div>
                             {% endif %}
-                            
-                            <!-- 产品信息 -->
-                            <div style="flex: 1;">
-                                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-                                    <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: #1e293b;">
+
+                            <!-- 产品信息 + 操作 -->
+                            <div style="flex: 1; min-width: 0;">
+                                <!-- 第一行：标题 + 操作按钮 -->
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                                    <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">
                                         <i class="fas fa-map-marked-alt" style="color: #10b981;"></i> {{ product.product_name }}
                                     </h3>
                                     {% if product.product_code %}
-                                    <code style="padding: 0.2rem 0.5rem; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">{{ product.product_code }}</code>
+                                    <code style="padding: 0.1rem 0.4rem; background: #e0f2fe; color: #0369a1; border-radius: 3px; font-size: 0.7rem; font-weight: 600; flex-shrink: 0;">{{ product.product_code }}</code>
                                     {% endif %}
+                                    <!-- 操作按钮 -->
+                                    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; white-space: nowrap;">
+                                        <a href="{{ url_for('tour_products.product_detail', product_id=product.id) }}" class="visa-btn visa-btn-info visa-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">
+                                            <i class="fas fa-eye"></i> 查看
+                                        </a>
+                                        <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" class="visa-btn visa-btn-primary visa-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">
+                                            <i class="fas fa-edit"></i> 编辑
+                                        </a>
+                                        <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" class="visa-btn visa-btn-secondary visa-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" target="_blank">
+                                            <i class="fas fa-print"></i> 打印
+                                        </a>
+                                        <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;"
+                                                onclick="deleteProduct({{ product.id }}, '{{ product.product_name|e }}')">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                        {% if product.is_expired %}
+                                        <button type="button" class="visa-btn visa-btn-warning visa-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;"
+                                                onclick="showRenewModal({{ product.id }}, '{{ product.product_name }}', '{{ product.valid_until }}')">
+                                            <i class="fas fa-sync-alt"></i> 续期
+                                        </button>
+                                        {% else %}
+                                        <select class="status-select status-{{ product.product_status }}" style="padding: 0.2rem 0.4rem; font-size: 0.7rem; min-width: 60px;"
+                                                data-product-id="{{ product.id }}"
+                                                onchange="toggleProductStatus(this)">
+                                            <option value="active" {% if product.product_status == 'active' %}selected{% endif %}>激活</option>
+                                            <option value="draft" {% if product.product_status == 'draft' %}selected{% endif %}>草稿</option>
+                                            <option value="inactive" {% if product.product_status == 'inactive' %}selected{% endif %}>停用</option>
+                                        </select>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.875rem; color: #64748b; margin-bottom: 0.75rem;">
+                                <!-- 第二行：标签信息 -->
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8rem; color: #64748b; margin-bottom: 0.4rem;">
                                     {% if product.country and product.country != 'None' %}
                                     <span><i class="fas fa-globe" style="color: #3b82f6;"></i> {{ product.country }}</span>
                                     {% endif %}
@@ -290,67 +296,35 @@
                                     {% if product.base_price %}
                                     <span><i class="fas fa-tag" style="color: #10b981;"></i> <strong style="color: #059669;">{{ product.currency }} {{ product.base_price }}</strong></span>
                                     {% endif %}
-                                </div>
-                                <!-- 有效期显示 -->
-                                {% if product.valid_from or product.valid_until %}
-                                <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.8125rem; color: #64748b; margin-bottom: 0.5rem; padding: 0.5rem; background: {% if product.is_expired %}#fef2f2{% else %}#f8fafc{% endif %}; border-radius: 0.375rem; border-left: 3px solid {% if product.is_expired %}#ef4444{% else %}#e2e8f0{% endif %};">
-                                    {% if product.valid_from and product.valid_from != None %}
-                                    <span><i class="fas fa-calendar-check" style="color: #10b981;"></i> 开始：<strong>{{ product.valid_from }}</strong></span>
-                                    {% endif %}
-                                    {% if product.valid_until and product.valid_until != None %}
-                                    <span><i class="fas fa-calendar-times" style="color: {% if product.is_expired %}#ef4444{% else %}#f59e0b{% endif %};"></i> 结束：<strong>{{ product.valid_until }}</strong></span>
-                                    {% endif %}
-                                    {% if product.is_expired %}
-                                    <span style="margin-left: auto; color: #dc2626; font-weight: 600;">
-                                        <i class="fas fa-exclamation-triangle"></i> 已过期
+                                    {% if product.valid_from or product.valid_until %}
+                                    <span>
+                                        {% if product.valid_from and product.valid_from != None %}
+                                        <i class="fas fa-calendar-check" style="color: #10b981;"></i> {{ product.valid_from }}
+                                        {% endif %}
+                                        {% if product.valid_until and product.valid_until != None %}
+                                        ~ <i class="fas fa-calendar-times" style="color: {% if product.is_expired %}#ef4444{% else %}#f59e0b{% endif %};"></i> {{ product.valid_until }}
+                                        {% if product.is_expired %}
+                                        <span style="display: inline-block; margin-left: 0.2rem; padding: 0.05rem 0.3rem; background: #fef2f2; color: #dc2626; font-size: 0.65rem; font-weight: 600; border: 1px solid #fecaca; border-radius: 3px;">已过期</span>
+                                        {% endif %}
+                                        {% endif %}
                                     </span>
                                     {% endif %}
                                 </div>
-                                {% endif %}
+                                <!-- 第三行：描述 -->
                                 {% if product.product_description and product.product_description != 'None' %}
-                                <p style="margin: 0; color: #64748b; font-size: 0.875rem; line-height: 1.5;">
+                                <div style="font-size: 0.8rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 0.3rem;">
                                     {{ product.product_description[:100] }}{% if product.product_description|length > 100 %}...{% endif %}
-                                </p>
-                                {% endif %}
-                                {% if product.supplier_document %}
-                                <div style="margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; background: #f5f3ff; border-radius: 6px; border: 1px solid #ddd6fe;">
-                                    <i class="fas fa-file-pdf" style="color: #7c3aed;"></i>
-                                    <a href="{{ product.supplier_document|image_url }}" download style="color: #6d28d9; font-size: 0.8125rem; text-decoration: none; font-weight: 500;" title="点击下载">
-                                        {{ product.supplier_document_name or '供应商文件' }}
-                                    </a>
-                                    <i class="fas fa-download" style="color: #8b5cf6; font-size: 0.75rem;"></i>
                                 </div>
                                 {% endif %}
-                            </div>
-                            
-                            <!-- 操作按钮 -->
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 140px;">
-                                <a href="{{ url_for('tour_products.product_detail', product_id=product.id) }}" class="visa-btn visa-btn-info visa-btn-sm" style="width: 100%;">
-                                    <i class="fas fa-eye"></i> 查看详情
-                                </a>
-                                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" class="visa-btn visa-btn-primary visa-btn-sm" style="width: 100%;">
-                                    <i class="fas fa-edit"></i> 编辑
-                                </a>
-                                <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" class="visa-btn visa-btn-secondary visa-btn-sm" style="width: 100%;" target="_blank">
-                                    <i class="fas fa-print"></i> 打印行程
-                                </a>
-                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" style="width: 100%;" 
-                                        onclick="deleteProduct({{ product.id }}, '{{ product.product_name|e }}')">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                                {% if product.is_expired %}
-                                <button type="button" class="visa-btn visa-btn-warning visa-btn-sm" style="width: 100%;" 
-                                        onclick="showRenewModal({{ product.id }}, '{{ product.product_name }}', '{{ product.valid_until }}')">
-                                    <i class="fas fa-sync-alt"></i> 续期
-                                </button>
-                                {% else %}
-                                <select class="status-select status-{{ product.product_status }}" 
-                                        data-product-id="{{ product.id }}"
-                                        onchange="toggleProductStatus(this)">
-                                    <option value="active" {% if product.product_status == 'active' %}selected{% endif %}>激活</option>
-                                    <option value="draft" {% if product.product_status == 'draft' %}selected{% endif %}>草稿</option>
-                                    <option value="inactive" {% if product.product_status == 'inactive' %}selected{% endif %}>停用</option>
-                                </select>
+                                <!-- 第四行：附件文件 -->
+                                {% if product.supplier_document %}
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                                    <a href="{{ product.supplier_document|image_url }}" download style="display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.5rem; background: #f5f3ff; border-radius: 4px; border: 1px solid #ddd6fe; color: #6d28d9; font-size: 0.75rem; text-decoration: none; white-space: nowrap;" title="点击下载">
+                                        <i class="fas fa-file-pdf" style="color: #7c3aed;"></i>
+                                        {{ product.supplier_document_name or '供应商文件' }}
+                                        <i class="fas fa-download" style="color: #8b5cf6; font-size: 0.65rem;"></i>
+                                    </a>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
@@ -782,7 +756,7 @@ function deleteProduct(productId, productName) {
 
 <!-- 续期弹窗 -->
 <div id="renewModal" class="visa-modal" style="display: none;">
-    <div class="visa-modal-content" style="max-width: 450px;">
+    <div class="visa-modal-dialog" style="max-width: 450px;">
         <div class="visa-modal-header">
             <h3><i class="fas fa-sync-alt" style="color: #f59e0b;"></i> 产品续期</h3>
             <button type="button" class="visa-btn-close" onclick="closeRenewModal()">&times;</button>

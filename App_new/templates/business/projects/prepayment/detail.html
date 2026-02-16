@@ -1,5 +1,11 @@
 {% extends 'staff_base.html' %}
 {% block title %}预付账款详情 - {{ prepayment.prepayment_number }}{% endblock %}
+{% block page_title %}预付账款详情 <small class="text-muted fw-normal" style="font-size: 0.6em;">{{ prepayment.prepayment_number }}</small>{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i>返回列表
+</a>
+{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
 <style>
@@ -33,22 +39,6 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <!-- 页面标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="d-flex align-items-center">
-            <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary me-3">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div>
-                <h4 class="mb-0">{{ prepayment.prepayment_number }}</h4>
-                <small class="text-muted">{{ prepayment.supplier.company_name if prepayment.supplier else '-' }}</small>
-            </div>
-        </div>
-        <div>
-            <span class="badge badge-{{ prepayment.status }} fs-6">{{ prepayment.status_display }}</span>
-        </div>
-    </div>
-
     <!-- 余额卡片 + 基本信息（横向布局） -->
     <div class="card balance-card mb-4">
         <div class="card-body py-3">

@@ -1,6 +1,17 @@
 {% extends 'shared/staff_base.html' %}
 
 {% block title %}{{ product.product_name }} - 产品详情{% endblock %}
+{% block page_title %}产品详情{% endblock %}
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-edit me-1"></i> 编辑
+    </a>
+    <a href="{{ url_for('tour_products.product_list') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -10,22 +21,6 @@
 {% block content %}
 <div class="bg-gray-50 min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto">
-        <!-- 顶部导航栏 -->
-        <div class="flex justify-between items-center mb-6">
-            <a href="{{ url_for('tour_products.product_list') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors">
-                <i class="fas fa-arrow-left"></i> 返回列表
-            </a>
-            <div class="flex gap-3">
-                <a href="{{ url_for('tour_products.edit_product', product_id=product.id) }}" 
-                   class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                    <i class="fas fa-edit"></i> 编辑
-                </a>
-                <button onclick="deleteProduct('{{ product.id }}')" 
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    <i class="fas fa-trash"></i> 删除
-                </button>
-            </div>
-        </div>
 
         <!-- 产品头部卡片 -->
         <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-6">

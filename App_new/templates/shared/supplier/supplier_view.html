@@ -1,6 +1,17 @@
 {% extends "shared/staff_base.html" %}
 
 {% block title %}供应商详情{% endblock %}
+{% block page_title %}供应商详情{% endblock %}
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="btn btn-outline-warning btn-sm">
+        <i class="fas fa-edit me-1"></i> 编辑
+    </a>
+    <a href="{{ url_for('supplier.suppliers') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -39,16 +50,6 @@
                         </div>
                     </div>
                     {% endif %}
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <a href="{{ url_for('supplier.edit_supplier', supplier_id=supplier.supplier_id) }}" class="visa-btn visa-btn-warning">
-                                <i class="fas fa-edit"></i> 编辑
-                            </a>
-                            <a href="{{ url_for('supplier.suppliers') }}" class="visa-btn visa-btn-secondary">
-                                <i class="fas fa-list"></i> 返回列表
-                            </a>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

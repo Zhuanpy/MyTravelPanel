@@ -30,21 +30,6 @@
 
 {% block content %}
 
-{% if header.is_settled %}
-<!-- 已结算提示条 -->
-<div class="alert alert-warning d-flex align-items-center mb-3" role="alert" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border: none; border-radius: 8px;">
-    <i class="fas fa-lock me-2" style="font-size: 1.2rem;"></i>
-    <div>
-        <strong>该项目已结算，无法进行编辑操作。</strong>
-        {% if header.payment_voucher %}
-        <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=header.payment_voucher.id) }}" class="alert-link ms-2">
-            查看凭证 {{ header.payment_voucher.voucher_no }}
-        </a>
-        {% endif %}
-        <span class="ms-2 text-muted">如需修改，请先取消结算。</span>
-    </div>
-</div>
-{% endif %}
 
 <div class="container-fluid tw-px-2">
          <!-- 项目详情布局 -->

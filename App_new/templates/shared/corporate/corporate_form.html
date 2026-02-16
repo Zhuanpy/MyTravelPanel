@@ -1,5 +1,18 @@
 {% extends "staff_base.html" %}
 {% block title %}{{ '编辑公司 - ' + company.company_name if company else '新增公司' }} - MyTravelPanel{% endblock %}
+{% block page_title %}{% if company %}编辑公司{% else %}新增公司{% endif %}{% endblock %}
+{% block page_actions %}
+<div class="d-flex gap-2">
+    {% if company %}
+    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" class="btn btn-outline-info btn-sm">
+        <i class="fas fa-eye me-1"></i> 查看详情
+    </a>
+    {% endif %}
+    <a href="{{ url_for('corporate.list_companies') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -8,28 +21,6 @@
 {% block content %}
 <div class="visa-container">
     <div style="max-width: 1200px; margin: 0 auto;">
-        <div class="visa-flex-between visa-mb-4">
-            <div>
-                <h1 class="visa-page-title" style="text-align: left; margin-bottom: 0.5rem;">
-                    {% if company %}
-                        <i class="fas fa-edit"></i> 编辑公司 - {{ company.company_name }}
-                    {% else %}
-                        <i class="fas fa-building"></i> 新增公司
-                    {% endif %}
-                </h1>
-                <p class="visa-text-muted">{{ '修改公司信息' if company else '添加新的公司信息' }}</p>
-            </div>
-            <div class="visa-flex visa-gap-2">
-                {% if company %}
-                <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" class="visa-btn visa-btn-info">
-                    <i class="fas fa-eye"></i> 查看详情
-                </a>
-                {% endif %}
-                <a href="{{ url_for('corporate.list_companies') }}" class="visa-btn visa-btn-secondary">
-                    <i class="fas fa-arrow-left"></i> 返回列表
-                </a>
-            </div>
-        </div>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
