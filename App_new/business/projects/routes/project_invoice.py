@@ -956,7 +956,7 @@ def invoice_list():
         # 获取筛选参数
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 25, type=int)
-        status = request.args.get('status', '').strip()
+        status = request.args.get('status', 'confirmed').strip()
         payment_status = request.args.get('payment_status', '').strip()
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
@@ -967,6 +967,7 @@ def invoice_list():
         min_amount = request.args.get('min_amount', None, type=float)
         max_amount = request.args.get('max_amount', None, type=float)
         keyword = request.args.get('keyword', '').strip()
+        tag = request.args.get('tag', '').strip()
         sort_by = request.args.get('sort_by', 'invoice_date').strip()
         sort_order = request.args.get('sort_order', 'desc').strip()
 
@@ -1046,6 +1047,10 @@ def invoice_list():
                 ProjectHeader.hid.ilike(kw),
                 ProjectHeader.desc.ilike(kw)
             ))
+
+        # 标签筛选
+        if tag:
+            filters.append(ProjectInvoice.tags.like(f'%"{tag}"%'))
         
         if filters:
             query = query.filter(and_(*filters))
@@ -1091,6 +1096,7 @@ def invoice_list():
                 'status_display': inv.status_display,
                 'payment_status': inv.payment_status,
                 'payment_status_display': inv.payment_status_display,
+                'tags': inv.tags_list,
                 'is_overdue': inv.is_overdue,
                 'created_at': inv.created_at
             })
@@ -1137,6 +1143,22 @@ def invoice_list():
         # 获取公司列表（按名称排序）
         companies = CustomerCompany.query.order_by(func.lower(CustomerCompany.company_name)).all()
 
+        # 获取所有已使用的标签
+        all_tags_rows = db.session.query(ProjectInvoice.tags).filter(
+            ProjectInvoice.tags.isnot(None),
+            ProjectInvoice.tags != '',
+            ProjectInvoice.tags != '[]'
+        ).all()
+        tag_set = set()
+        for row in all_tags_rows:
+            try:
+                tag_list = json.loads(row[0])
+                if isinstance(tag_list, list):
+                    tag_set.update(tag_list)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        all_tags = sorted(tag_set)
+
         return render_template('business/projects/project_invoice/invoice_list.html',
                              invoices=items,
                              pagination=pagination,
@@ -1144,6 +1166,7 @@ def invoice_list():
                              payment_statuses=payment_statuses,
                              invoice_types=invoice_types,
                              companies=companies,
+                             all_tags=all_tags,
                              summary=summary,
                              current_filters={
                                  'status': status,
@@ -1157,6 +1180,7 @@ def invoice_list():
                                  'min_amount': min_amount,
                                  'max_amount': max_amount,
                                  'keyword': keyword,
+                                 'tag': tag,
                                  'sort_by': sort_by,
                                  'sort_order': sort_order,
                                  'per_page': per_page
@@ -1166,6 +1190,26 @@ def invoice_list():
         db.session.rollback()
         flash(f'发票列表加载失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.list.list_projects'))
+
+
+@project_invoice.route('/<int:invoice_id>/tags', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def update_tags(invoice_id):
+    """更新发票标签"""
+    try:
+        invoice = ProjectInvoice.query.get_or_404(invoice_id)
+        data = request.get_json()
+        tags = data.get('tags', [])
+        # 过滤空值，去重
+        tags = list(set(t.strip() for t in tags if t and t.strip()))
+        invoice.tags = json.dumps(tags) if tags else None
+        db.session.commit()
+        return jsonify({'success': True, 'tags': tags})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
 
 
 @project_invoice.route('/api/header/<int:header_id>/summary')

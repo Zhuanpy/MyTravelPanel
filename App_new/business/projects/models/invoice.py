@@ -46,6 +46,9 @@ class ProjectInvoice(db.Model):
     # 发票明细（JSON格式存储）
     invoice_items = db.Column(db.Text, nullable=True, comment='发票明细项(JSON)')
 
+    # 标签（JSON数组格式，如 ["urgent","follow-up"]）
+    tags = db.Column(db.Text, nullable=True, comment='标签(JSON数组)')
+
     # 备注和附加信息
     remarks = db.Column(db.Text, nullable=True, comment='备注')
     terms = db.Column(db.Text, nullable=True, comment='付款条款')
@@ -86,6 +89,7 @@ class ProjectInvoice(db.Model):
             'invoice_items': json.loads(self.invoice_items) if self.invoice_items else [],
             'remarks': self.remarks,
             'terms': self.terms,
+            'tags': json.loads(self.tags) if self.tags else [],
             'extra_info': json.loads(self.extra_info) if self.extra_info else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
@@ -168,6 +172,21 @@ class ProjectInvoice(db.Model):
             return ProjectRef.query.filter(ProjectRef.id.in_(ref_id_list)).all()
         except (json.JSONDecodeError, TypeError):
             return []
+
+    @property
+    def tags_list(self):
+        """获取标签列表"""
+        if not self.tags:
+            return []
+        try:
+            return json.loads(self.tags)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    @tags_list.setter
+    def tags_list(self, value):
+        """设置标签列表"""
+        self.tags = json.dumps(value) if value else None
 
     @property
     def items_list(self):

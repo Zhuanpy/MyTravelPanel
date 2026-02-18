@@ -5,32 +5,14 @@
 
 {% block extra_css %}
 <style>
-    .summary-card {
-        background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
-        color: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .summary-card .summary-item {
-        text-align: center;
-        padding: 10px;
-    }
-    .summary-card .summary-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-    }
-    .summary-card .summary-label {
-        font-size: 0.85rem;
-        opacity: 0.9;
-    }
     .badge-unpaid { background-color: #dc3545; }
     .badge-partial_paid { background-color: #ffc107; color: #212529; }
     .badge-paid { background-color: #28a745; }
     .badge-confirmed { background-color: #17a2b8; }
     .badge-cancelled { background-color: #6c757d; }
     .invoice-number { font-weight: 600; }
-    .amount-cell { text-align: right; font-family: 'SF Mono', Monaco, monospace; }
+    .table th, .table td { text-align: left; }
+    .amount-cell { font-family: 'SF Mono', Monaco, monospace; }
     .amount-paid { color: #28a745; }
     .amount-unpaid { color: #dc3545; }
 
@@ -80,79 +62,94 @@
     .btn-batch-pay:hover { background: #218838; }
     .btn-batch-cancel { background: rgba(255,255,255,0.15); color: white; }
     .btn-batch-cancel:hover { background: rgba(255,255,255,0.25); }
+
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4" style="max-width: 1400px;">
-    <!-- 页面标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">
-            <i class="fas fa-file-invoice me-2"></i>发票列表 Invoice List
-        </h4>
-        <div>
-            <button class="btn btn-outline-secondary me-2" onclick="exportData('excel')">
-                <i class="fas fa-file-excel me-1"></i>导出 Export
-            </button>
+    <!-- 统计卡片 -->
+    <div style="display: flex; gap: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 1rem;">
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
+            <i class="fas fa-file-invoice" style="color: #667eea;"></i>
+            <span>总额</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ "%.2f"|format(summary.grand_total or 0) }}</span>
         </div>
-    </div>
-
-    <!-- 汇总卡片 -->
-    <div class="summary-card">
-        <div class="row">
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(summary.grand_total or 0) }}</div>
-                <div class="summary-label">发票总额 Total Amount</div>
-            </div>
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(summary.total_paid or 0) }}</div>
-                <div class="summary-label">已收款 Paid</div>
-            </div>
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(summary.total_balance or 0) }}</div>
-                <div class="summary-label">未收款 Outstanding</div>
-            </div>
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ pagination.total }}</div>
-                <div class="summary-label">发票数量 Invoices</div>
-            </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
+            <i class="fas fa-check-circle" style="color: #10b981;"></i>
+            <span>已收</span>
+            <span style="font-weight: 700; font-size: 1.05rem; color: #10b981;">{{ "%.2f"|format(summary.total_paid or 0) }}</span>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
+            <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+            <span>未收</span>
+            <span style="font-weight: 700; font-size: 1.05rem; color: #ef4444;">{{ "%.2f"|format(summary.total_balance or 0) }}</span>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; font-size: 0.95rem;">
+            <i class="fas fa-list-ol" style="color: #f59e0b;"></i>
+            <span>数量</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ pagination.total }}</span>
         </div>
     </div>
 
     <!-- 筛选栏 -->
     <div class="card mb-4">
         <div class="card-body py-2">
-            <form method="get" class="d-flex flex-nowrap align-items-center gap-2">
-                <select name="payment_status" class="form-select form-select-sm" style="width: 130px;">
-                    {% for value, label in payment_statuses %}
-                    <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <select name="status" class="form-select form-select-sm" style="width: 120px;">
-                    {% for value, label in statuses %}
-                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <select name="company_id" class="form-select form-select-sm" style="width: 180px;">
-                    <option value="">全部公司 All</option>
-                    {% for company in companies %}
-                    <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>
-                        {{ company.company_name }}
-                    </option>
-                    {% endfor %}
-                </select>
-                <input type="date" name="start_date" class="form-control form-control-sm" style="width: 140px;"
-                       value="{{ current_filters.start_date or '' }}">
-                <input type="date" name="end_date" class="form-control form-control-sm" style="width: 140px;"
-                       value="{{ current_filters.end_date or '' }}">
-                <input type="text" name="keyword" class="form-control form-control-sm" style="width: 180px;"
-                       value="{{ current_filters.keyword or '' }}" placeholder="发票号/项目号/客户">
-                <button type="submit" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-filter me-1"></i>筛选
-                </button>
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-undo me-1"></i>重置
-                </a>
+            <form method="get">
+                <div class="d-flex flex-nowrap align-items-end gap-2">
+                    <div>
+                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">付款状态</label>
+                        <select name="payment_status" class="form-select form-select-sm" style="width: 130px;">
+                            {% for value, label in payment_statuses %}
+                            <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">发票状态</label>
+                        <select name="status" class="form-select form-select-sm" style="width: 120px;">
+                            {% for value, label in statuses %}
+                            <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">客户公司</label>
+                        <select name="company_id" class="form-select form-select-sm" style="width: 180px;">
+                            <option value="">全部 All</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}" {% if current_filters.company_id == company.id %}selected{% endif %}>
+                                {{ company.company_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">开始日期</label>
+                        <input type="date" name="start_date" class="form-control form-control-sm" style="width: 140px;"
+                               value="{{ current_filters.start_date or '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">结束日期</label>
+                        <input type="date" name="end_date" class="form-control form-control-sm" style="width: 140px;"
+                               value="{{ current_filters.end_date or '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">搜索</label>
+                        <input type="text" name="keyword" class="form-control form-control-sm" style="width: 180px;"
+                               value="{{ current_filters.keyword or '' }}" placeholder="发票号/项目号/客户">
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-filter me-1"></i>筛选
+                        </button>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>重置
+                        </a>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -172,7 +169,8 @@
                         <th>乘客</th>
                         <th>日期 Date</th>
                         <th>金额 Amount</th>
-                        <th>已付/余额 Paid/Balance</th>
+                        <th>已付 Paid</th>
+                        <th>余额 Balance</th>
                         <th>状态 Status</th>
                         <th>操作</th>
                     </tr>
@@ -204,12 +202,13 @@
                         <td style="white-space: nowrap;">
                             {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}
                         </td>
-                        <td class="fw-bold" style="white-space: nowrap;">
+                        <td class="amount-cell fw-bold" style="white-space: nowrap;">
                             {{ invoice.currency }} {{ "%.2f"|format(invoice.amount or 0) }}
                         </td>
-                        <td style="white-space: nowrap;">
+                        <td class="amount-cell" style="white-space: nowrap;">
                             <span class="amount-paid">{{ "%.2f"|format(invoice.paid_amount or 0) }}</span>
-                            <span class="text-muted">/</span>
+                        </td>
+                        <td class="amount-cell" style="white-space: nowrap;">
                             {% if invoice.unpaid_amount > 0 %}
                             <span class="amount-unpaid fw-bold">{{ "%.2f"|format(invoice.unpaid_amount or 0) }}</span>
                             {% else %}
@@ -222,21 +221,15 @@
                             </span>
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
-                                   class="btn btn-outline-primary" title="查看">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('business_projects.project_invoice.edit_invoice', invoice_id=invoice.id) }}"
-                                   class="btn btn-outline-secondary" title="编辑">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </div>
+                            <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id) }}"
+                               class="btn btn-sm btn-outline-primary" title="查看">
+                                <i class="fas fa-eye"></i>
+                            </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center py-4 text-muted">
+                        <td colspan="11" class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
                             <p class="mb-0">暂无发票数据 No invoices found</p>
                         </td>
@@ -256,7 +249,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
+                        <a class="page-link" href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&tag={{ current_filters.tag or '' }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -267,7 +260,7 @@
                         <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                         {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ p }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">{{ p }}</a>
+                            <a class="page-link" href="?page={{ p }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&tag={{ current_filters.tag or '' }}">{{ p }}</a>
                         </li>
                         {% elif p == 2 or p == pagination.pages - 1 %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -276,7 +269,7 @@
 
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}">
+                        <a class="page-link" href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&tag={{ current_filters.tag or '' }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
