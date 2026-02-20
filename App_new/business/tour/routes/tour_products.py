@@ -1368,6 +1368,12 @@ def add_price_variant(product_id):
     try:
         product = Product.query.get_or_404(product_id)
 
+        is_primary = bool(int(request.form.get('is_primary', 0)))
+
+        # 如果设为主要价格，先取消该产品下其他主要价格
+        if is_primary:
+            ProductPriceVariant.query.filter_by(product_id=product_id, is_primary=True).update({'is_primary': False})
+
         variant = ProductPriceVariant(
             product_id=product_id,
             variant_name=request.form['variant_name'],
@@ -1380,7 +1386,14 @@ def add_price_variant(product_id):
             twin_price=float(request.form['twin_price']) if request.form.get('twin_price') else None,
             third_pax_price=float(request.form['third_pax_price']) if request.form.get('third_pax_price') else None,
             child_no_bed_price=float(request.form['child_no_bed_price']) if request.form.get('child_no_bed_price') else None,
+            # 成本价格
+            cost_single_price=float(request.form['cost_single_price']) if request.form.get('cost_single_price') else None,
+            cost_twin_price=float(request.form['cost_twin_price']) if request.form.get('cost_twin_price') else None,
+            cost_third_pax_price=float(request.form['cost_third_pax_price']) if request.form.get('cost_third_pax_price') else None,
+            cost_child_no_bed_price=float(request.form['cost_child_no_bed_price']) if request.form.get('cost_child_no_bed_price') else None,
+            profit_per_person=float(request.form['profit_per_person']) if request.form.get('profit_per_person') else None,
             currency=request.form.get('currency', 'SGD'),
+            is_primary=is_primary,
             is_active=bool(int(request.form.get('is_active', 1)))
         )
 
@@ -1404,6 +1417,16 @@ def update_price_variant(product_id, variant_id):
         if variant.product_id != product_id:
             return jsonify({'success': False, 'message': '价格变体不属于该产品'}), 400
 
+        is_primary = bool(int(request.form.get('is_primary', 0)))
+
+        # 如果设为主要价格，先取消该产品下其他主要价格
+        if is_primary:
+            ProductPriceVariant.query.filter(
+                ProductPriceVariant.product_id == product_id,
+                ProductPriceVariant.id != variant_id,
+                ProductPriceVariant.is_primary == True
+            ).update({'is_primary': False})
+
         variant.variant_name = request.form['variant_name']
         variant.start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date() if request.form.get('start_date') else None
         variant.end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d').date() if request.form.get('end_date') else None
@@ -1414,7 +1437,14 @@ def update_price_variant(product_id, variant_id):
         variant.twin_price = float(request.form['twin_price']) if request.form.get('twin_price') else None
         variant.third_pax_price = float(request.form['third_pax_price']) if request.form.get('third_pax_price') else None
         variant.child_no_bed_price = float(request.form['child_no_bed_price']) if request.form.get('child_no_bed_price') else None
+        # 成本价格
+        variant.cost_single_price = float(request.form['cost_single_price']) if request.form.get('cost_single_price') else None
+        variant.cost_twin_price = float(request.form['cost_twin_price']) if request.form.get('cost_twin_price') else None
+        variant.cost_third_pax_price = float(request.form['cost_third_pax_price']) if request.form.get('cost_third_pax_price') else None
+        variant.cost_child_no_bed_price = float(request.form['cost_child_no_bed_price']) if request.form.get('cost_child_no_bed_price') else None
+        variant.profit_per_person = float(request.form['profit_per_person']) if request.form.get('profit_per_person') else None
         variant.currency = request.form.get('currency', 'SGD')
+        variant.is_primary = is_primary
         variant.is_active = bool(int(request.form.get('is_active', 1)))
         variant.updated_at = datetime.utcnow()
 

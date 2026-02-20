@@ -246,7 +246,7 @@
                             <th style="width:100px">计价</th>
                             <th style="width:90px">人数</th>
                             <th style="width:100px" class="text-end">人均价格</th>
-                            <th style="width:70px">操作</th>
+                            <th style="width:100px">操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -288,6 +288,9 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary btn-action" onclick="copyItem({{ item.id }})" title="复制">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
                                     <button class="btn btn-outline-primary btn-action" onclick="editItem({{ item.id }})" title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -423,6 +426,15 @@ function deleteItem(itemId) {
 
 function editItem(itemId) {
     window.location.href = `/package_budget/{{ budget.id }}/item/${itemId}/edit`;
+}
+
+function copyItem(itemId) {
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    fetch(`/package_budget/{{ budget.id }}/item/${itemId}/copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ csrf_token: csrfToken })
+    }).then(r => r.ok ? location.reload() : alert('复制失败'));
 }
 
 document.addEventListener('DOMContentLoaded', function() {

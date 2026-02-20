@@ -14,6 +14,42 @@ from App_new.business.products.models import (
 )
 
 
+def _get_tour_base_price(tour_product):
+    """获取旅游产品的基础价格：优先 base_price，其次主要价格变体的 twin_price"""
+    if tour_product.base_price:
+        return tour_product.base_price
+    from App_new.business.tour.models.Packagemodels import ProductPriceVariant
+    # 优先取 is_primary 的变体
+    primary = ProductPriceVariant.query.filter_by(
+        product_id=tour_product.id, is_primary=True, is_active=True
+    ).first()
+    if not primary:
+        # 没有主要价格，取第一个激活的变体
+        primary = ProductPriceVariant.query.filter_by(
+            product_id=tour_product.id, is_active=True
+        ).first()
+    if primary:
+        # 优先用 twin_price（最常用），其次 single_price
+        return primary.twin_price or primary.single_price or primary.adult_price
+    return None
+
+
+def _get_tour_cost_price(tour_product):
+    """获取旅游产品的成本价：从主要价格变体的 cost_twin_price"""
+    from App_new.business.tour.models.Packagemodels import ProductPriceVariant
+    # 优先取 is_primary 的变体
+    primary = ProductPriceVariant.query.filter_by(
+        product_id=tour_product.id, is_primary=True, is_active=True
+    ).first()
+    if not primary:
+        primary = ProductPriceVariant.query.filter_by(
+            product_id=tour_product.id, is_active=True
+        ).first()
+    if primary:
+        return primary.cost_twin_price or primary.cost_single_price
+    return None
+
+
 def sync_tour_product_to_unified(tour_product, created_by=None):
     """
     将旅游产品同步到统一产品表
@@ -65,7 +101,8 @@ def sync_tour_product_to_unified(tour_product, created_by=None):
         unified.city = city
         unified.departure_city = tour_product.departure_city
         unified.destination = tour_product.destination_city
-        unified.base_price = tour_product.base_price
+        unified.base_price = _get_tour_base_price(tour_product)
+        unified.cost_price = _get_tour_cost_price(tour_product)
         unified.currency = tour_product.currency or 'SGD'
         unified.cover_image = tour_product.cover_image
         unified.gallery_images = tour_product.gallery_images
@@ -97,7 +134,8 @@ def sync_tour_product_to_unified(tour_product, created_by=None):
             city=city,
             departure_city=tour_product.departure_city,
             destination=tour_product.destination_city,
-            base_price=tour_product.base_price,
+            base_price=_get_tour_base_price(tour_product),
+            cost_price=_get_tour_cost_price(tour_product),
             currency=tour_product.currency or 'SGD',
             cover_image=tour_product.cover_image,
             gallery_images=tour_product.gallery_images,
@@ -125,8 +163,11 @@ def _sync_tour_prices(unified, tour_product):
     """同步旅游产品价格"""
     currency = tour_product.currency or 'SGD'
 
+    # 获取基础价格（优先 base_price，其次价格变体）
+    base_price = _get_tour_base_price(tour_product)
+
     # 获取或创建成人价
-    if tour_product.base_price:
+    if base_price:
         adult_price = ProductsPrice.query.filter_by(
             product_id=unified.id,
             people_type=PeopleType.ADULT,
@@ -134,7 +175,7 @@ def _sync_tour_prices(unified, tour_product):
         ).first()
 
         if adult_price:
-            adult_price.selling_price = tour_product.base_price
+            adult_price.selling_price = base_price
             adult_price.currency = currency
         else:
             adult_price = ProductsPrice(
@@ -142,7 +183,7 @@ def _sync_tour_prices(unified, tour_product):
                 price_type='standard',
                 price_name='成人价',
                 people_type=PeopleType.ADULT,
-                selling_price=tour_product.base_price,
+                selling_price=base_price,
                 currency=currency,
                 is_active=True,
             )

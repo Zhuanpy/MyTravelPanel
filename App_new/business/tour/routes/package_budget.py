@@ -556,6 +556,57 @@ def delete_item(budget_id, item_id):
         return jsonify({'success': False, 'error': '删除失败'}), 500
 
 
+@package_budget.route('/<int:budget_id>/item/<int:item_id>/copy', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def copy_item(budget_id, item_id):
+    """复制预算明细项目"""
+    try:
+        budget = BudgetHeader.query.get_or_404(budget_id)
+        item = BudgetItem.query.get_or_404(item_id)
+
+        if item.header_id != budget_id:
+            return jsonify({'success': False, 'error': '项目不属于此预算单'}), 400
+
+        # 获取最大排序号
+        max_order = db.session.query(db.func.max(BudgetItem.sort_order)).filter_by(header_id=budget_id).scalar() or 0
+
+        # 复制所有字段
+        new_item = BudgetItem(
+            header_id=budget_id,
+            category=item.category,
+            item_name=item.item_name + '（副本）',
+            item_details=item.item_details,
+            pricing_method=item.pricing_method,
+            item_unit_price=item.item_unit_price,
+            item_quantity=item.item_quantity,
+            adult_price=item.adult_price,
+            child_price=item.child_price,
+            count_adult_apply=item.count_adult_apply,
+            count_child_apply=item.count_child_apply,
+            adult_count_override=item.adult_count_override,
+            child_count_override=item.child_count_override,
+            total_override=item.total_override,
+            sort_order=max_order + 1,
+            tax_rate=item.tax_rate,
+            tax_amount=item.tax_amount,
+            is_optional=item.is_optional,
+            remarks=item.remarks,
+        )
+
+        db.session.add(new_item)
+        db.session.commit()
+
+        flash('项目复制成功！', 'success')
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error in copy item: {e}")
+        return jsonify({'success': False, 'error': '复制失败'}), 500
+
+
 @package_budget.route('/<int:budget_id>/duplicate', methods=['POST'])
 @login_required
 @staff_only

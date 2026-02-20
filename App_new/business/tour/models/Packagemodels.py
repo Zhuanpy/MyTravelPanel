@@ -293,6 +293,17 @@ class ProductPriceVariant(db.Model):
     single_room_supplement = db.Column(db.Float, nullable=True, comment='单房差')
     
     currency = db.Column(db.String(10), default='SGD', comment='货币单位')
+
+    # 成本价格
+    cost_single_price = db.Column(db.Float, nullable=True, comment='Single成本')
+    cost_twin_price = db.Column(db.Float, nullable=True, comment='Twin成本')
+    cost_third_pax_price = db.Column(db.Float, nullable=True, comment='3rd Pax成本')
+    cost_child_no_bed_price = db.Column(db.Float, nullable=True, comment='Child no Bed成本')
+
+    # 利润设置
+    profit_per_person = db.Column(db.Float, nullable=True, comment='每人利润金额')
+
+    is_primary = db.Column(db.Boolean, default=False, comment='是否主要价格')
     is_active = db.Column(db.Boolean, default=True, comment='是否激活')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
@@ -321,6 +332,12 @@ class ProductPriceVariant(db.Model):
             'infant_price': self.infant_price,
             'single_room_supplement': self.single_room_supplement,
             'currency': self.currency,
+            'cost_single_price': self.cost_single_price,
+            'cost_twin_price': self.cost_twin_price,
+            'cost_third_pax_price': self.cost_third_pax_price,
+            'cost_child_no_bed_price': self.cost_child_no_bed_price,
+            'profit_per_person': self.profit_per_person,
+            'is_primary': self.is_primary,
             'is_active': self.is_active,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None

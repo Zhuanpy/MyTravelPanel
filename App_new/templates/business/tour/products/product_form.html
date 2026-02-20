@@ -545,24 +545,47 @@
                     <thead>
                         <tr>
                             <th>变体名称</th>
-                            <th>Single</th>
-                            <th>Twin</th>
-                            <th>3rd Pax</th>
-                            <th>Child no Bed</th>
+                            <th style="text-align:right;">成本(Twin)</th>
+                            <th style="text-align:right;">利润/人</th>
+                            <th style="text-align:right;">售价(Twin)</th>
                             <th>货币</th>
+                            <th>主要</th>
                             <th>状态</th>
                             <th style="width: 120px;">操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for variant in price_variants %}
-                        <tr>
-                            <td><strong>{{ variant.variant_name }}</strong></td>
-                            <td>{{ variant.single_price or '-' }}</td>
-                            <td>{{ variant.twin_price or '-' }}</td>
-                            <td>{{ variant.third_pax_price or '-' }}</td>
-                            <td>{{ variant.child_no_bed_price or '-' }}</td>
+                        <tr{% if variant.is_primary %} style="background: #fffbeb;"{% endif %}>
+                            <td>
+                                <strong>{{ variant.variant_name }}</strong>
+                                {% if variant.is_primary %}
+                                <span class="visa-badge visa-badge-warning" style="margin-left: 4px;">主要</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if variant.cost_twin_price %}
+                                <span style="color: #dc2626;">{{ "%.0f"|format(variant.cost_twin_price) }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if variant.profit_per_person %}
+                                <span style="color: #059669;">+{{ "%.0f"|format(variant.profit_per_person) }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if variant.twin_price %}
+                                <strong style="color: #2563eb;">{{ "%.0f"|format(variant.twin_price) }}</strong>
+                                {% else %}-{% endif %}
+                            </td>
                             <td>{{ variant.currency }}</td>
+                            <td>
+                                {% if variant.is_primary %}
+                                <span class="visa-badge visa-badge-warning">★ 主要</span>
+                                {% else %}
+                                <span class="visa-badge visa-badge-secondary" style="cursor:pointer;" onclick="setPrimaryVariant({{ variant.id }})" title="设为主要价格">—</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if variant.is_active %}
                                 <span class="visa-badge visa-badge-success">启用</span>
@@ -660,32 +683,75 @@
                     </div>
                 </div>
                 
-                <!-- 房型价格表格 -->
-                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <!-- 房型成本 -->
+                <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
                     <label class="visa-form-label" style="margin-bottom: 0.75rem; display: block;">
-                        <i class="fas fa-bed" style="color: #0ea5e9;"></i> 房型价格
+                        <i class="fas fa-file-invoice-dollar" style="color: #dc2626;"></i> 房型成本（供应商价格）
                     </label>
                     <div class="visa-grid-4">
                         <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Single 单人房</label>
-                            <input type="number" step="0.01" id="singlePrice" name="single_price" class="visa-form-control" placeholder="378">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">Single 成本</label>
+                            <input type="number" step="0.01" id="costSinglePrice" name="cost_single_price" class="visa-form-control cost-input" placeholder="300">
                         </div>
                         <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Twin 双人房</label>
-                            <input type="number" step="0.01" id="twinPrice" name="twin_price" class="visa-form-control" placeholder="304">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">Twin 成本</label>
+                            <input type="number" step="0.01" id="costTwinPrice" name="cost_twin_price" class="visa-form-control cost-input" placeholder="250">
                         </div>
                         <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">3rd Pax 第三人</label>
-                            <input type="number" step="0.01" id="thirdPaxPrice" name="third_pax_price" class="visa-form-control" placeholder="304">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">3rd Pax 成本</label>
+                            <input type="number" step="0.01" id="costThirdPaxPrice" name="cost_third_pax_price" class="visa-form-control cost-input" placeholder="250">
                         </div>
                         <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Child no Bed 儿童不占床</label>
-                            <input type="number" step="0.01" id="childNoBedPrice" name="child_no_bed_price" class="visa-form-control" placeholder="239">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">Child no Bed 成本</label>
+                            <input type="number" step="0.01" id="costChildNoBedPrice" name="cost_child_no_bed_price" class="visa-form-control cost-input" placeholder="180">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 每人利润 -->
+                <div style="background: #ecfdf5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <div class="visa-grid-2" style="align-items: end;">
+                        <div class="visa-form-group" style="margin-bottom: 0;">
+                            <label class="visa-form-label">
+                                <i class="fas fa-chart-line" style="color: #059669;"></i> 每人利润
+                            </label>
+                            <input type="number" step="0.01" id="profitPerPerson" name="profit_per_person" class="visa-form-control" placeholder="50" style="max-width: 200px;">
+                            <small style="color: var(--visa-text-muted);">填入后自动计算售价 = 成本 + 利润</small>
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <button type="button" class="visa-btn visa-btn-sm" style="background: #059669; color: white;" onclick="calculateSellingPrices()">
+                                <i class="fas fa-calculator"></i> 计算售价
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 房型售价 -->
+                <div style="background: #eff6ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <label class="visa-form-label" style="margin-bottom: 0.75rem; display: block;">
+                        <i class="fas fa-tag" style="color: #2563eb;"></i> 房型售价（可手动修改）
+                    </label>
+                    <div class="visa-grid-4">
+                        <div class="visa-form-group">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">Single 售价</label>
+                            <input type="number" step="0.01" id="singlePrice" name="single_price" class="visa-form-control selling-input" placeholder="378">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">Twin 售价</label>
+                            <input type="number" step="0.01" id="twinPrice" name="twin_price" class="visa-form-control selling-input" placeholder="304">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">3rd Pax 售价</label>
+                            <input type="number" step="0.01" id="thirdPaxPrice" name="third_pax_price" class="visa-form-control selling-input" placeholder="304">
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label" style="font-size: 0.8rem;">Child no Bed 售价</label>
+                            <input type="number" step="0.01" id="childNoBedPrice" name="child_no_bed_price" class="visa-form-control selling-input" placeholder="239">
                         </div>
                     </div>
                 </div>
                 
-                <div class="visa-grid-2">
+                <div class="visa-grid-3">
                     <div class="visa-form-group">
                         <label class="visa-form-label">货币</label>
                         <select id="variantCurrency" name="currency" class="visa-form-select">
@@ -695,6 +761,14 @@
                             <option value="MYR">MYR</option>
                             <option value="THB">THB</option>
                         </select>
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">主要价格</label>
+                        <select id="isPrimary" name="is_primary" class="visa-form-select">
+                            <option value="0">否</option>
+                            <option value="1">是</option>
+                        </select>
+                        <small style="color: var(--visa-text-muted);">设为主要价格后，其他页面引用此价格</small>
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">状态</label>
@@ -1050,6 +1124,7 @@ function showAddPriceVariantModal() {
     document.getElementById('variantId').value = '';
     document.getElementById('priceVariantForm').reset();
     document.getElementById('variantCurrency').value = 'SGD';
+    document.getElementById('isPrimary').value = '0';
     document.getElementById('isActive').value = '1';
     showModal('priceVariantModal');
 }
@@ -1071,12 +1146,20 @@ function editPriceVariant(id) {
             document.getElementById('endDate').value = formatDate(v.end_date);
             document.getElementById('minPax').value = v.min_pax || '';
             document.getElementById('maxPax').value = v.max_pax || '';
-            // 房型价格
+            // 成本价格
+            document.getElementById('costSinglePrice').value = v.cost_single_price || '';
+            document.getElementById('costTwinPrice').value = v.cost_twin_price || '';
+            document.getElementById('costThirdPaxPrice').value = v.cost_third_pax_price || '';
+            document.getElementById('costChildNoBedPrice').value = v.cost_child_no_bed_price || '';
+            // 利润
+            document.getElementById('profitPerPerson').value = v.profit_per_person || '';
+            // 房型售价
             document.getElementById('singlePrice').value = v.single_price || '';
             document.getElementById('twinPrice').value = v.twin_price || '';
             document.getElementById('thirdPaxPrice').value = v.third_pax_price || '';
             document.getElementById('childNoBedPrice').value = v.child_no_bed_price || '';
             document.getElementById('variantCurrency').value = v.currency || 'SGD';
+            document.getElementById('isPrimary').value = v.is_primary ? '1' : '0';
             document.getElementById('isActive').value = v.is_active ? '1' : '0';
             showModal('priceVariantModal');
         } else {
@@ -1111,10 +1194,18 @@ function copyPriceVariant(id) {
             document.getElementById('endDate').value = formatDate(v.end_date);
             document.getElementById('minPax').value = v.min_pax || '';
             document.getElementById('maxPax').value = v.max_pax || '';
-            document.getElementById('adultPrice').value = v.adult_price;
-            document.getElementById('childPrice').value = v.child_price || '';
-            document.getElementById('infantPrice').value = v.infant_price || '';
-            document.getElementById('singleSupplement').value = v.single_room_supplement || '';
+            // 成本价格
+            document.getElementById('costSinglePrice').value = v.cost_single_price || '';
+            document.getElementById('costTwinPrice').value = v.cost_twin_price || '';
+            document.getElementById('costThirdPaxPrice').value = v.cost_third_pax_price || '';
+            document.getElementById('costChildNoBedPrice').value = v.cost_child_no_bed_price || '';
+            // 利润
+            document.getElementById('profitPerPerson').value = v.profit_per_person || '';
+            // 售价
+            document.getElementById('singlePrice').value = v.single_price || '';
+            document.getElementById('twinPrice').value = v.twin_price || '';
+            document.getElementById('thirdPaxPrice').value = v.third_pax_price || '';
+            document.getElementById('childNoBedPrice').value = v.child_no_bed_price || '';
             document.getElementById('variantCurrency').value = v.currency || 'SGD';
             document.getElementById('isActive').value = v.is_active ? '1' : '0';
             showModal('priceVariantModal');
@@ -1201,6 +1292,66 @@ function closePriceVariantModal() {
 
     document.getElementById('priceVariantModal').style.display = 'none';
 }
+
+// 计算售价 = 成本 + 每人利润
+function calculateSellingPrices() {
+    const profit = parseFloat(document.getElementById('profitPerPerson').value) || 0;
+    if (profit === 0) {
+        alert('请先填写每人利润');
+        return;
+    }
+
+    const costFields = [
+        { cost: 'costSinglePrice', sell: 'singlePrice' },
+        { cost: 'costTwinPrice', sell: 'twinPrice' },
+        { cost: 'costThirdPaxPrice', sell: 'thirdPaxPrice' },
+        { cost: 'costChildNoBedPrice', sell: 'childNoBedPrice' },
+    ];
+
+    let updated = 0;
+    costFields.forEach(({ cost, sell }) => {
+        const costVal = parseFloat(document.getElementById(cost).value);
+        if (costVal) {
+            document.getElementById(sell).value = (costVal + profit).toFixed(2);
+            updated++;
+        }
+    });
+
+    if (updated === 0) {
+        alert('请先填写至少一个成本价格');
+    }
+}
+
+// 成本或利润变化时，自动计算售价（仅当售价为空时）
+function autoCalcIfEmpty() {
+    const profit = parseFloat(document.getElementById('profitPerPerson').value) || 0;
+    if (profit === 0) return;
+
+    const costFields = [
+        { cost: 'costSinglePrice', sell: 'singlePrice' },
+        { cost: 'costTwinPrice', sell: 'twinPrice' },
+        { cost: 'costThirdPaxPrice', sell: 'thirdPaxPrice' },
+        { cost: 'costChildNoBedPrice', sell: 'childNoBedPrice' },
+    ];
+
+    costFields.forEach(({ cost, sell }) => {
+        const costVal = parseFloat(document.getElementById(cost).value);
+        const sellEl = document.getElementById(sell);
+        // 仅当售价为空时自动填充
+        if (costVal && !sellEl.value) {
+            sellEl.value = (costVal + profit).toFixed(2);
+        }
+    });
+}
+
+// 绑定自动计算事件
+document.addEventListener('DOMContentLoaded', function() {
+    const costIds = ['costSinglePrice', 'costTwinPrice', 'costThirdPaxPrice', 'costChildNoBedPrice', 'profitPerPerson'];
+    costIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', autoCalcIfEmpty);
+    });
+});
 
 // ========================================
 // 行程管理功能
