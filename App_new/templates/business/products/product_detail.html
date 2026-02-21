@@ -11,6 +11,10 @@
     <a href="{{ url_for('products.edit_visa', product_id=product.id) }}" class="btn btn-primary btn-sm">
         <i class="fas fa-edit me-1"></i> 编辑
     </a>
+    {% elif product.product_category == 'ticket' %}
+    <a href="{{ url_for('products.edit_ticket', product_id=product.id) }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-edit me-1"></i> 编辑
+    </a>
     {% elif product.product_category == 'tour' and product.ext_table_id %}
     <a href="{{ url_for('tour_products.edit_product', product_id=product.ext_table_id) }}" class="btn btn-primary btn-sm">
         <i class="fas fa-edit me-1"></i> 编辑
@@ -199,6 +203,87 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- 门票扩展信息（仅ticket类型显示） -->
+    {% if product.product_category == 'ticket' and product.ticket_ext %}
+    {% set te = product.ticket_ext %}
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0"><i class="fas fa-building me-2"></i>场馆信息</h6>
+        </div>
+        <div class="card-body py-2">
+            <div class="row small">
+                {% if te.venue_name %}
+                <div class="col-md-4 mb-2">
+                    <span class="text-muted">场馆名称：</span>{{ te.venue_name }}
+                </div>
+                {% endif %}
+                {% if te.venue_address %}
+                <div class="col-md-8 mb-2">
+                    <span class="text-muted">场馆地址：</span>{{ te.venue_address }}
+                </div>
+                {% endif %}
+                {% if te.ticket_type %}
+                <div class="col-md-4 mb-2">
+                    <span class="text-muted">门票类型：</span>{{ te.ticket_type }}
+                </div>
+                {% endif %}
+                {% if te.opening_hours %}
+                <div class="col-md-4 mb-2">
+                    <span class="text-muted">开放时间：</span>{{ te.opening_hours }}
+                </div>
+                {% endif %}
+                {% if te.duration_minutes %}
+                <div class="col-md-4 mb-2">
+                    <span class="text-muted">建议时长：</span>{{ te.duration_minutes }}分钟
+                </div>
+                {% endif %}
+                {% if te.delivery_type %}
+                <div class="col-md-4 mb-2">
+                    <span class="text-muted">取票方式：</span>{{ te.delivery_type }}
+                </div>
+                {% endif %}
+                {% if te.entry_method %}
+                <div class="col-md-4 mb-2">
+                    <span class="text-muted">入园方式：</span>{{ te.entry_method }}
+                </div>
+                {% endif %}
+                {% if te.need_reservation %}
+                <div class="col-md-4 mb-2">
+                    <span class="badge bg-warning text-dark">需要预约</span>
+                </div>
+                {% endif %}
+            </div>
+            {% if te.age_limit or te.height_limit or te.health_requirement %}
+            <hr class="my-2">
+            <div class="row small">
+                {% if te.age_limit %}
+                <div class="col-md-4 mb-1">
+                    <span class="text-muted">年龄限制：</span>{{ te.age_limit }}
+                </div>
+                {% endif %}
+                {% if te.height_limit %}
+                <div class="col-md-4 mb-1">
+                    <span class="text-muted">身高限制：</span>{{ te.height_limit }}
+                </div>
+                {% endif %}
+                {% if te.health_requirement %}
+                <div class="col-md-4 mb-1">
+                    <span class="text-muted">健康要求：</span>{{ te.health_requirement }}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if te.tips %}
+            <hr class="my-2">
+            <div class="small">
+                <span class="text-muted">游玩攻略：</span>
+                <div class="bg-info bg-opacity-10 p-2 rounded mt-1">{{ te.tips | safe }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 价格信息 -->
     {% if prices %}

@@ -290,7 +290,7 @@
                     <!-- 公司地址 -->
                     <div class="visa-form-group">
                         <label class="visa-form-label">{{ form.address.label.text }}</label>
-                        {{ form.address(class="visa-form-control", rows=3) }}
+                        {{ form.address(class="visa-form-control", rows=1) }}
                         {% if form.address.errors %}
                             <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
                                 {% for error in form.address.errors %}

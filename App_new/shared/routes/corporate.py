@@ -383,7 +383,6 @@ def edit_company(company_id):
             company.region = request.form.get('region', '').strip() or None
 
             db.session.commit()
-            flash('公司更新成功！', 'success')
             return redirect(url_for('corporate.list_companies'))
         except Exception as e:
             db.session.rollback()

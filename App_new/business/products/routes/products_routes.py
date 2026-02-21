@@ -17,6 +17,7 @@ from App_new.business.products.models import (
     PeopleType,
 )
 from App_new.business.products.models.products_visa_ext import ProductsVisaExt
+from App_new.business.products.models.products_ticket_ext import ProductsTicketExt, TicketType, TicketDelivery
 from App_new.business.products.services.visa_sync_service import VisaSyncService
 from App_new.business.visa.models.Visamodels import VisaTypes, VisaCountries, VisaSingaporeIdentity, VisaDocuments
 
@@ -149,6 +150,8 @@ def create_by_category(category):
         return redirect(url_for('tour_products.add_product'))
     elif category == ProductCategory.VISA:
         return redirect(url_for('products.create_visa'))
+    elif category == ProductCategory.TICKET:
+        return redirect(url_for('products.create_ticket'))
     elif category == ProductCategory.FLIGHT:
         return redirect(url_for('flight_home.flight_home_page'))
 
@@ -554,3 +557,222 @@ def edit_visa(product_id):
         singapore_identities=singapore_identities,
         current_identity_ids=current_identity_ids,
     )
+
+
+# ========== 景点门票产品管理 ==========
+
+def _get_ticket_form_context():
+    """获取门票表单通用上下文"""
+    return {
+        'ticket_types': TicketType.CHOICES,
+        'delivery_types': TicketDelivery.CHOICES,
+        'people_types': PeopleType.CHOICES,
+    }
+
+
+def _save_ticket_prices(product_id, form):
+    """保存门票价格数据"""
+    people_types = form.getlist('price_people_type[]')
+    costs = form.getlist('price_cost[]')
+    sellings = form.getlist('price_selling[]')
+    originals = form.getlist('price_original[]')
+    price_ids = form.getlist('price_id[]')
+
+    # 收集提交的已有价格ID
+    submitted_ids = set()
+    for pid in price_ids:
+        if pid:
+            submitted_ids.add(int(pid))
+
+    # 删除被移除的价格行
+    existing_prices = ProductsPrice.query.filter_by(product_id=product_id).all()
+    for ep in existing_prices:
+        if ep.id not in submitted_ids:
+            db.session.delete(ep)
+
+    # 更新或创建价格
+    for i in range(len(people_types)):
+        selling_val = sellings[i].strip() if i < len(sellings) else ''
+        if not selling_val:
+            continue
+
+        cost_val = costs[i].strip() if i < len(costs) else ''
+        original_val = originals[i].strip() if i < len(originals) else ''
+        price_id = price_ids[i].strip() if i < len(price_ids) else ''
+
+        if price_id:
+            # 更新已有价格
+            price = ProductsPrice.query.get(int(price_id))
+            if price:
+                price.people_type = people_types[i]
+                price.cost_price = float(cost_val) if cost_val else None
+                price.selling_price = float(selling_val)
+                price.original_price = float(original_val) if original_val else None
+        else:
+            # 新建价格
+            price = ProductsPrice(
+                product_id=product_id,
+                price_type='standard',
+                people_type=people_types[i],
+                cost_price=float(cost_val) if cost_val else None,
+                selling_price=float(selling_val),
+                original_price=float(original_val) if original_val else None,
+                currency='SGD',
+                is_active=True,
+            )
+            db.session.add(price)
+
+
+@products_bp.route('/ticket/create', methods=['GET', 'POST'])
+@login_required
+def create_ticket():
+    """创建景点门票产品"""
+    if request.method == 'POST':
+        try:
+            product_name = request.form.get('product_name')
+            if not product_name:
+                flash('请填写景点名称', 'error')
+                return redirect(url_for('products.create_ticket'))
+
+            # 生成产品编号
+            product_code = ProductsUnified.generate_product_code(ProductCategory.TICKET)
+
+            # 创建主产品
+            product = ProductsUnified(
+                product_code=product_code,
+                product_name=product_name,
+                product_short_name=request.form.get('product_short_name'),
+                product_category=ProductCategory.TICKET,
+                product_status='draft',
+                country=request.form.get('country'),
+                city=request.form.get('city'),
+                currency='SGD',
+                description=request.form.get('description'),
+                includes=request.form.get('includes'),
+                excludes=request.form.get('excludes'),
+                important_notes=request.form.get('important_notes'),
+                created_by=current_user.username if current_user else None,
+            )
+            db.session.add(product)
+            db.session.flush()  # 获取 product.id
+
+            # 创建门票扩展信息
+            ticket_ext = ProductsTicketExt(
+                product_id=product.id,
+                ticket_type=request.form.get('ticket_type'),
+                venue_name=request.form.get('venue_name'),
+                venue_address=request.form.get('venue_address'),
+                opening_hours=request.form.get('opening_hours'),
+                duration_minutes=request.form.get('duration_minutes', type=int),
+                delivery_type=request.form.get('delivery_type', 'e_ticket'),
+                entry_method=request.form.get('entry_method'),
+                tips=request.form.get('tips'),
+                age_limit=request.form.get('age_limit'),
+                height_limit=request.form.get('height_limit'),
+                health_requirement=request.form.get('health_requirement'),
+                need_reservation=request.form.get('need_reservation') == 'on',
+            )
+            db.session.add(ticket_ext)
+            db.session.flush()  # 获取 ticket_ext.id
+
+            # 回填扩展表ID
+            product.ext_table_id = ticket_ext.id
+
+            # 保存价格
+            _save_ticket_prices(product.id, request.form)
+
+            # 设置 base_price 为成人售价
+            adult_price = ProductsPrice.query.filter_by(
+                product_id=product.id, people_type='adult'
+            ).first()
+            if adult_price:
+                product.base_price = adult_price.selling_price
+                product.cost_price = adult_price.cost_price
+
+            db.session.commit()
+            flash('门票产品创建成功', 'success')
+            return redirect(url_for('products.detail', product_id=product.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'创建失败: {str(e)}', 'error')
+            return redirect(url_for('products.create_ticket'))
+
+    # GET 请求
+    context = _get_ticket_form_context()
+    context.update({
+        'product': None,
+        'ticket_ext': None,
+        'prices': [],
+        'mode': 'create',
+    })
+    return render_template('business/products/ticket/create_ticket_product.html', **context)
+
+
+@products_bp.route('/ticket/edit/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_ticket(product_id):
+    """编辑景点门票产品"""
+    product = ProductsUnified.query.get_or_404(product_id)
+    ticket_ext = ProductsTicketExt.query.filter_by(product_id=product_id).first()
+
+    if request.method == 'POST':
+        try:
+            # 更新主产品
+            product.product_name = request.form.get('product_name')
+            product.product_short_name = request.form.get('product_short_name')
+            product.country = request.form.get('country')
+            product.city = request.form.get('city')
+            product.description = request.form.get('description')
+            product.includes = request.form.get('includes')
+            product.excludes = request.form.get('excludes')
+            product.important_notes = request.form.get('important_notes')
+            product.updated_by = current_user.username if current_user else None
+
+            # 更新或创建门票扩展
+            if not ticket_ext:
+                ticket_ext = ProductsTicketExt(product_id=product_id)
+                db.session.add(ticket_ext)
+
+            ticket_ext.ticket_type = request.form.get('ticket_type')
+            ticket_ext.venue_name = request.form.get('venue_name')
+            ticket_ext.venue_address = request.form.get('venue_address')
+            ticket_ext.opening_hours = request.form.get('opening_hours')
+            ticket_ext.duration_minutes = request.form.get('duration_minutes', type=int)
+            ticket_ext.delivery_type = request.form.get('delivery_type', 'e_ticket')
+            ticket_ext.entry_method = request.form.get('entry_method')
+            ticket_ext.tips = request.form.get('tips')
+            ticket_ext.age_limit = request.form.get('age_limit')
+            ticket_ext.height_limit = request.form.get('height_limit')
+            ticket_ext.health_requirement = request.form.get('health_requirement')
+            ticket_ext.need_reservation = request.form.get('need_reservation') == 'on'
+
+            # 保存价格
+            _save_ticket_prices(product_id, request.form)
+
+            # 更新 base_price 为成人售价
+            adult_price = ProductsPrice.query.filter_by(
+                product_id=product_id, people_type='adult'
+            ).first()
+            if adult_price:
+                product.base_price = adult_price.selling_price
+                product.cost_price = adult_price.cost_price
+
+            db.session.commit()
+            flash('门票产品更新成功', 'success')
+            return redirect(url_for('products.detail', product_id=product.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新失败: {str(e)}', 'error')
+
+    # GET 请求
+    prices = ProductsPrice.query.filter_by(product_id=product_id).order_by(ProductsPrice.id).all()
+    context = _get_ticket_form_context()
+    context.update({
+        'product': product,
+        'ticket_ext': ticket_ext,
+        'prices': prices,
+        'mode': 'edit',
+    })
+    return render_template('business/products/ticket/create_ticket_product.html', **context)
