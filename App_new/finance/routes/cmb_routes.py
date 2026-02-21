@@ -72,7 +72,7 @@ def cmb_bank():
         statements_query = statements_query.filter(
             BankStatement.account_name == filters['account_name']
         )
-    statements = statements_query.order_by(desc(BankStatement.statement_number)).limit(10).all()
+    statements = statements_query.order_by(desc(BankStatement.period_start)).limit(10).all()
     
     # 更新每个对账单的状态（基于交易确认状态）
     for statement in statements:

@@ -232,25 +232,35 @@ def upload_file(bank_name):
         # 根据文件扩展名选择读取方式
         try:
             if file.filename.lower().endswith('.csv'):
-                # 读取CSV文件
+                # 读取CSV文件 - 自动检测分隔符（逗号或Tab）
                 print(f"读取CSV文件: {file.filename}")
+
+                def read_csv_auto_sep(content, encoding='utf-8'):
+                    """自动检测CSV分隔符并读取"""
+                    # 先用逗号尝试读取
+                    df_comma = pd.read_csv(io.BytesIO(content), encoding=encoding, nrows=2)
+                    # 如果只有1列，可能是Tab分隔
+                    if df_comma.shape[1] <= 2:
+                        df_tab = pd.read_csv(io.BytesIO(content), encoding=encoding, sep='\t')
+                        if df_tab.shape[1] > df_comma.shape[1]:
+                            print(f"检测到Tab分隔符，列数: {df_tab.shape[1]}")
+                            return df_tab
+                    print(f"使用逗号分隔符，列数: {df_comma.shape[1]}")
+                    return pd.read_csv(io.BytesIO(content), encoding=encoding)
+
                 try:
-                    # 首先尝试UTF-8编码
-                    df = pd.read_csv(io.BytesIO(file_content), encoding='utf-8')
+                    df = read_csv_auto_sep(file_content, encoding='utf-8')
                     print("使用UTF-8编码读取CSV成功")
                 except UnicodeDecodeError:
                     try:
-                        # 如果UTF-8失败，尝试GBK编码
-                        df = pd.read_csv(io.BytesIO(file_content), encoding='gbk')
+                        df = read_csv_auto_sep(file_content, encoding='gbk')
                         print("使用GBK编码读取CSV成功")
                     except UnicodeDecodeError:
                         try:
-                            # 如果GBK也失败，尝试GB2312编码
-                            df = pd.read_csv(io.BytesIO(file_content), encoding='gb2312')
+                            df = read_csv_auto_sep(file_content, encoding='gb2312')
                             print("使用GB2312编码读取CSV成功")
                         except UnicodeDecodeError:
-                            # 最后尝试latin-1编码
-                            df = pd.read_csv(io.BytesIO(file_content), encoding='latin-1')
+                            df = read_csv_auto_sep(file_content, encoding='latin-1')
                             print("使用latin-1编码读取CSV成功")
             else:
                 # 读取Excel文件
@@ -320,19 +330,22 @@ def upload_file(bank_name):
                 col_lower = str(col).lower().strip()
                 print(f"检查列: '{col}' -> '{col_lower}'")
                 
-                # 日期列识别 - 优先级顺序很重要
-                if any(keyword in col_lower for keyword in ['statement value date', 'statement date', 'post date']):
+                # 日期列识别 - 优先使用Post Date（实际交易日期），只取第一个匹配
+                if not date_col and any(keyword in col_lower for keyword in ['post date']):
+                    date_col = col
+                    print(f"找到日期列(Post Date): {col}")
+                elif not date_col and any(keyword in col_lower for keyword in ['statement value date', 'statement date']):
                     date_col = col
                     print(f"找到日期列: {col}")
-                elif any(keyword in col_lower for keyword in ['date', '日期', 'transaction date', '交易日期']):
+                elif not date_col and any(keyword in col_lower for keyword in ['date', '日期', 'transaction date', '交易日期']):
                     date_col = col
                     print(f"找到日期列: {col}")
                 
-                # 描述列识别
-                elif any(keyword in col_lower for keyword in ['for account statement', 'our ref', 'supplementary details']):
+                # 描述列识别 - 只取第一个匹配
+                elif not desc_col and any(keyword in col_lower for keyword in ['supplementary details', 'for account statement']):
                     desc_col = col
                     print(f"找到描述列: {col}")
-                elif any(keyword in col_lower for keyword in ['description', '描述', 'transaction description', '交易描述', '摘要']):
+                elif not desc_col and any(keyword in col_lower for keyword in ['description', '描述', 'transaction description', '交易描述', '摘要']):
                     desc_col = col
                     print(f"找到描述列: {col}")
                 
