@@ -65,11 +65,15 @@
                             {% endif %}
                         </div>
                         <div class="btn-group btn-group-sm">
-                            <a href="{{ url_for('business_projects.detail.edit_email_template', template_id=template.id) }}" 
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="copyTemplate({{ template.id }})" title="复制">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <a href="{{ url_for('business_projects.detail.edit_email_template', template_id=template.id) }}"
                                class="btn btn-outline-primary" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <button type="button" class="btn btn-outline-danger" 
+                            <button type="button" class="btn btn-outline-danger"
                                     onclick="deleteTemplate({{ template.id }}, '{{ template.name }}')" title="删除">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -105,6 +109,12 @@
 </form>
 
 <script>
+function copyTemplate(id) {
+    const form = document.getElementById('deleteForm');
+    form.action = `/projects/detail/email/templates/${id}/copy`;
+    form.submit();
+}
+
 function deleteTemplate(id, name) {
     if (confirm(`确定要删除模板 "${name}" 吗？此操作不可撤销。`)) {
         const form = document.getElementById('deleteForm');

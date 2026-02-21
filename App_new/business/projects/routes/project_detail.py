@@ -1029,7 +1029,7 @@ def edit_email_template(template_id):
             template.category = request.form.get('category')
             template.is_active = request.form.get('is_active') == '1'
             db.session.commit()
-            flash('模板更新成功！', 'success')
+            pass
             return redirect(url_for('business_projects.detail.email_templates_list'))
         except Exception as e:
             db.session.rollback()
@@ -1056,6 +1056,33 @@ def delete_email_template(template_id):
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
+
+    return redirect(url_for('business_projects.detail.email_templates_list'))
+
+
+@bp.route('/email/templates/<int:template_id>/copy', methods=['POST'])
+@login_required
+@staff_only
+def copy_email_template(template_id):
+    """复制邮件模板"""
+    from App_new.business.projects.models.project import EmailTemplate
+
+    template = EmailTemplate.query.get_or_404(template_id)
+    try:
+        new_template = EmailTemplate(
+            name=template.name + ' (副本)',
+            subject=template.subject,
+            body=template.body,
+            category=template.category,
+            is_active=template.is_active,
+            created_by=current_user.username if current_user.is_authenticated else 'system'
+        )
+        db.session.add(new_template)
+        db.session.commit()
+        pass
+    except Exception as e:
+        db.session.rollback()
+        flash(f'复制失败：{str(e)}', 'error')
 
     return redirect(url_for('business_projects.detail.email_templates_list'))
 

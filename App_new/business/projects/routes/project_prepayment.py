@@ -267,9 +267,18 @@ def prepayment_detail(prepayment_id):
         PrepaymentUsage.usage_date.desc()
     ).all()
 
+    # 获取供应商邮箱
+    supplier_email = ''
+    if prepayment.supplier and prepayment.supplier.contact_email:
+        email = prepayment.supplier.contact_email.strip()
+        # 排除特殊值
+        if email.lower() not in ['n/a', 'none', '无', 'na', 'null', '']:
+            supplier_email = email
+
     return render_template('business/projects/prepayment/detail.html',
                            prepayment=prepayment,
-                           usages=usages)
+                           usages=usages,
+                           supplier_email=supplier_email)
 
 
 @project_prepayment.route('/<int:prepayment_id>/confirm', methods=['POST'])
@@ -531,3 +540,78 @@ def get_prepayment_summary():
         })
 
     return jsonify({'success': True, 'data': result})
+
+
+# ========== 邮件通知 ==========
+
+@project_prepayment.route('/<int:prepayment_id>/email/send', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def send_prepayment_email(prepayment_id):
+    """发送预付款邮件通知"""
+    try:
+        from flask import current_app
+        from flask_mail import Mail, Message
+        import logging
+
+        logger = logging.getLogger(__name__)
+        prepayment = SupplierPrepayment.query.get_or_404(prepayment_id)
+
+        data = request.get_json()
+        recipients_str = data.get('recipient', '').strip()
+        cc_str = data.get('cc', '').strip()
+        subject = data.get('subject', '').strip()
+        body = data.get('body', '').strip()
+
+        if not recipients_str:
+            return jsonify({'success': False, 'message': '请填写收件人邮箱'}), 400
+        if not subject:
+            return jsonify({'success': False, 'message': '请填写邮件主题'}), 400
+        if not body:
+            return jsonify({'success': False, 'message': '请填写邮件内容'}), 400
+
+        # 解析收件人（支持逗号/分号分隔多个邮箱）
+        import re
+        recipients = [e.strip() for e in re.split(r'[,;，；]', recipients_str) if e.strip()]
+        cc = [e.strip() for e in re.split(r'[,;，；]', cc_str) if e.strip()] if cc_str else []
+
+        # 检查邮件配置
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+
+        if not mail_server or not mail_username or not mail_password:
+            return jsonify({'success': False, 'message': '邮件服务器未配置，请联系管理员'}), 500
+
+        # 发送邮件
+        mail = Mail(current_app)
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or mail_username
+
+        # 将换行转为HTML
+        import html as html_module
+        escaped_body = html_module.escape(body)
+        html_body = escaped_body.replace('\n', '<br>')
+        html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
+
+        msg = Message(
+            subject=subject,
+            sender=sender_email,
+            recipients=recipients,
+            cc=cc if cc else None,
+            html=html_body
+        )
+
+        logger.info(f"预付款邮件发送 - 编号: {prepayment.prepayment_number}, 收件人: {recipients}")
+        mail.send(msg)
+        logger.info("预付款邮件发送成功")
+
+        return jsonify({
+            'success': True,
+            'message': f'邮件已发送至 {", ".join(recipients)}'
+        })
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"预付款邮件发送失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'发送失败: {str(e)}'}), 500

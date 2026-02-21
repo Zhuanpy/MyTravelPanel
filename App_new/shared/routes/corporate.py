@@ -196,10 +196,6 @@ def company_detail(company_id):
     """客户公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
 
-    # 记录访问详情页面的点击次数
-    company.increment_click_count()
-    db.session.commit()
-
     # 查询预付账款信息（只要有数据就显示）
     prepayment_stats = None
     prepayment_records = []
@@ -230,10 +226,15 @@ def company_detail(company_id):
             SupplierPrepayment.supplier_id == company_id
         ).order_by(SupplierPrepayment.created_at.desc()).limit(5).all()
 
+    # 查询关联账号
+    from App_new.shared.models.account import Account
+    linked_accounts = Account.query.filter_by(supplier_id=company_id).order_by(Account.platform).all()
+
     return render_template('shared/corporate/corporate_detail.html',
                            company=company,
                            prepayment_stats=prepayment_stats,
-                           prepayment_records=prepayment_records)
+                           prepayment_records=prepayment_records,
+                           linked_accounts=linked_accounts)
 
 
 @corporate.route('/<int:company_id>/initial-balance', methods=['POST'])
@@ -921,3 +922,116 @@ def update_file(company_id, file_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+# ==================== 邮件发送 ====================
+
+@corporate.route('/<int:company_id>/email/templates')
+@login_required
+@staff_only
+def get_email_templates(company_id):
+    """获取可用的邮件模板列表"""
+    try:
+        from App_new.business.projects.models.project import EmailTemplate
+        templates = EmailTemplate.query.filter_by(is_active=True).order_by(
+            EmailTemplate.category, EmailTemplate.name
+        ).all()
+        return jsonify({
+            'success': True,
+            'templates': [t.to_dict() for t in templates]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@corporate.route('/<int:company_id>/email/send', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def send_company_email(company_id):
+    """发送邮件给公司联系人（支持附件）"""
+    try:
+        from flask import current_app
+        from flask_mail import Mail, Message
+        import logging
+        import re
+        import mimetypes
+
+        logger = logging.getLogger(__name__)
+        company = CustomerCompany.query.get_or_404(company_id)
+
+        # 支持 FormData（含附件）和 JSON 两种格式
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            recipients_str = request.form.get('recipient', '').strip()
+            cc_str = request.form.get('cc', '').strip()
+            subject = request.form.get('subject', '').strip()
+            body = request.form.get('body', '').strip()
+            files = request.files.getlist('attachments')
+        else:
+            data = request.get_json()
+            recipients_str = data.get('recipient', '').strip()
+            cc_str = data.get('cc', '').strip()
+            subject = data.get('subject', '').strip()
+            body = data.get('body', '').strip()
+            files = []
+
+        if not recipients_str:
+            return jsonify({'success': False, 'message': '请填写收件人邮箱'}), 400
+        if not subject:
+            return jsonify({'success': False, 'message': '请填写邮件主题'}), 400
+        if not body:
+            return jsonify({'success': False, 'message': '请填写邮件内容'}), 400
+
+        # 解析收件人（支持逗号/分号分隔）
+        recipients = [e.strip() for e in re.split(r'[,;，；]', recipients_str) if e.strip()]
+        cc = [e.strip() for e in re.split(r'[,;，；]', cc_str) if e.strip()] if cc_str else []
+
+        # 检查邮件配置
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+
+        if not mail_server or not mail_username or not mail_password:
+            return jsonify({'success': False, 'message': '邮件服务器未配置，请联系管理员'}), 500
+
+        # 发送邮件
+        mail = Mail(current_app)
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or mail_username
+
+        # 将换行转为HTML
+        import html as html_module
+        escaped_body = html_module.escape(body)
+        html_body = escaped_body.replace('\n', '<br>')
+        html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
+
+        msg = Message(
+            subject=subject,
+            sender=sender_email,
+            recipients=recipients,
+            cc=cc if cc else None,
+            html=html_body
+        )
+
+        # 添加附件
+        att_count = 0
+        for f in files:
+            if f and f.filename:
+                mime_type, _ = mimetypes.guess_type(f.filename)
+                if not mime_type:
+                    mime_type = 'application/octet-stream'
+                msg.attach(f.filename, mime_type, f.read())
+                att_count += 1
+
+        logger.info(f"公司邮件发送 - 公司: {company.company_name}, 收件人: {recipients}, 附件: {att_count}")
+        mail.send(msg)
+        logger.info("公司邮件发送成功")
+
+        result_msg = f'邮件已发送至 {", ".join(recipients)}'
+        if att_count:
+            result_msg += f'，包含 {att_count} 个附件'
+
+        return jsonify({'success': True, 'message': result_msg})
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"公司邮件发送失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'发送失败: {str(e)}'}), 500

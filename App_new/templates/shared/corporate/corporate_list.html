@@ -213,11 +213,11 @@
                                 <td class="col-narrow" style="font-size: 0.78rem;">{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else '-' }}</td>
                                 <td class="col-narrow" style="white-space: nowrap;">
                                     <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
-                                       class="visa-btn visa-btn-sm visa-btn-primary" title="查看" style="padding: 2px 5px;">
+                                       class="visa-btn visa-btn-sm visa-btn-primary company-click" data-company-id="{{ company.id }}" title="查看" style="padding: 2px 5px;">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}"
-                                       class="visa-btn visa-btn-sm visa-btn-warning" title="编辑" style="padding: 2px 5px;">
+                                       class="visa-btn visa-btn-sm visa-btn-warning company-click" data-company-id="{{ company.id }}" title="编辑" style="padding: 2px 5px;">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" title="删除"
@@ -723,40 +723,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // 清除标识
         sessionStorage.removeItem('company_return_from_detail');
     }
-    const companyLinks = document.querySelectorAll('.company-link');
-    
-    companyLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
+    // 公司名称 + 查看/编辑按钮点击都记录点击次数
+    document.querySelectorAll('.company-link, .company-click').forEach(el => {
+        el.addEventListener('click', function() {
             const companyId = this.getAttribute('data-company-id');
-            
-            // 异步记录点击次数
+            // 异步记录点击，不阻止跳转
             fetch(`/company/api/click/${companyId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // 显示点击成功的提示
-                    showClickSuccess(companyId, data.click_count);
-                    
-                    // 延迟1秒后重新加载页面以更新排序
-                    setTimeout(() => {
-                        // 保存当前的搜索和筛选参数
-                        const currentUrl = new URL(window.location);
-                        const searchParams = currentUrl.search;
-                        
-                        // 重新加载页面
-                        window.location.href = currentUrl.pathname + searchParams;
-                    }, 1000);
-                }
-            })
-            .catch(error => {
-                console.error('记录点击次数失败:', error);
-                showClickError();
-            });
+                headers: { 'Content-Type': 'application/json' }
+            }).catch(() => {});
         });
     });
 });
