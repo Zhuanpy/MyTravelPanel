@@ -10,10 +10,6 @@
 
 {% block content %}
 <div class="visa-container">
-    <h1 class="visa-page-title">
-        <i class="fas fa-building"></i> 编辑公司信息
-    </h1>
-    
     <!-- 闪现消息 -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -93,8 +89,8 @@
                     <label for="address" class="visa-form-label">
                         <i class="fas fa-map-marker-alt"></i> 公司地址
                     </label>
-                    <textarea class="visa-form-control" id="address" name="address"
-                              rows="2" required>{{ company.address if company else '' }}</textarea>
+                    <input type="text" class="visa-form-control" id="address" name="address"
+                           value="{{ company.address if company else '' }}" required>
                 </div>
 
                 <div class="visa-grid-2">
@@ -175,7 +171,7 @@
                     <button type="submit" class="visa-btn visa-btn-primary">
                         <i class="fas fa-save"></i> 保存更改
                     </button>
-                    <a href="{{ url_for('product_details.tour_product_list') }}" class="visa-btn visa-btn-secondary">
+                    <a href="{{ url_for('own_company.company_info') }}" class="visa-btn visa-btn-secondary">
                         <i class="fas fa-arrow-left"></i> 返回
                     </a>
                 </div>

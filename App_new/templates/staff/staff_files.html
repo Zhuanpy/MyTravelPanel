@@ -4,9 +4,9 @@
 {% block page_title %}公司文件管理{% endblock %}
 
 {% block page_actions %}
-<a href="{{ url_for('staff.upload_file') }}" class="btn-upload">
+<button type="button" class="btn-upload" onclick="showUploadModal()">
     <i class="fas fa-cloud-upload-alt"></i> 上传文件
-</a>
+</button>
 {% endblock %}
 
 {% block extra_css %}
@@ -421,21 +421,182 @@
                 <i class="fas fa-folder-open"></i>
                 <h4>暂无文件</h4>
                 <p>还没有上传任何公司文件，点击上方按钮开始上传</p>
-                <a href="{{ url_for('staff.upload_file') }}" class="btn-upload">
+                <button type="button" class="btn-upload" onclick="showUploadModal()">
                     <i class="fas fa-cloud-upload-alt"></i> 上传第一个文件
-                </a>
+                </button>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- 删除确认 -->
+<!-- 上传文件弹窗 -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 560px;">
+        <div class="modal-content" style="border:none; border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,.15);">
+            <div class="modal-header py-2 px-3" style="border-bottom:1px solid #eee;">
+                <h6 class="modal-title mb-0"><i class="fas fa-cloud-upload-alt me-2 text-success"></i>上传文件</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-3 py-2">
+                <form method="POST" action="{{ url_for('staff.upload_file') }}" enctype="multipart/form-data" id="uploadForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                    <!-- 选择文件 -->
+                    <div class="mb-2">
+                        <label for="file" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">选择文件 <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control form-control-sm" id="upload_file_input" name="file" required
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+                        <small class="text-muted" style="font-size:0.75rem;">PDF / Word / Excel / 图片，最大 16MB</small>
+                    </div>
+
+                    <!-- 文件预览 -->
+                    <div class="mb-2" id="filePreview" style="display:none;">
+                        <div class="border rounded p-2 bg-light" id="previewContent" style="font-size:0.82rem;"></div>
+                    </div>
+
+                    <!-- 文件名 + 分类 -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-7">
+                            <label for="upload_filename" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">文件名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" id="upload_filename" name="filename" required placeholder="选择文件后自动填充">
+                        </div>
+                        <div class="col-5">
+                            <label for="upload_category" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">分类 <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="upload_category" name="category" required>
+                                <option value="">请选择</option>
+                                <option value="visa">签证材料</option>
+                                <option value="tour">旅游资料</option>
+                                <option value="flight">机票资料</option>
+                                <option value="hotel">酒店资料</option>
+                                <option value="document">文档资料</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 标签 + 权限 -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-7">
+                            <label for="upload_tags" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">标签</label>
+                            <input type="text" class="form-control form-control-sm" id="upload_tags" name="tags" placeholder="用逗号分隔">
+                        </div>
+                        <div class="col-5">
+                            <label for="upload_permission" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">访问权限</label>
+                            <select class="form-select form-select-sm" id="upload_permission" name="permission">
+                                <option value="public">公开</option>
+                                <option value="staff">仅员工</option>
+                                <option value="admin">仅管理员</option>
+                                <option value="private">私有</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 描述 -->
+                    <div class="mb-2">
+                        <label for="upload_desc" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">描述</label>
+                        <textarea class="form-control form-control-sm" id="upload_desc" name="description" rows="2" placeholder="文件描述（可选）"></textarea>
+                    </div>
+
+                    <!-- 上传进度 -->
+                    <div class="mb-2" id="uploadProgress" style="display:none;">
+                        <div class="progress" style="height:18px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width:0%">0%</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer py-2 px-3" style="border-top:1px solid #eee;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-sm btn-success" id="uploadSubmitBtn" onclick="submitUpload()">
+                    <i class="fas fa-upload me-1"></i>上传
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+/* 删除确认 */
 function deleteFile(filename) {
-    if (confirm(`确定要删除文件 "${filename}" 吗？\n\n⚠️ 此操作不可撤销`)) {
+    if (confirm(`确定要删除文件 "${filename}" 吗？\n\n此操作不可撤销`)) {
         window.location.href = `{{ url_for('staff.delete_file', filename='') }}${filename}`;
     }
+}
+
+/* 上传弹窗 */
+function showUploadModal() {
+    document.getElementById('uploadForm').reset();
+    document.getElementById('filePreview').style.display = 'none';
+    document.getElementById('uploadProgress').style.display = 'none';
+    const btn = document.getElementById('uploadSubmitBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload me-1"></i>上传';
+    new bootstrap.Modal(document.getElementById('uploadModal')).show();
+}
+
+/* 文件选择 */
+document.getElementById('upload_file_input').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+
+    // 大小检查
+    if (file.size > 16 * 1024 * 1024) {
+        alert('文件大小不能超过16MB');
+        this.value = '';
+        return;
+    }
+
+    // 自动填充文件名
+    document.getElementById('upload_filename').value = file.name;
+
+    // 文件预览
+    const preview = document.getElementById('filePreview');
+    const content = document.getElementById('previewContent');
+    preview.style.display = 'block';
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            content.innerHTML = `<img src="${e.target.result}" style="max-height:100px;" class="img-fluid" alt="预览">
+                <div class="mt-1"><strong>${file.name}</strong> (${formatSize(file.size)})</div>`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        content.innerHTML = `<i class="fas fa-file me-2"></i><strong>${file.name}</strong> (${formatSize(file.size)})`;
+    }
+});
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/* 提交上传 */
+function submitUpload() {
+    const form = document.getElementById('uploadForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const btn = document.getElementById('uploadSubmitBtn');
+    const progressBar = document.querySelector('#uploadProgress .progress-bar');
+    document.getElementById('uploadProgress').style.display = 'block';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>上传中...';
+
+    // 模拟进度条后提交
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 30;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+            setTimeout(() => { form.submit(); }, 400);
+        }
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = Math.round(progress) + '%';
+    }, 200);
 }
 </script>
 {% endblock %}

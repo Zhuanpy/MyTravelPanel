@@ -1,0 +1,188 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}公司信息 - MyTravelPanel{% endblock %}
+{% block page_title %}公司信息{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('staff.files') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-folder-open me-1"></i>公司文件
+    </a>
+    <a href="{{ url_for('own_company.edit_company_info') }}" class="btn btn-sm btn-primary">
+        <i class="fas fa-edit me-1"></i>编辑
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+.info-card {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    overflow: hidden;
+}
+.info-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafbfc;
+}
+.info-logo {
+    width: 80px; height: 80px;
+    border-radius: 10px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid #eee;
+    padding: 4px;
+}
+.info-logo-placeholder {
+    width: 80px; height: 80px;
+    border-radius: 10px;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 2rem;
+}
+.info-title h4 { margin: 0 0 2px; font-size: 1.1rem; font-weight: 600; }
+.info-title .sub { color: #888; font-size: 0.85rem; }
+.info-body { padding: 1.2rem 1.5rem; }
+.info-row {
+    display: flex;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 0.9rem;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label {
+    width: 120px;
+    flex-shrink: 0;
+    color: #888;
+    font-weight: 500;
+}
+.info-value {
+    flex: 1;
+    color: #333;
+    word-break: break-all;
+}
+.info-value a { color: #3b82f6; text-decoration: none; }
+.info-value a:hover { text-decoration: underline; }
+.info-section-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 1rem 0 0.3rem;
+    padding-top: 0.5rem;
+}
+.info-images {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 0 0.5rem;
+}
+.info-img-group { text-align: center; }
+.info-img-group .label { font-size: 0.78rem; color: #999; margin-bottom: 0.4rem; }
+.info-img-group img {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    padding: 4px;
+    background: #fff;
+}
+.info-desc {
+    color: #555;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="info-card">
+    <!-- 头部：Logo + 公司名 -->
+    <div class="info-header">
+        {% if company and company.logo_path %}
+        <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo" class="info-logo">
+        {% else %}
+        <div class="info-logo-placeholder"><i class="fas fa-building"></i></div>
+        {% endif %}
+        <div class="info-title">
+            <h4>{{ company.company_name if company else '-' }}</h4>
+            {% if company and company.company_name_cn %}
+            <div class="sub">{{ company.company_name_cn }}{% if company.company_short_name %} ({{ company.company_short_name }}){% endif %}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="info-body">
+        <!-- 基本信息 -->
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-phone me-1"></i>电话</div>
+            <div class="info-value">{{ company.phone if company and company.phone else '-' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-envelope me-1"></i>邮箱</div>
+            <div class="info-value">{{ company.email if company and company.email else '-' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-globe me-1"></i>网址</div>
+            <div class="info-value">
+                {% if company and company.website %}
+                <a href="{{ company.website }}" target="_blank">{{ company.website }}</a>
+                {% else %}-{% endif %}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-map-marker-alt me-1"></i>地址</div>
+            <div class="info-value">{{ company.address if company and company.address else '-' }}</div>
+        </div>
+
+        <!-- 证照信息 -->
+        <div class="info-section-title">证照信息</div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-id-card me-1"></i>TA License</div>
+            <div class="info-value">{{ company.ta_license if company and company.ta_license else '-' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-fingerprint me-1"></i>UEN</div>
+            <div class="info-value">{{ company.uen if company and company.uen else '-' }}</div>
+        </div>
+
+        <!-- 公司简介 -->
+        {% if company and company.company_description %}
+        <div class="info-section-title">公司简介</div>
+        <div class="info-row">
+            <div class="info-desc">{{ company.company_description }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Logo 和电子章 -->
+        {% if (company and company.logo_path) or (company and company.stamp_path) %}
+        <div class="info-section-title">图片资料</div>
+        <div class="info-images">
+            {% if company and company.logo_path %}
+            <div class="info-img-group">
+                <div class="label">公司Logo</div>
+                <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo">
+            </div>
+            {% endif %}
+            {% if company and company.stamp_path %}
+            <div class="info-img-group">
+                <div class="label">电子章</div>
+                <img src="{{ url_for('static', filename=company.stamp_path) }}" alt="Stamp">
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

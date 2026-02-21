@@ -121,6 +121,20 @@ def update_company_info_api(company_id):
         'website': company.website
     })
 
+@own_company.route('/company/info')
+def company_info():
+    """公司信息展示页面"""
+    company = CompanyInfo.query.first()
+    if company and company.logo_path:
+        path = normalize_path(company.logo_path)
+        path = path.replace('App_new/static/', '')
+        path = path.replace('static/', '')
+        if not path.startswith('company/') and not os.path.isabs(path):
+            if '/' not in path and '\\' not in path:
+                path = os.path.join('company', path).replace('\\', '/')
+        company.logo_path = path
+    return render_template('shared/own_company/own_company_info.html', company=company)
+
 @own_company.route('/company/edit', methods=['GET', 'POST'])
 @csrf.exempt  # 暂时豁免CSRF，后续可以改进
 def edit_company_info():
@@ -232,7 +246,7 @@ def edit_company_info():
             db.session.commit()
             
             flash('公司信息更新成功！', 'success')
-            return redirect(url_for('own_company.edit_company_info'))
+            return redirect(url_for('own_company.company_info'))
             
         except Exception as e:
             db.session.rollback()
