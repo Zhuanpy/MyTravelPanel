@@ -3,6 +3,12 @@
 {% block title %}公司文件管理 - 员工系统{% endblock %}
 {% block page_title %}公司文件管理{% endblock %}
 
+{% block page_actions %}
+<a href="{{ url_for('staff.upload_file') }}" class="btn-upload">
+    <i class="fas fa-cloud-upload-alt"></i> 上传文件
+</a>
+{% endblock %}
+
 {% block extra_css %}
 <style>
 .file-container {
@@ -10,18 +16,35 @@
     max-width: 1400px;
     margin: 0 auto;
 }
-.file-page-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 20px;
+.cat-bar {
+    display: flex;
+    gap: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+.cat-bar-item {
+    flex: 1;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.5rem;
+    text-decoration: none;
+    color: #374151;
+    border-right: 1px solid #f1f5f9;
+    transition: background 0.15s;
+    font-size: 0.95rem;
 }
-.file-page-title i {
-    color: #3498db;
-    margin-right: 10px;
+.cat-bar-item:last-child { border-right: none; }
+.cat-bar-item:hover { background: #f8fafc; color: #1f2937; text-decoration: none; }
+.cat-bar-item.active { background: #f0f7ff; font-weight: 600; }
+.cat-bar-item i { font-size: 1rem; }
+.cat-bar-item .cat-count {
+    font-weight: 700;
+    font-size: 1.05rem;
 }
 .file-card {
     background: white;
@@ -30,65 +53,8 @@
     margin-bottom: 20px;
     overflow: hidden;
 }
-.file-card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 15px 20px;
-    font-weight: 600;
-}
-.file-card-header h3 {
-    margin: 0;
-    font-size: 1rem;
-}
 .file-card-body {
     padding: 20px;
-}
-.file-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-.file-stat-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 10px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-.file-stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-.file-stat-card.primary { border-left: 4px solid #3498db; }
-.file-stat-card.success { border-left: 4px solid #27ae60; }
-.file-stat-card.info { border-left: 4px solid #17a2b8; }
-.file-stat-card.warning { border-left: 4px solid #f39c12; }
-.file-stat-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 15px;
-    font-size: 1.3rem;
-}
-.file-stat-card.primary .file-stat-icon { background: rgba(52,152,219,0.15); color: #3498db; }
-.file-stat-card.success .file-stat-icon { background: rgba(39,174,96,0.15); color: #27ae60; }
-.file-stat-card.info .file-stat-icon { background: rgba(23,162,184,0.15); color: #17a2b8; }
-.file-stat-card.warning .file-stat-icon { background: rgba(243,156,18,0.15); color: #f39c12; }
-.file-stat-info h4 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-    color: #2c3e50;
-}
-.file-stat-info p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #7f8c8d;
 }
 .filter-section {
     background: #f8f9fa;
@@ -228,6 +194,7 @@
 .badge-flight { background: #eaf2f8; color: #2980b9; }
 .badge-company { background: #fdf2f8; color: #e91e8c; }
 .action-btn {
+    display: inline-block;
     padding: 6px 10px;
     border-radius: 5px;
     border: none;
@@ -288,89 +255,51 @@
 
 {% block content %}
 <div class="file-container">
-    <!-- 页面标题 -->
-    <div class="file-page-title">
-        <span><i class="fas fa-folder-open"></i> 公司文件管理</span>
-        <a href="{{ url_for('staff.upload_file') }}" class="btn-upload">
-            <i class="fas fa-cloud-upload-alt"></i> 上传文件
+    <!-- 统计栏 -->
+    <div class="cat-bar">
+        <a href="{{ url_for('staff.files') }}" class="cat-bar-item {% if not file_type %}active{% endif %}">
+            <i class="fas fa-folder" style="color:#3498db;"></i> 全部 <span class="cat-count">{{ total }}</span>
+        </a>
+        <a href="{{ url_for('staff.files', type='pdf') }}" class="cat-bar-item {% if file_type == 'pdf' %}active{% endif %}">
+            <i class="fas fa-file-pdf" style="color:#e74c3c;"></i> PDF <span class="cat-count">{{ pdf_count|default(0) }}</span>
+        </a>
+        <a href="{{ url_for('staff.files', type='excel') }}" class="cat-bar-item {% if file_type == 'excel' %}active{% endif %}">
+            <i class="fas fa-file-excel" style="color:#27ae60;"></i> Excel <span class="cat-count">{{ excel_count|default(0) }}</span>
+        </a>
+        <a href="{{ url_for('staff.files', type='word') }}" class="cat-bar-item {% if file_type == 'word' %}active{% endif %}">
+            <i class="fas fa-file-word" style="color:#3498db;"></i> Word <span class="cat-count">{{ word_count|default(0) }}</span>
+        </a>
+        <a href="{{ url_for('staff.files', type='image') }}" class="cat-bar-item {% if file_type == 'image' %}active{% endif %}">
+            <i class="fas fa-file-image" style="color:#9b59b6;"></i> 图片 <span class="cat-count">{{ image_count|default(0) }}</span>
+        </a>
+        <a href="{{ url_for('staff.files', type='other') }}" class="cat-bar-item {% if file_type == 'other' %}active{% endif %}">
+            <i class="fas fa-file-alt" style="color:#95a5a6;"></i> 其他 <span class="cat-count">{{ other_count|default(0) }}</span>
         </a>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="file-stats-grid">
-        <div class="file-stat-card primary">
-            <div class="file-stat-icon">
-                <i class="fas fa-folder"></i>
-            </div>
-            <div class="file-stat-info">
-                <h4>{{ total }}</h4>
-                <p>总文件数</p>
-            </div>
-        </div>
-        <div class="file-stat-card success">
-            <div class="file-stat-icon">
-                <i class="fas fa-file-pdf"></i>
-            </div>
-            <div class="file-stat-info">
-                <h4>{{ pdf_count|default(0) }}</h4>
-                <p>PDF文档</p>
-            </div>
-        </div>
-        <div class="file-stat-card info">
-            <div class="file-stat-icon">
-                <i class="fas fa-file-image"></i>
-            </div>
-            <div class="file-stat-info">
-                <h4>{{ image_count|default(0) }}</h4>
-                <p>图片文件</p>
-            </div>
-        </div>
-        <div class="file-stat-card warning">
-            <div class="file-stat-icon">
-                <i class="fas fa-file-alt"></i>
-            </div>
-            <div class="file-stat-info">
-                <h4>{{ other_count|default(0) }}</h4>
-                <p>其他文件</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 筛选区域 -->
-    <div class="file-card">
-        <div class="filter-section">
-            <form method="GET" class="filter-row">
-                <div class="filter-group">
-                    <label><i class="fas fa-filter"></i> 文件类型</label>
-                    <select name="type">
-                        <option value="">全部类型</option>
-                        <option value="pdf" {% if file_type == 'pdf' %}selected{% endif %}>PDF文档</option>
-                        <option value="excel" {% if file_type == 'excel' %}selected{% endif %}>Excel表格</option>
-                        <option value="word" {% if file_type == 'word' %}selected{% endif %}>Word文档</option>
-                        <option value="image" {% if file_type == 'image' %}selected{% endif %}>图片文件</option>
-                    </select>
-                </div>
-                <div class="filter-group" style="flex: 2;">
-                    <label><i class="fas fa-search"></i> 搜索文件</label>
-                    <input type="text" name="search" value="{{ search }}" placeholder="输入文件名搜索...">
-                </div>
-                <div class="filter-buttons">
-                    <button type="submit" class="btn-filter btn-filter-primary">
-                        <i class="fas fa-search"></i> 搜索
-                    </button>
-                    <a href="{{ url_for('staff.files') }}" class="btn-filter btn-filter-secondary">
-                        <i class="fas fa-redo"></i> 重置
-                    </a>
-                </div>
-            </form>
-        </div>
+    <!-- 筛选搜索栏 -->
+    <div style="margin-bottom: 1rem;">
+        <form method="GET" class="d-flex gap-2" style="max-width: 600px;">
+            <select name="type" class="form-select form-select-sm" style="max-width: 140px;">
+                <option value="">全部类型</option>
+                <option value="pdf" {% if file_type == 'pdf' %}selected{% endif %}>PDF文档</option>
+                <option value="excel" {% if file_type == 'excel' %}selected{% endif %}>Excel表格</option>
+                <option value="word" {% if file_type == 'word' %}selected{% endif %}>Word文档</option>
+                <option value="image" {% if file_type == 'image' %}selected{% endif %}>图片文件</option>
+                <option value="other" {% if file_type == 'other' %}selected{% endif %}>其他文件</option>
+            </select>
+            <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="搜索文件名...">
+            <button type="submit" class="btn btn-sm btn-primary" style="white-space:nowrap;">
+                <i class="fas fa-search"></i> 搜索
+            </button>
+            <a href="{{ url_for('staff.files') }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center" style="white-space:nowrap;">
+                <i class="fas fa-redo me-1"></i> 重置
+            </a>
+        </form>
     </div>
 
     <!-- 文件列表 -->
     <div class="file-card">
-        <div class="file-card-header">
-            <h3><i class="fas fa-list"></i> 文件列表 <span style="font-weight: normal; opacity: 0.8;">(共 {{ total }} 个文件)</span></h3>
-        </div>
         <div class="file-card-body">
             {% if files %}
             <div class="table-responsive">
@@ -434,8 +363,8 @@
                                     <span class="badge-category badge-other">{{ file.category|default('其他')|title }}</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <a href="{{ url_for('staff.download_file', filename=file.filename) }}" 
+                            <td style="white-space:nowrap;">
+                                <a href="{{ url_for('staff.download_file', filename=file.filename) }}"
                                    class="action-btn action-btn-download" title="下载">
                                     <i class="fas fa-download"></i>
                                 </a>
