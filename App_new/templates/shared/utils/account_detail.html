@@ -1,596 +1,324 @@
-﻿{% extends "shared/staff_base.html" %}
+{% extends "shared/staff_base.html" %}
 
 {% block title %}账号详情 - {{ account.platform }}{% endblock %}
 
 {% block page_title %}账号详情{% endblock %}
 
-{% block extra_css %}
-<!-- 引入统一CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% block page_actions %}
+<div style="display: flex; gap: 0.5rem;">
+    <button class="visa-btn visa-btn-primary" onclick="copyAccountInfo()" id="copyAllBtn">
+        <i class="fas fa-copy"></i> 一键复制
+    </button>
+    <a href="#" onclick="editAccount({{ account.id }})" class="visa-btn visa-btn-primary">
+        <i class="fas fa-edit"></i> 编辑
+    </a>
+    <a href="#" onclick="deleteAccount({{ account.id }})" class="visa-btn" style="border: 1px solid var(--visa-danger); color: var(--visa-danger);">
+        <i class="fas fa-trash"></i> 删除
+    </a>
+    <a href="{{ url_for('account_routes.account_page') }}" class="visa-btn" style="border: 1px solid var(--visa-border); color: var(--visa-text-secondary);">
+        <i class="fas fa-arrow-left"></i> 返回
+    </a>
+</div>
+{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
-    .account-detail-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 2rem;
-        overflow-x: hidden;
+.detail-wrap {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.detail-card {
+    background: var(--visa-bg-card);
+    border: 1px solid var(--visa-border);
+    border-radius: var(--visa-radius-md);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.detail-card-header {
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--visa-text-secondary);
+    background: var(--visa-bg-light);
+    border-bottom: 1px solid var(--visa-border);
+}
+
+.detail-row {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 1.25rem;
+    border-bottom: 1px solid var(--visa-bg-light);
+    font-size: 0.875rem;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    width: 100px;
+    flex-shrink: 0;
+    color: var(--visa-text-muted);
+    font-weight: 500;
+}
+
+.detail-value {
+    flex: 1;
+    color: var(--visa-text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.detail-value a {
+    color: var(--visa-primary);
+    text-decoration: none;
+}
+
+.detail-value a:hover {
+    text-decoration: underline;
+}
+
+/* 密码行 */
+.pwd-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.pwd-input {
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--visa-text-primary);
+    width: 200px;
+    padding: 0;
+    outline: none;
+}
+
+.pwd-btn {
+    background: none;
+    border: 1px solid var(--visa-border);
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    color: var(--visa-text-muted);
+    font-size: 0.8rem;
+    transition: all 0.15s;
+}
+
+.pwd-btn:hover {
+    background: var(--visa-bg-light);
+    color: var(--visa-text-primary);
+}
+
+/* 描述/备注区块 */
+.detail-text {
+    padding: 1rem 1.25rem;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--visa-text-secondary);
+    white-space: pre-wrap;
+}
+
+@media (max-width: 768px) {
+    .detail-wrap {
+        padding: 0 0.5rem;
     }
-    
-    @media (max-width: 768px) {
-        .account-detail-container {
-            padding: 1rem;
-        }
-    }
-    
-    .account-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    
-    .account-title {
-        font-size: 2rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-    
-    .account-subtitle {
-        font-size: 1.1rem;
-        opacity: 0.9;
-        margin-bottom: 1rem;
-    }
-    
-    .back-button {
-        background: rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    
-    .back-button:hover {
-        background: rgba(255, 255, 255, 0.3);
-        color: white;
-        text-decoration: none;
-    }
-    
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 2rem;
-        margin-bottom: 2rem;
-    }
-    
-    @media (max-width: 768px) {
-        .info-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        
-        .info-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-        }
-        
-        .info-label {
-            min-width: auto;
-            margin-right: 0;
-        }
-        
-        .info-value {
-            text-align: left;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-    }
-    
-    .info-card {
-        background: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e9ecef;
-    }
-    
-    .info-card h3 {
-        color: #495057;
-        font-size: 1.2rem;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #f8f9fa;
-    }
-    
-    .info-item {
-        display: flex;
-        justify-content: space-between;
+    .detail-row {
+        flex-direction: column;
         align-items: flex-start;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #f8f9fa;
-        min-height: 2.5rem;
-    }
-    
-    .info-item:last-child {
-        border-bottom: none;
-    }
-    
-    .info-label {
-        font-weight: 500;
-        color: #6c757d;
-        min-width: 100px;
-        flex-shrink: 0;
-        margin-right: 0.5rem;
-    }
-    
-    .info-value {
-        color: #212529;
-        text-align: left;
-        flex: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        min-width: 0;
-        cursor: help;
-    }
-    
-    .password-section {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-top: 0.5rem;
-    }
-    
-    .password-field {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .password-input {
-        flex: 1;
-        padding: 0.5rem;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        background: white;
-    }
-    
-    .btn-password {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #ced4da;
-        background: white;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .btn-password:hover {
-        background: #e9ecef;
-    }
-    
-    .btn-copy {
-        background: #28a745;
-        color: white;
-        border-color: #28a745;
-    }
-    
-    .btn-copy:hover {
-        background: #218838;
-        border-color: #1e7e34;
-    }
-    
-    .website-link {
-        color: #007bff;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
         gap: 0.25rem;
     }
-    
-    .website-link:hover {
-        color: #0056b3;
-        text-decoration: underline;
+    .detail-label {
+        width: auto;
     }
-    
-    .description-section {
-        background: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e9ecef;
-    }
-    
-    .description-content {
-        white-space: pre-wrap;
-        line-height: 1.6;
-        color: #495057;
-    }
-    
-    .notes-content {
-        white-space: pre-wrap;
-        line-height: 1.6;
-        color: #6c757d;
-        font-style: italic;
-    }
-    
-    .stats-section {
-        background: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e9ecef;
-    }
-    
-    .stat-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-    }
-    
-    .stat-label {
-        font-weight: 500;
-        color: #6c757d;
-    }
-    
-    .stat-value {
-        font-weight: 600;
-        color: #212529;
-    }
-    
-    .action-buttons {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
-        justify-content: center;
-    }
-    
-    .btn-edit {
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 5px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-edit:hover {
-        background: #0056b3;
-        color: white;
-        text-decoration: none;
-    }
-    
-    .btn-delete {
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 5px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-delete:hover {
-        background: #c82333;
-        color: white;
-        text-decoration: none;
-    }
-    
-    .btn-copy-all {
-        background: #28a745;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 5px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .btn-copy-all:hover {
-        background: #218838;
-        color: white;
-        text-decoration: none;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    .copy-success {
-        background: #28a745 !important;
-        animation: copyPulse 0.6s ease;
-    }
-    
-    @keyframes copyPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
-    .empty-content {
-        color: #6c757d;
-        font-style: italic;
-        text-align: center;
-        padding: 2rem;
-    }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="account-detail-container">
-    <!-- 账号头部信息 -->
-    <div class="account-header">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <h1 class="account-title">{{ account.platform }}</h1>
-                <p class="account-subtitle">{{ account.username }}</p>
-                {% if account.website_url %}
-                <a href="{{ account.website_url }}" target="_blank" class="website-link">
-                    <i class="fas fa-external-link-alt"></i>
-                    {{ account.website_url }}
-                </a>
-                {% endif %}
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn-copy-all" onclick="copyAccountInfo()" id="copyAllBtn">
-                    <i class="fas fa-copy"></i> 一键复制账号信息
-                </button>
-                <a href="{{ url_for('account_routes.account_page') }}" class="back-button">
-                    <i class="fas fa-arrow-left"></i> 返回列表
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="detail-wrap">
 
     <!-- 基本信息 -->
-    <div class="info-grid">
-        <div class="info-card">
-            <h3><i class="fas fa-info-circle"></i> 基本信息</h3>
-            <div class="info-item">
-                <span class="info-label">平台名称</span>
-                <span class="info-value">{{ account.platform }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">用户名</span>
-                <span class="info-value">{{ account.username }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">类别</span>
-                <span class="info-value">{{ account.category or '未设置' }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">账户归属</span>
-                <span class="info-value">{{ account.owner or '未设置' }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">国家/地区</span>
-                <span class="info-value">
-                    {% if account.country %}
-                        {{ account.country }}{% if account.region %}/{{ account.region }}{% endif %}
-                    {% else %}
-                        未设置
-                    {% endif %}
-                </span>
-            </div>
+    <div class="detail-card">
+        <div class="detail-card-header"><i class="fas fa-info-circle"></i> 基本信息</div>
+        <div class="detail-row">
+            <span class="detail-label">平台名称</span>
+            <span class="detail-value">{{ account.platform }}</span>
         </div>
+        <div class="detail-row">
+            <span class="detail-label">用户名</span>
+            <span class="detail-value">{{ account.username }}</span>
+        </div>
+        {% if account.website_url %}
+        <div class="detail-row">
+            <span class="detail-label">网址</span>
+            <span class="detail-value">
+                <a href="{{ account.website_url }}" target="_blank">{{ account.website_url }} <i class="fas fa-external-link-alt" style="font-size: 0.75rem;"></i></a>
+            </span>
+        </div>
+        {% endif %}
+        <div class="detail-row">
+            <span class="detail-label">类别</span>
+            <span class="detail-value">{{ account.category or '未设置' }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">账户归属</span>
+            <span class="detail-value">{{ account.owner or '未设置' }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">国家/地区</span>
+            <span class="detail-value">
+                {% if account.country %}
+                    {{ account.country }}{% if account.region %} / {{ account.region }}{% endif %}
+                {% else %}
+                    未设置
+                {% endif %}
+            </span>
+        </div>
+    </div>
 
-        <div class="info-card">
-            <h3><i class="fas fa-lock"></i> 密码信息</h3>
-            <div class="password-section">
-                <div class="password-field">
-                    <input type="password" class="password-input" value="{{ account.password }}" readonly id="passwordInput">
-                    <button class="btn-password" onclick="togglePassword()">
+    <!-- 密码信息 -->
+    <div class="detail-card">
+        <div class="detail-card-header"><i class="fas fa-lock"></i> 密码</div>
+        <div class="detail-row">
+            <span class="detail-label">密码</span>
+            <span class="detail-value">
+                <span class="pwd-group">
+                    <input type="password" class="pwd-input" value="{{ account.password }}" readonly id="passwordInput">
+                    <button class="pwd-btn" onclick="togglePassword()" title="显示/隐藏">
                         <i class="fas fa-eye" id="passwordIcon"></i>
                     </button>
-                    <button class="btn-password btn-copy" onclick="copyPassword()">
+                    <button class="pwd-btn" onclick="copyPassword()" title="复制密码">
                         <i class="fas fa-copy"></i>
                     </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="info-card">
-            <h3><i class="fas fa-chart-line"></i> 统计信息</h3>
-            <div class="stat-item">
-                <span class="stat-label">访问次数</span>
-                <span class="stat-value">{{ account.click_count or 0 }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">创建时间</span>
-                <span class="stat-value">{{ account.created_at.strftime('%Y-%m-%d %H:%M') if account.created_at else '未知' }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">更新时间</span>
-                <span class="stat-value">{{ account.updated_at.strftime('%Y-%m-%d %H:%M') if account.updated_at else '未知' }}</span>
-            </div>
+                </span>
+            </span>
         </div>
     </div>
 
-    <!-- 详细描述 -->
+    <!-- 描述 -->
     {% if account.description %}
-    <div class="description-section">
-        <h3><i class="fas fa-file-alt"></i> 详细描述</h3>
-        <div class="description-content">{{ account.description }}</div>
+    <div class="detail-card">
+        <div class="detail-card-header"><i class="fas fa-file-alt"></i> 详细描述</div>
+        <div class="detail-text">{{ account.description }}</div>
     </div>
     {% endif %}
 
-    <!-- 备注信息 -->
+    <!-- 备注 -->
     {% if account.notes %}
-    <div class="description-section">
-        <h3><i class="fas fa-sticky-note"></i> 备注信息</h3>
-        <div class="notes-content">{{ account.notes }}</div>
+    <div class="detail-card">
+        <div class="detail-card-header"><i class="fas fa-sticky-note"></i> 备注</div>
+        <div class="detail-text" style="font-style: italic;">{{ account.notes }}</div>
     </div>
     {% endif %}
 
-    <!-- 操作按钮 -->
-    <div class="action-buttons">
-        <a href="#" onclick="editAccount({{ account.id }})" class="btn-edit">
-            <i class="fas fa-edit"></i> 编辑账号
-        </a>
-        <a href="#" onclick="deleteAccount({{ account.id }})" class="btn-delete">
-            <i class="fas fa-trash"></i> 删除账号
-        </a>
+    <!-- 统计信息 -->
+    <div class="detail-card">
+        <div class="detail-card-header"><i class="fas fa-chart-bar"></i> 统计</div>
+        <div class="detail-row">
+            <span class="detail-label">访问次数</span>
+            <span class="detail-value">{{ account.click_count or 0 }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">创建时间</span>
+            <span class="detail-value">{{ account.created_at.strftime('%Y-%m-%d %H:%M') if account.created_at else '未知' }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">更新时间</span>
+            <span class="detail-value">{{ account.updated_at.strftime('%Y-%m-%d %H:%M') if account.updated_at else '未知' }}</span>
+        </div>
     </div>
+
 </div>
 
 <script>
-// 密码显示/隐藏切换
 function togglePassword() {
-    const passwordInput = document.getElementById('passwordInput');
-    const passwordIcon = document.getElementById('passwordIcon');
-    
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        passwordIcon.className = 'fas fa-eye-slash';
+    const input = document.getElementById('passwordInput');
+    const icon = document.getElementById('passwordIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
     } else {
-        passwordInput.type = 'password';
-        passwordIcon.className = 'fas fa-eye';
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
     }
 }
 
-// 复制密码
 async function copyPassword() {
-    const passwordInput = document.getElementById('passwordInput');
-    const password = passwordInput.value;
-    
     try {
-        await navigator.clipboard.writeText(password);
-        showAlert('密码已复制到剪贴板', true);
+        await navigator.clipboard.writeText(document.getElementById('passwordInput').value);
+        showAlert('密码已复制', true);
     } catch (err) {
-        // 降级方案
-        passwordInput.select();
+        const input = document.getElementById('passwordInput');
+        input.select();
         document.execCommand('copy');
-        showAlert('密码已复制到剪贴板', true);
+        showAlert('密码已复制', true);
     }
 }
 
-// 编辑账号
-function editAccount(accountId) {
-    // 跳转到账号管理页面并自动打开编辑模态框
-    window.location.href = `/account/accounts?edit=${accountId}`;
+function editAccount(id) {
+    window.location.href = `/account/accounts?edit=${id}`;
 }
 
-// 删除账号
-function deleteAccount(accountId) {
-    if (confirm('确定要删除这个账号吗？此操作不可撤销。')) {
-        fetch(`/account/api/accounts/${accountId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert('账号删除成功', true);
-                setTimeout(() => {
-                    window.location.href = '/account/accounts';
-                }, 1500);
-            } else {
-                showAlert(data.message || '删除失败', false);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('删除失败，请重试', false);
-        });
-    }
+function deleteAccount(id) {
+    if (!confirm('确定要删除这个账号吗？此操作不可撤销。')) return;
+    fetch(`/account/api/accounts/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('删除成功', true);
+            setTimeout(() => { window.location.href = '/account/accounts'; }, 1000);
+        } else {
+            showAlert(data.message || '删除失败', false);
+        }
+    })
+    .catch(() => showAlert('删除失败，请重试', false));
 }
 
-// 一键复制账号信息
 async function copyAccountInfo() {
-    const copyBtn = document.getElementById('copyAllBtn');
-    const originalText = copyBtn.innerHTML;
-    
-    // 获取账号信息
-    const platform = '{{ account.platform }}';
-    const website = '{{ account.website_url or "" }}';
-    const username = '{{ account.username }}';
-    const password = '{{ account.password }}';
-    
-    // 构建要复制的文本
-    let copyText = `平台名称：${platform}\n`;
-    if (website) {
-        copyText += `网址：${website}\n`;
-    }
-    copyText += `账号：${username}\n`;
-    copyText += `密码：${password}`;
-    
+    const btn = document.getElementById('copyAllBtn');
+    const orig = btn.innerHTML;
+    let text = `平台名称：{{ account.platform }}\n`;
+    {% if account.website_url %}
+    text += `网址：{{ account.website_url }}\n`;
+    {% endif %}
+    text += `账号：{{ account.username }}\n`;
+    text += `密码：{{ account.password }}`;
     try {
-        // 复制到剪贴板
-        await navigator.clipboard.writeText(copyText);
-        
-        // 显示成功效果
-        copyBtn.innerHTML = '<i class="fas fa-check"></i> 复制成功！';
-        copyBtn.classList.add('copy-success');
-        
-        showAlert('账号信息已复制到剪贴板', true);
-        
-        // 2秒后恢复原状
-        setTimeout(() => {
-            copyBtn.innerHTML = originalText;
-            copyBtn.classList.remove('copy-success');
-        }, 2000);
-        
+        await navigator.clipboard.writeText(text);
     } catch (err) {
-        console.error('复制失败:', err);
-        
-        // 降级方案：使用传统方法复制
-        try {
-            const textArea = document.createElement('textarea');
-            textArea.value = copyText;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            
-            // 显示成功效果
-            copyBtn.innerHTML = '<i class="fas fa-check"></i> 复制成功！';
-            copyBtn.classList.add('copy-success');
-            
-            showAlert('账号信息已复制到剪贴板', true);
-            
-            // 2秒后恢复原状
-            setTimeout(() => {
-                copyBtn.innerHTML = originalText;
-                copyBtn.classList.remove('copy-success');
-            }, 2000);
-            
-        } catch (fallbackErr) {
-            console.error('降级复制也失败:', fallbackErr);
-            showAlert('复制失败，请手动复制', false);
-        }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
     }
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    showAlert('账号信息已复制', true);
+    setTimeout(() => { btn.innerHTML = orig; }, 2000);
 }
 
-// 显示提示信息
-function showAlert(message, isSuccess) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${isSuccess ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 3000);
+function showAlert(msg, ok) {
+    const el = document.createElement('div');
+    el.className = `alert alert-${ok ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    el.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+    el.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 3000);
 }
 </script>
-{% endblock %} 
+{% endblock %}

@@ -14,14 +14,6 @@
 <!-- 页面特定样式（极简版 - 大部分样式已移至 staff_common.css）-->
 <style>
 /* 页面布局 */
-.title-section {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding-top: 1rem;
-}
-
 .header-actions {
     display: flex;
     gap: 0.625rem;
@@ -35,25 +27,6 @@
 
 .main-content {
     flex: 1;
-}
-
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--visa-spacing-md);
-}
-
-.section-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--visa-text-primary);
-    margin: 0;
-}
-
-.search-box {
-    flex: 1;
-    max-width: 400px;
 }
 
 /* 使用visa-filter-bar样式的筛选区域 */
@@ -305,50 +278,35 @@
         min-width: 100%;
     }
 
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-
-    .search-box {
-        width: 100%;
-        max-width: 100%;
-    }
 }
 </style>
+{% endblock %}
+
+{% block page_actions %}
+<div class="header-actions">
+    <button type="button" class="visa-btn visa-btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+        <i class="fas fa-plus"></i> 添加新账号
+    </button>
+    <button type="button" class="visa-btn visa-btn-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+        <i class="fas fa-upload"></i> 批量导入
+    </button>
+</div>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid account-content">
     <div class="container-fluid" style="max-width: 95%;">
-        <!-- 标题部分 -->
-        <div class="title-section">
-            <!-- <h1>账号管理系统</h1> -->
-            <div class="header-actions">
-                <button type="button" class="visa-btn visa-btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-                    <i class="fas fa-plus"></i> 添加新账号
-                </button>
-                <button type="button" class="visa-btn visa-btn-primary" data-bs-toggle="modal" data-bs-target="#importModal">
-                    <i class="fas fa-upload"></i> 批量导入
-                </button>
-            </div>
-        </div>
-
         <div class="content-wrapper">
             <!-- 主要内容区域 -->
             <div class="main-content" style="flex: 1; width: 100%;">
-            <!-- 账号列表部分 -->
-            <div class="section-header">
-                <h2>账号列表</h2>
-                <div class="search-box">
-                    <input type="text" class="visa-form-control" id="searchInput" placeholder="搜索账号...">
-                </div>
-            </div>
 
             <!-- 筛选选项 -->
             <div class="filter-section">
                 <div class="filter-container">
+                    <div class="filter-group">
+                        <label for="searchInput">搜索：</label>
+                        <input type="text" class="visa-form-control" id="searchInput" placeholder="搜索账号...">
+                    </div>
                     <div class="filter-group">
                         <label for="categorySelect">类别：</label>
                         <select class="visa-form-select" id="categorySelect" name="category">
@@ -397,7 +355,7 @@
                         </select>
                     </div>
                     <div class="filter-group" style="min-width: auto; flex: 0;">
-                        <button type="button" class="btn btn-outline-danger" id="resetFilters" onclick="resetAllFilters()" style="white-space: nowrap; padding: 0.5rem 1rem;">
+                        <button type="button" class="btn btn-outline-danger" id="resetFilters" onclick="resetAllFilters()" style="white-space: nowrap; height: 40px; padding: 0 1rem; display: inline-flex; align-items: center;">
                             <i class="fas fa-undo"></i> 重置
                         </button>
                     </div>
