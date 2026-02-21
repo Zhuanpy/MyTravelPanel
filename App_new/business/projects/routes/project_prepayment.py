@@ -246,7 +246,6 @@ def create_prepayment():
         db.session.add(prepayment)
         db.session.commit()
 
-        flash(f'预付账款 {prepayment_number} 创建成功', 'success')
         return redirect(url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=prepayment.id))
 
     except Exception as e:

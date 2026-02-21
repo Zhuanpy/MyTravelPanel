@@ -1,32 +1,27 @@
 {% extends 'staff_base.html' %}
 {% block title %}预付账款管理{% endblock %}
 {% block page_title %}预付账款管理{% endblock %}
+{% block page_actions %}
+<a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i>新增充值
+</a>
+{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
 <style>
-    .summary-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
+    .summary-bar {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        padding: 0.85rem 1.25rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 1.05rem;
     }
-    .summary-card .summary-item {
-        text-align: center;
-        padding: 10px;
-    }
-    .summary-card .summary-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-    }
-    .summary-card .summary-label {
-        font-size: 0.85rem;
-        opacity: 0.9;
-    }
-    .progress-bar-usage {
-        height: 8px;
-        border-radius: 4px;
-    }
+    .summary-bar .s-label { color: #64748b; font-size: 0.9rem; }
+    .summary-bar .s-value { font-weight: 600; margin-left: 0.35rem; font-size: 1.1rem; }
     .badge-draft { background-color: #6c757d; }
     .badge-confirmed { background-color: #28a745; }
     .badge-partial_used { background-color: #17a2b8; }
@@ -43,58 +38,37 @@
 
 {% block content %}
 <div class="container py-4">
-    <!-- 页面标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">
-            <i class="fas fa-wallet me-2"></i>预付账款管理
-        </h4>
-        <a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i>新增充值
-        </a>
-    </div>
 
-    <!-- 汇总卡片（仅选择供应商后显示） -->
+    <!-- 汇总（仅选择供应商后显示） -->
     {% if not no_supplier_selected %}
-    <div class="summary-card">
-        <div class="row">
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(total_amount) }}</div>
-                <div class="summary-label">总充值金额 (SGD)</div>
-            </div>
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(total_used) }}</div>
-                <div class="summary-label">已使用金额</div>
-            </div>
-            <div class="col-md-3 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(total_balance) }}</div>
-                <div class="summary-label">剩余可用</div>
-            </div>
-            <div class="col-md-3 summary-item">
-                <div class="summary-value text-warning">{{ "%.2f"|format(pending_eo_total) }}</div>
-                <div class="summary-label">待付款EO</div>
-            </div>
-        </div>
+    <div class="summary-bar">
+        <div><span class="s-label">充值</span><span class="s-value">{{ "%.2f"|format(total_amount) }}</span></div>
+        <div><span class="s-label">已用</span><span class="s-value" style="color: #ef4444;">{{ "%.2f"|format(total_used) }}</span></div>
+        <div><span class="s-label">余额</span><span class="s-value" style="color: #2563eb; font-size: 1.25rem;">{{ "%.2f"|format(total_balance) }}</span></div>
         {% if pending_eo_total > 0 %}
+        <div><span class="s-label">待付EO</span><span class="s-value" style="color: #d97706;">{{ "%.2f"|format(pending_eo_total) }}</span></div>
         {% set expected_balance = (total_balance|float) - (pending_eo_total|float) %}
-        <div class="row mt-2 pt-2 border-top border-light">
-            <div class="col-12 text-center">
-                <span class="summary-label">预计剩余：</span>
-                <span class="summary-value {% if expected_balance < 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ "%.2f"|format(expected_balance) }} SGD
-                </span>
-                {% if expected_balance < 0 %}
-                <span class="badge bg-danger ms-2">余额不足</span>
-                {% endif %}
-            </div>
+        <div><span class="s-label">预计剩余</span><span class="s-value {% if expected_balance < 0 %}text-danger{% endif %}" style="{% if expected_balance >= 0 %}color: #10b981;{% endif %}">{{ "%.2f"|format(expected_balance) }}</span>
+            {% if expected_balance < 0 %}<span class="badge bg-danger ms-1" style="font-size: 0.7rem;">不足</span>{% endif %}
         </div>
         {% endif %}
     </div>
     {% endif %}
 
+    {% if no_supplier_selected %}
+    {% if account_summary %}
+    <div class="summary-bar">
+        <div><span class="s-label">账户数</span><span class="s-value">{{ account_summary|length }}</span></div>
+        <div><span class="s-label">总充值</span><span class="s-value">{{ "%.2f"|format(grand_total_amount) }}</span></div>
+        <div><span class="s-label">总余额</span><span class="s-value" style="color: #2563eb; font-size: 1.25rem;">{{ "%.2f"|format(grand_total_balance) }}</span></div>
+    </div>
+    {% endif %}
+    {% endif %}
+
     <!-- 筛选栏 -->
-    <div class="card mb-4">
+    <div class="card mb-3">
         <div class="card-body py-2">
-            <form method="get" class="row g-2 align-items-center">
+            <form method="get" id="filterForm" class="row g-2 align-items-center">
                 <div class="col-auto">
                     <select name="supplier_id" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="">-- 请选择供应商 --</option>
@@ -130,25 +104,6 @@
     </div>
 
     {% if no_supplier_selected %}
-    <!-- 账户汇总卡片 -->
-    {% if account_summary %}
-    <div class="summary-card">
-        <div class="row">
-            <div class="col-md-4 summary-item">
-                <div class="summary-value">{{ account_summary|length }}</div>
-                <div class="summary-label">充值账户数</div>
-            </div>
-            <div class="col-md-4 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(grand_total_amount) }}</div>
-                <div class="summary-label">总充值金额 (SGD)</div>
-            </div>
-            <div class="col-md-4 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(grand_total_balance) }}</div>
-                <div class="summary-label">总剩余可用</div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- 账户汇总列表 -->
     <div class="card">
