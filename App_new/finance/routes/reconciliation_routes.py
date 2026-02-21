@@ -2039,6 +2039,7 @@ def eo_auto_match_suggestions():
                         'record_number': best_match.eo_number,
                         'eo_date': best_match.paid_date.isoformat() if best_match.paid_date else (best_match.eo_date.isoformat() if best_match.eo_date else ''),
                         'record_date': best_match.paid_date.isoformat() if best_match.paid_date else (best_match.eo_date.isoformat() if best_match.eo_date else ''),
+                        'eo_created_at': best_match.created_at.strftime('%Y-%m-%d') if best_match.created_at else '',
                         'eo_amount': cost_price,
                         'pay_amount': float(best_match.pay_amount) if best_match.pay_amount else cost_price,
                         'record_amount': float(best_match.pay_amount) if best_match.pay_amount else cost_price,

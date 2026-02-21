@@ -153,24 +153,37 @@
     .suggestions-section {
         margin-top: 20px;
     }
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    @media (max-width: 1400px) {
+        .suggestions-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 992px) {
+        .suggestions-grid { grid-template-columns: 1fr; }
+    }
     .suggestion-card {
         border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 10px;
+        border-radius: 6px;
+        padding: 12px 14px;
         background: #fff;
+        font-size: 13px;
+        line-height: 1.6;
     }
     .suggestion-card:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
     .suggestion-card.accepted {
         background: #d4edda;
         border-color: #28a745;
     }
     .match-score {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: bold;
         text-align: center;
+        line-height: 1;
     }
     .match-score.high { color: #28a745; }
     .match-score.medium { color: #ffc107; }
@@ -1017,46 +1030,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
             html += `
                 <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-match-type="${matchType}" data-match-id="${matchId}">
-                    <div class="row">
-                        <div class="col-md-1 d-flex flex-column align-items-center justify-content-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="text-center flex-shrink-0" style="width:40px;">
                             <div class="match-score ${scoreClass}">${s.match_score}</div>
-                            <small class="text-muted d-block text-center">${s.match_level}</small>
+                            <div class="text-muted" style="font-size:10px;">${s.match_level}</div>
                         </div>
-                        <div class="col-md-5">
-                            <strong>银行支出</strong><br>
-                            <span class="text-muted">${s.transaction_date}</span> |
-                            <a href="javascript:void(0)" class="text-danger fw-bold text-decoration-none jump-to-tx" data-tx-id="${s.transaction_id}" data-bank-name="${s.transaction_bank_name || ''}" data-account-name="${s.transaction_account_name || ''}" data-tx-date="${s.transaction_date || ''}" title="定位到银行记录">${formatAmount(s.transaction_amount)}</a>
-                            ${s.transaction_accounting_ref ? `<span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:0.7rem;">${escapeHtml(s.transaction_accounting_ref)}</span>` : ''}
-                            <div class="mt-1" style="word-break: break-word; line-height: 1.4;">
-                                <small class="text-secondary">${escapeHtml(s.transaction_counterparty)}</small>
-                                ${s.transaction_description ? `<br><small class="text-muted">${escapeHtml(s.transaction_description)}</small>` : ''}
+                        <div class="flex-grow-1" style="min-width:0;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong style="font-size:12px;">银行支出</strong>
+                                <div class="flex-shrink-0 d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-success accept-suggestion-btn py-0 px-2" style="font-size:12px;" data-idx="${idx}"><i class="fas fa-check"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn py-0 px-2" style="font-size:12px;" data-idx="${idx}"><i class="fas fa-times"></i></button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <strong>${typeBadge}${typeLabel}</strong><br>
-                            <span class="text-muted">${recordDate}</span> |
-                            <span class="text-danger fw-bold">${formatAmount(recordAmount)}</span>
-                            <div class="mt-1">
-                                <small><strong>${escapeHtml(recordNumber)}</strong></small>
-                                ${s.supplier_name ? `<br><small class="text-muted">${escapeHtml(s.supplier_name)}</small>` : ''}
-                                ${s.project_number && s.header_id ? `<br><small class="text-info">项目: <a href="/projects/detail/${s.header_id}" target="_blank" class="text-info">${s.project_number} <i class="fas fa-external-link-alt fa-xs"></i></a></small>` : (s.project_number ? `<br><small class="text-info">项目: ${s.project_number}</small>` : '')}
-                                ${s.eo_count ? `<br><small class="text-muted">包含 ${s.eo_count} 个EO</small>` : ''}
+                            <div class="my-1">
+                                <span class="text-muted">${s.transaction_date}</span>
+                                <a href="javascript:void(0)" class="text-danger fw-bold text-decoration-none jump-to-tx ms-1" data-tx-id="${s.transaction_id}" data-bank-name="${s.transaction_bank_name || ''}" data-account-name="${s.transaction_account_name || ''}" data-tx-date="${s.transaction_date || ''}" title="定位到银行记录">${formatAmount(s.transaction_amount)}</a>
+                                ${s.transaction_accounting_ref ? `<span class="badge bg-info bg-opacity-10 text-info ms-1" style="font-size:10px;">${escapeHtml(s.transaction_accounting_ref)}</span>` : ''}
                             </div>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-center justify-content-end gap-1">
-                            <button type="button" class="btn btn-sm btn-success accept-suggestion-btn" data-idx="${idx}">
-                                <i class="fas fa-check"></i> 接受
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn" data-idx="${idx}">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            <div style="word-break:break-word;" class="text-secondary mb-3">${escapeHtml(s.transaction_counterparty)}${s.transaction_description ? ' · ' + escapeHtml(s.transaction_description) : ''}</div>
+                            <div class="pt-2" style="border-top:1px dashed #dee2e6;">
+                                <div class="mb-1">
+                                    ${typeBadge}<strong style="font-size:12px;">${typeLabel}</strong>
+                                    <span class="text-muted ms-2">${recordDate}</span>${s.eo_created_at ? ` <span class="text-secondary" title="创建日期">(创建:${s.eo_created_at})</span>` : ''}
+                                    <span class="text-danger fw-bold ms-1">${formatAmount(recordAmount)}</span>
+                                </div>
+                                <div>
+                                    <strong>${escapeHtml(recordNumber)}</strong>
+                                    ${s.supplier_name ? `<span class="text-muted ms-2">${escapeHtml(s.supplier_name)}</span>` : ''}
+                                    ${s.project_number && s.header_id ? `<a href="/projects/detail/${s.header_id}" target="_blank" class="text-info ms-2">${s.project_number}<i class="fas fa-external-link-alt fa-xs ms-1"></i></a>` : (s.project_number ? `<span class="text-info ms-2">${s.project_number}</span>` : '')}
+                                    ${s.eo_count ? `<span class="text-muted ms-2">含${s.eo_count}个EO</span>` : ''}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         });
 
-        container.innerHTML = html;
+        container.innerHTML = '<div class="suggestions-grid">' + html + '</div>';
 
         // 绑定接受/拒绝按钮
         container.querySelectorAll('.accept-suggestion-btn').forEach(btn => {
