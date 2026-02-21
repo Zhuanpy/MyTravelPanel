@@ -39,10 +39,9 @@
         padding: 0.75rem 1rem;
         margin-bottom: 0.75rem;
     }
-    /* 容器撑满 */
     .visa-container-lg {
-        max-width: 100%;
-        padding: 0;
+        max-width: 1200px;
+        margin: 0 auto;
     }
     /* 复制按钮样式 */
     .copy-name-btn {
@@ -145,16 +144,15 @@
                     <table class="visa-table company-table" style="table-layout: fixed; width: 100%;">
                         <thead>
                             <tr>
-                                <th style="width: 25%;">公司名称</th>
+                                <th style="width: 28%;">公司名称</th>
                                 <th style="width: 7%;" class="col-narrow">角色</th>
                                 <th style="width: 12%;">集团/关联</th>
-                                <th style="width: 10%;">公司代码</th>
-                                <th style="width: 9%;">联系人</th>
-                                <th style="width: 11%;">联系电话</th>
+                                <th style="width: 11%;">公司代码</th>
+                                <th style="width: 10%;">联系人</th>
+                                <th style="width: 12%;">联系电话</th>
                                 <th style="width: 6%;" class="col-narrow">状态</th>
                                 <th style="width: 6%;" class="col-narrow">点击</th>
                                 <th style="width: 8%;" class="col-narrow">创建时间</th>
-                                <th style="width: 6%;" class="col-narrow">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -165,7 +163,8 @@
                                         <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
                                            class="text-decoration-none company-link flex-grow-1 text-truncate"
                                            data-company-id="{{ company.id }}"
-                                           title="{{ company.company_name }}">
+                                           title="{{ company.company_name }}"
+                                           style="color: {% if company.is_customer and company.is_supplier %}#7c3aed{% elif company.is_supplier %}#d97706{% else %}#2563eb{% endif %}; font-weight: 500;">
                                             {{ company.company_name }}
                                         </a>
                                         <button type="button" class="btn btn-link btn-sm p-0 ms-1 copy-name-btn"
@@ -211,21 +210,6 @@
                                     </span>
                                 </td>
                                 <td class="col-narrow" style="font-size: 0.78rem;">{{ company.created_at.strftime('%Y-%m-%d') if company.created_at else '-' }}</td>
-                                <td class="col-narrow" style="white-space: nowrap;">
-                                    <a href="{{ url_for('corporate.company_detail', company_id=company.id) }}"
-                                       class="visa-btn visa-btn-sm visa-btn-primary company-click" data-company-id="{{ company.id }}" title="查看" style="padding: 2px 5px;">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}"
-                                       class="visa-btn visa-btn-sm visa-btn-warning company-click" data-company-id="{{ company.id }}" title="编辑" style="padding: 2px 5px;">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" title="删除"
-                                            style="padding: 2px 5px;"
-                                            onclick="deleteCompany({{ company.id }}, '{{ company.company_name }}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -724,7 +708,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sessionStorage.removeItem('company_return_from_detail');
     }
     // 公司名称 + 查看/编辑按钮点击都记录点击次数
-    document.querySelectorAll('.company-link, .company-click').forEach(el => {
+    document.querySelectorAll('.company-link').forEach(el => {
         el.addEventListener('click', function() {
             const companyId = this.getAttribute('data-company-id');
             // 异步记录点击，不阻止跳转

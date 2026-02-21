@@ -3,14 +3,15 @@
 {% block page_title %}{{ company.company_name }}{% endblock %}
 {% block page_actions %}
 <div class="d-flex gap-2">
-    {% if company.contact_email and company.contact_email.strip().lower() not in ['n/a', 'none', '无', 'na', 'null', ''] %}
     <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#emailModal">
         <i class="fas fa-envelope me-1"></i> 发送邮件
     </button>
-    {% endif %}
     <a href="{{ url_for('corporate.edit_company', company_id=company.id) }}" class="btn btn-outline-warning btn-sm">
         <i class="fas fa-edit me-1"></i> 编辑
     </a>
+    <button class="btn btn-outline-danger btn-sm" onclick="deleteCompany()">
+        <i class="fas fa-trash me-1"></i> 删除
+    </button>
     <a href="{{ url_for('corporate.list_companies') }}" class="btn btn-outline-secondary btn-sm">
         <i class="fas fa-arrow-left me-1"></i> 返回列表
     </a>
@@ -536,7 +537,6 @@ document.getElementById('initialBalanceModal')?.addEventListener('click', functi
 </div>
 
 <!-- 发送邮件模态框 -->
-{% if company.contact_email and company.contact_email.strip().lower() not in ['n/a', 'none', '无', 'na', 'null', ''] %}
 <div class="modal fade" id="emailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -567,7 +567,7 @@ document.getElementById('initialBalanceModal')?.addEventListener('click', functi
                             <label class="form-label small mb-1">收件人 <span class="text-danger">*</span></label>
                             <div id="contactCheckboxes" class="mb-1" style="max-height: 90px; overflow-y: auto;"></div>
                             <input type="text" id="emailRecipient" class="form-control form-control-sm"
-                                   value="{{ company.contact_email }}"
+                                   value="{{ company.contact_email or '' }}"
                                    placeholder="多个邮箱用逗号分隔">
                         </div>
                         <div class="mb-2">
@@ -789,7 +789,20 @@ function sendCompanyEmail() {
         alert('请求失败: ' + err);
     });
 }
+
+function deleteCompany() {
+    if (!confirm('确定要删除公司「{{ company.company_name }}」吗？此操作不可撤销。')) return;
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("corporate.delete_company", company_id=company.id) }}';
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrf_token';
+    csrf.value = '{{ csrf_token() }}';
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
+}
 </script>
-{% endif %}
 
 {% endblock %}
