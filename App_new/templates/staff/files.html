@@ -117,7 +117,7 @@
                         <th>项目</th>
                         <th>上传者</th>
                         <th>上传时间</th>
-                        <th>操作</th>
+                        <th style="white-space:nowrap;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -176,15 +176,14 @@
                             </div>
                         </td>
                         <td>
-                            <div class="btn-group" role="group">
+                            <div class="btn-group flex-nowrap" role="group">
                                 <a href="#" class="btn btn-sm btn-outline-primary" onclick="viewFile({{ file.id }})">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 <a href="#" class="btn btn-sm btn-outline-success" onclick="downloadFile({{ file.id }})">
                                     <i class="fas fa-download"></i>
                                 </a>
-                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                        onclick="deleteFile({{ file.id }})">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteFile({{ file.id }})">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
