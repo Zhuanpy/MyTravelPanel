@@ -3,25 +3,19 @@
 {% block page_title %}付款记录{% endblock %}
 {% block extra_css %}
 <style>
-    .summary-card {
-        background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
-        color: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
+    .summary-bar {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 10px 20px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        font-size: 1.0rem;
     }
-    .summary-card .summary-item {
-        text-align: center;
-        padding: 10px;
-    }
-    .summary-card .summary-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-    }
-    .summary-card .summary-label {
-        font-size: 0.85rem;
-        opacity: 0.9;
-    }
+    .summary-bar .s-label { color: #6c757d; }
+    .summary-bar .s-value { font-weight: 600; font-size: 1.1rem; }
     .badge-bank { background-color: #28a745; }
     .badge-prepayment { background-color: #17a2b8; }
     .badge-mixed { background-color: #6f42c1; }
@@ -34,34 +28,18 @@
 </style>
 {% endblock %}
 
+{% block page_actions %}
+<a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i>新建付款
+</a>
+{% endblock %}
 {% block content %}
-<div class="container-fluid py-4" style="max-width: 1400px;">
-    <!-- 页面标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">
-            <i class="fas fa-file-invoice-dollar me-2"></i>付款记录
-        </h4>
-        <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i>新建付款
-        </a>
-    </div>
-
-    <!-- 汇总卡片 -->
-    <div class="summary-card">
-        <div class="row">
-            <div class="col-md-4 summary-item">
-                <div class="summary-value">{{ payments|length }}</div>
-                <div class="summary-label">付款笔数</div>
-            </div>
-            <div class="col-md-4 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(total_amount) }}</div>
-                <div class="summary-label">付款总额 (SGD)</div>
-            </div>
-            <div class="col-md-4 summary-item">
-                <div class="summary-value">{{ "%.2f"|format(total_prepayment) }}</div>
-                <div class="summary-label">预付账款使用</div>
-            </div>
-        </div>
+<div class="container-fluid py-4" style="max-width: 1600px;">
+    <!-- 汇总栏 -->
+    <div class="summary-bar">
+        <span><span class="s-label">付款笔数</span> <span class="s-value">{{ payments|length }}</span></span>
+        <span><span class="s-label">付款总额</span> <span class="s-value">{{ "%.2f"|format(total_amount) }} SGD</span></span>
+        <span><span class="s-label">预付账款使用</span> <span class="s-value">{{ "%.2f"|format(total_prepayment) }}</span></span>
     </div>
 
     <!-- 筛选栏 -->
