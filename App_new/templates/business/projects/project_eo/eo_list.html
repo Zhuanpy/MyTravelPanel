@@ -4,6 +4,18 @@
 
 {% block page_title %}EO管理{% endblock %}
 
+{% block page_actions %}
+<span class="badge bg-info me-2">总计: {{ pagination.total if pagination else eos|length }}</span>
+<a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-sm btn-success me-1">
+    <i class="fas fa-money-check-alt"></i> 批量付款
+</a>
+<a href="{{ url_for('business_projects.project_payment.list_payments') }}" class="btn btn-sm btn-outline-info me-1">
+    <i class="fas fa-list-alt"></i> 付款记录
+</a>
+<button type="button" class="btn btn-sm btn-outline-success" onclick="exportToExcel()">
+    <i class="fas fa-download"></i> 导出
+</button>
+{% endblock %}
 {% block content %}
 <style>
     .eo-table { font-size: 0.8rem; }
@@ -14,30 +26,13 @@
     .status-confirmed { background: #17a2b8; }
     .payment-paid { background: #28a745; }
     .payment-unpaid { background: #ffc107; color: #212529; }
-    .filter-row { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
-    .filter-row .form-control, .filter-row .form-select { height: 32px; font-size: 0.85rem; padding: 4px 8px; }
-    .filter-row .btn { height: 32px; padding: 4px 12px; font-size: 0.85rem; }
+    .filter-row { background: #f8f9fa; padding: 12px 14px; border-radius: 6px; margin-bottom: 15px; }
+    .filter-row .form-control, .filter-row .form-select { height: 38px; font-size: 0.95rem; padding: 6px 10px; }
+    .filter-row .btn { height: 38px; padding: 6px 14px; font-size: 0.95rem; }
     .amount-col { text-align: right; font-family: monospace; }
 </style>
 
 <div class="container-fluid">
-    <!-- 标题 -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="fas fa-file-invoice text-primary"></i> EO列表</h5>
-        <div>
-            <span class="badge bg-info me-2">总计: {{ pagination.total if pagination else eos|length }}</span>
-            <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-sm btn-success me-1">
-                <i class="fas fa-money-check-alt"></i> 批量付款
-            </a>
-            <a href="{{ url_for('business_projects.project_payment.list_payments') }}" class="btn btn-sm btn-outline-info me-1">
-                <i class="fas fa-list-alt"></i> 付款记录
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-success" onclick="exportToExcel()">
-                <i class="fas fa-download"></i> 导出
-            </button>
-        </div>
-    </div>
-
     <!-- 筛选 -->
     <div class="filter-row">
         <form method="GET" action="{{ url_for('business_projects.project_eo.eo_list') }}" class="row g-2 align-items-end">

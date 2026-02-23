@@ -343,7 +343,7 @@ def update_header_status():
         return jsonify({'success': False, 'message': '项目不存在'})
     
     # 验证状态值
-    valid_statuses = ['draft', 'active', 'completed', 'cancelled']
+    valid_statuses = ['active', 'completed', 'cancelled']
     if status not in valid_statuses:
         return jsonify({'success': False, 'message': '无效的状态值'})
     

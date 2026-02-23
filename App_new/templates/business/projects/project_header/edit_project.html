@@ -112,10 +112,9 @@
                         <div class="form-group">
                             <label>项目状�?/label>
                             <select class="form-control" name="project_status">
-                                <option value="draft" {% if project.status == 'draft' %}selected{% endif %}>草稿</option>
-                                <option value="active" {% if project.status == 'active' %}selected{% endif %}>进行�?/option>
-                                <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完�?/option>
-                                <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取�?/option>
+                                <option value="active" {% if project.status in ('active', 'draft') %}selected{% endif %}>进行中</option>
+                                <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完成</option>
+                                <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取消</option>
                             </select>
                         </div>
                     </div>

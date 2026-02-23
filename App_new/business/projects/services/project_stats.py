@@ -38,7 +38,7 @@ class ProjectStatsService:
 
             receipt_stats = db.session.query(
                 func.coalesce(func.sum(ProjectReceipt.amount), 0).label('total_received')
-            ).first()
+            ).filter(ProjectReceipt.status == 'confirmed').first()
 
             total_revenue = float(revenue_stats.total_revenue or 0)
             total_cost = float(revenue_stats.total_cost or 0)
@@ -47,9 +47,8 @@ class ProjectStatsService:
 
             return {
                 'total_projects': total_projects,
-                'active_projects': status_dict.get('active', 0),
+                'active_projects': status_dict.get('active', 0) + status_dict.get('draft', 0),
                 'completed_projects': status_dict.get('completed', 0),
-                'draft_projects': status_dict.get('draft', 0),
                 'total_revenue': total_revenue,
                 'total_cost': total_cost,
                 'total_profit': total_profit,
@@ -104,10 +103,7 @@ class ProjectStatsService:
             for row in overdue_receivables_query.all():
                 overdue_amount += float(row.total_selling or 0) - float(row.total_received or 0)
 
-            # 3. 草稿项目数（可能需要跟进）
-            draft_projects = ProjectHeader.query.filter_by(status='draft').count()
-
-            # 4. 低利润项目（利润率低于10%）
+            # 3. 低利润项目（利润率低于10%）
             low_profit_count = 0
             # 简化查询：获取每个项目的利润率
             projects_with_refs = db.session.query(
@@ -134,9 +130,8 @@ class ProjectStatsService:
                 'overdue_projects': overdue_projects,
                 'overdue_receivables': overdue_receivables,
                 'overdue_amount': round(overdue_amount, 2),
-                'draft_projects': draft_projects,
                 'low_profit_projects': low_profit_count,
-                'total_warnings': overdue_projects + overdue_receivables + draft_projects
+                'total_warnings': overdue_projects + overdue_receivables
             }
         except Exception as e:
             print(f"获取预警统计失败: {e}")
@@ -144,7 +139,6 @@ class ProjectStatsService:
                 'overdue_projects': 0,
                 'overdue_receivables': 0,
                 'overdue_amount': 0,
-                'draft_projects': 0,
                 'low_profit_projects': 0,
                 'total_warnings': 0
             }

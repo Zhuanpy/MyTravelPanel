@@ -57,7 +57,6 @@ class ProjectCreateForm(FlaskForm):
     ])
     
     status = SelectField('项目状态', choices=[
-        ('draft', '草稿'),
         ('active', '进行中'),
         ('completed', '已完成'),
         ('cancelled', '已取消')
@@ -140,7 +139,6 @@ class ProjectEditForm(FlaskForm):
     ])
     
     status = SelectField('项目状态', choices=[
-        ('draft', '草稿'),
         ('active', '进行中'),
         ('completed', '已完成'),
         ('cancelled', '已取消')
@@ -187,7 +185,6 @@ class ProjectSearchForm(FlaskForm):
     
     status = SelectField('项目状态', choices=[
         ('', '所有状态'),
-        ('draft', '草稿'),
         ('active', '进行中'),
         ('completed', '已完成'),
         ('cancelled', '已取消')
@@ -328,7 +325,6 @@ class ProjectHeaderForm(FlaskForm):
     status = SelectField('状态', [
         DataRequired(message='请选择状态')
     ], choices=[
-        ('draft', '草稿'),
         ('active', '进行中'),
         ('completed', '已完成'),
         ('cancelled', '已取消')

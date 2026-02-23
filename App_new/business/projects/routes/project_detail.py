@@ -1122,7 +1122,7 @@ def copy_project(project_id):
             currency=original.currency,
             leader_name=original.leader_name,
             type=original.type,
-            status='draft',  # 新项目默认为草稿状态
+            status='active',  # 新项目默认为进行中
             remarks=f'复制自 {original.hid}',
             # 利润分配相关
             order_type=original.order_type,

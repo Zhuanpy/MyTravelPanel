@@ -45,7 +45,7 @@ def create_header():
                 staff_id=staff_id,
                 currency=form.currency.data,
                 type=form.type.data,
-                status=form.status.data,
+                status='active',
                 remarks=form.remarks.data
             )
             # staff_name 已由事件自动同步，用它设置默认值

@@ -247,8 +247,7 @@
         font-weight: 500;
     }
 
-    .status-badge.draft { background: #f1f5f9; color: #64748b; }
-    .status-badge.active { background: #dcfce7; color: #16a34a; }
+    .status-badge.draft, .status-badge.active { background: #dcfce7; color: #16a34a; }
     .status-badge.completed { background: #dbeafe; color: #2563eb; }
     .status-badge.cancelled { background: #fee2e2; color: #dc2626; }
 
@@ -459,13 +458,6 @@
                 <span class="badge">{{ warning_stats.low_profit_projects }}</span>
             </div>
             {% endif %}
-            {% if warning_stats.get('draft_projects', 0) > 0 %}
-            <div class="warning-item">
-                <i class="fas fa-file-alt"></i>
-                待处理草稿
-                <span class="badge">{{ warning_stats.draft_projects }}</span>
-            </div>
-            {% endif %}
         </div>
     </div>
     {% endif %}
@@ -505,10 +497,9 @@
                         </td>
                         <td>
                             <span class="status-badge {{ project.status }}">
-                                {% if project.status == 'draft' %}草稿
-                                {% elif project.status == 'active' %}进行中
-                                {% elif project.status == 'completed' %}已完成
-                                {% else %}已取消{% endif %}
+                                {% if project.status == 'completed' %}已完成
+                                {% elif project.status == 'cancelled' %}已取消
+                                {% else %}进行中{% endif %}
                             </span>
                         </td>
                         <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>

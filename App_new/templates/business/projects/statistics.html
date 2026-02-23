@@ -92,10 +92,10 @@
         <div class="stats-card">
             <div class="stats-number">{{ count }}</div>
             <div class="stats-label">
-                {% if status == 'draft' %}草稿
-                {% elif status == 'active' %}进行中
-                {% elif status == 'completed' %}已完成
-                {% else %}已取消
+                {% if status == 'completed' %}已完成
+                {% elif status == 'cancelled' %}已取消
+                {% elif status in ('active', 'draft') %}进行中
+                {% else %}{{ status }}
                 {% endif %}
             </div>
         </div>

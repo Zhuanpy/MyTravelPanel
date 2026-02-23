@@ -885,9 +885,8 @@ def list_projects():
         # 获取总体统计（简化版本，只获取基本计数）
         total_stats = {
             'total_projects': ProjectHeader.query.count(),
-            'active_projects': ProjectHeader.query.filter_by(status='active').count(),
+            'active_projects': ProjectHeader.query.filter(ProjectHeader.status.in_(['active', 'draft'])).count(),
             'completed_projects': ProjectHeader.query.filter_by(status='completed').count(),
-            'draft_projects': ProjectHeader.query.filter_by(status='draft').count(),
             'completed_this_month': ProjectHeader.query.filter(
                 ProjectHeader.status == 'completed',
                 ProjectHeader.updated_at >= datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -1277,8 +1276,6 @@ def api_quick_filter(filter_type):
             projects = project_service.get_projects_by_status('active')
         elif filter_type == 'completed':
             projects = project_service.get_projects_by_status('completed')
-        elif filter_type == 'draft':
-            projects = project_service.get_projects_by_status('draft')
         elif filter_type == 'profitable':
             projects = project_service.get_profitable_projects()
         elif filter_type == 'unpaid':

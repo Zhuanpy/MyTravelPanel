@@ -424,7 +424,7 @@ class ProjectHeader(db.Model):
     type = db.Column(db.String(50), comment='类型')
     status = db.Column(
         db.Enum('draft', 'active', 'completed', 'cancelled'),
-        default='draft',
+        default='active',
         nullable=False,
         comment='状态'
     )
