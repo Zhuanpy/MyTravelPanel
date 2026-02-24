@@ -43,7 +43,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4" style="max-width: 820px;">
+<div class="container-fluid py-4" style="max-width: 1200px;">
     <!-- 面包屑导航 -->
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
@@ -81,7 +81,7 @@
                 <!-- 封面图 -->
                 <div class="col-auto">
                     {% if product.cover_image %}
-                    <img src="{{ product.cover_image }}" alt="封面图" class="rounded" style="width: 120px; height: 90px; object-fit: cover;">
+                    <img src="{{ url_for('static', filename=product.cover_image) }}" alt="封面图" class="rounded" style="width: 120px; height: 90px; object-fit: cover;">
                     {% else %}
                     <div class="bg-light rounded d-flex align-items-center justify-content-center text-muted" style="width: 120px; height: 90px;">
                         <i class="fas fa-image fa-2x"></i>
@@ -179,6 +179,7 @@
             </div>
             {% endif %}
 
+            {% if product.product_category != 'ticket' %}
             <div class="row">
                 {% if product.includes %}
                 <div class="col-md-6 mb-3">
@@ -200,6 +201,7 @@
                 <h6 class="text-muted small">重要提示</h6>
                 <div class="bg-warning bg-opacity-10 p-2 rounded small">{{ product.important_notes | safe }}</div>
             </div>
+            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -236,11 +238,6 @@
                 {% if te.duration_minutes %}
                 <div class="col-md-4 mb-2">
                     <span class="text-muted">建议时长：</span>{{ te.duration_minutes }}分钟
-                </div>
-                {% endif %}
-                {% if te.delivery_type %}
-                <div class="col-md-4 mb-2">
-                    <span class="text-muted">取票方式：</span>{{ te.delivery_type }}
                 </div>
                 {% endif %}
                 {% if te.entry_method %}
@@ -334,6 +331,103 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- 门票变体（仅门票类产品显示） -->
+    {% if product.product_category == 'ticket' %}
+    <div class="card mb-3">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-layer-group me-2"></i>产品变体</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="openVariantModal()">
+                <i class="fas fa-plus me-1"></i>添加变体
+            </button>
+        </div>
+        <div class="card-body p-0">
+            {% if ticket_variants %}
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>变体名称</th>
+                        <th>取票方式</th>
+                        <th class="text-end">成人售价</th>
+                        <th class="text-end">成人成本</th>
+                        <th class="text-end">儿童售价</th>
+                        <th class="text-end">儿童成本</th>
+                        <th class="text-center">状态</th>
+                        <th style="width: 80px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in ticket_variants %}
+                    <tr>
+                        <td class="text-muted">{{ v.sort_order }}</td>
+                        <td>
+                            {{ v.variant_name }}
+                            {% if v.variant_name_en %}<br><small class="text-muted">{{ v.variant_name_en }}</small>{% endif %}
+                        </td>
+                        <td>
+                            {% set dt_map = {'e_ticket': '电子票', 'physical': '实体票', 'voucher': '兑换券', 'pickup': '现场取票'} %}
+                            {{ dt_map.get(v.delivery_type, v.delivery_type or '-') }}
+                        </td>
+                        <td class="text-end" style="font-family: monospace;">
+                            {% if v.adult_selling_price is not none %}
+                            ${{ "%.2f"|format(v.adult_selling_price) }}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td class="text-end" style="font-family: monospace;">
+                            {% if v.adult_cost_price is not none %}
+                            ${{ "%.2f"|format(v.adult_cost_price) }}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td class="text-end" style="font-family: monospace;">
+                            {% if v.child_selling_price is not none %}
+                            ${{ "%.2f"|format(v.child_selling_price) }}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td class="text-end" style="font-family: monospace;">
+                            {% if v.child_cost_price is not none %}
+                            ${{ "%.2f"|format(v.child_cost_price) }}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if v.is_active %}
+                            <span class="badge bg-success">已激活</span>
+                            {% else %}
+                            <span class="badge bg-secondary">未激活</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary py-0" title="编辑" onclick="openVariantModal({{ v.id }})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger py-0" title="删除" onclick="deleteVariant({{ v.id }}, '{{ v.variant_name }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% if v.includes or v.excludes or v.important_notes %}
+                    <tr class="table-light">
+                        <td></td>
+                        <td colspan="8" class="small py-1">
+                            {% if v.includes %}<span class="text-success"><i class="fas fa-check-circle me-1"></i>包含：{{ v.includes }}</span><br>{% endif %}
+                            {% if v.excludes %}<span class="text-danger"><i class="fas fa-times-circle me-1"></i>不含：{{ v.excludes }}</span><br>{% endif %}
+                            {% if v.important_notes %}<span class="text-warning"><i class="fas fa-exclamation-circle me-1"></i>提示：{{ v.important_notes }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-layer-group fa-2x mb-2 d-block"></i>
+                <p class="mb-1">暂无变体</p>
+                <small>如普通门票、快捷通道门票等</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- 删除确认模态框 -->
@@ -358,6 +452,120 @@
         </div>
     </div>
 </div>
+
+{% if product.product_category == 'ticket' %}
+<!-- 变体编辑模态框 -->
+<div class="modal fade" id="variantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="variantModalTitle">添加变体</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="variantId" value="">
+
+                <!-- 基本信息 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-tag me-1"></i>基本信息</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">变体名称（中文）<span class="text-danger">*</span></label>
+                        <input type="text" id="variantName" class="form-control form-control-sm" placeholder="如：普通门票" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">变体名称（英文）</label>
+                        <input type="text" id="variantNameEn" class="form-control form-control-sm" placeholder="如：Standard Ticket">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">排序</label>
+                        <input type="number" id="variantSort" class="form-control form-control-sm" value="0" min="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">取票方式</label>
+                        <select id="variantDeliveryType" class="form-select form-select-sm">
+                            <option value="e_ticket">电子票</option>
+                            <option value="physical">实体票</option>
+                            <option value="voucher">兑换券</option>
+                            <option value="pickup">现场取票</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">状态</label>
+                        <select id="variantActive" class="form-select form-select-sm">
+                            <option value="1">已激活</option>
+                            <option value="0">未激活</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="my-2">
+
+                <!-- 价格 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-dollar-sign me-1"></i>价格设置</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">成人售价</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="adultSellingPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">成人成本</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="adultCostPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">儿童售价</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="childSellingPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">儿童成本</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="childCostPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-2">
+
+                <!-- 说明信息 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-file-alt me-1"></i>说明信息</div>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small mb-1">变体描述</label>
+                        <textarea id="variantDesc" class="form-control form-control-sm" rows="2" placeholder="变体说明"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">费用包含</label>
+                        <textarea id="variantIncludes" class="form-control form-control-sm" rows="2" placeholder="每行一项"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">费用不含</label>
+                        <textarea id="variantExcludes" class="form-control form-control-sm" rows="2" placeholder="每行一项"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-1">重要提示</label>
+                        <textarea id="variantImportantNotes" class="form-control form-control-sm" rows="2" placeholder="购买须知、退改规则等"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="saveVariant()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -386,5 +594,120 @@ function updateStatus(status) {
 function confirmDelete() {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+{% if product.product_category == 'ticket' %}
+// 变体管理
+function openVariantModal(variantId) {
+    // 重置表单
+    document.getElementById('variantId').value = '';
+    document.getElementById('variantName').value = '';
+    document.getElementById('variantNameEn').value = '';
+    document.getElementById('variantDesc').value = '';
+    document.getElementById('adultSellingPrice').value = '';
+    document.getElementById('adultCostPrice').value = '';
+    document.getElementById('childSellingPrice').value = '';
+    document.getElementById('childCostPrice').value = '';
+    document.getElementById('variantDeliveryType').value = 'e_ticket';
+    document.getElementById('variantIncludes').value = '';
+    document.getElementById('variantExcludes').value = '';
+    document.getElementById('variantImportantNotes').value = '';
+    document.getElementById('variantSort').value = '0';
+    document.getElementById('variantActive').value = '1';
+    document.getElementById('variantModalTitle').textContent = '添加变体';
+
+    if (variantId) {
+        // 编辑模式：加载已有数据
+        document.getElementById('variantModalTitle').textContent = '编辑变体';
+        fetch(`/staff/products/ticket/variant/${variantId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    var v = data.variant;
+                    document.getElementById('variantId').value = v.id;
+                    document.getElementById('variantName').value = v.variant_name || '';
+                    document.getElementById('variantNameEn').value = v.variant_name_en || '';
+                    document.getElementById('variantDesc').value = v.description || '';
+                    document.getElementById('adultSellingPrice').value = v.adult_selling_price || '';
+                    document.getElementById('adultCostPrice').value = v.adult_cost_price || '';
+                    document.getElementById('childSellingPrice').value = v.child_selling_price || '';
+                    document.getElementById('childCostPrice').value = v.child_cost_price || '';
+                    document.getElementById('variantDeliveryType').value = v.delivery_type || 'e_ticket';
+                    document.getElementById('variantIncludes').value = v.includes || '';
+                    document.getElementById('variantExcludes').value = v.excludes || '';
+                    document.getElementById('variantImportantNotes').value = v.important_notes || '';
+                    document.getElementById('variantSort').value = v.sort_order || 0;
+                    document.getElementById('variantActive').value = v.is_active ? '1' : '0';
+                }
+            });
+    }
+
+    new bootstrap.Modal(document.getElementById('variantModal')).show();
+}
+
+function saveVariant() {
+    var variantId = document.getElementById('variantId').value;
+    var variantName = document.getElementById('variantName').value.trim();
+    if (!variantName) {
+        alert('请输入变体名称');
+        return;
+    }
+
+    var payload = {
+        variant_name: variantName,
+        variant_name_en: document.getElementById('variantNameEn').value.trim(),
+        description: document.getElementById('variantDesc').value.trim(),
+        adult_selling_price: document.getElementById('adultSellingPrice').value || null,
+        adult_cost_price: document.getElementById('adultCostPrice').value || null,
+        child_selling_price: document.getElementById('childSellingPrice').value || null,
+        child_cost_price: document.getElementById('childCostPrice').value || null,
+        delivery_type: document.getElementById('variantDeliveryType').value,
+        includes: document.getElementById('variantIncludes').value.trim() || null,
+        excludes: document.getElementById('variantExcludes').value.trim() || null,
+        important_notes: document.getElementById('variantImportantNotes').value.trim() || null,
+        sort_order: parseInt(document.getElementById('variantSort').value) || 0,
+        is_active: document.getElementById('variantActive').value === '1',
+    };
+
+    var url;
+    if (variantId) {
+        url = `/staff/products/ticket/variant/${variantId}/edit`;
+    } else {
+        url = `/staff/products/ticket/{{ product.id }}/variant/add`;
+    }
+
+    fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+        body: JSON.stringify(payload),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('保存失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+function deleteVariant(variantId, name) {
+    if (!confirm(`确定要删除变体「${name}」吗？`)) return;
+
+    fetch(`/staff/products/ticket/variant/${variantId}/delete`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('删除失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+{% endif %}
 </script>
 {% endblock %}

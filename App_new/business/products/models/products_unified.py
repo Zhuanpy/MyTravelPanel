@@ -110,7 +110,8 @@ class ProductsUnified(db.Model):
 
     # ========== 基础信息 ==========
     product_code = db.Column(db.String(50), unique=True, nullable=False, comment='产品编号')
-    product_name = db.Column(db.String(200), nullable=False, comment='产品名称')
+    product_name = db.Column(db.String(200), nullable=False, comment='产品名称（中文）')
+    product_name_en = db.Column(db.String(200), comment='产品名称（英文）')
     product_short_name = db.Column(db.String(100), comment='产品简称')
 
     # ========== 分类 ==========
@@ -159,6 +160,10 @@ class ProductsUnified(db.Model):
     valid_from = db.Column(db.Date, comment='有效开始日期')
     valid_until = db.Column(db.Date, comment='有效结束日期')
 
+    # ========== 父子关系（产品变体） ==========
+    parent_id = db.Column(db.Integer, db.ForeignKey('products_unified.id'), index=True,
+                          comment='父产品ID，NULL表示主产品')
+
     # ========== 扩展表关联 ==========
     # 用于关联各品类的扩展表（旅游/签证/门票/用车等）
     ext_table_id = db.Column(db.Integer, comment='扩展表记录ID')
@@ -176,6 +181,10 @@ class ProductsUnified(db.Model):
 
     # ========== 关联关系 ==========
     supplier = db.relationship('CustomerCompany', backref=db.backref('unified_products', lazy='dynamic'), foreign_keys=[supplier_id])
+    children = db.relationship('ProductsUnified', backref=db.backref('parent', remote_side='ProductsUnified.id'),
+                               lazy='dynamic', foreign_keys=[parent_id])
+    ticket_variants = db.relationship('ProductsTicketVariant', backref='product', lazy='dynamic',
+                                      cascade='all, delete-orphan', order_by='ProductsTicketVariant.sort_order')
     prices = db.relationship('ProductsPrice', backref='product', lazy='dynamic', cascade='all, delete-orphan')
     rules = db.relationship('ProductsRule', backref='product', lazy='dynamic', cascade='all, delete-orphan')
 

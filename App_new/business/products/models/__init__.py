@@ -22,6 +22,7 @@ from .products_ticket_ext import (
     TicketType,
     TicketDelivery
 )
+from .products_ticket_variant import ProductsTicketVariant
 from .products_car_ext import (
     ProductsCarExt,
     CarServiceType,
@@ -64,6 +65,8 @@ __all__ = [
     'ProductsTicketExt',
     'TicketType',
     'TicketDelivery',
+    # 门票变体
+    'ProductsTicketVariant',
     # 用车扩展
     'ProductsCarExt',
     'CarServiceType',

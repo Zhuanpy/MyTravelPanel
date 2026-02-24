@@ -655,3 +655,208 @@ def book_tour(product_id):
         current_app.logger.error(traceback.format_exc())
         flash('加载页面失败，请稍后重试', 'error')
         return redirect(url_for('public.tour_packages'))
+
+
+@orders_bp.route('/book-ticket/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+@member_only
+def book_ticket(product_id):
+    """预订景点门票"""
+    # 移动设备跳转到手机版（仅GET请求，如果手机版路由存在）
+    if is_mobile_device() and request.method == 'GET':
+        try:
+            return redirect(url_for('mobile.book_ticket', product_id=product_id,
+                                    variant_id=request.args.get('variant_id', ''),
+                                    adult=request.args.get('adult', 1),
+                                    child=request.args.get('child', 0)))
+        except Exception:
+            pass  # 手机版路由不存在，继续使用桌面版
+
+    try:
+        from App_new.business.products.models.products_unified import ProductsUnified
+        from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+        from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+
+        # 获取产品信息
+        product = ProductsUnified.query.get_or_404(product_id)
+
+        if product.product_status != 'active':
+            flash('该产品目前不可预订', 'error')
+            return redirect(url_for('public.attraction_detail', product_id=product_id))
+
+        # 获取场馆信息
+        ticket_ext = ProductsTicketExt.query.filter_by(product_id=product_id).first()
+
+        # 获取所有激活的变体
+        variants = ProductsTicketVariant.query.filter_by(
+            product_id=product_id, is_active=True
+        ).order_by(ProductsTicketVariant.sort_order).all()
+
+        if not variants:
+            flash('该产品暂无可预订的票种', 'error')
+            return redirect(url_for('public.attraction_detail', product_id=product_id))
+
+        # 获取URL参数预选的变体和人数
+        selected_variant_id = request.args.get('variant_id', type=int)
+        pre_adult = request.args.get('adult', 1, type=int)
+        pre_child = request.args.get('child', 0, type=int)
+
+        if request.method == 'POST':
+            try:
+                # 获取表单数据
+                variant_id = request.form.get('variant_id', type=int)
+                visit_date = request.form.get('visit_date')
+                adult_count = int(request.form.get('adult_count', 1))
+                child_count = int(request.form.get('child_count', 0))
+
+                # 联系人信息
+                contact_name = request.form.get('contact_name')
+                contact_email = request.form.get('contact_email')
+                contact_phone = request.form.get('contact_phone')
+                special_requirements = request.form.get('special_requirements', '')
+
+                # 获取选中的变体
+                variant = ProductsTicketVariant.query.get(variant_id)
+                if not variant or variant.product_id != product_id:
+                    flash('所选票种不存在', 'error')
+                    return redirect(url_for('orders.book_ticket', product_id=product_id))
+
+                # 计算价格
+                adult_price = Decimal(str(variant.adult_selling_price or 0))
+                child_price = Decimal(str(variant.child_selling_price or 0))
+                estimated_price = (adult_price * adult_count) + (child_price * child_count)
+                currency = variant.currency or 'SGD'
+
+                # 生成订单号
+                order_number = f"TKT{datetime.now().strftime('%Y%m%d')}{str(uuid.uuid4())[:8].upper()}"
+
+                # 构建描述
+                location = product.country or ''
+                if product.city:
+                    location = f"{location} {product.city}" if location else product.city
+
+                description = f"景点门票: {product.product_name}\n"
+                description += f"票种: {variant.variant_name}\n"
+                if location:
+                    description += f"地点: {location}\n"
+                if visit_date:
+                    description += f"游玩日期: {visit_date}\n"
+                description += f"人数: 成人{adult_count}人"
+                if child_count > 0:
+                    description += f", 儿童{child_count}人"
+
+                # 创建订单
+                order = Order(
+                    order_number=order_number,
+                    user_id=current_user.id,
+                    service_type='ticket',
+                    service_name=product.product_name,
+                    description=description,
+                    base_price=estimated_price,
+                    total_amount=estimated_price,
+                    currency=currency,
+                    customer_name=contact_name,
+                    customer_email=contact_email,
+                    customer_phone=contact_phone,
+                    special_requirements=special_requirements,
+                    notes=f"产品ID: {product.id}, 变体ID: {variant.id}, 游玩日期: {visit_date}, 成人: {adult_count}, 儿童: {child_count}",
+                    status=OrderStatus.PENDING.value
+                )
+
+                db.session.add(order)
+                db.session.flush()
+
+                # 添加订单项目
+                order_item = OrderItem(
+                    order_id=order.id,
+                    item_name=f"{product.product_name} - {variant.variant_name}",
+                    item_description=f"{location}" if location else '',
+                    item_type='ticket',
+                    quantity=adult_count + child_count,
+                    unit_price=adult_price,
+                    total_price=estimated_price,
+                    properties={
+                        'product_id': product.id,
+                        'variant_id': variant.id,
+                        'variant_name': variant.variant_name,
+                        'visit_date': visit_date,
+                        'adult_count': adult_count,
+                        'child_count': child_count,
+                        'adult_price': float(adult_price),
+                        'child_price': float(child_price),
+                        'delivery_type': variant.delivery_type
+                    }
+                )
+                db.session.add(order_item)
+
+                db.session.commit()
+
+                # 发送邮件通知
+                try:
+                    from App_new.utils.email_service import send_order_notification, send_order_confirmation
+                    send_order_notification(order)
+                    send_order_confirmation(order)
+                except Exception as mail_err:
+                    current_app.logger.warning(f'订单邮件发送失败: {str(mail_err)}')
+
+                flash('预订提交成功！我们的工作人员将尽快与您确认。', 'success')
+                return redirect(url_for('orders.order_detail', order_id=order.id))
+
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f'创建门票订单失败: {str(e)}')
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+                flash(f'预订失败: {str(e)}', 'error')
+                return redirect(url_for('orders.book_ticket', product_id=product_id))
+
+        # GET 请求：显示预订表单
+        # 构建变体数据
+        variants_data = []
+        for v in variants:
+            variants_data.append({
+                'id': v.id,
+                'name': v.variant_name,
+                'name_en': v.variant_name_en,
+                'description': v.description,
+                'adult_price': float(v.adult_selling_price or 0),
+                'child_price': float(v.child_selling_price or 0),
+                'currency': v.currency or 'SGD',
+                'delivery_type': v.delivery_type,
+                'includes': v.includes,
+                'excludes': v.excludes,
+                'important_notes': v.important_notes
+            })
+
+        # 产品数据
+        location = product.country or ''
+        if product.city:
+            location = f"{location} {product.city}" if location else product.city
+
+        product_data = {
+            'id': product.id,
+            'name': product.product_name,
+            'name_en': product.product_name_en,
+            'location': location,
+            'cover_image': product.cover_image,
+            'venue_name': ticket_ext.venue_name if ticket_ext else None,
+            'opening_hours': ticket_ext.opening_hours if ticket_ext else None,
+        }
+
+        # 获取用户信息预填
+        user_profile = current_user.profile if hasattr(current_user, 'profile') else None
+
+        return render_template('member/order/book_ticket.html',
+                             product=product_data,
+                             variants=variants_data,
+                             selected_variant_id=selected_variant_id,
+                             pre_adult=pre_adult,
+                             pre_child=pre_child,
+                             user_profile=user_profile)
+
+    except Exception as e:
+        current_app.logger.error(f'加载门票预订页面失败: {str(e)}')
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        flash('加载页面失败，请稍后重试', 'error')
+        return redirect(url_for('public.attractions'))

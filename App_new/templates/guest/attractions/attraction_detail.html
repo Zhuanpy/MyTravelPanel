@@ -1,0 +1,838 @@
+{% extends "guest/shared/base.html" %}
+
+{% block title %}{{ product.product_name }} - 景点门票 - 悦行假期{% endblock %}
+
+{% block content %}
+<!-- 面包屑导航 -->
+<section class="py-3">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('public.index') }}" class="text-dark">首页</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('public.attractions') }}" class="text-dark">景点门票</a></li>
+                {% if product.country %}
+                <li class="breadcrumb-item"><a href="{{ url_for('public.attractions', country=product.country) }}" class="text-dark">{{ product.country }}</a></li>
+                {% endif %}
+                <li class="breadcrumb-item active" aria-current="page">{{ product.product_name }}</li>
+            </ol>
+        </nav>
+    </div>
+</section>
+
+<!-- 详情内容 -->
+<section class="py-4">
+    <div class="container">
+        <div class="detail-container">
+
+            <!-- 景点信息卡片 -->
+            <div class="detail-card">
+                <!-- 封面图 + 标题 -->
+                <div class="detail-header">
+                    {% if product.cover_image %}
+                    <div class="detail-cover">
+                        <img src="{{ url_for('static', filename=product.cover_image) }}" alt="{{ product.product_name }}">
+                    </div>
+                    {% endif %}
+                    <div class="detail-title-area">
+                        <h1 class="detail-title">{{ product.product_name }}</h1>
+                        {% if product.product_name_en %}
+                        <p class="detail-subtitle">{{ product.product_name_en }}</p>
+                        {% endif %}
+                        <div class="detail-meta">
+                            {% if product.country %}
+                            <span class="meta-tag"><i class="fas fa-map-marker-alt me-1"></i>{{ product.country }}{% if product.city %} · {{ product.city }}{% endif %}</span>
+                            {% endif %}
+                            {% if ticket_ext and ticket_ext.ticket_type %}
+                            <span class="meta-tag"><i class="fas fa-ticket-alt me-1"></i>{{ ticket_ext.ticket_type }}</span>
+                            {% endif %}
+                            {% if product.is_featured %}
+                            <span class="meta-tag meta-hot"><i class="fas fa-fire me-1"></i>热门</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 场馆信息 -->
+                {% if ticket_ext %}
+                <div class="info-section">
+                    <div class="info-label"><i class="fas fa-building info-icon"></i><span>场馆信息</span></div>
+                    <div class="info-grid">
+                        {% if ticket_ext.venue_name %}
+                        <div class="info-row">
+                            <span class="info-key">场馆名称</span>
+                            <span class="info-val">{{ ticket_ext.venue_name }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ticket_ext.venue_address %}
+                        <div class="info-row">
+                            <span class="info-key">场馆地址</span>
+                            <span class="info-val">{{ ticket_ext.venue_address }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ticket_ext.opening_hours %}
+                        <div class="info-row">
+                            <span class="info-key">开放时间</span>
+                            <span class="info-val">{{ ticket_ext.opening_hours }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ticket_ext.duration_minutes %}
+                        <div class="info-row">
+                            <span class="info-key">建议时长</span>
+                            <span class="info-val">{{ ticket_ext.duration_minutes }} 分钟</span>
+                        </div>
+                        {% endif %}
+                        {% if ticket_ext.entry_method %}
+                        <div class="info-row">
+                            <span class="info-key">入园方式</span>
+                            <span class="info-val">{{ ticket_ext.entry_method }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ticket_ext.need_reservation %}
+                        <div class="info-row">
+                            <span class="info-key">预约</span>
+                            <span class="info-val"><span class="badge bg-warning text-dark">需要提前预约</span></span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 产品描述 -->
+                {% if product.description %}
+                <div class="info-section">
+                    <div class="info-label"><i class="fas fa-file-alt info-icon"></i><span>景点介绍</span></div>
+                    <div class="info-content">{{ product.description | safe }}</div>
+                </div>
+                {% endif %}
+
+                <!-- 限制条件 -->
+                {% if ticket_ext and (ticket_ext.age_limit or ticket_ext.height_limit or ticket_ext.health_requirement) %}
+                <div class="info-section">
+                    <div class="info-label"><i class="fas fa-exclamation-triangle info-icon" style="color: #ffc107 !important;"></i><span>游玩须知</span></div>
+                    <div class="info-grid">
+                        {% if ticket_ext.age_limit %}
+                        <div class="info-row"><span class="info-key">年龄限制</span><span class="info-val">{{ ticket_ext.age_limit }}</span></div>
+                        {% endif %}
+                        {% if ticket_ext.height_limit %}
+                        <div class="info-row"><span class="info-key">身高限制</span><span class="info-val">{{ ticket_ext.height_limit }}</span></div>
+                        {% endif %}
+                        {% if ticket_ext.health_requirement %}
+                        <div class="info-row"><span class="info-key">健康要求</span><span class="info-val">{{ ticket_ext.health_requirement }}</span></div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 游玩攻略 -->
+                {% if ticket_ext and ticket_ext.tips %}
+                <div class="info-section">
+                    <div class="info-label"><i class="fas fa-lightbulb info-icon" style="color: #ffc107 !important;"></i><span>游玩攻略</span></div>
+                    <div class="info-content">{{ ticket_ext.tips | safe }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- 票种选择 + 下单 -->
+            {% if variants %}
+            <div class="detail-card">
+                <div class="info-label mb-3"><i class="fas fa-ticket-alt info-icon"></i><span>选择票种并预订</span></div>
+
+                <div class="variant-list">
+                    {% for v in variants %}
+                    <div class="variant-item {% if loop.first %}variant-active{% endif %}" data-index="{{ loop.index0 }}"
+                         data-variant-id="{{ v.id }}"
+                         data-adult-price="{{ v.adult_selling_price or 0 }}"
+                         data-child-price="{{ v.child_selling_price or 0 }}"
+                         data-currency="{{ v.currency }}"
+                         data-name="{{ v.name }}"
+                         onclick="selectVariant(this, {{ loop.index0 }})">
+                        <div class="variant-header">
+                            <div class="variant-name">
+                                <strong>{{ v.name }}</strong>
+                                {% if v.name_en %}<small class="text-muted ms-2">{{ v.name_en }}</small>{% endif %}
+                            </div>
+                            <div class="variant-price">
+                                {% if v.adult_selling_price %}
+                                <span class="price-amount">{{ v.currency }} {{ "%.0f"|format(v.adult_selling_price) }}</span>
+                                <span class="price-label">/成人</span>
+                                {% endif %}
+                                {% if v.child_selling_price %}
+                                <span class="price-child ms-2">{{ v.currency }} {{ "%.0f"|format(v.child_selling_price) }}<small>/儿童</small></span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="variant-detail" id="variantDetail{{ loop.index0 }}" style="{% if not loop.first %}display:none;{% endif %}">
+                            {% if v.delivery_type %}
+                            <div class="vd-tag"><i class="fas fa-qrcode me-1"></i>{{ v.delivery_type }}</div>
+                            {% endif %}
+                            {% if v.description %}
+                            <p class="vd-desc">{{ v.description }}</p>
+                            {% endif %}
+                            {% if v.includes %}
+                            <div class="vd-info vd-includes">
+                                <i class="fas fa-check-circle"></i><span><strong>费用包含：</strong>{{ v.includes }}</span>
+                            </div>
+                            {% endif %}
+                            {% if v.excludes %}
+                            <div class="vd-info vd-excludes">
+                                <i class="fas fa-times-circle"></i><span><strong>费用不含：</strong>{{ v.excludes }}</span>
+                            </div>
+                            {% endif %}
+                            {% if v.important_notes %}
+                            <div class="vd-info vd-notes">
+                                <i class="fas fa-exclamation-circle"></i><span><strong>重要提示：</strong>{{ v.important_notes }}</span>
+                            </div>
+                            {% endif %}
+
+                            <!-- 人数选择 -->
+                            <div class="qty-section">
+                                {% if v.adult_selling_price %}
+                                <div class="qty-row">
+                                    <div class="qty-label">
+                                        <i class="fas fa-user"></i>
+                                        <span>成人</span>
+                                        <small class="text-muted ms-1">{{ v.currency }} {{ "%.0f"|format(v.adult_selling_price) }}/人</small>
+                                    </div>
+                                    <div class="qty-control">
+                                        <button type="button" class="qty-btn" onclick="event.stopPropagation(); changeQty({{ loop.index0 }}, 'adult', -1)">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <span class="qty-num" id="adultQty{{ loop.index0 }}">1</span>
+                                        <button type="button" class="qty-btn" onclick="event.stopPropagation(); changeQty({{ loop.index0 }}, 'adult', 1)">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if v.child_selling_price %}
+                                <div class="qty-row">
+                                    <div class="qty-label">
+                                        <i class="fas fa-child"></i>
+                                        <span>儿童</span>
+                                        <small class="text-muted ms-1">{{ v.currency }} {{ "%.0f"|format(v.child_selling_price) }}/人</small>
+                                    </div>
+                                    <div class="qty-control">
+                                        <button type="button" class="qty-btn" onclick="event.stopPropagation(); changeQty({{ loop.index0 }}, 'child', -1)">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <span class="qty-num" id="childQty{{ loop.index0 }}">0</span>
+                                        <button type="button" class="qty-btn" onclick="event.stopPropagation(); changeQty({{ loop.index0 }}, 'child', 1)">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- 小计 + 下单 -->
+                                <div class="qty-footer">
+                                    <div class="qty-total">
+                                        <span class="text-muted">合计：</span>
+                                        <span class="total-amount" id="totalAmount{{ loop.index0 }}">{{ v.currency }} {{ "%.0f"|format(v.adult_selling_price or 0) }}</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="event.stopPropagation(); addToCart({{ loop.index0 }})">
+                                            <i class="fas fa-cart-plus me-1"></i>加入购物车
+                                        </button>
+                                        <button type="button" class="btn btn-custom btn-sm" onclick="event.stopPropagation(); placeOrder({{ loop.index0 }})">
+                                            <i class="fas fa-bolt me-1"></i>立即下单
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <!-- 无票种 -->
+            <div class="detail-card action-card">
+                <div class="action-header">
+                    <div class="action-icon"><i class="fas fa-shopping-cart"></i></div>
+                    <div>
+                        <h3 class="action-title">立即预订</h3>
+                        <p class="action-subtitle">专业顾问为您服务</p>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-3">
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-custom btn-lg">
+                        <i class="fas fa-phone me-2"></i>联系咨询预订
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</section>
+
+<!-- 联系咨询 -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-3">想要探索更多精彩景点？</h2>
+                <p class="lead mb-4">联系我们的旅游顾问，为您推荐最适合的景点门票</p>
+                <div>
+                    <a href="{{ url_for('public.attractions') }}" class="btn btn-light btn-lg me-3">
+                        <i class="fas fa-arrow-left"></i> 返回景点列表
+                    </a>
+                    <a href="{{ url_for('public.contact') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-phone"></i> 立即咨询
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-container {
+        max-width: 860px;
+        margin: 0 auto;
+    }
+
+    .detail-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* 封面图 + 标题 */
+    .detail-header {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-cover {
+        flex-shrink: 0;
+        width: 280px;
+        height: 180px;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .detail-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .detail-title-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .detail-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 0.25rem;
+    }
+
+    .detail-subtitle {
+        color: #6c757d;
+        font-size: 0.95rem;
+        margin: 0 0 0.75rem;
+    }
+
+    .detail-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .meta-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        color: #6c757d;
+    }
+
+    .meta-hot {
+        background: #fff3e0;
+        border-color: #ffe0b2;
+        color: #e65100;
+    }
+
+    /* 信息区块 */
+    .info-section {
+        margin-bottom: 1.25rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .info-label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.6rem;
+    }
+
+    .info-label span {
+        font-weight: 600;
+        color: var(--primary-dark);
+        font-size: 0.95rem;
+    }
+
+    .info-icon {
+        color: var(--primary-color) !important;
+        font-size: 1.1rem;
+        margin-right: 0.5rem;
+    }
+
+    .info-grid {
+        margin-left: 1.6rem;
+    }
+
+    .info-row {
+        display: flex;
+        padding: 0.3rem 0;
+        font-size: 0.9rem;
+    }
+
+    .info-key {
+        color: #6c757d;
+        min-width: 80px;
+        flex-shrink: 0;
+    }
+
+    .info-val {
+        color: #2c3e50;
+    }
+
+    .info-content {
+        margin-left: 1.6rem;
+        color: #2c3e50;
+        font-size: 0.92rem;
+        line-height: 1.7;
+        white-space: pre-line;
+    }
+
+    /* 票种选择 */
+    .variant-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .variant-item {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .variant-item:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .variant-item.variant-active {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, rgba(126,207,142,0.05), rgba(72,185,104,0.08));
+    }
+
+    .variant-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .variant-name strong {
+        font-size: 1rem;
+        color: #2c3e50;
+    }
+
+    .price-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .price-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .price-child {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+
+    .variant-detail {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed #e9ecef;
+    }
+
+    .vd-tag {
+        display: inline-block;
+        padding: 3px 10px;
+        background: #e8f5e9;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        color: var(--primary-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .vd-desc {
+        font-size: 0.88rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .vd-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        margin-bottom: 0.3rem;
+        line-height: 1.5;
+    }
+
+    .vd-includes i { color: #28a745; margin-top: 3px; }
+    .vd-excludes i { color: #dc3545; margin-top: 3px; }
+    .vd-notes i { color: #ffc107; margin-top: 3px; }
+
+    /* 下单卡片 */
+    .action-card {
+        border: 2px solid var(--primary-color);
+    }
+
+    .action-header {
+        display: flex;
+        align-items: center;
+    }
+
+    .action-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+
+    .action-icon i {
+        font-size: 1.2rem;
+        color: white;
+    }
+
+    .action-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .action-subtitle {
+        color: #6c757d;
+        font-size: 0.88rem;
+        margin: 0;
+    }
+
+    /* 面包屑 */
+    .breadcrumb-item a {
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--primary-dark) !important;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+        .detail-header {
+            flex-direction: column;
+        }
+
+        .detail-cover {
+            width: 100%;
+            height: 200px;
+        }
+
+        .variant-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .info-row {
+            flex-direction: column;
+            gap: 0.1rem;
+        }
+
+        .info-key {
+            min-width: unset;
+        }
+
+        .qty-row {
+            flex-direction: row !important;
+        }
+    }
+
+    /* 人数选择器 */
+    .qty-section {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .qty-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+    }
+
+    .qty-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.92rem;
+        color: #2c3e50;
+    }
+
+    .qty-label i {
+        color: var(--primary-color);
+        width: 18px;
+        text-align: center;
+    }
+
+    .qty-control {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .qty-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: #f8f9fa;
+        color: #495057;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        transition: all 0.15s;
+    }
+
+    .qty-btn:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .qty-btn:active {
+        transform: scale(0.92);
+    }
+
+    .qty-num {
+        width: 44px;
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        border-left: 1px solid #dee2e6;
+        border-right: 1px solid #dee2e6;
+        line-height: 36px;
+        background: white;
+    }
+
+    .qty-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .total-amount {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    /* 购物车提示 */
+    .cart-toast {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: var(--primary-dark);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        z-index: 9999;
+        font-size: 0.92rem;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+
+    .cart-toast.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectVariant(el, index) {
+    document.querySelectorAll('.variant-item').forEach(function(item, i) {
+        item.classList.remove('variant-active');
+        document.getElementById('variantDetail' + i).style.display = 'none';
+    });
+    el.classList.add('variant-active');
+    document.getElementById('variantDetail' + index).style.display = 'block';
+}
+
+function changeQty(index, type, delta) {
+    var el = document.getElementById(type + 'Qty' + index);
+    if (!el) return;
+    var val = parseInt(el.textContent) + delta;
+    if (type === 'adult' && val < 1) val = 1;
+    if (type === 'child' && val < 0) val = 0;
+    if (val > 20) val = 20;
+    el.textContent = val;
+    updateTotal(index);
+}
+
+function updateTotal(index) {
+    var item = document.querySelector('.variant-item[data-index="' + index + '"]');
+    var adultPrice = parseFloat(item.dataset.adultPrice) || 0;
+    var childPrice = parseFloat(item.dataset.childPrice) || 0;
+    var currency = item.dataset.currency || 'SGD';
+
+    var adultEl = document.getElementById('adultQty' + index);
+    var childEl = document.getElementById('childQty' + index);
+    var adultQty = adultEl ? parseInt(adultEl.textContent) : 0;
+    var childQty = childEl ? parseInt(childEl.textContent) : 0;
+
+    var total = (adultPrice * adultQty) + (childPrice * childQty);
+    var totalEl = document.getElementById('totalAmount' + index);
+    if (totalEl) {
+        totalEl.textContent = currency + ' ' + Math.round(total);
+    }
+}
+
+function addToCart(index) {
+    var item = document.querySelector('.variant-item[data-index="' + index + '"]');
+    var variantId = item.dataset.variantId;
+    var productId = {{ product.id }};
+
+    var adultEl = document.getElementById('adultQty' + index);
+    var childEl = document.getElementById('childQty' + index);
+    var adultQty = adultEl ? parseInt(adultEl.textContent) : 1;
+    var childQty = childEl ? parseInt(childEl.textContent) : 0;
+
+    {% if current_user.is_authenticated %}
+    // 已登录，AJAX加入购物车
+    fetch('{{ url_for("cart.add_to_cart") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            product_id: productId,
+            variant_id: parseInt(variantId),
+            adult_qty: adultQty,
+            child_qty: childQty
+        })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        if (data.success) {
+            // 更新导航栏徽章
+            var badge = document.getElementById('cartBadge');
+            if (badge) {
+                badge.textContent = data.cart_count;
+                badge.style.display = data.cart_count > 0 ? '' : 'none';
+            }
+            // 提示成功
+            showCartToast('已加入购物车');
+        } else {
+            alert(data.message || '加入购物车失败');
+        }
+    })
+    .catch(function() {
+        alert('网络错误，请稍后重试');
+    });
+    {% else %}
+    // 未登录，跳转登录页
+    var currentPage = window.location.pathname + window.location.search;
+    var loginUrl = '{{ url_for("auth_profile.member_login") }}';
+    window.location.href = loginUrl + '?next=' + encodeURIComponent(currentPage);
+    {% endif %}
+}
+
+// 购物车提示
+function showCartToast(msg) {
+    var toast = document.createElement('div');
+    toast.className = 'cart-toast';
+    toast.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + msg + ' <a href="{{ url_for("cart.cart_page") }}" style="color:white;text-decoration:underline;margin-left:8px;">查看购物车</a>';
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.classList.add('show'); }, 10);
+    setTimeout(function() {
+        toast.classList.remove('show');
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 3000);
+}
+
+function placeOrder(index) {
+    var item = document.querySelector('.variant-item[data-index="' + index + '"]');
+    var variantId = item.dataset.variantId;
+
+    var adultEl = document.getElementById('adultQty' + index);
+    var childEl = document.getElementById('childQty' + index);
+    var adultQty = adultEl ? parseInt(adultEl.textContent) : 0;
+    var childQty = childEl ? parseInt(childEl.textContent) : 0;
+
+    var productId = {{ product.id }};
+
+    {% if current_user.is_authenticated %}
+    // 已登录，跳转到预订页面
+    var bookUrl = '{{ url_for("orders.book_ticket", product_id=product.id) }}';
+    var params = new URLSearchParams();
+    params.set('variant_id', variantId);
+    params.set('adult', adultQty);
+    params.set('child', childQty);
+    window.location.href = bookUrl + '?' + params.toString();
+    {% else %}
+    // 未登录，跳转到会员登录页，登录后跳回预订页
+    var bookPath = '/member/orders/book-ticket/' + productId;
+    bookPath += '?variant_id=' + variantId + '&adult=' + adultQty + '&child=' + childQty;
+    var loginUrl = '{{ url_for("auth_profile.member_login") }}';
+    window.location.href = loginUrl + '?next=' + encodeURIComponent(bookPath);
+    {% endif %}
+}
+</script>
+{% endblock %}

@@ -103,8 +103,10 @@ def create_app():
     app.register_blueprint(admin)
     from .member.routes.member import member
     from .member.routes.orders import orders_bp
+    from .member.routes.cart import cart_bp
     app.register_blueprint(member)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(cart_bp)
     from .staff.routes.staff import staff
     app.register_blueprint(staff)
 
@@ -354,6 +356,20 @@ def create_app():
             is_tablet=is_tablet(),
             device_type=get_device_type()
         )
+
+    # 购物车数量上下文处理器
+    @app.context_processor
+    def inject_cart_count():
+        def get_cart_count():
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                try:
+                    from App_new.member.models.cart import CartItem
+                    return CartItem.query.filter_by(user_id=current_user.id).count()
+                except Exception:
+                    return 0
+            return 0
+        return dict(cart_count=get_cart_count)
 
     # 注册应用级别的上下文处理器，让所有模板可以访问公司信息
     @app.context_processor

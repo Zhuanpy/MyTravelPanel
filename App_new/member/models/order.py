@@ -28,6 +28,7 @@ class ServiceType(Enum):
     FLIGHT = "flight"         # 机票预订
     HOTEL = "hotel"           # 酒店预订
     TOUR = "tour"             # 旅游套餐
+    TICKET = "ticket"         # 景点门票
     INSURANCE = "insurance"   # 旅游保险
     TRANSFER = "transfer"     # 接送服务
 

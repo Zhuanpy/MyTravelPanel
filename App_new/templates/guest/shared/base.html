@@ -373,6 +373,19 @@
                 
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                    <li class="nav-item me-2">
+                        <a class="nav-link position-relative" href="{{ url_for('cart.cart_page') }}" title="购物车">
+                            <i class="fas fa-shopping-cart"></i>
+                            {% set cc = cart_count() %}
+                            {% if cc > 0 %}
+                            <span class="position-absolute translate-middle badge rounded-pill bg-danger" id="cartBadge"
+                                  style="top:8px;right:-8px;font-size:0.6rem;">{{ cc }}</span>
+                            {% else %}
+                            <span class="position-absolute translate-middle badge rounded-pill bg-danger" id="cartBadge"
+                                  style="top:8px;right:-8px;font-size:0.6rem;display:none;">0</span>
+                            {% endif %}
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="memberMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <span class="rounded-circle bg-white text-primary d-inline-flex justify-content-center align-items-center me-2" style="width:28px;height:28px;font-weight:600;">

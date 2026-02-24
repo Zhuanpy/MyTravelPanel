@@ -1,0 +1,403 @@
+{% extends "guest/shared/base.html" %}
+
+{% block title %}购物车 - 悦行假期{% endblock %}
+
+{% block content %}
+<section class="py-4">
+    <div class="container">
+        <div class="cart-container">
+            <!-- 标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold mb-0"><i class="fas fa-shopping-cart me-2" style="color:var(--primary-color);"></i>我的购物车</h2>
+                <a href="{{ url_for('public.attractions') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-plus me-1"></i>继续选购
+                </a>
+            </div>
+
+            {% if items %}
+            <!-- 购物车列表 -->
+            <div class="cart-items" id="cartItems">
+                {% for item in items %}
+                <div class="cart-item" id="cartItem{{ item.id }}">
+                    <div class="cart-item-main">
+                        <!-- 缩略图 -->
+                        <div class="cart-thumb">
+                            {% if item.properties and item.properties.cover_image %}
+                            <img src="{{ url_for('static', filename=item.properties.cover_image) }}" alt="">
+                            {% else %}
+                            <div class="cart-thumb-placeholder">
+                                <i class="fas fa-ticket-alt"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 商品信息 -->
+                        <div class="cart-info">
+                            <h5 class="cart-item-name">
+                                <a href="{{ url_for('public.attraction_detail', product_id=item.product_id) }}" class="text-dark text-decoration-none">
+                                    {{ item.properties.product_name if item.properties else '景点门票' }}
+                                </a>
+                            </h5>
+                            <div class="cart-item-variant">
+                                <span class="badge bg-light text-dark border">{{ item.properties.variant_name if item.properties else '' }}</span>
+                                {% if item.properties and item.properties.location %}
+                                <small class="text-muted ms-2"><i class="fas fa-map-marker-alt me-1"></i>{{ item.properties.location }}</small>
+                                {% endif %}
+                            </div>
+
+                            <!-- 价格信息 -->
+                            <div class="cart-price-info mt-2">
+                                {% if item.adult_price and (item.adult_price|float) > 0 %}
+                                <span class="small text-muted">成人 {{ item.currency }} {{ "%.0f"|format(item.adult_price) }}/人</span>
+                                {% endif %}
+                                {% if item.child_price and (item.child_price|float) > 0 %}
+                                <span class="small text-muted ms-2">儿童 {{ item.currency }} {{ "%.0f"|format(item.child_price) }}/人</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 数量控制 -->
+                        <div class="cart-qty-area">
+                            {% if item.adult_price and (item.adult_price|float) > 0 %}
+                            <div class="cart-qty-row">
+                                <span class="small text-muted">成人</span>
+                                <div class="cart-qty-control">
+                                    <button class="qty-btn" onclick="updateQty({{ item.id }}, 'adult', -1)"><i class="fas fa-minus"></i></button>
+                                    <span class="qty-num" id="adultQty{{ item.id }}">{{ item.adult_qty }}</span>
+                                    <button class="qty-btn" onclick="updateQty({{ item.id }}, 'adult', 1)"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if item.child_price and (item.child_price|float) > 0 %}
+                            <div class="cart-qty-row">
+                                <span class="small text-muted">儿童</span>
+                                <div class="cart-qty-control">
+                                    <button class="qty-btn" onclick="updateQty({{ item.id }}, 'child', -1)"><i class="fas fa-minus"></i></button>
+                                    <span class="qty-num" id="childQty{{ item.id }}">{{ item.child_qty }}</span>
+                                    <button class="qty-btn" onclick="updateQty({{ item.id }}, 'child', 1)"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 小计 + 删除 -->
+                        <div class="cart-item-total">
+                            <div class="item-total-amount" id="lineTotal{{ item.id }}">
+                                {{ item.currency }} {{ "%.0f"|format(item.line_total) }}
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger mt-2" onclick="removeItem({{ item.id }})">
+                                <i class="fas fa-trash-alt me-1"></i>删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- 底部汇总 -->
+            <div class="cart-summary">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted">共 <strong id="itemCount">{{ items|length }}</strong> 项商品</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="cart-grand-total">
+                            <span class="text-muted">合计：</span>
+                            <span class="grand-total-amount" id="grandTotal">{{ currency }} {{ "%.0f"|format(cart_total) }}</span>
+                        </div>
+                        <a href="{{ url_for('cart.checkout') }}" class="btn btn-custom btn-lg">
+                            <i class="fas fa-credit-card me-2"></i>去结算
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+            <!-- 空购物车 -->
+            <div class="text-center py-5">
+                <i class="fas fa-shopping-cart text-muted" style="font-size:4rem;opacity:0.3;"></i>
+                <h4 class="mt-3 text-muted">购物车是空的</h4>
+                <p class="text-muted">快去挑选喜欢的景点门票吧</p>
+                <a href="{{ url_for('public.attractions') }}" class="btn btn-custom">
+                    <i class="fas fa-ticket-alt me-1"></i>浏览景点门票
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cart-container {
+        max-width: 960px;
+        margin: 0 auto;
+    }
+
+    .cart-item {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .cart-item:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .cart-item-main {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    .cart-thumb {
+        width: 100px;
+        height: 75px;
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .cart-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .cart-thumb-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        opacity: 0.7;
+    }
+
+    .cart-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .cart-item-name {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cart-qty-area {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .cart-qty-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .cart-qty-row > span {
+        width: 30px;
+    }
+
+    .cart-qty-control {
+        display: flex;
+        align-items: center;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .cart-qty-control .qty-btn {
+        width: 30px;
+        height: 30px;
+        border: none;
+        background: #f8f9fa;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        color: #495057;
+        transition: all 0.15s;
+    }
+
+    .cart-qty-control .qty-btn:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .cart-qty-control .qty-num {
+        width: 36px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-left: 1px solid #dee2e6;
+        border-right: 1px solid #dee2e6;
+        line-height: 30px;
+        background: white;
+    }
+
+    .cart-item-total {
+        text-align: right;
+        flex-shrink: 0;
+        min-width: 120px;
+    }
+
+    .item-total-amount {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .cart-summary {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 1.25rem 1.5rem;
+        margin-top: 1rem;
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+    }
+
+    .grand-total-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    @media (max-width: 768px) {
+        .cart-item-main {
+            flex-wrap: wrap;
+        }
+
+        .cart-thumb {
+            width: 80px;
+            height: 60px;
+        }
+
+        .cart-info {
+            flex: 1 1 calc(100% - 100px);
+        }
+
+        .cart-qty-area, .cart-item-total {
+            width: 100%;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        .cart-item-total {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-align: left;
+        }
+
+        .cart-item-total .btn {
+            margin-top: 0 !important;
+        }
+    }
+
+    /* 删除动画 */
+    .cart-item.removing {
+        opacity: 0;
+        transform: translateX(50px);
+        max-height: 0;
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+var currentCurrency = '{{ currency }}';
+
+function updateQty(itemId, type, delta) {
+    var el = document.getElementById(type + 'Qty' + itemId);
+    if (!el) return;
+
+    var val = parseInt(el.textContent) + delta;
+    if (type === 'adult' && val < 1) val = 1;
+    if (type === 'child' && val < 0) val = 0;
+    if (val > 20) val = 20;
+
+    el.textContent = val;
+
+    // 收集当前值
+    var adultEl = document.getElementById('adultQty' + itemId);
+    var childEl = document.getElementById('childQty' + itemId);
+    var adultQty = adultEl ? parseInt(adultEl.textContent) : 1;
+    var childQty = childEl ? parseInt(childEl.textContent) : 0;
+
+    fetch('/member/cart/update/' + itemId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ adult_qty: adultQty, child_qty: childQty })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            document.getElementById('lineTotal' + itemId).textContent = data.currency + ' ' + Math.round(data.line_total);
+            document.getElementById('grandTotal').textContent = data.currency + ' ' + Math.round(data.cart_total);
+            updateNavBadge(data.cart_count);
+        }
+    });
+}
+
+function removeItem(itemId) {
+    if (!confirm('确定要删除这个商品吗？')) return;
+
+    var itemEl = document.getElementById('cartItem' + itemId);
+    itemEl.classList.add('removing');
+
+    fetch('/member/cart/remove/' + itemId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            setTimeout(function() { itemEl.remove(); }, 300);
+            document.getElementById('grandTotal').textContent = data.currency + ' ' + Math.round(data.cart_total);
+            document.getElementById('itemCount').textContent = data.cart_count;
+            updateNavBadge(data.cart_count);
+
+            // 购物车空了则刷新页面
+            if (data.cart_count === 0) {
+                setTimeout(function() { location.reload(); }, 500);
+            }
+        }
+    });
+}
+
+function updateNavBadge(count) {
+    var badge = document.getElementById('cartBadge');
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? '' : 'none';
+    }
+}
+</script>
+{% endblock %}

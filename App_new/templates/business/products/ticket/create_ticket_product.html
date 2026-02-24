@@ -3,7 +3,7 @@
 {% block title %}{{ '编辑' if mode == 'edit' else '创建' }}景点门票产品{% endblock %}
 {% block page_title %}{{ '编辑' if mode == 'edit' else '创建' }}景点门票产品{% endblock %}
 {% block page_actions %}
-<a href="{{ url_for('products.index', category='ticket') }}" class="btn btn-outline-secondary btn-sm">
+<a href="{{ url_for('products.ticket_list') }}" class="btn btn-outline-secondary btn-sm">
     <i class="fas fa-arrow-left me-1"></i> 返回列表
 </a>
 {% endblock %}
@@ -21,13 +21,19 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size: 13px;">景点名称 <span class="text-danger">*</span></label>
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size: 13px;">景点名称（中文） <span class="text-danger">*</span></label>
                         <input type="text" name="product_name" class="form-control form-control-sm" required
                                value="{{ product.product_name if product else '' }}"
                                placeholder="例如：新加坡环球影城">
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <label class="form-label" style="font-size: 13px;">景点名称（英文）</label>
+                        <input type="text" name="product_name_en" class="form-control form-control-sm"
+                               value="{{ product.product_name_en if product else '' }}"
+                               placeholder="例如：Universal Studios Singapore">
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label" style="font-size: 13px;">景点简称</label>
                         <input type="text" name="product_short_name" class="form-control form-control-sm"
                                value="{{ product.product_short_name if product else '' }}"
@@ -53,6 +59,38 @@
                         <input type="text" name="city" class="form-control form-control-sm"
                                value="{{ product.city if product else '' }}"
                                placeholder="例如：Singapore">
+                    </div>
+                    <!-- 封面图 -->
+                    <div class="col-12">
+                        <label class="form-label" style="font-size: 13px;">封面图片</label>
+                        <input type="hidden" name="cover_image" id="coverImagePath"
+                               value="{{ product.cover_image if product else '' }}">
+                        <div class="d-flex align-items-start gap-3">
+                            <div id="coverImagePreview" style="position: relative; display: inline-block;">
+                                {% if product and product.cover_image %}
+                                <img src="{{ url_for('static', filename=product.cover_image) }}"
+                                     style="max-width: 200px; max-height: 130px; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <button type="button" onclick="clearCoverImage()"
+                                        style="position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; line-height: 1;"
+                                        title="清除封面图">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% else %}
+                                <div style="width: 200px; height: 130px; border: 2px dashed #dee2e6; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #adb5bd;">
+                                    <div class="text-center">
+                                        <i class="fas fa-image fa-2x mb-1 d-block"></i>
+                                        <small>暂无封面图</small>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <button type="button" onclick="openImageLibrary()" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-images me-1"></i>从图片库选择
+                                </button>
+                                <div class="form-text mt-1">从图片库中选择一张作为封面图</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -90,14 +128,6 @@
                                placeholder="例如：240">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label" style="font-size: 13px;">取票方式</label>
-                        <select name="delivery_type" class="form-select form-select-sm">
-                            {% for code, name in delivery_types %}
-                            <option value="{{ code }}" {% if ticket_ext and ticket_ext.delivery_type == code %}selected{% endif %}>{{ name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-12">
                         <label class="form-label" style="font-size: 13px;">入园方式</label>
                         <input type="text" name="entry_method" class="form-control form-control-sm"
                                value="{{ ticket_ext.entry_method if ticket_ext else '' }}"
@@ -107,126 +137,7 @@
             </div>
         </div>
 
-        <!-- 区块三：价格管理 -->
-        <div class="card mb-3">
-            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>价格管理</h6>
-                <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="addPriceRow()">
-                    <i class="fas fa-plus me-1"></i>添加价格行
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0" id="priceTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 130px;">人群类型</th>
-                                <th>成本价 (Cost)</th>
-                                <th>售价 (Selling) <span class="text-danger">*</span></th>
-                                <th>门市价 (Original)</th>
-                                <th style="width: 100px;">利润</th>
-                                <th style="width: 50px;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="priceTableBody">
-                            {% if prices %}
-                                {% for price in prices %}
-                                <tr class="price-row">
-                                    <td>
-                                        <select name="price_people_type[]" class="form-select form-select-sm">
-                                            {% for code, name in people_types %}
-                                            <option value="{{ code }}" {% if price.people_type == code %}selected{% endif %}>{{ name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <input type="hidden" name="price_id[]" value="{{ price.id }}">
-                                    </td>
-                                    <td>
-                                        <input type="number" name="price_cost[]" class="form-control form-control-sm price-cost"
-                                               step="0.01" min="0" value="{{ '%.2f'|format(price.cost_price) if price.cost_price else '' }}"
-                                               onchange="calcProfit(this)">
-                                    </td>
-                                    <td>
-                                        <input type="number" name="price_selling[]" class="form-control form-control-sm price-selling"
-                                               step="0.01" min="0" required value="{{ '%.2f'|format(price.selling_price) if price.selling_price else '' }}"
-                                               onchange="calcProfit(this)">
-                                    </td>
-                                    <td>
-                                        <input type="number" name="price_original[]" class="form-control form-control-sm"
-                                               step="0.01" min="0" value="{{ '%.2f'|format(price.original_price) if price.original_price else '' }}">
-                                    </td>
-                                    <td class="profit-cell text-center align-middle">
-                                        {% if price.cost_price and price.selling_price %}
-                                            {% set profit = price.selling_price - price.cost_price %}
-                                            <span class="{{ 'text-success' if profit >= 0 else 'text-danger' }} fw-bold">
-                                                {{ '%.2f'|format(profit) }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center align-middle">
-                                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePriceRow(this)"
-                                                title="删除此行">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <!-- 默认添加成人/儿童/婴儿三行 -->
-                                <tr class="price-row">
-                                    <td>
-                                        <select name="price_people_type[]" class="form-select form-select-sm">
-                                            {% for code, name in people_types %}
-                                            <option value="{{ code }}" {% if code == 'adult' %}selected{% endif %}>{{ name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <input type="hidden" name="price_id[]" value="">
-                                    </td>
-                                    <td><input type="number" name="price_cost[]" class="form-control form-control-sm price-cost" step="0.01" min="0" onchange="calcProfit(this)"></td>
-                                    <td><input type="number" name="price_selling[]" class="form-control form-control-sm price-selling" step="0.01" min="0" required onchange="calcProfit(this)"></td>
-                                    <td><input type="number" name="price_original[]" class="form-control form-control-sm" step="0.01" min="0"></td>
-                                    <td class="profit-cell text-center align-middle"><span class="text-muted">-</span></td>
-                                    <td class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePriceRow(this)"><i class="fas fa-times"></i></button></td>
-                                </tr>
-                                <tr class="price-row">
-                                    <td>
-                                        <select name="price_people_type[]" class="form-select form-select-sm">
-                                            {% for code, name in people_types %}
-                                            <option value="{{ code }}" {% if code == 'child' %}selected{% endif %}>{{ name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <input type="hidden" name="price_id[]" value="">
-                                    </td>
-                                    <td><input type="number" name="price_cost[]" class="form-control form-control-sm price-cost" step="0.01" min="0" onchange="calcProfit(this)"></td>
-                                    <td><input type="number" name="price_selling[]" class="form-control form-control-sm price-selling" step="0.01" min="0" required onchange="calcProfit(this)"></td>
-                                    <td><input type="number" name="price_original[]" class="form-control form-control-sm" step="0.01" min="0"></td>
-                                    <td class="profit-cell text-center align-middle"><span class="text-muted">-</span></td>
-                                    <td class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePriceRow(this)"><i class="fas fa-times"></i></button></td>
-                                </tr>
-                                <tr class="price-row">
-                                    <td>
-                                        <select name="price_people_type[]" class="form-select form-select-sm">
-                                            {% for code, name in people_types %}
-                                            <option value="{{ code }}" {% if code == 'infant' %}selected{% endif %}>{{ name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <input type="hidden" name="price_id[]" value="">
-                                    </td>
-                                    <td><input type="number" name="price_cost[]" class="form-control form-control-sm price-cost" step="0.01" min="0" onchange="calcProfit(this)"></td>
-                                    <td><input type="number" name="price_selling[]" class="form-control form-control-sm price-selling" step="0.01" min="0" required onchange="calcProfit(this)"></td>
-                                    <td><input type="number" name="price_original[]" class="form-control form-control-sm" step="0.01" min="0"></td>
-                                    <td class="profit-cell text-center align-middle"><span class="text-muted">-</span></td>
-                                    <td class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePriceRow(this)"><i class="fas fa-times"></i></button></td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 区块四：描述信息 -->
+        <!-- 区块三：描述信息 -->
         <div class="card mb-3">
             <div class="card-header bg-light py-2">
                 <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>描述信息</h6>
@@ -239,21 +150,6 @@
                                   placeholder="景点介绍、特色亮点等">{{ product.description if product else '' }}</textarea>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label" style="font-size: 13px;">费用包含</label>
-                        <textarea name="includes" class="form-control form-control-sm" rows="3"
-                                  placeholder="门票包含的内容，每行一项">{{ product.includes if product else '' }}</textarea>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size: 13px;">费用不含</label>
-                        <textarea name="excludes" class="form-control form-control-sm" rows="3"
-                                  placeholder="不包含的内容，每行一项">{{ product.excludes if product else '' }}</textarea>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size: 13px;">重要提示</label>
-                        <textarea name="important_notes" class="form-control form-control-sm" rows="3"
-                                  placeholder="购买须知、退改规则等">{{ product.important_notes if product else '' }}</textarea>
-                    </div>
-                    <div class="col-md-6">
                         <label class="form-label" style="font-size: 13px;">游玩攻略</label>
                         <textarea name="tips" class="form-control form-control-sm" rows="3"
                                   placeholder="推荐路线、最佳游玩时间等">{{ ticket_ext.tips if ticket_ext else '' }}</textarea>
@@ -262,7 +158,7 @@
             </div>
         </div>
 
-        <!-- 区块五：限制条件 -->
+        <!-- 区块五：限制条件（仅主产品） -->
         <div class="card mb-3">
             <div class="card-header bg-light py-2">
                 <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>限制条件</h6>
@@ -298,76 +194,346 @@
             </div>
         </div>
 
+        {% if mode == 'edit' and product %}
+        <!-- 票种变体管理（仅编辑模式） -->
+        <div class="card mb-3">
+            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-layer-group me-2"></i>票种变体</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="openVariantModal()">
+                    <i class="fas fa-plus me-1"></i>添加变体
+                </button>
+            </div>
+            <div class="card-body p-0">
+                {% if ticket_variants %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            <th>变体名称</th>
+                            <th>英文名称</th>
+                            <th class="text-end">成人售价</th>
+                            <th class="text-end">成人成本</th>
+                            <th class="text-end">儿童售价</th>
+                            <th class="text-end">儿童成本</th>
+                            <th class="text-center">状态</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ticket_variants %}
+                        <tr>
+                            <td class="text-muted">{{ v.sort_order }}</td>
+                            <td>{{ v.variant_name }}</td>
+                            <td class="text-muted">{{ v.variant_name_en or '-' }}</td>
+                            <td class="text-end" style="font-family: monospace;">
+                                {% if v.adult_selling_price is not none %}${{ "%.2f"|format(v.adult_selling_price) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-end" style="font-family: monospace;">
+                                {% if v.adult_cost_price is not none %}${{ "%.2f"|format(v.adult_cost_price) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-end" style="font-family: monospace;">
+                                {% if v.child_selling_price is not none %}${{ "%.2f"|format(v.child_selling_price) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-end" style="font-family: monospace;">
+                                {% if v.child_cost_price is not none %}${{ "%.2f"|format(v.child_cost_price) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if v.is_active %}
+                                <span class="badge bg-success">已激活</span>
+                                {% else %}
+                                <span class="badge bg-secondary">未激活</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0" title="编辑" onclick="openVariantModal({{ v.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0" title="删除" onclick="deleteVariant({{ v.id }}, '{{ v.variant_name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-layer-group fa-2x mb-2 d-block"></i>
+                    <p class="mb-1">暂无票种变体</p>
+                    <small>点击"添加变体"创建，如：普通门票、快捷通道门票等</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 提交按钮 -->
         <div class="d-flex justify-content-end gap-2">
-            <a href="{{ url_for('products.index', category='ticket') }}" class="btn btn-secondary btn-sm">取消</a>
+            <a href="{{ url_for('products.ticket_list') }}" class="btn btn-secondary btn-sm">取消</a>
             <button type="submit" class="btn btn-primary btn-sm">
-                <i class="fas fa-save me-1"></i> {{ '保存修改' if mode == 'edit' else '创建门票产品' }}
+                <i class="fas fa-save me-1"></i>
+                {% if mode == 'edit' %}保存修改{% else %}创建门票产品{% endif %}
             </button>
         </div>
     </form>
 </div>
+
+{% if mode == 'edit' and product %}
+<!-- 变体编辑模态框 -->
+<div class="modal fade" id="variantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="variantModalTitle">添加变体</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="variantId" value="">
+
+                <!-- 基本信息 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-tag me-1"></i>基本信息</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">变体名称（中文）<span class="text-danger">*</span></label>
+                        <input type="text" id="variantName" class="form-control form-control-sm" placeholder="如：普通门票" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">变体名称（英文）</label>
+                        <input type="text" id="variantNameEn" class="form-control form-control-sm" placeholder="如：Standard Ticket">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">排序</label>
+                        <input type="number" id="variantSort" class="form-control form-control-sm" value="0" min="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">取票方式</label>
+                        <select id="variantDeliveryType" class="form-select form-select-sm">
+                            <option value="e_ticket">电子票</option>
+                            <option value="physical">实体票</option>
+                            <option value="voucher">兑换券</option>
+                            <option value="pickup">现场取票</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">状态</label>
+                        <select id="variantActive" class="form-select form-select-sm">
+                            <option value="1">已激活</option>
+                            <option value="0">未激活</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="my-2">
+
+                <!-- 价格 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-dollar-sign me-1"></i>价格设置</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">成人售价</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="adultSellingPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">成人成本</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="adultCostPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">儿童售价</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="childSellingPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">儿童成本</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" id="childCostPrice" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-2">
+
+                <!-- 说明信息 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-file-alt me-1"></i>说明信息</div>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small mb-1">变体描述</label>
+                        <textarea id="variantDesc" class="form-control form-control-sm" rows="2" placeholder="变体说明"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">费用包含</label>
+                        <textarea id="variantIncludes" class="form-control form-control-sm" rows="2" placeholder="每行一项"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">费用不含</label>
+                        <textarea id="variantExcludes" class="form-control form-control-sm" rows="2" placeholder="每行一项"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-1">重要提示</label>
+                        <textarea id="variantImportantNotes" class="form-control form-control-sm" rows="2" placeholder="购买须知、退改规则等"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="saveVariant()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// 人群类型选项（用于动态添加行）
-var peopleTypes = {{ people_types | tojson }};
+{% if mode == 'edit' and product %}
+// 变体管理
+function openVariantModal(variantId) {
+    document.getElementById('variantId').value = '';
+    document.getElementById('variantName').value = '';
+    document.getElementById('variantNameEn').value = '';
+    document.getElementById('variantDesc').value = '';
+    document.getElementById('adultSellingPrice').value = '';
+    document.getElementById('adultCostPrice').value = '';
+    document.getElementById('childSellingPrice').value = '';
+    document.getElementById('childCostPrice').value = '';
+    document.getElementById('variantDeliveryType').value = 'e_ticket';
+    document.getElementById('variantIncludes').value = '';
+    document.getElementById('variantExcludes').value = '';
+    document.getElementById('variantImportantNotes').value = '';
+    document.getElementById('variantSort').value = '0';
+    document.getElementById('variantActive').value = '1';
+    document.getElementById('variantModalTitle').textContent = '添加变体';
 
-// 添加价格行
-function addPriceRow() {
-    var tbody = document.getElementById('priceTableBody');
-    var options = '';
-    for (var i = 0; i < peopleTypes.length; i++) {
-        options += '<option value="' + peopleTypes[i][0] + '">' + peopleTypes[i][1] + '</option>';
+    if (variantId) {
+        document.getElementById('variantModalTitle').textContent = '编辑变体';
+        fetch(`/staff/products/ticket/variant/${variantId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    var v = data.variant;
+                    document.getElementById('variantId').value = v.id;
+                    document.getElementById('variantName').value = v.variant_name || '';
+                    document.getElementById('variantNameEn').value = v.variant_name_en || '';
+                    document.getElementById('variantDesc').value = v.description || '';
+                    document.getElementById('adultSellingPrice').value = v.adult_selling_price || '';
+                    document.getElementById('adultCostPrice').value = v.adult_cost_price || '';
+                    document.getElementById('childSellingPrice').value = v.child_selling_price || '';
+                    document.getElementById('childCostPrice').value = v.child_cost_price || '';
+                    document.getElementById('variantDeliveryType').value = v.delivery_type || 'e_ticket';
+                    document.getElementById('variantIncludes').value = v.includes || '';
+                    document.getElementById('variantExcludes').value = v.excludes || '';
+                    document.getElementById('variantImportantNotes').value = v.important_notes || '';
+                    document.getElementById('variantSort').value = v.sort_order || 0;
+                    document.getElementById('variantActive').value = v.is_active ? '1' : '0';
+                }
+            });
     }
 
-    var tr = document.createElement('tr');
-    tr.className = 'price-row';
-    tr.innerHTML = '<td>' +
-        '<select name="price_people_type[]" class="form-select form-select-sm">' + options + '</select>' +
-        '<input type="hidden" name="price_id[]" value="">' +
-        '</td>' +
-        '<td><input type="number" name="price_cost[]" class="form-control form-control-sm price-cost" step="0.01" min="0" onchange="calcProfit(this)"></td>' +
-        '<td><input type="number" name="price_selling[]" class="form-control form-control-sm price-selling" step="0.01" min="0" required onchange="calcProfit(this)"></td>' +
-        '<td><input type="number" name="price_original[]" class="form-control form-control-sm" step="0.01" min="0"></td>' +
-        '<td class="profit-cell text-center align-middle"><span class="text-muted">-</span></td>' +
-        '<td class="text-center align-middle"><button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removePriceRow(this)"><i class="fas fa-times"></i></button></td>';
-
-    tbody.appendChild(tr);
+    new bootstrap.Modal(document.getElementById('variantModal')).show();
 }
 
-// 删除价格行
-function removePriceRow(btn) {
-    var tbody = document.getElementById('priceTableBody');
-    if (tbody.querySelectorAll('.price-row').length <= 1) {
-        alert('至少保留一行价格');
+function saveVariant() {
+    var variantId = document.getElementById('variantId').value;
+    var variantName = document.getElementById('variantName').value.trim();
+    if (!variantName) {
+        alert('请输入变体名称');
         return;
     }
-    btn.closest('tr').remove();
-}
 
-// 计算利润
-function calcProfit(input) {
-    var row = input.closest('tr');
-    var cost = parseFloat(row.querySelector('.price-cost').value) || 0;
-    var selling = parseFloat(row.querySelector('.price-selling').value) || 0;
-    var profitCell = row.querySelector('.profit-cell');
+    var payload = {
+        variant_name: variantName,
+        variant_name_en: document.getElementById('variantNameEn').value.trim(),
+        description: document.getElementById('variantDesc').value.trim(),
+        adult_selling_price: document.getElementById('adultSellingPrice').value || null,
+        adult_cost_price: document.getElementById('adultCostPrice').value || null,
+        child_selling_price: document.getElementById('childSellingPrice').value || null,
+        child_cost_price: document.getElementById('childCostPrice').value || null,
+        delivery_type: document.getElementById('variantDeliveryType').value,
+        includes: document.getElementById('variantIncludes').value.trim() || null,
+        excludes: document.getElementById('variantExcludes').value.trim() || null,
+        important_notes: document.getElementById('variantImportantNotes').value.trim() || null,
+        sort_order: parseInt(document.getElementById('variantSort').value) || 0,
+        is_active: document.getElementById('variantActive').value === '1',
+    };
 
-    if (cost > 0 && selling > 0) {
-        var profit = selling - cost;
-        var cls = profit >= 0 ? 'text-success' : 'text-danger';
-        profitCell.innerHTML = '<span class="' + cls + ' fw-bold">' + profit.toFixed(2) + '</span>';
+    var url;
+    if (variantId) {
+        url = `/staff/products/ticket/variant/${variantId}/edit`;
     } else {
-        profitCell.innerHTML = '<span class="text-muted">-</span>';
+        url = `/staff/products/ticket/{{ product.id }}/variant/add`;
     }
+
+    fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+        body: JSON.stringify(payload),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('保存失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
 }
 
-// 页面加载时计算已有行的利润
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.price-cost').forEach(function(input) {
-        calcProfit(input);
-    });
+function deleteVariant(variantId, name) {
+    if (!confirm(`确定要删除变体「${name}」吗？`)) return;
+
+    fetch(`/staff/products/ticket/variant/${variantId}/delete`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('删除失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+{% endif %}
+
+// 图片库选择
+function openImageLibrary() {
+    var baseUrl = '{{ url_for("staff.image_library") }}';
+    var url = baseUrl + '?type=cover';
+    window.open(url, 'ImageLibrary', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+}
+
+// 监听图片库选择消息
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'image_selected') {
+        var imagePath = event.data.image_path;
+        document.getElementById('coverImagePath').value = imagePath;
+        var previewDiv = document.getElementById('coverImagePreview');
+        previewDiv.innerHTML = '<img src="{{ url_for("static", filename="") }}' + imagePath + '" ' +
+            'style="max-width: 200px; max-height: 130px; border-radius: 6px; border: 1px solid #dee2e6;">' +
+            '<button type="button" onclick="clearCoverImage()" ' +
+            'style="position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; line-height: 1;" ' +
+            'title="清除封面图"><i class="fas fa-times"></i></button>';
+    }
 });
+
+function clearCoverImage() {
+    document.getElementById('coverImagePath').value = '';
+    var previewDiv = document.getElementById('coverImagePreview');
+    previewDiv.innerHTML = '<div style="width: 200px; height: 130px; border: 2px dashed #dee2e6; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #adb5bd;">' +
+        '<div class="text-center"><i class="fas fa-image fa-2x mb-1 d-block"></i><small>暂无封面图</small></div></div>';
+}
 </script>
 {% endblock %}

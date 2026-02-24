@@ -1045,6 +1045,155 @@ def get_visa_documents(visa_type, identity):
 
 @public.route('/attractions')
 def attractions():
-    """景点门票 - 即将推出占位页面"""
+    """景点门票页面"""
+    from App_new.business.products.models import ProductsUnified, ProductCategory
+    from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+
+    keyword = request.args.get('keyword', '').strip()
+    country = request.args.get('country', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+
+    # 查询已上架的门票主产品
+    query = ProductsUnified.query.outerjoin(
+        ProductsTicketExt, ProductsTicketExt.product_id == ProductsUnified.id
+    ).filter(
+        ProductsUnified.product_category == 'ticket',
+        ProductsUnified.parent_id.is_(None),
+        ProductsUnified.product_status == 'active',
+    )
+
+    if keyword:
+        query = query.filter(
+            or_(
+                ProductsUnified.product_name.ilike(f'%{keyword}%'),
+                ProductsUnified.product_name_en.ilike(f'%{keyword}%'),
+                ProductsTicketExt.venue_name.ilike(f'%{keyword}%'),
+            )
+        )
+    if country:
+        query = query.filter(ProductsUnified.country == country)
+
+    query = query.order_by(ProductsUnified.is_featured.desc(), ProductsUnified.sort_order, ProductsUnified.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    products = pagination.items
+
+    # 补充扩展信息和变体价格
+    attractions_data = []
+    for p in products:
+        ext = ProductsTicketExt.query.filter_by(product_id=p.id).first()
+        variants = ProductsTicketVariant.query.filter_by(product_id=p.id).order_by(
+            ProductsTicketVariant.sort_order, ProductsTicketVariant.id
+        ).all()
+
+        # 最低成人售价
+        min_price = None
+        for v in variants:
+            if v.adult_selling_price and v.is_active:
+                price_val = float(v.adult_selling_price)
+                if min_price is None or price_val < min_price:
+                    min_price = price_val
+
+        attractions_data.append({
+            'id': p.id,
+            'name': p.product_name,
+            'name_en': p.product_name_en,
+            'country': p.country,
+            'city': p.city,
+            'cover_image': p.cover_image,
+            'description': p.description,
+            'venue_name': ext.venue_name if ext else None,
+            'ticket_type': ext.ticket_type if ext else None,
+            'variant_count': len(variants),
+            'variants': [{'name': v.variant_name, 'price': float(v.adult_selling_price) if v.adult_selling_price else None} for v in variants if v.is_active],
+            'min_price': min_price,
+            'currency': p.currency or 'SGD',
+            'is_featured': p.is_featured,
+        })
+
+    # 国家列表
+    countries = [c[0] for c in db.session.query(ProductsUnified.country).filter(
+        ProductsUnified.product_category == 'ticket',
+        ProductsUnified.product_status == 'active',
+        ProductsUnified.parent_id.is_(None),
+        ProductsUnified.country.isnot(None),
+        ProductsUnified.country != ''
+    ).distinct().order_by(ProductsUnified.country).all()]
+
     company_info = CompanyInfo.query.first()
-    return render_template('guest/attractions/coming_soon.html', company=company_info)
+    return render_template('guest/attractions/attractions.html',
+                           attractions=attractions_data,
+                           pagination=pagination,
+                           keyword=keyword,
+                           country=country,
+                           countries=countries,
+                           company=company_info)
+
+
+@public.route('/attractions/<int:product_id>')
+def attraction_detail(product_id):
+    """景点门票详情页"""
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+
+    product = ProductsUnified.query.filter_by(
+        id=product_id, product_category='ticket', product_status='active'
+    ).first()
+    if not product:
+        return render_template('guest/shared/404.html', message='未找到该景点门票'), 404
+
+    ticket_ext = ProductsTicketExt.query.filter_by(product_id=product_id).first()
+    variants = ProductsTicketVariant.query.filter_by(
+        product_id=product_id, is_active=True
+    ).order_by(ProductsTicketVariant.sort_order, ProductsTicketVariant.id).all()
+
+    # 取票方式映射
+    delivery_map = {
+        'e_ticket': '电子票', 'physical': '实体票',
+        'voucher': '兑换券', 'pickup': '现场取票'
+    }
+
+    def none_safe(val):
+        """过滤字面量 'None' 字符串"""
+        if val is not None and str(val).strip().lower() == 'none':
+            return None
+        return val
+
+    variants_data = []
+    for v in variants:
+        variants_data.append({
+            'id': v.id,
+            'name': v.variant_name,
+            'name_en': none_safe(v.variant_name_en),
+            'description': none_safe(v.description),
+            'adult_selling_price': float(v.adult_selling_price) if v.adult_selling_price else None,
+            'child_selling_price': float(v.child_selling_price) if v.child_selling_price else None,
+            'delivery_type': delivery_map.get(v.delivery_type, v.delivery_type) if none_safe(v.delivery_type) else None,
+            'includes': none_safe(v.includes),
+            'excludes': none_safe(v.excludes),
+            'important_notes': none_safe(v.important_notes),
+            'currency': v.currency or 'SGD',
+        })
+
+    # 清理字符串 'None'（数据库中可能存有字面量 'None'）
+    def clean_none(obj, fields):
+        for f in fields:
+            val = getattr(obj, f, None)
+            if val is not None and str(val).strip().lower() == 'none':
+                setattr(obj, f, None)
+
+    clean_none(product, ['description', 'product_name_en'])
+    if ticket_ext:
+        clean_none(ticket_ext, [
+            'venue_name', 'venue_address', 'opening_hours', 'entry_method',
+            'ticket_type', 'tips', 'age_limit', 'height_limit', 'health_requirement'
+        ])
+
+    company_info = CompanyInfo.query.first()
+    return render_template('guest/attractions/attraction_detail.html',
+                           product=product,
+                           ticket_ext=ticket_ext,
+                           variants=variants_data,
+                           company=company_info)

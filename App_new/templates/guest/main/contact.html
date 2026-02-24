@@ -369,6 +369,7 @@
                                         <option selected>请选择您感兴趣的服务</option>
                                         <option value="visa">签证申请</option>
                                         <option value="tour">旅游配套</option>
+                                        <option value="ticket">景点门票</option>
                                         <option value="flight">机票预订</option>
                                         <option value="hotel">酒店预订</option>
                                         <option value="other">其他服务</option>
@@ -449,6 +450,23 @@
 
 {% block extra_js %}
 <script>
+// 从URL参数预填表单（从景点门票等页面跳转过来）
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('service_type')) {
+        var serviceEl = document.getElementById('service');
+        for (var i = 0; i < serviceEl.options.length; i++) {
+            if (serviceEl.options[i].value === params.get('service_type')) {
+                serviceEl.selectedIndex = i;
+                break;
+            }
+        }
+    }
+    if (params.get('message')) {
+        document.getElementById('message').value = params.get('message');
+    }
+})();
+
 document.getElementById('contactForm').addEventListener('submit', function(e) {
     e.preventDefault();
 

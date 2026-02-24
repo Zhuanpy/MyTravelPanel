@@ -1,0 +1,578 @@
+{% extends "member/base.html" %}
+
+{% block title %}预订景点门票 - {{ product.name }} - MyTravelPanel{% endblock %}
+
+{% block page_title %}预订景点门票{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('orders.list') }}">我的订单</a></li>
+<li class="breadcrumb-item active">预订景点门票</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-toolbar mb-2 mb-md-0">
+    <a href="{{ url_for('public.attraction_detail', product_id=product.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>返回景点详情
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .product-info-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: white;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .product-info-card .product-image {
+        height: 200px;
+        background-size: cover;
+        background-position: center;
+    }
+
+    .product-info-card .product-details {
+        padding: 1.5rem;
+    }
+
+    .product-info-card h3 {
+        color: white;
+        margin-bottom: 0.5rem;
+        font-size: 1.5rem;
+    }
+
+    .product-info-card .meta-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .product-info-card .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+        opacity: 0.9;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section h5 {
+        color: #10b981;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #10b981;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* 票种选择 */
+    .variant-option {
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .variant-option:hover {
+        border-color: #10b981;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .variant-option.selected {
+        border-color: #10b981;
+        background: linear-gradient(135deg, rgba(16,185,129,0.05), rgba(5,150,105,0.08));
+    }
+
+    .variant-option input[type="radio"] { display: none; }
+
+    .variant-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .variant-name strong { font-size: 1rem; color: #1e293b; }
+
+    .variant-price-tag {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #10b981;
+    }
+
+    .variant-detail {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .variant-detail .vd-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #dcfce7;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        color: #16a34a;
+        margin-right: 0.5rem;
+    }
+
+    /* 人数选择 */
+    .pax-type {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+    }
+
+    .pax-label strong { font-size: 1rem; color: #1e293b; }
+    .pax-label small { color: #64748b; font-size: 0.85rem; }
+
+    .pax-counter {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .pax-counter .btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .pax-counter input {
+        width: 60px;
+        text-align: center;
+        font-weight: 600;
+    }
+
+    /* 价格摘要 */
+    .price-summary {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        position: sticky;
+        top: 100px;
+    }
+
+    .price-summary h5 {
+        color: white;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.3);
+        padding-bottom: 0.75rem;
+    }
+
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .price-row.total {
+        font-size: 1.3rem;
+        font-weight: bold;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        padding-top: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .price-note {
+        background: rgba(255,255,255,0.15);
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+        text-align: center;
+    }
+
+    .price-note i { color: #fbbf24; }
+
+    .info-box {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .info-box h6 { color: #92400e; margin-bottom: 0.5rem; }
+    .info-box p { color: #78350f; margin: 0; font-size: 0.9rem; }
+
+    .submit-btn {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    }
+</style>
+{% endblock %}
+
+{% block member_content %}
+<div class="container">
+    <!-- 产品信息卡片 -->
+    <div class="product-info-card">
+        <div class="row g-0">
+            {% if product.cover_image %}
+            <div class="col-md-4">
+                <div class="product-image" style="background-image: url('{{ url_for('static', filename=product.cover_image) }}');"></div>
+            </div>
+            {% endif %}
+            <div class="col-md-{% if product.cover_image %}8{% else %}12{% endif %}">
+                <div class="product-details">
+                    <h3>{{ product.name }}</h3>
+                    {% if product.name_en %}
+                    <p style="opacity: 0.7; margin-bottom: 0.75rem;">{{ product.name_en }}</p>
+                    {% endif %}
+                    <div class="meta-info">
+                        {% if product.location %}
+                        <div class="meta-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>{{ product.location }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.venue_name %}
+                        <div class="meta-item">
+                            <i class="fas fa-building"></i>
+                            <span>{{ product.venue_name }}</span>
+                        </div>
+                        {% endif %}
+                        {% if product.opening_hours %}
+                        <div class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            <span>{{ product.opening_hours }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="bookingForm" method="POST" action="{{ url_for('orders.book_ticket', product_id=product.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="variant_id" id="variant_id" value="{{ selected_variant_id or (variants[0].id if variants else '') }}">
+
+        <div class="row">
+            <!-- 左侧：预订表单 -->
+            <div class="col-lg-8">
+                <!-- 选择票种 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-ticket-alt"></i>选择票种</h5>
+                    {% for v in variants %}
+                    <label class="variant-option {% if (selected_variant_id and v.id == selected_variant_id) or (not selected_variant_id and loop.first) %}selected{% endif %}"
+                           data-variant-id="{{ v.id }}"
+                           data-adult-price="{{ v.adult_price }}"
+                           data-child-price="{{ v.child_price }}"
+                           data-currency="{{ v.currency }}"
+                           onclick="selectVariant(this)">
+                        <input type="radio" name="variant_radio" value="{{ v.id }}"
+                               {% if (selected_variant_id and v.id == selected_variant_id) or (not selected_variant_id and loop.first) %}checked{% endif %}>
+                        <div class="variant-header">
+                            <div class="variant-name">
+                                <strong>{{ v.name }}</strong>
+                                {% if v.name_en %}<small class="text-muted ms-2">{{ v.name_en }}</small>{% endif %}
+                            </div>
+                            <div>
+                                {% if v.adult_price %}
+                                <span class="variant-price-tag">{{ v.currency }} {{ "%.0f"|format(v.adult_price) }}</span>
+                                <small class="text-muted">/成人</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="variant-detail">
+                            {% if v.delivery_type %}
+                            <span class="vd-tag"><i class="fas fa-qrcode me-1"></i>{{ v.delivery_type }}</span>
+                            {% endif %}
+                            {% if v.child_price %}
+                            <span>儿童: {{ v.currency }} {{ "%.0f"|format(v.child_price) }}/人</span>
+                            {% endif %}
+                            {% if v.description %}
+                            <p class="mb-0 mt-1">{{ v.description }}</p>
+                            {% endif %}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <!-- 游玩日期 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-calendar-check"></i>游玩日期</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="visit_date" class="form-label">选择游玩日期 <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="visit_date" name="visit_date" required>
+                            <small class="text-muted">建议提前至少1天预订</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 人数选择 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-users"></i>人数选择</h5>
+
+                    <div class="pax-type" id="adultSection">
+                        <div class="pax-label">
+                            <strong>成人</strong>
+                            <small id="adultPriceLabel"></small>
+                        </div>
+                        <div class="pax-counter">
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('adult', -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control" id="adult_count" name="adult_count"
+                                   value="{{ pre_adult }}" min="1" max="20" readonly>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('adult', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pax-type" id="childSection">
+                        <div class="pax-label">
+                            <strong>儿童</strong>
+                            <small id="childPriceLabel"></small>
+                        </div>
+                        <div class="pax-counter">
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('child', -1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control" id="child_count" name="child_count"
+                                   value="{{ pre_child }}" min="0" max="20" readonly>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustPax('child', 1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 联系人信息 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-user-circle"></i>联系人信息</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_name" class="form-label">联系人姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="contact_name" name="contact_name"
+                                   value="{{ current_user.username if current_user else '' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contact_phone" class="form-label">联系电话 <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" id="contact_phone" name="contact_phone"
+                                   value="{{ user_profile.phone if user_profile else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contact_email" class="form-label">电子邮箱 <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="contact_email" name="contact_email"
+                               value="{{ current_user.email if current_user else '' }}" required>
+                    </div>
+                </div>
+
+                <!-- 特殊要求 -->
+                <div class="form-section">
+                    <h5><i class="fas fa-comment-alt"></i>特殊要求</h5>
+                    <div class="mb-3">
+                        <label for="special_requirements" class="form-label">备注说明</label>
+                        <textarea class="form-control" id="special_requirements" name="special_requirements" rows="3"
+                                  placeholder="如有特殊需求请在此说明..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：价格摘要 -->
+            <div class="col-lg-4">
+                <div class="price-summary">
+                    <h5><i class="fas fa-calculator me-2"></i>费用明细</h5>
+
+                    <div class="price-row">
+                        <span id="selectedVariantName">-</span>
+                    </div>
+                    <div class="price-row">
+                        <span>成人 x <span id="displayAdult">{{ pre_adult }}</span></span>
+                        <span id="adultTotalDisplay">-</span>
+                    </div>
+                    <div class="price-row" id="childRow" style="display: none;">
+                        <span>儿童 x <span id="displayChild">{{ pre_child }}</span></span>
+                        <span id="childTotalDisplay">-</span>
+                    </div>
+
+                    <div class="price-row total">
+                        <span>预估总价</span>
+                        <span id="grandTotal">-</span>
+                    </div>
+
+                    <div class="price-note">
+                        <i class="fas fa-info-circle me-1"></i>
+                        最终价格以工作人员确认为准
+                    </div>
+                </div>
+
+                <div class="info-box mt-3">
+                    <h6><i class="fas fa-shield-alt me-2"></i>预订说明</h6>
+                    <p>提交预订后，我们的工作人员将在24小时内与您联系确认订单详情和最终价格。确认后再进行付款，无需担心。</p>
+                </div>
+
+                <button type="submit" class="submit-btn mt-3">
+                    <i class="fas fa-paper-plane me-2"></i>提交预订
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// 变体数据
+var variantsData = {{ variants | tojson }};
+var currentVariant = null;
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置最小日期为明天
+    var today = new Date();
+    today.setDate(today.getDate() + 1);
+    var minDate = today.toISOString().split('T')[0];
+    document.getElementById('visit_date').setAttribute('min', minDate);
+
+    // 选中初始变体
+    var selectedEl = document.querySelector('.variant-option.selected');
+    if (selectedEl) {
+        selectVariant(selectedEl);
+    }
+});
+
+// 选择票种
+function selectVariant(el) {
+    // 切换样式
+    document.querySelectorAll('.variant-option').forEach(function(opt) {
+        opt.classList.remove('selected');
+        opt.querySelector('input[type="radio"]').checked = false;
+    });
+    el.classList.add('selected');
+    el.querySelector('input[type="radio"]').checked = true;
+
+    // 更新隐藏字段
+    var variantId = parseInt(el.dataset.variantId);
+    document.getElementById('variant_id').value = variantId;
+
+    // 查找变体数据
+    currentVariant = null;
+    for (var i = 0; i < variantsData.length; i++) {
+        if (variantsData[i].id === variantId) {
+            currentVariant = variantsData[i];
+            break;
+        }
+    }
+
+    // 更新价格标签
+    if (currentVariant) {
+        var currency = currentVariant.currency || 'SGD';
+        document.getElementById('adultPriceLabel').textContent = currency + ' ' + Math.round(currentVariant.adult_price) + '/人';
+
+        var childSection = document.getElementById('childSection');
+        if (currentVariant.child_price > 0) {
+            childSection.style.display = 'flex';
+            document.getElementById('childPriceLabel').textContent = currency + ' ' + Math.round(currentVariant.child_price) + '/人';
+        } else {
+            childSection.style.display = 'none';
+            document.getElementById('child_count').value = 0;
+        }
+
+        document.getElementById('selectedVariantName').textContent = currentVariant.name;
+    }
+
+    updatePriceSummary();
+}
+
+// 调整人数
+function adjustPax(type, delta) {
+    var input = document.getElementById(type + '_count');
+    var value = parseInt(input.value) + delta;
+    var min = parseInt(input.min);
+    var max = parseInt(input.max);
+    if (value < min) value = min;
+    if (value > max) value = max;
+    input.value = value;
+    updatePriceSummary();
+}
+
+// 更新价格摘要
+function updatePriceSummary() {
+    if (!currentVariant) return;
+
+    var currency = currentVariant.currency || 'SGD';
+    var adultCount = parseInt(document.getElementById('adult_count').value) || 0;
+    var childCount = parseInt(document.getElementById('child_count').value) || 0;
+
+    var adultTotal = adultCount * currentVariant.adult_price;
+    var childTotal = childCount * currentVariant.child_price;
+    var grandTotal = adultTotal + childTotal;
+
+    document.getElementById('displayAdult').textContent = adultCount;
+    document.getElementById('adultTotalDisplay').textContent = currency + ' ' + Math.round(adultTotal).toLocaleString();
+
+    document.getElementById('displayChild').textContent = childCount;
+    document.getElementById('childTotalDisplay').textContent = currency + ' ' + Math.round(childTotal).toLocaleString();
+    document.getElementById('childRow').style.display = childCount > 0 ? 'flex' : 'none';
+
+    document.getElementById('grandTotal').textContent = currency + ' ' + Math.round(grandTotal).toLocaleString();
+}
+
+// 表单验证
+document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('variant_id').value) {
+        e.preventDefault();
+        alert('请选择票种');
+        return;
+    }
+
+    var visitDate = document.getElementById('visit_date').value;
+    if (!visitDate) {
+        e.preventDefault();
+        alert('请选择游玩日期');
+        return;
+    }
+
+    var contactName = document.getElementById('contact_name').value.trim();
+    var contactPhone = document.getElementById('contact_phone').value.trim();
+    var contactEmail = document.getElementById('contact_email').value.trim();
+
+    if (!contactName || !contactPhone || !contactEmail) {
+        e.preventDefault();
+        alert('请填写完整的联系人信息');
+        return;
+    }
+});
+</script>
+{% endblock %}
