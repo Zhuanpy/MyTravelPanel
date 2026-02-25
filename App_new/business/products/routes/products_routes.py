@@ -787,6 +787,7 @@ def ticket_list():
     ticket_type = request.args.get('ticket_type', '')
     country = request.args.get('country', '')
     status = request.args.get('status', '')
+    sort = request.args.get('sort', '')  # 排序：views_desc / views_asc
     page = request.args.get('page', 1, type=int)
     per_page = 20
 
@@ -814,7 +815,14 @@ def ticket_list():
     if status:
         query = query.filter(ProductsUnified.product_status == status)
 
-    query = query.order_by(ProductsUnified.created_at.desc())
+    # 排序
+    if sort == 'views_desc':
+        query = query.order_by(ProductsUnified.view_count.desc(), ProductsUnified.created_at.desc())
+    elif sort == 'views_asc':
+        query = query.order_by(ProductsUnified.view_count.asc(), ProductsUnified.created_at.desc())
+    else:
+        query = query.order_by(ProductsUnified.created_at.desc())
+
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     products = pagination.items
 
@@ -846,6 +854,7 @@ def ticket_list():
             'ticket_type': ticket_type,
             'country': country,
             'status': status,
+            'sort': sort,
         }
     )
 
@@ -862,6 +871,28 @@ def ticket_toggle_status(product_id):
     product.updated_at = datetime.utcnow()
     db.session.commit()
     return jsonify({'success': True, 'new_status': product.product_status})
+
+
+@products_bp.route('/ticket/<int:product_id>/delete', methods=['POST'])
+@login_required
+def ticket_delete(product_id):
+    """删除门票产品（同时删除扩展信息和变体）"""
+    product = ProductsUnified.query.get_or_404(product_id)
+    if product.product_category != 'ticket':
+        return jsonify({'success': False, 'message': '该产品不是门票类型'}), 400
+
+    try:
+        # 删除变体
+        ProductsTicketVariant.query.filter_by(product_id=product.id).delete()
+        # 删除扩展信息
+        ProductsTicketExt.query.filter_by(product_id=product.id).delete()
+        # 删除主产品
+        db.session.delete(product)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @products_bp.route('/ticket/variant/<int:variant_id>')
@@ -893,6 +924,7 @@ def ticket_variant_add(product_id):
         adult_cost_price=data.get('adult_cost_price') or None,
         child_selling_price=data.get('child_selling_price') or None,
         child_cost_price=data.get('child_cost_price') or None,
+        date_type=data.get('date_type') or 'open',
         delivery_type=data.get('delivery_type') or 'e_ticket',
         includes=data.get('includes') or None,
         excludes=data.get('excludes') or None,
@@ -921,6 +953,7 @@ def ticket_variant_edit(variant_id):
     variant.adult_cost_price = data.get('adult_cost_price') or None
     variant.child_selling_price = data.get('child_selling_price') or None
     variant.child_cost_price = data.get('child_cost_price') or None
+    variant.date_type = data.get('date_type') or 'open'
     variant.delivery_type = data.get('delivery_type') or 'e_ticket'
     variant.includes = data.get('includes') or None
     variant.excludes = data.get('excludes') or None

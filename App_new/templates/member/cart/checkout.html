@@ -43,6 +43,12 @@
                                             {% if item.adult_qty > 0 %}成人 x {{ item.adult_qty }}{% endif %}
                                             {% if item.child_qty > 0 %} / 儿童 x {{ item.child_qty }}{% endif %}
                                         </div>
+                                        {% set date_type = item.properties.get('date_type', 'open') if item.properties else 'open' %}
+                                        {% if item.visit_date %}
+                                        <div class="mt-1">
+                                            <small class="text-primary"><i class="fas fa-calendar-day me-1"></i>游玩日期：{{ item.visit_date }}</small>
+                                        </div>
+                                        {% endif %}
                                     </div>
                                     <div class="text-end flex-shrink-0">
                                         <div class="fw-bold" style="color:var(--primary-dark);">
@@ -50,12 +56,17 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- 游玩日期 -->
+                                <!-- 固定日期票：未选日期时显示选择器 -->
+                                {% if date_type == 'fixed' and not item.visit_date %}
                                 <div class="mt-2 pt-2 border-top">
-                                    <label class="form-label small fw-semibold mb-1">游玩日期</label>
-                                    <input type="date" class="form-control form-control-sm" name="visit_date_{{ item.id }}"
-                                           value="{{ item.visit_date or '' }}" style="max-width:200px;">
+                                    <label class="form-label small fw-semibold mb-1">游玩日期 <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control form-control-sm visit-date-required" name="visit_date_{{ item.id }}"
+                                           value="" style="max-width:200px;" required>
                                 </div>
+                                {% endif %}
+                                {% if item.visit_date %}
+                                <input type="hidden" name="visit_date_{{ item.id }}" value="{{ item.visit_date }}">
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -278,6 +289,17 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     if (!name || !phone || !email) {
         e.preventDefault();
         alert('请填写完整的联系人信息');
+        return;
+    }
+
+    // 检查固定日期票是否选了日期
+    var missingDate = false;
+    document.querySelectorAll('.visit-date-required').forEach(function(el) {
+        if (!el.value) missingDate = true;
+    });
+    if (missingDate) {
+        e.preventDefault();
+        alert('请为固定日期门票选择游玩日期');
         return;
     }
 

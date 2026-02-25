@@ -1,295 +1,224 @@
 {% extends "member/base.html" %}
 
-{% block title %}会员仪表板 - MyTravelPanel{% endblock %}
+{% block title %}会员中心 - MyTravelPanel{% endblock %}
 
 {% block page_title %}欢迎回来，{% if current_user.profile %}{{ current_user.profile.first_name }}{% else %}{{ current_user.email }}{% endif %}{% endblock %}
 
 {% block extra_css %}
 {{ super() }}
 <style>
-/* 确保仪表板内容始终可见 */
-.member-layout .stats-card,
-.member-layout .chart-card,
-.member-layout .service-card {
-    opacity: 1 !important;
-    visibility: visible !important;
-    display: block !important;
-    transform: none !important;
-}
+    .dash-wrap { max-width: 900px; }
 
-/* 移除可能导致问题的动画 */
-.fade-in-up {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-}
+    /* 统计条 */
+    .dash-stats {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+    }
+    .dash-stat {
+        flex: 1;
+        min-width: 120px;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        text-align: center;
+    }
+    .dash-stat-num {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #333;
+    }
+    .dash-stat-num.primary { color: var(--primary-color, #48b968); }
+    .dash-stat-num.warning { color: #d97706; }
+    .dash-stat-num.success { color: #16a34a; }
+    .dash-stat-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.15rem;
+    }
 
-/* 确保主内容区域可见 */
-.member-layout main {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
+    /* 通用 section */
+    .dash-section {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 1.25rem;
+    }
+    .dash-section-header {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #495057;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .dash-section-header a {
+        font-size: 0.78rem;
+        font-weight: 400;
+    }
+    .dash-section-body {
+        padding: 0;
+    }
 
-/* 确保容器可见 */
-.member-layout .container-fluid {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
+    /* 订单列表 */
+    .dash-order {
+        display: flex;
+        align-items: center;
+        padding: 0.6rem 1rem;
+        border-bottom: 1px solid #f5f5f5;
+        font-size: 0.85rem;
+        gap: 0.75rem;
+    }
+    .dash-order:last-child { border-bottom: none; }
+    .dash-order:hover { background: #fafafa; }
+    .dash-order-num {
+        font-weight: 600;
+        color: #333;
+        min-width: 140px;
+    }
+    .dash-order-name {
+        flex: 1;
+        color: #495057;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .dash-order-amount {
+        font-weight: 600;
+        color: #333;
+        min-width: 80px;
+        text-align: right;
+    }
+    .dash-order-date {
+        color: #6c757d;
+        font-size: 0.78rem;
+        min-width: 75px;
+    }
+
+    /* 快捷入口 */
+    .dash-shortcuts {
+        display: flex;
+        gap: 0.75rem;
+        padding: 1rem;
+        flex-wrap: wrap;
+    }
+    .dash-shortcut {
+        flex: 1;
+        min-width: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        border: 1px solid #e9ecef;
+        transition: border-color 0.15s;
+    }
+    .dash-shortcut:hover {
+        border-color: var(--primary-color, #48b968);
+        color: var(--primary-color, #48b968);
+    }
+    .dash-shortcut i { font-size: 1.1rem; }
+    .dash-shortcut span { font-size: 0.78rem; font-weight: 500; }
+
+    /* 空状态 */
+    .dash-empty {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: #6c757d;
+    }
+    .dash-empty i { font-size: 2rem; opacity: 0.3; }
+    .dash-empty p { font-size: 0.85rem; margin-top: 0.5rem; }
+
+    @media (max-width: 576px) {
+        .dash-stat { min-width: 0; flex: 1 1 45%; }
+        .dash-order-num { min-width: 100px; font-size: 0.78rem; }
+        .dash-order-date { display: none; }
+    }
 </style>
 {% endblock %}
 
 {% block member_content %}
-<!-- 统计卡片 -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-primary">{{ stats.total_orders or 0 }}</h3>
-                        <p class="stats-label">总订单数</p>
-                    </div>
-                    <div class="stats-icon stats-primary">
-                        <i class="fas fa-shopping-cart"></i>
-                    </div>
-                </div>
-            </div>
+<div class="dash-wrap">
+    <!-- 统计 -->
+    <div class="dash-stats">
+        <div class="dash-stat">
+            <div class="dash-stat-num primary">{{ stats.total_orders or 0 }}</div>
+            <div class="dash-stat-label">总订单</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-num warning">{{ stats.pending_orders or 0 }}</div>
+            <div class="dash-stat-label">待处理</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-num success">{{ stats.completed_orders or 0 }}</div>
+            <div class="dash-stat-label">已完成</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-num">SGD {{ stats.total_amount or 0 }}</div>
+            <div class="dash-stat-label">总消费</div>
         </div>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-warning">{{ stats.pending_orders or 0 }}</h3>
-                        <p class="stats-label">待处理订单</p>
-                    </div>
-                    <div class="stats-icon stats-warning">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-success">{{ stats.completed_orders or 0 }}</h3>
-                        <p class="stats-label">已完成订单</p>
-                    </div>
-                    <div class="stats-icon stats-success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-info">SGD {{ stats.total_amount or 0 }}</h3>
-                        <p class="stats-label">总消费金额</p>
-                    </div>
-                    <div class="stats-icon stats-info">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row">
     <!-- 最近订单 -->
-    <div class="col-lg-8 mb-4">
-        <div class="card chart-card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-shopping-cart me-2"></i>最近订单
-                </h5>
+    <div class="dash-section">
+        <div class="dash-section-header">
+            <span><i class="fas fa-shopping-cart me-1"></i>最近订单</span>
+            <a href="{{ url_for('orders.list') }}">查看全部 <i class="fas fa-angle-right"></i></a>
+        </div>
+        <div class="dash-section-body">
+            {% if recent_orders %}
+            {% for order in recent_orders %}
+            <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="dash-order text-decoration-none">
+                <span class="dash-order-num">{{ order.order_number }}</span>
+                <span class="dash-order-name">{{ order.service_name }}</span>
+                <span class="badge bg-{{ order.status_color }}">{{ order.status_display }}</span>
+                <span class="dash-order-amount">{{ order.currency }} {{ "%.0f"|format(order.total_amount) }}</span>
+                <span class="dash-order-date">{{ order.created_at.strftime('%m-%d') }}</span>
+            </a>
+            {% endfor %}
+            {% else %}
+            <div class="dash-empty">
+                <i class="fas fa-shopping-cart"></i>
+                <p>暂无订单</p>
             </div>
-            <div class="card-body">
-                {% if recent_orders %}
-                <div class="order-table">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>订单号</th>
-                                <th>服务类型</th>
-                                <th>金额</th>
-                                <th>状态</th>
-                                <th>日期</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in recent_orders %}
-                            <tr>
-                                <td data-label="订单号">{{ order.order_number }}</td>
-                                <td data-label="服务类型">{{ order.service_type }}</td>
-                                <td data-label="金额">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</td>
-                                <td data-label="状态">
-                                    <span class="badge bg-{{ order.status_color }}">
-                                        {{ order.status_display }}
-                                    </span>
-                                </td>
-                                <td data-label="日期">{{ order.created_at.strftime('%Y-%m-%d') }}</td>
-                                <td data-label="操作">
-                                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" 
-                                       class="btn btn-sm btn-outline-primary btn-action">
-                                        查看
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('orders.list') }}" class="btn btn-primary btn-action">
-                        查看全部订单 <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-shopping-cart"></i>
-                    <h4>暂无订单</h4>
-                    <p>您还没有任何订单，快去服务中心看看吧！</p>
-                    <a href="{{ url_for('member.services') }}" class="btn btn-primary btn-action">
-                        浏览服务 <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
-                </div>
-                {% endif %}
-            </div>
+            {% endif %}
         </div>
     </div>
-    
-    <!-- 最近活动 -->
-    <div class="col-lg-4 mb-4">
-        <div class="card chart-card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-history me-2"></i>最近活动
-                </h5>
-            </div>
-            <div class="card-body p-0">
-                <div id="recentActivity">
-                    <div class="activity-item d-flex align-items-center">
-                        <div class="activity-icon info">
-                            <i class="fas fa-user-plus"></i>
-                        </div>
-                        <div class="activity-content">
-                            <h6 class="activity-title">欢迎加入MyTravelPanel</h6>
-                            <p class="activity-description">您的账户已激活，可以开始使用我们的服务</p>
-                        </div>
-                        <div class="activity-time">
-                            刚刚
-                        </div>
-                    </div>
-                </div>
-                <div class="text-center p-3">
-                    <a href="{{ url_for('member.notifications') }}" class="btn btn-sm btn-outline-primary btn-action">
-                        查看全部通知
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- 快速操作 -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-bolt me-2"></i>快速操作
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <div class="service-card">
-                            <div class="card-body text-center">
-                                <div class="service-icon visa mx-auto">
-                                    <i class="fas fa-passport"></i>
-                                </div>
-                                <h5 class="card-title">签证服务</h5>
-                                <p class="card-text text-muted">申请各国签证，专业快速</p>
-                                <a href="{{ url_for('member.services') }}" class="btn btn-primary btn-action">
-                                    立即申请
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <div class="service-card">
-                            <div class="card-body text-center">
-                                <div class="service-icon tour mx-auto">
-                                    <i class="fas fa-map-marked-alt"></i>
-                                </div>
-                                <h5 class="card-title">旅游配套</h5>
-                                <p class="card-text text-muted">精心设计的旅游路线</p>
-                                <a href="{{ url_for('guest.tour.tour_packages') }}" class="btn btn-success btn-action">
-                                    查看配套
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <div class="service-card">
-                            <div class="card-body text-center">
-                                <div class="service-icon flight mx-auto">
-                                    <i class="fas fa-plane"></i>
-                                </div>
-                                <h5 class="card-title">客服支持</h5>
-                                <p class="card-text text-muted">24小时专业客服服务</p>
-                                <a href="{{ url_for('public.contact') }}" class="btn btn-info btn-action">
-                                    联系客服
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- 快捷入口 -->
+    <div class="dash-section">
+        <div class="dash-section-header">
+            <span><i class="fas fa-th-large me-1"></i>快捷入口</span>
+        </div>
+        <div class="dash-shortcuts">
+            <a href="{{ url_for('public.attractions') }}" class="dash-shortcut">
+                <i class="fas fa-ticket-alt"></i>
+                <span>景点门票</span>
+            </a>
+            <a href="{{ url_for('guest.tour.tour_packages') }}" class="dash-shortcut">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>旅游配套</span>
+            </a>
+            <a href="{{ url_for('cart.cart_page') }}" class="dash-shortcut">
+                <i class="fas fa-shopping-cart"></i>
+                <span>购物车</span>
+            </a>
+            <a href="{{ url_for('orders.list') }}" class="dash-shortcut">
+                <i class="fas fa-list-alt"></i>
+                <span>我的订单</span>
+            </a>
+            <a href="{{ url_for('public.contact') }}" class="dash-shortcut">
+                <i class="fas fa-headset"></i>
+                <span>联系客服</span>
+            </a>
         </div>
     </div>
 </div>
 {% endblock %}
-
-{% block extra_js %}
-<script>
-// 页面加载完成后执行
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard loaded successfully');
-    
-    // 检查页面元素是否存在
-    const statsCards = document.querySelectorAll('.stats-card');
-    const chartCards = document.querySelectorAll('.chart-card');
-    const serviceCards = document.querySelectorAll('.service-card');
-    
-    console.log('Stats cards found:', statsCards.length);
-    console.log('Chart cards found:', chartCards.length);
-    console.log('Service cards found:', serviceCards.length);
-    
-    // 确保所有卡片都可见
-    const allCards = [...statsCards, ...chartCards, ...serviceCards];
-    allCards.forEach(card => {
-        if (card) {
-            card.style.opacity = '1';
-            card.style.visibility = 'visible';
-            card.style.display = 'block';
-        }
-    });
-});
-</script>
-{% endblock %} 

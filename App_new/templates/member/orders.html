@@ -30,7 +30,9 @@
                         <select class="form-select" id="status" name="status">
                             <option value="">全部状态</option>
                             <option value="pending" {{ 'selected' if current_status == 'pending' }}>待处理</option>
-                            <option value="processing" {{ 'selected' if current_status == 'processing' }}>处理中</option>
+                            <option value="awaiting_payment" {{ 'selected' if current_status == 'awaiting_payment' }}>待付款</option>
+                            <option value="confirmed" {{ 'selected' if current_status == 'confirmed' }}>已确认</option>
+                            <option value="in_progress" {{ 'selected' if current_status == 'in_progress' }}>处理中</option>
                             <option value="completed" {{ 'selected' if current_status == 'completed' }}>已完成</option>
                             <option value="cancelled" {{ 'selected' if current_status == 'cancelled' }}>已取消</option>
                         </select>
@@ -98,7 +100,9 @@
                             {% for order in orders %}
                             <tr>
                                 <td>
-                                    <strong>{{ order.order_number }}</strong>
+                                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="text-decoration-none">
+                                        <strong>{{ order.order_number }}</strong>
+                                    </a>
                                 </td>
                                 <td>
                                     <span class="badge bg-secondary">{{ order.service_type }}</span>
@@ -112,18 +116,14 @@
                                 </td>
                                 <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" 
-                                           class="btn btn-outline-primary" title="查看详情">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        {% if order.status == 'pending' %}
-                                        <button class="btn btn-outline-danger" title="取消订单" 
-                                                onclick="cancelOrder({{ order.id }})">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
+                                    {% if order.status == 'pending' %}
+                                    <button class="btn btn-sm btn-outline-danger" title="取消订单"
+                                            onclick="cancelOrder({{ order.id }})">
+                                        <i class="fas fa-times me-1"></i>取消
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

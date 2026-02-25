@@ -45,7 +45,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="max-width: 1600px;">
+<div class="container-fluid" style="max-width: 1900px;">
     <!-- 筛选栏 -->
     <div class="card mb-3">
         <div class="card-body py-2">
@@ -78,6 +78,13 @@
                     </select>
                 </div>
                 <div class="col-auto">
+                    <select name="sort" class="form-select form-select-sm">
+                        <option value="">默认排序</option>
+                        <option value="views_desc" {% if current_filters.sort == 'views_desc' %}selected{% endif %}>浏览量↓</option>
+                        <option value="views_asc" {% if current_filters.sort == 'views_asc' %}selected{% endif %}>浏览量↑</option>
+                    </select>
+                </div>
+                <div class="col-auto">
                     <button type="submit" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-filter me-1"></i>筛选
                     </button>
@@ -105,6 +112,7 @@
                         <th class="text-end">成人成本</th>
                         <th class="text-end">儿童售价</th>
                         <th class="text-end">儿童成本</th>
+                        <th class="text-center">浏览量</th>
                         <th class="text-center">状态</th>
                         <th>操作</th>
                     </tr>
@@ -163,6 +171,11 @@
                         <td class="price-col">-</td>
                         <td class="price-col">-</td>
                         <td class="text-center">
+                            <span class="badge bg-light text-dark" title="外部浏览次数">
+                                <i class="fas fa-eye text-muted me-1"></i>{{ p.view_count or 0 }}
+                            </span>
+                        </td>
+                        <td class="text-center">
                             <span class="status-badge status-{{ p.product_status or 'inactive' }}"
                                   onclick="toggleStatus({{ p.id }}, this)"
                                   title="点击切换状态">
@@ -173,6 +186,10 @@
                             <a href="{{ url_for('products.edit_ticket', product_id=p.id) }}" class="btn btn-sm btn-outline-primary" title="编辑">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            <button class="btn btn-sm btn-outline-danger" title="删除"
+                                    onclick="deleteProduct({{ p.id }}, '{{ p.product_name | e }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {# 变体行 #}
@@ -209,6 +226,7 @@
                             ${{ "%.2f"|format(v.child_cost_price) }}
                             {% else %}-{% endif %}
                         </td>
+                        <td></td>
                         <td class="text-center">
                             {% if v.is_active %}
                             <span class="badge bg-success">已激活</span>
@@ -225,7 +243,7 @@
                     {% endfor %}
                     {% else %}
                     <tr>
-                        <td colspan="12" class="text-center py-4 text-muted">
+                        <td colspan="13" class="text-center py-4 text-muted">
                             <i class="fas fa-ticket-alt fa-2x mb-2"></i>
                             <p class="mb-0">暂无门票产品</p>
                         </td>
@@ -340,7 +358,14 @@
                         <label class="form-label small mb-1">排序</label>
                         <input type="number" id="variantSort" class="form-control form-control-sm" value="0" min="0">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">日期类型</label>
+                        <select id="variantDateType" class="form-select form-select-sm">
+                            <option value="open">开放票（无需选日期）</option>
+                            <option value="fixed">固定日期票</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label small mb-1">取票方式</label>
                         <select id="variantDeliveryType" class="form-select form-select-sm">
                             <option value="e_ticket">电子票</option>
@@ -349,7 +374,7 @@
                             <option value="pickup">现场取票</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small mb-1">状态</label>
                         <select id="variantActive" class="form-select form-select-sm">
                             <option value="1">已激活</option>
@@ -429,6 +454,25 @@
 
 {% block extra_js %}
 <script>
+function deleteProduct(productId, productName) {
+    if (!confirm(`确定要删除产品「${productName}」吗？\n\n该操作将同时删除所有变体，且不可恢复！`)) {
+        return;
+    }
+    fetch(`/staff/products/ticket/${productId}/delete`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('删除失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
 function toggleStatus(productId, el) {
     fetch(`/staff/products/ticket/${productId}/toggle-status`, {
         method: 'POST',
@@ -461,6 +505,7 @@ function openVariantModal(variantId) {
     document.getElementById('adultCostPrice').value = '';
     document.getElementById('childSellingPrice').value = '';
     document.getElementById('childCostPrice').value = '';
+    document.getElementById('variantDateType').value = 'open';
     document.getElementById('variantDeliveryType').value = 'e_ticket';
     document.getElementById('variantIncludes').value = '';
     document.getElementById('variantExcludes').value = '';
@@ -482,6 +527,7 @@ function openVariantModal(variantId) {
                 document.getElementById('adultCostPrice').value = v.adult_cost_price || '';
                 document.getElementById('childSellingPrice').value = v.child_selling_price || '';
                 document.getElementById('childCostPrice').value = v.child_cost_price || '';
+                document.getElementById('variantDateType').value = v.date_type || 'open';
                 document.getElementById('variantDeliveryType').value = v.delivery_type || 'e_ticket';
                 document.getElementById('variantIncludes').value = v.includes || '';
                 document.getElementById('variantExcludes').value = v.excludes || '';
@@ -510,6 +556,7 @@ function saveVariant() {
         adult_cost_price: document.getElementById('adultCostPrice').value || null,
         child_selling_price: document.getElementById('childSellingPrice').value || null,
         child_cost_price: document.getElementById('childCostPrice').value || null,
+        date_type: document.getElementById('variantDateType').value,
         delivery_type: document.getElementById('variantDeliveryType').value,
         includes: document.getElementById('variantIncludes').value.trim() || null,
         excludes: document.getElementById('variantExcludes').value.trim() || null,

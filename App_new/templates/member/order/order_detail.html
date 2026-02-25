@@ -5,17 +5,14 @@
 {% block page_title %}订单详情{% endblock %}
 
 {% block page_actions %}
-<div class="btn-toolbar mb-2 mb-md-0">
-    <a href="{{ url_for('orders.list') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i>返回订单列表
-    </a>
+<div class="btn-toolbar mb-2 mb-md-0 gap-2">
     {% if order.can_modify() %}
-    <a href="{{ url_for('orders.edit_order', order_id=order.id) }}" class="btn btn-sm btn-warning">
-        <i class="fas fa-edit me-1"></i>编辑订单
+    <a href="{{ url_for('orders.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-warning">
+        <i class="fas fa-edit me-1"></i>编辑
     </a>
     {% endif %}
     {% if order.can_cancel() %}
-    <button type="button" class="btn btn-sm btn-danger" onclick="cancelOrder()">
+    <button type="button" class="btn btn-sm btn-outline-danger" onclick="cancelOrder()">
         <i class="fas fa-times me-1"></i>取消订单
     </button>
     {% endif %}
@@ -25,448 +22,347 @@
 {% block extra_css %}
 {{ super() }}
 <style>
-    .order-status-badge {
-        font-size: 1rem;
-        padding: 0.5rem 1rem;
-        border-radius: 25px;
-        font-weight: 600;
-    }
-    
-    .order-info-card {
-        background: linear-gradient(135deg, #48b968 0%, #7ecf8e 100%);
-        color: white;
-        border-radius: 15px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-    }
-    
-    .order-info-card h3 {
-        color: white;
-        margin-bottom: 1rem;
-    }
-    
-    .order-info-card .order-number {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-    
-    .order-info-card .order-amount {
-        font-size: 2rem;
-        font-weight: bold;
-    }
-    
-    .info-section {
-        background: white;
-        border-radius: 15px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-    
-    .info-section h5 {
-        color: #48b968;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #48b968;
-    }
-    
-    .info-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #f8f9fa;
-    }
-    
-    .info-item:last-child {
-        border-bottom: none;
-    }
-    
-    .info-label {
-        font-weight: 600;
-        color: #495057;
-    }
-    
-    .info-value {
-        color: #6c757d;
-    }
-    
-    .order-item {
-        background: #f8f9fa;
+    .od-wrap { max-width: 720px; margin: 0 auto; }
+
+    /* 头部摘要 */
+    .od-header {
+        background: #fff;
+        border: 1px solid #e9ecef;
         border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        border: 1px solid #dee2e6;
-    }
-    
-    .order-item h6 {
-        color: #495057;
-        margin-bottom: 0.5rem;
-    }
-    
-    .order-item .item-details {
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 1rem;
+        gap: 1rem;
     }
-    
-    .document-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        background: #f8f9fa;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-    }
-    
-    .document-item .document-info {
-        display: flex;
-        align-items: center;
-    }
-    
-    .document-item .document-info i {
-        margin-right: 0.5rem;
-        color: #48b968;
-    }
-    
-    .timeline {
-        position: relative;
-        padding-left: 2rem;
-    }
-    
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 0.75rem;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: #dee2e6;
-    }
-    
-    .timeline-item {
-        position: relative;
-        margin-bottom: 2rem;
-    }
-    
-    .timeline-item::before {
-        content: '';
-        position: absolute;
-        left: -1.75rem;
-        top: 0.5rem;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: #48b968;
-        border: 3px solid white;
-        box-shadow: 0 0 0 2px #48b968;
-    }
-    
-    .timeline-item.completed::before {
-        background: #28a745;
-        box-shadow: 0 0 0 2px #28a745;
-    }
-    
-    .timeline-item.pending::before {
-        background: #ffc107;
-        box-shadow: 0 0 0 2px #ffc107;
-    }
-    
-    .timeline-content {
-        background: white;
-        border-radius: 8px;
-        padding: 1rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .timeline-content h6 {
-        color: #495057;
-        margin-bottom: 0.5rem;
-    }
-    
-    .timeline-content .timeline-time {
-        font-size: 0.9rem;
+    .od-header-left .od-number {
+        font-size: 0.85rem;
         color: #6c757d;
+    }
+    .od-header-left .od-name {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0.15rem 0 0;
+    }
+    .od-header-right {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    .od-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--primary-dark, #2d8a4e);
+    }
+
+    /* 通用 section */
+    .od-section {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    .od-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* 订单项 */
+    .od-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f5f5f5;
+    }
+    .od-item:last-child { border-bottom: none; }
+    .od-item-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95rem;
+    }
+    .od-item-desc {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.15rem;
+    }
+    .od-item-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.35rem;
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .od-item-price {
+        font-weight: 600;
+        color: #333;
+    }
+
+    /* 信息行 */
+    .od-info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.4rem 0;
+        font-size: 0.9rem;
+    }
+    .od-info-label { color: #6c757d; }
+    .od-info-value { color: #333; }
+    .od-info-total {
+        border-top: 2px solid #e9ecef;
+        padding-top: 0.6rem;
+        margin-top: 0.3rem;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .od-info-total .od-info-value { color: var(--primary-dark, #2d8a4e); }
+
+    /* 文档 */
+    .od-doc {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f5f5f5;
+    }
+    .od-doc:last-child { border-bottom: none; }
+
+    /* 联系人一行 */
+    .od-contact {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        flex-wrap: wrap;
+    }
+    .od-remark {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        color: #333;
+    }
+
+    /* 付款信息卡片 */
+    .od-payment-card {
+        border-color: #bfdbfe;
+        background: #fafcff;
+    }
+
+    @media (max-width: 576px) {
+        .od-header { flex-direction: column; align-items: flex-start; }
+        .od-header-right { text-align: left; }
     }
 </style>
 {% endblock %}
 
 {% block member_content %}
-<div class="container-fluid">
-    <!-- 订单基本信息 -->
-    <div class="order-info-card">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="order-number">{{ order.order_number }}</div>
-                <h3>{{ order.service_name }}</h3>
-                <p class="mb-0">{{ order.description }}</p>
+<div class="container">
+<div class="od-wrap">
+    <!-- 头部：订单号 + 状态 + 金额 -->
+    <div class="od-header">
+        <div class="od-header-left">
+            <div class="od-number">{{ order.order_number }}</div>
+            <div class="od-name">{{ order.service_name }}</div>
+        </div>
+        <div class="od-header-right">
+            <div class="od-amount">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</div>
+            <span class="badge bg-{{ order.status_color }} mt-1">{{ order.status_display }}</span>
+        </div>
+    </div>
+
+    <!-- 待付款：显示付款信息 -->
+    {% if order.status == 'awaiting_payment' and payment_config %}
+    <div class="od-section od-payment-card">
+        <div class="od-section-title" style="color:#2563eb; border-color:#dbeafe;">
+            <i class="fas fa-money-bill-wave me-1"></i>付款信息
+        </div>
+        {% if payment_config.payment_bank_name or payment_config.payment_account_number %}
+        <div class="od-payment-bank">
+            {% if payment_config.payment_bank_name %}
+            <div class="od-info-row">
+                <span class="od-info-label">银行</span>
+                <span class="od-info-value fw-semibold">{{ payment_config.payment_bank_name }}</span>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="order-amount">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</div>
-                <span class="badge bg-light text-dark order-status-badge">
-                    {{ order.status_display }}
+            {% endif %}
+            {% if payment_config.payment_account_name %}
+            <div class="od-info-row">
+                <span class="od-info-label">户名</span>
+                <span class="od-info-value fw-semibold">{{ payment_config.payment_account_name }}</span>
+            </div>
+            {% endif %}
+            {% if payment_config.payment_account_number %}
+            <div class="od-info-row">
+                <span class="od-info-label">账号</span>
+                <span class="od-info-value fw-semibold" style="letter-spacing:1px;">{{ payment_config.payment_account_number }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% if payment_config.payment_qr_image %}
+        <div class="text-center mt-3">
+            <img src="{{ url_for('static', filename=payment_config.payment_qr_image) }}" alt="付款二维码"
+                 style="max-width:200px; border-radius:8px; border:1px solid #e9ecef;">
+            <div class="small text-muted mt-1">扫码付款</div>
+        </div>
+        {% endif %}
+        {% if payment_config.payment_note %}
+        <div class="small text-muted mt-2" style="background:#f0f7ff; padding:0.5rem 0.75rem; border-radius:6px;">
+            <i class="fas fa-info-circle me-1"></i>{{ payment_config.payment_note }}
+        </div>
+        {% endif %}
+        <div class="text-center mt-3">
+            <button type="button" class="btn btn-primary" onclick="confirmPayment()">
+                <i class="fas fa-check-circle me-1"></i>我已付款
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 订单项目 -->
+    <div class="od-section">
+        <div class="od-section-title"><i class="fas fa-ticket-alt me-1"></i>订单项目</div>
+        {% for item in order.order_items %}
+        <div class="od-item">
+            <div class="od-item-name">{{ item.item_name }}</div>
+            {% if item.item_description %}
+            <div class="od-item-desc"><i class="fas fa-map-marker-alt me-1"></i>{{ item.item_description }}</div>
+            {% endif %}
+            {% if item.properties and item.properties.visit_date %}
+            <div class="od-item-desc"><i class="fas fa-calendar-day me-1"></i>游玩日期：{{ item.properties.visit_date }}</div>
+            {% endif %}
+            <div class="od-item-meta">
+                <span>
+                    {% if item.properties and item.properties.adult_count %}
+                    成人 x {{ item.properties.adult_count }}
+                    {% endif %}
+                    {% if item.properties and item.properties.child_count and item.properties.child_count > 0 %}
+                     / 儿童 x {{ item.properties.child_count }}
+                    {% endif %}
+                    {% if not item.properties or (not item.properties.adult_count and not item.properties.child_count) %}
+                    数量 x {{ item.quantity }}
+                    {% endif %}
                 </span>
+                <span class="od-item-price">{{ order.currency }} {{ "%.0f"|format(item.total_price) }}</span>
             </div>
         </div>
-    </div>
+        {% endfor %}
 
-    <div class="row">
-        <!-- 左侧：订单详情 -->
-        <div class="col-lg-8">
-            <!-- 订单项目 -->
-            <div class="info-section">
-                <h5><i class="fas fa-list me-2"></i>订单项目</h5>
-                {% for item in order.order_items %}
-                <div class="order-item">
-                    <h6>{{ item.item_name }}</h6>
-                    {% if item.item_description %}
-                    <p class="text-muted mb-2">{{ item.item_description }}</p>
-                    {% endif %}
-                    <div class="item-details">
-                        <div>
-                            <span class="text-muted">数量：</span>
-                            <strong>{{ item.quantity }}</strong>
-                            <span class="text-muted ms-3">单价：</span>
-                            <strong>{{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</strong>
-                        </div>
-                        <div>
-                            <strong>{{ order.currency }} {{ "%.2f"|format(item.total_price) }}</strong>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+        <!-- 价格汇总 -->
+        {% if order.additional_fees > 0 or order.discount_amount > 0 %}
+        <div class="mt-2 pt-2" style="border-top:1px solid #e9ecef;">
+            <div class="od-info-row">
+                <span class="od-info-label">小计</span>
+                <span class="od-info-value">{{ order.currency }} {{ "%.2f"|format(order.base_price) }}</span>
             </div>
-
-            <!-- 客户信息 -->
-            <div class="info-section">
-                <h5><i class="fas fa-user me-2"></i>客户信息</h5>
-                <div class="info-item">
-                    <span class="info-label">姓名</span>
-                    <span class="info-value">{{ order.customer_name }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">邮箱</span>
-                    <span class="info-value">{{ order.customer_email }}</span>
-                </div>
-                {% if order.customer_phone %}
-                <div class="info-item">
-                    <span class="info-label">联系电话</span>
-                    <span class="info-value">{{ order.customer_phone }}</span>
-                </div>
-                {% endif %}
-                {% if order.customer_address %}
-                <div class="info-item">
-                    <span class="info-label">地址</span>
-                    <span class="info-value">{{ order.customer_address }}</span>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- 特殊要求 -->
-            {% if order.special_requirements or order.notes %}
-            <div class="info-section">
-                <h5><i class="fas fa-star me-2"></i>特殊要求</h5>
-                {% if order.special_requirements %}
-                <div class="info-item">
-                    <span class="info-label">特殊要求</span>
-                    <span class="info-value">{{ order.special_requirements }}</span>
-                </div>
-                {% endif %}
-                {% if order.notes %}
-                <div class="info-item">
-                    <span class="info-label">备注</span>
-                    <span class="info-value">{{ order.notes }}</span>
-                </div>
-                {% endif %}
+            {% if order.additional_fees > 0 %}
+            <div class="od-info-row">
+                <span class="od-info-label">附加费用</span>
+                <span class="od-info-value">{{ order.currency }} {{ "%.2f"|format(order.additional_fees) }}</span>
             </div>
             {% endif %}
-
-            <!-- 相关文档 -->
-            {% if order.documents %}
-            <div class="info-section">
-                <h5><i class="fas fa-file me-2"></i>相关文档</h5>
-                {% for document in order.documents %}
-                <div class="document-item">
-                    <div class="document-info">
-                        <i class="fas fa-file-pdf"></i>
-                        <div>
-                            <div class="fw-bold">{{ document.document_name }}</div>
-                            <small class="text-muted">
-                                {{ (document.file_size / 1024 / 1024)|round(2) }} MB
-                                {% if document.is_verified %}
-                                <span class="text-success ms-2">
-                                    <i class="fas fa-check-circle"></i> 已验证
-                                </span>
-                                {% endif %}
-                            </small>
-                        </div>
-                    </div>
-                    <div>
-                        <a href="{{ url_for('static', filename=document.file_path.replace('App_new/static/', '')) }}" 
-                           class="btn btn-sm btn-outline-primary" target="_blank">
-                            <i class="fas fa-download"></i> 下载
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
+            {% if order.discount_amount > 0 %}
+            <div class="od-info-row">
+                <span class="od-info-label">折扣</span>
+                <span class="od-info-value">-{{ order.currency }} {{ "%.2f"|format(order.discount_amount) }}</span>
             </div>
             {% endif %}
-        </div>
-
-        <!-- 右侧：订单状态和操作 -->
-        <div class="col-lg-4">
-            <!-- 订单状态时间线 -->
-            <div class="info-section">
-                <h5><i class="fas fa-history me-2"></i>订单状态</h5>
-                <div class="timeline">
-                    <div class="timeline-item completed">
-                        <div class="timeline-content">
-                            <h6>订单创建</h6>
-                            <p class="mb-1">订单已成功创建</p>
-                            <div class="timeline-time">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
-                        </div>
-                    </div>
-                    
-                    {% if order.status != 'draft' %}
-                    <div class="timeline-item completed">
-                        <div class="timeline-content">
-                            <h6>订单提交</h6>
-                            <p class="mb-1">订单已提交，等待处理</p>
-                            <div class="timeline-time">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if order.status == 'confirmed' %}
-                    <div class="timeline-item completed">
-                        <div class="timeline-content">
-                            <h6>订单确认</h6>
-                            <p class="mb-1">订单已确认，开始处理</p>
-                            <div class="timeline-time">{{ order.confirmed_at.strftime('%Y-%m-%d %H:%M') if order.confirmed_at else '待确认' }}</div>
-                        </div>
-                    </div>
-                    {% elif order.status == 'in_progress' %}
-                    <div class="timeline-item completed">
-                        <div class="timeline-content">
-                            <h6>处理中</h6>
-                            <p class="mb-1">订单正在处理中</p>
-                            <div class="timeline-time">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
-                        </div>
-                    </div>
-                    {% elif order.status == 'completed' %}
-                    <div class="timeline-item completed">
-                        <div class="timeline-content">
-                            <h6>订单完成</h6>
-                            <p class="mb-1">订单已成功完成</p>
-                            <div class="timeline-time">{{ order.completed_at.strftime('%Y-%m-%d %H:%M') if order.completed_at else '已完成' }}</div>
-                        </div>
-                    </div>
-                    {% elif order.status == 'cancelled' %}
-                    <div class="timeline-item">
-                        <div class="timeline-content">
-                            <h6>订单取消</h6>
-                            <p class="mb-1">订单已取消</p>
-                            <div class="timeline-time">{{ order.cancelled_at.strftime('%Y-%m-%d %H:%M') if order.cancelled_at else '已取消' }}</div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- 价格摘要 -->
-            <div class="info-section">
-                <h5><i class="fas fa-calculator me-2"></i>价格摘要</h5>
-                <div class="info-item">
-                    <span class="info-label">基础价格</span>
-                    <span class="info-value">{{ order.currency }} {{ "%.2f"|format(order.base_price) }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">附加费用</span>
-                    <span class="info-value">{{ order.currency }} {{ "%.2f"|format(order.additional_fees) }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">折扣</span>
-                    <span class="info-value">-{{ order.currency }} {{ "%.2f"|format(order.discount_amount) }}</span>
-                </div>
-                <div class="info-item" style="border-top: 2px solid #48b968; font-weight: bold; font-size: 1.1rem;">
-                    <span class="info-label">总计</span>
-                    <span class="info-value">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</span>
-                </div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="info-section">
-                <h5><i class="fas fa-cogs me-2"></i>操作</h5>
-                <div class="d-grid gap-2">
-                    {% if order.status == 'draft' %}
-                    <button type="button" class="btn btn-success" onclick="submitOrder()">
-                        <i class="fas fa-paper-plane me-2"></i>提交订单
-                    </button>
-                    {% endif %}
-                    
-                    {% if order.can_cancel() %}
-                    <button type="button" class="btn btn-danger" onclick="cancelOrder()">
-                        <i class="fas fa-times me-2"></i>取消订单
-                    </button>
-                    {% endif %}
-                    
-                    <a href="{{ url_for('orders.list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-list me-2"></i>返回订单列表
-                    </a>
-                </div>
+            <div class="od-info-row od-info-total">
+                <span class="od-info-label">合计</span>
+                <span class="od-info-value">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</span>
             </div>
         </div>
+        {% endif %}
     </div>
+
+    <!-- 联系人 + 备注 -->
+    <div class="od-section">
+        <div class="od-section-title"><i class="fas fa-user me-1"></i>联系人</div>
+        <div class="od-contact">
+            <span>{{ order.customer_name }}</span>
+            {% if order.customer_phone %}
+            <span class="text-muted">·</span>
+            <span><i class="fas fa-phone me-1 small"></i>{{ order.customer_phone }}</span>
+            {% endif %}
+            <span class="text-muted">·</span>
+            <span><i class="fas fa-envelope me-1 small"></i>{{ order.customer_email }}</span>
+        </div>
+        {% if order.special_requirements %}
+        <div class="od-remark"><span class="text-muted">备注：</span>{{ order.special_requirements }}</div>
+        {% endif %}
+        {% if order.notes %}
+        <div class="od-remark"><span class="text-muted">备注：</span>{{ order.notes }}</div>
+        {% endif %}
+    </div>
+
+    <!-- 相关文档（有才显示） -->
+    {% if order.documents %}
+    <div class="od-section">
+        <div class="od-section-title"><i class="fas fa-file me-1"></i>相关文档</div>
+        {% for document in order.documents %}
+        <div class="od-doc">
+            <div>
+                <i class="fas fa-file-pdf text-danger me-1"></i>
+                <span>{{ document.document_name }}</span>
+                <small class="text-muted ms-1">({{ (document.file_size / 1024 / 1024)|round(2) }} MB)</small>
+            </div>
+            <a href="{{ url_for('static', filename=document.file_path.replace('App_new/static/', '')) }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+                <i class="fas fa-download"></i>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 订单时间 -->
+    <div class="text-muted small text-center pb-3">
+        创建于 {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}
+        {% if order.updated_at and order.updated_at != order.created_at %}
+         · 更新于 {{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}
+        {% endif %}
+    </div>
+</div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function submitOrder() {
-    if (confirm('确定要提交订单吗？提交后订单将进入处理流程。')) {
-        // 创建表单并提交
-        const form = document.createElement('form');
+function cancelOrder() {
+    if (confirm('确定要取消这个订单吗？取消后无法恢复。')) {
+        var form = document.createElement('form');
         form.method = 'POST';
-        form.action = '{{ url_for("orders.submit_order", order_id=order.id) }}';
-        
-        // 添加 CSRF token
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        if (csrfMeta) {
-            const tokenInput = document.createElement('input');
-            tokenInput.type = 'hidden';
-            tokenInput.name = 'csrf_token';
-            tokenInput.value = csrfMeta.content;
-            form.appendChild(tokenInput);
+        form.action = '{{ url_for("orders.cancel_order", order_id=order.id) }}';
+        var csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = csrfToken.getAttribute('content');
+            form.appendChild(input);
         }
-        
         document.body.appendChild(form);
         form.submit();
     }
 }
 
-function cancelOrder() {
-    if (confirm('确定要取消这个订单吗？取消后无法恢复。')) {
-        // 创建表单并提交
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ url_for("orders.cancel_order", order_id=order.id) }}';
-        
-        // 添加 CSRF token（如果需要）
-        const csrfToken = document.querySelector('meta[name="csrf-token"]');
-        if (csrfToken) {
-            const tokenInput = document.createElement('input');
-            tokenInput.type = 'hidden';
-            tokenInput.name = 'csrf_token';
-            tokenInput.value = csrfToken.getAttribute('content');
-            form.appendChild(tokenInput);
+function confirmPayment() {
+    if (!confirm('确认已完成付款？我们将通知工作人员核实。')) return;
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    fetch('{{ url_for("orders.confirm_payment", order_id=order.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            alert('已通知工作人员，请等待确认。');
+            location.reload();
+        } else {
+            alert(data.message || '操作失败');
         }
-        
-        document.body.appendChild(form);
-        form.submit();
-    }
+    });
 }
 </script>
 {% endblock %}

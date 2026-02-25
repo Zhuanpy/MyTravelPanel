@@ -215,13 +215,22 @@ def submit_order():
             except Exception:
                 date_str = datetime.now().strftime('%d%b').upper()
 
-            # 构建航线路径
-            route_parts = [valid_segments[0][0]]
-            for dep, arr in valid_segments:
-                if arr not in route_parts or arr == valid_segments[-1][1]:
-                    route_parts.append(arr)
+            # 构建航线路径（支持 multi-city）
+            # 连续航段用 - 连接，不连续（出发地≠上段到达地）用 -- 分隔
+            segments_groups = []  # 每组是连续航段的城市列表
+            current_group = [valid_segments[0][0]]
 
-            return f"{date_str} {'-'.join(route_parts)}"
+            for i, (dep, arr) in enumerate(valid_segments):
+                if dep.upper() != current_group[-1].upper():
+                    # 出发地与上一组末尾不同，开始新组
+                    segments_groups.append('-'.join(current_group))
+                    current_group = [dep]
+                current_group.append(arr)
+
+            segments_groups.append('-'.join(current_group))
+            route_str = '--'.join(segments_groups)
+
+            return f"{date_str} {route_str}"
 
         # 生成 detailed_description：分行格式
         def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_times, cabin_codes_list, arr_times):

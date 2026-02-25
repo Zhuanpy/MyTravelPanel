@@ -34,6 +34,9 @@ class ProductsTicketVariant(db.Model):
     child_selling_price = db.Column(db.Numeric(12, 2), comment='儿童售价')
     child_cost_price = db.Column(db.Numeric(12, 2), comment='儿童成本价')
 
+    # ========== 日期类型 ==========
+    date_type = db.Column(db.String(20), default='open', comment='日期类型：open开放票/fixed固定日期票')
+
     # ========== 票种附加信息 ==========
     delivery_type = db.Column(db.String(20), default='e_ticket', comment='取票方式')
     includes = db.Column(db.Text, comment='费用包含')
@@ -64,6 +67,7 @@ class ProductsTicketVariant(db.Model):
             'child_selling_price': float(self.child_selling_price) if self.child_selling_price else None,
             'child_cost_price': float(self.child_cost_price) if self.child_cost_price else None,
             'currency': self.currency,
+            'date_type': self.date_type or 'open',
             'delivery_type': self.delivery_type,
             'includes': self.includes,
             'excludes': self.excludes,

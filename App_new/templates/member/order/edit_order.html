@@ -1,0 +1,147 @@
+{% extends "member/base.html" %}
+
+{% block title %}编辑订单 - {{ order.order_number }}{% endblock %}
+
+{% block page_title %}编辑订单{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .edit-wrap { max-width: 680px; margin: 0 auto; }
+    .edit-section {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    .edit-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .edit-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f5f5f5;
+    }
+    .edit-item:last-child { border-bottom: none; }
+    .edit-item-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #333;
+    }
+    .edit-item-loc {
+        font-size: 0.82rem;
+        color: #6c757d;
+    }
+    .qty-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .qty-group label {
+        font-size: 0.82rem;
+        color: #6c757d;
+        margin-bottom: 0;
+        white-space: nowrap;
+    }
+    .qty-group input {
+        width: 70px;
+    }
+</style>
+{% endblock %}
+
+{% block member_content %}
+<div class="container">
+<div class="edit-wrap">
+    <div class="text-muted small mb-3">订单编号：{{ order.order_number }}</div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- 订单项目 -->
+        <div class="edit-section">
+            <div class="edit-section-title"><i class="fas fa-ticket-alt me-1"></i>订单项目</div>
+            {% for item in order.order_items %}
+            {% set props = item.properties or {} %}
+            <div class="edit-item">
+                <div class="edit-item-name">{{ item.item_name }}</div>
+                {% if item.item_description %}
+                <div class="edit-item-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ item.item_description }}</div>
+                {% endif %}
+
+                <div class="row g-2 mt-2 align-items-end">
+                    <!-- 成人数量 -->
+                    <div class="col-auto">
+                        <label class="form-label small mb-1">成人</label>
+                        <input type="number" class="form-control form-control-sm" min="1" max="20"
+                               name="item_{{ item.id }}_adult" value="{{ props.get('adult_count', item.quantity) }}">
+                    </div>
+                    <!-- 儿童数量 -->
+                    <div class="col-auto">
+                        <label class="form-label small mb-1">儿童</label>
+                        <input type="number" class="form-control form-control-sm" min="0" max="20"
+                               name="item_{{ item.id }}_child" value="{{ props.get('child_count', 0) }}">
+                    </div>
+                    <!-- 游玩日期 -->
+                    {% if props.get('visit_date') or props.get('date_type') == 'fixed' %}
+                    <div class="col-auto">
+                        <label class="form-label small mb-1">游玩日期</label>
+                        <input type="date" class="form-control form-control-sm"
+                               name="item_{{ item.id }}_visit_date" value="{{ props.get('visit_date', '') }}">
+                    </div>
+                    {% endif %}
+                    <!-- 小计（只读） -->
+                    <div class="col-auto ms-auto text-end">
+                        <div class="small text-muted">小计</div>
+                        <div class="fw-bold" style="color:var(--primary-dark);">{{ order.currency }} {{ "%.0f"|format(item.total_price) }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 联系人信息 -->
+        <div class="edit-section">
+            <div class="edit-section-title"><i class="fas fa-user me-1"></i>联系人信息</div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">姓名 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" name="customer_name"
+                           value="{{ order.customer_name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">电话</label>
+                    <input type="tel" class="form-control" name="customer_phone"
+                           value="{{ order.customer_phone or '' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">邮箱 <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" name="customer_email"
+                           value="{{ order.customer_email }}" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- 备注 -->
+        <div class="edit-section">
+            <div class="edit-section-title"><i class="fas fa-comment me-1"></i>备注说明</div>
+            <div>
+                <textarea class="form-control" name="special_requirements" rows="2"
+                          placeholder="如有特殊要求请在此说明...">{{ order.special_requirements or '' }}</textarea>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="d-flex gap-2 justify-content-end">
+            <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="btn btn-outline-secondary">取消</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>保存</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}

@@ -44,6 +44,7 @@ def add_to_cart():
         variant_id = data.get('variant_id')
         adult_qty = int(data.get('adult_qty', 1))
         child_qty = int(data.get('child_qty', 0))
+        visit_date = data.get('visit_date') or None
 
         if not product_id or not variant_id:
             return jsonify({'success': False, 'message': '参数不完整'}), 400
@@ -73,6 +74,8 @@ def add_to_cart():
             # 更新价格快照
             existing.adult_price = variant.adult_selling_price or 0
             existing.child_price = variant.child_selling_price or 0
+            if visit_date:
+                existing.visit_date = visit_date
             existing.updated_at = datetime.utcnow()
         else:
             # 构建快照信息
@@ -88,6 +91,7 @@ def add_to_cart():
                 'cover_image': product.cover_image,
                 'location': location,
                 'delivery_type': variant.delivery_type,
+                'date_type': variant.date_type or 'open',
             }
 
             item = CartItem(
@@ -99,6 +103,7 @@ def add_to_cart():
                 adult_price=variant.adult_selling_price or 0,
                 child_price=variant.child_selling_price or 0,
                 currency=variant.currency or 'SGD',
+                visit_date=visit_date,
                 properties=properties
             )
             db.session.add(item)
@@ -248,6 +253,12 @@ def checkout():
 
                 # 获取每项的游玩日期
                 visit_date = request.form.get(f'visit_date_{item.id}', '')
+
+                # 固定日期票必须选择日期
+                date_type = (variant.date_type or 'open')
+                if date_type == 'fixed' and not visit_date:
+                    flash(f'请为 "{item.properties.get("variant_name", "")}" 选择游玩日期', 'error')
+                    return redirect(url_for('cart.checkout'))
 
                 props = item.properties or {}
                 order_items_data.append({

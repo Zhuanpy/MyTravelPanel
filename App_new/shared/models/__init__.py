@@ -18,6 +18,7 @@ from .Suppliers import (
 )
 
 from .Utilsmodels import Todo, TodoChecklist, TodoChecklistItem
+from .system_config import SystemConfig
 
 # 注意：project, ref, eo 模型在 business.projects 模块中
 # 注意：flight 模型在 business.flight 模块中
@@ -35,4 +36,5 @@ __all__ = [
     'Todo',
     'TodoChecklist',
     'TodoChecklistItem',
+    'SystemConfig',
 ]

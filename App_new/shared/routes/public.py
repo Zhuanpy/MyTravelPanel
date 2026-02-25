@@ -127,14 +127,54 @@ def index():
         'visa_count': vc[2]
     } for vc in visa_countries_raw]
     
+    # 获取景点门票（最多6个已上架的）
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+
+    ticket_products = ProductsUnified.query.outerjoin(
+        ProductsTicketExt, ProductsTicketExt.product_id == ProductsUnified.id
+    ).filter(
+        ProductsUnified.product_category == 'ticket',
+        ProductsUnified.parent_id.is_(None),
+        ProductsUnified.product_status == 'active',
+    ).order_by(ProductsUnified.is_featured.desc(), ProductsUnified.view_count.desc(), ProductsUnified.sort_order, ProductsUnified.created_at.desc()).limit(6).all()
+
+    attractions = []
+    for p in ticket_products:
+        ext = ProductsTicketExt.query.filter_by(product_id=p.id).first()
+        variants = ProductsTicketVariant.query.filter_by(product_id=p.id, is_active=True).order_by(
+            ProductsTicketVariant.sort_order, ProductsTicketVariant.id
+        ).all()
+        min_price = None
+        for v in variants:
+            if v.adult_selling_price:
+                price_val = float(v.adult_selling_price)
+                if min_price is None or price_val < min_price:
+                    min_price = price_val
+        attractions.append({
+            'id': p.id,
+            'name': p.product_name,
+            'name_en': p.product_name_en,
+            'country': p.country,
+            'city': p.city,
+            'cover_image': p.cover_image,
+            'venue_name': ext.venue_name if ext else None,
+            'min_price': min_price,
+            'currency': p.currency or 'SGD',
+            'is_featured': p.is_featured,
+            'variant_count': len(variants),
+        })
+
     # 获取首页轮播图
     banners = HomeBanner.get_active_banners()
-    
-    return render_template('guest/main/index.html', 
+
+    return render_template('guest/main/index.html',
                           company=company_info,
                           tour_packages=tour_packages,
                           destinations=destinations,
                           visa_countries=visa_countries,
+                          attractions=attractions,
                           banners=banners)
 
 @public.route('/visa-services')
@@ -1075,7 +1115,7 @@ def attractions():
     if country:
         query = query.filter(ProductsUnified.country == country)
 
-    query = query.order_by(ProductsUnified.is_featured.desc(), ProductsUnified.sort_order, ProductsUnified.created_at.desc())
+    query = query.order_by(ProductsUnified.is_featured.desc(), ProductsUnified.view_count.desc(), ProductsUnified.sort_order, ProductsUnified.created_at.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     products = pagination.items
 
@@ -1144,6 +1184,10 @@ def attraction_detail(product_id):
     if not product:
         return render_template('guest/shared/404.html', message='未找到该景点门票'), 404
 
+    # 浏览次数+1
+    product.view_count = (product.view_count or 0) + 1
+    db.session.commit()
+
     ticket_ext = ProductsTicketExt.query.filter_by(product_id=product_id).first()
     variants = ProductsTicketVariant.query.filter_by(
         product_id=product_id, is_active=True
@@ -1170,6 +1214,7 @@ def attraction_detail(product_id):
             'description': none_safe(v.description),
             'adult_selling_price': float(v.adult_selling_price) if v.adult_selling_price else None,
             'child_selling_price': float(v.child_selling_price) if v.child_selling_price else None,
+            'date_type': v.date_type or 'open',
             'delivery_type': delivery_map.get(v.delivery_type, v.delivery_type) if none_safe(v.delivery_type) else None,
             'includes': none_safe(v.includes),
             'excludes': none_safe(v.excludes),

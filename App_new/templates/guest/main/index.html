@@ -699,8 +699,77 @@
     </div>
 </section>
 
-<!-- 签证服务 -->
+<!-- 景点门票 -->
 <section class="py-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="section-title" style="text-align: left;">景点门票</h2>
+                <p class="text-muted mb-0 mt-3">热门景点门票，在线轻松预订</p>
+            </div>
+            <a href="{{ url_for('public.attractions') }}" class="btn btn-outline-primary d-none d-md-inline-flex align-items-center">
+                查看全部 <i class="fas fa-arrow-right ms-2"></i>
+            </a>
+        </div>
+
+        {% if attractions %}
+        <div class="row g-4">
+            {% for item in attractions %}
+            <div class="col-lg-4 col-md-6">
+                <a href="{{ url_for('public.attraction_detail', product_id=item.id) }}" class="text-decoration-none">
+                    <div class="product-card">
+                        <div class="product-image" {% if item.cover_image %}style="background-image: url('{{ url_for('static', filename=item.cover_image) }}');"{% endif %}>
+                            {% if not item.cover_image %}
+                            <i class="fas fa-ticket-alt product-image-placeholder"></i>
+                            {% endif %}
+                            {% if item.is_featured %}
+                            <span class="product-badge"><i class="fas fa-fire me-1"></i>热门</span>
+                            {% endif %}
+                            {% if item.country %}
+                            <span class="product-type-badge"><i class="fas fa-map-marker-alt me-1"></i>{{ item.country }}{% if item.city %} · {{ item.city }}{% endif %}</span>
+                            {% endif %}
+                        </div>
+                        <div class="product-body">
+                            <h5 class="product-title">{{ item.name }}</h5>
+                            <div class="product-meta">
+                                {% if item.venue_name %}
+                                <span><i class="fas fa-building"></i>{{ item.venue_name }}</span>
+                                {% endif %}
+                                {% if item.variant_count > 0 %}
+                                <span><i class="fas fa-tags"></i>{{ item.variant_count }}种票型</span>
+                                {% endif %}
+                            </div>
+                            <div class="product-footer">
+                                {% if item.min_price %}
+                                <div class="product-price">{{ item.currency }} {{ "%.0f"|format(item.min_price) }} <small>/人起</small></div>
+                                {% else %}
+                                <div class="product-price text-muted" style="font-size: 1rem;">价格详询</div>
+                                {% endif %}
+                                <span class="btn-view-detail">查看详情 <i class="fas fa-chevron-right"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-4 d-md-none">
+            <a href="{{ url_for('public.attractions') }}" class="btn btn-primary px-4">
+                查看全部门票 <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-ticket-alt"></i>
+            <p>暂无景点门票，敬请期待</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- 签证服务 -->
+<section class="py-5 bg-light">
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>

@@ -165,6 +165,36 @@
         </div>
         {% endif %}
 
+        <!-- 收款信息 -->
+        <div class="info-section-title">收款信息</div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-university me-1"></i>银行</div>
+            <div class="info-value">{{ payment_config.payment_bank_name or '-' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-user me-1"></i>户名</div>
+            <div class="info-value">{{ payment_config.payment_account_name or '-' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-credit-card me-1"></i>账号</div>
+            <div class="info-value">{{ payment_config.payment_account_number or '-' }}</div>
+        </div>
+        {% if payment_config.payment_qr_image %}
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-qrcode me-1"></i>二维码</div>
+            <div class="info-value">
+                <img src="{{ url_for('static', filename=payment_config.payment_qr_image) }}" alt="付款二维码"
+                     style="max-width:120px; border-radius:8px; border:1px solid #eee; padding:4px;">
+            </div>
+        </div>
+        {% endif %}
+        {% if payment_config.payment_note %}
+        <div class="info-row">
+            <div class="info-label"><i class="fas fa-sticky-note me-1"></i>备注</div>
+            <div class="info-value">{{ payment_config.payment_note }}</div>
+        </div>
+        {% endif %}
+
         <!-- Logo 和电子章 -->
         {% if (company and company.logo_path) or (company and company.stamp_path) %}
         <div class="info-section-title">图片资料</div>

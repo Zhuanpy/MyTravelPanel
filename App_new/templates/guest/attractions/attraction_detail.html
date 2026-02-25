@@ -48,54 +48,31 @@
                             {% if product.is_featured %}
                             <span class="meta-tag meta-hot"><i class="fas fa-fire me-1"></i>热门</span>
                             {% endif %}
+                            {% if ticket_ext %}
+                            {% if ticket_ext.venue_name %}
+                            <span class="meta-tag"><i class="fas fa-landmark me-1"></i>{{ ticket_ext.venue_name }}</span>
+                            {% endif %}
+                            {% if ticket_ext.opening_hours %}
+                            <span class="meta-tag"><i class="fas fa-clock me-1"></i>{{ ticket_ext.opening_hours }}</span>
+                            {% endif %}
+                            {% if ticket_ext.duration_minutes %}
+                            <span class="meta-tag"><i class="fas fa-hourglass-half me-1"></i>约 {{ ticket_ext.duration_minutes }} 分钟</span>
+                            {% endif %}
+                            {% if ticket_ext.entry_method %}
+                            <span class="meta-tag"><i class="fas fa-door-open me-1"></i>{{ ticket_ext.entry_method }}</span>
+                            {% endif %}
+                            {% if ticket_ext.need_reservation %}
+                            <span class="meta-tag meta-hot"><i class="fas fa-calendar-check me-1"></i>需提前预约</span>
+                            {% endif %}
+                            {% endif %}
                         </div>
-                    </div>
-                </div>
-
-                <!-- 场馆信息 -->
-                {% if ticket_ext %}
-                <div class="info-section">
-                    <div class="info-label"><i class="fas fa-building info-icon"></i><span>场馆信息</span></div>
-                    <div class="info-grid">
-                        {% if ticket_ext.venue_name %}
-                        <div class="info-row">
-                            <span class="info-key">场馆名称</span>
-                            <span class="info-val">{{ ticket_ext.venue_name }}</span>
-                        </div>
-                        {% endif %}
-                        {% if ticket_ext.venue_address %}
-                        <div class="info-row">
-                            <span class="info-key">场馆地址</span>
-                            <span class="info-val">{{ ticket_ext.venue_address }}</span>
-                        </div>
-                        {% endif %}
-                        {% if ticket_ext.opening_hours %}
-                        <div class="info-row">
-                            <span class="info-key">开放时间</span>
-                            <span class="info-val">{{ ticket_ext.opening_hours }}</span>
-                        </div>
-                        {% endif %}
-                        {% if ticket_ext.duration_minutes %}
-                        <div class="info-row">
-                            <span class="info-key">建议时长</span>
-                            <span class="info-val">{{ ticket_ext.duration_minutes }} 分钟</span>
-                        </div>
-                        {% endif %}
-                        {% if ticket_ext.entry_method %}
-                        <div class="info-row">
-                            <span class="info-key">入园方式</span>
-                            <span class="info-val">{{ ticket_ext.entry_method }}</span>
-                        </div>
-                        {% endif %}
-                        {% if ticket_ext.need_reservation %}
-                        <div class="info-row">
-                            <span class="info-key">预约</span>
-                            <span class="info-val"><span class="badge bg-warning text-dark">需要提前预约</span></span>
+                        {% if ticket_ext and ticket_ext.venue_address %}
+                        <div class="detail-address">
+                            <i class="fas fa-map-pin me-1"></i>{{ ticket_ext.venue_address }}
                         </div>
                         {% endif %}
                     </div>
                 </div>
-                {% endif %}
 
                 <!-- 产品描述 -->
                 {% if product.description %}
@@ -145,11 +122,14 @@
                          data-child-price="{{ v.child_selling_price or 0 }}"
                          data-currency="{{ v.currency }}"
                          data-name="{{ v.name }}"
+                         data-date-type="{{ v.date_type or 'open' }}"
                          onclick="selectVariant(this, {{ loop.index0 }})">
                         <div class="variant-header">
                             <div class="variant-name">
                                 <strong>{{ v.name }}</strong>
                                 {% if v.name_en %}<small class="text-muted ms-2">{{ v.name_en }}</small>{% endif %}
+                                {% if v.delivery_type %}<span class="vd-tag ms-2"><i class="fas fa-qrcode me-1"></i>{{ v.delivery_type }}</span>{% endif %}
+                                {% if v.date_type == 'fixed' %}<span class="vd-tag ms-2" style="background:#fff3e0;color:#e65100;"><i class="fas fa-calendar-day me-1"></i>固定日期</span>{% else %}<span class="vd-tag ms-2"><i class="fas fa-calendar me-1"></i>开放票</span>{% endif %}
                             </div>
                             <div class="variant-price">
                                 {% if v.adult_selling_price %}
@@ -163,9 +143,6 @@
                         </div>
 
                         <div class="variant-detail" id="variantDetail{{ loop.index0 }}" style="{% if not loop.first %}display:none;{% endif %}">
-                            {% if v.delivery_type %}
-                            <div class="vd-tag"><i class="fas fa-qrcode me-1"></i>{{ v.delivery_type }}</div>
-                            {% endif %}
                             {% if v.description %}
                             <p class="vd-desc">{{ v.description }}</p>
                             {% endif %}
@@ -182,6 +159,23 @@
                             {% if v.important_notes %}
                             <div class="vd-info vd-notes">
                                 <i class="fas fa-exclamation-circle"></i><span><strong>重要提示：</strong>{{ v.important_notes }}</span>
+                            </div>
+                            {% endif %}
+
+                            <!-- 日期选择（仅固定日期票） -->
+                            {% if v.date_type == 'fixed' %}
+                            <div class="qty-section">
+                                <div class="qty-row">
+                                    <div class="qty-label">
+                                        <i class="fas fa-calendar-day"></i>
+                                        <span>游玩日期</span>
+                                        <small class="text-danger ms-1">*</small>
+                                    </div>
+                                    <div>
+                                        <input type="date" class="form-control form-control-sm" id="visitDate{{ loop.index0 }}"
+                                               style="width: 160px;" onclick="event.stopPropagation();">
+                                    </div>
+                                </div>
                             </div>
                             {% endif %}
 
@@ -231,11 +225,8 @@
                                         <span class="total-amount" id="totalAmount{{ loop.index0 }}">{{ v.currency }} {{ "%.0f"|format(v.adult_selling_price or 0) }}</span>
                                     </div>
                                     <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="event.stopPropagation(); addToCart({{ loop.index0 }})">
+                                        <button type="button" class="btn btn-custom btn-sm" onclick="event.stopPropagation(); addToCart({{ loop.index0 }})">
                                             <i class="fas fa-cart-plus me-1"></i>加入购物车
-                                        </button>
-                                        <button type="button" class="btn btn-custom btn-sm" onclick="event.stopPropagation(); placeOrder({{ loop.index0 }})">
-                                            <i class="fas fa-bolt me-1"></i>立即下单
                                         </button>
                                     </div>
                                 </div>
@@ -267,25 +258,6 @@
     </div>
 </section>
 
-<!-- 联系咨询 -->
-<section class="py-5 bg-primary text-white">
-    <div class="container text-center">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h2 class="fw-bold mb-3">想要探索更多精彩景点？</h2>
-                <p class="lead mb-4">联系我们的旅游顾问，为您推荐最适合的景点门票</p>
-                <div>
-                    <a href="{{ url_for('public.attractions') }}" class="btn btn-light btn-lg me-3">
-                        <i class="fas fa-arrow-left"></i> 返回景点列表
-                    </a>
-                    <a href="{{ url_for('public.contact') }}" class="btn btn-outline-light btn-lg">
-                        <i class="fas fa-phone"></i> 立即咨询
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block extra_css %}
@@ -367,6 +339,16 @@
         color: #e65100;
     }
 
+    .detail-address {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+
+    .detail-address i {
+        color: #94a3b8;
+    }
+
     /* 信息区块 */
     .info-section {
         margin-bottom: 1.25rem;
@@ -417,6 +399,7 @@
     .info-val {
         color: #2c3e50;
     }
+
 
     .info-content {
         margin-left: 1.6rem;
@@ -479,9 +462,21 @@
     }
 
     .variant-detail {
+        margin-top: 0;
+        padding-top: 0;
+    }
+
+    .variant-detail .vd-desc,
+    .variant-detail .vd-info:first-child {
         margin-top: 0.75rem;
         padding-top: 0.75rem;
         border-top: 1px dashed #e9ecef;
+    }
+
+    .variant-detail .vd-desc + .vd-info {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
     }
 
     .vd-tag {
@@ -705,6 +700,33 @@
 
 {% block extra_js %}
 <script>
+// 设置日期选择器最小日期为明天
+(function() {
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    var minDate = tomorrow.toISOString().split('T')[0];
+    document.querySelectorAll('input[type="date"]').forEach(function(el) {
+        el.setAttribute('min', minDate);
+    });
+})();
+
+function getVisitDate(index) {
+    var el = document.getElementById('visitDate' + index);
+    return el ? el.value : '';
+}
+
+function validateVisitDate(index) {
+    var item = document.querySelector('.variant-item[data-index="' + index + '"]');
+    if (item && item.dataset.dateType === 'fixed') {
+        var date = getVisitDate(index);
+        if (!date) {
+            alert('该票种为固定日期票，请选择游玩日期');
+            return false;
+        }
+    }
+    return true;
+}
+
 function selectVariant(el, index) {
     document.querySelectorAll('.variant-item').forEach(function(item, i) {
         item.classList.remove('variant-active');
@@ -744,9 +766,12 @@ function updateTotal(index) {
 }
 
 function addToCart(index) {
+    if (!validateVisitDate(index)) return;
+
     var item = document.querySelector('.variant-item[data-index="' + index + '"]');
     var variantId = item.dataset.variantId;
     var productId = {{ product.id }};
+    var visitDate = getVisitDate(index);
 
     var adultEl = document.getElementById('adultQty' + index);
     var childEl = document.getElementById('childQty' + index);
@@ -765,7 +790,8 @@ function addToCart(index) {
             product_id: productId,
             variant_id: parseInt(variantId),
             adult_qty: adultQty,
-            child_qty: childQty
+            child_qty: childQty,
+            visit_date: visitDate || null
         })
     })
     .then(function(resp) { return resp.json(); })
@@ -807,32 +833,5 @@ function showCartToast(msg) {
     }, 3000);
 }
 
-function placeOrder(index) {
-    var item = document.querySelector('.variant-item[data-index="' + index + '"]');
-    var variantId = item.dataset.variantId;
-
-    var adultEl = document.getElementById('adultQty' + index);
-    var childEl = document.getElementById('childQty' + index);
-    var adultQty = adultEl ? parseInt(adultEl.textContent) : 0;
-    var childQty = childEl ? parseInt(childEl.textContent) : 0;
-
-    var productId = {{ product.id }};
-
-    {% if current_user.is_authenticated %}
-    // 已登录，跳转到预订页面
-    var bookUrl = '{{ url_for("orders.book_ticket", product_id=product.id) }}';
-    var params = new URLSearchParams();
-    params.set('variant_id', variantId);
-    params.set('adult', adultQty);
-    params.set('child', childQty);
-    window.location.href = bookUrl + '?' + params.toString();
-    {% else %}
-    // 未登录，跳转到会员登录页，登录后跳回预订页
-    var bookPath = '/member/orders/book-ticket/' + productId;
-    bookPath += '?variant_id=' + variantId + '&adult=' + adultQty + '&child=' + childQty;
-    var loginUrl = '{{ url_for("auth_profile.member_login") }}';
-    window.location.href = loginUrl + '?next=' + encodeURIComponent(bookPath);
-    {% endif %}
-}
 </script>
 {% endblock %}

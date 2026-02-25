@@ -4,35 +4,30 @@
 
 {% block content %}
 <!-- 筛选区域 -->
-<section class="py-3 bg-light">
+<section class="py-3 bg-light border-bottom">
     <div class="container">
-        <div class="row g-2 justify-content-center">
-            <div class="col-auto">
-                <label class="form-label small text-muted mb-1"><i class="fas fa-globe me-1"></i>选择目的地</label>
-                <select id="countryFilter" class="form-select form-select-sm" style="min-width: 150px;" onchange="filterByCountry()">
+        <form method="GET" action="{{ url_for('public.attractions') }}" id="searchForm">
+            <div class="d-flex flex-wrap align-items-center justify-content-center gap-2" style="--filter-h: 38px;">
+                <select id="countryFilter" name="country" class="form-select" style="width: auto; min-width: 150px; height: var(--filter-h);" onchange="this.form.submit()">
                     <option value="">全部目的地</option>
                     {% for c in countries %}
                     <option value="{{ c }}" {% if country == c %}selected{% endif %}>{{ c }}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div class="col-auto">
-                <label class="form-label small text-muted mb-1"><i class="fas fa-search me-1"></i>搜索景点</label>
-                <form method="GET" action="{{ url_for('public.attractions') }}" class="d-flex gap-1" id="searchForm">
-                    {% if country %}
-                    <input type="hidden" name="country" value="{{ country }}">
-                    {% endif %}
-                    <input type="text" name="keyword" class="form-control form-control-sm" placeholder="搜索景点名称..."
-                           value="{{ keyword }}" style="min-width: 180px;">
-                    <button type="submit" class="btn btn-custom btn-sm"><i class="fas fa-search"></i></button>
-                </form>
-            </div>
-            <div class="col-auto d-flex align-items-end">
-                <a href="{{ url_for('public.attractions') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-redo me-1"></i>清除筛选
+                <div class="input-group" style="width: auto; min-width: 260px;">
+                    <input type="text" name="keyword" class="form-control" placeholder="搜索景点名称..."
+                           value="{{ keyword }}" style="height: var(--filter-h);">
+                    <button type="submit" class="btn btn-custom" style="height: var(--filter-h);">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                {% if keyword or country %}
+                <a href="{{ url_for('public.attractions') }}" class="btn btn-outline-secondary" style="height: var(--filter-h); line-height: calc(var(--filter-h) - 2px);">
+                    <i class="fas fa-times me-1"></i>清除
                 </a>
+                {% endif %}
             </div>
-        </div>
+        </form>
     </div>
 </section>
 
@@ -251,25 +246,6 @@
     </div>
 </section>
 
-<!-- 联系咨询 -->
-<section class="py-5 bg-primary text-white">
-    <div class="container text-center">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h2 class="fw-bold mb-3">想要探索更多精彩景点？</h2>
-                <p class="lead mb-4">联系我们的旅游顾问，为您推荐最适合的景点门票</p>
-                <div>
-                    <a href="{{ url_for('public.contact') }}" class="btn btn-light btn-lg me-3">
-                        <i class="fas fa-phone"></i> 立即咨询
-                    </a>
-                    <a href="{{ url_for('public.tour_packages') }}" class="btn btn-outline-light btn-lg">
-                        <i class="fas fa-suitcase"></i> 旅游配套
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block extra_css %}
@@ -374,18 +350,6 @@
 
 {% block extra_js %}
 <script>
-    function filterByCountry() {
-        const country = document.getElementById('countryFilter').value;
-        const params = new URLSearchParams(window.location.search);
-
-        if (country) {
-            params.set('country', country);
-        } else {
-            params.delete('country');
-        }
-        params.delete('page');
-
-        window.location.href = '{{ url_for("public.attractions") }}?' + params.toString();
-    }
+    // 国家下拉变化时自动提交（由 onchange="this.form.submit()" 处理）
 </script>
 {% endblock %}

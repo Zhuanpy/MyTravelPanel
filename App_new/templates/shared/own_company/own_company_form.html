@@ -167,6 +167,45 @@
                     </div>
                 </div>
                 
+                <!-- 收款信息 -->
+                <div style="margin-top:1.5rem; padding-top:1rem; border-top:2px solid #f0f0f0;">
+                    <h6 style="font-weight:600; color:#374151; margin-bottom:1rem;"><i class="fas fa-credit-card me-1"></i> 收款信息</h6>
+                </div>
+                <div class="visa-grid-2">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label"><i class="fas fa-university"></i> 银行名称</label>
+                        <input type="text" class="visa-form-control" name="payment_bank_name"
+                               value="{{ payment_config.payment_bank_name }}" placeholder="如：OCBC Bank">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label"><i class="fas fa-user"></i> 账户名</label>
+                        <input type="text" class="visa-form-control" name="payment_account_name"
+                               value="{{ payment_config.payment_account_name }}" placeholder="收款人姓名">
+                    </div>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label"><i class="fas fa-credit-card"></i> 账号</label>
+                    <input type="text" class="visa-form-control" name="payment_account_number"
+                           value="{{ payment_config.payment_account_number }}" placeholder="银行账号">
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label"><i class="fas fa-qrcode"></i> 付款二维码</label>
+                    <input type="file" class="visa-form-control" name="payment_qr_image" accept="image/*">
+                    <small class="form-text text-muted"><i class="fas fa-info-circle"></i> 上传新图片将替换当前二维码</small>
+                    {% if payment_config.payment_qr_image %}
+                    <div class="visa-mt-2">
+                        <p class="text-muted mb-2"><strong>当前二维码：</strong></p>
+                        <img src="{{ url_for('static', filename=payment_config.payment_qr_image) }}" alt="付款二维码"
+                             style="max-width:120px; border-radius:8px; border:1px solid #eee; padding:4px;">
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label"><i class="fas fa-sticky-note"></i> 付款备注</label>
+                    <textarea class="visa-form-control" name="payment_note" rows="2"
+                              placeholder="如：请在转账备注中填写订单号">{{ payment_config.payment_note }}</textarea>
+                </div>
+
                 <div class="visa-flex-center visa-gap-2 visa-mt-4">
                     <button type="submit" class="visa-btn visa-btn-primary">
                         <i class="fas fa-save"></i> 保存更改

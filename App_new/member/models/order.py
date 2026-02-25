@@ -15,6 +15,7 @@ class OrderStatus(Enum):
     """订单状态枚举"""
     DRAFT = "draft"           # 草稿
     PENDING = "pending"       # 待处理
+    AWAITING_PAYMENT = "awaiting_payment"  # 待付款
     CONFIRMED = "confirmed"   # 已确认
     IN_PROGRESS = "in_progress"  # 处理中
     COMPLETED = "completed"   # 已完成
@@ -89,6 +90,7 @@ class Order(db.Model):
         status_map = {
             OrderStatus.DRAFT.value: '草稿',
             OrderStatus.PENDING.value: '待处理',
+            OrderStatus.AWAITING_PAYMENT.value: '待付款',
             OrderStatus.CONFIRMED.value: '已确认',
             OrderStatus.IN_PROGRESS.value: '处理中',
             OrderStatus.COMPLETED.value: '已完成',
@@ -103,7 +105,8 @@ class Order(db.Model):
         color_map = {
             OrderStatus.DRAFT.value: 'secondary',
             OrderStatus.PENDING.value: 'warning',
-            OrderStatus.CONFIRMED.value: 'info',
+            OrderStatus.AWAITING_PAYMENT.value: 'info',
+            OrderStatus.CONFIRMED.value: 'success',
             OrderStatus.IN_PROGRESS.value: 'primary',
             OrderStatus.COMPLETED.value: 'success',
             OrderStatus.CANCELLED.value: 'danger',
@@ -118,7 +121,7 @@ class Order(db.Model):
     
     def can_cancel(self):
         """是否可以取消"""
-        return self.status in [OrderStatus.DRAFT.value, OrderStatus.PENDING.value, OrderStatus.CONFIRMED.value]
+        return self.status in [OrderStatus.DRAFT.value, OrderStatus.PENDING.value, OrderStatus.AWAITING_PAYMENT.value, OrderStatus.CONFIRMED.value]
     
     def can_modify(self):
         """是否可以修改"""

@@ -2606,6 +2606,7 @@ def member_order_list():
     stats = {
         'total': Order.query.count(),
         'pending': Order.query.filter_by(status=OrderStatus.PENDING.value).count(),
+        'awaiting_payment': Order.query.filter_by(status=OrderStatus.AWAITING_PAYMENT.value).count(),
         'confirmed': Order.query.filter_by(status=OrderStatus.CONFIRMED.value).count(),
         'in_progress': Order.query.filter_by(status=OrderStatus.IN_PROGRESS.value).count(),
         'completed': Order.query.filter_by(status=OrderStatus.COMPLETED.value).count(),
@@ -2618,6 +2619,7 @@ def member_order_list():
         'flight': '机票预订',
         'hotel': '酒店预订',
         'tour': '旅游套餐',
+        'ticket': '景点门票',
         'insurance': '旅游保险',
         'transfer': '接送服务',
     }
@@ -2716,3 +2718,38 @@ def member_order_update_notes(order_id):
     order.notes = data.get('notes', '')
     db.session.commit()
     return jsonify({'success': True, 'message': '备注已保存'})
+
+
+@staff.route('/payment-config', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def payment_config():
+    """付款配置管理"""
+    from ...shared.models.system_config import SystemConfig
+    from ...exts import db
+    import os, uuid
+    from werkzeug.utils import secure_filename
+
+    if request.method == 'POST':
+        SystemConfig.set('payment_bank_name', request.form.get('payment_bank_name', ''), '收款银行名称')
+        SystemConfig.set('payment_account_name', request.form.get('payment_account_name', ''), '收款账户名')
+        SystemConfig.set('payment_account_number', request.form.get('payment_account_number', ''), '收款账号')
+        SystemConfig.set('payment_note', request.form.get('payment_note', ''), '付款备注说明')
+
+        # 处理二维码图片上传
+        qr_file = request.files.get('payment_qr_image')
+        if qr_file and qr_file.filename:
+            ext = os.path.splitext(qr_file.filename)[1].lower()
+            filename = f"payment_qr_{uuid.uuid4().hex[:8]}{ext}"
+            upload_dir = os.path.join(current_app.static_folder, 'uploads', 'config')
+            os.makedirs(upload_dir, exist_ok=True)
+            filepath = os.path.join(upload_dir, filename)
+            qr_file.save(filepath)
+            SystemConfig.set('payment_qr_image', f'uploads/config/{filename}', '付款二维码图片路径')
+
+        db.session.commit()
+        flash('付款配置已保存', 'success')
+        return redirect(url_for('staff.payment_config'))
+
+    config = SystemConfig.get_payment_config()
+    return render_template('staff/payment_config.html', config=config)

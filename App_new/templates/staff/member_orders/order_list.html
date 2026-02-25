@@ -33,7 +33,8 @@
         border-radius: 20px; font-size: 0.7rem; font-weight: 600;
     }
     .badge-status.pending { background: #fef3c7; color: #b45309; }
-    .badge-status.confirmed { background: #dbeafe; color: #2563eb; }
+    .badge-status.awaiting_payment { background: #dbeafe; color: #2563eb; }
+    .badge-status.confirmed { background: #dcfce7; color: #16a34a; }
     .badge-status.in_progress { background: #ede9fe; color: #7c3aed; }
     .badge-status.completed { background: #dcfce7; color: #16a34a; }
     .badge-status.cancelled { background: #fee2e2; color: #dc2626; }
@@ -65,8 +66,13 @@
             <span>待处理</span>
             <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.pending }}</span>
         </a>
+        <a href="{{ url_for('staff.member_order_list', status='awaiting_payment') }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; text-decoration: none; color: #374151; border-right: 1px solid #f1f5f9; font-size: 0.95rem; {% if status_filter == 'awaiting_payment' %}background: #f0f7ff; font-weight: 600;{% endif %}">
+            <i class="fas fa-money-bill-wave" style="color: #2563eb;"></i>
+            <span>待付款</span>
+            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.awaiting_payment }}</span>
+        </a>
         <a href="{{ url_for('staff.member_order_list', status='confirmed') }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; text-decoration: none; color: #374151; border-right: 1px solid #f1f5f9; font-size: 0.95rem; {% if status_filter == 'confirmed' %}background: #f0f7ff; font-weight: 600;{% endif %}">
-            <i class="fas fa-check-circle" style="color: #2563eb;"></i>
+            <i class="fas fa-check-circle" style="color: #16a34a;"></i>
             <span>已确认</span>
             <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.confirmed }}</span>
         </a>

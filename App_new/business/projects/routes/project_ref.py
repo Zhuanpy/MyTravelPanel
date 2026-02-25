@@ -321,6 +321,7 @@ def submit_flight_ref():
         def generate_flight_description(departure_airports, arrival_airports, departure_dates):
             """
             生成简洁描述：12AUG-15AUG SIN-HKG-SIN
+            multi-city 用 -- 分隔：11JUL-01AUG SIN-TAO--NKG-SIN
             """
             if not departure_airports or not arrival_airports or not departure_dates:
                 return '机票订单'
@@ -330,7 +331,7 @@ def submit_flight_ref():
 
             for dep, arr, date in zip(departure_airports, arrival_airports, departure_dates):
                 if dep and arr and date:
-                    valid_segments.append((dep, arr))
+                    valid_segments.append((dep.strip().upper(), arr.strip().upper()))
                     valid_dates.append(date)
 
             if not valid_segments or not valid_dates:
@@ -344,13 +345,22 @@ def submit_flight_ref():
             except ValueError:
                 date_str = valid_dates[0]
 
-            # 构建航线路径
-            route_parts = [valid_segments[0][0]]
-            for dep, arr in valid_segments:
-                if arr not in route_parts or arr == valid_segments[-1][1]:
-                    route_parts.append(arr)
+            # 构建航线路径（支持 multi-city）
+            # 连续航段用 - 连接，不连续（出发地≠上段到达地）用 -- 分隔
+            segments_groups = []
+            current_group = [valid_segments[0][0]]
 
-            return f"{date_str} {'-'.join(route_parts)}"
+            for i, (dep, arr) in enumerate(valid_segments):
+                if dep != current_group[-1]:
+                    # 出发地与上段到达地不同，开始新组
+                    segments_groups.append('-'.join(current_group))
+                    current_group = [dep]
+                current_group.append(arr)
+
+            segments_groups.append('-'.join(current_group))
+            route_str = '--'.join(segments_groups)
+
+            return f"{date_str} {route_str}"
 
         # 生成 detailed_description：分行格式
         def generate_flight_detailed_description(flight_nums, dep_airports, arr_airports, dep_dates,

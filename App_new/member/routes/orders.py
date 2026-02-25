@@ -287,7 +287,13 @@ def order_detail(order_id):
             flash('订单不存在', 'error')
             return redirect(url_for('orders.list'))
         
-        return render_template('member/order/order_detail.html', order=order)
+        # 待付款状态时获取付款配置
+        payment_config = None
+        if order.status == 'awaiting_payment':
+            from App_new.shared.models.system_config import SystemConfig
+            payment_config = SystemConfig.get_payment_config()
+
+        return render_template('member/order/order_detail.html', order=order, payment_config=payment_config)
     except Exception as e:
         current_app.logger.error(f'加载订单详情失败: {str(e)}')
         flash('加载订单详情失败', 'error')
@@ -310,17 +316,60 @@ def edit_order(order_id):
             return redirect(url_for('orders.order_detail', order_id=order_id))
         
         if request.method == 'POST':
-            # 更新订单信息
+            # 更新联系人信息
             order.customer_name = request.form.get('customer_name', order.customer_name)
             order.customer_email = request.form.get('customer_email', order.customer_email)
             order.customer_phone = request.form.get('customer_phone', order.customer_phone)
-            order.customer_address = request.form.get('customer_address', order.customer_address)
             order.special_requirements = request.form.get('special_requirements', order.special_requirements)
-            order.notes = request.form.get('notes', order.notes)
             order.updated_at = datetime.utcnow()
-            
+
+            # 更新订单项目（人数、日期）
+            total_amount = Decimal('0')
+            description_lines = []
+            for item in order.order_items:
+                props = item.properties or {}
+                adult_count = int(request.form.get(f'item_{item.id}_adult', props.get('adult_count', item.quantity)))
+                child_count = int(request.form.get(f'item_{item.id}_child', props.get('child_count', 0)))
+                visit_date = request.form.get(f'item_{item.id}_visit_date', props.get('visit_date', ''))
+
+                if adult_count < 1:
+                    adult_count = 1
+                if child_count < 0:
+                    child_count = 0
+
+                adult_price = Decimal(str(props.get('adult_price', float(item.unit_price))))
+                child_price = Decimal(str(props.get('child_price', 0)))
+                line_total = (adult_price * adult_count) + (child_price * child_count)
+
+                item.quantity = adult_count + child_count
+                item.total_price = line_total
+                props['adult_count'] = adult_count
+                props['child_count'] = child_count
+                props['visit_date'] = visit_date
+                item.properties = props
+                # 标记JSON字段已修改
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(item, 'properties')
+
+                total_amount += line_total
+
+                # 重建描述行
+                variant_name = props.get('variant_name', '')
+                line_desc = item.item_name
+                line_desc += f" (成人{adult_count}"
+                if child_count > 0:
+                    line_desc += f", 儿童{child_count}"
+                line_desc += ")"
+                if visit_date:
+                    line_desc += f" 游玩日期: {visit_date}"
+                description_lines.append(line_desc)
+
+            order.base_price = total_amount
+            order.total_amount = total_amount + (order.additional_fees or 0) - (order.discount_amount or 0)
+            order.description = '\n'.join(description_lines)
+
             db.session.commit()
-            
+
             flash('订单更新成功！', 'success')
             return redirect(url_for('orders.order_detail', order_id=order_id))
         
@@ -364,6 +413,32 @@ def submit_order(order_id):
         current_app.logger.error(f'提交订单失败: {str(e)}')
         flash('提交订单失败，请稍后重试', 'error')
         return redirect(url_for('orders.order_detail', order_id=order_id))
+
+
+@orders_bp.route('/<int:order_id>/confirm-payment', methods=['POST'])
+@login_required
+@member_only
+def confirm_payment(order_id):
+    """客户确认已付款"""
+    try:
+        order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
+        if not order:
+            return jsonify({'success': False, 'message': '订单不存在'}), 404
+
+        if order.status != 'awaiting_payment':
+            return jsonify({'success': False, 'message': '订单状态不正确'}), 400
+
+        # 添加付款备注，状态不变，等待员工确认
+        order.notes = (order.notes or '') + f'\n[客户已确认付款 {datetime.utcnow().strftime("%Y-%m-%d %H:%M")}]'
+        order.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '已通知工作人员'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'确认付款失败: {str(e)}')
+        return jsonify({'success': False, 'message': '操作失败'}), 500
 
 
 @orders_bp.route('/<int:order_id>/cancel', methods=['POST'])
@@ -721,6 +796,11 @@ def book_ticket(product_id):
                     flash('所选票种不存在', 'error')
                     return redirect(url_for('orders.book_ticket', product_id=product_id))
 
+                # 固定日期票必须选择游玩日期
+                if (variant.date_type or 'open') == 'fixed' and not visit_date:
+                    flash('该票种为固定日期票，请选择游玩日期', 'error')
+                    return redirect(url_for('orders.book_ticket', product_id=product_id))
+
                 # 计算价格
                 adult_price = Decimal(str(variant.adult_selling_price or 0))
                 child_price = Decimal(str(variant.child_selling_price or 0))
@@ -822,6 +902,7 @@ def book_ticket(product_id):
                 'adult_price': float(v.adult_selling_price or 0),
                 'child_price': float(v.child_selling_price or 0),
                 'currency': v.currency or 'SGD',
+                'date_type': v.date_type or 'open',
                 'delivery_type': v.delivery_type,
                 'includes': v.includes,
                 'excludes': v.excludes,

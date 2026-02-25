@@ -133,16 +133,39 @@ def company_info():
             if '/' not in path and '\\' not in path:
                 path = os.path.join('company', path).replace('\\', '/')
         company.logo_path = path
-    return render_template('shared/own_company/own_company_info.html', company=company)
+
+    # 付款配置
+    from App_new.shared.models.system_config import SystemConfig
+    payment_config = SystemConfig.get_payment_config()
+
+    return render_template('shared/own_company/own_company_info.html', company=company, payment_config=payment_config)
 
 @own_company.route('/company/edit', methods=['GET', 'POST'])
 @csrf.exempt  # 暂时豁免CSRF，后续可以改进
 def edit_company_info():
     """编辑公司信息"""
+    from App_new.shared.models.system_config import SystemConfig
     company = CompanyInfo.query.first()
-    
+
     if request.method == 'POST':
         try:
+            # 保存付款配置
+            SystemConfig.set('payment_bank_name', request.form.get('payment_bank_name', ''), '收款银行名称')
+            SystemConfig.set('payment_account_name', request.form.get('payment_account_name', ''), '收款账户名')
+            SystemConfig.set('payment_account_number', request.form.get('payment_account_number', ''), '收款账号')
+            SystemConfig.set('payment_note', request.form.get('payment_note', ''), '付款备注说明')
+
+            # 处理付款二维码上传
+            import uuid
+            qr_file = request.files.get('payment_qr_image')
+            if qr_file and qr_file.filename:
+                from flask import current_app
+                ext = os.path.splitext(qr_file.filename)[1].lower()
+                filename = f"payment_qr_{uuid.uuid4().hex[:8]}{ext}"
+                upload_dir = os.path.join(current_app.static_folder, 'uploads', 'config')
+                os.makedirs(upload_dir, exist_ok=True)
+                qr_file.save(os.path.join(upload_dir, filename))
+                SystemConfig.set('payment_qr_image', f'uploads/config/{filename}', '付款二维码图片路径')
             if company is None:
                 company = CompanyInfo()
             
@@ -268,7 +291,8 @@ def edit_company_info():
                 path = os.path.join('company', path).replace('\\', '/')
         company.logo_path = path
     
-    return render_template('shared/own_company/own_company_form.html', company=company)
+    payment_config = SystemConfig.get_payment_config()
+    return render_template('shared/own_company/own_company_form.html', company=company, payment_config=payment_config)
 
 @own_company.route('/company_header')
 def company_header():

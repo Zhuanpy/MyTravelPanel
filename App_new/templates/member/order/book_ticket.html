@@ -294,6 +294,7 @@
                            data-adult-price="{{ v.adult_price }}"
                            data-child-price="{{ v.child_price }}"
                            data-currency="{{ v.currency }}"
+                           data-date-type="{{ v.date_type or 'open' }}"
                            onclick="selectVariant(this)">
                         <input type="radio" name="variant_radio" value="{{ v.id }}"
                                {% if (selected_variant_id and v.id == selected_variant_id) or (not selected_variant_id and loop.first) %}checked{% endif %}>
@@ -324,14 +325,14 @@
                     {% endfor %}
                 </div>
 
-                <!-- 游玩日期 -->
-                <div class="form-section">
+                <!-- 游玩日期（仅固定日期票显示） -->
+                <div class="form-section" id="visitDateSection" style="display:none;">
                     <h5><i class="fas fa-calendar-check"></i>游玩日期</h5>
                     <div class="row">
                         <div class="col-md-6">
-                            <label for="visit_date" class="form-label">选择游玩日期 <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="visit_date" name="visit_date" required>
-                            <small class="text-muted">建议提前至少1天预订</small>
+                            <label for="visit_date" class="form-label">选择游玩日期 <span class="text-danger" id="visitDateRequired">*</span></label>
+                            <input type="date" class="form-control" id="visit_date" name="visit_date">
+                            <small class="text-muted" id="visitDateHint">建议提前至少1天预订</small>
                         </div>
                     </div>
                 </div>
@@ -510,6 +511,23 @@ function selectVariant(el) {
         }
 
         document.getElementById('selectedVariantName').textContent = currentVariant.name;
+
+        // 根据日期类型控制游玩日期区域
+        var dateSection = document.getElementById('visitDateSection');
+        var dateInput = document.getElementById('visit_date');
+        var dateRequired = document.getElementById('visitDateRequired');
+        var dateType = el.dataset.dateType || 'open';
+
+        if (dateType === 'fixed') {
+            dateSection.style.display = '';
+            dateInput.required = true;
+            dateRequired.style.display = '';
+        } else {
+            dateSection.style.display = 'none';
+            dateInput.required = false;
+            dateInput.value = '';
+            dateRequired.style.display = 'none';
+        }
     }
 
     updatePriceSummary();

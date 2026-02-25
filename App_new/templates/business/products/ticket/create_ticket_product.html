@@ -305,7 +305,14 @@
                         <label class="form-label small mb-1">排序</label>
                         <input type="number" id="variantSort" class="form-control form-control-sm" value="0" min="0">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">日期类型</label>
+                        <select id="variantDateType" class="form-select form-select-sm">
+                            <option value="open">开放票（无需选日期）</option>
+                            <option value="fixed">固定日期票</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label small mb-1">取票方式</label>
                         <select id="variantDeliveryType" class="form-select form-select-sm">
                             <option value="e_ticket">电子票</option>
@@ -314,7 +321,7 @@
                             <option value="pickup">现场取票</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small mb-1">状态</label>
                         <select id="variantActive" class="form-select form-select-sm">
                             <option value="1">已激活</option>
@@ -406,6 +413,7 @@ function openVariantModal(variantId) {
     document.getElementById('adultCostPrice').value = '';
     document.getElementById('childSellingPrice').value = '';
     document.getElementById('childCostPrice').value = '';
+    document.getElementById('variantDateType').value = 'open';
     document.getElementById('variantDeliveryType').value = 'e_ticket';
     document.getElementById('variantIncludes').value = '';
     document.getElementById('variantExcludes').value = '';
@@ -429,6 +437,7 @@ function openVariantModal(variantId) {
                     document.getElementById('adultCostPrice').value = v.adult_cost_price || '';
                     document.getElementById('childSellingPrice').value = v.child_selling_price || '';
                     document.getElementById('childCostPrice').value = v.child_cost_price || '';
+                    document.getElementById('variantDateType').value = v.date_type || 'open';
                     document.getElementById('variantDeliveryType').value = v.delivery_type || 'e_ticket';
                     document.getElementById('variantIncludes').value = v.includes || '';
                     document.getElementById('variantExcludes').value = v.excludes || '';
@@ -458,6 +467,7 @@ function saveVariant() {
         adult_cost_price: document.getElementById('adultCostPrice').value || null,
         child_selling_price: document.getElementById('childSellingPrice').value || null,
         child_cost_price: document.getElementById('childCostPrice').value || null,
+        date_type: document.getElementById('variantDateType').value,
         delivery_type: document.getElementById('variantDeliveryType').value,
         includes: document.getElementById('variantIncludes').value.trim() || null,
         excludes: document.getElementById('variantExcludes').value.trim() || null,
