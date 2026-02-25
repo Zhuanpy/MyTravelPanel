@@ -77,22 +77,9 @@
                     </div>
 
                     <div class="service-card-body p-3">
-                        <h5 class="mb-1 fw-bold package-title">{{ item.name }}</h5>
-                        {% if item.name_en %}
-                        <p class="text-muted small mb-2">{{ item.name_en }}</p>
-                        {% endif %}
+                        <h5 class="mb-1 fw-bold package-title">{{ item.name }}{% if item.name_en %} <span class="text-muted fw-normal" style="font-size:0.75rem;">{{ item.name_en }}</span>{% endif %}</h5>
 
-                        {% if item.venue_name %}
-                        <p class="text-muted small mb-2">
-                            <i class="fas fa-building me-1"></i>{{ item.venue_name }}
-                        </p>
-                        {% endif %}
 
-                        {% if item.description %}
-                        <p class="text-muted small mb-2 desc-clamp">
-                            {{ item.description | striptags }}
-                        </p>
-                        {% endif %}
 
                         <!-- 票种标签 -->
                         {% if item.variants %}
@@ -285,7 +272,7 @@
 
     .service-card h5.package-title {
         color: #2c3e50;
-        font-size: 1.1rem;
+        font-size: 1rem;
         line-height: 1.4;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -293,7 +280,6 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;
-        min-height: 2.8em;
     }
 
     .desc-clamp {
