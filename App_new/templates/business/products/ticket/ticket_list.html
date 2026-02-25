@@ -41,6 +41,16 @@
     .status-active { background: #dcfce7; color: #16a34a; }
     .status-inactive { background: #fee2e2; color: #dc2626; }
     .price-col { font-family: monospace; text-align: right; }
+    .product-thumb {
+        width: 48px; height: 36px; object-fit: cover; border-radius: 4px;
+        background: #f3f4f6; flex-shrink: 0;
+    }
+    .product-name-cell { display: flex; align-items: center; gap: 0.6rem; }
+    .product-thumb-placeholder {
+        width: 48px; height: 36px; border-radius: 4px;
+        background: #f3f4f6; display: flex; align-items: center; justify-content: center;
+        color: #d1d5db; font-size: 0.9rem; flex-shrink: 0;
+    }
 </style>
 {% endblock %}
 
@@ -127,12 +137,21 @@
                             </a>
                         </td>
                         <td>
-                            <a href="{{ url_for('products.detail', product_id=p.id) }}" style="color: #2563eb; font-weight: 500;">
-                                {{ p.product_name }}
-                            </a>
-                            {% if p.product_name_en %}
-                            <br><small class="text-muted">{{ p.product_name_en }}</small>
-                            {% endif %}
+                            <div class="product-name-cell">
+                                {% if p.cover_image %}
+                                <img src="{{ url_for('static', filename=p.cover_image) }}" alt="" class="product-thumb">
+                                {% else %}
+                                <div class="product-thumb-placeholder"><i class="fas fa-image"></i></div>
+                                {% endif %}
+                                <div>
+                                    <a href="{{ url_for('products.detail', product_id=p.id) }}" style="color: #2563eb; font-weight: 500;">
+                                        {{ p.product_name }}
+                                    </a>
+                                    {% if p.product_name_en %}
+                                    <br><small class="text-muted">{{ p.product_name_en }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </td>
                         <td>
                             {% if p._ticket_ext and p._ticket_ext.ticket_type %}

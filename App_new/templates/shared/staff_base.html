@@ -26,6 +26,21 @@
     </script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
     
+    <style>
+        .flash-toast {
+            padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15); white-space: nowrap;
+            opacity: 0; transform: translateY(-10px);
+            animation: toastIn 0.2s ease forwards;
+        }
+        .flash-toast i { margin-right: 0.4rem; }
+        .flash-toast-success { background: #fff; color: #16a34a; border: 1px solid #bbf7d0; }
+        .flash-toast-danger { background: #fff; color: #dc2626; border: 1px solid #fecaca; }
+        .flash-toast-warning { background: #fff; color: #d97706; border: 1px solid #fde68a; }
+        .flash-toast-info { background: #fff; color: #2563eb; border: 1px solid #bfdbfe; }
+        @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { to { opacity: 0; transform: translateY(-10px); } }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -693,16 +708,20 @@
                     <div class="d-flex align-items-center gap-1">{% block page_actions %}{% endblock %}</div>
                 </div>
 
-                <!-- Flash消息 -->
+                <!-- Flash消息（Toast弹窗） -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
+                    <div id="flashToastContainer" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:0.5rem; align-items:center;">
                         {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert" style="position: sticky; top: 70px; z-index: 1030; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                                <strong>{% if category == 'success' %}<i class="fas fa-check-circle"></i>{% elif category == 'error' or category == 'danger' %}<i class="fas fa-exclamation-circle"></i>{% else %}<i class="fas fa-info-circle"></i>{% endif %}</strong>
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
+                        <div class="flash-toast flash-toast-{{ 'danger' if category == 'error' else category }}">
+                            {% if category == 'success' %}<i class="fas fa-check-circle"></i>
+                            {% elif category == 'error' or category == 'danger' %}<i class="fas fa-exclamation-circle"></i>
+                            {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+                            {% else %}<i class="fas fa-info-circle"></i>{% endif %}
+                            {{ message }}
+                        </div>
                         {% endfor %}
+                    </div>
                     {% endif %}
                 {% endwith %}
 
@@ -726,6 +745,17 @@
             if (navbarCollapse) {
                 navbarCollapse.classList.remove('collapse');
                 navbarCollapse.classList.add('show');
+            }
+
+            // Flash toast 自动消失
+            var toastContainer = document.getElementById('flashToastContainer');
+            if (toastContainer) {
+                setTimeout(function() {
+                    toastContainer.querySelectorAll('.flash-toast').forEach(function(el) {
+                        el.style.animation = 'toastOut 0.2s ease forwards';
+                    });
+                    setTimeout(function() { toastContainer.remove(); }, 200);
+                }, 500);
             }
         });
         
