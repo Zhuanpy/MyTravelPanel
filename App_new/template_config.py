@@ -17,8 +17,8 @@ class TemplateConfig:
     # 模板配置
     TEMPLATES_AUTO_RELOAD = True
     
-    # 模板缓存配置
-    SEND_FILE_MAX_AGE_DEFAULT = 0
+    # 静态文件浏览器缓存（秒）：图片/CSS/JS 缓存1天
+    SEND_FILE_MAX_AGE_DEFAULT = 86400
 
 # 导出配置
 template_config = TemplateConfig()

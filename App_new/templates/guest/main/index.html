@@ -655,7 +655,7 @@
             <div class="col-lg-4 col-md-6">
                 <a href="{{ url_for('public.tour_package_detail', package_id=package.id) }}" class="text-decoration-none">
                     <div class="product-card">
-                        <div class="product-image" {% if package.image %}style="background-image: url('{{ url_for('static', filename=package.image) }}');"{% endif %}>
+                        <div class="product-image lazy-bg" {% if package.image %}data-bg="{{ url_for('static', filename=package.image) }}"{% endif %}>
                             {% if not package.image %}
                             <i class="fas fa-plane product-image-placeholder"></i>
                             {% endif %}
@@ -718,7 +718,7 @@
             <div class="col-lg-4 col-md-6">
                 <a href="{{ url_for('public.attraction_detail', product_id=item.id) }}" class="text-decoration-none">
                     <div class="product-card">
-                        <div class="product-image" {% if item.cover_image %}style="background-image: url('{{ url_for('static', filename=item.cover_image) }}');"{% endif %}>
+                        <div class="product-image lazy-bg" {% if item.cover_image %}data-bg="{{ url_for('static', filename=item.cover_image) }}"{% endif %}>
                             {% if not item.cover_image %}
                             <i class="fas fa-ticket-alt product-image-placeholder"></i>
                             {% endif %}
@@ -787,7 +787,7 @@
             <a href="{{ url_for('public.visa_services_by_country', country_name=country.name) }}" class="visa-card-home">
                 <div class="visa-flag-wrapper">
                     {% if country.flag %}
-                    <img src="{{ url_for('static', filename='images/flags/' + country.flag) }}" alt="{{ country.name }}" class="visa-flag" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <img src="{{ url_for('static', filename='images/flags/' + country.flag) }}" alt="{{ country.name }}" class="visa-flag" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                     <i class="fas fa-flag visa-flag-placeholder" style="display:none;"></i>
                     {% else %}
                     <i class="fas fa-flag visa-flag-placeholder"></i>
@@ -818,6 +818,24 @@
 
 {% block extra_js %}
 <script>
+// 背景图片懒加载
+document.addEventListener('DOMContentLoaded', function() {
+    var lazyBgs = document.querySelectorAll('.lazy-bg[data-bg]');
+    if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.style.backgroundImage = 'url(' + entry.target.dataset.bg + ')';
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { rootMargin: '200px' });
+        lazyBgs.forEach(function(el) { observer.observe(el); });
+    } else {
+        lazyBgs.forEach(function(el) { el.style.backgroundImage = 'url(' + el.dataset.bg + ')'; });
+    }
+});
+
 // 背景图片轮播
 document.addEventListener('DOMContentLoaded', function() {
     const slides = document.querySelectorAll('.hero-bg-slide');
