@@ -4,410 +4,150 @@
 
 {% block page_title %}我的发票{% endblock %}
 
-{% block page_actions %}
-<div class="btn-toolbar mb-2 mb-md-0">
-    <div class="btn-group me-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-filter me-1"></i>筛选
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-download me-1"></i>导出
-        </button>
-    </div>
-    <div class="btn-group">
-        <button type="button" class="btn btn-sm btn-primary">
-            <i class="fas fa-plus me-1"></i>创建发票
-        </button>
-    </div>
-</div>
-{% endblock %}
-
 {% block extra_css %}
 {{ super() }}
 <style>
-    .invoice-item {
-        transition: all 0.3s ease;
-        border-left: 4px solid #dee2e6;
+    .inv-wrap { max-width: 900px; }
+
+    /* 统计条 */
+    .inv-stats {
+        display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap;
     }
-    
-    .invoice-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    .inv-stat {
+        flex: 1; min-width: 100px; background: #fff; border: 1px solid #e9ecef;
+        border-radius: 8px; padding: 0.65rem 1rem; text-align: center;
     }
-    
-    .invoice-item.paid {
-        border-left-color: #28a745;
+    .inv-stat-num { font-size: 1.25rem; font-weight: 700; color: #333; }
+    .inv-stat-num.primary { color: var(--primary-color, #48b968); }
+    .inv-stat-num.info { color: #0ea5e9; }
+    .inv-stat-num.success { color: #16a34a; }
+    .inv-stat-num.warning { color: #d97706; }
+    .inv-stat-num.danger { color: #dc3545; }
+    .inv-stat-num.muted { color: #6c757d; }
+    .inv-stat-label { font-size: 0.75rem; color: #6c757d; margin-top: 2px; }
+
+    /* 筛选条 */
+    .inv-filter {
+        background: #fff; border: 1px solid #e9ecef; border-radius: 8px;
+        padding: 0.6rem 1rem; margin-bottom: 1rem;
+        display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+        flex-wrap: wrap;
     }
-    
-    .invoice-item.overdue {
-        border-left-color: #dc3545;
+    .inv-filter .btn-group .btn { font-size: 0.8rem; padding: 0.3rem 0.75rem; }
+
+    /* 列表 section */
+    .inv-section {
+        background: #fff; border: 1px solid #e9ecef; border-radius: 8px; margin-bottom: 1.25rem;
     }
-    
-    .invoice-item.draft {
-        border-left-color: #6c757d;
+    .inv-section-header {
+        padding: 0.65rem 1rem; border-bottom: 1px solid #f0f0f0;
+        font-size: 0.85rem; font-weight: 600; color: #495057;
     }
-    
-    .invoice-item.sent {
-        border-left-color: #17a2b8;
+
+    /* 发票行 */
+    .inv-row {
+        display: flex; align-items: center; padding: 0.65rem 1rem;
+        border-bottom: 1px solid #f5f5f5; font-size: 0.85rem; gap: 0.75rem;
     }
-    
-    .status-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-    }
-    
-    .filter-btn.active {
-        background-color: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-    
-    .invoice-amount {
-        font-size: 1.25rem;
-        font-weight: 600;
-    }
-    
-    .invoice-meta {
-        font-size: 0.85rem;
-        color: #6c757d;
+    .inv-row:last-child { border-bottom: none; }
+    .inv-row:hover { background: #fafafa; }
+    .inv-row-id { font-weight: 600; color: #333; min-width: 110px; }
+    .inv-row-desc { flex: 1; color: #495057; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .inv-row-amount { font-weight: 600; color: #16a34a; min-width: 90px; text-align: right; }
+    .inv-row-date { color: #6c757d; font-size: 0.78rem; min-width: 75px; }
+
+    /* 空状态 */
+    .inv-empty { text-align: center; padding: 3rem 1rem; color: #6c757d; }
+    .inv-empty i { font-size: 2.5rem; opacity: 0.3; }
+    .inv-empty p { font-size: 0.85rem; margin-top: 0.75rem; }
+
+    @media (max-width: 576px) {
+        .inv-stat { min-width: 0; flex: 1 1 45%; }
+        .inv-row-date { display: none; }
     }
 </style>
 {% endblock %}
 
 {% block member_content %}
-<!-- 统计卡片 -->
-<div class="row mb-4">
-    <div class="col-md-2 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-primary">{{ total_invoices or 0 }}</h3>
-                        <p class="stats-label">总发票数</p>
-                    </div>
-                    <div class="stats-icon stats-primary">
-                        <i class="fas fa-file-invoice"></i>
-                    </div>
-                </div>
-            </div>
+<div class="inv-wrap">
+    <!-- 统计 -->
+    <div class="inv-stats">
+        <div class="inv-stat">
+            <div class="inv-stat-num primary">{{ total_invoices or 0 }}</div>
+            <div class="inv-stat-label">总发票</div>
+        </div>
+        <div class="inv-stat">
+            <div class="inv-stat-num muted">{{ draft_invoices or 0 }}</div>
+            <div class="inv-stat-label">草稿</div>
+        </div>
+        <div class="inv-stat">
+            <div class="inv-stat-num info">{{ sent_invoices or 0 }}</div>
+            <div class="inv-stat-label">已发送</div>
+        </div>
+        <div class="inv-stat">
+            <div class="inv-stat-num success">{{ paid_invoices or 0 }}</div>
+            <div class="inv-stat-label">已支付</div>
+        </div>
+        <div class="inv-stat">
+            <div class="inv-stat-num warning">{{ overdue_invoices or 0 }}</div>
+            <div class="inv-stat-label">即将到期</div>
         </div>
     </div>
-    
-    <div class="col-md-2 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-secondary">{{ draft_invoices or 0 }}</h3>
-                        <p class="stats-label">草稿</p>
-                    </div>
-                    <div class="stats-icon stats-secondary">
-                        <i class="fas fa-edit"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-2 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-info">{{ sent_invoices or 0 }}</h3>
-                        <p class="stats-label">已发送</p>
-                    </div>
-                    <div class="stats-icon stats-info">
-                        <i class="fas fa-paper-plane"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-2 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-success">{{ paid_invoices or 0 }}</h3>
-                        <p class="stats-label">已支付</p>
-                    </div>
-                    <div class="stats-icon stats-success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-2 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-warning">{{ overdue_invoices or 0 }}</h3>
-                        <p class="stats-label">即将到期</p>
-                    </div>
-                    <div class="stats-icon stats-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-2 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-danger">{{ cancelled_invoices or 0 }}</h3>
-                        <p class="stats-label">已逾期</p>
-                    </div>
-                    <div class="stats-icon stats-danger">
-                        <i class="fas fa-times-circle"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- 筛选栏 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <div class="btn-group" role="group">
-                            <a href="{{ url_for('member.invoices') }}" 
-                               class="btn btn-outline-secondary btn-sm filter-btn {% if not current_status %}active{% endif %}">
-                                全部
-                            </a>
-                            <a href="{{ url_for('member.invoices') }}?status=draft" 
-                               class="btn btn-outline-secondary btn-sm filter-btn {% if current_status == 'draft' %}active{% endif %}">
-                                草稿
-                            </a>
-                            <a href="{{ url_for('member.invoices') }}?status=sent" 
-                               class="btn btn-outline-secondary btn-sm filter-btn {% if current_status == 'sent' %}active{% endif %}">
-                                已发送
-                            </a>
-                            <a href="{{ url_for('member.invoices') }}?status=paid" 
-                               class="btn btn-outline-secondary btn-sm filter-btn {% if current_status == 'paid' %}active{% endif %}">
-                                已支付
-                            </a>
-                            <a href="{{ url_for('member.invoices') }}?status=overdue" 
-                               class="btn btn-outline-secondary btn-sm filter-btn {% if current_status == 'overdue' %}active{% endif %}">
-                                已逾期
-                            </a>
-                            <a href="{{ url_for('member.invoices') }}?status=cancelled" 
-                               class="btn btn-outline-secondary btn-sm filter-btn {% if current_status == 'cancelled' %}active{% endif %}">
-                                已取消
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" placeholder="搜索发票号、金额..." id="searchInput">
-                            <button class="btn btn-outline-secondary" type="button" onclick="searchInvoices()">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- 筛选 -->
+    <div class="inv-filter">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('member.invoices') }}" class="btn btn-outline-secondary {% if not current_status %}active{% endif %}">全部</a>
+            <a href="{{ url_for('member.invoices', status='draft') }}" class="btn btn-outline-secondary {% if current_status == 'draft' %}active{% endif %}">草稿</a>
+            <a href="{{ url_for('member.invoices', status='sent') }}" class="btn btn-outline-secondary {% if current_status == 'sent' %}active{% endif %}">已发送</a>
+            <a href="{{ url_for('member.invoices', status='paid') }}" class="btn btn-outline-secondary {% if current_status == 'paid' %}active{% endif %}">已支付</a>
+            <a href="{{ url_for('member.invoices', status='overdue') }}" class="btn btn-outline-secondary {% if current_status == 'overdue' %}active{% endif %}">已逾期</a>
+        </div>
+        <div class="input-group input-group-sm" style="max-width: 220px;">
+            <input type="text" class="form-control" placeholder="搜索发票号..." id="searchInput">
+            <button class="btn btn-outline-secondary" type="button" onclick="searchInvoices()">
+                <i class="fas fa-search"></i>
+            </button>
         </div>
     </div>
-</div>
 
-<!-- 发票列表 -->
-<div class="row">
-    <div class="col-12">
-        {% if invoices %}
+    <!-- 发票列表 -->
+    <div class="inv-section">
+        <div class="inv-section-header">
+            <i class="fas fa-file-invoice me-1"></i>发票列表
+        </div>
+        {% if invoices and invoices|length > 0 %}
             {% for invoice in invoices %}
-            <div class="card mb-3 invoice-item {{ invoice.status }}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="d-flex">
-                            <div class="me-3">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                    <i class="fas fa-file-invoice"></i>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <h6 class="card-title mb-1">{{ invoice.invoice_number or 'INV-' + invoice.id|string }}</h6>
-                                <div class="d-flex align-items-center gap-3">
-                                    <span class="status-badge bg-{{ 'success' if invoice.status == 'paid' else 'danger' if invoice.status == 'overdue' else 'secondary' if invoice.status == 'draft' else 'info' if invoice.status == 'sent' else 'warning' }}">
-                                        {% if invoice.status == 'paid' %}已支付
-                                        {% elif invoice.status == 'overdue' %}已逾期
-                                        {% elif invoice.status == 'draft' %}草稿
-                                        {% elif invoice.status == 'sent' %}已发送
-                                        {% elif invoice.status == 'cancelled' %}已取消
-                                        {% else %}{{ invoice.status }}
-                                        {% endif %}
-                                    </span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-calendar me-1"></i>{{ invoice.created_at.strftime('%Y-%m-%d') if invoice.created_at else '未知' }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <div class="invoice-amount text-{{ 'success' if invoice.status == 'paid' else 'danger' if invoice.status == 'overdue' else 'primary' }}">
-                                ¥{{ "%.2f"|format(invoice.amount) if invoice.amount else '0.00' }}
-                            </div>
-                            <div class="invoice-meta">
-                                到期：{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '未设置' }}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <small class="text-muted d-block">客户</small>
-                                    <span class="fw-medium">{{ invoice.customer_name or '未设置' }}</span>
-                                </div>
-                                <div class="col-md-6">
-                                    <small class="text-muted d-block">服务类型</small>
-                                    <span class="fw-medium">{{ invoice.service_type or '未设置' }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="btn-group btn-group-sm">
-                                {% if invoice.status == 'draft' %}
-                                    <a href="{{ url_for('member.edit_invoice', invoice_id=invoice.id) }}" class="btn btn-outline-primary">
-                                        <i class="fas fa-edit me-1"></i>编辑
-                                    </a>
-                                    <button class="btn btn-outline-success" onclick="sendInvoice({{ invoice.id }})">
-                                        <i class="fas fa-paper-plane me-1"></i>发送
-                                    </button>
-                                {% elif invoice.status == 'sent' %}
-                                    <button class="btn btn-outline-info" onclick="viewInvoice({{ invoice.id }})">
-                                        <i class="fas fa-eye me-1"></i>查看
-                                    </button>
-                                    <button class="btn btn-outline-success" onclick="markAsPaid({{ invoice.id }})">
-                                        <i class="fas fa-check me-1"></i>标记已付
-                                    </button>
-                                {% elif invoice.status == 'paid' %}
-                                    <button class="btn btn-outline-info" onclick="viewInvoice({{ invoice.id }})">
-                                        <i class="fas fa-eye me-1"></i>查看
-                                    </button>
-                                    <button class="btn btn-outline-secondary" onclick="downloadInvoice({{ invoice.id }})">
-                                        <i class="fas fa-download me-1"></i>下载
-                                    </button>
-                                {% else %}
-                                    <button class="btn btn-outline-info" onclick="viewInvoice({{ invoice.id }})">
-                                        <i class="fas fa-eye me-1"></i>查看
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <a href="{{ url_for('member.invoice_detail', invoice_id=invoice.id) }}" class="inv-row text-decoration-none">
+                <span class="inv-row-id">#{{ invoice.invoice_number or invoice.id }}</span>
+                <span class="inv-row-desc">{{ invoice.customer_name or invoice.service_type or '-' }}</span>
+                <span class="badge bg-{{ 'success' if invoice.status == 'paid' else 'info' if invoice.status == 'sent' else 'secondary' if invoice.status == 'draft' else 'danger' if invoice.status == 'overdue' else 'warning' }}" style="font-size:0.7rem;">
+                    {% if invoice.status == 'draft' %}草稿
+                    {% elif invoice.status == 'sent' %}已发送
+                    {% elif invoice.status == 'paid' %}已支付
+                    {% elif invoice.status == 'overdue' %}已逾期
+                    {% elif invoice.status == 'cancelled' %}已取消
+                    {% else %}{{ invoice.status }}{% endif %}
+                </span>
+                <span class="inv-row-amount">${{ "%.0f"|format(invoice.amount or 0) }}</span>
+                <span class="inv-row-date">{{ invoice.created_at.strftime('%m-%d') if invoice.created_at else '-' }}</span>
+            </a>
             {% endfor %}
         {% else %}
-            <!-- 空状态 -->
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-file-invoice text-muted" style="font-size: 4rem; opacity: 0.5;"></i>
-                    <h4 class="mt-3 text-muted">暂无发票</h4>
-                    <p class="text-muted">您还没有创建任何发票，点击下方按钮开始创建您的第一张发票。</p>
-                    <button class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>创建发票
-                    </button>
-                </div>
+            <div class="inv-empty">
+                <i class="fas fa-file-invoice"></i>
+                <p>暂无发票记录</p>
             </div>
         {% endif %}
     </div>
 </div>
-
-<!-- 分页 -->
-{% if invoices and invoices|length > 0 %}
-<div class="row">
-    <div class="col-12">
-        <nav aria-label="发票分页">
-            <ul class="pagination justify-content-center">
-                <li class="page-item disabled">
-                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-                </li>
-                <li class="page-item active">
-                    <a class="page-link" href="#">1</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="#">2</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="#">3</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="#">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// 搜索功能
 function searchInvoices() {
-    const searchTerm = document.getElementById('searchInput').value;
-    if (searchTerm.trim()) {
-        // 这里可以添加搜索逻辑
-        console.log('搜索发票:', searchTerm);
-        // 实际实现中应该发送AJAX请求或重新加载页面
-    }
+    var term = document.getElementById('searchInput').value;
+    window.location.href = "{{ url_for('member.invoices') }}?search=" + encodeURIComponent(term);
 }
-
-// 发票操作函数
-function viewInvoice(invoiceId) {
-    alert(`查看发票 #${invoiceId} 的详细信息`);
-    // 实际实现中应该跳转到发票详情页面
-}
-
-function sendInvoice(invoiceId) {
-    if (confirm(`确定要发送发票 #${invoiceId} 吗？`)) {
-        alert(`发票 #${invoiceId} 已发送`);
-        // 实际实现中应该发送AJAX请求
-    }
-}
-
-function markAsPaid(invoiceId) {
-    if (confirm(`确定要将发票 #${invoiceId} 标记为已支付吗？`)) {
-        alert(`发票 #${invoiceId} 已标记为已支付`);
-        // 实际实现中应该发送AJAX请求
-    }
-}
-
-function downloadInvoice(invoiceId) {
-    alert(`下载发票 #${invoiceId}`);
-    // 实际实现中应该触发文件下载
-}
-
-// 筛选按钮交互
-document.querySelectorAll('.filter-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        // 移除所有按钮的 active 类
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        // 为当前按钮添加 active 类
-        this.classList.add('active');
-    });
-});
 </script>
 {% endblock %}

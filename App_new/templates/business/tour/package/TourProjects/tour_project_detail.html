@@ -232,20 +232,6 @@
             </div>
             </div>
 
-        <!-- 闪现消息 -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="mb-4 p-4 rounded-xl {% if category == 'success' %}bg-green-50 border-l-4 border-green-500 text-green-700{% else %}bg-red-50 border-l-4 border-red-500 text-red-700{% endif %}">
-                        <div class="flex items-center gap-2">
-                            <i class="fas {% if category == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
-                            <span>{{ message }}</span>
-                        </div>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
         <!-- 标签页容器 -->
         <div class="tabs-container bg-white rounded-2xl shadow-md mb-8">
             <!-- 标签页头部 -->

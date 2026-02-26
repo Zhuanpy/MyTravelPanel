@@ -268,16 +268,6 @@
         <h1 class="company-title">公司账单处理</h1>
     </div>
     
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="company-alert show">
-                {% for message in messages %}
-                    {{ message }}
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
     <!-- 账单处理功能 -->
     <div class="company-section">
         <p>账单处理功能</p>

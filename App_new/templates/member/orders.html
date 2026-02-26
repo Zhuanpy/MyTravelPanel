@@ -41,20 +41,21 @@
                         <label for="service_type" class="form-label">服务类型</label>
                         <select class="form-select" id="service_type" name="service_type">
                             <option value="">全部类型</option>
-                            <option value="visa">签证办理</option>
-                            <option value="flight">机票预订</option>
-                            <option value="tour">旅游配套</option>
-                            <option value="hotel">酒店预订</option>
+                            <option value="visa" {{ 'selected' if current_service_type == 'visa' }}>签证办理</option>
+                            <option value="flight" {{ 'selected' if current_service_type == 'flight' }}>机票预订</option>
+                            <option value="tour" {{ 'selected' if current_service_type == 'tour' }}>旅游配套</option>
+                            <option value="hotel" {{ 'selected' if current_service_type == 'hotel' }}>酒店预订</option>
+                            <option value="ticket" {{ 'selected' if current_service_type == 'ticket' }}>景点门票</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label for="date_range" class="form-label">时间范围</label>
                         <select class="form-select" id="date_range" name="date_range">
                             <option value="">全部时间</option>
-                            <option value="today">今天</option>
-                            <option value="week">最近一周</option>
-                            <option value="month">最近一月</option>
-                            <option value="quarter">最近三月</option>
+                            <option value="today" {{ 'selected' if current_date_range == 'today' }}>今天</option>
+                            <option value="week" {{ 'selected' if current_date_range == 'week' }}>最近一周</option>
+                            <option value="month" {{ 'selected' if current_date_range == 'month' }}>最近一月</option>
+                            <option value="quarter" {{ 'selected' if current_date_range == 'quarter' }}>最近三月</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -137,7 +138,7 @@
                     <ul class="pagination justify-content-center">
                         {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('orders.list', page=pagination.prev_num, status=current_status) }}">
+                            <a class="page-link" href="{{ url_for('orders.list', page=pagination.prev_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
@@ -147,7 +148,7 @@
                             {% if page_num %}
                                 {% if page_num != pagination.page %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('orders.list', page=page_num, status=current_status) }}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('orders.list', page=page_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">{{ page_num }}</a>
                                 </li>
                                 {% else %}
                                 <li class="page-item active">
@@ -163,7 +164,7 @@
                         
                         {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('orders.list', page=pagination.next_num, status=current_status) }}">
+                            <a class="page-link" href="{{ url_for('orders.list', page=pagination.next_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
                         </li>
@@ -194,27 +195,19 @@
 <script>
 function cancelOrder(orderId) {
     if (confirm('确定要取消这个订单吗？此操作不可恢复。')) {
-        // 这里可以添加取消订单的AJAX请求
-        fetch(`/member/api/order/${orderId}/cancel`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('订单已取消');
-                location.reload();
-            } else {
-                alert('取消失败：' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('操作失败，请稍后重试');
-        });
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/member/orders/' + orderId + '/cancel';
+        var csrf = document.querySelector('meta[name=csrf-token]');
+        if (csrf) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = csrf.getAttribute('content');
+            form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 </script>

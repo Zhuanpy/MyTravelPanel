@@ -34,16 +34,6 @@
                 <i class="fas fa-file-alt"></i> 产品详情
             </h1>
 
-            <!-- 闪现消息显示区域 -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="visa-flash visa-flash-{{ category }}" style="position:relative; top:0; right:0; margin-bottom:1rem;">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
         {% endif %}
 
         <!-- 产品列表循环 -->

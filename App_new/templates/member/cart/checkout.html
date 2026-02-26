@@ -75,24 +75,24 @@
                         <div class="checkout-section">
                             <h5 class="section-title"><i class="fas fa-user-circle me-2"></i>联系人信息</h5>
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col">
                                     <label for="contact_name" class="form-label small fw-semibold">姓名 <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="contact_name" name="contact_name"
-                                           value="{{ current_user.username if current_user else '' }}" required>
+                                           value="{{ current_user.profile.get_full_name() if current_user.profile else current_user.username }}" required>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col">
                                     <label for="contact_phone" class="form-label small fw-semibold">电话 <span class="text-danger">*</span></label>
                                     <input type="tel" class="form-control" id="contact_phone" name="contact_phone"
                                            value="{{ user_profile.phone if user_profile else '' }}" required>
                                 </div>
-                                <div class="col-12">
+                                <div class="col">
                                     <label for="contact_email" class="form-label small fw-semibold">邮箱 <span class="text-danger">*</span></label>
                                     <input type="email" class="form-control" id="contact_email" name="contact_email"
                                            value="{{ current_user.email if current_user else '' }}" required>
                                 </div>
                                 <div class="col-12">
                                     <label for="special_requirements" class="form-label small fw-semibold">备注说明</label>
-                                    <textarea class="form-control" id="special_requirements" name="special_requirements" rows="3"
+                                    <textarea class="form-control" id="special_requirements" name="special_requirements" rows="4"
                                               placeholder="如有特殊需求请在此说明..."></textarea>
                                 </div>
                             </div>
@@ -121,8 +121,8 @@
                                 最终价格以工作人员确认为准
                             </div>
 
-                            <button type="submit" class="btn btn-custom btn-lg w-100 mt-3" id="submitBtn">
-                                <i class="fas fa-paper-plane me-2"></i>提交订单
+                            <button type="submit" class="btn btn-custom w-100 mt-3" id="submitBtn" style="padding:0.5rem 1rem; font-size:0.9rem;">
+                                <i class="fas fa-paper-plane me-1"></i>提交订单
                             </button>
 
                             <div class="summary-tips mt-3">

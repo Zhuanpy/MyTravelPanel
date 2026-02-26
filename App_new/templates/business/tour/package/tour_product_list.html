@@ -14,17 +14,6 @@
     </h1>
     <p class="visa-text-center visa-text-muted visa-mb-4">探索世界的每一个角落</p>
 
-    <!-- 闪现消息显示区域 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="visa-flash visa-flash-{{ category }}" style="position:relative; top:0; right:0; margin-bottom:1rem;">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
         <form method="GET" action="{{ url_for('product_details.tour_product_list') }}" class="visa-flex visa-gap-2" style="width: 100%; align-items: flex-end;">

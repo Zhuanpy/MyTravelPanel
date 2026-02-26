@@ -452,16 +452,7 @@
     </div>
 
     <!-- 显示消息 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else ('info' if category == 'info' else 'danger') }}">
-                <i class="fas fa-{{ 'check-circle' if category == 'success' else ('info-circle' if category == 'info' else 'exclamation-triangle') }}"></i>
-                {{ message }}
-            </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    {% include 'shared/_flash_toast.html' %}
 
     <form method="POST" action="{{ url_for('auth_profile.staff_login') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

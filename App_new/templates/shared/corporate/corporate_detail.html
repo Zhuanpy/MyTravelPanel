@@ -26,17 +26,6 @@
 <div class="visa-container">
     <div style="max-width: 1400px; margin: 0 auto;">
         
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
         <!-- 基本信息卡片 -->
         <div class="visa-card visa-mb-3">
             <div class="visa-card-header">

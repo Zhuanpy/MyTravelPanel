@@ -10,19 +10,6 @@
 
 {% block content %}
 <div class="visa-container-lg">
-    <!-- 闪现消息 -->
-    <div class="visa-flash-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="visa-flash visa-flash-{{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
     <div class="visa-flex" style="justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <h1 class="visa-page-title" style="margin-bottom: 0;">签证项目管理</h1>
         <button type="button" class="visa-btn visa-btn-primary" onclick="showCreateProjectModal()">

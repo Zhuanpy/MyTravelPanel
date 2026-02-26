@@ -206,19 +206,6 @@
         <strong>提示�?/strong>以下字段已从REF信息中自动预填充，您可以根据需要修改�?
     </div>
     
-    <!-- 错误提示 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                    <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'info-circle' }}"></i>
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
     <!-- 创建表单 -->
     <form method="post" action="{{ url_for('projects.create_eo', ref_id=ref.id) }}">
         {{ form.hidden_tag() }}

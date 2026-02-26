@@ -546,16 +546,6 @@
         </button>
     </div>
     
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="visa-flash visa-flash-{{ category }}" role="alert">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
     <!-- 工具内容容器 -->
     <div class="tool-content-container">
         <!-- 机票行程转换工具 -->

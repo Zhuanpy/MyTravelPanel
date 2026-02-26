@@ -10,19 +10,6 @@
 
 {% block content %}
 <div class="visa-container-sm">
-    <!-- 闪现消息 -->
-    <div class="visa-flash-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="visa-flash visa-flash-{{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
     <!-- 页面标题和操作 -->
     <div class="visa-flex-between visa-mb-3">
         <h1 class="visa-page-title" style="margin: 0;">国家管理</h1>

@@ -709,21 +709,7 @@
                 </div>
 
                 <!-- Flash消息（Toast弹窗） -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                    <div id="flashToastContainer" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:0.5rem; align-items:center;">
-                        {% for category, message in messages %}
-                        <div class="flash-toast flash-toast-{{ 'danger' if category == 'error' else category }}">
-                            {% if category == 'success' %}<i class="fas fa-check-circle"></i>
-                            {% elif category == 'error' or category == 'danger' %}<i class="fas fa-exclamation-circle"></i>
-                            {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
-                            {% else %}<i class="fas fa-info-circle"></i>{% endif %}
-                            {{ message }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                {% endwith %}
+                {% include 'shared/_flash_toast.html' %}
 
                 <!-- 页面内容 -->
                 {% block content %}{% endblock %}

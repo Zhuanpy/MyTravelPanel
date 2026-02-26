@@ -65,17 +65,6 @@
 <div class="container mt-4">
     <h2>{% if is_edit %}编辑项目主表（HID: {{ header.hid }}）{% else %}新建项目主表（HID: {{ hid }}）{% endif %}</h2>
     
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
     <form method="post" action="{% if is_edit %}{{ url_for('business_projects.project_header.edit_header', header_id=header.id) }}{% else %}{{ url_for('business_projects.project_create.create_header') }}{% endif %}">
         {{ form.hidden_tag() }}
         

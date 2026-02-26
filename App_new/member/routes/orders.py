@@ -42,39 +42,49 @@ def list():
         page = request.args.get('page', 1, type=int)
         per_page = 10
         
-        # 获取订单状态筛选
+        # 获取筛选参数
         status = request.args.get('status', '')
-        
-        # 调试信息
-        current_app.logger.info(f'当前用户ID: {current_user.id}')
-        current_app.logger.info(f'当前用户邮箱: {current_user.email}')
-        
-        # 查询所有订单（先不过滤用户）
-        total_orders = Order.query.count()
-        current_app.logger.info(f'数据库中总订单数: {total_orders}')
-        
+        service_type = request.args.get('service_type', '')
+        date_range = request.args.get('date_range', '')
+
         # 查询当前用户的订单
         query = Order.query.filter_by(user_id=current_user.id)
-        user_orders_count = query.count()
-        current_app.logger.info(f'当前用户的订单数: {user_orders_count}')
-        
+
         if status:
             query = query.filter_by(status=status)
-            current_app.logger.info(f'筛选状态 {status} 后的订单数: {query.count()}')
-        
+
+        if service_type:
+            query = query.filter_by(service_type=service_type)
+
+        if date_range:
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            if date_range == 'today':
+                start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif date_range == 'week':
+                start = now - timedelta(days=7)
+            elif date_range == 'month':
+                start = now - timedelta(days=30)
+            elif date_range == 'quarter':
+                start = now - timedelta(days=90)
+            else:
+                start = None
+            if start:
+                query = query.filter(Order.created_at >= start)
+
         # 按创建时间倒序排列
         query = query.order_by(Order.created_at.desc())
-        
+
         # 分页
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         orders = pagination.items
-        
-        current_app.logger.info(f'返回的订单数: {len(orders)}')
-        
+
         return render_template('member/orders.html',
                              orders=orders,
                              pagination=pagination,
-                             current_status=status)
+                             current_status=status,
+                             current_service_type=service_type,
+                             current_date_range=date_range)
     except Exception as e:
         current_app.logger.error(f'加载订单列表失败: {str(e)}')
         import traceback
@@ -471,6 +481,133 @@ def cancel_order(order_id):
         current_app.logger.error(f'取消订单失败: {str(e)}')
         flash('取消订单失败，请稍后重试', 'error')
         return redirect(url_for('orders.order_detail', order_id=order_id))
+
+
+@orders_bp.route('/<int:order_id>/urge', methods=['POST'])
+@login_required
+@member_only
+def urge_order(order_id):
+    """催促订单处理 - 发邮件通知员工"""
+    try:
+        order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
+        if not order:
+            return jsonify({'success': False, 'message': '订单不存在'}), 404
+
+        # 只有待处理/待付款/已确认/处理中状态可以催促
+        if order.status in ('completed', 'cancelled', 'refunded', 'draft'):
+            return jsonify({'success': False, 'message': '当前订单状态无需催促'}), 400
+
+        # 防频繁催促：检查上次催促时间（notes中记录）
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        notes = order.notes or ''
+        if '[催促]' in notes:
+            # 简单检查：最近1小时内不能重复催促
+            import re
+            urge_times = re.findall(r'\[催促\] (\d{4}-\d{2}-\d{2} \d{2}:\d{2})', notes)
+            if urge_times:
+                last_urge = datetime.strptime(urge_times[-1], '%Y-%m-%d %H:%M')
+                if (now - last_urge) < timedelta(hours=1):
+                    return jsonify({'success': False, 'message': '您已催促过，请稍后再试'}), 429
+
+        # 发送催促邮件给员工
+        try:
+            from flask_mail import Mail, Message
+            mail = Mail(current_app)
+
+            sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME', 'noreply@joyesc.com')
+            sender_str = f"悦行假期 Joyeful Escapes <{sender_email}>"
+
+            recipients_str = current_app.config.get('DEFAULT_EMAIL_RECIPIENTS', '') or current_app.config.get('DEFAULT_EMAIL_RECIPIENT', '')
+            recipients = [r.strip() for r in recipients_str.split(',') if r.strip()]
+            if not recipients:
+                current_app.logger.warning('未配置收件人邮箱')
+                return jsonify({'success': False, 'message': '系统未配置收件人，请联系管理员'}), 500
+
+            status_map = {
+                'pending': '待处理', 'awaiting_payment': '待付款',
+                'confirmed': '已确认', 'in_progress': '处理中'
+            }
+            status_text = status_map.get(order.status, order.status)
+
+            subject = f'【客户催促】{order.order_number} - {order.service_name}'
+            html_body = f'''
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
+                    <tr>
+                        <td style="background:linear-gradient(135deg,#d97706,#f59e0b);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+                            <h1 style="color:#fff;margin:0;font-size:22px;">⏰ 客户催促提醒</h1>
+                            <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">订单号: {order.order_number}</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:30px;border:1px solid #e9ecef;border-top:none;">
+                            <p style="color:#d97706;font-weight:600;font-size:15px;margin:0 0 20px;">客户 {order.customer_name} 催促处理以下订单：</p>
+                            <table width="100%" style="border-collapse:collapse;">
+                                <tr>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:80px;">订单号</td>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-weight:600;font-size:14px;">{order.order_number}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">服务</td>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{order.service_name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">状态</td>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{status_text}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">金额</td>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;font-weight:700;color:#059669;">{order.currency} {order.total_amount}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">客户</td>
+                                    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;">{order.customer_name} ({order.customer_email})</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:10px 0;color:#6b7280;font-size:14px;">下单时间</td>
+                                    <td style="padding:10px 0;font-size:14px;">{order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '-'}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#fffbeb;padding:20px 30px;text-align:center;border:1px solid #e9ecef;border-top:none;border-radius:0 0 10px 10px;">
+                            <p style="color:#92400e;font-size:13px;margin:0;">请尽快登录后台处理该订单</p>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            '''
+
+            msg = Message(
+                subject=subject,
+                sender=sender_str,
+                recipients=recipients,
+                html=html_body
+            )
+            mail.send(msg)
+            current_app.logger.info(f"[催促邮件] 订单 {order.order_number} 催促邮件已发送给: {recipients}")
+
+        except Exception as mail_err:
+            current_app.logger.warning(f'催促邮件发送失败: {str(mail_err)}')
+            return jsonify({'success': False, 'message': '邮件发送失败，请稍后再试'}), 500
+
+        # 记录催促时间
+        order.notes = (order.notes or '') + f'\n[催促] {now.strftime("%Y-%m-%d %H:%M")}'
+        order.updated_at = now
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '已发送催促通知，工作人员将尽快处理'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'催促订单失败: {str(e)}')
+        return jsonify({'success': False, 'message': '操作失败'}), 500
 
 
 @orders_bp.route('/api/debug/models')

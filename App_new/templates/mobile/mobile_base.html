@@ -339,16 +339,8 @@
 
     <!-- 主内容区域 -->
     <main class="mobile-content">
-        <!-- Flash 消息 -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="mobile-alert mobile-alert-{{ 'danger' if category == 'error' else category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        <!-- Flash消息（Toast弹窗） -->
+        {% include 'shared/_flash_toast.html' %}
 
         {% block content %}{% endblock %}
 

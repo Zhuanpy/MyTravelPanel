@@ -11,6 +11,11 @@
         <i class="fas fa-edit me-1"></i>编辑
     </a>
     {% endif %}
+    {% if order.status in ('pending', 'awaiting_payment', 'confirmed', 'in_progress') %}
+    <button type="button" class="btn btn-sm btn-outline-warning" onclick="urgeOrder()" id="urgeBtn">
+        <i class="fas fa-bell me-1"></i>催促
+    </button>
+    {% endif %}
     {% if order.can_cancel() %}
     <button type="button" class="btn btn-sm btn-outline-danger" onclick="cancelOrder()">
         <i class="fas fa-times me-1"></i>取消订单
@@ -345,6 +350,35 @@ function cancelOrder() {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+function urgeOrder() {
+    if (!confirm('确认催促工作人员尽快处理？')) return;
+    var btn = document.getElementById('urgeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>发送中...';
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    fetch('{{ url_for("orders.urge_order", order_id=order.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>已催促';
+            btn.classList.remove('btn-outline-warning');
+            btn.classList.add('btn-outline-secondary');
+        } else {
+            alert(data.message || '操作失败');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-bell me-1"></i>催促';
+        }
+    })
+    .catch(function() {
+        alert('操作失败，请稍后重试');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bell me-1"></i>催促';
+    });
 }
 
 function confirmPayment() {

@@ -471,16 +471,7 @@
 
 <main class="main-content">
     <!-- 显示消息 -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
-                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
-                {{ message }}
-            </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    {% include 'shared/_flash_toast.html' %}
 
     <!-- 订单状态卡片 -->
     <div class="status-card">

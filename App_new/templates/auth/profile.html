@@ -4,337 +4,209 @@
 
 {% block page_title %}个人资料{% endblock %}
 
-{% block page_actions %}
-<div class="btn-toolbar mb-2 mb-md-0">
-    <div class="btn-group">
-        <a href="{{ url_for('auth_profile.edit_profile') }}" class="btn btn-sm btn-primary">
-            <i class="fas fa-edit me-1"></i>编辑资料
-        </a>
-        <button type="button" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-cog me-1"></i>设置
-        </button>
-    </div>
-</div>
-{% endblock %}
-
 {% block extra_css %}
 {{ super() }}
 <style>
-    .profile-avatar {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2rem;
-        color: white;
-        border: 3px solid rgba(72, 185, 104, 0.2);
+    .prof-wrap { max-width: 900px; }
+
+    /* 用户头部 */
+    .prof-header {
+        background: #fff; border: 1px solid #e9ecef; border-radius: 8px;
+        padding: 1rem; margin-bottom: 1.25rem;
+        display: flex; align-items: center; gap: 1rem;
     }
-    
-    .info-item {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid var(--primary-color);
+    .prof-avatar {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--primary-color, #48b968);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; color: #fff; flex-shrink: 0;
+        border: 2px solid rgba(72, 185, 104, 0.2);
     }
-    
-    .info-label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #6c757d;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
+    .prof-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .prof-name { font-size: 1.1rem; font-weight: 700; color: #333; }
+    .prof-meta { font-size: 0.8rem; color: #6c757d; }
+    .prof-actions { margin-left: auto; flex-shrink: 0; }
+
+    /* 统计条 */
+    .prof-stats {
+        display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap;
     }
-    
-    .info-value {
-        font-size: 0.95rem;
-        font-weight: 500;
-        color: #495057;
+    .prof-stat {
+        flex: 1; min-width: 100px; background: #fff; border: 1px solid #e9ecef;
+        border-radius: 8px; padding: 0.65rem 1rem; text-align: center;
     }
-    
-    .info-value.empty {
-        color: #adb5bd;
-        font-style: italic;
+    .prof-stat-num { font-size: 1.25rem; font-weight: 700; color: #333; }
+    .prof-stat-num.primary { color: var(--primary-color, #48b968); }
+    .prof-stat-num.success { color: #16a34a; }
+    .prof-stat-num.warning { color: #d97706; }
+    .prof-stat-num.info { color: #0ea5e9; }
+    .prof-stat-label { font-size: 0.75rem; color: #6c757d; margin-top: 2px; }
+
+    /* 信息 section */
+    .prof-section {
+        background: #fff; border: 1px solid #e9ecef; border-radius: 8px; margin-bottom: 1.25rem;
     }
-    
-    .activity-item {
-        display: flex;
-        align-items: center;
-        padding: 0.75rem;
-        border-bottom: 1px solid #e9ecef;
-        transition: background-color 0.2s ease;
+    .prof-section-header {
+        padding: 0.65rem 1rem; border-bottom: 1px solid #f0f0f0;
+        font-size: 0.85rem; font-weight: 600; color: #495057;
     }
-    
-    .activity-item:hover {
-        background-color: #f8f9fa;
+
+    /* 信息行 */
+    .prof-info-row {
+        display: flex; align-items: center; padding: 0.55rem 1rem;
+        border-bottom: 1px solid #f5f5f5; font-size: 0.85rem;
     }
-    
-    .activity-item:last-child {
-        border-bottom: none;
+    .prof-info-row:last-child { border-bottom: none; }
+    .prof-info-label {
+        width: 90px; color: #6c757d; font-size: 0.78rem; flex-shrink: 0;
     }
-    
-    .activity-icon {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        background: #e9ecef;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 0.75rem;
-        color: #6c757d;
-        font-size: 0.9rem;
+    .prof-info-value { color: #333; flex: 1; }
+    .prof-info-value.empty { color: #adb5bd; font-style: italic; }
+
+    /* 活动行 */
+    .prof-activity {
+        display: flex; align-items: center; padding: 0.55rem 1rem;
+        border-bottom: 1px solid #f5f5f5; font-size: 0.85rem; gap: 0.75rem;
     }
-    
-    .activity-content {
-        flex-grow: 1;
+    .prof-activity:last-child { border-bottom: none; }
+    .prof-activity:hover { background: #fafafa; }
+    .prof-activity-icon {
+        width: 28px; height: 28px; border-radius: 50%; background: #f0f0f0;
+        display: flex; align-items: center; justify-content: center;
+        color: #6c757d; font-size: 0.75rem; flex-shrink: 0;
     }
-    
-    .activity-title {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.25rem;
-        font-size: 0.9rem;
-    }
-    
-    .activity-time {
-        font-size: 0.8rem;
-        color: #6c757d;
+    .prof-activity-title { flex: 1; color: #495057; }
+    .prof-activity-time { color: #6c757d; font-size: 0.78rem; }
+
+    /* 空状态 */
+    .prof-empty { text-align: center; padding: 2rem 1rem; color: #6c757d; }
+    .prof-empty i { font-size: 2rem; opacity: 0.3; }
+    .prof-empty p { font-size: 0.85rem; margin-top: 0.5rem; }
+
+    @media (max-width: 576px) {
+        .prof-stat { min-width: 0; flex: 1 1 45%; }
+        .prof-header { flex-wrap: wrap; }
     }
 </style>
 {% endblock %}
 
 {% block member_content %}
-<!-- 用户信息卡片 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-4">
-                    <div class="profile-avatar me-4">
-                        {% if user.profile and user.profile.avatar %}
-                            <img src="{{ user.profile.avatar }}" alt="头像" class="w-100 h-100 rounded-circle">
-                        {% else %}
-                            <i class="fas fa-user"></i>
-                        {% endif %}
-                    </div>
-                    <div class="flex-grow-1">
-                        <h4 class="card-title mb-2">
-                            {% if user.profile %}
-                                {{ user.profile.get_full_name() }}
-                            {% else %}
-                                {{ user.username }}
-                            {% endif %}
-                        </h4>
-                        <p class="text-muted mb-1">
-                            <i class="fas fa-envelope me-2"></i>{{ user.email }}
-                        </p>
-                        <p class="text-muted mb-2">
-                            <i class="fas fa-user-tag me-2"></i>用户名：{{ user.username }}
-                        </p>
-                        <span class="badge bg-primary">
-                            {% if user.role.name == 'admin' %}
-                                <i class="fas fa-crown me-1"></i>管理员
-                            {% elif user.role.name == 'staff' %}
-                                <i class="fas fa-user-tie me-1"></i>员工
-                            {% elif user.role.name == 'member' %}
-                                <i class="fas fa-user me-1"></i>会员
-                            {% else %}
-                                <i class="fas fa-user-circle me-1"></i>{{ user.role.name }}
-                            {% endif %}
-                        </span>
-                    </div>
-                </div>
+<div class="prof-wrap">
+    <!-- 用户信息头部 -->
+    <div class="prof-header">
+        <div class="prof-avatar">
+            {% if user.profile and user.profile.avatar %}
+                <img src="{{ user.profile.avatar }}" alt="头像">
+            {% else %}
+                <i class="fas fa-user"></i>
+            {% endif %}
+        </div>
+        <div>
+            <div class="prof-name">
+                {% if user.profile %}{{ user.profile.get_full_name() }}{% else %}{{ user.username }}{% endif %}
+            </div>
+            <div class="prof-meta">
+                <i class="fas fa-envelope me-1"></i>{{ user.email }}
+                <span class="mx-1">|</span>
+                <span class="badge bg-primary" style="font-size:0.68rem;">
+                    {% if user.role.name == 'admin' %}管理员
+                    {% elif user.role.name == 'staff' %}员工
+                    {% elif user.role.name == 'member' %}会员
+                    {% else %}{{ user.role.name }}{% endif %}
+                </span>
             </div>
         </div>
+        <div class="prof-actions">
+            <a href="{{ url_for('auth_profile.edit_profile') }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-edit me-1"></i>编辑
+            </a>
+        </div>
     </div>
-</div>
 
-<!-- 统计信息 -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-primary">{{ stats.total_orders or 0 }}</h3>
-                        <p class="stats-label">总订单数</p>
-                    </div>
-                    <div class="stats-icon stats-primary">
-                        <i class="fas fa-shopping-cart"></i>
-                    </div>
-                </div>
-            </div>
+    <!-- 统计 -->
+    <div class="prof-stats">
+        <div class="prof-stat">
+            <div class="prof-stat-num primary">{{ stats.total_orders or 0 }}</div>
+            <div class="prof-stat-label">总订单</div>
+        </div>
+        <div class="prof-stat">
+            <div class="prof-stat-num success">{{ stats.completed_orders or 0 }}</div>
+            <div class="prof-stat-label">已完成</div>
+        </div>
+        <div class="prof-stat">
+            <div class="prof-stat-num warning">{{ stats.pending_orders or 0 }}</div>
+            <div class="prof-stat-label">待处理</div>
+        </div>
+        <div class="prof-stat">
+            <div class="prof-stat-num info">{{ stats.total_spent or 0 }}</div>
+            <div class="prof-stat-label">总消费</div>
         </div>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-success">{{ stats.completed_orders or 0 }}</h3>
-                        <p class="stats-label">已完成订单</p>
-                    </div>
-                    <div class="stats-icon stats-success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-warning">{{ stats.pending_orders or 0 }}</h3>
-                        <p class="stats-label">待处理订单</p>
-                    </div>
-                    <div class="stats-icon stats-warning">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card stats-card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="stats-number stats-info">{{ stats.total_spent or 0 }}</h3>
-                        <p class="stats-label">总消费金额</p>
-                    </div>
-                    <div class="stats-icon stats-info">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- 基本信息 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-info-circle text-primary me-2"></i>基本信息
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="info-item">
-                            <div class="info-label">姓名</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.first_name) }}">
-                                {% if user.profile and user.profile.first_name %}
-                                    {{ user.profile.first_name }}
-                                {% else %}
-                                    未设置
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="info-item">
-                            <div class="info-label">姓氏</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.last_name) }}">
-                                {% if user.profile and user.profile.last_name %}
-                                    {{ user.profile.last_name }}
-                                {% else %}
-                                    未设置
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="info-item">
-                            <div class="info-label">联系电话</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.phone) }}">
-                                {% if user.profile and user.profile.phone %}
-                                    {{ user.profile.phone }}
-                                {% else %}
-                                    未设置
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="info-item">
-                            <div class="info-label">公司</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.company) }}">
-                                {% if user.profile and user.profile.company %}
-                                    {{ user.profile.company }}
-                                {% else %}
-                                    未设置
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="info-item">
-                            <div class="info-label">地址</div>
-                            <div class="info-value {{ 'empty' if not (user.profile and user.profile.address) }}">
-                                {% if user.profile and user.profile.address %}
-                                    {{ user.profile.address }}
-                                {% else %}
-                                    未设置
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="info-item">
-                            <div class="info-label">注册时间</div>
-                            <div class="info-value">
-                                {{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '未知' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- 基本信息 -->
+    <div class="prof-section">
+        <div class="prof-section-header">
+            <i class="fas fa-info-circle me-1"></i>基本信息
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">姓名</span>
+            <span class="prof-info-value {{ 'empty' if not (user.profile and user.profile.first_name) }}">
+                {% if user.profile and user.profile.first_name %}{{ user.profile.first_name }}{% else %}未设置{% endif %}
+            </span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">姓氏</span>
+            <span class="prof-info-value {{ 'empty' if not (user.profile and user.profile.last_name) }}">
+                {% if user.profile and user.profile.last_name %}{{ user.profile.last_name }}{% else %}未设置{% endif %}
+            </span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">用户名</span>
+            <span class="prof-info-value">{{ user.username }}</span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">联系电话</span>
+            <span class="prof-info-value {{ 'empty' if not (user.profile and user.profile.phone) }}">
+                {% if user.profile and user.profile.phone %}{{ user.profile.phone }}{% else %}未设置{% endif %}
+            </span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">公司</span>
+            <span class="prof-info-value {{ 'empty' if not (user.profile and user.profile.company) }}">
+                {% if user.profile and user.profile.company %}{{ user.profile.company }}{% else %}未设置{% endif %}
+            </span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">地址</span>
+            <span class="prof-info-value {{ 'empty' if not (user.profile and user.profile.address) }}">
+                {% if user.profile and user.profile.address %}{{ user.profile.address }}{% else %}未设置{% endif %}
+            </span>
+        </div>
+        <div class="prof-info-row">
+            <span class="prof-info-label">注册时间</span>
+            <span class="prof-info-value">{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '未知' }}</span>
         </div>
     </div>
-</div>
 
-<!-- 最近活动 -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-history text-primary me-2"></i>最近活动
-                </h5>
-            </div>
-            <div class="card-body p-0">
-                {% if recent_activities %}
-                    {% for activity in recent_activities %}
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="fas fa-{{ activity.icon or 'circle' }}"></i>
-                        </div>
-                        <div class="activity-content">
-                            <div class="activity-title">{{ activity.title }}</div>
-                            <div class="activity-time">{{ activity.time }}</div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-history text-muted" style="font-size: 2rem; opacity: 0.5;"></i>
-                        <p class="text-muted mt-2">暂无活动记录</p>
-                    </div>
-                {% endif %}
-            </div>
+    <!-- 最近活动 -->
+    <div class="prof-section">
+        <div class="prof-section-header">
+            <i class="fas fa-history me-1"></i>最近活动
         </div>
+        {% if recent_activities %}
+            {% for activity in recent_activities %}
+            <div class="prof-activity">
+                <span class="prof-activity-icon"><i class="fas fa-{{ activity.icon or 'circle' }}"></i></span>
+                <span class="prof-activity-title">{{ activity.title }}</span>
+                <span class="prof-activity-time">{{ activity.time }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="prof-empty">
+                <i class="fas fa-history"></i>
+                <p>暂无活动记录</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

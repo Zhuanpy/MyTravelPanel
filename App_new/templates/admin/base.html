@@ -249,17 +249,8 @@
                     {% block page_actions %}{% endblock %}
                 </div>
 
-                <!-- Flash消息 -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
+                <!-- Flash消息（Toast弹窗） -->
+                {% include 'shared/_flash_toast.html' %}
 
                 <!-- 页面内容 -->
                 {% block page_content %}{% endblock %}

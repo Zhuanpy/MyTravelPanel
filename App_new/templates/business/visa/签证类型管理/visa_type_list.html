@@ -10,19 +10,6 @@
 
 {% block content %}
 <div class="visa-container-lg">
-    <!-- 闪现消息容器 -->
-    <div class="visa-flash-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="visa-flash visa-flash-{{ category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
     <!-- 筛选栏 -->
     <div class="visa-card" style="margin-bottom: 1rem;">
         <div class="visa-card-body" style="padding: 1rem;">
