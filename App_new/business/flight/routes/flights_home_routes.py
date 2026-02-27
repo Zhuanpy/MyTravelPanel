@@ -92,8 +92,8 @@ def input_flight_schedule_info():
 @login_required
 @staff_only
 def flight_home_page():
-    """机票模块首页"""
-    return render_template('business/flight/flight_home.html')
+    """机票模块首页 - 已整合到导航栏，重定向到订单列表"""
+    return redirect(url_for('flights_booking.order_list'))
 
 @flight_home.route('/search_flights', methods=['GET'])
 @login_required

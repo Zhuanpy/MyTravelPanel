@@ -625,9 +625,6 @@ function clearModalParser() {
     document.getElementById('modalFlightParser').value = '';
 }
 
-window.onclick = function(event) {
-    const modal = document.getElementById('flightParserModal');
-    if (event.target === modal) closeFlightParserModal();
-}
+// 点击外部不关闭弹窗，只能通过按钮关闭
 </script>
 {% endblock %}

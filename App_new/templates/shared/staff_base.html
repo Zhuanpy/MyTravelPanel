@@ -231,12 +231,21 @@
                             <li><a class="dropdown-item" href="{{ url_for('flights_athina.athina_conversion') }}">
                                 <i class="fas fa-exchange-alt me-2"></i>Athina工具
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_flight_schedule') }}">
                                 <i class="fas fa-clock me-2"></i>航班时刻表
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_airport_code_info') }}">
                                 <i class="fas fa-map-marker-alt me-2"></i>机场代码
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item flight-folder-link" href="#" data-url="/flight_home/open_project_folder">
+                                <i class="fas fa-folder me-2"></i>资源文件夹
+                            </a></li>
+                            <li><a class="dropdown-item flight-folder-link" href="#" data-url="/flight_home/open_refund_folder">
+                                <i class="fas fa-undo me-2"></i>退票文件夹
+                            </a></li>
+                            <li><a class="dropdown-item flight-folder-link" href="#" data-url="/flight_home/open_flight_project_folder">
+                                <i class="fas fa-project-diagram me-2"></i>项目文件夹
                             </a></li>
                         </ul>
                     </li>
@@ -454,33 +463,38 @@
                             </h6>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flight_home.flight_home_page' %}active{% endif %}" 
-                               href="{{ url_for('flight_home.flight_home_page') }}">
-                                <i class="fas fa-home me-2"></i>
-                                机票首页
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_booking.order_list' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'flights_booking.order_list' %}active{% endif %}"
                                href="{{ url_for('flights_booking.order_list') }}">
                                 <i class="fas fa-list me-2"></i>
                                 订单列表
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_booking.create_order' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'flights_booking.create_order' %}active{% endif %}"
                                href="{{ url_for('flights_booking.create_order') }}">
                                 <i class="fas fa-plus me-2"></i>
                                 创建订单
                             </a>
                         </li>
-  
-          
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'flights_athina.athina_conversion' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'flights_athina.athina_conversion' %}active{% endif %}"
                                href="{{ url_for('flights_athina.athina_conversion') }}">
                                 <i class="fas fa-tools me-2"></i>
                                 Athina代码
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_schedule.input_flight_schedule' %}active{% endif %}"
+                               href="{{ url_for('flights_schedule.input_flight_schedule') }}">
+                                <i class="fas fa-clock me-2"></i>
+                                航班时刻表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'flights_schedule.input_airport_code_info' %}active{% endif %}"
+                               href="{{ url_for('flights_schedule.input_airport_code_info') }}">
+                                <i class="fas fa-map-marker-alt me-2"></i>
+                                机场代码
                             </a>
                         </li>
 
@@ -733,16 +747,7 @@
                 navbarCollapse.classList.add('show');
             }
 
-            // Flash toast 自动消失
-            var toastContainer = document.getElementById('flashToastContainer');
-            if (toastContainer) {
-                setTimeout(function() {
-                    toastContainer.querySelectorAll('.flash-toast').forEach(function(el) {
-                        el.style.animation = 'toastOut 0.2s ease forwards';
-                    });
-                    setTimeout(function() { toastContainer.remove(); }, 200);
-                }, 500);
-            }
+            // Flash toast 自动消失（由 _flash_toast.html 内部脚本处理，按类型区分时长）
         });
         
         // 统一的侧边栏控制器
@@ -842,18 +847,38 @@
         document.addEventListener('DOMContentLoaded', function() {
             new SidebarController();
             
-            // 自动关闭 Flash 消息
+            // 自动关闭 Flash 消息（success/info 2秒，warning/error 5秒）
             const alerts = document.querySelectorAll('.alert-dismissible');
             alerts.forEach(function(alert) {
-                // 5秒后自动淡出并移除
+                var isLong = alert.classList.contains('alert-warning') || alert.classList.contains('alert-danger');
+                var delay = isLong ? 5000 : 2000;
                 setTimeout(function() {
                     const bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();
-                }, 5000);
+                }, delay);
             });
         });
     </script>
     
+    <!-- 文件夹快捷打开 -->
+    <script>
+    document.querySelectorAll('.flight-folder-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var url = this.getAttribute('data-url');
+            fetch(url, {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''}
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.message) { /* 静默处理 */ }
+            })
+            .catch(function() {});
+        });
+    });
+    </script>
+
     {% block extra_js %}{% endblock %}
 
     <!-- 逾期任务提醒弹窗 -->

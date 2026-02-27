@@ -1,9 +1,9 @@
-{# 通用 Flash Toast 弹窗 - 0.5秒自动消失 #}
+{# 通用 Flash Toast 弹窗 - success 2秒，warning/error 5秒 #}
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div id="flashToastContainer" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999; pointer-events:none;">
         {% for category, message in messages %}
-        <div class="flash-toast" style="
+        <div class="flash-toast" data-category="{{ category }}" style="
             background: {{ '#d4edda' if category == 'success' else '#f8d7da' if category in ('error','danger') else '#d1ecf1' if category == 'info' else '#fff3cd' }};
             color: {{ '#155724' if category == 'success' else '#721c24' if category in ('error','danger') else '#0c5460' if category == 'info' else '#856404' }};
             border: 1px solid {{ '#c3e6cb' if category == 'success' else '#f5c6cb' if category in ('error','danger') else '#bee5eb' if category == 'info' else '#ffeeba' }};
@@ -18,15 +18,17 @@
     @keyframes flashToastOut { from { opacity:1; } to { opacity:0; transform:translateY(-10px); } }
     </style>
     <script>
-    setTimeout(function(){
-        document.querySelectorAll('.flash-toast').forEach(function(t){
-            t.style.animation='flashToastOut 0.2s ease forwards';
+    (function(){
+        var toasts = document.querySelectorAll('.flash-toast');
+        toasts.forEach(function(t){
+            var cat = t.getAttribute('data-category') || '';
+            var delay = (cat === 'success' || cat === 'info') ? 2000 : 5000;
+            setTimeout(function(){
+                t.style.animation = 'flashToastOut 0.2s ease forwards';
+                setTimeout(function(){ t.remove(); }, 200);
+            }, delay);
         });
-        setTimeout(function(){
-            var c=document.getElementById('flashToastContainer');
-            if(c) c.remove();
-        }, 200);
-    }, 1000);
+    })();
     </script>
     {% endif %}
 {% endwith %}
