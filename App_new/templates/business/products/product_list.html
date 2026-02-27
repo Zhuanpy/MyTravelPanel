@@ -166,16 +166,20 @@
                                 <br><small class="text-muted">{{ product.city }}</small>
                                 {% endif %}
                             </td>
+                            {% set first_price = product.prices.filter_by(is_active=True).first() if not product.base_price else None %}
+                            {% set first_variant = product.ticket_variants.filter_by(is_active=True).first() if not product.base_price and not first_price else None %}
                             <td>
-                                {% if product.base_price %}
-                                <strong>{{ product.currency }} {{ "%.2f"|format(product.base_price) }}</strong>
+                                {% set sell_price = product.base_price or (first_price.selling_price if first_price else None) or (first_variant.adult_selling_price if first_variant else None) %}
+                                {% if sell_price %}
+                                <strong>{{ product.currency }} {{ "%.2f"|format(sell_price) }}</strong>
                                 {% else %}
                                 <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if product.cost_price %}
-                                {{ product.currency }} {{ "%.2f"|format(product.cost_price) }}
+                                {% set cost = product.cost_price or (first_price.cost_price if first_price and first_price.cost_price else None) or (first_variant.adult_cost_price if first_variant and first_variant.adult_cost_price else None) %}
+                                {% if cost %}
+                                {{ product.currency }} {{ "%.2f"|format(cost) }}
                                 {% else %}
                                 <span class="text-muted">-</span>
                                 {% endif %}

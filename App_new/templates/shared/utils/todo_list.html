@@ -375,11 +375,27 @@
                 <input type="text" class="visa-form-control" id="reminderSearchInput" placeholder="搜索项目编号..." onkeyup="debounceSearch(loadProjectReminders, 300)">
             </div>
         </div>
-        <div id="projectRemindersContainer">
-            <div class="text-center py-4 text-muted">
-                <i class="fas fa-spinner fa-spin me-2"></i>
-                加载中...
-            </div>
+        <div class="visa-card" style="max-width:960px; margin:0 auto;">
+            <table class="visa-table" style="table-layout:fixed; width:100%;">
+                <thead>
+                    <tr>
+                        <th style="width:60px; white-space:nowrap;" class="text-center">状态</th>
+                        <th style="width:auto;">提醒内容</th>
+                        <th style="width:140px; white-space:nowrap;">截止日期</th>
+                        <th style="width:90px; white-space:nowrap;">负责人</th>
+                        <th style="width:90px; white-space:nowrap;">项目</th>
+                        <th style="width:100px; white-space:nowrap;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="projectRemindersTbody">
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="fas fa-spinner fa-spin me-2"></i>
+                            加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -964,46 +980,57 @@ function loadProjectReminders() {
         .catch(error => console.error('Error:', error));
 }
 
-// 渲染项目提醒列表
+// 渲染项目提醒列表（表格形式）
 function renderProjectReminders(todos) {
-    const container = document.getElementById('projectRemindersContainer');
+    const tbody = document.getElementById('projectRemindersTbody');
 
     if (!todos || todos.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-5 text-muted">
-                <i class="fas fa-bell-slash fa-3x mb-3"></i>
-                <p>暂无项目提醒</p>
-            </div>
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="fas fa-bell-slash fa-2x mb-2 d-block"></i>
+                    暂无项目提醒
+                </td>
+            </tr>
         `;
         return;
     }
 
-    container.innerHTML = todos.map(todo => `
-        <div class="task-card ${todo.is_completed ? 'completed' : ''}" style="border-left: 3px solid #f59e0b;">
-            <div class="checkbox-wrapper">
+    tbody.innerHTML = todos.map(todo => {
+        const isOverdue = todo.due_date && !todo.is_completed && new Date(todo.due_date) < new Date();
+        const dateBadgeStyle = isOverdue
+            ? 'background:#fef2f2; color:#dc2626;'
+            : 'background:#f0fdf4; color:#16a34a;';
+        return `
+        <tr style="${todo.is_completed ? 'opacity:0.5;' : ''}">
+            <td class="text-center">
                 <input type="checkbox" class="form-check-input" ${todo.is_completed ? 'checked' : ''}
                     onchange="toggleTodoStatus(${todo.id}, this.checked)">
-            </div>
-            <div class="task-content">
-                <div class="task-title">
-                    <i class="fas fa-bell text-warning me-1"></i>${linkifyProjectHid(todo.title, todo.source_id)}
-                </div>
-                <div class="task-meta">
-                    ${todo.due_date ? `<span class="meta-tag date-tag"><i class="fas fa-calendar"></i> ${formatDate(todo.due_date)}</span>` : ''}
-                    ${todo.assignee_name ? `<span class="meta-tag user-tag"><i class="fas fa-user"></i> ${todo.assignee_name}</span>` : ''}
-                    ${todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="meta-tag" style="background: #e0f2fe; color: #0369a1; text-decoration: none;"><i class="fas fa-external-link-alt"></i> 查看项目</a>` : ''}
-                </div>
-            </div>
-            <div class="task-actions">
+            </td>
+            <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${todo.title}">
+                <span style="${todo.is_completed ? 'text-decoration:line-through; color:#9ca3af;' : 'font-weight:500; color:#333;'}">
+                    <i class="fas fa-bell text-warning me-1" style="font-size:0.8rem;"></i>${linkifyProjectHid(todo.title, todo.source_id)}
+                </span>
+            </td>
+            <td>
+                ${todo.due_date ? `<span class="visa-badge" style="${dateBadgeStyle} font-size:0.78rem;"><i class="fas fa-calendar me-1"></i>${formatDate(todo.due_date)}</span>` : '<span class="text-muted">-</span>'}
+            </td>
+            <td>
+                ${todo.assignee_name ? `<span class="visa-badge visa-badge-info">${todo.assignee_name}</span>` : '<span class="text-muted">-</span>'}
+            </td>
+            <td style="white-space:nowrap;">
+                ${todo.source_id ? `<a href="/projects/detail/${todo.source_id}" class="visa-btn-link visa-btn-link-info" title="查看项目"><i class="fas fa-external-link-alt me-1"></i>查看</a>` : '-'}
+            </td>
+            <td style="white-space:nowrap;">
                 <button class="visa-btn-link visa-btn-link-primary" title="编辑" onclick="editTodo(${todo.id})">
                     <i class="fas fa-edit"></i>
                 </button>
                 <button class="visa-btn-link visa-btn-link-danger" title="删除" onclick="deleteTodo(${todo.id})">
                     <i class="fas fa-trash"></i>
                 </button>
-            </div>
-        </div>
-    `).join('');
+            </td>
+        </tr>`;
+    }).join('');
 }
 
 // 加载团队任务

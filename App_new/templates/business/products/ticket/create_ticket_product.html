@@ -60,6 +60,12 @@
                                value="{{ product.city if product else '' }}"
                                placeholder="例如：Singapore">
                     </div>
+                    <div class="col">
+                        <label class="form-label" style="font-size: 13px;">产品有效期</label>
+                        <input type="date" name="valid_until" class="form-control form-control-sm"
+                               value="{{ product.valid_until.strftime('%Y-%m-%d') if product and product.valid_until else '' }}">
+                        <div class="form-text" style="font-size: 11px;">过期后产品自动下架</div>
+                    </div>
                     <!-- 封面图 -->
                     <div class="col-12">
                         <label class="form-label" style="font-size: 13px;">封面图片</label>
@@ -211,11 +217,12 @@
                         <tr>
                             <th style="width: 40px;">#</th>
                             <th>变体名称</th>
-                            <th>英文名称</th>
                             <th class="text-end" style="white-space:nowrap;">成人售价</th>
                             <th class="text-end" style="white-space:nowrap;">成人成本</th>
                             <th class="text-end" style="white-space:nowrap;">儿童售价</th>
                             <th class="text-end" style="white-space:nowrap;">儿童成本</th>
+                            <th class="text-center" style="white-space:nowrap;">有效期</th>
+                            <th class="text-center" style="white-space:nowrap;">库存</th>
                             <th class="text-center">状态</th>
                             <th style="width: 80px;">操作</th>
                         </tr>
@@ -224,8 +231,10 @@
                         {% for v in ticket_variants %}
                         <tr>
                             <td class="text-muted">{{ v.sort_order }}</td>
-                            <td>{{ v.variant_name }}</td>
-                            <td class="text-muted">{{ v.variant_name_en or '-' }}</td>
+                            <td>
+                                {{ v.variant_name }}
+                                {% if v.variant_name_en %}<br><small class="text-muted">{{ v.variant_name_en }}</small>{% endif %}
+                            </td>
                             <td class="text-end" style="font-family: monospace;">
                                 {% if v.adult_selling_price is not none %}${{ "%.2f"|format(v.adult_selling_price) }}{% else %}-{% endif %}
                             </td>
@@ -238,8 +247,37 @@
                             <td class="text-end" style="font-family: monospace;">
                                 {% if v.child_cost_price is not none %}${{ "%.2f"|format(v.child_cost_price) }}{% else %}-{% endif %}
                             </td>
+                            <td class="text-center" style="white-space:nowrap;">
+                                {% if v.valid_until %}
+                                    {% if v.is_expired %}
+                                    <span class="badge bg-danger">{{ v.valid_until.strftime('%Y-%m-%d') }}</span>
+                                    {% else %}
+                                    <span class="text-success">{{ v.valid_until.strftime('%Y-%m-%d') }}</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">不限</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center" style="white-space:nowrap;">
+                                {% if v.total_stock is not none %}
+                                    {% set remaining = v.remaining_stock %}
+                                    {% if remaining <= 0 %}
+                                    <span class="badge bg-danger">售罄</span>
+                                    {% elif remaining <= 5 %}
+                                    <span class="text-warning fw-bold">{{ remaining }}/{{ v.total_stock }}</span>
+                                    {% else %}
+                                    <span>{{ remaining }}/{{ v.total_stock }}</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">不限</span>
+                                {% endif %}
+                            </td>
                             <td class="text-center">
-                                {% if v.is_active %}
+                                {% if v.is_expired %}
+                                <span class="badge bg-danger">已过期</span>
+                                {% elif v.is_sold_out %}
+                                <span class="badge bg-danger">售罄</span>
+                                {% elif v.is_active %}
                                 <span class="badge bg-success">已激活</span>
                                 {% else %}
                                 <span class="badge bg-secondary">未激活</span>
@@ -333,6 +371,27 @@
 
                 <hr class="my-2">
 
+                <!-- 有效期与库存 -->
+                <div class="small text-muted fw-bold mb-2"><i class="fas fa-warehouse me-1"></i>有效期与库存</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">有效截止日期</label>
+                        <input type="date" id="variantValidUntil" class="form-control form-control-sm">
+                        <div class="form-text" style="font-size: 11px;">过期后该票种自动下架</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">总库存数量</label>
+                        <input type="number" id="variantTotalStock" class="form-control form-control-sm" min="0" placeholder="留空表示不限量">
+                        <div class="form-text" style="font-size: 11px;">售完后自动下架</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">已售数量</label>
+                        <input type="number" id="variantSoldCount" class="form-control form-control-sm" min="0" value="0">
+                    </div>
+                </div>
+
+                <hr class="my-2">
+
                 <!-- 价格 -->
                 <div class="small text-muted fw-bold mb-2"><i class="fas fa-dollar-sign me-1"></i>价格设置</div>
                 <div class="row g-2 mb-3">
@@ -421,6 +480,9 @@ function openVariantModal(variantId) {
     document.getElementById('variantImportantNotes').value = '';
     document.getElementById('variantSort').value = '0';
     document.getElementById('variantActive').value = '1';
+    document.getElementById('variantValidUntil').value = '';
+    document.getElementById('variantTotalStock').value = '';
+    document.getElementById('variantSoldCount').value = '0';
     document.getElementById('variantModalTitle').textContent = '添加变体';
 
     if (variantId) {
@@ -445,6 +507,9 @@ function openVariantModal(variantId) {
                     document.getElementById('variantImportantNotes').value = v.important_notes || '';
                     document.getElementById('variantSort').value = v.sort_order || 0;
                     document.getElementById('variantActive').value = v.is_active ? '1' : '0';
+                    document.getElementById('variantValidUntil').value = v.valid_until || '';
+                    document.getElementById('variantTotalStock').value = v.total_stock != null ? v.total_stock : '';
+                    document.getElementById('variantSoldCount').value = v.sold_count || 0;
                 }
             });
     }
@@ -475,6 +540,9 @@ function saveVariant() {
         important_notes: document.getElementById('variantImportantNotes').value.trim() || null,
         sort_order: parseInt(document.getElementById('variantSort').value) || 0,
         is_active: document.getElementById('variantActive').value === '1',
+        valid_until: document.getElementById('variantValidUntil').value || null,
+        total_stock: document.getElementById('variantTotalStock').value ? parseInt(document.getElementById('variantTotalStock').value) : null,
+        sold_count: parseInt(document.getElementById('variantSoldCount').value) || 0,
     };
 
     var url;

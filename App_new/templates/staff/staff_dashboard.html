@@ -4,205 +4,329 @@
 
 {% block page_title %}工作台总览{% endblock %}
 
+{% block extra_css %}
+<style>
+    .dash-wrap { max-width: 1100px; margin: 0 auto; }
+
+    /* 快捷操作 */
+    .dash-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+    .dash-actions a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-decoration: none;
+        color: #495057;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        transition: all 0.15s;
+    }
+    .dash-actions a:hover {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #16a34a;
+    }
+    .dash-actions a i { font-size: 0.8rem; }
+
+    /* 统计卡片 */
+    .dash-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .dash-stat {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem 1.15rem;
+    }
+    .dash-stat-label {
+        font-size: 0.78rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+    .dash-stat-value {
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+    .dash-stat-value.green { color: #16a34a; }
+    .dash-stat-value.blue { color: #2563eb; }
+    .dash-stat-value.amber { color: #d97706; }
+    .dash-stat-value.red { color: #dc2626; }
+    .dash-stat-sub {
+        font-size: 0.78rem;
+        color: #9ca3af;
+        font-weight: 400;
+    }
+
+    /* 待办面板 */
+    .dash-panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .dash-panel {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .dash-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #333;
+    }
+    .dash-panel-head .dash-count {
+        background: #f3f4f6;
+        color: #6b7280;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.15rem 0.5rem;
+        border-radius: 10px;
+    }
+    .dash-panel-head a {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #6b7280;
+        text-decoration: none;
+    }
+    .dash-panel-head a:hover { color: #16a34a; }
+    .dash-panel-body {
+        max-height: 260px;
+        overflow-y: auto;
+    }
+    .dash-panel-empty {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: #9ca3af;
+        font-size: 0.85rem;
+    }
+    .dash-panel-empty i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: #d1d5db; }
+
+    /* 待办行 */
+    .dash-todo {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #f5f5f5;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+    .dash-todo:last-child { border-bottom: none; }
+    .dash-todo:hover { background: #f9fafb; }
+    .dash-todo-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        flex: 1;
+    }
+    .dash-todo-tag {
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .dash-todo-tag.eo { background: #fef2f2; color: #dc2626; }
+    .dash-todo-tag.ref { background: #f0fdf4; color: #16a34a; }
+    .dash-todo-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #4b5563;
+    }
+    .dash-todo-amount {
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+        margin-left: 0.5rem;
+    }
+    .dash-todo-amount.cost { color: #dc2626; }
+    .dash-todo-amount.sell { color: #16a34a; }
+
+    /* 最近项目 */
+    .dash-table {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .dash-table-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #333;
+    }
+    .dash-table-head a {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #6b7280;
+        text-decoration: none;
+    }
+    .dash-table-head a:hover { color: #16a34a; }
+    .dash-table table {
+        width: 100%;
+        font-size: 0.82rem;
+        border-collapse: collapse;
+    }
+    .dash-table thead th {
+        padding: 0.45rem 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        background: #fafafa;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .dash-table tbody tr {
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+    .dash-table tbody tr:hover { background: #f9fafb; }
+    .dash-table tbody td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #f5f5f5;
+        color: #4b5563;
+    }
+    .dash-table tbody tr:last-child td { border-bottom: none; }
+    .dash-table .td-hid { font-weight: 600; color: #2563eb; }
+    .dash-table .td-profit.pos { color: #16a34a; }
+    .dash-table .td-profit.neg { color: #dc2626; }
+    .dash-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+    }
+    .dash-badge.settled { background: #f0fdf4; color: #16a34a; }
+    .dash-badge.active { background: #f3f4f6; color: #6b7280; }
+
+    @media (max-width: 768px) {
+        .dash-stats { grid-template-columns: repeat(2, 1fr); }
+        .dash-panels { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- 快速操作 -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-        <div class="row g-2">
-            <div class="col-6 col-md-3">
-                <a href="{{ url_for('business_projects.project_create.create_header') }}" class="btn btn-primary w-100 py-2">
-                    <i class="fas fa-plus-circle me-1"></i> 创建项目
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-danger w-100 py-2">
-                    <i class="fas fa-money-check-alt me-1"></i> 批量付款
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-success w-100 py-2">
-                    <i class="fas fa-file-invoice me-1"></i> 发票列表
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ url_for('business_projects.project_receipt.receipt_list') }}" class="btn btn-warning w-100 py-2">
-                    <i class="fas fa-receipt me-1"></i> 收款记录
-                </a>
-            </div>
-        </div>
+<div class="dash-wrap">
+    <!-- 快捷操作 -->
+    <div class="dash-actions">
+        <a href="{{ url_for('business_projects.project_create.create_header') }}"><i class="fas fa-plus-circle"></i>创建项目</a>
+        <a href="{{ url_for('business_projects.project_eo.batch_pay') }}"><i class="fas fa-money-check-alt"></i>批量付款</a>
+        <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}"><i class="fas fa-file-invoice"></i>发票列表</a>
+        <a href="{{ url_for('business_projects.project_receipt.receipt_list') }}"><i class="fas fa-receipt"></i>收款记录</a>
     </div>
-</div>
 
-<!-- 财务统计卡片 -->
-<div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1 small">本月销售额</p>
-                        <h4 class="mb-0 text-success">S${{ "%.2f"|format(stats.month_selling or 0) }}</h4>
-                    </div>
-                    <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i class="fas fa-dollar-sign text-success fa-lg"></i>
-                    </div>
-                </div>
-            </div>
+    <!-- 统计卡片 -->
+    <div class="dash-stats">
+        <div class="dash-stat">
+            <div class="dash-stat-label">本月销售额</div>
+            <div class="dash-stat-value green">S${{ "%.2f"|format(stats.month_selling or 0) }}</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-label">本月利润</div>
+            <div class="dash-stat-value {{ 'blue' if (stats.month_profit or 0) >= 0 else 'red' }}">S${{ "%.2f"|format(stats.month_profit or 0) }}</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-label">待收款</div>
+            <div class="dash-stat-value amber">S${{ "%.2f"|format(stats.total_receivable or 0) }}</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-label">待付款 EO</div>
+            <div class="dash-stat-value red">{{ stats.pending_eo_count or 0 }}笔 <span class="dash-stat-sub">/ S${{ "%.0f"|format(stats.pending_eo_amount or 0) }}</span></div>
         </div>
     </div>
 
-    <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1 small">本月利润</p>
-                        <h4 class="mb-0 {% if (stats.month_profit or 0) >= 0 %}text-primary{% else %}text-danger{% endif %}">
-                            S${{ "%.2f"|format(stats.month_profit or 0) }}
-                        </h4>
-                    </div>
-                    <div class="rounded-circle bg-primary bg-opacity-10 p-3">
-                        <i class="fas fa-chart-line text-primary fa-lg"></i>
-                    </div>
-                </div>
+    <!-- 待办面板 -->
+    <div class="dash-panels">
+        <!-- 待付款 EO -->
+        <div class="dash-panel">
+            <div class="dash-panel-head">
+                <span><i class="fas fa-file-invoice-dollar me-1" style="color:#dc2626;"></i>待付款 EO <span class="dash-count">{{ pending_eo_list|length if pending_eo_list else 0 }}</span></span>
+                <a href="{{ url_for('business_projects.project_eo.batch_pay') }}">批量付款 →</a>
             </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1 small">待收款</p>
-                        <h4 class="mb-0 text-warning">S${{ "%.2f"|format(stats.total_receivable or 0) }}</h4>
-                    </div>
-                    <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                        <i class="fas fa-hand-holding-usd text-warning fa-lg"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1 small">待付款 EO</p>
-                        <h4 class="mb-0 text-danger">
-                            {{ stats.pending_eo_count or 0 }}笔
-                            <small class="text-muted fs-6">/ S${{ "%.0f"|format(stats.pending_eo_amount or 0) }}</small>
-                        </h4>
-                    </div>
-                    <div class="rounded-circle bg-danger bg-opacity-10 p-3">
-                        <i class="fas fa-file-invoice-dollar text-danger fa-lg"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 待办提醒（左右两列） -->
-<div class="row mb-4">
-    <!-- 待付款 EO -->
-    <div class="col-md-6 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-2">
-                <span><i class="fas fa-exclamation-circle me-2"></i>待付款 EO</span>
-                <a href="{{ url_for('business_projects.project_eo.batch_pay') }}" class="btn btn-sm btn-light">批量付款</a>
-            </div>
-            <div class="card-body p-0">
+            <div class="dash-panel-body">
                 {% if pending_eo_list %}
-                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                    <table class="table table-hover mb-0" style="font-size: 0.85rem;">
-                        <thead class="table-light" style="position: sticky; top: 0;">
-                            <tr>
-                                <th>EO编号</th>
-                                <th>项目</th>
-                                <th>供应商</th>
-                                <th class="text-end">金额</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for eo in pending_eo_list %}
-                            <tr style="cursor: pointer;" onclick="window.location.href='/projects/detail/{{ eo.project_id }}'">
-                                <td><span class="badge bg-info">{{ eo.eo_number }}</span></td>
-                                <td>{{ eo.hid }}</td>
-                                <td class="text-truncate" style="max-width: 100px;" title="{{ eo.supplier }}">{{ eo.supplier }}</td>
-                                <td class="text-end text-danger fw-bold">{{ eo.currency }} {{ "%.2f"|format(eo.amount) }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                    {% for eo in pending_eo_list %}
+                    <div class="dash-todo" onclick="window.location.href='/projects/detail/{{ eo.project_id }}'">
+                        <div class="dash-todo-left">
+                            <span class="dash-todo-tag eo">{{ eo.eo_number }}</span>
+                            <span class="dash-todo-text" title="{{ eo.supplier }}">{{ eo.hid }} · {{ eo.supplier }}</span>
+                        </div>
+                        <span class="dash-todo-amount cost">{{ eo.currency }} {{ "%.2f"|format(eo.amount) }}</span>
+                    </div>
+                    {% endfor %}
                 {% else %}
-                <div class="text-center py-4 text-muted">
-                    <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
-                    <p class="mb-0">暂无待付款 EO</p>
-                </div>
+                    <div class="dash-panel-empty">
+                        <i class="fas fa-check-circle"></i>暂无待付款 EO
+                    </div>
                 {% endif %}
             </div>
         </div>
-    </div>
 
-    <!-- 待开发票 REF -->
-    <div class="col-md-6 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center py-2">
-                <span><i class="fas fa-file-invoice me-2"></i>待开发票 REF</span>
-                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}" class="btn btn-sm btn-light">发票列表</a>
+        <!-- 待开发票 REF -->
+        <div class="dash-panel">
+            <div class="dash-panel-head">
+                <span><i class="fas fa-file-invoice me-1" style="color:#d97706;"></i>待开发票 REF <span class="dash-count">{{ pending_invoice_refs|length if pending_invoice_refs else 0 }}</span></span>
+                <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}">发票列表 →</a>
             </div>
-            <div class="card-body p-0">
+            <div class="dash-panel-body">
                 {% if pending_invoice_refs %}
-                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                    <table class="table table-hover mb-0" style="font-size: 0.85rem;">
-                        <thead class="table-light" style="position: sticky; top: 0;">
-                            <tr>
-                                <th>REF</th>
-                                <th>项目</th>
-                                <th>描述</th>
-                                <th class="text-end">销售金额</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ref in pending_invoice_refs %}
-                            <tr style="cursor: pointer;" onclick="window.location.href='/projects/detail/{{ ref.project_id }}'">
-                                <td><span class="badge bg-secondary">{{ ref.ref_number[-6:] if ref.ref_number|length > 6 else ref.ref_number }}</span></td>
-                                <td>{{ ref.hid }}</td>
-                                <td class="text-truncate" style="max-width: 120px;" title="{{ ref.description }}">{{ ref.description }}</td>
-                                <td class="text-end text-success fw-bold">{{ ref.currency }} {{ "%.2f"|format(ref.amount) }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                    {% for ref in pending_invoice_refs %}
+                    <div class="dash-todo" onclick="window.location.href='/projects/detail/{{ ref.project_id }}'">
+                        <div class="dash-todo-left">
+                            <span class="dash-todo-tag ref">{{ ref.ref_number[-6:] if ref.ref_number|length > 6 else ref.ref_number }}</span>
+                            <span class="dash-todo-text" title="{{ ref.description }}">{{ ref.hid }} · {{ ref.description }}</span>
+                        </div>
+                        <span class="dash-todo-amount sell">{{ ref.currency }} {{ "%.2f"|format(ref.amount) }}</span>
+                    </div>
+                    {% endfor %}
                 {% else %}
-                <div class="text-center py-4 text-muted">
-                    <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
-                    <p class="mb-0">所有 REF 都已开票</p>
-                </div>
+                    <div class="dash-panel-empty">
+                        <i class="fas fa-check-circle"></i>所有 REF 都已开票
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
-</div>
 
-<!-- 最近项目 -->
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-        <span><i class="fas fa-folder-open me-2 text-primary"></i>最近项目</span>
-        <a href="{{ url_for('business_projects.list.list_projects') }}" class="btn btn-sm btn-outline-primary">查看全部</a>
-    </div>
-    <div class="card-body p-0">
+    <!-- 最近项目 -->
+    <div class="dash-table">
+        <div class="dash-table-head">
+            <span><i class="fas fa-folder-open me-1" style="color:#2563eb;"></i>最近项目</span>
+            <a href="{{ url_for('business_projects.list.list_projects') }}">查看全部 →</a>
+        </div>
         {% if recent_projects %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0" style="font-size: 0.85rem;">
-                <thead class="table-light">
+            <table>
+                <thead>
                     <tr>
-                        <th>项目编号</th>
+                        <th>项目</th>
                         <th>描述</th>
                         <th>客户</th>
                         <th class="text-end">销售额</th>
@@ -212,19 +336,17 @@
                 </thead>
                 <tbody>
                     {% for p in recent_projects %}
-                    <tr style="cursor: pointer;" onclick="window.location.href='/projects/detail/{{ p.id }}'">
-                        <td><a href="/projects/detail/{{ p.id }}" class="text-primary fw-bold" onclick="event.stopPropagation();">{{ p.hid }}</a></td>
-                        <td class="text-truncate" style="max-width: 200px;" title="{{ p.desc }}">{{ p.desc }}</td>
-                        <td class="text-truncate" style="max-width: 150px;" title="{{ p.company }}">{{ p.company }}</td>
+                    <tr onclick="window.location.href='/projects/detail/{{ p.id }}'">
+                        <td class="td-hid">{{ p.hid }}</td>
+                        <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ p.desc }}">{{ p.desc }}</td>
+                        <td style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ p.company }}">{{ p.company }}</td>
                         <td class="text-end">S${{ "%.0f"|format(p.total_selling) }}</td>
-                        <td class="text-end {% if p.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            S${{ "%.0f"|format(p.total_profit) }}
-                        </td>
+                        <td class="text-end td-profit {{ 'pos' if p.total_profit >= 0 else 'neg' }}">S${{ "%.0f"|format(p.total_profit) }}</td>
                         <td class="text-center">
                             {% if p.is_settled %}
-                            <span class="badge bg-success">已结算</span>
+                            <span class="dash-badge settled">已结算</span>
                             {% else %}
-                            <span class="badge bg-secondary">进行中</span>
+                            <span class="dash-badge active">进行中</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -233,9 +355,8 @@
             </table>
         </div>
         {% else %}
-        <div class="text-center py-4 text-muted">
-            <i class="fas fa-folder-open fa-2x mb-2"></i>
-            <p class="mb-0">暂无项目</p>
+        <div class="dash-panel-empty">
+            <i class="fas fa-folder-open"></i>暂无项目
         </div>
         {% endif %}
     </div>

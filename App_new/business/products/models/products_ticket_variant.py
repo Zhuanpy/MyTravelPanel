@@ -43,6 +43,11 @@ class ProductsTicketVariant(db.Model):
     excludes = db.Column(db.Text, comment='费用不含')
     important_notes = db.Column(db.Text, comment='重要提示')
 
+    # ========== 库存与有效期 ==========
+    valid_until = db.Column(db.Date, comment='有效截止日期，过期自动下架')
+    total_stock = db.Column(db.Integer, comment='总库存数量，NULL表示不限量')
+    sold_count = db.Column(db.Integer, default=0, comment='已售数量')
+
     # ========== 其他 ==========
     currency = db.Column(db.String(10), default='SGD', comment='币种')
 
@@ -52,6 +57,28 @@ class ProductsTicketVariant(db.Model):
 
     def __repr__(self):
         return f'<ProductsTicketVariant {self.id}: {self.variant_name}>'
+
+    @property
+    def is_expired(self):
+        """是否已过期"""
+        if self.valid_until:
+            from datetime import date
+            return date.today() > self.valid_until
+        return False
+
+    @property
+    def is_sold_out(self):
+        """是否已售罄"""
+        if self.total_stock is not None:
+            return (self.sold_count or 0) >= self.total_stock
+        return False
+
+    @property
+    def remaining_stock(self):
+        """剩余库存"""
+        if self.total_stock is not None:
+            return max(0, self.total_stock - (self.sold_count or 0))
+        return None
 
     def to_dict(self):
         return {
@@ -72,4 +99,7 @@ class ProductsTicketVariant(db.Model):
             'includes': self.includes,
             'excludes': self.excludes,
             'important_notes': self.important_notes,
+            'valid_until': self.valid_until.isoformat() if self.valid_until else None,
+            'total_stock': self.total_stock,
+            'sold_count': self.sold_count or 0,
         }

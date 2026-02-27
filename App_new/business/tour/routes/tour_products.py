@@ -256,7 +256,11 @@ def product_list():
     if city:
         query = query.filter(Product.city_name == city)
     if status:
-        query = query.filter(Product.product_status == status)
+        if status == 'expired':
+            from datetime import date as date_cls
+            query = query.filter(Product.valid_until.isnot(None), Product.valid_until < date_cls.today())
+        else:
+            query = query.filter(Product.product_status == status)
     if keyword:
         query = query.filter(
             or_(
@@ -274,15 +278,32 @@ def product_list():
     
     products = pagination.items
 
-    # 添加产品显示属性
+    # 全局检查：过期产品自动下架
     from datetime import date
     today = date.today()
+    expired_active = Product.query.filter(
+        Product.product_status == 'active',
+        Product.valid_until.isnot(None),
+        Product.valid_until < today
+    ).all()
+    auto_delisted = []
+    for p in expired_active:
+        p.product_status = 'inactive'
+        auto_delisted.append(p.product_name)
+    if auto_delisted:
+        try:
+            db.session.commit()
+            flash(f'以下 {len(auto_delisted)} 个产品已过期，已自动下架：{"、".join(auto_delisted)}', 'warning')
+        except Exception:
+            db.session.rollback()
+
+    # 添加产品显示属性
     for product in products:
         if product.supplier:
             product.supplier_display_name = product.supplier.company_name
         else:
             product.supplier_display_name = '未指定供应商'
-        
+
         # 判断是否过期
         product.is_expired = (product.valid_until and product.valid_until < today)
         
@@ -328,6 +349,8 @@ def product_list():
     active_products = Product.query.filter(Product.product_status == 'active').count()
     draft_products = Product.query.filter(Product.product_status == 'draft').count()
     inactive_products = Product.query.filter(Product.product_status == 'inactive').count()
+    disabled_products = Product.query.filter(Product.product_status == 'disabled').count()
+    expired_products = Product.query.filter(Product.valid_until.isnot(None), Product.valid_until < today).count()
 
     return render_template('business/tour/products/product_list.html',
                          products=products,
@@ -346,7 +369,9 @@ def product_list():
                              'total': total_products,
                              'active': active_products,
                              'draft': draft_products,
-                             'inactive': inactive_products
+                             'inactive': inactive_products,
+                             'disabled': disabled_products,
+                             'expired': expired_products
                          })
 
 
@@ -1196,17 +1221,22 @@ def toggle_status(product_id):
         data = request.get_json()
         new_status = data.get('status')
 
-        if new_status not in ['active', 'draft', 'inactive']:
+        if new_status not in ['active', 'draft', 'inactive', 'disabled']:
             return jsonify({'success': False, 'message': '无效的状态值'}), 400
 
         product.product_status = new_status
         product.updated_at = datetime.utcnow()
-
-        # 同步状态到统一产品表
-        from App_new.business.products.sync_helper import sync_tour_product_to_unified
-        sync_tour_product_to_unified(product, created_by=current_user.username)
-
         db.session.commit()
+
+        # 同步状态到统一产品表（容错，同步失败不影响状态切换）
+        try:
+            from App_new.business.products.sync_helper import sync_tour_product_to_unified
+            sync_tour_product_to_unified(product, created_by=current_user.username)
+            db.session.commit()
+        except Exception as sync_err:
+            db.session.rollback()
+            import logging
+            logging.getLogger(__name__).warning(f'产品同步失败(不影响状态切换): {sync_err}')
 
         return jsonify({'success': True, 'message': '状态更新成功', 'status': new_status})
     except Exception as e:

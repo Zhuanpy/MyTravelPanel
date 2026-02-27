@@ -664,6 +664,13 @@ def create_ticket():
                 important_notes=request.form.get('important_notes'),
                 created_by=current_user.username if current_user else None,
             )
+            # 有效期
+            valid_until_str = request.form.get('valid_until')
+            if valid_until_str:
+                try:
+                    product.valid_until = datetime.strptime(valid_until_str, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
             db.session.add(product)
             db.session.flush()
 
@@ -737,6 +744,16 @@ def edit_ticket(product_id):
             product.cover_image = request.form.get('cover_image') or None
             product.updated_by = current_user.username if current_user else None
 
+            # 更新有效期
+            valid_until_str = request.form.get('valid_until')
+            if valid_until_str:
+                try:
+                    product.valid_until = datetime.strptime(valid_until_str, '%Y-%m-%d').date()
+                except ValueError:
+                    product.valid_until = None
+            else:
+                product.valid_until = None
+
             # 更新或创建门票扩展
             if not ticket_ext:
                 ticket_ext = ProductsTicketExt(product_id=product_id)
@@ -790,6 +807,38 @@ def ticket_list():
     sort = request.args.get('sort', '')  # 排序：views_desc / views_asc
     page = request.args.get('page', 1, type=int)
     per_page = 20
+
+    # 自动下架：过期或售罄的变体
+    from datetime import date as date_cls
+    today = date_cls.today()
+    auto_delisted = []
+
+    # 查找过期的活跃变体
+    expired_variants = ProductsTicketVariant.query.filter(
+        ProductsTicketVariant.is_active == True,
+        ProductsTicketVariant.valid_until.isnot(None),
+        ProductsTicketVariant.valid_until < today
+    ).all()
+    for v in expired_variants:
+        v.is_active = False
+        auto_delisted.append(f'{v.variant_name}（过期）')
+
+    # 查找售罄的活跃变体
+    sold_out_variants = ProductsTicketVariant.query.filter(
+        ProductsTicketVariant.is_active == True,
+        ProductsTicketVariant.total_stock.isnot(None),
+        ProductsTicketVariant.sold_count >= ProductsTicketVariant.total_stock
+    ).all()
+    for v in sold_out_variants:
+        v.is_active = False
+        auto_delisted.append(f'{v.variant_name}（售罄）')
+
+    if auto_delisted:
+        try:
+            db.session.commit()
+            flash(f'以下 {len(auto_delisted)} 个票种已自动下架：{"、".join(auto_delisted)}', 'warning')
+        except Exception:
+            db.session.rollback()
 
     # 查询门票产品（不再有子产品，parent_id 不影响）
     query = ProductsUnified.query.outerjoin(
@@ -915,6 +964,15 @@ def ticket_variant_add(product_id):
     if not data or not data.get('variant_name'):
         return jsonify({'success': False, 'message': '变体名称不能为空'})
 
+    # 解析有效期
+    valid_until = None
+    if data.get('valid_until'):
+        from datetime import datetime as dt_cls
+        try:
+            valid_until = dt_cls.strptime(data['valid_until'], '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
     variant = ProductsTicketVariant(
         product_id=product_id,
         variant_name=data['variant_name'],
@@ -931,6 +989,9 @@ def ticket_variant_add(product_id):
         important_notes=data.get('important_notes') or None,
         sort_order=data.get('sort_order', 0),
         is_active=data.get('is_active', True),
+        valid_until=valid_until,
+        total_stock=data.get('total_stock'),
+        sold_count=data.get('sold_count', 0) or 0,
     )
     db.session.add(variant)
     db.session.commit()
@@ -961,6 +1022,17 @@ def ticket_variant_edit(variant_id):
     variant.sort_order = data.get('sort_order', 0)
     variant.is_active = data.get('is_active', True)
     variant.updated_at = datetime.utcnow()
+
+    # 更新有效期和库存
+    if data.get('valid_until'):
+        try:
+            variant.valid_until = datetime.strptime(data['valid_until'], '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    else:
+        variant.valid_until = None
+    variant.total_stock = data.get('total_stock')
+    variant.sold_count = data.get('sold_count', 0) or 0
 
     db.session.commit()
     return jsonify({'success': True, 'variant': variant.to_dict()})

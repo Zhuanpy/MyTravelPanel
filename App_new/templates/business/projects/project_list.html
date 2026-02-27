@@ -193,6 +193,38 @@
         </div>
     </div>
 
+    <!-- 统计摘要 -->
+    {% if total_stats %}
+    <div class="d-flex gap-3 mb-3 flex-wrap" style="font-size:0.82rem;">
+        <div style="background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#6c757d;">总项目</span>
+            <span style="font-weight:700; color:#333;">{{ total_stats.total_projects or 0 }}</span>
+        </div>
+        <div style="background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#6c757d;">进行中</span>
+            <span style="font-weight:700; color:#2563eb;">{{ total_stats.active_projects or 0 }}</span>
+        </div>
+        <div style="background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#6c757d;">本月完成</span>
+            <span style="font-weight:700; color:#16a34a;">{{ total_stats.completed_this_month or 0 }}</span>
+        </div>
+        {% if summary_stats %}
+        <div style="background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#6c757d;">筛选销售额</span>
+            <span style="font-weight:700; color:#16a34a;">S${{ "%.2f"|format(summary_stats.total_selling or 0) }}</span>
+        </div>
+        <div style="background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#6c757d;">筛选利润</span>
+            <span style="font-weight:700; {{ 'color:#16a34a;' if (summary_stats.total_profit or 0) >= 0 else 'color:#dc2626;' }}">S${{ "%.2f"|format(summary_stats.total_profit or 0) }}</span>
+        </div>
+        <div style="background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:0.5rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+            <span style="color:#6c757d;">筛选待收</span>
+            <span style="font-weight:700; {{ 'color:#dc2626;' if (summary_stats.total_balance or 0) > 0 else 'color:#16a34a;' }}">S${{ "%.2f"|format(summary_stats.total_balance or 0) }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- 项目列表 -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
@@ -474,69 +506,6 @@
         </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                总项目数
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalProjects">
-                                {{ total_stats.total_projects or 0 }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                进行中项目
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeProjects">
-                                {{ total_stats.active_projects or 0 }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-play-circle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                本月完成
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="completedThisMonth">
-                                {{ total_stats.completed_this_month or 0 }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
 {% endblock %}
 
 {% block extra_js %}

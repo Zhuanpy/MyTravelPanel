@@ -527,17 +527,27 @@
             </div>
             {% if price_variants %}
             <div style="overflow-x: auto;">
-                <table class="visa-table">
+                <table class="visa-table" style="font-size: 0.85rem;">
                     <thead>
                         <tr>
-                            <th>变体名称</th>
-                            <th style="text-align:right;">成本(Twin)</th>
-                            <th style="text-align:right;">利润/人</th>
-                            <th style="text-align:right;">售价(Twin)</th>
-                            <th>货币</th>
-                            <th>主要</th>
-                            <th>状态</th>
-                            <th style="width: 120px;">操作</th>
+                            <th rowspan="2" style="vertical-align:middle;">变体名称</th>
+                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">Single</th>
+                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">Twin</th>
+                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">3rd Pax</th>
+                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">Child no Bed</th>
+                            <th rowspan="2" style="text-align:right; vertical-align:middle;">利润/人</th>
+                            <th rowspan="2" style="vertical-align:middle;">状态</th>
+                            <th rowspan="2" style="width:100px; vertical-align:middle;">操作</th>
+                        </tr>
+                        <tr>
+                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
+                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
+                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
+                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
+                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
+                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
+                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
+                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -548,30 +558,43 @@
                                 {% if variant.is_primary %}
                                 <span class="visa-badge visa-badge-warning" style="margin-left: 4px;">主要</span>
                                 {% endif %}
+                                <br><small style="color:#888;">{{ variant.currency }}{% if variant.is_primary %} · ★主要{% endif %}</small>
+                            </td>
+                            <!-- Single -->
+                            <td style="text-align:right;">
+                                {% if variant.cost_single_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_single_price) }}</span>{% else %}-{% endif %}
                             </td>
                             <td style="text-align:right;">
-                                {% if variant.cost_twin_price %}
-                                <span style="color: #dc2626;">{{ "%.0f"|format(variant.cost_twin_price) }}</span>
-                                {% else %}-{% endif %}
+                                {% if variant.single_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.single_price) }}</strong>{% else %}-{% endif %}
                             </td>
+                            <!-- Twin -->
+                            <td style="text-align:right;">
+                                {% if variant.cost_twin_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_twin_price) }}</span>{% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if variant.twin_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.twin_price) }}</strong>{% else %}-{% endif %}
+                            </td>
+                            <!-- 3rd Pax -->
+                            <td style="text-align:right;">
+                                {% if variant.cost_third_pax_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_third_pax_price) }}</span>{% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if variant.third_pax_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.third_pax_price) }}</strong>{% else %}-{% endif %}
+                            </td>
+                            <!-- Child no Bed -->
+                            <td style="text-align:right;">
+                                {% if variant.cost_child_no_bed_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_child_no_bed_price) }}</span>{% else %}-{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if variant.child_no_bed_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.child_no_bed_price) }}</strong>{% else %}-{% endif %}
+                            </td>
+                            <!-- 利润 -->
                             <td style="text-align:right;">
                                 {% if variant.profit_per_person %}
                                 <span style="color: #059669;">+{{ "%.0f"|format(variant.profit_per_person) }}</span>
                                 {% else %}-{% endif %}
                             </td>
-                            <td style="text-align:right;">
-                                {% if variant.twin_price %}
-                                <strong style="color: #2563eb;">{{ "%.0f"|format(variant.twin_price) }}</strong>
-                                {% else %}-{% endif %}
-                            </td>
-                            <td>{{ variant.currency }}</td>
-                            <td>
-                                {% if variant.is_primary %}
-                                <span class="visa-badge visa-badge-warning">★ 主要</span>
-                                {% else %}
-                                <span class="visa-badge visa-badge-secondary" style="cursor:pointer;" onclick="setPrimaryVariant({{ variant.id }})" title="设为主要价格">—</span>
-                                {% endif %}
-                            </td>
+                            <!-- 状态 -->
                             <td>
                                 {% if variant.is_active %}
                                 <span class="visa-badge visa-badge-success">启用</span>
@@ -579,6 +602,7 @@
                                 <span class="visa-badge visa-badge-secondary">禁用</span>
                                 {% endif %}
                             </td>
+                            <!-- 操作 -->
                             <td>
                                 <div class="visa-flex visa-gap-1">
                                     <button type="button" onclick="editPriceVariant({{ variant.id }})" class="visa-btn visa-btn-primary visa-btn-sm" title="编辑">
