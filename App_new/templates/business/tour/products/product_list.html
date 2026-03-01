@@ -155,9 +155,9 @@
                 <button type="button" onclick="document.getElementById('excelUpload').click()" class="visa-btn visa-btn-warning">
                     <i class="fas fa-file-upload"></i> 导入
                 </button>
-                <a href="{{ url_for('tour_products.export_excel', supplier=current_filters.supplier or '', country=current_filters.country or '', city=current_filters.city or '', status=current_filters.status or '', keyword=current_filters.keyword or '') }}" class="visa-btn visa-btn-success">
+                <button type="button" onclick="exportSelectedProducts()" class="visa-btn visa-btn-success">
                     <i class="fas fa-file-excel"></i> 导出
-                </a>
+                </button>
             </div>
         </form>
         
@@ -626,6 +626,17 @@ function toggleProductStatus(selectElement) {
     });
 }
 
+// 导出选中的产品
+function exportSelectedProducts() {
+    const selectedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('请先勾选要导出的产品');
+        return;
+    }
+    const ids = Array.from(selectedCheckboxes).map(cb => cb.dataset.productId).join(',');
+    window.location.href = `{{ url_for('tour_products.export_excel') }}?ids=${ids}`;
+}
+
 function handleExcelUpload(input) {
     const file = input.files[0];
     if (!file) {
@@ -640,7 +651,7 @@ function handleExcelUpload(input) {
     }
     
     // 确认导入
-    if (!confirm(`确定要导入文件 "${file.name}" 吗？\n\n导入规则：\n1. ID列为空则新建，填写则更新\n2. 产品编号也可用于匹配更新\n3. 供应商名称必须与系统中已有供应商匹配\n4. 产品名称、国家、行程天数为必填项`)) {
+    if (!confirm(`确定要导入文件 "${file.name}" 吗？\n\n支持多 Sheet 导入：\n• Sheet 1 - 产品数据：ID为空则新建，填写则更新\n• Sheet 2 - 价格方案（可选）：按产品编号+方案名称匹配\n• Sheet 3 - 每日行程（可选）：按产品编号+天数匹配\n\n导入规则：\n1. 产品编号可用于匹配更新\n2. 供应商名称必须与系统中已有供应商匹配\n3. 产品名称、国家、行程天数为必填项`)) {
         input.value = '';
         return;
     }

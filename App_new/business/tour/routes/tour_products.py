@@ -1512,36 +1512,25 @@ def delete_price_variant(product_id, variant_id):
 @login_required
 @staff_only
 def export_excel():
-    """导出产品Excel - 支持筛选条件"""
+    """导出产品Excel - 只导出选中的产品"""
     try:
-        # 获取筛选参数
-        supplier_id = request.args.get('supplier', type=int)
-        country = request.args.get('country', '')
-        city = request.args.get('city', '')
-        status = request.args.get('status', '')
-        keyword = request.args.get('keyword', '')
-        
-        # 构建查询
-        query = Product.query
-        
-        if supplier_id:
-            query = query.filter(Product.supplier_id == supplier_id)
-        if country:
-            from App_new.business.tour.models.Packagemodels import ProductCity
-            query = query.join(ProductCity, Product.city_id == ProductCity.id).filter(ProductCity.country_name == country)
-        if city:
-            query = query.filter(Product.city_name == city)
-        if status:
-            query = query.filter(Product.product_status == status)
-        if keyword:
-            query = query.filter(
-                or_(
-                    Product.product_name.like(f'%{keyword}%'),
-                    Product.product_description.like(f'%{keyword}%')
-                )
-            )
-        
-        products = query.order_by(Product.created_at.desc()).all()
+        # 获取选中的产品ID列表
+        ids_str = request.args.get('ids', '')
+        if not ids_str:
+            flash('请先选择要导出的产品', 'warning')
+            return redirect(url_for('tour_products.product_list'))
+
+        try:
+            product_ids = [int(x) for x in ids_str.split(',') if x.strip()]
+        except ValueError:
+            flash('产品ID参数无效', 'danger')
+            return redirect(url_for('tour_products.product_list'))
+
+        if not product_ids:
+            flash('请先选择要导出的产品', 'warning')
+            return redirect(url_for('tour_products.product_list'))
+
+        products = Product.query.filter(Product.id.in_(product_ids)).order_by(Product.created_at.desc()).all()
         data = []
         for product in products:
             data.append({
@@ -1578,14 +1567,78 @@ def export_excel():
 
         df = pd.DataFrame(data)
 
+        # 收集价格方案数据
+        price_data = []
+        for product in products:
+            for pv in product.price_variants:
+                price_data.append({
+                    '产品编号': product.product_code or '',
+                    '方案名称': pv.variant_name or '',
+                    '开始日期': pv.start_date.strftime('%Y-%m-%d') if pv.start_date else '',
+                    '结束日期': pv.end_date.strftime('%Y-%m-%d') if pv.end_date else '',
+                    '最少人数': pv.min_pax or '',
+                    '最多人数': pv.max_pax or '',
+                    '单人房价格': pv.single_price or '',
+                    '双人房价格': pv.twin_price or '',
+                    '第三人价格': pv.third_pax_price or '',
+                    '儿童不占床价格': pv.child_no_bed_price or '',
+                    '成本_单人房': pv.cost_single_price or '',
+                    '成本_双人房': pv.cost_twin_price or '',
+                    '成本_第三人': pv.cost_third_pax_price or '',
+                    '成本_儿童不占床': pv.cost_child_no_bed_price or '',
+                    '货币': pv.currency or 'SGD',
+                    '每人利润': pv.profit_per_person or '',
+                    '是否主要': '是' if pv.is_primary else '否',
+                    '是否启用': '是' if pv.is_active else '否',
+                })
+        df_price = pd.DataFrame(price_data)
+
+        # 收集每日行程数据
+        itinerary_data = []
+        for product in products:
+            for it in product.itineraries:
+                itinerary_data.append({
+                    '产品编号': product.product_code or '',
+                    '天数': it.day_number,
+                    '标题': it.day_title or '',
+                    '行程内容': it.content or '',
+                })
+        df_itinerary = pd.DataFrame(itinerary_data)
+
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Sheet 1: 产品数据
             df.to_excel(writer, index=False, sheet_name='产品数据')
             worksheet = writer.sheets['产品数据']
             for idx, col in enumerate(df.columns):
                 max_length = max(df[col].astype(str).apply(len).max(), len(col)) + 2
                 col_letter = get_column_letter(idx + 1)
                 worksheet.column_dimensions[col_letter].width = min(max_length, 50)
+
+            # Sheet 2: 价格方案
+            if not df_price.empty:
+                df_price.to_excel(writer, index=False, sheet_name='价格方案')
+            else:
+                pd.DataFrame(columns=['产品编号', '方案名称', '开始日期', '结束日期',
+                    '最少人数', '最多人数', '单人房价格', '双人房价格', '第三人价格',
+                    '儿童不占床价格', '成本_单人房', '成本_双人房', '成本_第三人',
+                    '成本_儿童不占床', '货币', '每人利润', '是否主要', '是否启用'
+                ]).to_excel(writer, index=False, sheet_name='价格方案')
+            ws_price = writer.sheets['价格方案']
+            for idx in range(18):
+                ws_price.column_dimensions[get_column_letter(idx + 1)].width = 16
+
+            # Sheet 3: 每日行程
+            if not df_itinerary.empty:
+                df_itinerary.to_excel(writer, index=False, sheet_name='每日行程')
+            else:
+                pd.DataFrame(columns=['产品编号', '天数', '标题', '行程内容']
+                ).to_excel(writer, index=False, sheet_name='每日行程')
+            ws_itin = writer.sheets['每日行程']
+            ws_itin.column_dimensions['A'].width = 16
+            ws_itin.column_dimensions['B'].width = 8
+            ws_itin.column_dimensions['C'].width = 30
+            ws_itin.column_dimensions['D'].width = 60
 
         output.seek(0)
         filename = f'tour_products_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
@@ -1620,11 +1673,23 @@ def import_excel():
             flash('只支持 Excel 文件（.xlsx, .xls）', 'danger')
             return redirect(url_for('tour_products.product_list'))
 
-        df = pd.read_excel(file, engine='openpyxl')
+        # 读取所有 Sheet
+        xls = pd.ExcelFile(file, engine='openpyxl')
+        sheet_names = xls.sheet_names
+
+        # Sheet 1: 产品数据（第一个 Sheet）
+        df = pd.read_excel(xls, sheet_name=0)
 
         imported_count = 0
         updated_count = 0
+        price_imported = 0
+        price_updated = 0
+        itinerary_imported = 0
+        itinerary_updated = 0
         errors = []
+
+        # 用于记录产品编号到产品对象的映射（供 Sheet 2/3 使用）
+        product_code_map = {}
 
         for index, row in df.iterrows():
             try:
@@ -1714,13 +1779,149 @@ def import_excel():
                     db.session.add(product)
                     imported_count += 1
 
+                # 记录产品编号映射
+                if product_code:
+                    product_code_map[product_code] = product
+
             except Exception as e:
-                errors.append(f'第 {index + 2} 行导入失败: {str(e)}')
+                errors.append(f'产品第 {index + 2} 行导入失败: {str(e)}')
                 continue
 
-        if imported_count > 0 or updated_count > 0:
+        # 先 flush 确保新产品有 ID
+        db.session.flush()
+
+        # Sheet 2: 价格方案（可选）
+        if '价格方案' in sheet_names:
+            df_price = pd.read_excel(xls, sheet_name='价格方案')
+            for index, row in df_price.iterrows():
+                try:
+                    code = str(row['产品编号']).strip() if pd.notna(row.get('产品编号')) else ''
+                    if not code:
+                        errors.append(f'价格方案第 {index + 2} 行：产品编号为空，跳过')
+                        continue
+
+                    # 先从本次导入映射中查找，再从数据库查找
+                    product = product_code_map.get(code)
+                    if not product:
+                        product = Product.query.filter_by(product_code=code).first()
+                    if not product:
+                        errors.append(f'价格方案第 {index + 2} 行：产品编号 {code} 未找到，跳过')
+                        continue
+
+                    variant_name = str(row['方案名称']).strip() if pd.notna(row.get('方案名称')) else ''
+                    if not variant_name:
+                        errors.append(f'价格方案第 {index + 2} 行：方案名称为空，跳过')
+                        continue
+
+                    # 匹配规则：同产品 + 同方案名称 → 更新
+                    variant = ProductPriceVariant.query.filter_by(
+                        product_id=product.id, variant_name=variant_name
+                    ).first()
+
+                    variant_data = {
+                        'product_id': product.id,
+                        'variant_name': variant_name,
+                        'min_pax': int(row['最少人数']) if pd.notna(row.get('最少人数')) else None,
+                        'max_pax': int(row['最多人数']) if pd.notna(row.get('最多人数')) else None,
+                        'single_price': float(row['单人房价格']) if pd.notna(row.get('单人房价格')) else None,
+                        'twin_price': float(row['双人房价格']) if pd.notna(row.get('双人房价格')) else None,
+                        'third_pax_price': float(row['第三人价格']) if pd.notna(row.get('第三人价格')) else None,
+                        'child_no_bed_price': float(row['儿童不占床价格']) if pd.notna(row.get('儿童不占床价格')) else None,
+                        'cost_single_price': float(row['成本_单人房']) if pd.notna(row.get('成本_单人房')) else None,
+                        'cost_twin_price': float(row['成本_双人房']) if pd.notna(row.get('成本_双人房')) else None,
+                        'cost_third_pax_price': float(row['成本_第三人']) if pd.notna(row.get('成本_第三人')) else None,
+                        'cost_child_no_bed_price': float(row['成本_儿童不占床']) if pd.notna(row.get('成本_儿童不占床')) else None,
+                        'currency': str(row['货币']).strip() if pd.notna(row.get('货币')) else 'SGD',
+                        'profit_per_person': float(row['每人利润']) if pd.notna(row.get('每人利润')) else None,
+                        'is_primary': str(row.get('是否主要', '')).strip() == '是',
+                        'is_active': str(row.get('是否启用', '是')).strip() != '否',
+                    }
+
+                    # 处理日期
+                    if pd.notna(row.get('开始日期')):
+                        try:
+                            variant_data['start_date'] = pd.to_datetime(row['开始日期']).date()
+                        except:
+                            pass
+                    if pd.notna(row.get('结束日期')):
+                        try:
+                            variant_data['end_date'] = pd.to_datetime(row['结束日期']).date()
+                        except:
+                            pass
+
+                    if variant:
+                        for key, value in variant_data.items():
+                            setattr(variant, key, value)
+                        variant.updated_at = datetime.utcnow()
+                        price_updated += 1
+                    else:
+                        variant = ProductPriceVariant(**variant_data)
+                        db.session.add(variant)
+                        price_imported += 1
+
+                except Exception as e:
+                    errors.append(f'价格方案第 {index + 2} 行导入失败: {str(e)}')
+                    continue
+
+        # Sheet 3: 每日行程（可选）
+        if '每日行程' in sheet_names:
+            df_itin = pd.read_excel(xls, sheet_name='每日行程')
+            for index, row in df_itin.iterrows():
+                try:
+                    code = str(row['产品编号']).strip() if pd.notna(row.get('产品编号')) else ''
+                    if not code:
+                        errors.append(f'每日行程第 {index + 2} 行：产品编号为空，跳过')
+                        continue
+
+                    product = product_code_map.get(code)
+                    if not product:
+                        product = Product.query.filter_by(product_code=code).first()
+                    if not product:
+                        errors.append(f'每日行程第 {index + 2} 行：产品编号 {code} 未找到，跳过')
+                        continue
+
+                    day_number = int(row['天数']) if pd.notna(row.get('天数')) else None
+                    if not day_number:
+                        errors.append(f'每日行程第 {index + 2} 行：天数为空，跳过')
+                        continue
+
+                    # 匹配规则：同产品 + 同天数 → 更新
+                    itinerary = ProductItinerary.query.filter_by(
+                        product_id=product.id, day_number=day_number
+                    ).first()
+
+                    itin_data = {
+                        'product_id': product.id,
+                        'day_number': day_number,
+                        'day_title': str(row['标题']).strip() if pd.notna(row.get('标题')) else None,
+                        'content': str(row['行程内容']).strip() if pd.notna(row.get('行程内容')) else None,
+                    }
+
+                    if itinerary:
+                        for key, value in itin_data.items():
+                            setattr(itinerary, key, value)
+                        itinerary.updated_at = datetime.utcnow()
+                        itinerary_updated += 1
+                    else:
+                        itinerary = ProductItinerary(**itin_data)
+                        db.session.add(itinerary)
+                        itinerary_imported += 1
+
+                except Exception as e:
+                    errors.append(f'每日行程第 {index + 2} 行导入失败: {str(e)}')
+                    continue
+
+        total_changes = imported_count + updated_count + price_imported + price_updated + itinerary_imported + itinerary_updated
+        if total_changes > 0:
             db.session.commit()
-            flash(f'导入成功！新增 {imported_count} 个产品，更新 {updated_count} 个产品', 'success')
+            msg_parts = []
+            if imported_count or updated_count:
+                msg_parts.append(f'产品：新增 {imported_count}，更新 {updated_count}')
+            if price_imported or price_updated:
+                msg_parts.append(f'价格方案：新增 {price_imported}，更新 {price_updated}')
+            if itinerary_imported or itinerary_updated:
+                msg_parts.append(f'每日行程：新增 {itinerary_imported}，更新 {itinerary_updated}')
+            flash(f'导入成功！{"；".join(msg_parts)}', 'success')
         else:
             flash('没有导入任何数据', 'warning')
 
@@ -1778,13 +1979,60 @@ def download_template():
 
         df = pd.DataFrame(template_data)
 
+        # 价格方案模板数据
+        price_template = {
+            '产品编号': ['SG-CITY-001', '填写产品编号，必须匹配产品数据Sheet'],
+            '方案名称': ['标准价格', '必填，同产品+同名称则更新'],
+            '开始日期': ['2026-01-01', '可选，格式：YYYY-MM-DD'],
+            '结束日期': ['2026-12-31', '可选，格式：YYYY-MM-DD'],
+            '最少人数': [2, '可选，数字'],
+            '最多人数': [10, '可选，数字'],
+            '单人房价格': [1500, '可选，数字'],
+            '双人房价格': [1200, '可选，数字'],
+            '第三人价格': [1000, '可选，数字'],
+            '儿童不占床价格': [800, '可选，数字'],
+            '成本_单人房': [1200, '可选，成本价'],
+            '成本_双人房': [900, '可选，成本价'],
+            '成本_第三人': [750, '可选，成本价'],
+            '成本_儿童不占床': [600, '可选，成本价'],
+            '货币': ['SGD', '可选，默认SGD'],
+            '每人利润': [100, '可选，数字'],
+            '是否主要': ['是', '是/否，默认否'],
+            '是否启用': ['是', '是/否，默认是'],
+        }
+        df_price = pd.DataFrame(price_template)
+
+        # 每日行程模板数据
+        itinerary_template = {
+            '产品编号': ['SG-CITY-001', '填写产品编号，必须匹配产品数据Sheet'],
+            '天数': [1, '必填，第几天（数字）'],
+            '标题': ['抵达新加坡', '可选，当日标题'],
+            '行程内容': ['抵达樟宜机场，接机前往酒店办理入住', '可选，行程详细内容'],
+        }
+        df_itinerary = pd.DataFrame(itinerary_template)
+
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Sheet 1: 产品数据模板
             df.to_excel(writer, index=False, sheet_name='导入模板')
             worksheet = writer.sheets['导入模板']
             for idx, col in enumerate(df.columns):
                 col_letter = get_column_letter(idx + 1)
                 worksheet.column_dimensions[col_letter].width = 20
+
+            # Sheet 2: 价格方案模板
+            df_price.to_excel(writer, index=False, sheet_name='价格方案')
+            ws_price = writer.sheets['价格方案']
+            for idx in range(len(price_template)):
+                ws_price.column_dimensions[get_column_letter(idx + 1)].width = 18
+
+            # Sheet 3: 每日行程模板
+            df_itinerary.to_excel(writer, index=False, sheet_name='每日行程')
+            ws_itin = writer.sheets['每日行程']
+            ws_itin.column_dimensions['A'].width = 16
+            ws_itin.column_dimensions['B'].width = 8
+            ws_itin.column_dimensions['C'].width = 30
+            ws_itin.column_dimensions['D'].width = 60
 
         output.seek(0)
 
