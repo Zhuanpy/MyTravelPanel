@@ -286,18 +286,17 @@
 
         .price-grid {
             display: flex;
-            flex-wrap: wrap;
             gap: 15px;
         }
 
         .price-item {
-            margin-bottom: 12px;
+            flex: 1 1 0;
+            min-width: 0;
+            margin-bottom: 0;
             padding: 8px;
             background: white;
             border-radius: 5px;
             border-left: 4px solid #4CAF50;
-            flex: 1;
-            min-width: 200px;
         }
 
         .price-label {
@@ -507,10 +506,12 @@
                 padding: 12px !important;
             }
             .price-item {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
                 background: white !important;
                 border: 1px solid #ddd !important;
                 padding: 6px !important;
-                margin-bottom: 8px !important;
+                margin-bottom: 0 !important;
                 border-left: 4px solid #4CAF50 !important;
             }
             .price-label {

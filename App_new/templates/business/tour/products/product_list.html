@@ -149,10 +149,7 @@
             </div>
             <!-- Excel 导入导出按钮 -->
             <div class="visa-filter-item" style="display: flex; align-items: flex-end; gap: 0.5rem; margin-left: auto;">
-                <a href="{{ url_for('tour_products.download_template') }}" class="visa-btn visa-btn-info">
-                    <i class="fas fa-file-download"></i> 导入模板
-                </a>
-                <button type="button" onclick="document.getElementById('excelUpload').click()" class="visa-btn visa-btn-warning">
+                <button type="button" onclick="showImportModal()" class="visa-btn visa-btn-warning">
                     <i class="fas fa-file-upload"></i> 导入
                 </button>
                 <button type="button" onclick="exportSelectedProducts()" class="visa-btn visa-btn-success">
@@ -160,12 +157,42 @@
                 </button>
             </div>
         </form>
-        
-        <!-- 隐藏的文件上传表单 -->
-        <form action="{{ url_for('tour_products.import_excel') }}" method="POST" enctype="multipart/form-data" id="excelUploadForm" style="display: none;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="file" id="excelUpload" name="file" accept=".xlsx,.xls" onchange="handleExcelUpload(this)">
-        </form>
+
+        <!-- 导入弹窗 -->
+        <div id="importModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9998; justify-content:center; align-items:center;">
+            <div style="background:white; border-radius:12px; padding:2rem; max-width:520px; width:90%; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                    <h3 style="margin:0; font-size:1.15rem;"><i class="fas fa-file-upload" style="color:#f59e0b;"></i> 导入产品数据</h3>
+                    <button onclick="closeImportModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#9ca3af; line-height:1;">&times;</button>
+                </div>
+                <div style="background:#f0f9ff; border-left:4px solid #0ea5e9; padding:0.75rem 1rem; border-radius:4px; margin-bottom:1rem; font-size:0.85rem; color:#0c4a6e;">
+                    <strong>支持多 Sheet 导入：</strong><br>
+                    • Sheet 1 - 产品数据：ID为空则新建，填写则更新<br>
+                    • Sheet 2 - 价格方案（可选）：按产品编号+方案名称匹配<br>
+                    • Sheet 3 - 每日行程（可选）：按产品编号+天数匹配
+                </div>
+                <form action="{{ url_for('tour_products.import_excel') }}" method="POST" enctype="multipart/form-data" id="excelUploadForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="border:2px dashed #d1d5db; border-radius:8px; padding:1.5rem; text-align:center; margin-bottom:1rem; cursor:pointer; transition:border-color 0.2s;" id="dropZone" onclick="document.getElementById('excelUpload').click()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color:#9ca3af; margin-bottom:0.5rem; display:block;"></i>
+                        <p style="margin:0; color:#6b7280;" id="fileLabel">点击选择 Excel 文件，或拖拽到此处</p>
+                        <p style="margin:0.25rem 0 0; font-size:0.8rem; color:#9ca3af;">支持 .xlsx、.xls 格式</p>
+                        <input type="file" id="excelUpload" name="file" accept=".xlsx,.xls" style="display:none;" onchange="onImportFileSelected(this)">
+                    </div>
+                </form>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <a href="{{ url_for('tour_products.download_template') }}" style="font-size:0.85rem; color:#3b82f6; text-decoration:none;">
+                        <i class="fas fa-download"></i> 下载导入模板
+                    </a>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button type="button" onclick="closeImportModal()" class="visa-btn visa-btn-secondary" style="font-size:0.85rem;">取消</button>
+                        <button type="button" id="importSubmitBtn" onclick="submitImport()" class="visa-btn visa-btn-warning" style="font-size:0.85rem;" disabled>
+                            <i class="fas fa-upload"></i> 开始导入
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 产品列表（按供应商分组） -->
@@ -637,42 +664,69 @@ function exportSelectedProducts() {
     window.location.href = `{{ url_for('tour_products.export_excel') }}?ids=${ids}`;
 }
 
-function handleExcelUpload(input) {
+// 导入弹窗
+function showImportModal() {
+    document.getElementById('excelUpload').value = '';
+    document.getElementById('fileLabel').textContent = '点击选择 Excel 文件，或拖拽到此处';
+    document.getElementById('importSubmitBtn').disabled = true;
+    document.getElementById('importModal').style.display = 'flex';
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').style.display = 'none';
+}
+
+function onImportFileSelected(input) {
     const file = input.files[0];
-    if (!file) {
-        return;
+    const label = document.getElementById('fileLabel');
+    const btn = document.getElementById('importSubmitBtn');
+    if (file) {
+        if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+            alert('请选择 Excel 文件（.xlsx 或 .xls）');
+            input.value = '';
+            label.textContent = '点击选择 Excel 文件，或拖拽到此处';
+            btn.disabled = true;
+            return;
+        }
+        label.innerHTML = `<i class="fas fa-file-excel" style="color:#10b981;"></i> ${file.name}`;
+        btn.disabled = false;
+    } else {
+        label.textContent = '点击选择 Excel 文件，或拖拽到此处';
+        btn.disabled = true;
     }
-    
-    // 检查文件类型
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        alert('请选择Excel文件（.xlsx或.xls）');
-        input.value = '';
-        return;
-    }
-    
-    // 确认导入
-    if (!confirm(`确定要导入文件 "${file.name}" 吗？\n\n支持多 Sheet 导入：\n• Sheet 1 - 产品数据：ID为空则新建，填写则更新\n• Sheet 2 - 价格方案（可选）：按产品编号+方案名称匹配\n• Sheet 3 - 每日行程（可选）：按产品编号+天数匹配\n\n导入规则：\n1. 产品编号可用于匹配更新\n2. 供应商名称必须与系统中已有供应商匹配\n3. 产品名称、国家、行程天数为必填项`)) {
-        input.value = '';
-        return;
-    }
-    
-    // 显示加载提示
-    const loadingMsg = document.createElement('div');
-    loadingMsg.innerHTML = `
-        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                    background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999;">
-            <div style="text-align: center;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: var(--visa-primary); margin-bottom: 1rem;"></i>
-                <h3>正在导入数据...</h3>
-                <p style="color: var(--visa-text-secondary);">请稍候，不要关闭页面</p>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(loadingMsg);
-    
-    // 提交表单
+}
+
+function submitImport() {
+    const file = document.getElementById('excelUpload').files[0];
+    if (!file) { alert('请先选择文件'); return; }
+
+    // 禁用按钮，显示加载状态
+    const btn = document.getElementById('importSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导入中...';
+
     document.getElementById('excelUploadForm').submit();
 }
+
+// 拖拽上传支持
+(function() {
+    const zone = document.getElementById('dropZone');
+    if (!zone) return;
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#3b82f6'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = '#d1d5db'; });
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.style.borderColor = '#d1d5db';
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const input = document.getElementById('excelUpload');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            onImportFileSelected(input);
+        }
+    });
+})();
 
 // 打开供应商文件夹
 function openSupplierFolder(supplierId) {

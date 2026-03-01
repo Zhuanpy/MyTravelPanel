@@ -1558,11 +1558,6 @@ def export_excel():
                 '行程天数': product.duration_days or '',
                 '最少人数': product.min_pax or '',
                 '最多人数': product.max_pax or '',
-                '成人价格': product.base_price or '',
-                '儿童价格': product.child_price or '',
-                '婴儿价格': product.infant_price or '',
-                '单房差': product.single_room_supplement or '',
-                '货币': product.currency or 'SGD',
                 '产品描述': product.product_description or '',
                 '包含服务': product.included_services or '',
                 '不包含服务': product.excluded_services or '',
@@ -1588,8 +1583,6 @@ def export_excel():
                     '方案名称': pv.variant_name or '',
                     '开始日期': pv.start_date.strftime('%Y-%m-%d') if pv.start_date else '',
                     '结束日期': pv.end_date.strftime('%Y-%m-%d') if pv.end_date else '',
-                    '最少人数': pv.min_pax or '',
-                    '最多人数': pv.max_pax or '',
                     '单人房价格': pv.single_price or '',
                     '双人房价格': pv.twin_price or '',
                     '第三人价格': pv.third_pax_price or '',
@@ -1632,12 +1625,12 @@ def export_excel():
                 df_price.to_excel(writer, index=False, sheet_name='价格方案')
             else:
                 pd.DataFrame(columns=['产品编号', '方案名称', '开始日期', '结束日期',
-                    '最少人数', '最多人数', '单人房价格', '双人房价格', '第三人价格',
+                    '单人房价格', '双人房价格', '第三人价格',
                     '儿童不占床价格', '成本_单人房', '成本_双人房', '成本_第三人',
                     '成本_儿童不占床', '货币', '每人利润', '是否主要', '是否启用'
                 ]).to_excel(writer, index=False, sheet_name='价格方案')
             ws_price = writer.sheets['价格方案']
-            for idx in range(18):
+            for idx in range(16):
                 ws_price.column_dimensions[get_column_letter(idx + 1)].width = 16
 
             # Sheet 3: 每日行程
@@ -1753,11 +1746,6 @@ def import_excel():
                     'duration_days': int(row['行程天数']) if pd.notna(row.get('行程天数')) else None,
                     'min_pax': int(row['最少人数']) if pd.notna(row.get('最少人数')) else 1,
                     'max_pax': int(row['最多人数']) if pd.notna(row.get('最多人数')) else None,
-                    'base_price': float(row['成人价格']) if pd.notna(row.get('成人价格')) else None,
-                    'child_price': float(row['儿童价格']) if pd.notna(row.get('儿童价格')) else None,
-                    'infant_price': float(row['婴儿价格']) if pd.notna(row.get('婴儿价格')) else None,
-                    'single_room_supplement': float(row['单房差']) if pd.notna(row.get('单房差')) else None,
-                    'currency': str(row['货币']).strip() if pd.notna(row.get('货币')) else 'SGD',
                     'product_description': str(row['产品描述']).strip() if pd.notna(row.get('产品描述')) else None,
                     'included_services': str(row['包含服务']).strip() if pd.notna(row.get('包含服务')) else None,
                     'excluded_services': str(row['不包含服务']).strip() if pd.notna(row.get('不包含服务')) else None,
@@ -1833,8 +1821,6 @@ def import_excel():
                     variant_data = {
                         'product_id': product.id,
                         'variant_name': variant_name,
-                        'min_pax': int(row['最少人数']) if pd.notna(row.get('最少人数')) else None,
-                        'max_pax': int(row['最多人数']) if pd.notna(row.get('最多人数')) else None,
                         'single_price': float(row['单人房价格']) if pd.notna(row.get('单人房价格')) else None,
                         'twin_price': float(row['双人房价格']) if pd.notna(row.get('双人房价格')) else None,
                         'third_pax_price': float(row['第三人价格']) if pd.notna(row.get('第三人价格')) else None,
@@ -1969,11 +1955,6 @@ def download_template():
             '行程天数': [3, '必填，数字'],
             '最少人数': [2, '可选，默认1'],
             '最多人数': [40, '可选'],
-            '成人价格': [1200, '可选，数字'],
-            '儿童价格': [800, '可选，数字'],
-            '婴儿价格': [0, '可选，数字'],
-            '单房差': [200, '可选，数字'],
-            '货币': ['SGD', '可选，默认SGD'],
             '产品描述': ['体验新加坡的现代与传统', '可选'],
             '产品亮点': ['鱼尾狮公园\n滨海湾花园', '可选，多行用换行分隔'],
             '包含服务': ['往返机票\n酒店住宿', '可选'],
@@ -1997,8 +1978,6 @@ def download_template():
             '方案名称': ['标准价格', '必填，同产品+同名称则更新'],
             '开始日期': ['2026-01-01', '可选，格式：YYYY-MM-DD'],
             '结束日期': ['2026-12-31', '可选，格式：YYYY-MM-DD'],
-            '最少人数': [2, '可选，数字'],
-            '最多人数': [10, '可选，数字'],
             '单人房价格': [1500, '可选，数字'],
             '双人房价格': [1200, '可选，数字'],
             '第三人价格': [1000, '可选，数字'],
