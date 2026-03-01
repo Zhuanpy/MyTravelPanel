@@ -721,6 +721,8 @@ def add_itinerary(product_id):
 
         for i in range(1, 4):
             img_field = f'image{i}'
+            lib_field = f'library_image{i}'
+            # 优先处理本地上传
             if img_field in request.files:
                 img_file = request.files[img_field]
                 if img_file and img_file.filename:
@@ -728,8 +730,12 @@ def add_itinerary(product_id):
                     img_path = save_uploaded_file(img_file, upload_folder='uploads/tour_itinerary')
                     if img_path:
                         setattr(itinerary, img_field, img_path)
-                        # 同步保存到图片库
                         _save_to_image_library(img_path, original_name, product)
+                    continue
+            # 其次处理图片库选择
+            lib_path = request.form.get(lib_field, '').strip()
+            if lib_path:
+                setattr(itinerary, img_field, lib_path)
 
         db.session.add(itinerary)
         db.session.commit()
@@ -776,6 +782,8 @@ def update_itinerary(product_id, itinerary_id):
         product = Product.query.get(product_id)
         for i in range(1, 4):
             img_field = f'image{i}'
+            lib_field = f'library_image{i}'
+            # 优先处理本地上传
             if img_field in request.files:
                 img_file = request.files[img_field]
                 if img_file and img_file.filename:
@@ -783,8 +791,12 @@ def update_itinerary(product_id, itinerary_id):
                     img_path = save_uploaded_file(img_file, upload_folder='uploads/tour_itinerary')
                     if img_path:
                         setattr(itinerary, img_field, img_path)
-                        # 同步保存到图片库
                         _save_to_image_library(img_path, original_name, product)
+                    continue
+            # 其次处理图片库选择
+            lib_path = request.form.get(lib_field, '').strip()
+            if lib_path:
+                setattr(itinerary, img_field, lib_path)
 
         itinerary.updated_at = datetime.utcnow()
         db.session.commit()

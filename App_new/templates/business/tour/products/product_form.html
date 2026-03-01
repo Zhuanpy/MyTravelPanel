@@ -826,31 +826,29 @@
                 
                 <div class="visa-form-group">
                     <label class="visa-form-label">行程图片（可选）</label>
-                    <div style="background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem;">
-                        <small style="color: #0c4a6e;">
-                            <i class="fas fa-lightbulb" style="color: #0ea5e9;"></i>
-                            <strong>提示：</strong>推荐使用"自动分配图片"功能，从产品图片库按顺序自动为每日行程分配图片，无需手动选择。
-                        </small>
-                    </div>
                     <div class="visa-grid-3">
+                        {% for i in range(1, 4) %}
                         <div>
-                            <label for="image1" class="visa-form-label" style="font-size: 0.875rem;">图片1（可选）</label>
-                            <input type="file" id="image1" name="image1" class="visa-form-control" accept="image/*">
-                            <img id="image1Preview" src="" alt="" style="display: none; margin-top: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px;">
+                            <label class="visa-form-label" style="font-size: 0.875rem;">图片{{ i }}</label>
+                            <!-- 已选图片预览 -->
+                            <img id="image{{ i }}Preview" src="" alt="" style="display: none; margin-bottom: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px; cursor: pointer;" onclick="viewImage(this.src)">
+                            <!-- 隐藏字段：图片库选中的路径 -->
+                            <input type="hidden" id="libraryImage{{ i }}" name="library_image{{ i }}" value="">
+                            <!-- 本地上传 -->
+                            <input type="file" id="image{{ i }}" name="image{{ i }}" class="visa-form-control" accept="image/*" style="font-size: 0.8rem;">
+                            <!-- 从图片库选择按钮 -->
+                            <button type="button" class="visa-btn visa-btn-info" style="width: 100%; margin-top: 0.35rem; font-size: 0.8rem; padding: 0.3rem 0.5rem;" onclick="openImageLibraryPicker({{ i }})">
+                                <i class="fas fa-images"></i> 从图片库选择
+                            </button>
+                            <!-- 清除按钮 -->
+                            <button type="button" id="clearImage{{ i }}Btn" class="visa-btn visa-btn-secondary" style="width: 100%; margin-top: 0.25rem; font-size: 0.75rem; padding: 0.2rem 0.5rem; display: none;" onclick="clearItineraryImage({{ i }})">
+                                <i class="fas fa-times"></i> 清除图片
+                            </button>
                         </div>
-                        <div>
-                            <label for="image2" class="visa-form-label" style="font-size: 0.875rem;">图片2（可选）</label>
-                            <input type="file" id="image2" name="image2" class="visa-form-control" accept="image/*">
-                            <img id="image2Preview" src="" alt="" style="display: none; margin-top: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label for="image3" class="visa-form-label" style="font-size: 0.875rem;">图片3（可选）</label>
-                            <input type="file" id="image3" name="image3" class="visa-form-control" accept="image/*">
-                            <img id="image3Preview" src="" alt="" style="display: none; margin-top: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px;">
-                        </div>
+                        {% endfor %}
                     </div>
                     <small style="color: var(--visa-text-muted); display: block; margin-top: 0.5rem;">
-                        <i class="fas fa-info-circle"></i> 如需手动上传，建议尺寸：1200 × 800 像素（宽 × 高），支持 JPG、PNG、GIF 格式
+                        <i class="fas fa-info-circle"></i> 支持本地上传或从图片库选择，建议尺寸：1200 × 800 像素
                     </small>
                 </div>
             </form>
@@ -858,6 +856,41 @@
         <div class="visa-modal-footer">
             <button type="button" class="visa-btn visa-btn-secondary" onclick="closeItineraryModal()">取消</button>
             <button type="button" class="visa-btn visa-btn-primary" onclick="saveItinerary()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 图片库选择弹窗 -->
+<div id="imageLibraryModal" class="visa-modal" style="display: none;">
+    <div class="visa-modal-dialog" style="max-width: 900px;">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-images"></i> 从图片库选择</h3>
+            <button class="visa-modal-close" onclick="closeImageLibraryPicker()" style="color: white; font-size: 1.5rem;">&times;</button>
+        </div>
+        <div class="visa-modal-body" style="padding: 1rem;">
+            <!-- 搜索栏 -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="text" id="libSearchInput" class="visa-form-control" placeholder="搜索标题或标签..." style="flex: 1;" onkeyup="if(event.key==='Enter') searchLibraryImages()">
+                <select id="libCategoryFilter" class="visa-form-control" style="width: 130px;" onchange="searchLibraryImages()">
+                    <option value="">全部分类</option>
+                    <option value="tour">旅游</option>
+                    <option value="product">产品</option>
+                    <option value="destination">目的地</option>
+                    <option value="other">其他</option>
+                </select>
+                <button type="button" class="visa-btn visa-btn-primary" onclick="searchLibraryImages()" style="white-space: nowrap;">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
+            <!-- 图片网格 -->
+            <div id="libImageGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; max-height: 450px; overflow-y: auto; padding: 0.25rem;">
+                <div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                    <p>加载中...</p>
+                </div>
+            </div>
+            <!-- 分页 -->
+            <div id="libPagination" style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1rem;"></div>
         </div>
     </div>
 </div>
@@ -1373,6 +1406,14 @@ function showAddItineraryModal() {
     document.getElementById('itineraryId').value = '';
     document.getElementById('itineraryForm').reset();
 
+    // 重置图片相关状态
+    [1, 2, 3].forEach(idx => {
+        document.getElementById('libraryImage' + idx).value = '';
+        document.getElementById('image' + idx + 'Preview').style.display = 'none';
+        document.getElementById('image' + idx + 'Preview').src = '';
+        document.getElementById('clearImage' + idx + 'Btn').style.display = 'none';
+    });
+
     // 自动填充天数（基于已有行程数量）
     const currentDays = {{ itineraries|length if itineraries else 0 }};
     document.getElementById('dayNumber').value = currentDays + 1;
@@ -1466,14 +1507,20 @@ function editItinerary(id) {
             document.getElementById('dayContent').value = itinerary.content || '';
             
             // 显示现有图片预览
-            ['image1', 'image2', 'image3'].forEach(imgField => {
+            [1, 2, 3].forEach(idx => {
+                const imgField = 'image' + idx;
                 const preview = document.getElementById(imgField + 'Preview');
+                const clearBtn = document.getElementById('clearImage' + idx + 'Btn');
+                document.getElementById('libraryImage' + idx).value = '';
+                document.getElementById(imgField).value = '';
                 if (itinerary[imgField]) {
                     preview.src = `/static/${itinerary[imgField]}`;
                     preview.style.display = 'block';
+                    clearBtn.style.display = 'block';
                 } else {
                     preview.src = '';
                     preview.style.display = 'none';
+                    clearBtn.style.display = 'none';
                 }
             });
             
@@ -1488,24 +1535,33 @@ function editItinerary(id) {
     });
 }
 
-// 图片预览功能
+// 图片预览功能（本地上传时清除图片库选择）
 ['image1', 'image2', 'image3'].forEach(imgId => {
     const input = document.getElementById(imgId);
     if (input) {
         input.addEventListener('change', function(e) {
             const file = e.target.files[0];
             const preview = document.getElementById(imgId + 'Preview');
-            
+            const idx = imgId.replace('image', '');
+            const clearBtn = document.getElementById('clearImage' + idx + 'Btn');
+
             if (file) {
+                // 本地上传了文件，清除图片库选择
+                document.getElementById('libraryImage' + idx).value = '';
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     preview.src = e.target.result;
                     preview.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
+                clearBtn.style.display = 'block';
             } else {
-                preview.src = '';
-                preview.style.display = 'none';
+                // 如果没有图片库选择，也隐藏预览
+                if (!document.getElementById('libraryImage' + idx).value) {
+                    preview.src = '';
+                    preview.style.display = 'none';
+                    clearBtn.style.display = 'none';
+                }
             }
         });
     }
@@ -1514,6 +1570,104 @@ function editItinerary(id) {
 // 查看大图
 function viewImage(url) {
     window.open(url, '_blank');
+}
+
+// ========================================
+// 图片库选择器
+// ========================================
+let _libPickerSlot = 1;  // 当前选择的图片插槽（1/2/3）
+let _libCurrentPage = 1;
+
+function openImageLibraryPicker(slot) {
+    _libPickerSlot = slot;
+    _libCurrentPage = 1;
+    document.getElementById('libSearchInput').value = '';
+    document.getElementById('libCategoryFilter').value = '';
+    showModal('imageLibraryModal');
+    searchLibraryImages();
+}
+
+function closeImageLibraryPicker() {
+    document.getElementById('imageLibraryModal').style.display = 'none';
+}
+
+function searchLibraryImages(page) {
+    _libCurrentPage = page || 1;
+    const search = document.getElementById('libSearchInput').value.trim();
+    const category = document.getElementById('libCategoryFilter').value;
+    const grid = document.getElementById('libImageGrid');
+
+    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#9ca3af; padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i><p>加载中...</p></div>';
+
+    let url = `/staff/image-library/list?page=${_libCurrentPage}&per_page=20`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (category) url += `&category=${encodeURIComponent(category)}`;
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#ef4444; padding:2rem;">加载失败</div>';
+            return;
+        }
+        if (data.images.length === 0) {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#9ca3af; padding:2rem;"><i class="fas fa-image" style="font-size:2rem;"></i><p>没有找到图片</p></div>';
+            document.getElementById('libPagination').innerHTML = '';
+            return;
+        }
+        grid.innerHTML = data.images.map(img => `
+            <div style="border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; cursor:pointer; transition:all 0.2s;"
+                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)';"
+                 onmouseout="this.style.boxShadow=''; this.style.transform='';"
+                 onclick="selectLibraryImage('${img.image_path}', '${(img.title || '').replace(/'/g, "\\'")}')">
+                <div style="width:100%; height:120px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                    <img src="/static/${img.image_path}" alt="${img.title || ''}" style="max-width:100%; max-height:100%; object-fit:cover;">
+                </div>
+                <div style="padding:0.4rem 0.5rem; font-size:0.75rem;">
+                    <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${img.title || ''}">${img.title || '无标题'}</div>
+                    <div style="color:#9ca3af; font-size:0.7rem; margin-top:2px;">${img.tags || ''}</div>
+                </div>
+            </div>
+        `).join('');
+
+        // 分页
+        const pg = data.pagination;
+        let pgHtml = '';
+        if (pg.pages > 1) {
+            pgHtml += `<button class="visa-btn visa-btn-secondary" style="font-size:0.8rem; padding:0.25rem 0.6rem;" ${pg.page <= 1 ? 'disabled' : ''} onclick="searchLibraryImages(${pg.page - 1})"><i class="fas fa-chevron-left"></i></button>`;
+            pgHtml += `<span style="font-size:0.85rem; color:#6b7280;">${pg.page} / ${pg.pages}（共${pg.total}张）</span>`;
+            pgHtml += `<button class="visa-btn visa-btn-secondary" style="font-size:0.8rem; padding:0.25rem 0.6rem;" ${pg.page >= pg.pages ? 'disabled' : ''} onclick="searchLibraryImages(${pg.page + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        }
+        document.getElementById('libPagination').innerHTML = pgHtml;
+    })
+    .catch(err => {
+        console.error(err);
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#ef4444; padding:2rem;">网络错误</div>';
+    });
+}
+
+function selectLibraryImage(imagePath, title) {
+    const slot = _libPickerSlot;
+    // 设置隐藏字段
+    document.getElementById('libraryImage' + slot).value = imagePath;
+    // 清除本地文件选择
+    document.getElementById('image' + slot).value = '';
+    // 显示预览
+    const preview = document.getElementById('image' + slot + 'Preview');
+    preview.src = '/static/' + imagePath;
+    preview.style.display = 'block';
+    // 显示清除按钮
+    document.getElementById('clearImage' + slot + 'Btn').style.display = 'block';
+    closeImageLibraryPicker();
+}
+
+function clearItineraryImage(slot) {
+    document.getElementById('libraryImage' + slot).value = '';
+    document.getElementById('image' + slot).value = '';
+    const preview = document.getElementById('image' + slot + 'Preview');
+    preview.src = '';
+    preview.style.display = 'none';
+    document.getElementById('clearImage' + slot + 'Btn').style.display = 'none';
 }
 
 // 保存行程
