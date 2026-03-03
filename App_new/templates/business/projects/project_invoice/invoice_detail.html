@@ -936,19 +936,25 @@
             <tr>
                 <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
             </tr>
+            {% set total_paid = payments|sum(attribute='amount') %}
             {% for payment in payments %}
             <tr>
-                <td>{{ payment.date }}</td>
-                <td style="text-align: right; padding: 5px;">{{ payment.ref_number or payment.method or 'Payment' }}</td>
-                <td style="text-align: right; padding: 5px; color: #666;">-{{ "%.2f"|format(payment.amount) }}</td>
+                <td style="font-size: 10px; color: #666;">{{ payment.date }}</td>
+                <td style="text-align: right; padding: 5px; font-size: 10px; white-space: nowrap;">{{ payment.ref_number or 'Payment' }}{% if payment.method %} ({{ payment.method }}){% endif %}</td>
+                <td style="text-align: right; padding: 5px; color: #666; font-size: 10px;">-{{ "%.2f"|format(payment.amount) }}</td>
             </tr>
             {% endfor %}
+            <tr>
+                <td></td>
+                <td style="text-align: right; padding: 5px; white-space: nowrap;">Total Paid :</td>
+                <td style="text-align: right; padding: 5px;">{{ "%.2f"|format(total_paid) }}</td>
+            </tr>
             <tr>
                 <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
             </tr>
             <tr>
                 <td><strong>{{ invoice.currency }}</strong></td>
-                <td style="text-align: right; padding: 5px;"><strong>Balance :</strong></td>
+                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>Balance Due :</strong></td>
                 <td style="text-align: right; padding: 5px;"><strong>{{ "%.2f"|format(balance) }}</strong></td>
             </tr>
             {% endif %}
@@ -958,7 +964,11 @@
 
     <!-- 金额大写 -->
     <div class="amount-words">
+        {% if payments and payments|length > 0 and balance > 0 %}
+        Balance Due: {{ balance|amount_in_words(invoice.currency) }}
+        {% else %}
         {{ invoice.amount|amount_in_words(invoice.currency) }}
+        {% endif %}
     </div>
 
     <!-- 备注 - 只显示用户真正输入的备注，完全过滤自动生成的Order/TR/Purpose -->

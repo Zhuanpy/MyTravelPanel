@@ -262,7 +262,14 @@ def invoice_detail(invoice_id):
         # 没有公司，使用 leader 姓名作为公司显示
         customer_company_display = project_leader_name
 
-    # 解析付款记录 - 从两个来源获取
+    # 付款方式英文映射（发票面向客户，使用英文）
+    payment_method_en = {
+        'cash': 'Cash', 'bank_transfer': 'Bank Transfer',
+        'credit_card': 'Credit Card', 'cheque': 'Cheque',
+        'wechat': 'WeChat', 'other': 'Other'
+    }
+
+    # 解析付款记录 - 从多个来源获取
     payments = []
     
     # 来源1: invoice.extra_info['payments']（通过发票付款功能记录的）
@@ -273,8 +280,28 @@ def invoice_detail(invoice_id):
         except (json.JSONDecodeError, TypeError):
             pass
     
-    # 来源2: ProjectReceipt表中关联到发票对应ref的收款记录
-    from App_new.business.projects.models.receipt import ProjectReceipt
+    # 来源2: ReceiptInvoiceAllocation表中直接分配给此发票的收款记录
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+
+    allocations = ReceiptInvoiceAllocation.query.filter_by(invoice_id=invoice_id).all()
+    for alloc in allocations:
+        receipt = ProjectReceipt.query.get(alloc.receipt_id)
+        if receipt and receipt.status == 'confirmed':
+            # 检查是否已经在payments中（避免重复）
+            receipt_exists = any(
+                p.get('receipt_id') == receipt.id for p in payments
+            )
+            if not receipt_exists:
+                payments.append({
+                    'receipt_id': receipt.id,
+                    'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
+                    'ref_number': receipt.receipt_number,
+                    'method': payment_method_en.get(receipt.payment_method, receipt.payment_method),
+                    'amount': float(alloc.allocated_amount),
+                    'remarks': receipt.remarks
+                })
+
+    # 来源3: ProjectReceipt表中关联到发票对应ref的收款记录
     
     # 获取发票关联的ref IDs
     invoice_ref_ids = []
@@ -308,7 +335,7 @@ def invoice_detail(invoice_id):
                     'receipt_id': receipt.id,
                     'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
                     'ref_number': receipt.receipt_number,
-                    'method': receipt.payment_method_display,
+                    'method': payment_method_en.get(receipt.payment_method, receipt.payment_method),
                     'amount': float(receipt.amount),
                     'remarks': receipt.remarks
                 })
@@ -342,7 +369,7 @@ def invoice_detail(invoice_id):
                                     'receipt_id': project_receipt.id,
                                     'date': project_receipt.payment_date.strftime('%d/%m/%Y') if project_receipt.payment_date else '',
                                     'ref_number': project_receipt.receipt_number,
-                                    'method': project_receipt.payment_method_display,
+                                    'method': payment_method_en.get(project_receipt.payment_method, project_receipt.payment_method),
                                     'amount': allocated_amount,  # 只计算分配给这些ref的金额
                                     'remarks': project_receipt.remarks
                                 })
@@ -368,7 +395,7 @@ def invoice_detail(invoice_id):
                     'receipt_id': receipt.id,
                     'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
                     'ref_number': receipt.receipt_number,
-                    'method': receipt.payment_method_display,
+                    'method': payment_method_en.get(receipt.payment_method, receipt.payment_method),
                     'amount': float(receipt.amount),
                     'remarks': receipt.remarks
                 })
