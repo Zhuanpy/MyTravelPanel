@@ -235,9 +235,9 @@ def submit_flight_ref():
             ref_number = ProjectRef.generate_ref_number("")
 
             # 获取机票业务类型ID（按code查找，确保唯一性）
-            flight_business_type = BusinessType.query.filter_by(code='flight').first()
+            flight_business_type = BusinessType.query.filter_by(code='airline').first()
             if not flight_business_type:
-                flash('未找到机票业务类型，请先创建', 'error')
+                flash('未找到机票业务类型（airline），请先创建', 'error')
                 return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
             # 生成基于航段信息的名称
