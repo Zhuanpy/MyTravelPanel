@@ -1,16 +1,16 @@
-{# 通用 Flash Toast 弹窗 - success 2秒，warning/error 5秒 #}
+{# 通用 Flash Toast 弹窗 - success 2秒，warning 8秒，error 15秒，点击可关闭 #}
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div id="flashToastContainer" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999; pointer-events:none;">
+    <div id="flashToastContainer" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999;">
         {% for category, message in messages %}
         <div class="flash-toast" data-category="{{ category }}" style="
             background: {{ '#d4edda' if category == 'success' else '#f8d7da' if category in ('error','danger') else '#d1ecf1' if category == 'info' else '#fff3cd' }};
             color: {{ '#155724' if category == 'success' else '#721c24' if category in ('error','danger') else '#0c5460' if category == 'info' else '#856404' }};
             border: 1px solid {{ '#c3e6cb' if category == 'success' else '#f5c6cb' if category in ('error','danger') else '#bee5eb' if category == 'info' else '#ffeeba' }};
-            padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500;
+            padding: 0.5rem 1.25rem; padding-right: 2rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500;
             margin-bottom: 0.5rem; white-space: nowrap; box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-            animation: flashToastIn 0.2s ease;
-        ">{{ message }}</div>
+            animation: flashToastIn 0.2s ease; cursor: pointer; position: relative;
+        ">{{ message }}<span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:1rem; opacity:0.6;">&times;</span></div>
         {% endfor %}
     </div>
     <style>
@@ -19,14 +19,21 @@
     </style>
     <script>
     (function(){
+        function dismissToast(t) {
+            t.style.animation = 'flashToastOut 0.2s ease forwards';
+            setTimeout(function(){ t.remove(); }, 200);
+        }
         var toasts = document.querySelectorAll('.flash-toast');
         toasts.forEach(function(t){
             var cat = t.getAttribute('data-category') || '';
-            var delay = (cat === 'success' || cat === 'info') ? 2000 : 5000;
-            setTimeout(function(){
-                t.style.animation = 'flashToastOut 0.2s ease forwards';
-                setTimeout(function(){ t.remove(); }, 200);
-            }, delay);
+            // success/info 2秒，warning 8秒，error 15秒
+            var delay = (cat === 'success' || cat === 'info') ? 2000 : (cat === 'warning' ? 8000 : 15000);
+            var timer = setTimeout(function(){ dismissToast(t); }, delay);
+            // 点击立即关闭
+            t.addEventListener('click', function(){
+                clearTimeout(timer);
+                dismissToast(t);
+            });
         });
     })();
     </script>
