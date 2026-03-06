@@ -1,0 +1,323 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}US-Bangla 机票转换{% endblock %}
+
+{% block content %}
+<style>
+    :root { --ub-blue: #003366; --ub-red: #CC0000; --ub-blue-light: #e8eef5; }
+    .ub-label { font-size: 11px; margin-bottom: 1px; color: #666; }
+    .ub-card .card-header { padding: 5px 12px; font-size: 13px; }
+    .ub-card .card-body { padding: 8px 12px; }
+    .ub-header-blue { background: var(--ub-blue) !important; color: #fff; }
+    .ub-header-red { background: var(--ub-red) !important; color: #fff; }
+    .ub-btn-blue { background: var(--ub-blue); border-color: var(--ub-blue); color: #fff; }
+    .ub-btn-blue:hover { background: #004080; border-color: #004080; color: #fff; }
+    .ub-btn-red { background: var(--ub-red); border-color: var(--ub-red); color: #fff; }
+    .ub-btn-red:hover { background: #a00; border-color: #a00; color: #fff; }
+    .ub-title { color: var(--ub-blue); font-weight: bold; }
+    #paxTable th { background: var(--ub-blue-light); }
+    #paxTable th, #paxTable td { padding: 3px 5px; font-size: 12px; vertical-align: middle; }
+    #paxTable .form-control-sm, #paxTable .form-select-sm { padding: 1px 4px; font-size: 12px; height: 26px; }
+    .seg-block { border: 1px solid #dee2e6; border-radius: 4px; padding: 6px 10px; margin-bottom: 6px; background: #fafbfc; position: relative; }
+    .seg-block .seg-label { position: absolute; top: -9px; left: 10px; background: #fff; padding: 0 4px; font-size: 11px; color: var(--ub-blue); font-weight: bold; }
+    .seg-block .seg-remove { position: absolute; top: 2px; right: 4px; }
+    .seg-block .form-control-sm { font-size: 12px; height: 26px; padding: 1px 4px; }
+</style>
+
+<div class="container py-2" style="max-width: 960px;">
+    <h5 class="mb-2 ub-title"><i class="fas fa-ticket-alt me-1"></i>US-Bangla 机票转换</h5>
+
+    <!-- 上传 -->
+    <div class="card ub-card mb-4">
+        <div class="card-header ub-header-blue">
+            <i class="fas fa-upload me-1"></i>上传原始电子机票 PDF
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center g-2">
+                <div class="col">
+                    <input type="file" class="form-control form-control-sm" id="pdfFile" accept=".pdf">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm ub-btn-red" onclick="uploadAndParse()" id="btnParse">
+                        <i class="fas fa-cog me-1"></i>解析
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 解析结果 -->
+    <div id="resultSection" style="display:none;">
+        <!-- 预订编号 + 航段信息 -->
+        <div class="card ub-card mb-4">
+            <div class="card-header ub-header-blue d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-plane me-1"></i>航班信息 <span class="badge bg-light text-dark ms-1" id="segCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="addSegment()"><i class="fas fa-plus me-1"></i>添加航段</button>
+            </div>
+            <div class="card-body">
+                <div class="row g-1 mb-2">
+                    <div class="col-auto">
+                        <div class="ub-label">预订编号</div>
+                        <input type="text" class="form-control form-control-sm" id="booking_ref" placeholder="09GJ9A" style="width:120px;">
+                    </div>
+                </div>
+                <div id="segContainer"></div>
+            </div>
+        </div>
+
+        <!-- 乘客信息 -->
+        <div class="card ub-card mb-4">
+            <div class="card-header ub-header-red d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-1"></i>乘客信息 <span class="badge bg-light text-dark ms-1" id="paxCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="addPassenger()"><i class="fas fa-plus me-1"></i>添加</button>
+            </div>
+            <div class="card-body p-1">
+                <table class="table table-sm table-bordered mb-0" id="paxTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:3%;">#</th>
+                            <th style="width:7%;">称谓</th>
+                            <th style="width:22%;">乘客姓名</th>
+                            <th style="width:18%;">票号</th>
+                            <th style="width:14%;">护照号</th>
+                            <th style="width:8%;">类型</th>
+                            <th style="width:4%;" class="text-center">选</th>
+                            <th style="width:4%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="paxBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-sm" onclick="resetAll()">
+                <i class="fas fa-redo me-1"></i>重置
+            </button>
+            <div>
+                <button class="btn btn-sm ub-btn-blue me-1" onclick="generateAll()" id="btnGenerateAll">
+                    <i class="fas fa-file-archive me-1"></i>全部生成 (ZIP)
+                </button>
+                <button class="btn btn-sm ub-btn-red" onclick="generateSelected()" id="btnGenerateSelected">
+                    <i class="fas fa-file-pdf me-1"></i>生成选中
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let paxIndex = 0;
+let segIndex = 0;
+
+// ========== 航段管理 ==========
+
+function addSegment(data) {
+    segIndex++;
+    const d = data || {};
+    const idx = segIndex;
+    const html = `<div class="seg-block" id="seg-${idx}">
+        <span class="seg-label">航段 <span class="seg-num">${idx}</span></span>
+        <button class="btn btn-outline-danger btn-sm py-0 px-1 seg-remove" style="font-size:10px;" onclick="removeSegment(${idx})" title="删除航段"><i class="fas fa-times"></i></button>
+        <div class="row g-1">
+            <div class="col"><div class="ub-label">航班号</div><input type="text" class="form-control form-control-sm seg-flight" value="${d.flight||''}" placeholder="BS310"></div>
+            <div class="col"><div class="ub-label">出发城市</div><input type="text" class="form-control form-control-sm seg-from_city" value="${d.from_city||''}" placeholder="Singapore (SIN)"></div>
+            <div class="col"><div class="ub-label">到达城市</div><input type="text" class="form-control form-control-sm seg-to_city" value="${d.to_city||''}" placeholder="Dhaka (DAC)"></div>
+            <div class="col"><div class="ub-label">出发日期</div><input type="text" class="form-control form-control-sm seg-dep_date" value="${d.dep_date||''}" placeholder="13-Mar-26"></div>
+            <div class="col"><div class="ub-label">出发时间</div><input type="text" class="form-control form-control-sm seg-dep_time" value="${d.dep_time||''}" placeholder="15:25"></div>
+            <div class="col"><div class="ub-label">到达日期</div><input type="text" class="form-control form-control-sm seg-arr_date" value="${d.arr_date||''}" placeholder="13-Mar-26"></div>
+            <div class="col"><div class="ub-label">到达时间</div><input type="text" class="form-control form-control-sm seg-arr_time" value="${d.arr_time||''}" placeholder="17:35"></div>
+        </div>
+        <div class="row g-1 mt-0">
+            <div class="col"><div class="ub-label">值机</div><input type="text" class="form-control form-control-sm seg-checkin" value="${d.checkin||''}" placeholder="12:25"></div>
+            <div class="col"><div class="ub-label">出发航站楼</div><input type="text" class="form-control form-control-sm seg-dep_terminal" value="${d.dep_terminal||''}" placeholder="3"></div>
+            <div class="col"><div class="ub-label">到达航站楼</div><input type="text" class="form-control form-control-sm seg-arr_terminal" value="${d.arr_terminal||''}" placeholder="1"></div>
+            <div class="col"><div class="ub-label">舱位</div><input type="text" class="form-control form-control-sm seg-cabin" value="${d.cabin||'Economy'}" placeholder="Economy"></div>
+            <div class="col"><div class="ub-label">状态</div><input type="text" class="form-control form-control-sm seg-status" value="${d.status||'OK'}" placeholder="OK"></div>
+            <div class="col"><div class="ub-label">行李额</div><input type="text" class="form-control form-control-sm seg-baggage" value="${d.baggage||''}" placeholder="40 Kg"></div>
+            <div class="col"><div class="ub-label">机型</div><input type="text" class="form-control form-control-sm seg-fleet" value="${d.fleet||''}" placeholder="Boeing 737-800"></div>
+            <div class="col"><div class="ub-label">经停</div><input type="text" class="form-control form-control-sm seg-stop" value="${d.stop||'Non stop'}" placeholder="Non stop"></div>
+        </div>
+    </div>`;
+    document.getElementById('segContainer').insertAdjacentHTML('beforeend', html);
+    updateSegCount();
+}
+
+function removeSegment(idx) {
+    document.getElementById('seg-' + idx)?.remove();
+    // 重新编号
+    document.querySelectorAll('#segContainer .seg-block').forEach((el, i) => {
+        el.querySelector('.seg-num').textContent = i + 1;
+    });
+    updateSegCount();
+}
+
+function updateSegCount() {
+    document.getElementById('segCount').textContent = document.querySelectorAll('#segContainer .seg-block').length;
+}
+
+function fillSegments(bookingRef, segments) {
+    document.getElementById('booking_ref').value = bookingRef || '';
+    document.getElementById('segContainer').innerHTML = '';
+    segIndex = 0;
+    segments.forEach(s => addSegment(s));
+}
+
+function collectSegments() {
+    const segments = [];
+    const fields = ['flight','from_city','to_city','dep_date','dep_time','arr_date','arr_time',
+                    'checkin','dep_terminal','arr_terminal','cabin','status','baggage','fleet','stop'];
+    document.querySelectorAll('#segContainer .seg-block').forEach(block => {
+        const seg = {};
+        fields.forEach(k => {
+            const el = block.querySelector('.seg-' + k);
+            seg[k] = el ? el.value.trim() : '';
+        });
+        segments.push(seg);
+    });
+    return segments;
+}
+
+// ========== 上传解析 ==========
+
+function uploadAndParse() {
+    const fileInput = document.getElementById('pdfFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnParse');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>解析中...';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.parse_pdf") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) { alert('解析失败：' + data.message); return; }
+        fillSegments(data.booking_ref, data.segments || []);
+        fillPassengers(data.passengers || []);
+        document.getElementById('resultSection').style.display = '';
+    })
+    .catch(err => alert('错误：' + err.message))
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>\u89E3\u6790'; });
+}
+
+// ========== 乘客管理 ==========
+
+function fillPassengers(list) {
+    document.getElementById('paxBody').innerHTML = '';
+    paxIndex = 0;
+    list.forEach(p => addPassenger(p));
+}
+
+function addPassenger(data) {
+    paxIndex++;
+    const d = data || {};
+    const row = `<tr id="pax-${paxIndex}">
+        <td class="text-center pax-num">${paxIndex}</td>
+        <td><select class="form-select form-select-sm pax-title">
+            <option value="Mr." ${d.title==='Mrs.'||d.title==='Ms.'||d.title==='Mstr.'?'':'selected'}>Mr.</option>
+            <option value="Mrs." ${d.title==='Mrs.'?'selected':''}>Mrs.</option>
+            <option value="Ms." ${d.title==='Ms.'?'selected':''}>Ms.</option>
+            <option value="Mstr." ${d.title==='Mstr.'?'selected':''}>Mstr.</option>
+        </select></td>
+        <td><input type="text" class="form-control form-control-sm pax-name" value="${d.name||''}" style="text-transform:uppercase;"></td>
+        <td><input type="text" class="form-control form-control-sm pax-ticket" value="${d.ticket||''}"></td>
+        <td><input type="text" class="form-control form-control-sm pax-passport" value="${d.passport||''}" style="text-transform:uppercase;"></td>
+        <td><select class="form-select form-select-sm pax-type">
+            <option value="Adult(s)" ${d.pax_type==='Child'||d.pax_type==='Infant'?'':'selected'}>成人</option>
+            <option value="Child" ${d.pax_type==='Child'?'selected':''}>儿童</option>
+            <option value="Infant" ${d.pax_type==='Infant'?'selected':''}>婴儿</option>
+        </select></td>
+        <td class="text-center"><input type="checkbox" class="form-check-input pax-check" checked></td>
+        <td class="text-center"><button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:11px;" onclick="removePassenger(${paxIndex})"><i class="fas fa-times"></i></button></td>
+    </tr>`;
+    document.getElementById('paxBody').insertAdjacentHTML('beforeend', row);
+    updatePaxCount();
+}
+
+function removePassenger(idx) {
+    document.getElementById('pax-' + idx)?.remove();
+    document.querySelectorAll('#paxBody tr').forEach((tr, i) => { tr.querySelector('.pax-num').textContent = i + 1; });
+    updatePaxCount();
+}
+
+function updatePaxCount() {
+    document.getElementById('paxCount').textContent = document.querySelectorAll('#paxBody tr').length;
+}
+
+function collectPassengers(onlyChecked) {
+    const list = [];
+    document.querySelectorAll('#paxBody tr').forEach(tr => {
+        if (onlyChecked && !tr.querySelector('.pax-check').checked) return;
+        const name = tr.querySelector('.pax-name').value.trim().toUpperCase();
+        if (!name) return;
+        list.push({
+            title: tr.querySelector('.pax-title').value, name,
+            ticket: tr.querySelector('.pax-ticket').value.trim(),
+            passport: tr.querySelector('.pax-passport').value.trim().toUpperCase(),
+            pax_type: tr.querySelector('.pax-type').value,
+        });
+    });
+    return list;
+}
+
+// ========== 生成PDF ==========
+
+function doGenerate(passengers, btnId) {
+    const booking_ref = (document.getElementById('booking_ref')?.value || '').trim();
+    const segments = collectSegments();
+    if (!passengers.length) { alert('请选择至少一位乘客'); return; }
+    if (!booking_ref) { alert('请填写预订编号'); return; }
+    if (!segments.length) { alert('请添加至少一个航段'); return; }
+
+    const btn = document.getElementById(btnId);
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+
+    fetch('{{ url_for("flights_usbangla.generate_tickets") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: JSON.stringify({ booking_ref, segments, passengers })
+    })
+    .then(resp => {
+        if (!resp.ok) return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
+        return resp.blob().then(blob => ({ blob, resp }));
+    })
+    .then(({ blob, resp }) => {
+        const cd = resp.headers.get('Content-Disposition') || '';
+        let fn = passengers.length > 1 ? `E-tickets_${booking_ref}.zip` : 'E-ticket.pdf';
+        const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+        if (m) fn = decodeURIComponent(m[1]);
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = fn;
+        a.click();
+        window.URL.revokeObjectURL(a.href);
+    })
+    .catch(err => alert('错误：' + err.message))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+function generateAll() { doGenerate(collectPassengers(false), 'btnGenerateAll'); }
+function generateSelected() { doGenerate(collectPassengers(true), 'btnGenerateSelected'); }
+
+function resetAll() {
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('pdfFile').value = '';
+    document.getElementById('paxBody').innerHTML = '';
+    document.getElementById('segContainer').innerHTML = '';
+    document.getElementById('booking_ref').value = '';
+    paxIndex = 0;
+    segIndex = 0;
+    updatePaxCount();
+    updateSegCount();
+}
+</script>
+{% endblock %}

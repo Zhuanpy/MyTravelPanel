@@ -26,6 +26,7 @@ if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 5000
 
+
     print("=" * 50)
     print("启动新架构的 TravelPanel 应用...")
     print("=" * 50)

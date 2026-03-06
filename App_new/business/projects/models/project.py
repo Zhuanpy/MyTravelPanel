@@ -412,7 +412,7 @@ class ProjectHeader(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     hid = db.Column(db.String(20), unique=True, nullable=False, comment='项目编号（如H20240702001）')
-    desc = db.Column(db.String(200), comment='项目描述')
+    desc = db.Column(db.Text, comment='项目描述')
     company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), comment='客户公司ID')
     limit = db.Column(db.String(50), comment='额度限制')
     contact = db.Column(db.String(50), comment='联系人')

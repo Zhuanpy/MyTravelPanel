@@ -529,6 +529,8 @@ def submit_flight_ref():
 
     except Exception as e:
         db.session.rollback()
+        print(f"机票REF保存失败: {str(e)}")
+        print(f"错误详情: {traceback.format_exc()}")
         flash(f'保存失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
