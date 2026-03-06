@@ -24,6 +24,9 @@ class ProjectFlightPassenger(db.Model):
     ticket_number = db.Column(db.String(50), comment='电子客票号')
     pnr = db.Column(db.String(6), comment='PNR编码')
 
+    # 证件信息
+    passport_number = db.Column(db.String(20), comment='护照号')
+
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -42,6 +45,7 @@ class ProjectFlightPassenger(db.Model):
             'cost_price': float(self.cost_price) if self.cost_price else None,
             'ticket_number': self.ticket_number,
             'pnr': self.pnr,
+            'passport_number': self.passport_number,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -56,14 +60,23 @@ class ProjectFlightSegment(db.Model):
 
     # 航班信息
     flight_number = db.Column(db.String(10), nullable=False, comment='航班号')
+    airline_name = db.Column(db.String(50), comment='航司名称')
     departure_airport = db.Column(db.String(3), nullable=False, comment='出发机场')
     arrival_airport = db.Column(db.String(3), nullable=False, comment='到达机场')
     departure_time = db.Column(db.DateTime, nullable=False, comment='起飞时间')
     arrival_time = db.Column(db.DateTime, nullable=False, comment='到达时间')
+    departure_terminal = db.Column(db.String(10), comment='出发航站楼')
+    arrival_terminal = db.Column(db.String(10), comment='到达航站楼')
 
     # 舱位信息
     cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
     cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
+    baggage = db.Column(db.String(20), comment='行李额')
+    seat = db.Column(db.String(10), comment='座位号')
+
+    # 票号信息
+    ticket_number = db.Column(db.String(50), comment='电子客票号')
+    pnr = db.Column(db.String(10), comment='PNR编码')
 
     # 航段状态
     status = db.Column(db.String(20), nullable=False, default='pending', comment='航段状态')
@@ -81,12 +94,19 @@ class ProjectFlightSegment(db.Model):
             'id': self.id,
             'ref_id': self.ref_id,
             'flight_number': self.flight_number,
+            'airline_name': self.airline_name,
             'departure_airport': self.departure_airport,
             'arrival_airport': self.arrival_airport,
             'departure_time': self.departure_time.isoformat() if self.departure_time else None,
             'arrival_time': self.arrival_time.isoformat() if self.arrival_time else None,
+            'departure_terminal': self.departure_terminal,
+            'arrival_terminal': self.arrival_terminal,
             'cabin_class': self.cabin_class,
             'cabin_code': self.cabin_code,
+            'baggage': self.baggage,
+            'seat': self.seat,
+            'ticket_number': self.ticket_number,
+            'pnr': self.pnr,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
