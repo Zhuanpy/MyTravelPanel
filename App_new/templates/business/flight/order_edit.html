@@ -245,7 +245,11 @@
     }
     
     .flight-segment .cabin-code-col {
-        width: 80px;
+        width: 50px;
+    }
+
+    .flight-segment .cabin-class-col {
+        width: 85px;
     }
     
     .flight-segment .airport-col {
@@ -301,9 +305,14 @@
     }
 
     /* 新增：调整航班号和舱位代码输入框宽度 */
-    input[name="flight_number[]"].order-input,
-    input[name="cabin_code[]"].order-input {
+    input[name="flight_number[]"].order-input {
         width: 120px;
+    }
+    input[name="cabin_code[]"].order-input {
+        width: 50px;
+    }
+    input[name="cabin_class[]"].order-input {
+        width: 85px;
     }
 
     /* 新增：调整机场选择框宽度 */
@@ -402,81 +411,51 @@
                     </button>
                     <table>
                         <tr>
-                            <!-- 航班号 -->
                             <td class="flight-number-col">
                                 <label class="order-label required">航班号</label>
                                 <input type="text" class="order-input" name="flight_number[]" value="{{ segment.flight_number }}" placeholder="如:CA123" required>
                             </td>
-                            
-                            <!-- 舱位代码 -->
+                            <td>
+                                <label class="order-label">航司</label>
+                                <input type="text" class="order-input" name="airline_name[]" value="{{ segment.airline_name or '' }}" placeholder="Air China">
+                            </td>
                             <td class="cabin-code-col">
                                 <label class="order-label required">舱位代码</label>
                                 <input type="text" class="order-input" name="cabin_code[]" value="{{ segment.cabin_code }}" placeholder="如:Y" required>
                             </td>
-                            <!-- 舱位等级 -->
-                            <td class="cabin-code-col">
+                            <td class="cabin-class-col">
                                 <label class="order-label">舱位等级</label>
                                 <input type="text" class="order-input" name="cabin_class[]" value="{{ segment.cabin_class or '' }}" placeholder="Economy">
                             </td>
-                            
-                            <!-- 出发机场 -->
                             <td class="airport-col">
                                 <label class="order-label required">出发机场</label>
                                 <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="输入机场代码">
                                     <option value="{{ segment.departure_airport }}" selected>{{ segment.departure_airport }}</option>
                                 </select>
                             </td>
-                            
-                            <!-- 到达机场 -->
                             <td class="airport-col">
                                 <label class="order-label required">到达机场</label>
                                 <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="输入机场代码">
                                     <option value="{{ segment.arrival_airport }}" selected>{{ segment.arrival_airport }}</option>
                                 </select>
                             </td>
-                            
-                            <!-- 出发日期 -->
+                        </tr>
+                        <tr>
                             <td class="date-col">
                                 <label class="order-label required">出发日期</label>
                                 <input type="date" class="order-input" name="departure_date[]" value="{{ segment.departure_time.strftime('%Y-%m-%d') }}" required>
                             </td>
-                            
-                            <!-- 出发时间 -->
                             <td class="time-col">
                                 <label class="order-label">出发时间</label>
                                 <input type="time" class="order-input" name="departure_time[]" value="{{ segment.departure_time.strftime('%H:%M') }}">
                             </td>
-                            
-                            <!-- 到达日期 -->
                             <td class="date-col">
                                 <label class="order-label required">到达日期</label>
                                 <input type="date" class="order-input" name="arrival_date[]" value="{{ segment.arrival_time.strftime('%Y-%m-%d') }}" required>
                             </td>
-                            
-                            <!-- 到达时间 -->
                             <td class="time-col">
                                 <label class="order-label">到达时间</label>
                                 <input type="time" class="order-input" name="arrival_time[]" value="{{ segment.arrival_time.strftime('%H:%M') }}">
-                            </td>
-                            <!-- 票号 -->
-                            <td class="ticket-col">
-                                <label class="order-label">票号</label>
-                                <input type="text" class="order-input" name="segment_ticket_number[]" value="{{ segment.ticket_number or '' }}" placeholder="014-1234567890">
-                            </td>
-                            <!-- PNR -->
-                            <td class="pnr-col">
-                                <label class="order-label">PNR</label>
-                                <input type="text" class="order-input" name="segment_pnr[]" value="{{ segment.pnr or '' }}" placeholder="ABC123" maxlength="10">
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <label class="order-label">航司</label>
-                                <input type="text" class="order-input" name="airline_name[]" value="{{ segment.airline_name or '' }}" placeholder="Air China">
-                            </td>
-                            <td>
-                                <label class="order-label">行李额</label>
-                                <input type="text" class="order-input" name="baggage[]" value="{{ segment.baggage or '' }}" placeholder="30KG">
                             </td>
                             <td>
                                 <label class="order-label">出发航站楼</label>
@@ -485,6 +464,20 @@
                             <td>
                                 <label class="order-label">到达航站楼</label>
                                 <input type="text" class="order-input" name="arrival_terminal[]" value="{{ segment.arrival_terminal or '' }}" placeholder="T3">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="ticket-col">
+                                <label class="order-label">票号</label>
+                                <input type="text" class="order-input" name="segment_ticket_number[]" value="{{ segment.ticket_number or '' }}" placeholder="014-1234567890">
+                            </td>
+                            <td class="pnr-col">
+                                <label class="order-label">PNR</label>
+                                <input type="text" class="order-input" name="segment_pnr[]" value="{{ segment.pnr or '' }}" placeholder="ABC123" maxlength="10">
+                            </td>
+                            <td>
+                                <label class="order-label">行李额</label>
+                                <input type="text" class="order-input" name="baggage[]" value="{{ segment.baggage or '' }}" placeholder="30KG">
                             </td>
                             <td>
                                 <label class="order-label">座位</label>
@@ -783,76 +776,47 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="如:CA123" required>
                     </td>
-                    
-                    <!-- 舱位代码 -->
+                    <td>
+                        <label class="order-label">航司</label>
+                        <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
+                    </td>
                     <td class="cabin-code-col">
                         <label class="order-label required">舱位代码</label>
                         <input type="text" class="order-input" name="cabin_code[]" value="${data ? data.cabinCode : ''}" placeholder="如:Y" required>
                     </td>
-                    <!-- 舱位等级 -->
-                    <td class="cabin-code-col">
+                    <td class="cabin-class-col">
                         <label class="order-label">舱位等级</label>
                         <input type="text" class="order-input" name="cabin_class[]" value="${data ? (data.cabinClass || '') : ''}" placeholder="Economy">
                     </td>
-                    
-                    <!-- 出发机场 -->
                     <td class="airport-col">
                         <label class="order-label required">出发机场</label>
                         <select class="order-select airport-select" name="departure_airport[]" required data-placeholder="输入机场代码">
                             ${data ? `<option value="${data.departureAirport}" selected>${data.departureAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
-                    
-                    <!-- 到达机场 -->
                     <td class="airport-col">
                         <label class="order-label required">到达机场</label>
                         <select class="order-select airport-select" name="arrival_airport[]" required data-placeholder="输入机场代码">
                             ${data ? `<option value="${data.arrivalAirport}" selected>${data.arrivalAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
-                    
-                    <!-- 出发日期 -->
+                </tr>
+                <tr>
                     <td class="date-col">
                         <label class="order-label required">出发日期</label>
                         <input type="date" class="order-input" name="departure_date[]" value="${data ? data.departureDate : ''}" required>
                     </td>
-                    
-                    <!-- 出发时间 -->
                     <td class="time-col">
                         <label class="order-label">出发时间</label>
                         <input type="time" class="order-input" name="departure_time[]" value="${data ? data.departureTime : ''}">
                     </td>
-                    
-                    <!-- 到达日期 -->
                     <td class="date-col">
                         <label class="order-label required">到达日期</label>
                         <input type="date" class="order-input" name="arrival_date[]" value="${data ? data.arrivalDate : ''}" required>
                     </td>
-                    
-                    <!-- 到达时间 -->
                     <td class="time-col">
                         <label class="order-label">到达时间</label>
                         <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}">
-                    </td>
-                    <!-- 票号 -->
-                    <td class="ticket-col">
-                        <label class="order-label">票号</label>
-                        <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890">
-                    </td>
-                    <!-- PNR -->
-                    <td class="pnr-col">
-                        <label class="order-label">PNR</label>
-                        <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="ABC123" maxlength="10">
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label class="order-label">航司</label>
-                        <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
-                    </td>
-                    <td>
-                        <label class="order-label">行李额</label>
-                        <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG">
                     </td>
                     <td>
                         <label class="order-label">出发航站楼</label>
@@ -862,11 +826,25 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label">到达航站楼</label>
                         <input type="text" class="order-input" name="arrival_terminal[]" value="${data ? (data.arrivalTerminal || '') : ''}" placeholder="T3">
                     </td>
+                </tr>
+                <tr>
+                    <td class="ticket-col">
+                        <label class="order-label">票号</label>
+                        <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890">
+                    </td>
+                    <td class="pnr-col">
+                        <label class="order-label">PNR</label>
+                        <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="ABC123" maxlength="10">
+                    </td>
+                    <td>
+                        <label class="order-label">行李额</label>
+                        <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG">
+                    </td>
                     <td>
                         <label class="order-label">座位</label>
                         <input type="text" class="order-input" name="seat[]" value="${data ? (data.seat || '') : ''}" placeholder="12A" maxlength="10">
                     </td>
-                    <td colspan="4"></td>
+                    <td colspan="2"></td>
                 </tr>
             </table>
         </div>

@@ -17,11 +17,11 @@
 <!-- 添加 Select2 样式 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <!-- 添加公共机票订单样式 -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=5.9&t=20260104">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=6.0&t=20260306">
 
 <style>
     /* 覆盖容器样式 */
-    .order-container { max-width: 980px !important; background: transparent !important; }
+    .order-container { max-width: 1100px !important; background: transparent !important; }
     /* Summary Bar 样式 */
     .summary-bar { background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
     .summary-item { text-align: center; padding: 0 16px; border-right: 1px solid rgba(255,255,255,0.3); }
@@ -286,11 +286,15 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="CA123" required>
                     </td>
+                    <td>
+                        <label class="order-label">航司</label>
+                        <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
+                    </td>
                     <td class="cabin-code-col">
                         <label class="order-label required">舱位代码</label>
                         <input type="text" class="order-input" name="cabin_code[]" value="${data ? data.cabinCode : ''}" placeholder="Y" required>
                     </td>
-                    <td class="cabin-code-col">
+                    <td class="cabin-class-col">
                         <label class="order-label">舱位等级</label>
                         <input type="text" class="order-input" name="cabin_class[]" value="${data ? (data.cabinClass || '') : ''}" placeholder="Economy">
                     </td>
@@ -306,6 +310,8 @@ function addFlightSegment(data = null, isManualAdd = false) {
                             ${data ? `<option value="${data.arrivalAirport}" selected>${data.arrivalAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
+                </tr>
+                <tr>
                     <td class="date-col">
                         <label class="order-label required">出发日期</label>
                         <input type="date" class="order-input" name="departure_date[]" value="${data ? data.departureDate : ''}" required>
@@ -322,24 +328,6 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label">到达时间</label>
                         <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}">
                     </td>
-                    <td class="ticket-col">
-                        <label class="order-label">票号</label>
-                        <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890">
-                    </td>
-                    <td class="pnr-col">
-                        <label class="order-label">PNR</label>
-                        <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="ABC123" maxlength="10">
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label class="order-label">航司</label>
-                        <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
-                    </td>
-                    <td>
-                        <label class="order-label">行李额</label>
-                        <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG">
-                    </td>
                     <td>
                         <label class="order-label">出发航站楼</label>
                         <input type="text" class="order-input" name="departure_terminal[]" value="${data ? (data.departureTerminal || '') : ''}" placeholder="T1">
@@ -348,11 +336,25 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label">到达航站楼</label>
                         <input type="text" class="order-input" name="arrival_terminal[]" value="${data ? (data.arrivalTerminal || '') : ''}" placeholder="T3">
                     </td>
+                </tr>
+                <tr>
+                    <td class="ticket-col">
+                        <label class="order-label">票号</label>
+                        <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890">
+                    </td>
+                    <td class="pnr-col">
+                        <label class="order-label">PNR</label>
+                        <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="ABC123" maxlength="10">
+                    </td>
+                    <td>
+                        <label class="order-label">行李额</label>
+                        <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG">
+                    </td>
                     <td>
                         <label class="order-label">座位</label>
                         <input type="text" class="order-input" name="seat[]" value="${data ? (data.seat || '') : ''}" placeholder="12A" maxlength="10">
                     </td>
-                    <td colspan="4"></td>
+                    <td colspan="2"></td>
                 </tr>
             </table>
         </div>

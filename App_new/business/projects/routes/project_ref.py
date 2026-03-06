@@ -310,12 +310,20 @@ def submit_flight_ref():
         # 保存航段信息
         flight_numbers = request.form.getlist('flight_number[]')
         cabin_codes = request.form.getlist('cabin_code[]')
+        cabin_classes = request.form.getlist('cabin_class[]')
         departure_airports = request.form.getlist('departure_airport[]')
         arrival_airports = request.form.getlist('arrival_airport[]')
         departure_dates = request.form.getlist('departure_date[]')
         departure_times = request.form.getlist('departure_time[]')
         arrival_dates = request.form.getlist('arrival_date[]')
         arrival_times = request.form.getlist('arrival_time[]')
+        airline_names = request.form.getlist('airline_name[]')
+        baggages = request.form.getlist('baggage[]')
+        departure_terminals = request.form.getlist('departure_terminal[]')
+        arrival_terminals = request.form.getlist('arrival_terminal[]')
+        segment_ticket_numbers = request.form.getlist('segment_ticket_number[]')
+        segment_pnrs = request.form.getlist('segment_pnr[]')
+        seats = request.form.getlist('seat[]')
 
         # 生成 description：首末日期 + 机场代码航线
         def generate_flight_description(departure_airports, arrival_airports, departure_dates):
@@ -457,6 +465,7 @@ def submit_flight_ref():
                     dep_datetime = datetime.strptime(f"{dep_date} {dep_time}", '%Y-%m-%d %H:%M')
                     arr_datetime = datetime.strptime(f"{arr_date} {arr_time}", '%Y-%m-%d %H:%M')
 
+                    cabin_code_val = cabin_codes[i] if i < len(cabin_codes) and cabin_codes[i] else 'Y'
                     segment = ProjectFlightSegment(
                         ref_id=ref.id,
                         flight_number=flight_numbers[i] if i < len(flight_numbers) and flight_numbers[i] else '',
@@ -464,8 +473,15 @@ def submit_flight_ref():
                         arrival_airport=arrival_airports[i] if i < len(arrival_airports) else '',
                         departure_time=dep_datetime,
                         arrival_time=arr_datetime,
-                        cabin_class=cabin_codes[i] if i < len(cabin_codes) else '',
-                        cabin_code=cabin_codes[i] if i < len(cabin_codes) else '',
+                        cabin_class=(cabin_classes[i] if i < len(cabin_classes) and cabin_classes[i] else cabin_code_val),
+                        cabin_code=cabin_code_val,
+                        airline_name=(airline_names[i] if i < len(airline_names) and airline_names[i] else None),
+                        baggage=(baggages[i] if i < len(baggages) and baggages[i] else None),
+                        departure_terminal=(departure_terminals[i] if i < len(departure_terminals) and departure_terminals[i] else None),
+                        arrival_terminal=(arrival_terminals[i] if i < len(arrival_terminals) and arrival_terminals[i] else None),
+                        ticket_number=(segment_ticket_numbers[i] if i < len(segment_ticket_numbers) and segment_ticket_numbers[i] else None),
+                        pnr=(segment_pnrs[i] if i < len(segment_pnrs) and segment_pnrs[i] else None),
+                        seat=(seats[i] if i < len(seats) and seats[i] else None),
                         status='pending'
                     )
                     db.session.add(segment)

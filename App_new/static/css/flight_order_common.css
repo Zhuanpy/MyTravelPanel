@@ -229,7 +229,7 @@
 }
 
 .flight-segment table {
-    width: auto;
+    width: 100%;
     min-width: auto;
     border-collapse: separate;
     border-spacing: 6px 0;
@@ -261,6 +261,10 @@
 
 .flight-segment .cabin-code-col {
     width: 45px;
+}
+
+.flight-segment .cabin-class-col {
+    width: 80px;
 }
 
 .flight-segment .airport-col {
