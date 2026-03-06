@@ -1085,8 +1085,11 @@ def import_excel():
                 segment = ProjectFlightSegment.query.get(seg_id)
                 if segment:
                     changed = False
-                    # 可编辑字段：Ticket No., PNR, Airline, Dep/Arr Terminal, Baggage
+                    # 可编辑字段
                     field_map = {
+                        'Flight No.': 'flight_number',
+                        'Departure': 'departure_airport',
+                        'Arrival': 'arrival_airport',
                         'Ticket No.': 'ticket_number',
                         'PNR': 'pnr',
                         'Airline': 'airline_name',
@@ -1104,6 +1107,39 @@ def import_excel():
                             if new_val != old_val:
                                 setattr(segment, attr, new_val if new_val else None)
                                 changed = True
+
+                    # 处理日期时间字段
+                    datetime_map = {
+                        'Departure Time': 'departure_time',
+                        'Arrival Time': 'arrival_time',
+                    }
+                    for col_name, attr in datetime_map.items():
+                        if col_name in df.columns:
+                            raw_val = row.get(col_name)
+                            if raw_val is not None and pd.notna(raw_val):
+                                try:
+                                    if isinstance(raw_val, pd.Timestamp):
+                                        new_dt = raw_val.to_pydatetime()
+                                    elif isinstance(raw_val, datetime):
+                                        new_dt = raw_val
+                                    else:
+                                        raw_str = str(raw_val).strip()
+                                        # 尝试多种格式解析
+                                        for fmt in ('%Y-%m-%d %H:%M', '%Y/%m/%d %H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y/%m/%d %H:%M'):
+                                            try:
+                                                new_dt = datetime.strptime(raw_str, fmt)
+                                                break
+                                            except ValueError:
+                                                continue
+                                        else:
+                                            errors.append(f'第{row_num}行：{col_name} 格式无法解析: {raw_str}')
+                                            continue
+                                    old_dt = getattr(segment, attr)
+                                    if old_dt != new_dt:
+                                        setattr(segment, attr, new_dt)
+                                        changed = True
+                                except Exception as e:
+                                    errors.append(f'第{row_num}行：{col_name} 解析失败: {str(e)}')
 
                     if changed:
                         updated_segments += 1

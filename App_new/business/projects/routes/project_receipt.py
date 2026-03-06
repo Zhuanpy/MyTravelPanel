@@ -452,12 +452,43 @@ def header_receipts(header_id):
         if ref.selling_price:
             total_received += ProjectReceipt.get_ref_total_received(ref.id, header_id)
     unpaid_amount = float(header.total_selling_amount or 0) - total_received
-    
+
+    # 准备新增收款弹窗的表单数据
+    form = ProjectLevelReceiptForm()
+    receipt_number = ProjectReceipt.generate_receipt_number()
+
+    # 检查是否有发票
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    invoice_count = ProjectInvoice.query.filter_by(header_id=header_id).filter(
+        ProjectInvoice.status != 'cancelled'
+    ).count()
+
+    # 获取未付款发票列表
+    unpaid_invoices = []
+    if invoice_count > 0:
+        invoices = ProjectInvoice.query.filter_by(header_id=header_id).filter(
+            ProjectInvoice.status.in_(['confirmed', 'partial'])
+        ).order_by(ProjectInvoice.invoice_date).all()
+        for invoice in invoices:
+            inv_unpaid = invoice.unpaid_amount
+            if inv_unpaid > 0:
+                unpaid_invoices.append((
+                    invoice.id,
+                    f"{invoice.invoice_number} - {invoice.customer_name or '客户'} (未收款: {invoice.currency or 'SGD'} {inv_unpaid:.2f})"
+                ))
+    form.selected_invoices.choices = unpaid_invoices if unpaid_invoices else [(0, "暂无未付款的发票")]
+
+    # 是否可以创建收款
+    can_create_receipt = invoice_count > 0 and unpaid_amount > 0
+
     return render_template('business/projects/project_receipt/header_receipts.html',
                          header=header,
                          all_receipts=all_receipts,
                          total_received=total_received,
-                         unpaid_amount=unpaid_amount)
+                         unpaid_amount=unpaid_amount,
+                         form=form,
+                         receipt_number=receipt_number,
+                         can_create_receipt=can_create_receipt)
 
 @project_receipt.route('/header/<int:header_id>/receipt/create', methods=['GET', 'POST'])
 @login_required
