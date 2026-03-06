@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, send_file
 from flask_login import login_required, current_user
 from ..models.models import FlightOrder, Passenger, FlightSegment, FlightSchedule, AirportData
 from App_new.business.projects.models.project import CustomerCompany
@@ -331,15 +331,23 @@ def submit_order():
         # 2.1 创建REF的航段信息
         flight_numbers = request.form.getlist('flight_number[]')
         cabin_codes = request.form.getlist('cabin_code[]')
+        cabin_classes = request.form.getlist('cabin_class[]')
         departure_airports = request.form.getlist('departure_airport[]')
         arrival_airports = request.form.getlist('arrival_airport[]')
         departure_dates = request.form.getlist('departure_date[]')
         departure_times = request.form.getlist('departure_time[]')
         arrival_dates = request.form.getlist('arrival_date[]')
         arrival_times = request.form.getlist('arrival_time[]')
-        
+        segment_ticket_numbers = request.form.getlist('segment_ticket_number[]')
+        segment_pnrs = request.form.getlist('segment_pnr[]')
+        airline_names = request.form.getlist('airline_name[]')
+        baggages = request.form.getlist('baggage[]')
+        departure_terminals = request.form.getlist('departure_terminal[]')
+        arrival_terminals = request.form.getlist('arrival_terminal[]')
+        seats = request.form.getlist('seat[]')
+
         print(f"航段数据: {len(flight_numbers)} 个航段")
-        
+
         for i in range(len(flight_numbers)):
             if flight_numbers[i]:  # 只处理非空的航班号
                 try:
@@ -366,13 +374,20 @@ def submit_order():
                         arrival_airport=arrival_airports[i] if i < len(arrival_airports) else '',
                         departure_time=dep_datetime,
                         arrival_time=arr_datetime,
-                        cabin_class=cabin_codes[i] if i < len(cabin_codes) else 'Y',
+                        cabin_class=(cabin_classes[i] if i < len(cabin_classes) and cabin_classes[i] else None),
                         cabin_code=cabin_codes[i] if i < len(cabin_codes) else 'Y',
+                        ticket_number=(segment_ticket_numbers[i] if i < len(segment_ticket_numbers) and segment_ticket_numbers[i] else None),
+                        pnr=(segment_pnrs[i] if i < len(segment_pnrs) and segment_pnrs[i] else None),
+                        airline_name=(airline_names[i] if i < len(airline_names) and airline_names[i] else None),
+                        baggage=(baggages[i] if i < len(baggages) and baggages[i] else None),
+                        departure_terminal=(departure_terminals[i] if i < len(departure_terminals) and departure_terminals[i] else None),
+                        arrival_terminal=(arrival_terminals[i] if i < len(arrival_terminals) and arrival_terminals[i] else None),
+                        seat=(seats[i] if i < len(seats) and seats[i] else None),
                         status='pending'
                     )
                     db.session.add(segment)
                     print(f"创建航段: {flight_numbers[i]} {departure_airports[i] if i < len(departure_airports) else ''}-{arrival_airports[i] if i < len(arrival_airports) else ''}")
-                    
+
                 except (ValueError, IndexError) as e:
                     print(f"航段 {i} 处理错误: {e}")
                     continue
@@ -384,9 +399,10 @@ def submit_order():
         cost_prices = request.form.getlist('cost_price[]')
         ticket_numbers = request.form.getlist('ticket_number[]')
         pnrs = request.form.getlist('pnr[]')
-        
+        passport_numbers = request.form.getlist('passport_number[]')
+
         print(f"乘客数据: {len(passenger_names)} 个乘客")
-        
+
         for i in range(len(passenger_names)):
             if passenger_names[i]:  # 只处理非空的乘客姓名
                 try:
@@ -397,7 +413,8 @@ def submit_order():
                         selling_price=float(selling_prices[i]) if i < len(selling_prices) and selling_prices[i] else None,
                         cost_price=float(cost_prices[i]) if i < len(cost_prices) and cost_prices[i] else None,
                         ticket_number=ticket_numbers[i] if i < len(ticket_numbers) and ticket_numbers[i] else '',
-                        pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else ''
+                        pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else '',
+                        passport_number=(passport_numbers[i] if i < len(passport_numbers) and passport_numbers[i] else None)
                     )
                     db.session.add(passenger)
                     print(f"创建乘客: {passenger_names[i]} - 售价: {selling_prices[i] if i < len(selling_prices) else 'N/A'}")
@@ -608,6 +625,58 @@ def submit_order():
             supplier_types=supplier_types,
             form_data=form_data
         )
+
+@flights_booking.route('/print_itinerary/<int:order_id>')
+@login_required
+@staff_only
+def print_itinerary(order_id):
+    """打印电子客票行程单"""
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.project import ProjectHeader
+
+    ref = ProjectRef.query.get_or_404(order_id)
+    header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
+
+    # 查询乘客和航段
+    passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+    segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
+
+    # 查询机场信息，构建IATA→机场数据映射
+    iata_codes = set()
+    for seg in segments:
+        iata_codes.add(seg.departure_airport.upper().strip())
+        iata_codes.add(seg.arrival_airport.upper().strip())
+
+    airport_map = {}
+    if iata_codes:
+        airports = AirportData.query.filter(AirportData.airport_IATA.in_(iata_codes)).all()
+        for ap in airports:
+            airport_map[ap.airport_IATA] = {
+                'city_en': ap.city_name_en or ap.airport_IATA,
+                'airport_en': ap.airport_name_en or ap.airport_IATA,
+            }
+
+    # 按票号分组航段（保持顺序）
+    from collections import OrderedDict
+    ticket_groups = OrderedDict()
+    has_ticket = False
+    for seg in segments:
+        tk = seg.ticket_number or 'NO_TICKET'
+        if seg.ticket_number:
+            has_ticket = True
+        if tk not in ticket_groups:
+            ticket_groups[tk] = []
+        ticket_groups[tk].append(seg)
+
+    return render_template('business/flight/print_itinerary.html',
+                           ref=ref,
+                           header=header,
+                           passengers=passengers,
+                           segments=segments,
+                           airport_map=airport_map,
+                           ticket_groups=ticket_groups,
+                           has_ticket=has_ticket)
+
 
 @flights_booking.route('/order_detail/<int:order_id>')
 @login_required
@@ -873,6 +942,210 @@ def order_list():
                          suppliers=suppliers,
                          countries=countries)
 
+
+@flights_booking.route('/export_excel')
+@login_required
+@staff_only
+def export_excel():
+    """导出机票订单数据到Excel"""
+    import pandas as pd
+    from io import BytesIO
+
+    # 选中导出 or 筛选导出
+    ref_ids = request.args.getlist('ref_ids', type=int)
+
+    query = ProjectRef.query.filter(ProjectRef.ref_type_id == 1)
+
+    # 员工权限过滤
+    if current_user.role and current_user.role.name == 'staff':
+        staff_level = 1
+        if current_user.profile:
+            staff_level = current_user.profile.staff_level or 1
+        if staff_level == 1:
+            query = query.join(ProjectHeader, ProjectRef.header_id == ProjectHeader.id).filter(
+                ProjectHeader.staff_id == current_user.id)
+
+    if ref_ids:
+        # 按选中的ID导出
+        query = query.filter(ProjectRef.id.in_(ref_ids))
+    else:
+        # 按筛选条件导出
+        ref_number = request.args.get('ref_number', '')
+        ref_status = request.args.get('ref_status', '')
+        supplier_name = request.args.get('supplier_name', '')
+        if ref_number:
+            query = query.filter(ProjectRef.ref_number.like(f'%{ref_number}%'))
+        if ref_status and ref_status != 'all':
+            query = query.filter(ProjectRef.status == ref_status)
+        elif not ref_status:
+            query = query.filter(ProjectRef.status != 'cancelled')
+        if supplier_name:
+            query = query.filter(ProjectRef.supplier.has(name=supplier_name))
+
+    refs = query.order_by(ProjectRef.created_at.desc()).all()
+
+    # 构建数据行：每个乘客 × 每个航段 = 一行
+    rows = []
+    for ref in refs:
+        header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
+        passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+        segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
+
+        if not passengers and not segments:
+            continue
+
+        # 如果无乘客只有航段，或无航段只有乘客，也要输出
+        if not passengers:
+            passengers = [None]
+        if not segments:
+            segments = [None]
+
+        for pax in passengers:
+            for seg in segments:
+                rows.append({
+                    'REF No.': ref.ref_number,
+                    'HID': header.hid if header else '',
+                    'Passenger Name': pax.name if pax else '',
+                    'Passenger Type': pax.passenger_type if pax else '',
+                    'Passport No.': pax.passport_number or '' if pax else '',
+                    'Flight No.': seg.flight_number if seg else '',
+                    'Airline': seg.airline_name or '' if seg else '',
+                    'Departure': seg.departure_airport if seg else '',
+                    'Arrival': seg.arrival_airport if seg else '',
+                    'Departure Time': seg.departure_time.strftime('%Y-%m-%d %H:%M') if seg and seg.departure_time else '',
+                    'Arrival Time': seg.arrival_time.strftime('%Y-%m-%d %H:%M') if seg and seg.arrival_time else '',
+                    'Dep. Terminal': seg.departure_terminal or '' if seg else '',
+                    'Arr. Terminal': seg.arrival_terminal or '' if seg else '',
+                    'Cabin Code': seg.cabin_code if seg else '',
+                    'Cabin Class': seg.cabin_class or '' if seg else '',
+                    'Baggage': seg.baggage or '' if seg else '',
+                    'Seat': seg.seat or '' if seg else '',
+                    'Ticket No.': seg.ticket_number or '' if seg else '',
+                    'PNR': seg.pnr or '' if seg else '',
+                    'Segment ID': seg.id if seg else '',
+                    'Passenger ID': pax.id if pax else '',
+                })
+
+    df = pd.DataFrame(rows)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Flight Orders')
+        # 设置列宽
+        from openpyxl.utils import get_column_letter
+        ws = writer.sheets['Flight Orders']
+        for i, col in enumerate(df.columns):
+            max_len = max(df[col].astype(str).map(len).max() if len(df) > 0 else 0, len(col)) + 2
+            ws.column_dimensions[get_column_letter(i + 1)].width = min(max_len, 30)
+    output.seek(0)
+
+    filename = f'flight_orders_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return send_file(output, download_name=filename, as_attachment=True,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@flights_booking.route('/import_excel', methods=['POST'])
+@login_required
+@staff_only
+def import_excel():
+    """从Excel批量更新机票订单数据（票号、PNR）"""
+    import pandas as pd
+
+    file = request.files.get('excel_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择Excel文件'})
+
+    try:
+        df = pd.read_excel(file)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Excel文件读取失败：{str(e)}'})
+
+    # 检查必需列
+    if 'Segment ID' not in df.columns:
+        return jsonify({'success': False, 'message': '缺少必需列：Segment ID'})
+
+    updated_segments = 0
+    updated_passengers = 0
+    errors = []
+
+    # 辅助函数：读取Excel单元格值
+    def cell_val(row, col):
+        v = row.get(col)
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return ''
+        return str(v).strip()
+
+    try:
+        for idx, row in df.iterrows():
+            row_num = idx + 2  # Excel行号（含表头）
+
+            # 更新航段
+            seg_id = row.get('Segment ID')
+            if seg_id and pd.notna(seg_id):
+                seg_id = int(seg_id)
+                segment = ProjectFlightSegment.query.get(seg_id)
+                if segment:
+                    changed = False
+                    # 可编辑字段：Ticket No., PNR, Airline, Dep/Arr Terminal, Baggage
+                    field_map = {
+                        'Ticket No.': 'ticket_number',
+                        'PNR': 'pnr',
+                        'Airline': 'airline_name',
+                        'Dep. Terminal': 'departure_terminal',
+                        'Arr. Terminal': 'arrival_terminal',
+                        'Cabin Code': 'cabin_code',
+                        'Cabin Class': 'cabin_class',
+                        'Baggage': 'baggage',
+                        'Seat': 'seat',
+                    }
+                    for col_name, attr in field_map.items():
+                        if col_name in df.columns:
+                            new_val = cell_val(row, col_name)
+                            old_val = getattr(segment, attr) or ''
+                            if new_val != old_val:
+                                setattr(segment, attr, new_val if new_val else None)
+                                changed = True
+
+                    if changed:
+                        updated_segments += 1
+                else:
+                    errors.append(f'第{row_num}行：Segment ID {seg_id} 不存在')
+
+            # 更新乘客护照号
+            pax_id = row.get('Passenger ID')
+            if pax_id and pd.notna(pax_id):
+                pax_id = int(pax_id)
+                passenger = ProjectFlightPassenger.query.get(pax_id)
+                if passenger and 'Passport No.' in df.columns:
+                    new_passport = cell_val(row, 'Passport No.')
+                    if new_passport != (passenger.passport_number or ''):
+                        passenger.passport_number = new_passport if new_passport else None
+                        updated_passengers += 1
+
+        db.session.commit()
+
+        msg_parts = []
+        if updated_segments:
+            msg_parts.append(f'更新 {updated_segments} 个航段')
+        if updated_passengers:
+            msg_parts.append(f'更新 {updated_passengers} 个乘客')
+        if not msg_parts:
+            msg_parts.append('无数据变更')
+
+        return jsonify({
+            'success': True,
+            'message': '、'.join(msg_parts),
+            'details': {
+                'updated_segments': updated_segments,
+                'updated_passengers': updated_passengers,
+                'errors': errors[:10]
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'导入失败：{str(e)}'})
+
+
 @flights_booking.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])
 @login_required
 @staff_only
@@ -921,6 +1194,7 @@ def edit_order(order_id):
             cost_prices = request.form.getlist('cost_price[]')
             ticket_numbers = request.form.getlist('ticket_number[]')
             pnrs = request.form.getlist('pnr[]')
+            passport_numbers = request.form.getlist('passport_number[]')
 
             for idx, name in enumerate(passenger_names):
                 if not name:
@@ -932,7 +1206,8 @@ def edit_order(order_id):
                     selling_price=float(selling_prices[idx]) if idx < len(selling_prices) and selling_prices[idx] else 0,
                     cost_price=float(cost_prices[idx]) if idx < len(cost_prices) and cost_prices[idx] else 0,
                     ticket_number=(ticket_numbers[idx] if idx < len(ticket_numbers) else None),
-                    pnr=(pnrs[idx] if idx < len(pnrs) else None)
+                    pnr=(pnrs[idx] if idx < len(pnrs) else None),
+                    passport_number=(passport_numbers[idx] if idx < len(passport_numbers) and passport_numbers[idx] else None)
                 )
                 db.session.add(passenger)
 
@@ -945,6 +1220,13 @@ def edit_order(order_id):
             departure_times = request.form.getlist('departure_time[]')  # 已由前端合并为 YYYY-MM-DD HH:MM
             arrival_times = request.form.getlist('arrival_time[]')
             cabin_classes = request.form.getlist('cabin_class[]')  # 前端提交的隐藏字段
+            segment_ticket_numbers = request.form.getlist('segment_ticket_number[]')
+            segment_pnrs = request.form.getlist('segment_pnr[]')
+            airline_names = request.form.getlist('airline_name[]')
+            baggages = request.form.getlist('baggage[]')
+            departure_terminals = request.form.getlist('departure_terminal[]')
+            arrival_terminals = request.form.getlist('arrival_terminal[]')
+            seats = request.form.getlist('seat[]')
 
             for i in range(len(flight_numbers)):
                 if not flight_numbers[i]:
@@ -980,6 +1262,13 @@ def edit_order(order_id):
                     arrival_airport=(arrival_airports[i] if i < len(arrival_airports) else None),
                     departure_time=dep_dt,
                     arrival_time=arr_dt,
+                    ticket_number=(segment_ticket_numbers[i] if i < len(segment_ticket_numbers) and segment_ticket_numbers[i] else None),
+                    pnr=(segment_pnrs[i] if i < len(segment_pnrs) and segment_pnrs[i] else None),
+                    airline_name=(airline_names[i] if i < len(airline_names) and airline_names[i] else None),
+                    baggage=(baggages[i] if i < len(baggages) and baggages[i] else None),
+                    departure_terminal=(departure_terminals[i] if i < len(departure_terminals) and departure_terminals[i] else None),
+                    arrival_terminal=(arrival_terminals[i] if i < len(arrival_terminals) and arrival_terminals[i] else None),
+                    seat=(seats[i] if i < len(seats) and seats[i] else None),
                 )
                 db.session.add(segment)
 

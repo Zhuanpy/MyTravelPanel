@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Ticket Itinerary - {{ ref.ref_number }}</title>
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 10mm 12mm;
+                @top-left { content: none; }
+                @top-center { content: none; }
+                @top-right { content: none; }
+                @bottom-left { content: none; }
+                @bottom-center { content: none; }
+                @bottom-right { content: none; }
+            }
+            body { background: white; }
+            .no-print { display: none !important; }
+            .print-page {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+            }
+            .seg-card { page-break-inside: avoid; }
+            .ticket-group { page-break-inside: avoid; }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f0f0f0; }
+
+        /* 操作栏 */
+        .no-print {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        .no-print button {
+            padding: 8px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            margin: 0 5px;
+        }
+        .no-print .btn-print { background: #059669; color: white; }
+        .no-print .btn-back { background: #6b7280; color: white; }
+
+        /* 主体 */
+        .print-page {
+            background: white;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 25px 30px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 公司头部 */
+        .company-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+        .company-logo { text-align: center; }
+        .company-logo img { height: 55px; display: block; margin: 0 auto; }
+        .logo-text-section { margin-top: 4px; text-align: center; }
+        .company-abbrev-en { font-size: 11px; font-weight: bold; }
+        .company-abbrev-cn { font-size: 10px; }
+        .company-info { text-align: right; font-size: 11px; }
+        .company-info .company-name-container h1 { font-size: 14px; margin: 0; line-height: 1.3; }
+        .company-info .company-details-container p { margin: 1px 0; font-size: 10px; color: #555; }
+
+        /* 标题 */
+        .itinerary-title { text-align: center; margin: 15px 0; }
+        .itinerary-title h2 { font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0; }
+        .itinerary-title .subtitle { font-size: 12px; color: #666; margin-top: 2px; }
+
+        /* REF信息 */
+        .ref-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+
+        /* 表格 */
+        .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin: 15px 0 8px 0;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #ccc;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        table th, table td {
+            border: 1px solid #999;
+            padding: 5px 8px;
+            text-align: left;
+            font-size: 11px;
+        }
+        table th {
+            background: #f5f5f5;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        /* 航段卡片 */
+        .seg-card {
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .seg-card-header {
+            background: #f0f4f8;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+        }
+        .seg-flight-info { font-weight: bold; font-size: 13px; }
+        .seg-flight-info .airline { font-weight: normal; color: #555; margin-left: 8px; }
+        .seg-card-body { padding: 14px 16px; }
+        .seg-route {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .seg-point {
+            width: 40%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .seg-point-left { min-width: 0; }
+        .seg-point-right { min-width: 0; }
+        .seg-point-code { font-size: 22px; font-weight: bold; color: #1a365d; letter-spacing: 1px; }
+        .seg-point-city { font-size: 11px; color: #555; margin-top: 2px; }
+        .seg-point-terminal { font-size: 10px; color: #777; margin-top: 2px; }
+        .seg-point-time { font-size: 15px; font-weight: bold; }
+        .seg-point-date { font-size: 10px; color: #666; margin-top: 2px; }
+        .next-day { font-size: 10px; color: #e53e3e; font-weight: bold; }
+        .seg-arrow {
+            width: 20%;
+            text-align: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .seg-arrow-line {
+            display: block;
+            height: 1px;
+            background: #999;
+            position: relative;
+            margin: 0 5px;
+        }
+        .seg-arrow-line::after {
+            content: '▶';
+            position: absolute;
+            right: -4px;
+            top: -7px;
+            font-size: 9px;
+            color: #999;
+        }
+        .seg-details {
+            display: flex;
+            border-top: 1px dashed #ddd;
+            padding-top: 8px;
+        }
+        .seg-detail-item {
+            flex: 1;
+            text-align: center;
+            border-right: 1px solid #eee;
+            padding: 2px 6px;
+        }
+        .seg-detail-item:last-child { border-right: none; }
+        .seg-detail-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .seg-detail-value { font-size: 11px; font-weight: 600; margin-top: 2px; word-break: break-all; }
+        .seg-no-data { text-align: center; color: #999; padding: 20px; font-size: 11px; }
+
+        /* 票号分组 */
+        .ticket-group { margin-bottom: 12px; }
+        .ticket-group-header {
+            background: #eef2ff;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            border: 1px solid #bbb;
+            border-radius: 6px 6px 0 0;
+        }
+        .ticket-group .seg-card:first-of-type { border-radius: 0 0 6px 6px; }
+        .ticket-group .seg-card { margin-bottom: 0; border-radius: 0; border-top: none; }
+        .ticket-group .seg-card:last-child { border-radius: 0 0 6px 6px; }
+
+        /* 状态标签 */
+        .status-confirmed { color: #059669; font-weight: bold; }
+        .status-pending { color: #d97706; font-weight: bold; }
+        .status-cancelled { color: #dc2626; font-weight: bold; }
+
+        /* 底部 */
+        .footer-note {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 操作按钮 -->
+<div class="no-print">
+    <button class="btn-print" onclick="window.print()">打印 Print</button>
+    <button class="btn-back" onclick="window.close()">关闭 Close</button>
+</div>
+
+<div class="print-page">
+    <!-- 标题 -->
+    <div class="itinerary-title">
+        <h2>Electronic Ticket Itinerary</h2>
+        <div class="subtitle">电子客票行程单</div>
+    </div>
+
+    <!-- REF信息 -->
+    <div class="ref-info">
+        <div>
+            <strong>REF No.:</strong> {{ ref.ref_number }}
+            {% if header %}
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <strong>HID:</strong> {{ header.hid }}
+            {% endif %}
+        </div>
+        <div>
+            <strong>Date:</strong> {{ ref.created_at.strftime('%Y-%m-%d') if ref.created_at else '' }}
+        </div>
+    </div>
+
+    <!-- 乘客信息 -->
+    <div class="section-title">Passenger Information / 乘客信息</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">No.</th>
+                <th style="width: 35%;">Passenger Name</th>
+                <th style="width: 25%;">Passport No.</th>
+                <th style="width: 35%;">Passenger Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pax in passengers %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ pax.name }}</td>
+                <td>{{ pax.passport_number or '-' }}</td>
+                <td>
+                    {% if pax.passenger_type == 'adult' %}Adult / 成人
+                    {% elif pax.passenger_type == 'child' %}Child / 儿童
+                    {% elif pax.passenger_type == 'infant' %}Infant / 婴儿
+                    {% else %}{{ pax.passenger_type }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: #999;">No passenger data</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 航班信息 -->
+    <div class="section-title">Flight Information / 航班信息</div>
+
+    {# 宏：渲染航段卡片 #}
+    {% macro segment_card(seg) %}
+    {% set dep_info = airport_map.get(seg.departure_airport.upper().strip(), {}) %}
+    {% set arr_info = airport_map.get(seg.arrival_airport.upper().strip(), {}) %}
+    <div class="seg-card">
+        <div class="seg-card-header">
+            <span class="seg-flight-info">
+                ✈ {{ seg.flight_number }}
+                {% if seg.airline_name %}<span class="airline">{{ seg.airline_name }}</span>{% endif %}
+            </span>
+            <span>{{ seg.departure_time.strftime('%A, %d %b %Y').upper() if seg.departure_time else '-' }}</span>
+        </div>
+        <div class="seg-card-body">
+            <div class="seg-route">
+                <div class="seg-point">
+                    <div class="seg-point-left">
+                        <div class="seg-point-code">{{ seg.departure_airport }}</div>
+                        <div class="seg-point-city">{{ dep_info.get('city_en', '') }}</div>
+                    </div>
+                    <div class="seg-point-right">
+                        <div class="seg-point-time">{{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '-' }}</div>
+                        <div class="seg-point-date">{{ seg.departure_time.strftime('%d %b %Y') if seg.departure_time else '' }}</div>
+                        <div class="seg-point-terminal">Terminal {{ seg.departure_terminal or '-' }}</div>
+                    </div>
+                </div>
+                <div class="seg-arrow">
+                    <span class="seg-arrow-line"></span>
+                </div>
+                <div class="seg-point arr-point">
+                    <div class="seg-point-left">
+                        <div class="seg-point-time">{{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '-' }}{% if seg.departure_time and seg.arrival_time and seg.arrival_time.date() > seg.departure_time.date() %} <span class="next-day">+{{ (seg.arrival_time.date() - seg.departure_time.date()).days }}</span>{% endif %}</div>
+                        <div class="seg-point-date">{{ seg.arrival_time.strftime('%d %b %Y') if seg.arrival_time else '' }}</div>
+                        <div class="seg-point-terminal">Terminal {{ seg.arrival_terminal or '-' }}</div>
+                    </div>
+                    <div class="seg-point-right">
+                        <div class="seg-point-code">{{ seg.arrival_airport }}</div>
+                        <div class="seg-point-city">{{ arr_info.get('city_en', '') }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="seg-details">
+                <div class="seg-detail-item">
+                    <div class="seg-detail-label">Ticket No.</div>
+                    <div class="seg-detail-value">{{ seg.ticket_number or '-' }}</div>
+                </div>
+                <div class="seg-detail-item">
+                    <div class="seg-detail-label">PNR</div>
+                    <div class="seg-detail-value">{{ seg.pnr or '-' }}</div>
+                </div>
+                <div class="seg-detail-item">
+                    <div class="seg-detail-label">Class</div>
+                    <div class="seg-detail-value">{{ seg.cabin_class if seg.cabin_class and seg.cabin_class|length > 2 else '-' }}</div>
+                </div>
+                <div class="seg-detail-item">
+                    <div class="seg-detail-label">Baggage</div>
+                    <div class="seg-detail-value">{{ seg.baggage or '-' }}</div>
+                </div>
+                <div class="seg-detail-item">
+                    <div class="seg-detail-label">Seat</div>
+                    <div class="seg-detail-value">{{ seg.seat or '-' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endmacro %}
+
+    {% if has_ticket %}
+        {% for ticket_num, group_segments in ticket_groups.items() %}
+        <div class="ticket-group">
+            <div class="ticket-group-header">
+                Ticket No.: {{ ticket_num if ticket_num != 'NO_TICKET' else '-' }}
+            </div>
+            {% for seg in group_segments %}
+            {{ segment_card(seg) }}
+            {% endfor %}
+        </div>
+        {% endfor %}
+    {% else %}
+        {% for seg in segments %}
+        {{ segment_card(seg) }}
+        {% else %}
+        <div class="seg-no-data">No flight data</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- 底部说明 -->
+    <div class="footer-note">
+        <p>This is an electronic ticket itinerary. Please present this document along with a valid photo ID at check-in.</p>
+        <p>此为电子客票行程单，请携带本行程单及有效身份证件办理登机手续。</p>
+    </div>
+</div>
+
+</body>
+</html>
