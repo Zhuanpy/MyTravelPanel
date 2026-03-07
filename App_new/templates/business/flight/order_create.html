@@ -17,7 +17,7 @@
 <!-- 添加 Select2 样式 -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <!-- 添加公共机票订单样式 -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=6.0&t=20260306">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}?v=6.1&t=20260307">
 
 <style>
     /* 覆盖容器样式 */
@@ -135,8 +135,6 @@
                 <span class="col-type">类型</span>
                 <span class="col-price">售价</span>
                 <span class="col-price">成本</span>
-                <span class="col-ticket">票号</span>
-                <span class="col-pnr">PNR</span>
                 <span class="col-passport">护照号</span>
                 <span class="col-profit">利润</span>
                 <span class="col-action"></span>
@@ -286,17 +284,9 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="CA123" required>
                     </td>
-                    <td>
-                        <label class="order-label">航司</label>
-                        <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
-                    </td>
                     <td class="cabin-code-col">
                         <label class="order-label required">舱位代码</label>
                         <input type="text" class="order-input" name="cabin_code[]" value="${data ? data.cabinCode : ''}" placeholder="Y" required>
-                    </td>
-                    <td class="cabin-class-col">
-                        <label class="order-label">舱位等级</label>
-                        <input type="text" class="order-input" name="cabin_class[]" value="${data ? (data.cabinClass || '') : ''}" placeholder="Economy">
                     </td>
                     <td class="airport-col">
                         <label class="order-label required">出发</label>
@@ -310,23 +300,29 @@ function addFlightSegment(data = null, isManualAdd = false) {
                             ${data ? `<option value="${data.arrivalAirport}" selected>${data.arrivalAirport}</option>` : '<option></option>'}
                         </select>
                     </td>
+                    <td>
+                        <label class="order-label required">出发日期/时间</label>
+                        <div style="display:flex;gap:4px;">
+                            <input type="date" class="order-input" name="departure_date[]" value="${data ? data.departureDate : ''}" required style="flex:1;">
+                            <input type="time" class="order-input" name="departure_time[]" value="${data ? data.departureTime : ''}" required style="flex:0.7;">
+                        </div>
+                    </td>
+                    <td>
+                        <label class="order-label required">到达日期/时间</label>
+                        <div style="display:flex;gap:4px;">
+                            <input type="date" class="order-input" name="arrival_date[]" value="${data ? data.arrivalDate : ''}" required style="flex:1;">
+                            <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}" required style="flex:0.7;">
+                        </div>
+                    </td>
                 </tr>
                 <tr>
-                    <td class="date-col">
-                        <label class="order-label required">出发日期</label>
-                        <input type="date" class="order-input" name="departure_date[]" value="${data ? data.departureDate : ''}" required>
+                    <td>
+                        <label class="order-label">航司</label>
+                        <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
                     </td>
-                    <td class="time-col">
-                        <label class="order-label">出发时间</label>
-                        <input type="time" class="order-input" name="departure_time[]" value="${data ? data.departureTime : ''}">
-                    </td>
-                    <td class="date-col">
-                        <label class="order-label required">到达日期</label>
-                        <input type="date" class="order-input" name="arrival_date[]" value="${data ? data.arrivalDate : ''}" required>
-                    </td>
-                    <td class="time-col">
-                        <label class="order-label">到达时间</label>
-                        <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}">
+                    <td>
+                        <label class="order-label">舱位等级</label>
+                        <input type="text" class="order-input" name="cabin_class[]" value="${data ? (data.cabinClass || '') : ''}" placeholder="Economy">
                     </td>
                     <td>
                         <label class="order-label">出发航站楼</label>
@@ -336,25 +332,20 @@ function addFlightSegment(data = null, isManualAdd = false) {
                         <label class="order-label">到达航站楼</label>
                         <input type="text" class="order-input" name="arrival_terminal[]" value="${data ? (data.arrivalTerminal || '') : ''}" placeholder="T3">
                     </td>
-                </tr>
-                <tr>
-                    <td class="ticket-col">
-                        <label class="order-label">票号</label>
-                        <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890">
-                    </td>
-                    <td class="pnr-col">
-                        <label class="order-label">PNR</label>
-                        <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="ABC123" maxlength="10">
+                    <td>
+                        <label class="order-label">票号 / PNR</label>
+                        <div style="display:flex;gap:4px;">
+                            <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890" style="flex:1;">
+                            <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="PNR" maxlength="10" style="flex:0.5;">
+                        </div>
                     </td>
                     <td>
-                        <label class="order-label">行李额</label>
-                        <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG">
+                        <label class="order-label">行李额 / 座位</label>
+                        <div style="display:flex;gap:4px;">
+                            <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG" style="flex:1;">
+                            <input type="text" class="order-input" name="seat[]" value="${data ? (data.seat || '') : ''}" placeholder="座位" maxlength="10" style="flex:0.6;">
+                        </div>
                     </td>
-                    <td>
-                        <label class="order-label">座位</label>
-                        <input type="text" class="order-input" name="seat[]" value="${data ? (data.seat || '') : ''}" placeholder="12A" maxlength="10">
-                    </td>
-                    <td colspan="2"></td>
                 </tr>
             </table>
         </div>
@@ -393,12 +384,6 @@ function addPassenger() {
                     <span class="currency-label-sm">SGD</span>
                     <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="0" oninput="updatePriceSummary()">
                 </div>
-            </div>
-            <div class="passenger-field-inline col-ticket">
-                <input type="text" class="order-input" name="ticket_number[]" placeholder="票号">
-            </div>
-            <div class="passenger-field-inline col-pnr">
-                <input type="text" class="order-input" name="pnr[]" placeholder="PNR" maxlength="6">
             </div>
             <div class="passenger-field-inline col-passport">
                 <input type="text" class="order-input" name="passport_number[]" placeholder="护照号" maxlength="20">

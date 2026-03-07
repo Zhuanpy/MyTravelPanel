@@ -232,12 +232,16 @@
     width: 100%;
     min-width: auto;
     border-collapse: separate;
-    border-spacing: 6px 0;
+    border-spacing: 6px 8px;
 }
 
 .flight-segment table td {
-    padding: 0;
+    padding: 4px 0;
     vertical-align: bottom;
+}
+
+.flight-segment table tr + tr td {
+    padding-top: 10px;
 }
 
 .flight-segment .order-label {
@@ -623,8 +627,7 @@ input[type="number"].order-input {
 .col-name { flex: 2.5; min-width: 120px; }
 .col-type { flex: 1; min-width: 70px; }
 .col-price { flex: 1.5; min-width: 100px; }
-.col-ticket { flex: 2; min-width: 100px; }
-.col-pnr { flex: 1; min-width: 70px; }
+.col-passport { flex: 1.5; min-width: 100px; }
 .col-profit { flex: 1.2; min-width: 80px; text-align: right; }
 .col-action { width: 28px; flex-shrink: 0; }
 
@@ -740,7 +743,6 @@ input[type="number"].order-input {
     }
 
     .col-name { flex: 2; min-width: 150px; }
-    .col-ticket { flex: 1.5; min-width: 120px; }
 }
 
 @media (max-width: 900px) {
