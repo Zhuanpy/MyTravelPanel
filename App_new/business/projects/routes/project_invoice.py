@@ -210,8 +210,6 @@ def invoice_detail(invoice_id):
             else:
                 extra_data['pax_names_display'] = extra_data.get('pax_name', '')
 
-        import sys
-        print(f"DEBUG invoice pax: ref_id={ref.id}, pax_names_display={extra_data.get('pax_names_display')}, pax_name={extra_data.get('pax_name')}, pax_names={extra_data.get('pax_names')}", file=sys.stderr, flush=True)
         return extra_data
 
     # 为每个REF构建extra_data
