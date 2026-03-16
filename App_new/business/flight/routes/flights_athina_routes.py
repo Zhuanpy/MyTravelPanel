@@ -221,3 +221,42 @@ def generate_booking_code():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@flights_athina.route('/parse_flights', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def parse_flights_api():
+    """解析航班信息API - 支持 Trip.com / Ctrip / Google Flights / Scoot 格式"""
+    try:
+        from App_new.utils.parse_flights import parse_flights
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '未提供数据'}), 400
+
+        input_text = data.get('text', '')
+        if not input_text.strip():
+            return jsonify({'error': '请输入航班信息'}), 400
+
+        result = parse_flights(input_text)
+
+        if not result['success']:
+            return jsonify({
+                'error': '未能识别航班信息格式。支持的格式：Trip.com、携程、Google Flights、酷航'
+            }), 400
+
+        # 航段信息（segments）已经在 result 中
+        # 同时生成行程转换所需的输入格式（与 segments 相同，可直接用于行程转换）
+        return jsonify({
+            'success': True,
+            'segments': result['segments'],
+            'format_detected': result['format_detected'],
+            'flight_count': len(result['flights'])
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'解析失败：{str(e)}'}), 500
+

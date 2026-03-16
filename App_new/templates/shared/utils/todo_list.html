@@ -973,6 +973,13 @@ function loadProjectReminders() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // 按due_date升序排列：最近的在前，最远的在后，无日期的放最后
+                data.todos.sort((a, b) => {
+                    if (!a.due_date && !b.due_date) return 0;
+                    if (!a.due_date) return 1;
+                    if (!b.due_date) return -1;
+                    return new Date(a.due_date) - new Date(b.due_date);
+                });
                 renderProjectReminders(data.todos);
                 document.getElementById('projectRemindersCount').textContent = data.todos.filter(t => !t.is_completed).length;
             }

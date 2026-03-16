@@ -544,6 +544,9 @@
         <button id="athinaBtn" class="tool-switch-btn" onclick="switchTool('athina')">
             <i class="fas fa-code"></i> ATHINA代码生成
         </button>
+        <button id="parseBtn" class="tool-switch-btn" onclick="switchTool('parse')">
+            <i class="fas fa-magic"></i> 航班解析
+        </button>
     </div>
     
     <!-- 工具内容容器 -->
@@ -729,6 +732,77 @@
                 </div><!-- /tool-main-content -->
             </div><!-- /tool-layout -->
         </div><!-- /athinaTool -->
+        <!-- 航班解析工具 -->
+        <div id="parseTool" class="tool-section">
+            <div class="tool-layout">
+                <!-- 左侧记忆功能区域 -->
+                <div class="memory-card" id="parseMemoryCard">
+                    <div class="memory-card-header">
+                        <span><i class="fas fa-history"></i> 历史记录</span>
+                        <button class="clear-memory-btn" onclick="clearParseMemory()" title="清空记录">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div class="memory-card-body" id="parseMemoryList">
+                        <div class="memory-empty">
+                            <i class="fas fa-inbox"></i>
+                            <span>暂无历史记录</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧主要内容 -->
+                <div class="tool-main-content">
+                    <div class="visa-card">
+                        <h2 class="section-header">
+                            <i class="fas fa-magic"></i>
+                            航班解析
+                        </h2>
+                        <div class="visa-card-body" style="padding: 2rem;">
+                            <div class="visa-form-group visa-mb-3">
+                                <label class="visa-form-label">
+                                    <i class="fas fa-paste"></i> 粘贴航班信息：
+                                </label>
+                                <div class="form-text" style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.85rem;">
+                                    支持格式：Trip.com、携程、Google Flights、酷航（直接从网页复制粘贴即可）
+                                </div>
+                                <textarea id="parse_input" class="visa-form-textarea" placeholder="从 Trip.com / 携程 / Google Flights / 酷航 网页复制航班信息，粘贴到这里..." style="min-height: 200px; font-family: 'Consolas', 'Monaco', monospace;"></textarea>
+                            </div>
+
+                            <div class="visa-flex visa-gap-2 visa-mb-3">
+                                <button type="button" class="visa-btn visa-btn-primary" onclick="parseFlights()">
+                                    <i class="fas fa-magic"></i> 解析航班
+                                </button>
+                                <button type="button" class="visa-btn visa-btn-secondary" onclick="clearParseInput()">
+                                    <i class="fas fa-eraser"></i> 清空
+                                </button>
+                                <span id="parse_format_badge" style="display:none; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; background: #d1fae5; color: #065f46; align-self: center;"></span>
+                            </div>
+
+                            <!-- 输出区域：两个框 -->
+                            <div class="visa-form-group visa-mb-3">
+                                <label class="visa-form-label">
+                                    <i class="fas fa-list-ol"></i> 航段信息：
+                                </label>
+                                <div style="position: relative;">
+                                    <textarea id="parse_segments" class="visa-form-textarea" placeholder="解析后的航段信息将显示在这里..." style="min-height: 160px; font-family: 'Consolas', 'Monaco', monospace;" readonly></textarea>
+                                    <button type="button" class="visa-btn visa-btn-success visa-btn-sm" onclick="copyParseOutput('parse_segments')" title="复制航段" style="position: absolute; top: 8px; right: 8px; z-index: 10;">
+                                        <i class="fas fa-copy"></i> 复制
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="visa-flex visa-gap-2 visa-mb-3">
+                                <button type="button" class="visa-btn visa-btn-success" onclick="sendToItinerary()">
+                                    <i class="fas fa-arrow-right"></i> 发送到行程转换
+                                </button>
+                                <span style="color: #6b7280; font-size: 0.85rem; align-self: center;">将航段信息发送到"机票行程转换"工具继续处理</span>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /tool-main-content -->
+            </div><!-- /tool-layout -->
+        </div><!-- /parseTool -->
     </div><!-- /tool-content-container -->
     </div><!-- /athina-conversion-container -->
 </div><!-- /container-fluid -->
@@ -1830,5 +1904,193 @@
             btn.disabled = false;
         }
     }
+
+    // ========================================
+    // 航班解析工具
+    // ========================================
+    const PARSE_MEMORY_KEY = 'parse_flights_memory';
+
+    // 解析航班
+    function parseFlights() {
+        const inputText = document.getElementById('parse_input').value;
+        if (!inputText.trim()) {
+            alert('请输入航班信息');
+            return;
+        }
+
+        const segmentsArea = document.getElementById('parse_segments');
+        const badge = document.getElementById('parse_format_badge');
+        segmentsArea.value = '解析中...';
+        badge.style.display = 'none';
+
+        fetch("{{ url_for('flights_athina.parse_flights_api') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ text: inputText })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                segmentsArea.value = '';
+                alert(result.error);
+                return;
+            }
+
+            segmentsArea.value = result.segments;
+
+            // 显示格式标签
+            badge.textContent = result.format_detected + ' · ' + result.flight_count + '个航班';
+            badge.style.display = 'inline-block';
+
+            // 保存到记忆
+            saveParseMemory(inputText, result.segments, result.format_detected);
+
+            showToast('解析成功');
+        })
+        .catch(error => {
+            segmentsArea.value = '';
+            alert('解析失败：' + error.message);
+        });
+    }
+
+    // 复制解析输出
+    function copyParseOutput(textareaId) {
+        const textarea = document.getElementById(textareaId);
+        if (!textarea.value) {
+            alert('没有可复制的内容');
+            return;
+        }
+        textarea.select();
+        document.execCommand('copy');
+        showToast('已复制到剪贴板');
+    }
+
+    // 发送到行程转换工具
+    function sendToItinerary() {
+        const segments = document.getElementById('parse_segments').value;
+        if (!segments) {
+            alert('请先解析航班信息');
+            return;
+        }
+
+        // 切换到行程转换工具
+        switchTool('itinerary');
+        // 填入航段信息到行程转换的输入框
+        document.getElementById('input_text').value = segments;
+        showToast('已发送到行程转换');
+    }
+
+    // 清空输入
+    function clearParseInput() {
+        document.getElementById('parse_input').value = '';
+        document.getElementById('parse_segments').value = '';
+        document.getElementById('parse_format_badge').style.display = 'none';
+    }
+
+    // 保存解析记忆
+    function saveParseMemory(inputText, segments, format) {
+        if (!inputText || !inputText.trim()) return;
+
+        const memory = getMemory(PARSE_MEMORY_KEY);
+        const title = inputText.trim().substring(0, 50).replace(/\n/g, ' ') + (inputText.length > 50 ? '...' : '');
+
+        const existingIndex = memory.findIndex(item => item.inputText === inputText);
+        if (existingIndex !== -1) {
+            memory.splice(existingIndex, 1);
+        }
+
+        memory.unshift({
+            id: Date.now(),
+            title: title,
+            inputText: inputText,
+            segments: segments,
+            format: format,
+            timestamp: Date.now()
+        });
+
+        if (memory.length > MAX_MEMORY_ITEMS) {
+            memory.pop();
+        }
+
+        saveMemory(PARSE_MEMORY_KEY, memory);
+        renderParseMemory();
+    }
+
+    // 渲染解析记忆列表
+    function renderParseMemory() {
+        const container = document.getElementById('parseMemoryList');
+        const memory = getMemory(PARSE_MEMORY_KEY);
+
+        if (memory.length === 0) {
+            container.innerHTML = `
+                <div class="memory-empty">
+                    <i class="fas fa-inbox"></i>
+                    <span>暂无历史记录</span>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = memory.map(item => `
+            <div class="memory-item" onclick="loadParseMemory(${item.id})">
+                <div class="memory-item-content">
+                    <div class="memory-item-title">${escapeHtml(item.title)}</div>
+                    <div class="memory-item-meta">
+                        ${item.format || ''} | ${formatTime(item.timestamp)}
+                    </div>
+                </div>
+                <button class="memory-item-delete" onclick="deleteParseMemory(event, ${item.id})" title="删除">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    // 加载解析记忆
+    function loadParseMemory(id) {
+        const memory = getMemory(PARSE_MEMORY_KEY);
+        const item = memory.find(m => m.id === id);
+
+        if (item) {
+            document.getElementById('parse_input').value = item.inputText;
+            document.getElementById('parse_segments').value = item.segments || '';
+
+            const badge = document.getElementById('parse_format_badge');
+            if (item.format) {
+                badge.textContent = item.format;
+                badge.style.display = 'inline-block';
+            }
+
+            showToast('已加载历史记录');
+        }
+    }
+
+    // 删除解析记忆
+    function deleteParseMemory(event, id) {
+        event.stopPropagation();
+        const memory = getMemory(PARSE_MEMORY_KEY);
+        const index = memory.findIndex(m => m.id === id);
+        if (index !== -1) {
+            memory.splice(index, 1);
+            saveMemory(PARSE_MEMORY_KEY, memory);
+            renderParseMemory();
+        }
+    }
+
+    // 清空解析记忆
+    function clearParseMemory() {
+        if (confirm('确定要清空所有历史记录吗？')) {
+            localStorage.removeItem(PARSE_MEMORY_KEY);
+            renderParseMemory();
+        }
+    }
+
+    // 初始化解析记忆列表
+    document.addEventListener('DOMContentLoaded', function() {
+        renderParseMemory();
+    });
 </script>
 {% endblock %}
