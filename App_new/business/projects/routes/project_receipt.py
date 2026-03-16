@@ -589,12 +589,16 @@ def create_header_receipt(header_id):
                 # 按比例分配给选中的发票
                 distribution = []
                 remaining_amount = amount
-                for inv_data in selected_invoices_data:
+                for i, inv_data in enumerate(selected_invoices_data):
                     invoice = inv_data['invoice']
                     inv_unpaid = inv_data['unpaid']
                     if inv_unpaid > 0 and selected_unpaid_total > 0:
-                        # 按比例分配
-                        allocated = min(inv_unpaid, remaining_amount * (inv_unpaid / selected_unpaid_total))
+                        # 最后一张发票：分配所有剩余金额（避免浮点误差丢失）
+                        if i == len(selected_invoices_data) - 1:
+                            allocated = min(inv_unpaid, remaining_amount)
+                        else:
+                            # 按比例分配（用原始金额计算比例，而非递减的remaining）
+                            allocated = min(inv_unpaid, round(amount * (inv_unpaid / selected_unpaid_total), 2))
                         if allocated > 0:
                             distribution.append({
                                 'invoice_id': invoice.id,

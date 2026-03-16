@@ -597,7 +597,7 @@ class ProjectReceipt(db.Model):
                 if i == len(invoices_unpaid) - 1:
                     allocated = remaining
                 else:
-                    allocated = min(item['unpaid'], remaining * (item['unpaid'] / total_unpaid))
+                    allocated = min(item['unpaid'], float(amount) * (item['unpaid'] / total_unpaid))
                 allocations[item['invoice'].id] = round(allocated, 2)
                 remaining -= allocated
                 remaining = round(remaining, 2)
