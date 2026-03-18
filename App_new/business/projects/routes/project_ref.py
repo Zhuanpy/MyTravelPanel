@@ -263,13 +263,14 @@ def submit_flight_ref():
         cost_prices = request.form.getlist('cost_price[]')
         ticket_numbers = request.form.getlist('ticket_number[]')
         pnrs = request.form.getlist('pnr[]')
+        passport_numbers = request.form.getlist('passport_number[]')
 
         # 删除现有乘客
         ProjectFlightPassenger.query.filter_by(ref_id=ref.id).delete()
 
         # 安全处理乘客信息 - 确保所有字段长度一致
         max_passenger_len = max(len(passenger_names), len(passenger_types), len(selling_prices),
-                                len(cost_prices), len(ticket_numbers), len(pnrs))
+                                len(cost_prices), len(ticket_numbers), len(pnrs), len(passport_numbers))
 
         # 扩展较短的列
         passenger_types.extend(['adult'] * (max_passenger_len - len(passenger_types)))
@@ -277,6 +278,7 @@ def submit_flight_ref():
         cost_prices.extend([''] * (max_passenger_len - len(cost_prices)))
         ticket_numbers.extend([''] * (max_passenger_len - len(ticket_numbers)))
         pnrs.extend([''] * (max_passenger_len - len(pnrs)))
+        passport_numbers.extend([''] * (max_passenger_len - len(passport_numbers)))
 
         # 添加新乘客并计算总价
         total_selling_price = 0
@@ -299,7 +301,8 @@ def submit_flight_ref():
                     selling_price=selling_price if selling_price > 0 else None,
                     cost_price=cost_price if cost_price > 0 else None,
                     ticket_number=ticket_numbers[i] if i < len(ticket_numbers) and ticket_numbers[i] else None,
-                    pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else None
+                    pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else None,
+                    passport_number=passport_numbers[i] if i < len(passport_numbers) and passport_numbers[i] else None
                 )
                 db.session.add(passenger)
 

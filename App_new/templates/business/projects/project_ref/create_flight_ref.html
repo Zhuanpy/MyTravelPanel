@@ -137,6 +137,7 @@
                 <span class="col-type">类型</span>
                 <span class="col-price">售价</span>
                 <span class="col-price">成本</span>
+                <span class="col-passport">护照号</span>
                 <span class="col-profit">利润</span>
                 <span class="col-action"></span>
             </div>
@@ -213,7 +214,8 @@ window.passengersData = [
                 "name": {{ p.name|tojson }},
                 "passenger_type": {{ p.passenger_type|tojson }},
                 "selling_price": {{ p.selling_price|default(0, true) }},
-                "cost_price": {{ p.cost_price|default(0, true) }}
+                "cost_price": {{ p.cost_price|default(0, true) }},
+                "passport_number": {{ (p.passport_number or '')|tojson }}
             }{% if not loop.last %},{% endif %}
         {% endfor %}
     {% elif fallback_passenger %}
@@ -488,6 +490,9 @@ function addPassengerWithData(data) {
                     <span class="currency-label-sm">SGD</span>
                     <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="${data.cost_price || 0}" oninput="updatePriceSummary()" ${window.eoPaid ? 'readonly' : ''}>
                 </div>
+            </div>
+            <div class="passenger-field-inline col-passport">
+                <input type="text" class="order-input" name="passport_number[]" value="${data.passport_number || ''}" placeholder="护照号" maxlength="20">
             </div>
             <div class="passenger-field-inline col-profit profit-inline">
                 <span class="profit-amount-inline">+0.00</span>
@@ -800,6 +805,9 @@ function addPassenger() {
                     <span class="currency-label-sm">SGD</span>
                     <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="0" oninput="updatePriceSummary()" ${window.eoPaid ? 'readonly' : ''}>
                 </div>
+            </div>
+            <div class="passenger-field-inline col-passport">
+                <input type="text" class="order-input" name="passport_number[]" placeholder="护照号" maxlength="20">
             </div>
             <div class="passenger-field-inline col-profit profit-inline">
                 <span class="profit-amount-inline">+0.00</span>

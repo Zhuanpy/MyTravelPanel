@@ -1,6 +1,6 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}US-Bangla 机票转换{% endblock %}
+{% block title %}机票工具箱{% endblock %}
 
 {% block content %}
 <style>
@@ -22,10 +22,47 @@
     .seg-block .seg-label { position: absolute; top: -9px; left: 10px; background: #fff; padding: 0 4px; font-size: 11px; color: var(--ub-blue); font-weight: bold; }
     .seg-block .seg-remove { position: absolute; top: 2px; right: 4px; }
     .seg-block .form-control-sm { font-size: 12px; height: 26px; padding: 1px 4px; }
+    /* Tab 样式 */
+    .tool-tabs .nav-link { font-size: 13px; padding: 6px 16px; color: #555; }
+    .tool-tabs .nav-link.active { color: var(--ub-blue); font-weight: bold; border-bottom: 2px solid var(--ub-blue); }
+    /* Ctrip 配色 */
+    .ctrip-header { background: #2577E3 !important; color: #fff; }
+    .ctrip-btn { background: #2577E3; border-color: #2577E3; color: #fff; }
+    .ctrip-btn:hover { background: #1a5bb8; border-color: #1a5bb8; color: #fff; }
+    /* IndiGo 配色 */
+    .indigo-header { background: #2B1F6B !important; color: #fff; }
+    .indigo-btn { background: #2B1F6B; border-color: #2B1F6B; color: #fff; }
+    .indigo-btn:hover { background: #1e1550; border-color: #1e1550; color: #fff; }
+    /* 清理工具通用样式 */
+    .clean-features { font-size: 12px; color: #666; margin: 0; padding-left: 18px; }
+    .clean-features li { margin-bottom: 2px; }
 </style>
 
 <div class="container py-2" style="max-width: 960px;">
-    <h5 class="mb-2 ub-title"><i class="fas fa-ticket-alt me-1"></i>US-Bangla 机票转换</h5>
+    <h5 class="mb-2 ub-title"><i class="fas fa-toolbox me-1"></i>机票工具箱</h5>
+
+    <!-- 工具切换 Tab -->
+    <ul class="nav nav-tabs tool-tabs mb-3" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-usbangla" type="button">
+                <i class="fas fa-ticket-alt me-1"></i>US-Bangla 转换
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ctrip" type="button">
+                <i class="fas fa-broom me-1"></i>Ctrip 清理
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-indigo" type="button">
+                <i class="fas fa-eraser me-1"></i>IndiGo 去价格
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+    <!-- ==================== US-Bangla Tab ==================== -->
+    <div class="tab-pane fade show active" id="tab-usbangla">
 
     <!-- 上传 -->
     <div class="card ub-card mb-4">
@@ -104,6 +141,66 @@
             </div>
         </div>
     </div>
+    </div><!-- /tab-usbangla -->
+
+    <!-- ==================== Ctrip Tab ==================== -->
+    <div class="tab-pane fade" id="tab-ctrip">
+        <div class="card ub-card mb-3">
+            <div class="card-header ctrip-header">
+                <i class="fas fa-broom me-1"></i>Ctrip/Trip.com 行程单清理
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>去除 Trip.com Group / IATA logo</li>
+                    <li>去除 Trip.com 字样、Booking No. 订单号</li>
+                    <li>修复姓名换行问题（合并 First name / Last name）</li>
+                    <li>修复航班信息换行问题（机场名称合并）</li>
+                    <li>去除底部重复的 Baggage Information</li>
+                    <li>去除多余页面，压缩空白区域</li>
+                </ul>
+                <div class="row align-items-center g-2">
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm" id="ctripFile" accept=".pdf">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm ctrip-btn" onclick="cleanCtrip()" id="btnCleanCtrip">
+                            <i class="fas fa-magic me-1"></i>清理并下载
+                        </button>
+                    </div>
+                </div>
+                <div id="ctripMsg" class="mt-2" style="display:none;"></div>
+            </div>
+        </div>
+    </div><!-- /tab-ctrip -->
+
+    <!-- ==================== IndiGo Tab ==================== -->
+    <div class="tab-pane fade" id="tab-indigo">
+        <div class="card ub-card mb-3">
+            <div class="card-header indigo-header">
+                <i class="fas fa-eraser me-1"></i>IndiGo 机票去价格
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>去除价格相关内容（Fare Summary、Payment Details 等）</li>
+                    <li>保留行程信息和 Baggage Allowance</li>
+                    <li>去除价格后的多余页面（Terms & Conditions 等）</li>
+                </ul>
+                <div class="row align-items-center g-2">
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm" id="indigoFile" accept=".pdf">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm indigo-btn" onclick="cleanIndigo()" id="btnCleanIndigo">
+                            <i class="fas fa-magic me-1"></i>处理并下载
+                        </button>
+                    </div>
+                </div>
+                <div id="indigoMsg" class="mt-2" style="display:none;"></div>
+            </div>
+        </div>
+    </div><!-- /tab-indigo -->
+
+    </div><!-- /tab-content -->
 </div>
 
 <script>
@@ -318,6 +415,112 @@ function resetAll() {
     segIndex = 0;
     updatePaxCount();
     updateSegCount();
+}
+
+// ========== Ctrip 清理 ==========
+
+function cleanCtrip() {
+    const fileInput = document.getElementById('ctripFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnCleanCtrip');
+    const msgEl = document.getElementById('ctripMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>处理中...';
+    msgEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.clean_ctrip") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(resp => {
+        const ct = resp.headers.get('Content-Type') || '';
+        if (ct.includes('application/pdf')) {
+            return resp.blob().then(blob => {
+                const cd = resp.headers.get('Content-Disposition') || '';
+                let fn = 'ctrip_clean.pdf';
+                const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+                if (m) fn = decodeURIComponent(m[1]);
+                const a = document.createElement('a');
+                a.href = window.URL.createObjectURL(blob);
+                a.download = fn;
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+                msgEl.className = 'mt-2 text-success small';
+                msgEl.textContent = '处理完成，已下载清理后的文件';
+                msgEl.style.display = '';
+            });
+        } else {
+            return resp.json().then(d => {
+                msgEl.className = 'mt-2 text-danger small';
+                msgEl.textContent = d.message || '处理失败';
+                msgEl.style.display = '';
+            });
+        }
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 text-danger small';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>清理并下载'; });
+}
+
+// ========== IndiGo 去价格 ==========
+
+function cleanIndigo() {
+    const fileInput = document.getElementById('indigoFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnCleanIndigo');
+    const msgEl = document.getElementById('indigoMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>处理中...';
+    msgEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.clean_indigo") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(resp => {
+        const ct = resp.headers.get('Content-Type') || '';
+        if (ct.includes('application/pdf')) {
+            return resp.blob().then(blob => {
+                const cd = resp.headers.get('Content-Disposition') || '';
+                let fn = 'indigo_clean.pdf';
+                const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+                if (m) fn = decodeURIComponent(m[1]);
+                const a = document.createElement('a');
+                a.href = window.URL.createObjectURL(blob);
+                a.download = fn;
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+                msgEl.className = 'mt-2 text-success small';
+                msgEl.textContent = '处理完成，已下载清理后的文件';
+                msgEl.style.display = '';
+            });
+        } else {
+            return resp.json().then(d => {
+                msgEl.className = 'mt-2 text-danger small';
+                msgEl.textContent = d.message || '处理失败';
+                msgEl.style.display = '';
+            });
+        }
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 text-danger small';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>处理并下载'; });
 }
 </script>
 {% endblock %}

@@ -294,8 +294,7 @@ def create_initial_balance(company_id):
 def get_company_prepayments(company_id):
     """获取公司的预付账款列表"""
     try:
-        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment, PrepaymentUsage
-        from sqlalchemy import func
+        from App_new.business.projects.models.supplier_prepayment import SupplierPrepayment
 
         # 获取公司信息
         company = CustomerCompany.query.get(company_id)
@@ -307,25 +306,12 @@ def get_company_prepayments(company_id):
             SupplierPrepayment.status.in_(['confirmed', 'partial_used'])
         ).order_by(SupplierPrepayment.created_at.asc()).all()
 
-        # 批量查询 confirmed 使用金额
-        prepayment_ids = [p.id for p in prepayments]
-        confirmed_usage_sums = {}
-        if prepayment_ids:
-            usage_query = db.session.query(
-                PrepaymentUsage.prepayment_id,
-                func.sum(PrepaymentUsage.amount).label('total')
-            ).filter(
-                PrepaymentUsage.prepayment_id.in_(prepayment_ids),
-                PrepaymentUsage.status == 'confirmed'
-            ).group_by(PrepaymentUsage.prepayment_id).all()
-            confirmed_usage_sums = {row.prepayment_id: float(row.total or 0) for row in usage_query}
-
-        # 计算可用余额（充值金额 - confirmed 使用）
+        # 直接使用 balance_amount 字段计算可用余额
+        # 注意：不能只统计 confirmed 使用记录，因为 pending 状态的记录也已实际扣减了 balance_amount
         total_available = 0
         result_prepayments = []
         for p in prepayments:
-            used = confirmed_usage_sums.get(p.id, 0)
-            available = float(p.amount) - used
+            available = float(p.balance_amount)
             if available > 0:
                 p_dict = p.to_dict()
                 p_dict['available_balance'] = available

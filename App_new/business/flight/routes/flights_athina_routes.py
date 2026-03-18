@@ -239,7 +239,12 @@ def parse_flights_api():
         if not input_text.strip():
             return jsonify({'error': '请输入航班信息'}), 400
 
+        import sys
+        print(f"[DEBUG parse_flights] 输入文本前200字符: {repr(input_text[:200])}", file=sys.stderr)
         result = parse_flights(input_text)
+        print(f"[DEBUG parse_flights] 格式={result.get('format_detected')}, 航班数={len(result.get('flights', []))}", file=sys.stderr)
+        for f in result.get('flights', []):
+            print(f"[DEBUG parse_flights]   {f.get('airline','')}{f.get('number','')}: {f.get('dep_code','')} -> {f.get('arr_code','')}", file=sys.stderr)
 
         if not result['success']:
             return jsonify({

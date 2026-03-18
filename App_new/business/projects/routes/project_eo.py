@@ -708,8 +708,8 @@ def batch_pay_submit():
         db.session.add(payment_record)
         db.session.flush()  # 获取 payment_record.id
 
-        # 计算每个EO的付款金额（按比例分配）
-        total_cost = sum(float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0 for eo in eos)
+        # 计算每个EO的付款金额（按比例分配，排除 void/paid 的 EO）
+        total_cost = sum(float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0 for eo in eos if eo.status not in ['void', 'paid'])
 
         success_count = 0
         remaining_to_pay = total_pay_amount_decimal  # 剩余需要扣减的金额
@@ -761,6 +761,11 @@ def batch_pay_submit():
                     if old_prepayment:
                         old_prepayment.balance_amount += existing_usage.amount
                         old_prepayment.update_status()
+                        # 回退FIFO索引，确保恢复的余额可以被后续EO使用
+                        if old_prepayment in available_prepayments:
+                            old_idx = available_prepayments.index(old_prepayment)
+                            if old_idx < prepayment_index:
+                                prepayment_index = old_idx
                     existing_usage.status = 'reversed'
                     existing_usage.description = f'批量付款重新分配'
 

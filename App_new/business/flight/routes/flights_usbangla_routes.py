@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""US-Bangla Airlines 机票PDF工具：上传原始合票PDF → 解析 → 生成单人PDF（支持多航段往返）"""
+"""机票PDF工具集：US-Bangla生成、Ctrip清理、IndiGo去价格"""
 
 from flask import Blueprint, render_template, request, send_file, jsonify
 from flask_login import login_required
@@ -7,6 +7,8 @@ from App_new.utils.decorators import staff_only
 from io import BytesIO
 import os
 import re
+import tempfile
+import shutil
 
 flights_usbangla = Blueprint('flights_usbangla', __name__, url_prefix='/flights_usbangla')
 
@@ -406,3 +408,512 @@ def generate_tickets():
         zip_buffer.seek(0)
         zip_filename = f"E-tickets_{booking_ref}.zip"
         return send_file(zip_buffer, download_name=zip_filename, as_attachment=True, mimetype='application/zip')
+
+
+# ====================================================================
+#  Ctrip/Trip.com 行程单清理
+# ====================================================================
+
+_CTRIP_FONTNAME = "helv"
+_CTRIP_FONTSIZE = 9.5
+_CTRIP_COLOR = (0, 0, 0)
+
+
+def _ctrip_find_and_remove_logos(page):
+    """去除页面右上角的 Trip.com Group logo 和 IATA logo"""
+    import fitz
+
+    pw = page.rect.width
+    blocks = page.get_text("dict")["blocks"]
+    img_blocks = [b for b in blocks if b["type"] == 1 and b["bbox"][0] > pw * 0.4 and b["bbox"][1] < 120]
+    if img_blocks:
+        x0 = min(b["bbox"][0] for b in img_blocks) - 5
+        y0 = min(b["bbox"][1] for b in img_blocks) - 5
+        x1 = max(b["bbox"][2] for b in img_blocks) + 5
+        y1 = max(b["bbox"][3] for b in img_blocks) + 5
+        page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
+        return True
+    return False
+
+
+def _ctrip_find_and_remove_boilerplate(page):
+    """去除 'We advise you...' 提示语"""
+    import fitz
+
+    results = page.search_for("We advise you print out")
+    if results:
+        r = results[0]
+        end_results = page.search_for("possible.")
+        end_y = end_results[0].y1 if end_results else r.y1 + 16
+        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, page.rect.width - 50, end_y + 2), fill=(1, 1, 1))
+        return end_y
+    return None
+
+
+def _ctrip_find_and_remove_booking_no(page):
+    """去除 Booking No. 行"""
+    import fitz
+    results = page.search_for("Booking No.")
+    if results:
+        r = results[0]
+        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, page.rect.width - 50, r.y1 + 2), fill=(1, 1, 1))
+        return r.y1
+    return None
+
+
+def _ctrip_fix_name_line(page):
+    """修复姓名换行：将 'XX (First name) YY' + 'ZZ (Last name)' 合并为一行"""
+    import fitz
+
+    blocks = page.get_text("dict")["blocks"]
+    name_spans = []
+    half_w = page.rect.width / 2
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                bbox = span["bbox"]
+                if bbox[0] > half_w:
+                    continue
+                if any(kw in txt for kw in ["(First", "(Last", "name)", "(First name)", "(Last name)"]):
+                    name_spans.append(span)
+    if not name_spans:
+        return None
+    raw_name = " ".join(s["text"].strip() for s in name_spans)
+    clean_name = re.sub(r'\(\s*First\s*name\s*\)', '', raw_name)
+    clean_name = re.sub(r'\(\s*Last\s*name\s*\)', '', clean_name)
+    clean_name = re.sub(r'\(\s*First\b', '', clean_name)
+    clean_name = re.sub(r'\bname\s*\)', '', clean_name)
+    clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+    x0 = min(s["bbox"][0] for s in name_spans) - 1
+    y0 = min(s["bbox"][1] for s in name_spans) - 1
+    x1 = max(s["bbox"][2] for s in name_spans) + 1
+    y1 = max(s["bbox"][3] for s in name_spans) + 1
+    page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
+    return {"name": clean_name, "x": x0 + 1, "y": name_spans[0]["bbox"][1] + _CTRIP_FONTSIZE + 1}
+
+
+def _ctrip_fix_wrapped_flight_info(page):
+    """修复航班信息换行：将跨两行的机场名称合并为一行"""
+    blocks = page.get_text("dict")["blocks"]
+    fixes = []
+    all_spans = []
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                all_spans.append(span)
+    for i, span in enumerate(all_spans):
+        txt = span["text"].strip()
+        if "International" in txt and txt.endswith("International"):
+            for j in range(i + 1, min(i + 3, len(all_spans))):
+                next_txt = all_spans[j]["text"].strip()
+                if next_txt.startswith("Airport"):
+                    combined = txt.replace("International", "Intl") + " " + next_txt
+                    fixes.append({
+                        "main_span": span,
+                        "wrap_span": all_spans[j],
+                        "combined": combined,
+                    })
+                    break
+    return fixes
+
+
+def _ctrip_remove_page_numbers(page):
+    """去除页面底部的页码"""
+    import fitz
+
+    ph = page.rect.height
+    blocks = page.get_text("dict")["blocks"]
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                if txt.isdigit() and span["bbox"][1] > ph - 70:
+                    page.add_redact_annot(
+                        fitz.Rect(span["bbox"][0] - 2, span["bbox"][1] - 2,
+                                  span["bbox"][2] + 2, span["bbox"][3] + 2),
+                        fill=(1, 1, 1))
+
+
+def _ctrip_fix_trip_com_text(page):
+    """将 'Trip.com' 替换为 'The airline'"""
+    import fitz
+    results = page.search_for("Trip.com bears no responsibility if passengers are unable to")
+    if results:
+        r = results[0]
+        page.add_redact_annot(fitz.Rect(r.x0 - 1, r.y0 - 1, r.x1 + 1, r.y1 + 1), fill=(1, 1, 1))
+        return {"x": r.x0, "y": r.y1 - 2}
+    results = page.search_for("Trip.com")
+    for r in results:
+        page.add_redact_annot(fitz.Rect(r.x0 - 1, r.y0 - 1, r.x1 + 1, r.y1 + 1), fill=(1, 1, 1))
+    return None
+
+
+def _ctrip_remove_baggage_information(page):
+    """去除 'Baggage Information' 标题及之后的所有内容"""
+    import fitz
+    pw = page.rect.width
+    blocks = page.get_text("dict")["blocks"]
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                if txt == "Baggage Information" and span["size"] > 12:
+                    bi_y = span["bbox"][1] - 15
+                    page.add_redact_annot(fitz.Rect(0, bi_y, pw, page.rect.height), fill=(1, 1, 1))
+                    return bi_y
+    return None
+
+
+def process_ctrip_pdf(file_stream):
+    """处理 Ctrip/Trip.com 行程单PDF，返回清理后的 bytes"""
+    import fitz
+
+    # 写入临时文件（fitz 需要文件路径）
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+    try:
+        os.write(tmp_fd, file_stream.read())
+        os.close(tmp_fd)
+
+        doc = fitz.open(tmp_path)
+        total_pages = doc.page_count
+        page = doc[0]
+        pw = page.rect.width
+        ph = page.rect.height
+
+        # ===== 第 1 页处理 =====
+        _ctrip_find_and_remove_logos(page)
+        boilerplate_end = _ctrip_find_and_remove_boilerplate(page)
+        booking_end = _ctrip_find_and_remove_booking_no(page)
+
+        # 简化 "Airline Booking Reference" 表头为 "Reference"
+        header_spans = []
+        half_w = page.rect.width / 2
+        for b in page.get_text("dict")["blocks"]:
+            if b["type"] != 0:
+                continue
+            for line in b["lines"]:
+                for span in line["spans"]:
+                    txt = span["text"].strip()
+                    bbox = span["bbox"]
+                    if bbox[0] > half_w and bbox[1] < 320:
+                        if txt in ["Airline Booking", "Airline", "Booking", "Reference"]:
+                            header_spans.append(span)
+        if header_spans:
+            x0 = min(s["bbox"][0] for s in header_spans) - 2
+            y0 = min(s["bbox"][1] for s in header_spans) - 2
+            x1 = max(s["bbox"][2] for s in header_spans) + 2
+            y1 = max(s["bbox"][3] for s in header_spans) + 2
+            page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
+
+        name_info = _ctrip_fix_name_line(page)
+        flight_fixes = _ctrip_fix_wrapped_flight_info(page)
+        for fix in flight_fixes:
+            main = fix["main_span"]
+            wrap = fix["wrap_span"]
+            redact_rect = fitz.Rect(
+                main["bbox"][0] - 1, main["bbox"][1] - 1,
+                max(main["bbox"][2], wrap["bbox"][2]) + 1, wrap["bbox"][3] + 1)
+            page.add_redact_annot(redact_rect, fill=(1, 1, 1))
+
+        _ctrip_remove_page_numbers(page)
+        page.apply_redactions()
+
+        # 插入修正后的文字
+        if header_spans:
+            hx = min(s["bbox"][0] for s in header_spans)
+            hy = min(s["bbox"][1] for s in header_spans)
+            page.insert_text(fitz.Point(hx, hy + _CTRIP_FONTSIZE),
+                             "Reference", fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
+        if name_info:
+            page.insert_text(fitz.Point(name_info["x"], name_info["y"]),
+                             name_info["name"], fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
+        for fix in flight_fixes:
+            main = fix["main_span"]
+            page.insert_text(fitz.Point(main["bbox"][0], main["bbox"][1] + _CTRIP_FONTSIZE),
+                             fix["combined"], fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
+
+        # ===== 第 2 页及之后处理 =====
+        pages_to_delete = []
+        baggage_info_found = False
+        for page_idx in range(1, total_pages):
+            pg = doc[page_idx]
+            if baggage_info_found:
+                pages_to_delete.append(page_idx)
+                continue
+            trip_insert = _ctrip_fix_trip_com_text(pg)
+            bi_y = _ctrip_remove_baggage_information(pg)
+            if bi_y:
+                baggage_info_found = True
+                for search_txt in ["Please check the baggage information at the bottom", "for more details."]:
+                    refs = pg.search_for(search_txt)
+                    for r in refs:
+                        pg.add_redact_annot(fitz.Rect(r.x0 - 1, r.y0 - 1, r.x1 + 1, r.y1 + 1), fill=(1, 1, 1))
+            _ctrip_remove_page_numbers(pg)
+            pg.apply_redactions()
+            if trip_insert:
+                pg.insert_text(fitz.Point(trip_insert["x"], trip_insert["y"]),
+                               "The airline bears no responsibility if passengers are unable to",
+                               fontname=_CTRIP_FONTNAME, fontsize=9.2, color=_CTRIP_COLOR)
+            remaining_text = pg.get_text().strip()
+            if len(remaining_text) < 50:
+                pages_to_delete.append(page_idx)
+
+        for idx in sorted(pages_to_delete, reverse=True):
+            doc.delete_page(idx)
+
+        # ===== 计算第 1 页内容上移距离 =====
+        shift_up = 0
+        if boilerplate_end and booking_end:
+            shift_up = int(booking_end - (boilerplate_end - 30))
+            if shift_up < 20:
+                shift_up = 0
+        elif boilerplate_end:
+            shift_up = 35
+        elif booking_end:
+            shift_up = 15
+
+        header_shift = 16 if header_spans else 0
+        total_shift = shift_up + header_shift
+
+        # 保存中间结果
+        tmp2_path = tmp_path + ".mid"
+        doc.save(tmp2_path)
+        doc.close()
+
+        if total_shift > 0:
+            doc = fitz.open(tmp2_path)
+            p0 = doc[0]
+            bi_results = p0.search_for("Booking Information")
+            cut1 = bi_results[0].y1 + 5 if bi_results else 155
+            name_results = p0.search_for("Name")
+            name_header = [r for r in name_results if r.y0 < 300 and r.x0 < 150]
+
+            new_doc = fitz.open()
+            new_page = new_doc.new_page(width=pw, height=ph)
+
+            if header_shift > 0 and name_header and shift_up > 0:
+                new_page.show_pdf_page(fitz.Rect(0, 0, pw, cut1), doc, 0, clip=fitz.Rect(0, 0, pw, cut1))
+                name_y = name_header[0].y0
+                cut2_src = cut1 + shift_up
+                cut2_end = name_y + 16
+                seg2_height = cut2_end - cut2_src
+                dest2_y = cut1 + seg2_height
+                new_page.show_pdf_page(fitz.Rect(0, cut1, pw, dest2_y), doc, 0, clip=fitz.Rect(0, cut2_src, pw, cut2_end))
+                cut3_src = cut2_end + header_shift
+                dest3_y = dest2_y
+                seg3_height = ph - cut3_src
+                new_page.show_pdf_page(fitz.Rect(0, dest3_y, pw, dest3_y + seg3_height), doc, 0, clip=fitz.Rect(0, cut3_src, pw, ph))
+            elif shift_up > 0:
+                new_page.show_pdf_page(fitz.Rect(0, 0, pw, cut1), doc, 0, clip=fitz.Rect(0, 0, pw, cut1))
+                bot_src_y = cut1 + shift_up
+                new_page.show_pdf_page(fitz.Rect(0, cut1, pw, ph - shift_up), doc, 0, clip=fitz.Rect(0, bot_src_y, pw, ph))
+            elif header_shift > 0 and name_header:
+                name_y = name_header[0].y0
+                cut_h = name_y + 16
+                new_page.show_pdf_page(fitz.Rect(0, 0, pw, cut_h), doc, 0, clip=fitz.Rect(0, 0, pw, cut_h))
+                src_after = cut_h + header_shift
+                new_page.show_pdf_page(fitz.Rect(0, cut_h, pw, ph - header_shift), doc, 0, clip=fitz.Rect(0, src_after, pw, ph))
+
+            new_page.draw_rect(fitz.Rect(0, ph - 80, pw, ph), color=(1, 1, 1), fill=(1, 1, 1))
+            for i in range(1, doc.page_count):
+                new_doc.insert_pdf(doc, from_page=i, to_page=i)
+            doc.close()
+            final_doc = new_doc
+        else:
+            final_doc = fitz.open(tmp2_path)
+
+        # 输出到 BytesIO
+        output = BytesIO()
+        final_doc.save(output, deflate=True)
+        final_doc.close()
+        output.seek(0)
+
+        # 清理临时文件
+        for p in [tmp_path, tmp2_path]:
+            if os.path.exists(p):
+                os.remove(p)
+
+        return output
+    except Exception:
+        # 清理临时文件
+        for p in [tmp_path, tmp_path + ".mid"]:
+            if os.path.exists(p):
+                os.remove(p)
+        raise
+
+
+# ====================================================================
+#  IndiGo 机票去价格
+# ====================================================================
+
+# 价格相关关键词
+_INDIGO_PRICE_KEYWORDS = [
+    "Flight summary", "Fare summary", "Fare Breakup", "Fare Break-up",
+    "Fare Details", "Fare Information", "Payment Details", "Payment Summary",
+    "Payment Information", "Price Details", "Price Breakup", "Price Summary",
+    "AirFare charge", "AirFare", "Air Fare", "Base Fare", "Total Fare",
+    "Total Amount", "Total Price", "Grand Total", "Amount Paid", "Amount Due",
+    "Tax Invoice", "Invoice Details",
+    "SGD", "INR", "USD", "BDT", "MYR",
+]
+
+# 需要保留的内容关键词
+_INDIGO_KEEP_KEYWORDS = [
+    "Baggage Information", "Baggage Allowance", "Baggage Details",
+    "Check-in:", "Cabin:",
+]
+
+
+def _indigo_find_price_top(page):
+    """在页面中查找价格区域的最高 y 坐标"""
+    best_y = None
+    matched_kw = None
+    text = page.get_text().upper()
+    for kw in _INDIGO_PRICE_KEYWORDS:
+        if kw.upper() not in text:
+            continue
+        results = page.search_for(kw)
+        if results:
+            for r in results:
+                if best_y is None or r.y0 < best_y:
+                    best_y = r.y0
+                    matched_kw = kw
+    return best_y, matched_kw
+
+
+def _indigo_find_keep_bottom(page):
+    """找到需要保留内容的最低 y 坐标"""
+    bottom = 0
+    text = page.get_text()
+    for kw in _INDIGO_KEEP_KEYWORDS:
+        if kw not in text:
+            continue
+        results = page.search_for(kw)
+        if results:
+            for r in results:
+                if r.y1 > bottom:
+                    bottom = r.y1
+    return bottom
+
+
+def process_indigo_pdf(file_stream):
+    """处理 IndiGo 机票PDF，去除价格信息，返回清理后的 bytes"""
+    import fitz
+
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+    try:
+        os.write(tmp_fd, file_stream.read())
+        os.close(tmp_fd)
+
+        doc = fitz.open(tmp_path)
+        total_pages = doc.page_count
+        price_found = False
+        pages_to_delete = []
+
+        # 扫描第 2 页起
+        for page_idx in range(1, total_pages):
+            page = doc[page_idx]
+            price_y, matched_kw = _indigo_find_price_top(page)
+            if price_y is None:
+                continue
+            price_found = True
+            keep_bottom = _indigo_find_keep_bottom(page)
+            redact_y = price_y - 15
+            if keep_bottom > 0:
+                redact_y = max(redact_y, keep_bottom + 5)
+            for drawing in page.get_drawings():
+                rect = drawing["rect"]
+                if keep_bottom < rect.y0 < price_y:
+                    redact_y = min(redact_y, rect.y0 - 2)
+            redact_rect = fitz.Rect(0, redact_y, page.rect.width, page.rect.height)
+            page.add_redact_annot(redact_rect, fill=(1, 1, 1))
+            page.apply_redactions()
+            for later_idx in range(page_idx + 1, total_pages):
+                if later_idx not in pages_to_delete:
+                    pages_to_delete.append(later_idx)
+            break
+
+        if not price_found:
+            # 第 1 页也搜索
+            page = doc[0]
+            price_y, matched_kw = _indigo_find_price_top(page)
+            if price_y is not None:
+                price_found = True
+                keep_bottom = _indigo_find_keep_bottom(page)
+                redact_y = price_y - 15
+                if keep_bottom > 0:
+                    redact_y = max(redact_y, keep_bottom + 5)
+                for drawing in page.get_drawings():
+                    rect = drawing["rect"]
+                    if keep_bottom < rect.y0 < price_y:
+                        redact_y = min(redact_y, rect.y0 - 2)
+                redact_rect = fitz.Rect(0, redact_y, page.rect.width, page.rect.height)
+                page.add_redact_annot(redact_rect, fill=(1, 1, 1))
+                page.apply_redactions()
+                pages_to_delete = list(range(1, total_pages))
+
+        # 从后往前删除多余页面
+        for idx in sorted(pages_to_delete, reverse=True):
+            doc.delete_page(idx)
+
+        # 输出到 BytesIO
+        output = BytesIO()
+        doc.save(output, deflate=True)
+        doc.close()
+        output.seek(0)
+
+        os.remove(tmp_path)
+        return output, price_found
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+
+# ====================================================================
+#  Ctrip & IndiGo 路由
+# ====================================================================
+
+@flights_usbangla.route('/clean_ctrip', methods=['POST'])
+@login_required
+@staff_only
+def clean_ctrip():
+    """处理 Ctrip/Trip.com 行程单：去除logo、Booking No、Trip.com字样等"""
+    file = request.files.get('pdf_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+    try:
+        output = process_ctrip_pdf(file.stream)
+        original_name = file.filename or 'ctrip_ticket.pdf'
+        clean_name = original_name.rsplit('.', 1)[0] + '_clean.pdf'
+        return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
+@flights_usbangla.route('/clean_indigo', methods=['POST'])
+@login_required
+@staff_only
+def clean_indigo():
+    """处理 IndiGo 机票：去除价格信息"""
+    file = request.files.get('pdf_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+    try:
+        output, price_found = process_indigo_pdf(file.stream)
+        if not price_found:
+            return jsonify({'success': False, 'message': '未找到价格相关内容，无需处理'}), 200
+        original_name = file.filename or 'indigo_ticket.pdf'
+        clean_name = original_name.rsplit('.', 1)[0] + '_clean.pdf'
+        return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500

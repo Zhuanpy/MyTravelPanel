@@ -98,30 +98,17 @@ def list_prepayments():
     # 按编号倒序（最新的显示在最上面）
     prepayments = query.order_by(SupplierPrepayment.prepayment_number.desc()).all()
 
-    # 批量查询所有预付款的 confirmed 使用金额（避免 N+1 查询）
-    from sqlalchemy import func
-    prepayment_ids = [p.id for p in prepayments]
-    confirmed_usage_sums = {}
-    if prepayment_ids:
-        usage_query = db.session.query(
-            PrepaymentUsage.prepayment_id,
-            func.sum(PrepaymentUsage.amount).label('total')
-        ).filter(
-            PrepaymentUsage.prepayment_id.in_(prepayment_ids),
-            PrepaymentUsage.status == 'confirmed'
-        ).group_by(PrepaymentUsage.prepayment_id).all()
-        confirmed_usage_sums = {row.prepayment_id: float(row.total or 0) for row in usage_query}
-
-    # 设置缓存的已使用金额，避免模板中重复查询
+    # 直接使用 balance_amount 计算已使用金额和可用余额
+    # 注意：不能只统计 confirmed 使用记录，因为 pending 状态的记录也已扣减了 balance_amount
     for p in prepayments:
-        p._cached_used_amount = confirmed_usage_sums.get(p.id, 0)
-        p._cached_available_balance = float(p.amount) - p._cached_used_amount
+        p._cached_used_amount = float(p.amount) - float(p.balance_amount)
+        p._cached_available_balance = float(p.balance_amount)
         p._cached_usage_percentage = round((p._cached_used_amount / float(p.amount)) * 100, 2) if p.amount else 0
 
     # 计算汇总
     total_amount = sum(float(p.amount or 0) for p in prepayments)
-    total_used = sum(p._cached_used_amount for p in prepayments)
-    total_balance = total_amount - total_used
+    total_balance = sum(float(p.balance_amount or 0) for p in prepayments)
+    total_used = total_amount - total_balance
 
     # 查询待付款的EO（已创建但尚未付款的EO）
     try:
