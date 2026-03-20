@@ -409,8 +409,8 @@ def invoice_detail(invoice_id):
     balance = float(invoice.amount or 0) - total_paid
     
     # 获取项目联系人/客户名称
-    # 优先显示 leader（实际客户），其次是项目联系人
-    project_contact = project_leader_name or (header.contact if header else None)
+    # 优先显示项目联系人，其次是 leader
+    project_contact = (header.contact if header else None) or project_leader_name
 
     return render_template('business/projects/project_invoice/invoice_detail.html',
                          invoice=invoice,

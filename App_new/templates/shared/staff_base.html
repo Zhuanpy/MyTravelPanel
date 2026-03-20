@@ -913,11 +913,12 @@
     <script>
         // 逾期任务提醒检查
         (function() {
-            // 使用 sessionStorage 避免同一会话重复提醒
-            const REMINDER_KEY = 'overdue_tasks_reminded';
+            // 每天提醒一次（基于日期，而非会话）
+            const REMINDER_KEY = 'overdue_tasks_reminded_date';
+            const today = new Date().toISOString().slice(0, 10);
 
-            // 如果本次会话已经提醒过，则不再提醒
-            if (sessionStorage.getItem(REMINDER_KEY)) {
+            // 如果今天已经提醒过，则不再提醒
+            if (localStorage.getItem(REMINDER_KEY) === today) {
                 return;
             }
 
@@ -937,11 +938,17 @@
                                 const dueDate = todo.due_date ? new Date(todo.due_date).toLocaleDateString('zh-CN') : '未设置';
                                 const priorityClass = todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info');
                                 const priorityText = todo.priority === 1 ? '高' : (todo.priority === 2 ? '中' : '低');
+                                // 计算逾期天数
+                                let overdueDays = '';
+                                if (todo.due_date) {
+                                    const days = Math.floor((new Date() - new Date(todo.due_date)) / (1000 * 60 * 60 * 24));
+                                    if (days > 0) overdueDays = `<span class="text-danger fw-bold">（逾期${days}天）</span>`;
+                                }
                                 html += `
                                     <li class="list-group-item d-flex justify-content-between align-items-start">
                                         <div class="ms-2 me-auto">
                                             <div class="fw-bold">${escapeHtml(todo.title)}</div>
-                                            <small class="text-muted">截止: ${dueDate}</small>
+                                            <small class="text-muted">截止: ${dueDate}</small> ${overdueDays}
                                         </div>
                                         <span class="badge bg-${priorityClass}">${priorityText}</span>
                                     </li>
@@ -957,8 +964,8 @@
                             const modal = new bootstrap.Modal(document.getElementById('overdueTasksModal'));
                             modal.show();
 
-                            // 标记本次会话已提醒
-                            sessionStorage.setItem(REMINDER_KEY, 'true');
+                            // 标记今天已提醒
+                            localStorage.setItem(REMINDER_KEY, today);
                         }
                     })
                     .catch(error => {
