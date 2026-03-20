@@ -158,6 +158,7 @@
             <div class="d-flex justify-content-center gap-3">
                 <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref %}更新{% else %}保存{% endif %}</button>
                 <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-outline-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>返回</a>
+                {% if ref is defined and ref %}<a href="{{ url_for('flights_booking.print_itinerary', order_id=ref.id) }}" target="_blank" class="btn btn-info btn-sm" style="width: 120px;"><i class="fas fa-print me-1"></i>打印行程单</a>{% endif %}
                 {% if ref is defined and ref and ref.eos %}<span class="btn btn-outline-success btn-sm" style="width: 120px; cursor: default;"><i class="fas fa-check me-1"></i>{{ ref.eos.eo_number }}</span>
                 {% elif ref is defined and ref %}<button type="button" class="btn btn-warning btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>创建EO</button>{% endif %}
             </div>

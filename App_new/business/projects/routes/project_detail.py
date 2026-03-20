@@ -708,17 +708,18 @@ def get_email_contacts(project_id):
                         'is_primary': c.is_primary
                     })
         
-        # 添加项目头部的联系人信息（如果有邮箱）
+        # 添加项目头部的联系人信息（如果有邮箱且不重复）
         if header.contact:
-            # 尝试从公司信息获取邮箱
             if header.company and header.company.contact_email:
-                contacts.insert(0, {
-                    'id': 0,
-                    'name': header.contact,
-                    'email': header.company.contact_email,
-                    'position': '项目联系人',
-                    'is_primary': True
-                })
+                existing_emails = {c['email'].lower() for c in contacts}
+                if header.company.contact_email.lower() not in existing_emails:
+                    contacts.insert(0, {
+                        'id': 0,
+                        'name': header.contact,
+                        'email': header.company.contact_email,
+                        'position': '项目联系人',
+                        'is_primary': True
+                    })
         
         return jsonify({
             'success': True,

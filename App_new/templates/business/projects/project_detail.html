@@ -1956,9 +1956,9 @@ document.getElementById('voidInvoiceModalDetail')?.addEventListener('click', fun
                     <div class="text-muted text-center py-2" style="grid-column: 1 / -1;">加载联系人中...</div>
                 </div>
                 <!-- 手动输入邮箱 -->
-                <div class="mt-2 d-flex gap-2">
-                    <input type="email" id="customEmail" class="form-control" placeholder="或输入邮箱地址" onkeypress="if(event.key==='Enter'){addCustomRecipient();return false;}">
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addCustomRecipient()">添加</button>
+                <div class="mt-2 d-flex gap-2" style="max-width: 350px;">
+                    <input type="email" id="customEmail" class="form-control form-control-sm" placeholder="输入邮箱地址" onkeypress="if(event.key==='Enter'){addCustomRecipient();return false;}">
+                    <button type="button" class="btn btn-outline-primary btn-sm" style="white-space: nowrap;" onclick="addCustomRecipient()">添加</button>
                 </div>
             </div>
             
@@ -2051,6 +2051,9 @@ function showEmailModal() {
     updateRecipientsDisplay();
     loadEmailContacts();
     loadEmailTemplates();
+    // 默认选中所有CC复选框
+    document.querySelectorAll('.cc-checkbox').forEach(cb => { cb.checked = true; });
+    updateCcField();
     // 初始化附件列表显示
     updateAttachmentsDisplay();
 }
@@ -2076,34 +2079,34 @@ function loadEmailContacts() {
                     container.innerHTML = '';
                     data.contacts.forEach(contact => {
                         const checkboxDiv = document.createElement('div');
-                        checkboxDiv.style.cssText = 'display: flex; align-items: flex-start; padding: 0.5rem; background: white; border-radius: 4px; gap: 0.5rem; border: 1px solid #e5e7eb;';
-                        
+                        checkboxDiv.style.cssText = 'display: flex; align-items: center; padding: 0.35rem 0.5rem; background: white; border-radius: 4px; gap: 0.4rem; border: 1px solid #e5e7eb;';
+
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
                         checkbox.className = 'contact-checkbox';
                         checkbox.id = `contact_${contact.id || contact.email}`;
                         checkbox.value = contact.email;
                         checkbox.dataset.name = contact.name;
-                        checkbox.style.cssText = 'width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer;';
+                        checkbox.style.cssText = 'width: 16px; height: 16px; flex-shrink: 0; cursor: pointer;';
                         checkbox.onchange = function() {
                             toggleRecipient(contact.email, contact.name, this.checked);
                         };
-                        
+
                         const label = document.createElement('label');
                         label.htmlFor = checkbox.id;
-                        label.style.cssText = 'cursor: pointer; flex: 1; margin: 0; min-width: 0; font-size: 0.85rem;';
+                        label.style.cssText = 'cursor: pointer; flex: 1; margin: 0; min-width: 0; font-size: 0.8rem; line-height: 1.3;';
                         label.innerHTML = `
-                            <div style="margin-bottom: 0.25rem;">
-                                <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${contact.name}</strong>
-                                ${contact.position ? `<small class="text-muted" style="font-size: 0.75rem;">${contact.position}</small>` : ''}
-                                ${contact.is_primary ? '<span class="badge bg-success" style="font-size: 0.65rem; margin-left: 0.25rem;">主要</span>' : ''}
-                            </div>
-                            <small class="text-muted" style="font-size: 0.75rem; word-break: break-all; display: block;">${contact.email}</small>
+                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><strong>${contact.name}</strong>${contact.position ? ` <span class="text-muted" style="font-size: 0.75rem;">- ${contact.position}</span>` : ''}${contact.is_primary ? ' <span class="badge bg-success" style="font-size: 0.6rem;">主要</span>' : ''}</div>
+                            <div class="text-muted" style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${contact.email}</div>
                         `;
                         
                         checkboxDiv.appendChild(checkbox);
                         checkboxDiv.appendChild(label);
                         container.appendChild(checkboxDiv);
+
+                        // 默认选中所有联系人
+                        checkbox.checked = true;
+                        toggleRecipient(contact.email, contact.name, true);
                     });
                 } else {
                     container.innerHTML = '<div class="text-muted text-center py-2" style="grid-column: 1 / -1;">暂无联系人，请手动输入邮箱</div>';
