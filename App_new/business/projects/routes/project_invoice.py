@@ -420,6 +420,7 @@ def invoice_detail(invoice_id):
                          customer_company_address=customer_company_address,
                          customer_company_phone=customer_company_phone,
                          project_contact=project_contact,
+                         project_leader_name=project_leader_name,
                          payments=payments,
                          balance=balance)
 
