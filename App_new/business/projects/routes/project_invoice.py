@@ -100,6 +100,9 @@ def create_invoice(header_id):
             db.session.add(invoice)
             db.session.flush()
 
+            # 金额为0的发票自动标记为已付款
+            invoice.update_payment_status()
+
             # 如果选择了REF，创建发票明细项
             if selected_ref_ids:
                 for ref_id in selected_ref_ids:
@@ -684,6 +687,9 @@ def quick_create_invoice(header_id):
 
         db.session.add(invoice)
         db.session.flush()
+
+        # 金额为0的发票自动标记为已付款
+        invoice.update_payment_status()
 
         # 创建发票明细
         for ref_data in refs_data:
