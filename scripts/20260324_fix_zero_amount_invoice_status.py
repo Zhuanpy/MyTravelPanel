@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from App_new import create_app
-from App_new.extensions import db
+from App_new.exts import db
 from App_new.business.projects.models.invoice import ProjectInvoice
 
 app = create_app()
