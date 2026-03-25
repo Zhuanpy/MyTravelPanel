@@ -73,10 +73,10 @@
     }
     /* 列宽设置 - 固定布局 */
     .col-hid { width: 60px; }
-    .col-company { width: 140px; }
+    .col-company { width: auto; }  /* 自动填充剩余空间，显示完整公司名 */
     .col-date { width: 90px; }
     .col-client { width: 140px; }
-    .col-itin { width: auto; }  /* 自动填充剩余空间 */
+    .col-itin { width: 180px; }
     .col-currency { width: 50px; }
     .col-balance { width: 100px; }
     .table tfoot td {
@@ -174,9 +174,6 @@
                     </button>
                     <button class="btn btn-primary" id="refreshBtn" title="刷新">
                         <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary" id="clearFiltersBtn" title="清除筛选">
-                        <i class="fas fa-times"></i>
                     </button>
                     <button class="btn btn-outline-warning" id="resetBtn" title="重置所有筛选条件">
                         <i class="fas fa-undo"></i>
@@ -426,27 +423,6 @@ class SOAManager {
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                this.loadData();
-            });
-        }
-
-        // 清除筛选按钮
-        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-        if (clearFiltersBtn) {
-            clearFiltersBtn.addEventListener('click', () => {
-                this.searchTerm = '';
-                this.monthFilter = '';
-                this.groupFilter = '';
-                this.companyFilter = '';
-                this.balanceFilter = false;
-                this.profitLossFilter = '';
-                document.getElementById('searchInput').value = '';
-                document.getElementById('monthFilter').value = '';
-                document.getElementById('groupFilter').value = '';
-                document.getElementById('companyFilter').value = '';
-                document.getElementById('balanceFilter').checked = false;
-                document.getElementById('profitLossFilter').value = '';
-                this.currentPage = 1;
                 this.loadData();
             });
         }

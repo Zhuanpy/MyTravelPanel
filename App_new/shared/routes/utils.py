@@ -5,6 +5,7 @@ from App_new.utils.WordToPdf import WordToPDFConverter
 from App_new.utils.decorators import staff_only
 import subprocess
 import os
+import tempfile
 import traceback
 from io import BytesIO
 from flask import current_app
@@ -303,6 +304,145 @@ def split_screenshot_to_pdf():
             return jsonify({'success': False, 'message': error_msg}), 500
         flash(error_msg)
         return redirect(url_for('utils_process.file_processing'))
+
+
+@csrf.exempt
+@utils_process.route('/upload_images_to_pdf', methods=['POST'])
+@login_required
+@staff_only
+def upload_images_to_pdf():
+    """上传图片文件，合并为PDF后下载"""
+    try:
+        files = request.files.getlist('imageFiles')
+        if not files or all(f.filename == '' for f in files):
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+
+        from PIL import Image
+
+        image_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
+        images = []
+
+        # 按文件名排序
+        sorted_files = sorted(files, key=lambda f: f.filename)
+
+        for f in sorted_files:
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in image_extensions:
+                continue
+            img = Image.open(BytesIO(f.read()))
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            images.append(img)
+
+        if not images:
+            return jsonify({'success': False, 'message': '没有找到有效的图片文件'}), 400
+
+        # 合并为PDF到内存
+        pdf_buffer = BytesIO()
+        first_img = images[0]
+        rest_imgs = images[1:] if len(images) > 1 else []
+        first_img.save(pdf_buffer, 'PDF', save_all=True, append_images=rest_imgs)
+        pdf_buffer.seek(0)
+
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='merged_images.pdf'
+        )
+
+    except Exception as e:
+        current_app.logger.error(f'上传图片合并PDF失败: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
+@csrf.exempt
+@utils_process.route('/upload_pdf_to_pdf', methods=['POST'])
+@login_required
+@staff_only
+def upload_pdf_to_pdf():
+    """上传多个PDF文件，合并为一个PDF后下载"""
+    try:
+        files = request.files.getlist('pdfFiles')
+        if not files or all(f.filename == '' for f in files):
+            return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+
+        from PyPDF2 import PdfReader, PdfWriter
+        try:
+            from PyPDF2 import PageObject, Transformation
+        except Exception:
+            PageObject = None
+            Transformation = None
+
+        writer = PdfWriter()
+        total_pages = 0
+
+        # A4尺寸（pt）
+        A4_W = 595.276
+        A4_H = 841.890
+
+        # 按文件名排序
+        sorted_files = sorted(files, key=lambda f: f.filename)
+
+        for f in sorted_files:
+            if not f.filename.lower().endswith('.pdf'):
+                continue
+            # 将上传文件读入BytesIO，确保可seek
+            file_bytes = BytesIO(f.read())
+            try:
+                reader = PdfReader(file_bytes, strict=False)
+            except TypeError:
+                reader = PdfReader(file_bytes)
+
+            if getattr(reader, 'is_encrypted', False):
+                try:
+                    reader.decrypt('')
+                except Exception:
+                    continue
+
+            for page in reader.pages:
+                try:
+                    if PageObject is not None and Transformation is not None:
+                        try:
+                            orig_w = float(page.mediabox.width)
+                            orig_h = float(page.mediabox.height)
+                            if orig_w <= 0 or orig_h <= 0:
+                                raise ValueError('invalid page size')
+                            scale = min(A4_W / orig_w, A4_H / orig_h)
+                            tx = (A4_W - orig_w * scale) / 2.0
+                            ty = (A4_H - orig_h * scale) / 2.0
+                            blank = PageObject.create_blank_page(width=A4_W, height=A4_H)
+                            blank.merge_transformed_page(
+                                page,
+                                Transformation().scale(scale, scale).translate(tx, ty)
+                            )
+                            writer.add_page(blank)
+                        except Exception:
+                            writer.add_page(page)
+                    else:
+                        writer.add_page(page)
+                    total_pages += 1
+                except Exception:
+                    continue
+
+        if total_pages == 0:
+            return jsonify({'success': False, 'message': '未能从PDF文件中提取有效页面'}), 400
+
+        # 写入内存
+        pdf_buffer = BytesIO()
+        writer.write(pdf_buffer)
+        pdf_buffer.seek(0)
+
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='merged.pdf'
+        )
+
+    except Exception as e:
+        current_app.logger.error(f'上传PDF合并失败: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
 
 
 @utils_process.route('/open_FuXin_pdf')

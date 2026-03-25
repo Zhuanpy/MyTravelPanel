@@ -15,17 +15,74 @@
     <h1 class="visa-page-title">PDF文件处理</h1>
     <p class="visa-text-center visa-text-muted">高效处理PDF和Office文档</p>
 
+    <!-- 上传图片合并为PDF（上传下载模式） -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #ecfdf5;">
+            <h2 style="color: #059669;"><i class="fas fa-cloud-upload-alt"></i> 上传图片合并为PDF</h2>
+        </div>
+        <div class="visa-card-body">
+            <form id="uploadImageForm" method="post" action="{{url_for('utils_process.upload_images_to_pdf')}}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择图片文件</label>
+                    <div id="imageDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-green-500 tw-transition-colors"
+                         onclick="document.getElementById('imageFilesInput').click()">
+                        <i class="fas fa-cloud-upload-alt tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
+                        <p class="tw-text-gray-600 tw-mb-1">点击选择或拖拽图片到此处</p>
+                        <p class="tw-text-xs tw-text-gray-400">支持 JPG、PNG、WEBP、BMP 格式，可多选</p>
+                    </div>
+                    <input type="file" id="imageFilesInput" name="imageFiles" multiple accept=".jpg,.jpeg,.png,.webp,.bmp" style="display:none"
+                           onchange="updateFileList(this, 'imageFileList')">
+                    <div id="imageFileList" class="tw-mt-2"></div>
+                </div>
+                <button type="submit" class="visa-btn visa-btn-success visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
+                    <i class="fas fa-file-pdf"></i> 合并并下载PDF
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 上传PDF合并（上传下载模式） -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #eff6ff;">
+            <h2 style="color: #2563eb;"><i class="fas fa-cloud-upload-alt"></i> 上传PDF合并</h2>
+        </div>
+        <div class="visa-card-body">
+            <form id="uploadPdfForm" method="post" action="{{url_for('utils_process.upload_pdf_to_pdf')}}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择PDF文件</label>
+                    <div id="pdfDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-blue-500 tw-transition-colors"
+                         onclick="document.getElementById('pdfFilesInput').click()">
+                        <i class="fas fa-file-pdf tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
+                        <p class="tw-text-gray-600 tw-mb-1">点击选择或拖拽PDF到此处</p>
+                        <p class="tw-text-xs tw-text-gray-400">支持多个PDF文件，按文件名顺序合并</p>
+                    </div>
+                    <input type="file" id="pdfFilesInput" name="pdfFiles" multiple accept=".pdf" style="display:none"
+                           onchange="updateFileList(this, 'pdfFileList')">
+                    <div id="pdfFileList" class="tw-mt-2"></div>
+                </div>
+                <button type="submit" class="visa-btn visa-btn-info visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
+                    <i class="fas fa-compress"></i> 合并并下载PDF
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <hr class="tw-my-6 tw-border-gray-200">
+    <p class="visa-text-center tw-text-sm tw-text-gray-400 tw-mb-4">以下为服务器本地路径模式</p>
+
     <!-- 图片合并为PDF -->
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="background: #fef2f2;">
-            <h2 style="color: #dc2626;"><i class="fas fa-images"></i> 图片合并为PDF</h2>
+            <h2 style="color: #dc2626;"><i class="fas fa-images"></i> 图片合并为PDF（本地路径）</h2>
         </div>
         <div class="visa-card-body">
             <form id="imageForm" method="post" action="{{url_for('utils_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="visa-form-group">
                     <label for="imageFolderPath" class="visa-form-label">图片路径</label>
-                    <input type="text" id="imageFolderPath" name="imageFolderPath" class="visa-form-control" 
+                    <input type="text" id="imageFolderPath" name="imageFolderPath" class="visa-form-control"
                            placeholder="支持文件夹路径或单个图片文件路径">
                     <div class="tw-mt-2 tw-text-sm tw-text-gray-600">
                         <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-blue-500"></i> <strong>文件夹路径：</strong>合并文件夹内所有图片，PDF文件名为文件夹名</p>
@@ -44,14 +101,14 @@
     <!-- 多个PDF合并 -->
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="background: #fff7ed;">
-            <h2 style="color: #ea580c;"><i class="fas fa-object-group"></i> 多个PDF合并</h2>
+            <h2 style="color: #ea580c;"><i class="fas fa-object-group"></i> 多个PDF合并（本地路径）</h2>
         </div>
         <div class="visa-card-body">
             <form id="pdfForm" method="post" action="{{url_for('utils_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="visa-form-group">
                     <label for="pdfFolderPath" class="visa-form-label">PDF文件夹路径</label>
-                    <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="visa-form-control" 
+                    <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="visa-form-control"
                            placeholder="输入包含PDF文件的文件夹路径">
                 </div>
                 <button type="submit" name="submit_button" value="merge_pdfs" class="visa-btn visa-btn-accent visa-btn-lg">
@@ -110,6 +167,132 @@
 
 {% block extra_js %}
 <script>
+// 显示已选文件列表
+function updateFileList(input, listId) {
+    const listDiv = document.getElementById(listId);
+    const files = Array.from(input.files);
+    if (files.length === 0) {
+        listDiv.innerHTML = '';
+        return;
+    }
+    let html = '<div class="tw-text-sm tw-text-gray-600 tw-mt-2">';
+    html += '<strong>已选择 ' + files.length + ' 个文件：</strong>';
+    html += '<ul class="tw-list-none tw-pl-0 tw-mt-1" style="max-height:150px;overflow-y:auto">';
+    files.forEach(function(f, i) {
+        const size = (f.size / 1024).toFixed(1);
+        html += '<li class="tw-py-1 tw-border-b tw-border-gray-100"><i class="fas fa-file tw-text-gray-400 tw-mr-1"></i>' + f.name + ' <span class="tw-text-gray-400">(' + size + ' KB)</span></li>';
+    });
+    html += '</ul></div>';
+    listDiv.innerHTML = html;
+}
+
+// 上传表单提交（文件下载模式）
+function handleUploadSubmit(event, btn) {
+    event.preventDefault();
+    const form = btn.closest('form');
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showErrorMessage('请先选择文件');
+        return false;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.indexOf('application/pdf') !== -1) {
+            // 成功返回PDF文件，触发下载
+            const disposition = response.headers.get('content-disposition');
+            let filename = 'merged.pdf';
+            if (disposition) {
+                const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (match && match[1]) {
+                    filename = match[1].replace(/['"]/g, '');
+                }
+            }
+            return response.blob().then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                showSuccessMessage('PDF生成成功，已开始下载');
+            });
+        } else if (contentType.indexOf('application/json') !== -1) {
+            // JSON响应（成功或错误）
+            return response.json().then(data => {
+                if (data.success) {
+                    showSuccessMessage(data.message);
+                } else {
+                    showErrorMessage(data.message || '处理失败');
+                }
+            });
+        } else {
+            showErrorMessage('服务器返回错误（状态码：' + response.status + '），请重试');
+        }
+    })
+    .catch(error => {
+        showErrorMessage(error.message || '处理出错，请重试');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+
+    return false;
+}
+
+// 拖拽上传支持
+document.addEventListener('DOMContentLoaded', function() {
+    function setupDropZone(dropZoneId, fileInputId) {
+        const dropZone = document.getElementById(dropZoneId);
+        const fileInput = document.getElementById(fileInputId);
+        if (!dropZone || !fileInput) return;
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('tw-border-green-500', 'tw-bg-green-50');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('tw-border-green-500', 'tw-bg-green-50');
+            });
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            const dt = e.dataTransfer;
+            if (dt.files && dt.files.length > 0) {
+                fileInput.files = dt.files;
+                // 触发onchange
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
+    setupDropZone('imageDropZone', 'imageFilesInput');
+    setupDropZone('pdfDropZone', 'pdfFilesInput');
+});
+
 function handleSubmit(form, event) {
     event.preventDefault(); // 阻止表单默认提交
     const formData = new FormData(form);
