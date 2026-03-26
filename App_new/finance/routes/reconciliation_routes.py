@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""银行流水与项目收款/EO对比功能"""
+"""银行流水与项目收款/支出对比功能"""
 
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
@@ -1340,16 +1340,17 @@ def mark_reconciled():
         return jsonify({'success': False, 'message': f'操作失败: {str(e)}'})
 
 
-# ==================== 银行支出与EO对比功能 ====================
+# ==================== 银行支出对比功能 ====================
 
 @reconciliation_bp.route('/bank-eo')
 @login_required
 @staff_only
 def bank_eo_compare():
-    """银行支出与EO对比主页面"""
+    """银行支出对比主页面"""
     # 获取筛选参数
     bank_name = request.args.get('bank_name', '')
     account_name = request.args.get('account_name', '')
+    record_type = request.args.get('record_type', '')
     supplier_id = request.args.get('supplier_id', '')
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
@@ -1369,15 +1370,29 @@ def bank_eo_compare():
     account_options = account_query.distinct().order_by(BankStatement.account_name).all()
     account_options = [a[0] for a in account_options]
 
-    # 获取供应商选项（只获取有EO记录的供应商）
-    supplier_query = db.session.query(CustomerCompany.id, CustomerCompany.company_name).join(
-        ProjectRef, ProjectRef.supplier_id == CustomerCompany.id
-    ).join(
+    # 获取供应商选项（从EO、付款、预付款中获取所有相关供应商）
+    eo_ids = {r[0] for r in db.session.query(ProjectRef.supplier_id).join(
         ProjectEO, ProjectEO.ref_id == ProjectRef.id
-    ).filter(
-        CustomerCompany.is_supplier == True
-    ).distinct().order_by(CustomerCompany.company_name)
-    supplier_options = supplier_query.all()
+    ).filter(ProjectRef.supplier_id.isnot(None)).distinct().all()}
+
+    pay_ids = {r[0] for r in db.session.query(SupplierPayment.supplier_id).filter(
+        SupplierPayment.status == 'confirmed',
+        SupplierPayment.supplier_id.isnot(None)
+    ).distinct().all()}
+
+    prepay_ids = {r[0] for r in db.session.query(SupplierPrepayment.supplier_id).filter(
+        SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+        SupplierPrepayment.supplier_id.isnot(None)
+    ).distinct().all()}
+
+    all_ids = eo_ids | pay_ids | prepay_ids
+    if all_ids:
+        supplier_query = db.session.query(CustomerCompany.id, CustomerCompany.company_name).filter(
+            CustomerCompany.id.in_(all_ids)
+        ).order_by(CustomerCompany.company_name)
+        supplier_options = supplier_query.all()
+    else:
+        supplier_options = []
 
     # 设置默认日期范围（最近30天）
     if not start_date:
@@ -1388,6 +1403,7 @@ def bank_eo_compare():
     filters = {
         'bank_name': bank_name,
         'account_name': account_name,
+        'record_type': record_type,
         'supplier_id': supplier_id,
         'start_date': start_date,
         'end_date': end_date,
@@ -1405,7 +1421,7 @@ def bank_eo_compare():
 @login_required
 @staff_only
 def get_eo_compare_data():
-    """获取银行支出与EO对比数据API"""
+    """获取银行支出对比数据API"""
     try:
         bank_name = request.args.get('bank_name', '')
         account_name = request.args.get('account_name', '')
@@ -1687,8 +1703,10 @@ def get_eo_compare_data():
                     eo_dict['header_id'] = None
                 # 供应商信息
                 if eo.ref.supplier:
+                    eo_dict['supplier_id'] = eo.ref.supplier_id
                     eo_dict['supplier_name'] = eo.ref.supplier.company_name or ''
                 else:
+                    eo_dict['supplier_id'] = None
                     eo_dict['supplier_name'] = ''
             else:
                 eo_dict['ref_number'] = ''
@@ -1803,7 +1821,7 @@ def get_eo_compare_data():
         })
 
     except Exception as e:
-        logger.error(f"获取EO对比数据失败: {str(e)}")
+        logger.error(f"获取支出对比数据失败: {str(e)}")
         return jsonify({'success': False, 'message': f'获取数据失败: {str(e)}'})
 
 
@@ -2084,7 +2102,7 @@ def eo_auto_match_suggestions():
 
 def calculate_eo_match_score(transaction, eo):
     """
-    计算银行支出与EO的匹配分数
+    计算银行支出与支出记录的匹配分数
 
     匹配规则：
     1. 精确匹配（100分）：金额完全相等 + 日期相同
