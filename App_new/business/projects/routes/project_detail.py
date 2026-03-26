@@ -243,9 +243,12 @@ def manage_reminder(header_id):
                 'message': '提醒日期不能为空'
             }), 400
         
-        # 解析日期
+        # 解析日期（兼容 datetime-local 和 date 两种格式）
         try:
-            reminder_date = datetime.strptime(reminder_date_str, '%Y-%m-%d')
+            if 'T' in reminder_date_str:
+                reminder_date = datetime.strptime(reminder_date_str, '%Y-%m-%dT%H:%M')
+            else:
+                reminder_date = datetime.strptime(reminder_date_str, '%Y-%m-%d')
         except ValueError:
             return jsonify({
                 'success': False,
