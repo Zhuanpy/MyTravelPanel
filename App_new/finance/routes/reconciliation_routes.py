@@ -1829,10 +1829,11 @@ def get_eo_compare_data():
 @login_required
 @staff_only
 def eo_auto_match_suggestions():
-    """EO自动匹配建议API"""
+    """自动匹配建议API"""
     try:
         bank_name = request.args.get('bank_name', '')
         account_name = request.args.get('account_name', '')
+        record_type = request.args.get('record_type', '')  # eo, payment, prepayment, loan_repay
         supplier_id = request.args.get('supplier_id', '')
         start_date_str = request.args.get('start_date', '')
         end_date_str = request.args.get('end_date', '')
@@ -1885,6 +1886,12 @@ def eo_auto_match_suggestions():
 
         transactions = tx_query.all()
 
+        # 根据支出类型决定查询哪些记录
+        query_eo = record_type in ('', 'eo')
+        query_payment = record_type in ('', 'payment')
+        query_prepayment = record_type in ('', 'prepayment')
+        query_loan_repay = record_type in ('', 'loan_repay')
+
         # 查询未匹配的EO记录
         matched_eo_ids = db.session.query(BankTransaction.eo_id).filter(
             BankTransaction.eo_id.isnot(None),
@@ -1919,7 +1926,7 @@ def eo_auto_match_suggestions():
                 )
             )
 
-        eos = eo_query.all()
+        eos = eo_query.all() if query_eo else []
 
         # 查询未匹配的付款记录
         matched_pay_ids = db.session.query(BankTransactionMatch.match_id).filter(
@@ -1937,7 +1944,7 @@ def eo_auto_match_suggestions():
             pay_query = pay_query.filter(SupplierPayment.payment_date >= start_date - timedelta(days=14))
         if end_date:
             pay_query = pay_query.filter(SupplierPayment.payment_date <= end_date)
-        unmatched_payments = pay_query.all()
+        unmatched_payments = pay_query.all() if query_payment else []
 
         # 查询未匹配的预付款记录
         matched_prepay_ids = db.session.query(BankTransactionMatch.match_id).filter(
@@ -1955,7 +1962,7 @@ def eo_auto_match_suggestions():
             prepay_query = prepay_query.filter(SupplierPrepayment.payment_date >= start_date - timedelta(days=14))
         if end_date:
             prepay_query = prepay_query.filter(SupplierPrepayment.payment_date <= end_date)
-        unmatched_prepayments = prepay_query.all()
+        unmatched_prepayments = prepay_query.all() if query_prepayment else []
 
         # 构建编号索引，用于REF优先匹配
         eo_by_number = {}
