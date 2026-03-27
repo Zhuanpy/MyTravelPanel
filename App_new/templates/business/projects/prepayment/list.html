@@ -33,14 +33,6 @@
 
 {% block content %}
 <div class="container-fluid py-4" style="max-width: 1600px;">
-    <!-- 汇总栏 -->
-    <div class="summary-bar">
-        <span><span class="s-label">记录数</span> <span class="s-value">{{ pagination.total }}</span></span>
-        <span><span class="s-label">充值总额</span> <span class="s-value">{{ "%.2f"|format(total_amount) }} SGD</span></span>
-        <span><span class="s-label">已使用</span> <span class="s-value" style="color: #ef4444;">{{ "%.2f"|format(total_used) }}</span></span>
-        <span><span class="s-label">剩余余额</span> <span class="s-value" style="color: #2563eb;">{{ "%.2f"|format(total_balance) }}</span></span>
-    </div>
-
     <!-- 筛选栏 -->
     <div class="card mb-4">
         <div class="card-body py-2">
