@@ -170,7 +170,7 @@
                                     <i class="fas fa-check"></i>
                                 </button>
                                 {% endif %}
-                                {% if p.status in ('draft', 'confirmed') and p._cached_used_amount == 0 %}
+                                {% if p.status == 'draft' %}
                                 <button type="button" class="btn btn-outline-danger"
                                         onclick="cancelPrepayment({{ p.id }}, '{{ p.prepayment_number }}')" title="取消">
                                     <i class="fas fa-times"></i>
