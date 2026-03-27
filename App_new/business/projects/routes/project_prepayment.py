@@ -25,12 +25,55 @@ project_prepayment = Blueprint('project_prepayment', __name__, url_prefix='/prep
 @login_required
 @staff_only
 def list_prepayments():
-    """预付账款列表页面"""
-    from sqlalchemy import func
+    """预付款记录列表页面（扁平化列表，支持筛选和分页）"""
+    from sqlalchemy import func, or_
 
     # 获取筛选参数
     supplier_id = request.args.get('supplier_id', type=int)
     status = request.args.get('status', '')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    keyword = request.args.get('keyword', '')
+    reconcile_status = request.args.get('reconcile_status', '')
+
+    # 分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    # 构建查询
+    query = SupplierPrepayment.query
+
+    if supplier_id:
+        query = query.filter_by(supplier_id=supplier_id)
+    if status:
+        query = query.filter_by(status=status)
+    if start_date:
+        query = query.filter(SupplierPrepayment.payment_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+    if end_date:
+        query = query.filter(SupplierPrepayment.payment_date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+    if keyword:
+        query = query.filter(or_(
+            SupplierPrepayment.prepayment_number.ilike(f'%{keyword}%'),
+            SupplierPrepayment.reference.ilike(f'%{keyword}%')
+        ))
+    if reconcile_status:
+        if reconcile_status == 'reconciled':
+            query = query.filter(SupplierPrepayment.is_reconciled == True)
+        elif reconcile_status == 'unreconciled':
+            query = query.filter(or_(
+                SupplierPrepayment.is_reconciled == False,
+                SupplierPrepayment.is_reconciled.is_(None)
+            ))
+
+    # 排序并分页
+    query = query.order_by(SupplierPrepayment.payment_date.desc(), SupplierPrepayment.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    prepayment_records = pagination.items
+
+    # 计算已使用金额和可用余额
+    for p in prepayment_records:
+        p._cached_used_amount = float(p.amount) - float(p.balance_amount)
+        p._cached_available_balance = float(p.balance_amount)
 
     # 获取供应商列表（用于筛选）
     suppliers = CustomerCompany.query.filter(
@@ -38,123 +81,26 @@ def list_prepayments():
         CustomerCompany.status == 'active'
     ).order_by(CustomerCompany.company_name).all()
 
-    # 如果没有选择供应商，显示所有账户汇总
-    if not supplier_id:
-        # 按供应商汇总预付款数据
-        summary_data = db.session.query(
-            CustomerCompany.id.label('supplier_id'),
-            CustomerCompany.company_name,
-            func.sum(SupplierPrepayment.amount).label('total_amount'),
-            func.sum(SupplierPrepayment.balance_amount).label('total_balance'),
-            func.count(SupplierPrepayment.id).label('prepayment_count')
-        ).join(
-            SupplierPrepayment, CustomerCompany.id == SupplierPrepayment.supplier_id
-        ).filter(
-            SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed'])
-        ).group_by(
-            CustomerCompany.id, CustomerCompany.company_name
-        ).order_by(func.sum(SupplierPrepayment.balance_amount).desc()).all()
-
-        # 转换为列表
-        account_summary = []
-        grand_total_amount = 0
-        grand_total_balance = 0
-        for item in summary_data:
-            total_amount = float(item.total_amount or 0)
-            total_balance = float(item.total_balance or 0)
-            total_used = total_amount - total_balance
-            account_summary.append({
-                'supplier_id': item.supplier_id,
-                'supplier_name': item.company_name,
-                'total_amount': total_amount,
-                'total_balance': total_balance,
-                'total_used': total_used,
-                'prepayment_count': item.prepayment_count
-            })
-            grand_total_amount += total_amount
-            grand_total_balance += total_balance
-
-        return render_template('business/projects/prepayment/list.html',
-                               prepayments=[],
-                               suppliers=suppliers,
-                               selected_supplier_id=None,
-                               selected_status=status,
-                               total_amount=0,
-                               total_balance=0,
-                               total_used=0,
-                               no_supplier_selected=True,
-                               pending_eos=[],
-                               pending_eo_total=0,
-                               account_summary=account_summary,
-                               grand_total_amount=grand_total_amount,
-                               grand_total_balance=grand_total_balance)
-
-    # 构建查询
-    query = SupplierPrepayment.query.filter_by(supplier_id=supplier_id)
-
-    if status:
-        query = query.filter_by(status=status)
-
-    # 按编号倒序（最新的显示在最上面）
-    prepayments = query.order_by(SupplierPrepayment.prepayment_number.desc()).all()
-
-    # 直接使用 balance_amount 计算已使用金额和可用余额
-    # 注意：不能只统计 confirmed 使用记录，因为 pending 状态的记录也已扣减了 balance_amount
-    for p in prepayments:
-        p._cached_used_amount = float(p.amount) - float(p.balance_amount)
-        p._cached_available_balance = float(p.balance_amount)
-        p._cached_usage_percentage = round((p._cached_used_amount / float(p.amount)) * 100, 2) if p.amount else 0
-
-    # 计算汇总
-    total_amount = sum(float(p.amount or 0) for p in prepayments)
-    total_balance = sum(float(p.balance_amount or 0) for p in prepayments)
+    # 计算当前页汇总
+    total_amount = sum(float(p.amount or 0) for p in prepayment_records)
+    total_balance = sum(float(p.balance_amount or 0) for p in prepayment_records)
     total_used = total_amount - total_balance
 
-    # 查询待付款的EO（已创建但尚未付款的EO）
-    try:
-        # 获取通过批量付款确认的EO ID（只排除"批量EO付款"类型的confirmed记录）
-        confirmed_used_eo_ids = db.session.query(PrepaymentUsage.eo_id).join(
-            SupplierPrepayment, PrepaymentUsage.prepayment_id == SupplierPrepayment.id
-        ).filter(
-            SupplierPrepayment.supplier_id == supplier_id,
-            PrepaymentUsage.eo_id.isnot(None),
-            PrepaymentUsage.status == 'confirmed',
-            PrepaymentUsage.description.like('%批量EO付款%')
-        ).distinct().all()
-        confirmed_used_eo_ids = [eo_id for (eo_id,) in confirmed_used_eo_ids]
-
-        # 查询待付款EO列表：未付款且未确认扣减
-        query = db.session.query(ProjectEO).join(
-            ProjectRef, ProjectEO.ref_id == ProjectRef.id
-        ).filter(
-            ProjectRef.supplier_id == supplier_id,
-            ProjectEO.status == 'confirmed',
-            ProjectEO.is_paid == False
-        )
-        if confirmed_used_eo_ids:
-            query = query.filter(~ProjectEO.id.in_(confirmed_used_eo_ids))
-        pending_eos = query.order_by(ProjectEO.created_at.desc()).all()
-    except Exception as e:
-        print(f"查询待付款EO出错: {e}")
-        pending_eos = []
-
-    # 计算待付款总金额（所有显示的EO成本之和）
-    pending_eo_total = sum(
-        float(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else 0
-        for eo in pending_eos
-    )
-
     return render_template('business/projects/prepayment/list.html',
-                           prepayments=prepayments,
+                           prepayments=prepayment_records,
+                           pagination=pagination,
                            suppliers=suppliers,
-                           selected_supplier_id=supplier_id,
-                           selected_status=status,
                            total_amount=total_amount,
                            total_balance=total_balance,
                            total_used=total_used,
-                           no_supplier_selected=False,
-                           pending_eos=pending_eos,
-                           pending_eo_total=pending_eo_total)
+                           current_filters={
+                               'supplier_id': supplier_id,
+                               'status': status,
+                               'start_date': start_date,
+                               'end_date': end_date,
+                               'keyword': keyword,
+                               'reconcile_status': reconcile_status
+                           })
 
 
 @project_prepayment.route('/create', methods=['GET', 'POST'])
@@ -333,6 +279,36 @@ def confirm_prepayment(prepayment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'确认失败：{str(e)}'})
+
+
+@project_prepayment.route('/<int:prepayment_id>/reconcile', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def toggle_reconcile(prepayment_id):
+    """标记/取消核对状态"""
+    try:
+        prepayment = SupplierPrepayment.query.get_or_404(prepayment_id)
+        data = request.get_json() or {}
+        reconcile = data.get('reconcile', True)
+
+        if reconcile:
+            prepayment.is_reconciled = True
+            prepayment.reconciled_at = datetime.utcnow()
+            prepayment.reconciled_by = current_user.username if current_user else None
+            msg = '已标记为核对'
+        else:
+            prepayment.is_reconciled = False
+            prepayment.reconciled_at = None
+            prepayment.reconciled_by = None
+            msg = '已取消核对'
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': msg})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'操作失败：{str(e)}'})
 
 
 @project_prepayment.route('/<int:prepayment_id>/cancel', methods=['POST'])

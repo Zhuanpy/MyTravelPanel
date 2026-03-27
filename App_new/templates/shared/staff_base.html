@@ -654,6 +654,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'business_projects.project_prepayment.list_prepayments' %}active{% endif %}"
+                               href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}">
+                                <i class="fas fa-wallet me-2"></i>
+                                预付款记录
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'business_projects.project_invoice.invoice_list' %}active{% endif %}"
                                href="{{ url_for('business_projects.project_invoice.invoice_list') }}">
                                 <i class="fas fa-file-invoice me-2"></i>

@@ -1,217 +1,158 @@
-{% extends 'staff_base.html' %}
-{% block title %}预付账款管理{% endblock %}
-{% block page_title %}预付账款管理{% endblock %}
+{% extends 'shared/staff_base.html' %}
+{% block title %}预付款记录{% endblock %}
+{% block page_title %}预付款记录{% endblock %}
 {% block page_actions %}
 <a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-primary btn-sm">
     <i class="fas fa-plus me-1"></i>新增充值
 </a>
 {% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
 <style>
     .summary-bar {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 10px 20px;
+        margin-bottom: 16px;
         display: flex;
         align-items: center;
-        gap: 2rem;
-        padding: 0.85rem 1.25rem;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        font-size: 1.05rem;
+        gap: 24px;
+        font-size: 1.0rem;
     }
-    .summary-bar .s-label { color: #64748b; font-size: 0.9rem; }
-    .summary-bar .s-value { font-weight: 600; margin-left: 0.35rem; font-size: 1.1rem; }
+    .summary-bar .s-label { color: #6c757d; }
+    .summary-bar .s-value { font-weight: 600; font-size: 1.1rem; }
     .badge-draft { background-color: #6c757d; }
     .badge-confirmed { background-color: #28a745; }
     .badge-partial_used { background-color: #17a2b8; }
     .badge-consumed { background-color: #ffc107; color: #212529; }
     .badge-cancelled { background-color: #dc3545; }
-    .usage-row { background-color: #f8f9fa; }
-    .usage-table { font-size: 0.85rem; margin-bottom: 0; }
-    .usage-table th { background-color: #e9ecef; font-weight: 500; }
-    .toggle-btn { cursor: pointer; }
-    .toggle-btn i { transition: transform 0.2s; }
-    .toggle-btn.expanded i { transform: rotate(90deg); }
+    .badge-reconciled { background-color: #17a2b8; }
+    .badge-unreconciled { background-color: #ffc107; color: #212529; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-
-    <!-- 汇总（仅选择供应商后显示） -->
-    {% if not no_supplier_selected %}
+<div class="container-fluid py-4" style="max-width: 1600px;">
+    <!-- 汇总栏 -->
     <div class="summary-bar">
-        <div><span class="s-label">充值</span><span class="s-value">{{ "%.2f"|format(total_amount) }}</span></div>
-        <div><span class="s-label">已用</span><span class="s-value" style="color: #ef4444;">{{ "%.2f"|format(total_used) }}</span></div>
-        <div><span class="s-label">余额</span><span class="s-value" style="color: #2563eb; font-size: 1.25rem;">{{ "%.2f"|format(total_balance) }}</span></div>
-        {% if pending_eo_total > 0 %}
-        <div><span class="s-label">待付EO</span><span class="s-value" style="color: #d97706;">{{ "%.2f"|format(pending_eo_total) }}</span></div>
-        {% set expected_balance = (total_balance|float) - (pending_eo_total|float) %}
-        <div><span class="s-label">预计剩余</span><span class="s-value {% if expected_balance < 0 %}text-danger{% endif %}" style="{% if expected_balance >= 0 %}color: #10b981;{% endif %}">{{ "%.2f"|format(expected_balance) }}</span>
-            {% if expected_balance < 0 %}<span class="badge bg-danger ms-1" style="font-size: 0.7rem;">不足</span>{% endif %}
-        </div>
-        {% endif %}
+        <span><span class="s-label">记录数</span> <span class="s-value">{{ pagination.total }}</span></span>
+        <span><span class="s-label">充值总额</span> <span class="s-value">{{ "%.2f"|format(total_amount) }} SGD</span></span>
+        <span><span class="s-label">已使用</span> <span class="s-value" style="color: #ef4444;">{{ "%.2f"|format(total_used) }}</span></span>
+        <span><span class="s-label">剩余余额</span> <span class="s-value" style="color: #2563eb;">{{ "%.2f"|format(total_balance) }}</span></span>
     </div>
-    {% endif %}
-
-    {% if no_supplier_selected %}
-    {% if account_summary %}
-    <div class="summary-bar">
-        <div><span class="s-label">账户数</span><span class="s-value">{{ account_summary|length }}</span></div>
-        <div><span class="s-label">总充值</span><span class="s-value">{{ "%.2f"|format(grand_total_amount) }}</span></div>
-        <div><span class="s-label">总余额</span><span class="s-value" style="color: #2563eb; font-size: 1.25rem;">{{ "%.2f"|format(grand_total_balance) }}</span></div>
-    </div>
-    {% endif %}
-    {% endif %}
 
     <!-- 筛选栏 -->
-    <div class="card mb-3">
+    <div class="card mb-4">
         <div class="card-body py-2">
-            <form method="get" id="filterForm" class="row g-2 align-items-center">
+            <form method="get" class="row g-2 align-items-center">
                 <div class="col-auto">
-                    <select name="supplier_id" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="">-- 请选择供应商 --</option>
+                    <select name="supplier_id" class="form-select form-select-sm">
+                        <option value="">全部供应商</option>
                         {% for supplier in suppliers %}
-                        <option value="{{ supplier.id }}" {% if selected_supplier_id == supplier.id %}selected{% endif %}>
+                        <option value="{{ supplier.id }}" {% if current_filters.supplier_id == supplier.id %}selected{% endif %}>
                             {{ supplier.company_name }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
-                {% if not no_supplier_selected %}
                 <div class="col-auto">
                     <select name="status" class="form-select form-select-sm">
                         <option value="">全部状态</option>
-                        <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>草稿</option>
-                        <option value="confirmed" {% if selected_status == 'confirmed' %}selected{% endif %}>已确认</option>
-                        <option value="partial_used" {% if selected_status == 'partial_used' %}selected{% endif %}>部分使用</option>
-                        <option value="consumed" {% if selected_status == 'consumed' %}selected{% endif %}>已用完</option>
-                        <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>已取消</option>
+                        <option value="draft" {% if current_filters.status == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="confirmed" {% if current_filters.status == 'confirmed' %}selected{% endif %}>已确认</option>
+                        <option value="partial_used" {% if current_filters.status == 'partial_used' %}selected{% endif %}>部分使用</option>
+                        <option value="consumed" {% if current_filters.status == 'consumed' %}selected{% endif %}>已用完</option>
+                        <option value="cancelled" {% if current_filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
                     </select>
+                </div>
+                <div class="col-auto">
+                    <select name="reconcile_status" class="form-select form-select-sm">
+                        <option value="">核对状态</option>
+                        <option value="reconciled" {% if current_filters.reconcile_status == 'reconciled' %}selected{% endif %}>已核对</option>
+                        <option value="unreconciled" {% if current_filters.reconcile_status == 'unreconciled' %}selected{% endif %}>未核对</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="start_date" class="form-control form-control-sm"
+                           value="{{ current_filters.start_date or '' }}" placeholder="开始日期">
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="end_date" class="form-control form-control-sm"
+                           value="{{ current_filters.end_date or '' }}" placeholder="结束日期">
+                </div>
+                <div class="col-auto">
+                    <input type="text" name="keyword" class="form-control form-control-sm"
+                           value="{{ current_filters.keyword or '' }}" placeholder="编号/参考号...">
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-filter me-1"></i>筛选
                     </button>
-                    <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}?supplier_id={{ selected_supplier_id }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-undo me-1"></i>重置状态
+                    <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-undo me-1"></i>重置
                     </a>
                 </div>
-                {% endif %}
             </form>
         </div>
     </div>
 
-    {% if no_supplier_selected %}
-
-    <!-- 账户汇总列表 -->
-    <div class="card">
-        <div class="card-header">
-            <h6 class="mb-0"><i class="fas fa-list me-2"></i>充值账户汇总</h6>
-        </div>
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>供应商/航司</th>
-                        <th class="text-center">充值笔数</th>
-                        <th class="text-end">总充值金额</th>
-                        <th class="text-end">已使用</th>
-                        <th class="text-end">剩余可用</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in account_summary %}
-                    <tr>
-                        <td>
-                            <strong>{{ item.supplier_name }}</strong>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge bg-secondary">{{ item.prepayment_count }}</span>
-                        </td>
-                        <td class="text-end">{{ "%.2f"|format(item.total_amount) }} SGD</td>
-                        <td class="text-end text-muted">{{ "%.2f"|format(item.total_used) }}</td>
-                        <td class="text-end fw-bold {% if item.total_balance > 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "%.2f"|format(item.total_balance) }}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('business_projects.project_prepayment.list_prepayments', supplier_id=item.supplier_id) }}"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye me-1"></i>查看明细
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
-                            <i class="fas fa-inbox fa-2x mb-2"></i>
-                            <p class="mb-0">暂无预付账款记录</p>
-                            <a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-sm btn-primary mt-2">
-                                <i class="fas fa-plus me-1"></i>新增充值
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                {% if account_summary %}
-                <tfoot class="table-light">
-                    <tr class="fw-bold">
-                        <td>合计</td>
-                        <td class="text-center">{{ account_summary|sum(attribute='prepayment_count') }}</td>
-                        <td class="text-end">{{ "%.2f"|format(grand_total_amount) }}</td>
-                        <td class="text-end">{{ "%.2f"|format(grand_total_amount - grand_total_balance) }}</td>
-                        <td class="text-end text-primary">{{ "%.2f"|format(grand_total_balance) }}</td>
-                        <td colspan="2"></td>
-                    </tr>
-                </tfoot>
-                {% endif %}
-            </table>
-        </div>
-    </div>
-    {% else %}
-    <!-- 预付账款列表 -->
+    <!-- 预付款记录列表 -->
     <div class="card">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 30px;"></th>
-                        <th>编号</th>
+                        <th>预付编号</th>
                         <th>供应商</th>
+                        <th>充值日期</th>
                         <th class="text-end">充值金额</th>
                         <th class="text-end">已使用</th>
-                        <th class="text-end">剩余</th>
-                        <th>充值日期</th>
+                        <th class="text-end">剩余余额</th>
                         <th>支付方式</th>
+                        <th>参考号</th>
                         <th>状态</th>
+                        <th>核对状态</th>
+                        <th>确认</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in prepayments %}
                     <tr>
-                        <td class="text-center">
-                            {% if p.usages.count() > 0 %}
-                            <span class="toggle-btn" onclick="toggleUsages({{ p.id }}, this)" title="展开/收起使用记录">
-                                <i class="fas fa-chevron-right"></i>
-                            </span>
-                            {% endif %}
-                        </td>
                         <td>
                             <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=p.id) }}">
-                                {{ p.prepayment_number }}
+                                <strong>{{ p.prepayment_number }}</strong>
                             </a>
                         </td>
                         <td>{{ p.supplier.company_name if p.supplier else '-' }}</td>
-                        <td class="text-end">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
-                        <td class="text-end">{{ "%.2f"|format(p._cached_used_amount) }}</td>
-                        <td class="text-end fw-bold">{{ "%.2f"|format(p._cached_available_balance) }}</td>
                         <td>{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '-' }}</td>
+                        <td class="text-end fw-bold">{{ "%.2f"|format(p.amount) }} {{ p.currency }}</td>
+                        <td class="text-end text-muted">{{ "%.2f"|format(p._cached_used_amount) }}</td>
+                        <td class="text-end fw-bold {% if p._cached_available_balance > 0 %}text-success{% elif p._cached_available_balance == 0 %}text-muted{% endif %}">
+                            {{ "%.2f"|format(p._cached_available_balance) }}
+                        </td>
                         <td>{{ p.payment_method_display }}</td>
+                        <td>{{ p.reference or '-' }}</td>
                         <td>
                             <span class="badge badge-{{ p.status }}">{{ p.status_display }}</span>
+                        </td>
+                        <td style="white-space: nowrap;">
+                            {% if p.is_reconciled %}
+                                <span class="badge badge-reconciled"><i class="fas fa-check-double"></i> 已核对</span>
+                            {% else %}
+                                <span class="badge badge-unreconciled"><i class="fas fa-clock"></i> 未核对</span>
+                            {% endif %}
+                        </td>
+                        <td style="white-space: nowrap;">
+                            {% if p.is_reconciled %}
+                                <span class="text-muted">-</span>
+                            {% elif p.status in ('confirmed', 'partial_used', 'consumed') %}
+                                <button class="btn btn-success btn-sm" onclick="confirmReconcile({{ p.id }})" title="标记已核对">
+                                    <i class="fas fa-check"></i> 核对
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
@@ -225,174 +166,76 @@
                                     <i class="fas fa-check"></i>
                                 </button>
                                 {% endif %}
+                                {% if p.status in ('draft', 'confirmed') and p._cached_used_amount == 0 %}
+                                <button type="button" class="btn btn-outline-danger"
+                                        onclick="cancelPrepayment({{ p.id }}, '{{ p.prepayment_number }}')" title="取消">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
-                    <!-- EO使用记录展开行（只显示已确认的） -->
-                    {% if p.confirmed_usages.count() > 0 %}
-                    <tr id="usage-row-{{ p.id }}" class="usage-row" style="display: none;">
-                        <td colspan="11" class="p-0">
-                            <div class="p-3">
-                                <h6 class="mb-2"><i class="fas fa-list me-1"></i>EO使用记录 ({{ p.confirmed_usages.count() }})</h6>
-                                <table class="table table-sm table-bordered usage-table">
-                                    <thead>
-                                        <tr>
-                                            <th>EO编号</th>
-                                            <th>REF编号</th>
-                                            <th>HID</th>
-                                            <th class="text-end">金额</th>
-                                            <th>使用日期</th>
-                                            <th>状态</th>
-                                            <th>说明</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for u in p.confirmed_usages %}
-                                        <tr>
-                                            <td>
-                                                {% if u.eo %}
-                                                <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=u.eo.id) }}">
-                                                    {{ u.eo.eo_number }}
-                                                </a>
-                                                {% else %}-{% endif %}
-                                            </td>
-                                            <td>
-                                                {% if u.ref %}
-                                                <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=u.ref.id) }}">
-                                                    {{ u.ref.ref_number }}
-                                                </a>
-                                                {% else %}-{% endif %}
-                                            </td>
-                                            <td>
-                                                {% if u.ref and u.ref.header %}
-                                                <a href="{{ url_for('business_projects.detail.project_detail', project_id=u.ref.header.id) }}">
-                                                    {{ u.ref.header.hid }}
-                                                </a>
-                                                {% else %}-{% endif %}
-                                            </td>
-                                            <td class="text-end">{{ "%.2f"|format(u.amount) }}</td>
-                                            <td>{{ u.usage_date.strftime('%Y-%m-%d') if u.usage_date else '-' }}</td>
-                                            <td>
-                                                <span class="badge bg-{{ 'warning' if u.status == 'pending' else 'success' if u.status == 'confirmed' else 'secondary' }}">
-                                                    {{ '待确认' if u.status == 'pending' else '已确认' if u.status == 'confirmed' else '已冲销' if u.status == 'reversed' else u.status }}
-                                                </span>
-                                            </td>
-                                            <td>{{ u.description or '-' }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endif %}
                     {% else %}
                     <tr>
-                        <td colspan="11" class="text-center py-4 text-muted">
+                        <td colspan="12" class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
-                            <p class="mb-0">该供应商暂无预付账款记录</p>
+                            <p class="mb-0">暂无预付款记录</p>
+                            <a href="{{ url_for('business_projects.project_prepayment.create_prepayment') }}" class="btn btn-sm btn-primary mt-2">
+                                <i class="fas fa-plus me-1"></i>新增充值
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                {% if prepayments %}
-                <tfoot class="table-light">
-                    <tr class="fw-bold">
-                        <td colspan="3" class="text-end">合计：</td>
-                        <td class="text-end">{{ "%.2f"|format(total_amount) }}</td>
-                        <td class="text-end">{{ "%.2f"|format(total_used) }}</td>
-                        <td class="text-end text-primary">{{ "%.2f"|format(total_balance) }}</td>
-                        <td colspan="5"></td>
-                    </tr>
-                </tfoot>
-                {% endif %}
             </table>
         </div>
-    </div>
 
-    <!-- 待付款EO列表 -->
-    {% if pending_eos %}
-    <div class="card mt-4">
-        <div class="card-header bg-warning bg-opacity-25">
-            <h6 class="mb-0">
-                <i class="fas fa-clock me-2"></i>待付款EO（{{ pending_eos|length }}）
-                <span class="badge bg-warning text-dark ms-2">合计: {{ "%.2f"|format(pending_eo_total) }} SGD</span>
-            </h6>
-        </div>
-        <div class="card-body p-0">
-            <table class="table table-hover table-sm mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>EO编号</th>
-                        <th>REF编号</th>
-                        <th>HID</th>
-                        <th>业务类型</th>
-                        <th class="text-end">成本金额</th>
-                        <th>EO日期</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for eo in pending_eos %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}">
-                                {{ eo.eo_number }}
-                            </a>
-                        </td>
-                        <td>
-                            {% if eo.ref %}
-                            <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref.id) }}">
-                                {{ eo.ref.ref_number }}
-                            </a>
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>
-                            {% if eo.ref and eo.ref.header %}
-                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.ref.header.id) }}">
-                                {{ eo.ref.header.hid }}
-                            </a>
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>{{ eo.ref.ref_type.name if eo.ref and eo.ref.ref_type else '-' }}</td>
-                        <td class="text-end">
-                            {% if eo.ref and eo.ref.cost_price %}
-                            {{ "%.2f"|format(eo.ref.cost_price|float) }} {{ eo.ref.currency or 'SGD' }}
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>{{ eo.eo_date.strftime('%Y-%m-%d') if eo.eo_date else (eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-') }}</td>
-                        <td>
-                            <span class="badge bg-{{ 'secondary' if eo.status == 'draft' else 'info' if eo.status == 'confirmed' else 'success' }}">
-                                {{ '草稿' if eo.status == 'draft' else '已确认' if eo.status == 'confirmed' else eo.status }}
-                            </span>
-                        </td>
-                        <td>
-                            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}"
-                               class="btn btn-sm btn-outline-primary" title="查看">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
-                    </tr>
+        <!-- 分页 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.pages }} 页
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_prepayment.list_prepayments', page=pagination.prev_num, **current_filters) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for p in range(1, pagination.pages + 1) %}
+                        {% if p == pagination.page %}
+                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                        {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('business_projects.project_prepayment.list_prepayments', page=p, **current_filters) }}">{{ p }}</a>
+                        </li>
+                        {% elif p == 2 or p == pagination.pages - 1 %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
                     {% endfor %}
-                </tbody>
-                <tfoot class="table-light">
-                    <tr class="fw-bold">
-                        <td colspan="4" class="text-end">待付款合计：</td>
-                        <td class="text-end text-warning">{{ "%.2f"|format(pending_eo_total) }} SGD</td>
-                        <td colspan="3"></td>
-                    </tr>
-                </tfoot>
-            </table>
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('business_projects.project_prepayment.list_prepayments', page=pagination.next_num, **current_filters) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
-    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// 确认预付款（草稿→已确认，生成会计分录）
 function confirmPrepayment(id) {
     if (!confirm('确认此预付账款？确认后将生成会计分录。')) return;
 
@@ -412,17 +255,44 @@ function confirmPrepayment(id) {
     .catch(err => alert('请求失败: ' + err));
 }
 
-function toggleUsages(prepaymentId, btn) {
-    const row = document.getElementById('usage-row-' + prepaymentId);
-    if (row) {
-        if (row.style.display === 'none') {
-            row.style.display = 'table-row';
-            btn.classList.add('expanded');
+// 取消预付款
+function cancelPrepayment(id, number) {
+    if (!confirm(`确定要取消预付款 ${number} 吗？`)) return;
+
+    fetch(`/projects/prepayment/${id}/cancel`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
         } else {
-            row.style.display = 'none';
-            btn.classList.remove('expanded');
+            alert('操作失败: ' + data.message);
         }
-    }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+// 标记已核对
+function confirmReconcile(id) {
+    if (!confirm('确认标记为已核对？核对后表示已与银行账单核实。')) return;
+
+    fetch(`/projects/prepayment/${id}/reconcile`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reconcile: true})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('操作失败: ' + data.message);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
 }
 </script>
 {% endblock %}
