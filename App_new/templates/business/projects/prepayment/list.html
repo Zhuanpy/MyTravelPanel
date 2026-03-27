@@ -119,9 +119,13 @@
                 <tbody>
                     {% for p in prepayments %}
                     <tr>
-                        <td>
+                        <td style="white-space: nowrap;">
                             <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=p.id) }}">
                                 <strong>{{ p.prepayment_number }}</strong>
+                            </a>
+                            <a href="{{ url_for('business_projects.project_prepayment.create_prepayment', copy_from=p.id) }}"
+                               class="btn btn-link btn-sm p-0 ms-1" title="复制新增">
+                                <i class="fas fa-copy text-muted" style="font-size: 11px;"></i>
                             </a>
                         </td>
                         <td>{{ p.supplier.company_name if p.supplier else '-' }}</td>

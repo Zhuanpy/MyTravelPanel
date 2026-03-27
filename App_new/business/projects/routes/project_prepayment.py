@@ -128,10 +128,27 @@ def create_prepayment():
             ChartOfAccount.is_active == True
         ).order_by(ChartOfAccount.code).all()
 
+        # 复制功能：从已有记录预填数据
+        copy_data = None
+        copy_from = request.args.get('copy_from', type=int)
+        if copy_from:
+            source = SupplierPrepayment.query.get(copy_from)
+            if source:
+                copy_data = {
+                    'supplier_id': source.supplier_id,
+                    'amount': float(source.amount),
+                    'currency': source.currency,
+                    'payment_method': source.payment_method,
+                    'bank_account_id': source.bank_account_id,
+                    'prepayment_account_id': source.prepayment_account_id,
+                    'remarks': source.remarks or ''
+                }
+
         return render_template('business/projects/prepayment/create.html',
                                suppliers=suppliers,
                                bank_accounts=bank_accounts,
-                               prepayment_accounts=prepayment_accounts)
+                               prepayment_accounts=prepayment_accounts,
+                               copy_data=copy_data)
 
     # POST 处理
     try:

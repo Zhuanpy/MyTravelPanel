@@ -1,6 +1,6 @@
 {% extends 'staff_base.html' %}
-{% block title %}新增预付充值{% endblock %}
-{% block page_title %}新增预付充值{% endblock %}
+{% block title %}{% if copy_data %}复制新增充值{% else %}新增预付充值{% endif %}{% endblock %}
+{% block page_title %}{% if copy_data %}复制新增充值{% else %}新增预付充值{% endif %}{% endblock %}
 {% block page_actions %}
 <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary btn-sm">
     <i class="fas fa-arrow-left me-1"></i>返回列表
@@ -32,7 +32,7 @@
                     <select name="supplier_id" class="form-select" required>
                         <option value="">-- 请选择供应商 --</option>
                         {% for supplier in suppliers %}
-                        <option value="{{ supplier.id }}">{{ supplier.company_name }}</option>
+                        <option value="{{ supplier.id }}" {% if copy_data and copy_data.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
                         {% endfor %}
                     </select>
                     <div class="form-text">选择要充值的航司或供应商账户</div>
@@ -44,11 +44,12 @@
                         <label class="form-label">充值金额 <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <input type="number" name="amount" class="form-control"
-                                   step="0.01" min="0.01" placeholder="0.00" required>
+                                   step="0.01" min="0.01" placeholder="0.00"
+                                   value="{{ copy_data.amount if copy_data else '' }}" required>
                             <select name="currency" class="form-select" style="max-width: 100px;">
-                                <option value="SGD" selected>SGD</option>
-                                <option value="USD">USD</option>
-                                <option value="CNY">CNY</option>
+                                <option value="SGD" {% if not copy_data or copy_data.currency == 'SGD' %}selected{% endif %}>SGD</option>
+                                <option value="USD" {% if copy_data and copy_data.currency == 'USD' %}selected{% endif %}>USD</option>
+                                <option value="CNY" {% if copy_data and copy_data.currency == 'CNY' %}selected{% endif %}>CNY</option>
                             </select>
                         </div>
                     </div>
@@ -66,11 +67,11 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label">支付方式</label>
                         <select name="payment_method" class="form-select">
-                            <option value="bank_transfer">银行转账</option>
-                            <option value="credit_card">信用卡</option>
-                            <option value="paynow">PayNow</option>
-                            <option value="cash">现金</option>
-                            <option value="other">其他</option>
+                            <option value="bank_transfer" {% if not copy_data or copy_data.payment_method == 'bank_transfer' %}selected{% endif %}>银行转账</option>
+                            <option value="credit_card" {% if copy_data and copy_data.payment_method == 'credit_card' %}selected{% endif %}>信用卡</option>
+                            <option value="paynow" {% if copy_data and copy_data.payment_method == 'paynow' %}selected{% endif %}>PayNow</option>
+                            <option value="cash" {% if copy_data and copy_data.payment_method == 'cash' %}selected{% endif %}>现金</option>
+                            <option value="other" {% if copy_data and copy_data.payment_method == 'other' %}selected{% endif %}>其他</option>
                         </select>
                     </div>
 
@@ -92,7 +93,7 @@
                         <select name="bank_account_id" class="form-select">
                             <option value="">-- 选择银行账户 --</option>
                             {% for account in bank_accounts %}
-                            <option value="{{ account.id }}">
+                            <option value="{{ account.id }}" {% if copy_data and copy_data.bank_account_id == account.id %}selected{% endif %}>
                                 {{ account.code }} - {{ account.name }}
                             </option>
                             {% endfor %}
@@ -106,7 +107,7 @@
                         <select name="prepayment_account_id" class="form-select">
                             <option value="">-- 选择预付科目 --</option>
                             {% for account in prepayment_accounts %}
-                            <option value="{{ account.id }}" {% if account.code == '1201' %}selected{% endif %}>
+                            <option value="{{ account.id }}" {% if copy_data and copy_data.prepayment_account_id == account.id %}selected{% elif not copy_data and account.code == '1201' %}selected{% endif %}>
                                 {{ account.code }} - {{ account.name }}
                             </option>
                             {% endfor %}
@@ -119,7 +120,7 @@
                 <div class="mb-3">
                     <label class="form-label">备注</label>
                     <textarea name="remarks" class="form-control" rows="2"
-                              placeholder="可填写充值说明等信息"></textarea>
+                              placeholder="可填写充值说明等信息">{{ copy_data.remarks if copy_data else '' }}</textarea>
                 </div>
 
                 <!-- 提交按钮 -->
