@@ -2461,3 +2461,160 @@ def shareholder_loan_detail(loan_id):
             'amount': float(d.amount)
         } for d in repayment_details]
     })
+
+
+@ledger_blue.route('/shareholder-loan/repayment/<int:repayment_id>/print')
+@login_required
+@staff_only
+def print_repayment_pdf(repayment_id):
+    """打印还款记录PDF"""
+    from io import BytesIO
+    from flask import send_file
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    import os
+
+    repayment = ShareholderLoanRepayment.query.get_or_404(repayment_id)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=0.75*inch, rightMargin=0.75*inch,
+                            topMargin=0.5*inch, bottomMargin=0.5*inch)
+    story = []
+    styles = getSampleStyleSheet()
+
+    # 自定义样式
+    title_style = ParagraphStyle('Title2', parent=styles['Heading1'],
+                                  fontSize=16, spaceAfter=4, alignment=TA_CENTER)
+    subtitle_style = ParagraphStyle('Subtitle2', parent=styles['Normal'],
+                                     fontSize=10, spaceAfter=16, alignment=TA_CENTER,
+                                     textColor=colors.HexColor('#666666'))
+    label_style = ParagraphStyle('Label', parent=styles['Normal'],
+                                  fontSize=10, textColor=colors.HexColor('#666666'))
+    value_style = ParagraphStyle('Value', parent=styles['Normal'],
+                                  fontSize=11, fontName='Helvetica-Bold')
+    normal_style = ParagraphStyle('Normal2', parent=styles['Normal'], fontSize=10)
+    right_style = ParagraphStyle('Right2', parent=styles['Normal'],
+                                  fontSize=10, alignment=TA_RIGHT)
+    bold_right_style = ParagraphStyle('BoldRight', parent=styles['Normal'],
+                                       fontSize=10, fontName='Helvetica-Bold',
+                                       alignment=TA_RIGHT)
+    header_style = ParagraphStyle('Header2', parent=styles['Normal'],
+                                   fontSize=10, fontName='Helvetica-Bold',
+                                   textColor=colors.white)
+
+    # 公司抬头
+    story.append(Paragraph("JOYFUL ESCAPES PTE LTD", title_style))
+    story.append(Paragraph("Shareholder Loan Repayment Voucher", subtitle_style))
+
+    # 添加电子章
+    try:
+        from reportlab.platypus import Image
+        stamp_path = os.path.join(os.getcwd(), 'App_new', 'static', 'JE', 'company digital stamp.png')
+        if os.path.exists(stamp_path):
+            stamp_image = Image(stamp_path, width=50, height=50)
+            story.append(stamp_image)
+            story.append(Spacer(1, 10))
+    except Exception:
+        pass
+
+    # 还款信息表格
+    bank_name = repayment.bank_account.name if repayment.bank_account else '-'
+    info_data = [
+        [Paragraph('Repayment No.', label_style), Paragraph(repayment.repayment_number or '-', value_style),
+         Paragraph('Date', label_style), Paragraph(repayment.repayment_date.strftime('%Y-%m-%d') if repayment.repayment_date else '-', value_style)],
+        [Paragraph('Bank Account', label_style), Paragraph(bank_name, value_style),
+         Paragraph('Status', label_style), Paragraph('Confirmed' if repayment.status == 'posted' else repayment.status, value_style)],
+        [Paragraph('Total Amount', label_style), Paragraph(f'SGD {float(repayment.total_amount):,.2f}', value_style),
+         Paragraph('Created By', label_style), Paragraph(repayment.created_by or '-', value_style)],
+    ]
+    if repayment.description:
+        info_data.append([Paragraph('Description', label_style), Paragraph(repayment.description, normal_style), '', ''])
+    if repayment.remarks:
+        info_data.append([Paragraph('Remarks', label_style), Paragraph(repayment.remarks, normal_style), '', ''])
+
+    info_table = Table(info_data, colWidths=[1.2*inch, 2.3*inch, 1.2*inch, 2.3*inch])
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 20))
+
+    # 还款明细表格
+    story.append(Paragraph("Repayment Allocation Details", ParagraphStyle(
+        'SectionTitle', parent=styles['Heading3'], fontSize=12, spaceAfter=8)))
+
+    detail_header = [
+        Paragraph('No.', header_style),
+        Paragraph('Loan Number', header_style),
+        Paragraph('Loan Date', header_style),
+        Paragraph('Loan Amount', header_style),
+        Paragraph('Repay Amount', header_style),
+    ]
+    detail_data = [detail_header]
+
+    total_repay = 0
+    for i, detail in enumerate(repayment.details, 1):
+        loan = detail.loan
+        repay_amt = float(detail.amount)
+        total_repay += repay_amt
+        detail_data.append([
+            Paragraph(str(i), normal_style),
+            Paragraph(loan.loan_number if loan else '-', normal_style),
+            Paragraph(loan.loan_date.strftime('%Y-%m-%d') if loan and loan.loan_date else '-', normal_style),
+            Paragraph(f'SGD {float(loan.amount):,.2f}' if loan else '-', right_style),
+            Paragraph(f'SGD {repay_amt:,.2f}', bold_right_style),
+        ])
+
+    # 合计行
+    detail_data.append([
+        '', '', '',
+        Paragraph('Total', bold_right_style),
+        Paragraph(f'SGD {total_repay:,.2f}', bold_right_style),
+    ])
+
+    detail_table = Table(detail_data, colWidths=[0.5*inch, 1.8*inch, 1.2*inch, 1.75*inch, 1.75*inch])
+    detail_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('ALIGN', (3, 1), (4, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#f8f9fa')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e8')),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -2), 0.5, colors.HexColor('#dee2e6')),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#28a745')),
+    ]))
+    story.append(detail_table)
+
+    # 签名区域
+    story.append(Spacer(1, 40))
+    sig_data = [
+        [Paragraph('Prepared By:', label_style), '', Paragraph('Approved By:', label_style), ''],
+        ['', '', '', ''],
+        [Paragraph('_' * 25, normal_style), '', Paragraph('_' * 25, normal_style), ''],
+    ]
+    sig_table = Table(sig_data, colWidths=[2*inch, 1.5*inch, 2*inch, 1.5*inch])
+    sig_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(sig_table)
+
+    doc.build(story)
+    buffer.seek(0)
+
+    filename = f'Repayment_{repayment.repayment_number}_{repayment.repayment_date.strftime("%Y%m%d")}.pdf'
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')

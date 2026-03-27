@@ -285,8 +285,12 @@
                                         <span class="badge bg-secondary">已作废</span>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td style="white-space: nowrap;">
                                         {% if repayment.status == 'posted' %}
+                                        <a href="{{ url_for('ledger_routes.print_repayment_pdf', repayment_id=repayment.id) }}"
+                                           class="btn btn-outline-primary btn-sm" title="打印PDF" target="_blank">
+                                            <i class="fas fa-print"></i>
+                                        </a>
                                         <button class="btn btn-outline-danger btn-sm cancel-repayment-btn"
                                                 data-repayment-id="{{ repayment.id }}"
                                                 data-repayment-number="{{ repayment.repayment_number }}"
