@@ -294,10 +294,9 @@ function deletePrepayment(id, number) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
             location.reload();
         } else {
-            alert('操作失败: ' + data.message);
+            alert('删除失败: ' + data.message);
         }
     })
     .catch(err => alert('请求失败: ' + err));
