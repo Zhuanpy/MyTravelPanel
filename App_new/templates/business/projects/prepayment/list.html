@@ -109,7 +109,6 @@
                         <th class="text-end">已使用</th>
                         <th class="text-end">剩余余额</th>
                         <th>支付方式</th>
-                        <th>参考号</th>
                         <th>状态</th>
                         <th>核对状态</th>
                         <th>确认</th>
@@ -136,7 +135,6 @@
                             {{ "%.2f"|format(p._cached_available_balance) }}
                         </td>
                         <td>{{ p.payment_method_display }}</td>
-                        <td>{{ p.reference or '-' }}</td>
                         <td>
                             <span class="badge badge-{{ p.status }}">{{ p.status_display }}</span>
                         </td>
