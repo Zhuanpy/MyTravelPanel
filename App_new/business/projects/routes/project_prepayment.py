@@ -196,7 +196,8 @@ def create_prepayment():
         db.session.add(prepayment)
         db.session.commit()
 
-        return redirect(url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=prepayment.id))
+        flash('预付款创建成功', 'success')
+        return redirect(url_for('business_projects.project_prepayment.list_prepayments'))
 
     except Exception as e:
         db.session.rollback()
