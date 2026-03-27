@@ -176,6 +176,12 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                                 {% endif %}
+                                {% if p.status == 'cancelled' %}
+                                <button type="button" class="btn btn-outline-danger"
+                                        onclick="deletePrepayment({{ p.id }}, '{{ p.prepayment_number }}')" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -264,6 +270,26 @@ function cancelPrepayment(id, number) {
     if (!confirm(`确定要取消预付款 ${number} 吗？`)) return;
 
     fetch(`/projects/prepayment/${id}/cancel`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('操作失败: ' + data.message);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+// 删除预付款（仅已取消的）
+function deletePrepayment(id, number) {
+    if (!confirm(`确定要永久删除预付款 ${number} 吗？此操作不可恢复。`)) return;
+
+    fetch(`/projects/prepayment/${id}/delete`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
