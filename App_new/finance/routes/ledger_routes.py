@@ -2511,17 +2511,6 @@ def print_repayment_pdf(repayment_id):
     story.append(Paragraph("JOYFUL ESCAPES PTE LTD", title_style))
     story.append(Paragraph("Shareholder Loan Repayment Voucher", subtitle_style))
 
-    # 添加电子章
-    try:
-        from reportlab.platypus import Image
-        stamp_path = os.path.join(os.getcwd(), 'App_new', 'static', 'JE', 'company digital stamp.png')
-        if os.path.exists(stamp_path):
-            stamp_image = Image(stamp_path, width=50, height=50)
-            story.append(stamp_image)
-            story.append(Spacer(1, 10))
-    except Exception:
-        pass
-
     # 还款信息表格
     bank_name = repayment.bank_account.name if repayment.bank_account else '-'
     info_data = [
