@@ -1523,9 +1523,10 @@ def get_eo_compare_data():
         tx_query = tx_query.order_by(desc(BankTransaction.transaction_date))
         transactions = tx_query.limit(200).all()
 
-        # 查询EO记录（已确认的，排除已作废的）
+        # 查询EO记录（已确认的，排除已作废的和已付款的）
         eo_query = ProjectEO.query.join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
-            ProjectEO.status == 'confirmed'
+            ProjectEO.status == 'confirmed',
+            or_(ProjectEO.is_paid == False, ProjectEO.is_paid.is_(None))
         )
 
         # 按供应商筛选
