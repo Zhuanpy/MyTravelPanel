@@ -356,7 +356,7 @@ def cancel_prepayment(prepayment_id):
 
 @project_prepayment.route('/<int:prepayment_id>/delete', methods=['POST'])
 @login_required
-@admin_only
+@staff_only
 @csrf.exempt
 def delete_prepayment(prepayment_id):
     """删除预付账款（仅管理员）"""
