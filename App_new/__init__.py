@@ -504,6 +504,8 @@ def import_all_models():
         from .business.projects.models.project import CustomerCompany, Customer, ProjectHeader
         from .business.projects.models.ref import ProjectRef, RefOrderItem
         from .business.projects.models.eo import ProjectEO
+        from .business.projects.models.frequent_traveler import FrequentTraveler
+        from .business.projects.models.traveler_file import TravelerFile
         from .finance.models.statement import (
             BankStatement, BankTransaction, SupplierStatement, SupplierStatementItem
         )

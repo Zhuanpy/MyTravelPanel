@@ -143,8 +143,7 @@
                               <tr>
                                   <th style="padding: 4px 6px;">姓名</th>
                                   {% if not header.is_settled %}
-                                  <th style="padding: 4px 6px; width: 30px; text-align: center;" title="设为Leader"><i class="fas fa-user text-muted"></i></th>
-                                  <th style="padding: 4px 6px; width: 30px; text-align: center;" title="删除"><i class="fas fa-trash text-muted"></i></th>
+                                  <th style="padding: 4px 6px; text-align: center;" title="操作">操作</th>
                                   {% endif %}
                               </tr>
                           </thead>
@@ -624,18 +623,20 @@ function renderMembers(members) {
     tbody.innerHTML = sortedMembers.map(m => `
         <tr data-member-id="${m.id}" style="cursor: ${showActions ? 'pointer' : 'default'};${m.is_leader ? ' background-color: #d4edda;' : ''}" ${showActions ? `onclick="editMember(${m.id})"` : ''}>
             <td style="padding: 4px 6px;">
-                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}${m.member_role ? ' (' + m.member_role + ')' : ''}">
+                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}">
                     ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
                 </span>
             </td>
             ${showActions ? `
-            <td style="padding: 4px 6px; text-align: center;">
+            <td style="padding: 4px 6px; text-align: center; white-space: nowrap;">
                 <button type="button" class="btn btn-sm ${m.is_leader ? 'btn-primary' : 'btn-outline-secondary'} py-0 px-1"
                         onclick="event.stopPropagation(); setLeader(${m.id})" title="设为Leader" style="font-size: 0.7rem;">
                     <i class="fas fa-user"></i>
                 </button>
-            </td>
-            <td style="padding: 4px 6px; text-align: center;">
+                <button type="button" class="btn btn-sm btn-outline-info py-0 px-1"
+                        onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="保存为常用旅客" style="font-size: 0.7rem;">
+                    <i class="fas fa-star"></i>
+                </button>
                 ${m.is_leader ? '' : `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.7rem;">
                     <i class="fas fa-trash"></i>
                 </button>`}
@@ -680,22 +681,47 @@ function openMemberModal(member = null) {
     const modal = document.getElementById('memberModal');
     const title = document.getElementById('memberModalTitle');
 
+    // 编辑模式隐藏常用旅客选取，新增模式显示
+    const ftPicker = document.getElementById('frequentTravelerPicker');
+
     if (member) {
         title.textContent = '编辑人员';
+        if (ftPicker) ftPicker.style.display = 'none';
+        document.getElementById('ftSelectedInfo').style.display = 'none';
+        // 编辑模式：清空会员行，显示空提示
+        document.getElementById('memberMembershipList').innerHTML = '';
+        document.getElementById('memberMembershipEmpty').style.display = '';
         document.getElementById('memberId').value = member.id;
         document.getElementById('memberTitle').value = member.title || '';
         document.getElementById('memberName').value = member.member_name || '';
-        document.getElementById('memberNameEn').value = member.member_name_en || '';
-        document.getElementById('memberRole').value = member.member_role || '';
         document.getElementById('memberPhone').value = member.member_phone || '';
         document.getElementById('memberEmail').value = member.member_email || '';
-        document.getElementById('memberIdType').value = member.id_type || '';
         document.getElementById('memberIdNumber').value = member.id_number || '';
+        document.getElementById('memberPassportCountry').value = member.passport_issuing_country || '';
+        document.getElementById('memberPassportExpiry').value = member.passport_expiry_date || '';
+        document.getElementById('memberNationality').value = member.nationality || '';
+        document.getElementById('memberDob').value = member.date_of_birth || '';
+        document.getElementById('memberGender').value = member.gender || '';
+        document.getElementById('memberIdType').value = member.id_type || '';
+        document.getElementById('memberIdTypeNumber').value = '';
         document.getElementById('memberRemarks').value = member.remarks || '';
+        // 加载航空会员
+        document.getElementById('memberMembershipList').innerHTML = '';
+        if (member.airline_memberships && member.airline_memberships.length) {
+            member.airline_memberships.forEach(m => addMemberMembershipRow(m));
+        } else {
+            document.getElementById('memberMembershipEmpty').style.display = '';
+        }
     } else {
         title.textContent = '添加人员';
+        if (ftPicker) ftPicker.style.display = '';
         document.getElementById('memberForm').reset();
         document.getElementById('memberId').value = '';
+        document.getElementById('ftSearchInput').value = '';
+        document.getElementById('ftSearchResults').style.display = 'none';
+        document.getElementById('ftSelectedInfo').style.display = 'none';
+        document.getElementById('memberMembershipList').innerHTML = '';
+        document.getElementById('memberMembershipEmpty').style.display = '';
     }
     
     modal.style.display = 'block';
@@ -721,13 +747,17 @@ function saveMember() {
     const data = {
         title: document.getElementById('memberTitle').value,
         member_name: memberName,
-        member_name_en: document.getElementById('memberNameEn').value.trim(),
-        member_role: document.getElementById('memberRole').value.trim(),
         member_phone: document.getElementById('memberPhone').value.trim(),
         member_email: document.getElementById('memberEmail').value.trim(),
+        gender: document.getElementById('memberGender').value,
+        date_of_birth: document.getElementById('memberDob').value || null,
+        nationality: document.getElementById('memberNationality').value.trim(),
         id_type: document.getElementById('memberIdType').value,
         id_number: document.getElementById('memberIdNumber').value.trim(),
-        remarks: document.getElementById('memberRemarks').value.trim()
+        passport_issuing_country: document.getElementById('memberPassportCountry').value.trim(),
+        passport_expiry_date: document.getElementById('memberPassportExpiry').value || null,
+        remarks: document.getElementById('memberRemarks').value.trim(),
+        airline_memberships: collectMemberMemberships()
     };
     
     const url = memberId 
@@ -776,6 +806,176 @@ function editMember(memberId) {
         .catch(error => console.error('获取人员信息失败:', error));
 }
 
+// ---- 常用旅客搜索选取 ----
+let ftSearchTimer = null;
+function searchFrequentTravelers(keyword) {
+    clearTimeout(ftSearchTimer);
+    const resultsDiv = document.getElementById('ftSearchResults');
+    if (!keyword || keyword.trim().length < 1) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    ftSearchTimer = setTimeout(() => {
+        fetch(`/projects/frequent_traveler/api/search?q=${encodeURIComponent(keyword.trim())}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.data.length) {
+                    resultsDiv.innerHTML = '<div class="p-2 text-muted text-center" style="font-size:0.8rem;">未找到匹配的常用旅客</div>';
+                    resultsDiv.style.display = 'block';
+                    return;
+                }
+                resultsDiv.innerHTML = data.data.map(t => {
+                    const mCount = t.airline_memberships ? t.airline_memberships.length : 0;
+                    return `
+                    <div class="d-flex justify-content-between align-items-center px-2 py-1 border-bottom"
+                         style="cursor: pointer; font-size: 0.82rem;"
+                         onmouseover="this.style.backgroundColor='#f0f7ff'"
+                         onmouseout="this.style.backgroundColor=''"
+                         onclick='selectFrequentTraveler(${JSON.stringify(t).replace(/'/g, "&#39;")})'>
+                        <div>
+                            <strong>${t.title ? t.title + ' ' : ''}${t.name}</strong>
+                        </div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            ${t.passport_number ? '<span class="me-2"><i class="fas fa-passport"></i> ' + t.passport_number + '</span>' : ''}
+                            ${t.phone ? '<span class="me-2"><i class="fas fa-phone"></i> ' + t.phone + '</span>' : ''}
+                            ${mCount > 0 ? '<span class="badge bg-info" style="font-size:0.6rem;"><i class="fas fa-plane"></i> ' + mCount + '</span>' : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+                resultsDiv.style.display = 'block';
+            })
+            .catch(err => console.error('搜索失败:', err));
+    }, 300);
+}
+
+function selectFrequentTraveler(t) {
+    // 用常用旅客信息填充表单
+    document.getElementById('memberTitle').value = t.title || '';
+    document.getElementById('memberName').value = t.name || '';
+    document.getElementById('memberPhone').value = t.phone || '';
+    document.getElementById('memberEmail').value = t.email || '';
+    document.getElementById('memberGender').value = t.gender || '';
+    document.getElementById('memberDob').value = t.date_of_birth || '';
+    document.getElementById('memberNationality').value = t.nationality || '';
+    document.getElementById('memberIdNumber').value = t.passport_number || '';
+    document.getElementById('memberPassportCountry').value = t.passport_issuing_country || '';
+    document.getElementById('memberPassportExpiry').value = t.passport_expiry_date || '';
+    if (t.id_card_number) {
+        document.getElementById('memberIdType').value = 'id_card';
+        document.getElementById('memberIdTypeNumber').value = t.id_card_number;
+    }
+
+    // 显示选中旅客摘要
+    const infoDiv = document.getElementById('ftSelectedInfo');
+    let infoHtml = `<div class="d-flex align-items-center gap-2" style="font-size:0.8rem;">
+        <i class="fas fa-check-circle text-success"></i>
+        <strong>${t.title ? t.title + ' ' : ''}${t.name}</strong>
+        <span class="text-muted">已选中</span>
+        <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto" onclick="clearSelectedTraveler()" style="font-size:0.75rem;">清除</button>
+    </div>`;
+    if (t.nationality || t.date_of_birth) {
+        infoHtml += `<div style="font-size:0.75rem;" class="text-muted mt-1">`;
+        if (t.nationality) infoHtml += `<span class="me-3"><i class="fas fa-globe"></i> ${t.nationality}</span>`;
+        if (t.date_of_birth) infoHtml += `<span><i class="fas fa-birthday-cake"></i> ${t.date_of_birth}</span>`;
+        infoHtml += `</div>`;
+    }
+    infoDiv.innerHTML = infoHtml;
+    infoDiv.style.display = '';
+
+    // 填充航空会员信息为可编辑行
+    document.getElementById('memberMembershipList').innerHTML = '';
+    if (t.airline_memberships && t.airline_memberships.length) {
+        t.airline_memberships.forEach(m => addMemberMembershipRow(m));
+    } else {
+        document.getElementById('memberMembershipEmpty').style.display = '';
+    }
+
+    // 清理搜索
+    document.getElementById('ftSearchInput').value = '';
+    document.getElementById('ftSearchResults').style.display = 'none';
+}
+
+function clearSelectedTraveler() {
+    document.getElementById('ftSelectedInfo').style.display = 'none';
+    document.getElementById('memberMembershipList').innerHTML = '';
+    document.getElementById('memberMembershipEmpty').style.display = '';
+}
+
+// ---- 人员航空会员管理 ----
+function addMemberMembershipRow(data) {
+    const container = document.getElementById('memberMembershipList');
+    document.getElementById('memberMembershipEmpty').style.display = 'none';
+    const row = document.createElement('div');
+    row.className = 'mm-row';
+    row.innerHTML = `
+        <input type="text" class="form-control form-control-sm mm-airline" placeholder="航空公司" value="${data ? (data.airline || '') : ''}" style="flex:2;">
+        <input type="text" class="form-control form-control-sm mm-number" placeholder="会员号码" value="${data ? (data.number || '') : ''}" style="flex:3;">
+        <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" onclick="this.closest('.mm-row').remove(); updateMemberMembershipEmpty()" style="font-size:0.75rem;">
+            <i class="fas fa-times"></i>
+        </button>`;
+    container.appendChild(row);
+}
+
+function updateMemberMembershipEmpty() {
+    const rows = document.querySelectorAll('#memberMembershipList .mm-row');
+    document.getElementById('memberMembershipEmpty').style.display = rows.length ? 'none' : '';
+}
+
+function collectMemberMemberships() {
+    const rows = document.querySelectorAll('#memberMembershipList .mm-row');
+    const result = [];
+    rows.forEach(row => {
+        const airline = row.querySelector('.mm-airline').value.trim();
+        const number = row.querySelector('.mm-number').value.trim();
+        if (airline || number) result.push({airline, number});
+    });
+    return result;
+}
+
+// 保存项目人员为常用旅客
+function saveAsFrequentTraveler(memberId) {
+    // 先获取人员信息
+    fetch(`/projects/${window.headerId}/members`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            const m = data.data.find(item => item.id === memberId);
+            if (!m) return;
+
+            const travelerData = {
+                title: m.title || '',
+                name: m.member_name,
+                phone: m.member_phone || '',
+                email: m.member_email || '',
+            };
+            // 根据证件类型映射
+            if (m.id_type === 'passport' && m.id_number) {
+                travelerData.passport_number = m.id_number;
+            } else if (m.id_type === 'id_card' && m.id_number) {
+                travelerData.id_card_number = m.id_number;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || '';
+            fetch('/projects/frequent_traveler/api/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                body: JSON.stringify(travelerData)
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    alert(`已将 ${m.member_name} 保存为常用旅客`);
+                } else {
+                    alert('保存失败: ' + result.message);
+                }
+            })
+            .catch(err => {
+                console.error('保存常用旅客失败:', err);
+                alert('保存失败');
+            });
+        });
+}
+
 function deleteMember(memberId, memberName) {
     if (window.isSettled) {
         alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
@@ -807,75 +1007,180 @@ function deleteMember(memberId, memberName) {
 </script>
 
 <!-- 人员管理模态框 -->
-<div id="memberModal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 600px;">
+<style>
+    #memberModal .section-card {
+        background: #f8f9fc;
+        border: 1px solid #e9ecf1;
+        border-radius: 8px;
+        padding: 12px 14px 6px;
+        margin-bottom: 10px;
+    }
+    #memberModal .section-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    #memberModal .section-title i { color: #198754; font-size: 0.82rem; }
+    #memberModal .form-label { font-size: 0.78rem; color: #6b7280; margin-bottom: 2px; font-weight: 500; }
+    #memberModal .form-control-sm, #memberModal .form-select-sm { font-size: 0.85rem; border-radius: 6px; }
+    #memberModal .modal-header {
+        background: linear-gradient(135deg, #198754 0%, #0f5132 100%);
+        color: #fff; border-radius: 8px 8px 0 0; padding: 12px 18px;
+    }
+    #memberModal .modal-title { color: #fff; font-size: 1rem; }
+    #memberModal .modal-header .close { color: #fff; opacity: 0.85; }
+    #memberModal .modal-header .close:hover { opacity: 1; }
+    #memberModal .modal-footer { border-top: 1px solid #e9ecf1; padding: 10px 18px; }
+    #memberModal .ft-picker {
+        background: #f0faf4; border: 1px dashed #86cfac; border-radius: 8px; padding: 10px 12px;
+        margin-bottom: 12px;
+    }
+    #memberModal .mm-row {
+        display: flex; gap: 6px; align-items: center; margin-bottom: 5px;
+    }
+    #memberModal .mm-row input { font-size: 0.82rem; border-radius: 5px; }
+</style>
+<div id="memberModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.45); z-index: 1050; overflow-y: auto;">
+    <div class="modal-content" style="max-width: 780px; margin: 24px auto; border-radius: 8px; border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.18);">
         <div class="modal-header">
-            <h5 class="modal-title" id="memberModalTitle">添加人员</h5>
+            <h5 class="modal-title" id="memberModalTitle"><i class="fas fa-user-plus me-2"></i>添加人员</h5>
             <span class="close" data-action="close-member-modal">&times;</span>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="padding: 14px 20px; max-height: 78vh; overflow-y: auto;">
+            <!-- 从常用旅客选取 -->
+            <div id="frequentTravelerPicker" class="ft-picker">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label mb-0 text-nowrap" style="font-size: 0.82rem; color: #0f5132;">
+                        <i class="fas fa-user-friends"></i> 从常用旅客选取:
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="ftSearchInput"
+                           placeholder="输入姓名/电话/护照号搜索..." style="flex: 1;"
+                           oninput="searchFrequentTravelers(this.value)">
+                </div>
+                <div id="ftSearchResults" style="display: none; max-height: 220px; overflow-y: auto; margin-top: 6px; border: 1px solid #e9ecef; border-radius: 6px; background: #fff;">
+                </div>
+                <!-- 选中的旅客会员信息展示 -->
+                <div id="ftSelectedInfo" style="display: none; margin-top: 8px; background: #fff; border: 1px solid #badfcc; border-radius: 6px; padding: 8px 12px;">
+                </div>
+            </div>
+
             <form id="memberForm">
                 <input type="hidden" id="memberId">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label for="memberTitle" class="form-label">称谓</label>
-                        <select class="form-control" id="memberTitle">
-                            <option value="">请选择</option>
-                            <option value="MR">MR</option>
-                            <option value="MS">MS</option>
-                            <option value="MISS">MISS</option>
-                            <option value="MASTER">MASTER</option>
-                        </select>
+
+                <div class="row g-3">
+                    <!-- 左列：基本信息 + 证件 -->
+                    <div class="col-md-7">
+                        <div class="section-card">
+                            <div class="section-title"><i class="fas fa-user"></i> 基本信息</div>
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <label class="form-label">称谓</label>
+                                    <select class="form-select form-select-sm" id="memberTitle">
+                                        <option value="">-</option>
+                                        <option value="MR">MR</option>
+                                        <option value="MS">MS</option>
+                                        <option value="MISS">MISS</option>
+                                        <option value="MASTER">MASTER</option>
+                                    </select>
+                                </div>
+                                <div class="col-8">
+                                    <label class="form-label">姓名 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-0">
+                                <div class="col-5">
+                                    <label class="form-label">联系电话</label>
+                                    <input type="text" class="form-control form-control-sm" id="memberPhone" placeholder="+65 ...">
+                                </div>
+                                <div class="col-7">
+                                    <label class="form-label">邮箱</label>
+                                    <input type="email" class="form-control form-control-sm" id="memberEmail" placeholder="email@example.com">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <div class="section-title"><i class="fas fa-passport"></i> 护照 / 证件信息</div>
+                            <div class="row g-2">
+                                <div class="col-7">
+                                    <label class="form-label">护照号码</label>
+                                    <input type="text" class="form-control form-control-sm" id="memberIdNumber" placeholder="E12345678">
+                                </div>
+                                <div class="col-5">
+                                    <label class="form-label">签发国</label>
+                                    <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-0">
+                                <div class="col-4">
+                                    <label class="form-label">护照有效期</label>
+                                    <input type="date" class="form-control form-control-sm" id="memberPassportExpiry">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">国籍</label>
+                                    <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">出生日期</label>
+                                    <input type="date" class="form-control form-control-sm" id="memberDob">
+                                </div>
+                            </div>
+                            <div class="row g-2 mt-0">
+                                <div class="col-4">
+                                    <label class="form-label">性别</label>
+                                    <select class="form-select form-select-sm" id="memberGender">
+                                        <option value="">-</option>
+                                        <option value="male">男 Male</option>
+                                        <option value="female">女 Female</option>
+                                    </select>
+                                </div>
+                                <div class="col-8">
+                                    <label class="form-label">其他证件</label>
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select form-select-sm" id="memberIdType" style="max-width: 100px;">
+                                            <option value="">-</option>
+                                            <option value="passport">护照</option>
+                                            <option value="id_card">身份证</option>
+                                            <option value="other">其他</option>
+                                        </select>
+                                        <input type="text" class="form-control form-control-sm" id="memberIdTypeNumber" placeholder="证件号码">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="memberName" class="form-label">姓名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="memberName" placeholder="请输入姓名" required>
+
+                    <!-- 右列：航空会员 + 备注 -->
+                    <div class="col-md-5">
+                        <div class="section-card" id="memberMembershipCard">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div class="section-title mb-0"><i class="fas fa-plane"></i> 航空会员</div>
+                                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="addMemberMembershipRow()" style="font-size: 0.75rem;">
+                                    <i class="fas fa-plus"></i> 添加
+                                </button>
+                            </div>
+                            <div id="memberMembershipList"></div>
+                            <div id="memberMembershipEmpty" class="text-center text-muted py-2" style="font-size: 0.78rem;">
+                                <i class="fas fa-info-circle"></i> 点击"添加"录入会员信息
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <div class="section-title"><i class="fas fa-comment-alt"></i> 备注</div>
+                            <textarea class="form-control form-control-sm" id="memberRemarks" rows="3" placeholder="备注信息"></textarea>
+                        </div>
                     </div>
-                    <div class="col-md-5 mb-3">
-                        <label for="memberNameEn" class="form-label">英文名</label>
-                        <input type="text" class="form-control" id="memberNameEn" placeholder="English Name">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="memberRole" class="form-label">角色/职位</label>
-                        <input type="text" class="form-control" id="memberRole" placeholder="如：领队、游客等">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="memberPhone" class="form-label">联系电话</label>
-                        <input type="text" class="form-control" id="memberPhone" placeholder="请输入电话">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12 mb-3">
-                        <label for="memberEmail" class="form-label">邮箱</label>
-                        <input type="email" class="form-control" id="memberEmail" placeholder="请输入邮箱">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="memberIdType" class="form-label">证件类型</label>
-                        <select class="form-control" id="memberIdType">
-                            <option value="">请选择</option>
-                            <option value="passport">护照</option>
-                            <option value="id_card">身份证</option>
-                            <option value="other">其他</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="memberIdNumber" class="form-label">证件号码</label>
-                        <input type="text" class="form-control" id="memberIdNumber" placeholder="请输入证件号码">
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="memberRemarks" class="form-label">备注</label>
-                    <textarea class="form-control" id="memberRemarks" rows="2" placeholder="备注信息"></textarea>
                 </div>
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="close-member-modal">取消</button>
-            <button type="button" class="btn btn-primary" data-action="save-member">保存</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="close-member-modal">取消</button>
+            <button type="button" class="btn btn-primary btn-sm" data-action="save-member"><i class="fas fa-save me-1"></i>保存</button>
         </div>
     </div>
 </div>

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """项目人员管理路由"""
 
+import json
 from flask import Blueprint, request, jsonify
 from App_new.exts import db
 from App_new.business.projects.models.project import ProjectHeader
@@ -38,16 +39,26 @@ def add_member(project_id):
         existing_members_count = ProjectMember.query.filter_by(header_id=project_id).count()
         is_first_member = existing_members_count == 0
         
+        # 处理航空会员信息
+        memberships = data.get('airline_memberships')
+        memberships_json = json.dumps(memberships, ensure_ascii=False) if memberships else None
+
         member = ProjectMember(
             header_id=project_id,
             title=data.get('title'),
             member_name=data.get('member_name'),
             member_name_en=data.get('member_name_en'),
             member_role=data.get('member_role'),
+            gender=data.get('gender'),
+            date_of_birth=data.get('date_of_birth') or None,
+            nationality=data.get('nationality'),
             member_phone=data.get('member_phone'),
             member_email=data.get('member_email'),
             id_type=data.get('id_type'),
             id_number=data.get('id_number'),
+            passport_issuing_country=data.get('passport_issuing_country'),
+            passport_expiry_date=data.get('passport_expiry_date') or None,
+            airline_memberships=memberships_json,
             remarks=data.get('remarks'),
             is_leader=is_first_member  # 第一个人员自动设为leader
         )
@@ -93,13 +104,26 @@ def update_member(project_id, member_id):
             member.member_phone = data['member_phone']
         if 'member_email' in data:
             member.member_email = data['member_email']
+        if 'gender' in data:
+            member.gender = data['gender']
+        if 'date_of_birth' in data:
+            member.date_of_birth = data['date_of_birth'] or None
+        if 'nationality' in data:
+            member.nationality = data['nationality']
         if 'id_type' in data:
             member.id_type = data['id_type']
         if 'id_number' in data:
             member.id_number = data['id_number']
+        if 'passport_issuing_country' in data:
+            member.passport_issuing_country = data['passport_issuing_country']
+        if 'passport_expiry_date' in data:
+            member.passport_expiry_date = data['passport_expiry_date'] or None
         if 'remarks' in data:
             member.remarks = data['remarks']
-        
+        if 'airline_memberships' in data:
+            memberships = data['airline_memberships']
+            member.airline_memberships = json.dumps(memberships, ensure_ascii=False) if memberships else None
+
         db.session.commit()
         
         return jsonify({
