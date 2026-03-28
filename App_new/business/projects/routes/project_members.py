@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify
 from App_new.exts import db
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.project_member import ProjectMember
+from App_new.business.projects.models.frequent_traveler import FrequentTraveler
 
 project_members_bp = Blueprint('project_members', __name__)
 
@@ -16,10 +17,26 @@ def get_members(project_id):
     try:
         header = ProjectHeader.query.get_or_404(project_id)
         members = ProjectMember.query.filter_by(header_id=project_id).order_by(ProjectMember.id).all()
+
+        # 批量查询哪些姓名已在常用旅客中
+        names = [m.member_name for m in members if m.member_name]
+        frequent_names = set()
+        if names:
+            rows = FrequentTraveler.query.with_entities(FrequentTraveler.name).filter(
+                FrequentTraveler.name.in_(names)
+            ).all()
+            frequent_names = {r.name for r in rows}
+
+        result = []
+        for m in members:
+            d = m.to_dict()
+            d['is_frequent'] = m.member_name in frequent_names
+            result.append(d)
+
         return jsonify({
             'success': True,
-            'data': [m.to_dict() for m in members],
-            'count': len(members)
+            'data': result,
+            'count': len(result)
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

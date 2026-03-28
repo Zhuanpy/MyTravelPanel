@@ -633,10 +633,15 @@ function renderMembers(members) {
                         onclick="event.stopPropagation(); setLeader(${m.id})" title="设为Leader" style="font-size: 0.7rem;">
                     <i class="fas fa-user"></i>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-info py-0 px-1"
-                        onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="保存为常用旅客" style="font-size: 0.7rem;">
-                    <i class="fas fa-star"></i>
-                </button>
+                ${m.is_frequent
+                    ? `<span class="btn btn-sm btn-warning py-0 px-1" title="已是常用旅客" style="font-size: 0.7rem; cursor: default; pointer-events: none;">
+                        <i class="fas fa-star"></i>
+                    </span>`
+                    : `<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
+                            onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="保存为常用旅客" style="font-size: 0.7rem;">
+                        <i class="far fa-star"></i>
+                    </button>`
+                }
                 ${m.is_leader ? '' : `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.7rem;">
                     <i class="fas fa-trash"></i>
                 </button>`}
@@ -988,7 +993,7 @@ function saveAsFrequentTraveler(memberId) {
                     })
                     .then(r => r.json())
                     .then(res => {
-                        if (res.success) alert(`已将 ${m.member_name} 保存为常用旅客`);
+                        if (res.success) { alert(`已将 ${m.member_name} 保存为常用旅客`); loadMembers(); }
                         else alert('保存失败: ' + res.message);
                     })
                     .catch(() => alert('保存失败'));
@@ -1002,7 +1007,7 @@ function saveAsFrequentTraveler(memberId) {
                     })
                     .then(r => r.json())
                     .then(res => {
-                        if (res.success) alert(`已将 ${m.member_name} 保存为常用旅客`);
+                        if (res.success) { alert(`已将 ${m.member_name} 保存为常用旅客`); loadMembers(); }
                         else alert('保存失败: ' + res.message);
                     });
                 });
