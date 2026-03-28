@@ -566,6 +566,7 @@ function saveTraveler() {
     }
 
     const id = document.getElementById('travelerId').value;
+    const passport = document.getElementById('travelerPassport').value.trim();
     const data = {
         title: document.getElementById('travelerTitle').value,
         name: name,
@@ -574,7 +575,7 @@ function saveTraveler() {
         nationality: document.getElementById('travelerNationality').value.trim(),
         phone: document.getElementById('travelerPhone').value.trim(),
         email: document.getElementById('travelerEmail').value.trim(),
-        passport_number: document.getElementById('travelerPassport').value.trim(),
+        passport_number: passport,
         passport_issuing_country: document.getElementById('travelerPassportCountry').value.trim(),
         passport_expiry_date: document.getElementById('travelerPassportExpiry').value || null,
         id_card_number: document.getElementById('travelerIdCard').value.trim(),
@@ -583,6 +584,43 @@ function saveTraveler() {
         remarks: document.getElementById('travelerRemarks').value.trim(),
     };
 
+    // 新增时检查重复
+    checkDuplicateAndSave(data, id);
+}
+
+function checkDuplicateAndSave(data, id) {
+    // 编辑模式直接保存
+    if (id) {
+        doSaveTraveler(data, id);
+        return;
+    }
+
+    // 新增模式：查重
+    const params = new URLSearchParams({name: data.name});
+    if (data.passport_number) params.set('passport', data.passport_number);
+
+    fetch(`/projects/frequent_traveler/api/check_duplicate?${params}`)
+        .then(r => r.json())
+        .then(result => {
+            if (result.success && result.duplicates.length > 0) {
+                const list = result.duplicates.map(d => {
+                    let info = `  - ${d.title ? d.title + ' ' : ''}${d.name}`;
+                    if (d.passport_number) info += `  护照: ${d.passport_number}`;
+                    if (d.phone) info += `  电话: ${d.phone}`;
+                    if (d.company_name) info += `  公司: ${d.company_name}`;
+                    return info;
+                }).join('\n');
+                const confirmed = confirm(
+                    `发现以下疑似重复的常用旅客：\n\n${list}\n\n是否仍然新增？`
+                );
+                if (!confirmed) return;
+            }
+            doSaveTraveler(data, id);
+        })
+        .catch(() => doSaveTraveler(data, id));  // 查重失败不阻止保存
+}
+
+function doSaveTraveler(data, id) {
     const url = id ? `/projects/frequent_traveler/api/${id}` : '/projects/frequent_traveler/api/create';
     const method = id ? 'PUT' : 'POST';
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';

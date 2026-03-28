@@ -945,34 +945,67 @@ function saveAsFrequentTraveler(memberId) {
             const travelerData = {
                 title: m.title || '',
                 name: m.member_name,
+                gender: m.gender || '',
+                date_of_birth: m.date_of_birth || null,
+                nationality: m.nationality || '',
                 phone: m.member_phone || '',
                 email: m.member_email || '',
+                passport_number: m.id_number || '',
+                passport_issuing_country: m.passport_issuing_country || '',
+                passport_expiry_date: m.passport_expiry_date || null,
             };
-            // 根据证件类型映射
-            if (m.id_type === 'passport' && m.id_number) {
-                travelerData.passport_number = m.id_number;
-            } else if (m.id_type === 'id_card' && m.id_number) {
+            if (m.id_type === 'id_card' && m.id_number) {
                 travelerData.id_card_number = m.id_number;
             }
+            // 航空会员
+            if (m.airline_memberships && m.airline_memberships.length) {
+                travelerData.airline_memberships = m.airline_memberships;
+            }
+
+            // 查重后再保存
+            const params = new URLSearchParams({name: m.member_name});
+            if (travelerData.passport_number) params.set('passport', travelerData.passport_number);
 
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || '';
-            fetch('/projects/frequent_traveler/api/create', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-                body: JSON.stringify(travelerData)
-            })
-            .then(r => r.json())
-            .then(result => {
-                if (result.success) {
-                    alert(`已将 ${m.member_name} 保存为常用旅客`);
-                } else {
-                    alert('保存失败: ' + result.message);
-                }
-            })
-            .catch(err => {
-                console.error('保存常用旅客失败:', err);
-                alert('保存失败');
-            });
+
+            fetch(`/projects/frequent_traveler/api/check_duplicate?${params}`)
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success && result.duplicates.length > 0) {
+                        const list = result.duplicates.map(d => {
+                            let info = `  - ${d.title ? d.title + ' ' : ''}${d.name}`;
+                            if (d.passport_number) info += `  护照: ${d.passport_number}`;
+                            if (d.phone) info += `  电话: ${d.phone}`;
+                            return info;
+                        }).join('\n');
+                        if (!confirm(`发现以下疑似重复的常用旅客：\n\n${list}\n\n是否仍然新增？`)) return;
+                    }
+                    // 执行保存
+                    fetch('/projects/frequent_traveler/api/create', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                        body: JSON.stringify(travelerData)
+                    })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) alert(`已将 ${m.member_name} 保存为常用旅客`);
+                        else alert('保存失败: ' + res.message);
+                    })
+                    .catch(() => alert('保存失败'));
+                })
+                .catch(() => {
+                    // 查重失败不阻止保存
+                    fetch('/projects/frequent_traveler/api/create', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                        body: JSON.stringify(travelerData)
+                    })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) alert(`已将 ${m.member_name} 保存为常用旅客`);
+                        else alert('保存失败: ' + res.message);
+                    });
+                });
         });
 }
 

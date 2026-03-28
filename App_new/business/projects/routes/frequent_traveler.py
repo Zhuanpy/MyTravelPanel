@@ -117,6 +117,40 @@ def api_search():
     })
 
 
+@frequent_traveler_bp.route('/api/check_duplicate', methods=['GET'])
+def api_check_duplicate():
+    """检查是否存在疑似重复的常用旅客（按姓名或护照号匹配）"""
+    name = request.args.get('name', '').strip()
+    passport = request.args.get('passport', '').strip()
+    exclude_id = request.args.get('exclude_id', '', type=str)  # 编辑时排除自身
+
+    if not name and not passport:
+        return jsonify({'success': True, 'duplicates': []})
+
+    conditions = []
+    if name:
+        conditions.append(FrequentTraveler.name == name)
+    if passport:
+        conditions.append(FrequentTraveler.passport_number == passport)
+
+    query = FrequentTraveler.query.filter(db.or_(*conditions))
+    if exclude_id:
+        query = query.filter(FrequentTraveler.id != int(exclude_id))
+
+    matches = query.limit(5).all()
+    return jsonify({
+        'success': True,
+        'duplicates': [{
+            'id': t.id,
+            'title': t.title,
+            'name': t.name,
+            'phone': t.phone,
+            'passport_number': t.passport_number,
+            'company_name': t.company.company_name if t.company else None,
+        } for t in matches]
+    })
+
+
 @frequent_traveler_bp.route('/api/create', methods=['POST'])
 def api_create():
     """创建常用旅客"""
