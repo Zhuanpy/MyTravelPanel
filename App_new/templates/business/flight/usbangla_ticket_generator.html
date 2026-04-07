@@ -33,6 +33,10 @@
     .indigo-header { background: #2B1F6B !important; color: #fff; }
     .indigo-btn { background: #2B1F6B; border-color: #2B1F6B; color: #fff; }
     .indigo-btn:hover { background: #1e1550; border-color: #1e1550; color: #fff; }
+    /* 去哪儿配色 */
+    .qunar-header { background: #FF7E00 !important; color: #fff; }
+    .qunar-btn { background: #FF7E00; border-color: #FF7E00; color: #fff; }
+    .qunar-btn:hover { background: #e06e00; border-color: #e06e00; color: #fff; }
     /* 清理工具通用样式 */
     .clean-features { font-size: 12px; color: #666; margin: 0; padding-left: 18px; }
     .clean-features li { margin-bottom: 2px; }
@@ -58,6 +62,11 @@
                 <i class="fas fa-eraser me-1"></i>IndiGo 去价格
             </button>
         </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-qunar" type="button">
+                <i class="fas fa-broom me-1"></i>去哪儿 清理
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content">
@@ -70,6 +79,11 @@
             <i class="fas fa-upload me-1"></i>上传原始电子机票 PDF
         </div>
         <div class="card-body">
+            <ul class="clean-features mb-2">
+                <li>上传 US-Bangla 原始电子机票 PDF，自动解析航班和乘客信息</li>
+                <li>支持编辑航段、乘客信息，可手动添加或删除</li>
+                <li>勾选乘客后生成标准格式机票 PDF，支持单人或多人批量生成</li>
+            </ul>
             <div class="row align-items-center g-2">
                 <div class="col">
                     <input type="file" class="form-control form-control-sm" id="pdfFile" accept=".pdf">
@@ -199,6 +213,36 @@
             </div>
         </div>
     </div><!-- /tab-indigo -->
+
+    <!-- ==================== Qunar Tab ==================== -->
+    <div class="tab-pane fade" id="tab-qunar">
+        <div class="card ub-card mb-3">
+            <div class="card-header qunar-header">
+                <i class="fas fa-broom me-1"></i>去哪儿行程单清理
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>去除去哪儿 logo</li>
+                    <li>去除票价 FARE、税款 TAX 行</li>
+                    <li>去除付款方式 FORM OF PAYMENT 行</li>
+                    <li>去除去哪儿订单号 (IE PNR) 行</li>
+                    <li>去除代理信息（AGENCY ADDRESS、IATA CODE、TEL）</li>
+                    <li>减少去除内容后的空白区域</li>
+                </ul>
+                <div class="row align-items-center g-2">
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm" id="qunarFile" accept=".pdf">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm qunar-btn" onclick="cleanQunar()" id="btnCleanQunar">
+                            <i class="fas fa-magic me-1"></i>清理并下载
+                        </button>
+                    </div>
+                </div>
+                <div id="qunarMsg" class="mt-2" style="display:none;"></div>
+            </div>
+        </div>
+    </div><!-- /tab-qunar -->
 
     </div><!-- /tab-content -->
 </div>
@@ -521,6 +565,57 @@ function cleanIndigo() {
         msgEl.style.display = '';
     })
     .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>处理并下载'; });
+}
+
+function cleanQunar() {
+    const fileInput = document.getElementById('qunarFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnCleanQunar');
+    const msgEl = document.getElementById('qunarMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>处理中...';
+    msgEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.clean_qunar") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(resp => {
+        const ct = resp.headers.get('Content-Type') || '';
+        if (ct.includes('application/pdf')) {
+            return resp.blob().then(blob => {
+                const cd = resp.headers.get('Content-Disposition') || '';
+                let fn = 'qunar_clean.pdf';
+                const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+                if (m) fn = decodeURIComponent(m[1]);
+                const a = document.createElement('a');
+                a.href = window.URL.createObjectURL(blob);
+                a.download = fn;
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+                msgEl.className = 'mt-2 text-success small';
+                msgEl.textContent = '处理完成，已下载清理后的文件';
+                msgEl.style.display = '';
+            });
+        } else {
+            return resp.json().then(d => {
+                msgEl.className = 'mt-2 text-danger small';
+                msgEl.textContent = d.message || '处理失败';
+                msgEl.style.display = '';
+            });
+        }
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 text-danger small';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>清理并下载'; });
 }
 </script>
 {% endblock %}

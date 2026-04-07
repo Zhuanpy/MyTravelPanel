@@ -973,3 +973,205 @@ def clean_indigo():
         return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')
     except Exception as e:
         return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
+# ====================================================================
+# 去哪儿 (Qunar) 行程单清理
+# ====================================================================
+
+def _qunar_find_and_remove_logos(page):
+    """去除页面左上角的去哪儿 logo"""
+    import fitz
+    blocks = page.get_text("dict")["blocks"]
+    img_blocks = [b for b in blocks if b["type"] == 1 and b["bbox"][1] < 120]
+    if img_blocks:
+        x0 = min(b["bbox"][0] for b in img_blocks) - 5
+        y0 = min(b["bbox"][1] for b in img_blocks) - 5
+        x1 = max(b["bbox"][2] for b in img_blocks) + 5
+        y1 = max(b["bbox"][3] for b in img_blocks) + 5
+        page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
+        return True
+    return False
+
+
+def _qunar_find_and_remove_price_lines(page):
+    """去除票价 FARE、税款 TAX、付款方式 FORM OF PAYMENT 行"""
+    import fitz
+    pw = page.rect.width
+    gaps = []
+
+    for keyword in ["FARE:", "FARE："]:
+        for r in page.search_for(keyword):
+            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw * 0.5, r.y1 + 2), fill=(1, 1, 1))
+            gaps.append((r.y0 - 2, r.y1 + 2))
+
+    for keyword in ["TAX:", "TAX："]:
+        for r in page.search_for(keyword):
+            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+            gaps.append((r.y0 - 2, r.y1 + 2))
+
+    for r in page.search_for("FORM OF PAYMENT"):
+        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+        gaps.append((r.y0 - 2, r.y1 + 2))
+
+    return gaps
+
+
+def _qunar_find_and_remove_ie_pnr(page):
+    """去除去哪儿订单号 IE PNR 行"""
+    import fitz
+    pw = page.rect.width
+    gaps = []
+    for r in page.search_for("IE PNR"):
+        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+        gaps.append((r.y0 - 2, r.y1 + 2))
+    return gaps
+
+
+def _qunar_find_and_remove_agency_info(page):
+    """去除 AGENCY ADDRESS、IATA CODE、TEL 行"""
+    import fitz
+    pw = page.rect.width
+    gaps = []
+    for keyword in ["AGENCY ADDRESS", "IATA CODE"]:
+        for r in page.search_for(keyword):
+            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+            gaps.append((r.y0 - 2, r.y1 + 2))
+    for r in page.search_for("TEL"):
+        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+        gaps.append((r.y0 - 2, r.y1 + 2))
+    return gaps
+
+
+def _qunar_remove_page_numbers(page):
+    """去除页面底部的页码"""
+    import fitz
+    ph = page.rect.height
+    blocks = page.get_text("dict")["blocks"]
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                if txt.isdigit() and span["bbox"][1] > ph - 70:
+                    page.add_redact_annot(
+                        fitz.Rect(span["bbox"][0] - 2, span["bbox"][1] - 2,
+                                  span["bbox"][2] + 2, span["bbox"][3] + 2),
+                        fill=(1, 1, 1))
+
+
+def process_qunar_pdf(file_stream):
+    """处理去哪儿行程单PDF，返回清理后的 BytesIO"""
+    import fitz
+
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+    try:
+        os.write(tmp_fd, file_stream.read())
+        os.close(tmp_fd)
+
+        doc = fitz.open(tmp_path)
+        total_pages = doc.page_count
+        all_page_gaps = {}
+
+        for page_idx in range(total_pages):
+            page = doc[page_idx]
+            page_gaps = []
+
+            _qunar_find_and_remove_logos(page)
+            page_gaps.extend(_qunar_find_and_remove_ie_pnr(page))
+            page_gaps.extend(_qunar_find_and_remove_agency_info(page))
+            page_gaps.extend(_qunar_find_and_remove_price_lines(page))
+            _qunar_remove_page_numbers(page)
+            page.apply_redactions()
+
+            if page_gaps:
+                all_page_gaps[page_idx] = page_gaps
+
+        # 保存中间结果
+        tmp2_path = tmp_path + ".mid"
+        doc.save(tmp2_path)
+        doc.close()
+
+        # 重建页面，消除空白区域
+        if all_page_gaps:
+            doc = fitz.open(tmp2_path)
+            new_doc = fitz.open()
+
+            for page_idx in range(doc.page_count):
+                page = doc[page_idx]
+                pw = page.rect.width
+                ph = page.rect.height
+
+                if page_idx not in all_page_gaps:
+                    new_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
+                    continue
+
+                gaps = all_page_gaps[page_idx]
+                gaps.sort(key=lambda g: g[0])
+                merged_gaps = []
+                for g in gaps:
+                    if merged_gaps and g[0] <= merged_gaps[-1][1] + 2:
+                        merged_gaps[-1] = (merged_gaps[-1][0], max(merged_gaps[-1][1], g[1]))
+                    else:
+                        merged_gaps.append(g)
+
+                new_page = new_doc.new_page(width=pw, height=ph)
+                segments = []
+                cur_y = 0
+                for gy0, gy1 in merged_gaps:
+                    if gy0 > cur_y:
+                        segments.append((cur_y, gy0))
+                    cur_y = gy1
+                if cur_y < ph:
+                    segments.append((cur_y, ph))
+
+                dest_y = 0.0
+                for src_y0, src_y1 in segments:
+                    seg_h = src_y1 - src_y0
+                    new_page.show_pdf_page(
+                        fitz.Rect(0, dest_y, pw, dest_y + seg_h),
+                        doc, page_idx,
+                        clip=fitz.Rect(0, src_y0, pw, src_y1))
+                    dest_y += seg_h
+
+                if dest_y < ph:
+                    new_page.draw_rect(fitz.Rect(0, dest_y, pw, ph), color=(1, 1, 1), fill=(1, 1, 1))
+
+            doc.close()
+            final_doc = new_doc
+        else:
+            final_doc = fitz.open(tmp2_path)
+
+        output = BytesIO()
+        final_doc.save(output, deflate=True)
+        final_doc.close()
+        output.seek(0)
+
+        for p in [tmp_path, tmp2_path]:
+            if os.path.exists(p):
+                os.remove(p)
+
+        return output
+    except Exception:
+        for p in [tmp_path, tmp_path + ".mid"]:
+            if os.path.exists(p):
+                os.remove(p)
+        raise
+
+
+@flights_usbangla.route('/clean_qunar', methods=['POST'])
+@login_required
+@staff_only
+def clean_qunar():
+    """处理去哪儿行程单：去除logo、价格、订单号、代理信息等"""
+    file = request.files.get('pdf_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+    try:
+        output = process_qunar_pdf(file.stream)
+        original_name = file.filename or 'qunar_ticket.pdf'
+        clean_name = original_name.rsplit('.', 1)[0] + '_clean.pdf'
+        return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
