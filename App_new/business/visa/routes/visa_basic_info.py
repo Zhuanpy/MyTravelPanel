@@ -887,6 +887,8 @@ def copy_visa_type():
             new_visa_type = request.form.get('new_visa_type')
             processing_time = request.form.get('processing_time')
             fee = request.form.get('fee')
+            cost = request.form.get('cost')
+            validity_period = request.form.get('validity_period')
             introduction = request.form.get('introduction')
             country_id = request.form.get('country_id')
             identity_ids = request.form.getlist('identity_ids')
@@ -934,6 +936,8 @@ def copy_visa_type():
                 visa_type=new_visa_type,
                 processing_time=processing_time,
                 fee=fee,
+                cost=cost,
+                validity_period=validity_period,
                 introduction=introduction,
                 country_id=country_id,
                 created_at=created_at,
@@ -941,7 +945,7 @@ def copy_visa_type():
                 valid_until=valid_until,
                 is_active=is_active
             )
-            
+
             # 添加身份关联
             if identity_ids:
                 identities = VisaSingaporeIdentity.query.filter(VisaSingaporeIdentity.id.in_(identity_ids)).all()
@@ -987,7 +991,14 @@ def copy_visa_type():
             # 保存到数据库
             db.session.add(new_visa_type_record)
             db.session.commit()
-            
+
+            # 同步到统一产品系统
+            try:
+                VisaSyncService.sync_visa_type_to_product(new_visa_type_record)
+                db.session.commit()
+            except Exception as sync_error:
+                print(f"复制后同步到统一产品系统失败: {str(sync_error)}")
+
             flash(f'签证类型"{new_visa_type}"复制成功！', 'success')
             return redirect(url_for('visa_basic.visa_type_list'))
             

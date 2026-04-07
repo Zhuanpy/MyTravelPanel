@@ -1352,8 +1352,14 @@ function saveTodo() {
 function refreshCurrentTab() {
     if (currentTab === 'my-tasks') {
         loadMyTasks();
+        loadProjectReminders();  // 同步更新项目提醒badge
+    } else if (currentTab === 'project-reminders') {
+        loadProjectReminders();
+        loadMyTasks();  // 同步更新我的任务badge
     } else if (currentTab === 'team-tasks') {
         loadTeamTasks();
+        loadMyTasks();  // 同步更新我的任务badge
+        loadProjectReminders();  // 同步更新项目提醒badge
     } else if (currentTab === 'statistics') {
         loadStatistics();
     }

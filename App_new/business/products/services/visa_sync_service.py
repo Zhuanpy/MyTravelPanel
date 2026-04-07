@@ -33,12 +33,15 @@ class VisaSyncService:
             # 更新现有产品
             product = ext.product
         else:
-            # 创建新产品
+            # 创建新产品，必须在flush前设置必填字段
             product_code = ProductsUnified.generate_product_code(ProductCategory.VISA)
             product = ProductsUnified(
                 product_code=product_code,
                 product_category=ProductCategory.VISA,
+                product_name=visa_type.visa_type,
+                product_status='active' if visa_type.is_active else 'inactive',
                 created_at=visa_type.created_at or datetime.utcnow(),
+                updated_at=visa_type.updated_at or datetime.utcnow(),
             )
             db.session.add(product)
             db.session.flush()  # 获取 product.id
@@ -50,7 +53,7 @@ class VisaSyncService:
             )
             db.session.add(ext)
 
-        # 同步字段
+        # 同步字段（包括更新场景和新建后补充其他字段）
         VisaSyncService._sync_fields(product, ext, visa_type)
 
         # 更新 ext_table_id

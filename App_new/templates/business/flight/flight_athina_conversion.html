@@ -538,21 +538,21 @@
     <div class="athina-conversion-container">
     <!-- 工具切换按钮 -->
     <div class="tool-switch-container">
-        <button id="itineraryBtn" class="tool-switch-btn active" onclick="switchTool('itinerary')">
+        <button id="parseBtn" class="tool-switch-btn active" onclick="switchTool('parse')">
+            <i class="fas fa-magic"></i> 航班解析
+        </button>
+        <button id="itineraryBtn" class="tool-switch-btn" onclick="switchTool('itinerary')">
             <i class="fas fa-exchange-alt"></i> 机票行程转换
         </button>
         <button id="athinaBtn" class="tool-switch-btn" onclick="switchTool('athina')">
             <i class="fas fa-code"></i> ATHINA代码生成
-        </button>
-        <button id="parseBtn" class="tool-switch-btn" onclick="switchTool('parse')">
-            <i class="fas fa-magic"></i> 航班解析
         </button>
     </div>
     
     <!-- 工具内容容器 -->
     <div class="tool-content-container">
         <!-- 机票行程转换工具 -->
-        <div id="itineraryTool" class="tool-section active">
+        <div id="itineraryTool" class="tool-section">
             <div class="tool-layout">
                 <!-- 左侧记忆功能区域 -->
                 <div class="memory-card" id="itineraryMemoryCard">
@@ -733,7 +733,7 @@
             </div><!-- /tool-layout -->
         </div><!-- /athinaTool -->
         <!-- 航班解析工具 -->
-        <div id="parseTool" class="tool-section">
+        <div id="parseTool" class="tool-section active">
             <div class="tool-layout">
                 <!-- 左侧记忆功能区域 -->
                 <div class="memory-card" id="parseMemoryCard">
@@ -1230,7 +1230,7 @@
 
     // 页面加载时初始化
     document.addEventListener('DOMContentLoaded', function() {
-        switchTool('itinerary');
+        switchTool('parse');
         
         // 初始化记忆列表
         renderItineraryMemory();

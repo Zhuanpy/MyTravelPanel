@@ -462,11 +462,12 @@ def _ctrip_find_and_remove_booking_no(page):
 
 
 def _ctrip_fix_name_line(page):
-    """修复姓名换行：将 'XX (First name) YY' + 'ZZ (Last name)' 合并为一行"""
+    """修复姓名换行：将 'XX (First name) YY' + 'ZZ (Last name)' 合并为一行
+    支持多个乘客/多个行程段，每段独立处理，返回列表"""
     import fitz
 
     blocks = page.get_text("dict")["blocks"]
-    name_spans = []
+    all_name_spans = []
     half_w = page.rect.width / 2
     for b in blocks:
         if b["type"] != 0:
@@ -478,21 +479,41 @@ def _ctrip_fix_name_line(page):
                 if bbox[0] > half_w:
                     continue
                 if any(kw in txt for kw in ["(First", "(Last", "name)", "(First name)", "(Last name)"]):
-                    name_spans.append(span)
-    if not name_spans:
-        return None
-    raw_name = " ".join(s["text"].strip() for s in name_spans)
-    clean_name = re.sub(r'\(\s*First\s*name\s*\)', '', raw_name)
-    clean_name = re.sub(r'\(\s*Last\s*name\s*\)', '', clean_name)
-    clean_name = re.sub(r'\(\s*First\b', '', clean_name)
-    clean_name = re.sub(r'\bname\s*\)', '', clean_name)
-    clean_name = re.sub(r'\s+', ' ', clean_name).strip()
-    x0 = min(s["bbox"][0] for s in name_spans) - 1
-    y0 = min(s["bbox"][1] for s in name_spans) - 1
-    x1 = max(s["bbox"][2] for s in name_spans) + 1
-    y1 = max(s["bbox"][3] for s in name_spans) + 1
-    page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
-    return {"name": clean_name, "x": x0 + 1, "y": name_spans[0]["bbox"][1] + _CTRIP_FONTSIZE + 1}
+                    all_name_spans.append(span)
+    if not all_name_spans:
+        return []
+
+    # 按 y 坐标排序，按 "(First" 关键字分割每位乘客
+    all_name_spans.sort(key=lambda s: s["bbox"][1])
+    groups = []
+    current_group = []
+    for s in all_name_spans:
+        txt = s["text"].strip()
+        if "(First" in txt and current_group:
+            groups.append(current_group)
+            current_group = [s]
+        else:
+            current_group.append(s)
+    if current_group:
+        groups.append(current_group)
+
+    results = []
+    for name_spans in groups:
+        raw_name = " ".join(s["text"].strip() for s in name_spans)
+        clean_name = re.sub(r'\(\s*First\s*name\s*\)', '', raw_name)
+        clean_name = re.sub(r'\(\s*Last\s*name\s*\)', '', clean_name)
+        clean_name = re.sub(r'\(\s*First\b', '', clean_name)
+        clean_name = re.sub(r'\bname\s*\)', '', clean_name)
+        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+
+        x0 = min(s["bbox"][0] for s in name_spans) - 1
+        y0 = min(s["bbox"][1] for s in name_spans) - 1
+        x1 = max(s["bbox"][2] for s in name_spans) + 1
+        y1 = max(s["bbox"][3] for s in name_spans) + 1
+        page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
+        results.append({"name": clean_name, "x": x0 + 1, "y": name_spans[0]["bbox"][1] + _CTRIP_FONTSIZE + 1})
+
+    return results
 
 
 def _ctrip_fix_wrapped_flight_info(page):
@@ -574,7 +595,10 @@ def _ctrip_remove_baggage_information(page):
 
 
 def process_ctrip_pdf(file_stream):
-    """处理 Ctrip/Trip.com 行程单PDF，返回清理后的 bytes"""
+    """处理 Ctrip/Trip.com 行程单PDF，返回清理后的 bytes
+
+    优化：支持多乘客姓名、多航段表头、通用空白区域压缩
+    """
     import fitz
 
     # 写入临时文件（fitz 需要文件路径）
@@ -590,12 +614,24 @@ def process_ctrip_pdf(file_stream):
         ph = page.rect.height
 
         # ===== 第 1 页处理 =====
+        page1_gaps = []  # 收集所有需要消除的空白区域 (y0, y1)
+
         _ctrip_find_and_remove_logos(page)
         boilerplate_end = _ctrip_find_and_remove_boilerplate(page)
         booking_end = _ctrip_find_and_remove_booking_no(page)
 
-        # 简化 "Airline Booking Reference" 表头为 "Reference"
-        header_spans = []
+        # 记录提示语/订单号的空白区域
+        if boilerplate_end or booking_end:
+            bp_res = page.search_for("We advise you print out")
+            bk_res = page.search_for("Booking No.")
+            all_y0 = [r.y0 for r in bp_res] + [r.y0 for r in bk_res]
+            if all_y0:
+                gap_y0 = min(all_y0) - 2
+                gap_y1 = max(filter(None, [boilerplate_end, booking_end])) + 2
+                page1_gaps.append((gap_y0, gap_y1))
+
+        # 简化 "Airline Booking Reference" 表头为 "Reference"（支持多航段）
+        all_header_spans = []
         half_w = page.rect.width / 2
         for b in page.get_text("dict")["blocks"]:
             if b["type"] != 0:
@@ -604,17 +640,42 @@ def process_ctrip_pdf(file_stream):
                 for span in line["spans"]:
                     txt = span["text"].strip()
                     bbox = span["bbox"]
-                    if bbox[0] > half_w and bbox[1] < 320:
+                    if bbox[0] > half_w:
                         if txt in ["Airline Booking", "Airline", "Booking", "Reference"]:
-                            header_spans.append(span)
-        if header_spans:
-            x0 = min(s["bbox"][0] for s in header_spans) - 2
-            y0 = min(s["bbox"][1] for s in header_spans) - 2
-            x1 = max(s["bbox"][2] for s in header_spans) + 2
-            y1 = max(s["bbox"][3] for s in header_spans) + 2
+                            all_header_spans.append(span)
+
+        # 按 y 坐标聚类分组（y 间距 > 30 视为不同航段）
+        header_groups = []
+        if all_header_spans:
+            all_header_spans.sort(key=lambda s: s["bbox"][1])
+            current_group = [all_header_spans[0]]
+            for s in all_header_spans[1:]:
+                if s["bbox"][1] - current_group[-1]["bbox"][1] > 30:
+                    header_groups.append(current_group)
+                    current_group = [s]
+                else:
+                    current_group.append(s)
+            header_groups.append(current_group)
+
+        for hg in header_groups:
+            x0 = min(s["bbox"][0] for s in hg) - 2
+            y0 = min(s["bbox"][1] for s in hg) - 2
+            x1 = max(s["bbox"][2] for s in hg) + 2
+            y1 = max(s["bbox"][3] for s in hg) + 2
             page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
 
-        name_info = _ctrip_fix_name_line(page)
+        # 记录每个表头组中多余行的空白区域
+        for hg in header_groups:
+            sorted_spans = sorted(hg, key=lambda s: s["bbox"][1])
+            first_y = sorted_spans[0]["bbox"][1]
+            later = [s for s in sorted_spans if s["bbox"][1] > first_y + 5]
+            if later:
+                gy0 = min(s["bbox"][1] for s in later) - 2
+                gy1 = max(s["bbox"][3] for s in later) + 3
+                page1_gaps.append((gy0, gy1))
+
+        name_infos = _ctrip_fix_name_line(page)
+
         flight_fixes = _ctrip_fix_wrapped_flight_info(page)
         for fix in flight_fixes:
             main = fix["main_span"]
@@ -623,19 +684,23 @@ def process_ctrip_pdf(file_stream):
                 main["bbox"][0] - 1, main["bbox"][1] - 1,
                 max(main["bbox"][2], wrap["bbox"][2]) + 1, wrap["bbox"][3] + 1)
             page.add_redact_annot(redact_rect, fill=(1, 1, 1))
+            # 记录换行区域的空白（第二行）
+            page1_gaps.append((wrap["bbox"][1] - 1, wrap["bbox"][3] + 3))
 
         _ctrip_remove_page_numbers(page)
         page.apply_redactions()
 
         # 插入修正后的文字
-        if header_spans:
-            hx = min(s["bbox"][0] for s in header_spans)
-            hy = min(s["bbox"][1] for s in header_spans)
+        for hg in header_groups:
+            hx = min(s["bbox"][0] for s in hg)
+            hy = min(s["bbox"][1] for s in hg)
             page.insert_text(fitz.Point(hx, hy + _CTRIP_FONTSIZE),
                              "Reference", fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
-        if name_info:
-            page.insert_text(fitz.Point(name_info["x"], name_info["y"]),
-                             name_info["name"], fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
+
+        for ni in name_infos:
+            page.insert_text(fitz.Point(ni["x"], ni["y"]),
+                             ni["name"], fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
+
         for fix in flight_fixes:
             main = fix["main_span"]
             page.insert_text(fitz.Point(main["bbox"][0], main["bbox"][1] + _CTRIP_FONTSIZE),
@@ -670,62 +735,53 @@ def process_ctrip_pdf(file_stream):
         for idx in sorted(pages_to_delete, reverse=True):
             doc.delete_page(idx)
 
-        # ===== 计算第 1 页内容上移距离 =====
-        shift_up = 0
-        if boilerplate_end and booking_end:
-            shift_up = int(booking_end - (boilerplate_end - 30))
-            if shift_up < 20:
-                shift_up = 0
-        elif boilerplate_end:
-            shift_up = 35
-        elif booking_end:
-            shift_up = 15
-
-        header_shift = 16 if header_spans else 0
-        total_shift = shift_up + header_shift
+        # ===== 通用多段裁剪，消除第 1 页所有空白区域 =====
+        # 合并重叠的空白区域
+        page1_gaps.sort(key=lambda g: g[0])
+        merged_gaps = []
+        for g in page1_gaps:
+            if merged_gaps and g[0] <= merged_gaps[-1][1] + 2:
+                merged_gaps[-1] = (merged_gaps[-1][0], max(merged_gaps[-1][1], g[1]))
+            else:
+                merged_gaps.append(g)
 
         # 保存中间结果
         tmp2_path = tmp_path + ".mid"
         doc.save(tmp2_path)
         doc.close()
 
-        if total_shift > 0:
+        if merged_gaps:
             doc = fitz.open(tmp2_path)
-            p0 = doc[0]
-            bi_results = p0.search_for("Booking Information")
-            cut1 = bi_results[0].y1 + 5 if bi_results else 155
-            name_results = p0.search_for("Name")
-            name_header = [r for r in name_results if r.y0 < 300 and r.x0 < 150]
-
             new_doc = fitz.open()
             new_page = new_doc.new_page(width=pw, height=ph)
 
-            if header_shift > 0 and name_header and shift_up > 0:
-                new_page.show_pdf_page(fitz.Rect(0, 0, pw, cut1), doc, 0, clip=fitz.Rect(0, 0, pw, cut1))
-                name_y = name_header[0].y0
-                cut2_src = cut1 + shift_up
-                cut2_end = name_y + 16
-                seg2_height = cut2_end - cut2_src
-                dest2_y = cut1 + seg2_height
-                new_page.show_pdf_page(fitz.Rect(0, cut1, pw, dest2_y), doc, 0, clip=fitz.Rect(0, cut2_src, pw, cut2_end))
-                cut3_src = cut2_end + header_shift
-                dest3_y = dest2_y
-                seg3_height = ph - cut3_src
-                new_page.show_pdf_page(fitz.Rect(0, dest3_y, pw, dest3_y + seg3_height), doc, 0, clip=fitz.Rect(0, cut3_src, pw, ph))
-            elif shift_up > 0:
-                new_page.show_pdf_page(fitz.Rect(0, 0, pw, cut1), doc, 0, clip=fitz.Rect(0, 0, pw, cut1))
-                bot_src_y = cut1 + shift_up
-                new_page.show_pdf_page(fitz.Rect(0, cut1, pw, ph - shift_up), doc, 0, clip=fitz.Rect(0, bot_src_y, pw, ph))
-            elif header_shift > 0 and name_header:
-                name_y = name_header[0].y0
-                cut_h = name_y + 16
-                new_page.show_pdf_page(fitz.Rect(0, 0, pw, cut_h), doc, 0, clip=fitz.Rect(0, 0, pw, cut_h))
-                src_after = cut_h + header_shift
-                new_page.show_pdf_page(fitz.Rect(0, cut_h, pw, ph - header_shift), doc, 0, clip=fitz.Rect(0, src_after, pw, ph))
+            # 构建保留区段（跳过所有空白区域）
+            segments = []
+            cur_y = 0
+            for gy0, gy1 in merged_gaps:
+                if gy0 > cur_y:
+                    segments.append((cur_y, gy0))
+                cur_y = gy1
+            if cur_y < ph:
+                segments.append((cur_y, ph))
 
-            new_page.draw_rect(fitz.Rect(0, ph - 80, pw, ph), color=(1, 1, 1), fill=(1, 1, 1))
+            dest_y = 0.0
+            for src_y0, src_y1 in segments:
+                seg_h = src_y1 - src_y0
+                new_page.show_pdf_page(
+                    fitz.Rect(0, dest_y, pw, dest_y + seg_h),
+                    doc, 0,
+                    clip=fitz.Rect(0, src_y0, pw, src_y1))
+                dest_y += seg_h
+
+            # 用白色填充底部空余区域
+            if dest_y < ph:
+                new_page.draw_rect(fitz.Rect(0, dest_y, pw, ph), color=(1, 1, 1), fill=(1, 1, 1))
+
+            # 复制其余页面
             for i in range(1, doc.page_count):
                 new_doc.insert_pdf(doc, from_page=i, to_page=i)
+
             doc.close()
             final_doc = new_doc
         else:

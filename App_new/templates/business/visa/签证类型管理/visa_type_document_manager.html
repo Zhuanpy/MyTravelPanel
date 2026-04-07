@@ -625,9 +625,7 @@
             <button class="btn btn-secondary" onclick="showCopyDialog()" id="copyBtn" {% if not selected_visa_type %}disabled{% endif %}>
                 <i class="fas fa-copy"></i> 复制
             </button>
-            <button class="btn btn-primary" onclick="saveAll()" id="saveBtn" {% if not selected_visa_type %}disabled{% endif %}>
-                <i class="fas fa-save"></i> 保存
-            </button>
+            <span id="autoSaveStatus" style="display: inline-flex; align-items: center; font-size: 0.85rem; color: var(--text-gray); padding: 0 0.5rem;"></span>
             <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=selected_visa_type) if selected_visa_type else url_for('visa_basic.visa_type_list') }}"
                class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> 返回
@@ -731,7 +729,7 @@ const $manager = document.getElementById('docManager');
 const $tabs = document.getElementById('identityTabs');
 const $panel = document.getElementById('configPanel');
 const $toast = document.getElementById('toast');
-const $saveBtn = document.getElementById('saveBtn');
+// 保存按钮已改为自动保存
 const $copyBtn = document.getElementById('copyBtn');
 
 // 初始化
@@ -860,7 +858,6 @@ async function loadVisaType(visaType) {
             }
 
             updateSummary();
-            $saveBtn.disabled = false;
             $copyBtn.disabled = false;
         } else {
             showToast('加载配置失败: ' + (configData.message || '未知错误'), 'error');
@@ -1039,6 +1036,7 @@ function toggleDoc(docId) {
     }
 
     updateUI();
+    debouncedAutoSave();
 }
 
 // 显示准备方选择弹出框（点击party标签时调用）
@@ -1072,6 +1070,7 @@ function setParty(docId, party) {
     // 关闭弹出框并更新UI
     document.querySelectorAll('.party-popup.show').forEach(p => p.classList.remove('show'));
     updateUI();
+    debouncedAutoSave();
 }
 
 // 更新补充信息
@@ -1086,6 +1085,7 @@ function updateAdditionalInfo(type) {
     } else {
         state.configs[identityId].applicantInfo = document.getElementById('applicantInfo').value;
     }
+    debouncedAutoSave();
 }
 
 // 更新 UI
@@ -1116,10 +1116,33 @@ function updateSummary() {
         `${state.identities.length} 个身份，${configuredIdentities} 个已配置，共 ${totalDocs} 个文档`;
 }
 
+// 自动保存相关
+let autoSaveTimer = null;
+const $autoSaveStatus = document.getElementById('autoSaveStatus');
+
+function showSaveStatus(type) {
+    if (!$autoSaveStatus) return;
+    if (type === 'saving') {
+        $autoSaveStatus.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:4px;"></i> 保存中...';
+        $autoSaveStatus.style.color = 'var(--text-gray)';
+    } else if (type === 'saved') {
+        $autoSaveStatus.innerHTML = '<i class="fas fa-check" style="margin-right:4px; color:var(--success);"></i> 已保存';
+        $autoSaveStatus.style.color = 'var(--success)';
+    } else if (type === 'error') {
+        $autoSaveStatus.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:4px; color:var(--danger);"></i> 保存失败';
+        $autoSaveStatus.style.color = 'var(--danger)';
+    }
+}
+
+function debouncedAutoSave() {
+    if (!state.visaType) return;
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => saveAll(), 800);
+}
+
 // 保存全部
 async function saveAll() {
-    $saveBtn.disabled = true;
-    $saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+    showSaveStatus('saving');
 
     try {
         const identityConfigs = state.identities.map(identity => {
@@ -1148,17 +1171,16 @@ async function saveAll() {
         const data = await response.json();
 
         if (data.success) {
-            showToast('保存成功', 'success');
+            showSaveStatus('saved');
         } else {
+            showSaveStatus('error');
             showToast('保存失败: ' + data.message, 'error');
         }
     } catch (error) {
         console.error('保存失败:', error);
+        showSaveStatus('error');
         showToast('保存失败，请重试', 'error');
     }
-
-    $saveBtn.disabled = false;
-    $saveBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
 }
 
 // 复制对话框
