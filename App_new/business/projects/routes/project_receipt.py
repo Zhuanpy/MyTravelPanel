@@ -1652,6 +1652,63 @@ def preview_allocation():
     return jsonify(result)
 
 
+@project_receipt.route('/api/batch-invoice-init', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def batch_invoice_init():
+    """批量收款初始化数据 - API接口（供弹窗使用）"""
+    from datetime import date
+    data = request.get_json()
+    invoice_ids = data.get('invoice_ids', [])
+
+    if not invoice_ids:
+        return jsonify({'success': False, 'message': '请选择要收款的发票'})
+
+    invoices = ProjectInvoice.query.filter(
+        ProjectInvoice.id.in_(invoice_ids),
+        ProjectInvoice.payment_status != 'paid'
+    ).all()
+
+    if not invoices:
+        return jsonify({'success': False, 'message': '没有找到可收款的发票'})
+
+    invoice_data = []
+    total_unpaid = 0
+    currencies = set()
+
+    for inv in invoices:
+        unpaid = float(inv.amount or 0) - float(inv.paid_amount or 0)
+        total_unpaid += unpaid
+        currencies.add(inv.currency)
+        header = ProjectHeader.query.get(inv.header_id)
+        invoice_data.append({
+            'id': inv.id,
+            'invoice_number': inv.invoice_number,
+            'project_hid': header.hid if header else '',
+            'customer_name': inv.customer_name,
+            'amount': float(inv.amount or 0),
+            'paid_amount': float(inv.paid_amount or 0),
+            'unpaid_amount': unpaid,
+            'currency': inv.currency,
+            'payment_status_display': inv.payment_status_display
+        })
+
+    receipt_number = ProjectReceipt.generate_receipt_number()
+    multi_currency = len(currencies) > 1
+    default_currency = list(currencies)[0] if len(currencies) == 1 else 'SGD'
+
+    return jsonify({
+        'success': True,
+        'invoices': invoice_data,
+        'total_unpaid': round(total_unpaid, 2),
+        'receipt_number': receipt_number,
+        'multi_currency': multi_currency,
+        'default_currency': default_currency,
+        'today': date.today().isoformat()
+    })
+
+
 @project_receipt.route('/batch-invoice-receipt', methods=['GET'])
 @login_required
 @staff_only
