@@ -122,6 +122,9 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0;">
                 <div class="section-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;"><i class="fas fa-users me-2"></i>乘客信息</div>
                 <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="loadProjectMembers()" title="从项目人员名单导入">
+                        <i class="fas fa-address-book me-1"></i>导入人员
+                    </button>
                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="copyLastPassenger()" title="复制上一乘客价格">
                         <i class="fas fa-copy me-1"></i>复制价格
                     </button>
@@ -164,6 +167,33 @@
             </div>
         </div>
     </form>
+
+    <!-- Project Members Modal -->
+    <div id="membersModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+        <div class="modal-content" style="background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 8px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #2d3748; font-size: 1rem;"><i class="fas fa-address-book me-2"></i>项目人员名单</h3>
+                <span onclick="closeMembersModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-size: 0.85rem; color: #4a5568;">
+                        <input type="checkbox" id="membersSelectAll" onchange="toggleAllMembers(this)" style="margin-right: 4px;"> 全选
+                    </label>
+                    <span id="membersCount" style="font-size: 0.8rem; color: #718096;"></span>
+                </div>
+                <div id="membersList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <div style="text-align: center; padding: 20px; color: #a0aec0;">加载中...</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeMembersModal()">取消</button>
+                <button type="button" class="btn btn-success btn-sm" onclick="importSelectedMembers()">
+                    <i class="fas fa-check me-1"></i>导入选中
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Flight Parser Modal -->
     <div id="flightParserModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
@@ -879,6 +909,96 @@ function updatePriceSummary() {
 }
 
 // 复制最后一位乘客的价格信息
+// ========== 导入项目人员 ==========
+function loadProjectMembers() {
+    const headerId = document.querySelector('input[name="header_id"]').value;
+    document.getElementById('membersModal').style.display = 'block';
+    document.getElementById('membersList').innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0;"><i class="fas fa-spinner fa-spin me-1"></i>加载中...</div>';
+
+    fetch(`/projects/${headerId}/members`, {
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' }
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (!result.success || !result.data.length) {
+            document.getElementById('membersList').innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0;">暂无人员信息</div>';
+            document.getElementById('membersCount').textContent = '0 人';
+            return;
+        }
+
+        // 获取已有乘客姓名，用于标记已导入
+        const existingNames = new Set();
+        document.querySelectorAll('input[name="passenger_name[]"]').forEach(el => {
+            if (el.value.trim()) existingNames.add(el.value.trim().toUpperCase());
+        });
+
+        let html = '<table style="width:100%; border-collapse: collapse; font-size: 0.8rem;">';
+        html += '<thead style="background:#f8fafc; position: sticky; top: 0;"><tr>';
+        html += '<th style="padding:8px; width:30px; text-align:center;"></th>';
+        html += '<th style="padding:8px;">姓名</th>';
+        html += '<th style="padding:8px;">称谓</th>';
+        html += '<th style="padding:8px;">护照号</th>';
+        html += '<th style="padding:8px;">国籍</th>';
+        html += '<th style="padding:8px;">状态</th>';
+        html += '</tr></thead><tbody>';
+
+        result.data.forEach(m => {
+            const nameUpper = (m.member_name || '').toUpperCase();
+            const imported = existingNames.has(nameUpper);
+            html += `<tr style="border-bottom: 1px solid #f1f5f9; ${imported ? 'opacity:0.5;' : ''}">
+                <td style="padding:6px 8px; text-align:center;">
+                    <input type="checkbox" class="member-cb" value="${m.id}"
+                        data-name="${m.member_name || ''}"
+                        data-passport="${m.id_number || ''}"
+                        data-title="${m.title || ''}"
+                        ${imported ? 'disabled' : ''}>
+                </td>
+                <td style="padding:6px 8px; font-weight:500;">${m.member_name || '-'}</td>
+                <td style="padding:6px 8px;">${m.title || '-'}</td>
+                <td style="padding:6px 8px; font-family: monospace;">${m.id_number || '-'}</td>
+                <td style="padding:6px 8px;">${m.nationality || '-'}</td>
+                <td style="padding:6px 8px;">${imported ? '<span style="color:#10b981; font-size:0.75rem;"><i class="fas fa-check"></i> 已导入</span>' : ''}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+
+        document.getElementById('membersList').innerHTML = html;
+        document.getElementById('membersCount').textContent = result.data.length + ' 人';
+        document.getElementById('membersSelectAll').checked = false;
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById('membersList').innerHTML = '<div style="text-align: center; padding: 20px; color: #e53e3e;">加载失败</div>';
+    });
+}
+
+function closeMembersModal() {
+    document.getElementById('membersModal').style.display = 'none';
+}
+
+function toggleAllMembers(el) {
+    document.querySelectorAll('.member-cb:not(:disabled)').forEach(cb => cb.checked = el.checked);
+}
+
+function importSelectedMembers() {
+    const checked = document.querySelectorAll('.member-cb:checked');
+    if (!checked.length) { alert('请选择要导入的人员'); return; }
+
+    checked.forEach(cb => {
+        addPassengerWithData({
+            name: cb.dataset.name || '',
+            passenger_type: 'adult',
+            selling_price: 0,
+            cost_price: 0,
+            passport_number: cb.dataset.passport || ''
+        });
+    });
+
+    closeMembersModal();
+    updatePassengerNumbers();
+    updateLeaderName();
+}
+
 function copyLastPassenger() {
     const passengers = $('.passenger-card');
     if (passengers.length === 0) {
