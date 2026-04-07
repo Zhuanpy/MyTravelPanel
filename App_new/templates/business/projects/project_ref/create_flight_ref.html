@@ -984,6 +984,13 @@ function importSelectedMembers() {
     const checked = document.querySelectorAll('.member-cb:checked');
     if (!checked.length) { alert('请选择要导入的人员'); return; }
 
+    // 先移除空白乘客行（姓名为空的）
+    document.querySelectorAll('input[name="passenger_name[]"]').forEach(el => {
+        if (!el.value.trim()) {
+            el.closest('.passenger-card').remove();
+        }
+    });
+
     checked.forEach(cb => {
         addPassengerWithData({
             name: cb.dataset.name || '',
