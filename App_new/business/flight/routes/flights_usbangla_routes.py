@@ -359,9 +359,19 @@ def parse_pdf():
         return jsonify({'success': False, 'message': '请选择PDF文件'})
     try:
         result = parse_usbangla_pdf(file.stream)
+
+        # 如果PDF正文中未提取到预订编号，尝试从文件名中提取
+        booking_ref = result['booking_ref']
+        if not booking_ref and file.filename:
+            # 文件名格式如：E-ticket_09LWC4-ALAM_DAC.pdf 或 E-ticket_09LWC4_xxx.pdf
+            fn_match = re.search(r'[_\-]([A-Z0-9]{5,8})[_\-]', file.filename) or \
+                       re.search(r'[_\-]([A-Z0-9]{5,8})\.pdf', file.filename, re.IGNORECASE)
+            if fn_match:
+                booking_ref = fn_match.group(1)
+
         return jsonify({
             'success': True,
-            'booking_ref': result['booking_ref'],
+            'booking_ref': booking_ref,
             'segments': result['segments'],
             'passengers': result['passengers'],
         })
