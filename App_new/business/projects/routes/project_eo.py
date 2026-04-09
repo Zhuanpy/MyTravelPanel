@@ -626,6 +626,12 @@ def batch_pay_submit():
         payment_source = data.get('payment_source', 'bank')  # bank 或 prepayment
         supplier_id = data.get('supplier_id')  # 供应商ID（使用预付账款时需要）
 
+        # 防重复提交：检查 payment_no 是否已存在
+        from App_new.business.projects.models.supplier_payment import SupplierPayment
+        existing_payment = SupplierPayment.query.filter_by(payment_no=payment_no).first()
+        if existing_payment:
+            return jsonify({'success': False, 'message': f'付款编号 {payment_no} 已存在，请勿重复提交'}), 400
+
         if not eo_ids:
             return jsonify({'success': False, 'message': '请选择要付款的EO'}), 400
 
@@ -665,12 +671,12 @@ def batch_pay_submit():
             if not supplier_id:
                 return jsonify({'success': False, 'message': '请选择同一供应商的EO'}), 400
 
-            # 按创建时间升序获取可用预付账款（FIFO）
+            # 按创建时间升序获取可用预付账款（FIFO），使用行级锁防止并发扣减
             available_prepayments = SupplierPrepayment.query.filter(
                 SupplierPrepayment.supplier_id == supplier_id,
                 SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
                 SupplierPrepayment.balance_amount > 0
-            ).order_by(SupplierPrepayment.created_at.asc()).all()
+            ).order_by(SupplierPrepayment.created_at.asc()).with_for_update().all()
 
             if not available_prepayments:
                 return jsonify({'success': False, 'message': '该供应商无可用预付账款'}), 400
@@ -756,11 +762,25 @@ def batch_pay_submit():
 
                 # 处理已有的pending记录（兼容旧数据）
                 if existing_usage and existing_usage.status == 'pending':
-                    # 退还原预付账款余额
+                    # 数据库原子退还原预付账款余额
                     old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
                     if old_prepayment:
+                        db.session.execute(
+                            db.text("""
+                                UPDATE supplier_prepayments
+                                SET balance_amount = balance_amount + :amt,
+                                    status = CASE
+                                        WHEN balance_amount + :amt >= amount THEN 'confirmed'
+                                        WHEN balance_amount + :amt > 0 THEN 'partial_used'
+                                        ELSE status
+                                    END,
+                                    updated_at = NOW()
+                                WHERE id = :pid
+                            """),
+                            {'amt': float(existing_usage.amount), 'pid': old_prepayment.id}
+                        )
+                        # 同步内存对象
                         old_prepayment.balance_amount += existing_usage.amount
-                        old_prepayment.update_status()
                         # 回退FIFO索引，确保恢复的余额可以被后续EO使用
                         if old_prepayment in available_prepayments:
                             old_idx = available_prepayments.index(old_prepayment)
@@ -769,7 +789,7 @@ def batch_pay_submit():
                     existing_usage.status = 'reversed'
                     existing_usage.description = f'批量付款重新分配'
 
-                # 按FIFO从预付账款中扣减
+                # 按FIFO从预付账款中扣减（使用数据库原子操作）
                 amount_to_deduct = eo_pay_amount_decimal
                 while amount_to_deduct > 0 and prepayment_index < len(available_prepayments):
                     current_prepayment = available_prepayments[prepayment_index]
@@ -791,9 +811,29 @@ def batch_pay_submit():
                         )
                         db.session.add(new_usage)
 
-                        # 扣减预付余额
+                        # 数据库原子扣减预付余额（防止并发不同步）
+                        rows_updated = db.session.execute(
+                            db.text("""
+                                UPDATE supplier_prepayments
+                                SET balance_amount = balance_amount - :deduct,
+                                    status = CASE
+                                        WHEN balance_amount - :deduct <= 0 THEN 'consumed'
+                                        WHEN balance_amount - :deduct < amount THEN 'partial_used'
+                                        ELSE status
+                                    END,
+                                    updated_at = NOW()
+                                WHERE id = :pid AND balance_amount >= :deduct
+                            """),
+                            {'deduct': float(deduct_amount), 'pid': current_prepayment.id}
+                        ).rowcount
+
+                        if rows_updated == 0:
+                            # 余额已被其他请求扣减，回滚
+                            db.session.rollback()
+                            return jsonify({'success': False, 'message': '预付余额已被其他操作修改，请刷新页面重试'}), 409
+
+                        # 同步内存对象状态（用于后续循环判断）
                         current_prepayment.balance_amount -= deduct_amount
-                        current_prepayment.update_status()
 
                         prepayment_amount_used += deduct_amount
                         amount_to_deduct -= deduct_amount
@@ -807,10 +847,21 @@ def batch_pay_submit():
             else:
                 # 使用银行付款，如果有预付使用记录需要退还（pending或confirmed）
                 if existing_usage:
-                    old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
-                    if old_prepayment:
-                        old_prepayment.balance_amount += existing_usage.amount
-                        old_prepayment.update_status()
+                    # 数据库原子退还预付余额
+                    db.session.execute(
+                        db.text("""
+                            UPDATE supplier_prepayments
+                            SET balance_amount = balance_amount + :amt,
+                                status = CASE
+                                    WHEN balance_amount + :amt >= amount THEN 'confirmed'
+                                    WHEN balance_amount + :amt > 0 THEN 'partial_used'
+                                    ELSE status
+                                END,
+                                updated_at = NOW()
+                            WHERE id = :pid
+                        """),
+                        {'amt': float(existing_usage.amount), 'pid': existing_usage.prepayment_id}
+                    )
                     existing_usage.status = 'reversed'
                     existing_usage.description = f'批量付款改用银行付款'
 
@@ -922,7 +973,8 @@ def pay_eo(eo_id):
             if not prepayment_id:
                 return jsonify({'success': False, 'message': '请选择预付账款'}), 400
 
-            prepayment = SupplierPrepayment.query.get(prepayment_id)
+            # 使用行级锁获取预付账款，防止并发扣减
+            prepayment = SupplierPrepayment.query.filter_by(id=prepayment_id).with_for_update().first()
 
             if not prepayment:
                 return jsonify({'success': False, 'message': '预付账款不存在'}), 400
@@ -942,9 +994,28 @@ def pay_eo(eo_id):
                     if amount_diff > prepayment.balance_amount:
                         return jsonify({'success': False, 'message': f'付款金额超过预付余额 {prepayment.balance_amount + existing_usage.amount}'}), 400
 
-                    # 调整预付余额（差额）
+                    # 数据库原子扣减（差额）
+                    rows_updated = db.session.execute(
+                        db.text("""
+                            UPDATE supplier_prepayments
+                            SET balance_amount = balance_amount - :diff,
+                                status = CASE
+                                    WHEN balance_amount - :diff <= 0 THEN 'consumed'
+                                    WHEN balance_amount - :diff < amount THEN 'partial_used'
+                                    ELSE status
+                                END,
+                                updated_at = NOW()
+                            WHERE id = :pid AND balance_amount >= :diff
+                        """),
+                        {'diff': float(amount_diff), 'pid': prepayment.id}
+                    ).rowcount
+
+                    if rows_updated == 0 and amount_diff > 0:
+                        db.session.rollback()
+                        return jsonify({'success': False, 'message': '预付余额不足，请刷新页面重试'}), 409
+
+                    # 同步内存对象
                     prepayment.balance_amount -= amount_diff
-                    prepayment.update_status()
 
                     # 更新使用记录为confirmed
                     existing_usage.amount = pay_amount_decimal
@@ -957,14 +1028,51 @@ def pay_eo(eo_id):
                 if pay_amount_decimal > prepayment.balance_amount:
                     return jsonify({'success': False, 'message': f'付款金额超过预付余额 {prepayment.balance_amount}'}), 400
 
-                # 如果有已存在的使用记录，先退还（reversed）
+                # 如果有已存在的使用记录，先退还（原子操作）
                 if existing_usage:
-                    old_prepayment = SupplierPrepayment.query.get(existing_usage.prepayment_id)
+                    old_prepayment = SupplierPrepayment.query.filter_by(
+                        id=existing_usage.prepayment_id
+                    ).with_for_update().first()
                     if old_prepayment:
-                        old_prepayment.balance_amount += existing_usage.amount
-                        old_prepayment.update_status()
+                        db.session.execute(
+                            db.text("""
+                                UPDATE supplier_prepayments
+                                SET balance_amount = balance_amount + :amt,
+                                    status = CASE
+                                        WHEN balance_amount + :amt >= amount THEN 'confirmed'
+                                        WHEN balance_amount + :amt > 0 THEN 'partial_used'
+                                        ELSE status
+                                    END,
+                                    updated_at = NOW()
+                                WHERE id = :pid
+                            """),
+                            {'amt': float(existing_usage.amount), 'pid': old_prepayment.id}
+                        )
                     existing_usage.status = 'reversed'
                     existing_usage.description = f'已切换预付账款'
+
+                # 数据库原子扣减新的预付账款
+                rows_updated = db.session.execute(
+                    db.text("""
+                        UPDATE supplier_prepayments
+                        SET balance_amount = balance_amount - :deduct,
+                            status = CASE
+                                WHEN balance_amount - :deduct <= 0 THEN 'consumed'
+                                WHEN balance_amount - :deduct < amount THEN 'partial_used'
+                                ELSE status
+                            END,
+                            updated_at = NOW()
+                        WHERE id = :pid AND balance_amount >= :deduct
+                    """),
+                    {'deduct': float(pay_amount_decimal), 'pid': prepayment.id}
+                ).rowcount
+
+                if rows_updated == 0:
+                    db.session.rollback()
+                    return jsonify({'success': False, 'message': '预付余额不足，请刷新页面重试'}), 409
+
+                # 同步内存对象
+                prepayment.balance_amount -= pay_amount_decimal
 
                 # 创建新的预付款使用记录
                 prepayment_usage = PrepaymentUsage(
@@ -1073,11 +1181,21 @@ def void_eo(eo_id):
         ).all()
 
         for usage in prepayment_usages:
-            # 恢复预付账款余额
-            prepayment = SupplierPrepayment.query.get(usage.prepayment_id)
-            if prepayment:
-                prepayment.balance_amount += usage.amount
-                prepayment.update_status()
+            # 数据库原子恢复预付账款余额
+            db.session.execute(
+                db.text("""
+                    UPDATE supplier_prepayments
+                    SET balance_amount = balance_amount + :amt,
+                        status = CASE
+                            WHEN balance_amount + :amt >= amount THEN 'confirmed'
+                            WHEN balance_amount + :amt > 0 THEN 'partial_used'
+                            ELSE status
+                        END,
+                        updated_at = NOW()
+                    WHERE id = :pid
+                """),
+                {'amt': float(usage.amount), 'pid': usage.prepayment_id}
+            )
 
             # 标记使用记录为已冲销
             usage.status = 'reversed'

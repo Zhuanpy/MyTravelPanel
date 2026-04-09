@@ -573,6 +573,14 @@ function submitBatchPayment() {
     }
 
     if (confirm(confirmMsg)) {
+        // 防重复提交：禁用按钮并显示loading状态
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.dataset.originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>提交中...';
+        }
+
         fetch('{{ url_for("business_projects.project_eo.batch_pay_submit") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -596,10 +604,20 @@ function submitBatchPayment() {
                 location.reload();
             } else {
                 alert('操作失败：' + data.message);
+                // 恢复按钮状态
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = submitBtn.dataset.originalText;
+                }
             }
         })
         .catch(error => {
             alert('操作失败：' + error);
+            // 恢复按钮状态
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = submitBtn.dataset.originalText;
+            }
         });
     }
 }
