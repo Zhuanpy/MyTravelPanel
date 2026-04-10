@@ -979,10 +979,35 @@ def visa_create_project(visa_type):
                 return redirect(url_for('visa_project.visa_processing', visa_type=visa_type))
 
         """ 创建项目思路 """
-        "a 创建项目文件夹"
+        # 先保存到数据库，获取项目ID用于构建唯一文件夹名
         from App_new.config import Config
+
+        # 临时名称，flush后用项目ID更新
+        temp_name = f"{project_name}_{singapore_status}"
+        new_project = VisaProject(
+            name=temp_name,
+            visa_status=visa_status,
+            estimated_date=datetime.strptime(estimated_date, '%Y-%m-%d').date()
+        )
+
+        new_project.project_folder_name = temp_name
+        new_project.visa_type = visa_type_input
+        new_project.applicant_name = applicant_name
+        new_project.contact_name = request.form.get('contact_name')
+        new_project.remarks = request.form.get('remarks')
+        new_project.hid_or_serial = hid_or_serial if hid_or_serial else None  # 可为空
+        new_project.singapore_status = singapore_status
+
+        db.session.add(new_project)
+        db.session.flush()  # 获取项目ID
+
+        # 用项目ID构建唯一文件夹名，避免同名覆盖
+        project_file_name = f"{project_name}_{singapore_status}_{new_project.id}"
+        new_project.name = project_file_name
+        new_project.project_folder_name = project_file_name
+
+        "a 创建项目文件夹"
         visa_folder = Config.VISA_PROJECTS_PATH  # 签证项目文件夹
-        project_file_name = f"{project_name}_{singapore_status}"
         project_folder = visa_folder / project_file_name
         os.makedirs(project_folder, exist_ok=True)
 
@@ -1005,25 +1030,6 @@ def visa_create_project(visa_type):
                     dst_path = project_folder / file.name
                     shutil.copy2(file, dst_path)
                     print(f"Copied file: {file} -> {dst_path}")
-
-        # 保存到数据库
-        new_project = VisaProject(
-            name=project_file_name,
-            visa_status=visa_status,
-            estimated_date=datetime.strptime(estimated_date, '%Y-%m-%d').date()
-        )
-
-        # 添加新字段数据
-        new_project.project_folder_name = project_file_name
-        new_project.visa_type = visa_type_input
-        new_project.applicant_name = applicant_name
-        new_project.contact_name = request.form.get('contact_name')
-        new_project.remarks = request.form.get('remarks')
-        new_project.hid_or_serial = hid_or_serial if hid_or_serial else None  # 可为空
-        new_project.singapore_status = singapore_status
-
-        db.session.add(new_project)
-        db.session.flush()  # 获取项目ID
         
         # 保存资料状态数据
         if document_statuses:
