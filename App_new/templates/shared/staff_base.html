@@ -923,12 +923,14 @@
     <script>
         // 逾期任务提醒检查
         (function() {
-            // 每天提醒一次（基于日期，而非会话）
-            const REMINDER_KEY = 'overdue_tasks_reminded_date';
-            const today = new Date().toISOString().slice(0, 10);
+            // 每小时提醒一次（记录上次提醒的时间戳）
+            const REMINDER_KEY = 'overdue_tasks_reminded_time';
+            const REMINDER_INTERVAL = 60 * 60 * 1000; // 1小时（毫秒）
+            const now = Date.now();
+            const lastReminded = parseInt(localStorage.getItem(REMINDER_KEY) || '0', 10);
 
-            // 如果今天已经提醒过，则不再提醒
-            if (localStorage.getItem(REMINDER_KEY) === today) {
+            // 距离上次提醒不足1小时，不再提醒
+            if (now - lastReminded < REMINDER_INTERVAL) {
                 return;
             }
 
@@ -974,8 +976,8 @@
                             const modal = new bootstrap.Modal(document.getElementById('overdueTasksModal'));
                             modal.show();
 
-                            // 标记今天已提醒
-                            localStorage.setItem(REMINDER_KEY, today);
+                            // 记录本次提醒时间
+                            localStorage.setItem(REMINDER_KEY, Date.now().toString());
                         }
                     })
                     .catch(error => {
