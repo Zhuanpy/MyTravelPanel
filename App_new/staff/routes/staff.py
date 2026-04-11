@@ -412,7 +412,7 @@ def dashboard():
         # 收款方式3: 无分配记录的旧项目级别收款
         old_receipts_ids = db.session.query(
             ReceiptInvoiceAllocation.receipt_id
-        ).distinct().subquery()
+        ).distinct()
 
         old_receipt = db.session.query(
             ProjectReceipt.header_id.label('hid'),
@@ -525,50 +525,92 @@ def dashboard():
                 if len(pending_invoice_refs) >= 10:
                     break
 
-        # ========== 最近项目（最近10个，优化查询）==========
-        # 先获取最近10个项目的ID
-        recent_headers = ProjectHeader.query.options(
-            joinedload(ProjectHeader.company)
-        ).order_by(ProjectHeader.created_at.desc()).limit(10).all()
+        # ========== 数据可视化（最近12个月统计）==========
+        from sqlalchemy import extract
+        from datetime import timedelta
+        from dateutil.relativedelta import relativedelta
 
-        recent_project_ids = [p.id for p in recent_headers]
+        # 计算最近12个月的范围
+        now = datetime.now()
+        twelve_months_ago = (now - relativedelta(months=11)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # 一次性获取这些项目的财务汇总
-        project_stats = {}
-        if recent_project_ids:
-            stats_query = db.session.query(
-                ProjectRef.header_id,
-                func.coalesce(func.sum(ProjectRef.selling_price), 0).label('selling'),
-                func.coalesce(func.sum(ProjectRef.cost_price), 0).label('cost')
-            ).filter(
-                ProjectRef.header_id.in_(recent_project_ids)
-            ).group_by(ProjectRef.header_id).all()
+        # 月度业绩趋势（销售额、成本、利润）
+        monthly_performance = db.session.query(
+            extract('year', ProjectHeader.created_at).label('year'),
+            extract('month', ProjectHeader.created_at).label('month'),
+            func.coalesce(func.sum(ProjectRef.selling_price), 0).label('selling'),
+            func.coalesce(func.sum(ProjectRef.cost_price), 0).label('cost'),
+            func.count(func.distinct(ProjectHeader.id)).label('project_count')
+        ).join(ProjectHeader).filter(
+            ProjectHeader.created_at >= twelve_months_ago
+        ).group_by(
+            extract('year', ProjectHeader.created_at),
+            extract('month', ProjectHeader.created_at)
+        ).order_by('year', 'month').all()
 
-            for row in stats_query:
-                project_stats[row.header_id] = {
-                    'selling': float(row.selling),
-                    'cost': float(row.cost)
-                }
+        # 业务类型分布（最近12个月）
+        from ...shared.models.business_types import BusinessType
+        type_distribution = db.session.query(
+            BusinessType.name_en,
+            func.count(ProjectRef.id).label('count'),
+            func.coalesce(func.sum(ProjectRef.selling_price), 0).label('selling')
+        ).join(BusinessType, ProjectRef.ref_type_id == BusinessType.id
+        ).join(ProjectHeader, ProjectRef.header_id == ProjectHeader.id
+        ).filter(
+            ProjectHeader.created_at >= twelve_months_ago
+        ).group_by(BusinessType.name_en).order_by(func.sum(ProjectRef.selling_price).desc()).all()
 
-        recent_projects = []
-        for project in recent_headers:
-            ps = project_stats.get(project.id, {'selling': 0, 'cost': 0})
-            recent_projects.append({
-                'id': project.id,
-                'hid': project.hid,
-                'desc': project.desc or '-',
-                'company': project.company.company_name if project.company else '-',
-                'total_selling': ps['selling'],
-                'total_profit': ps['selling'] - ps['cost'],
-                'is_settled': project.is_settled,
-                'created_at': project.created_at.strftime('%Y-%m-%d') if project.created_at else '',
-            })
+        # 构建月度数据（补齐缺失月份）
+        monthly_labels = []
+        monthly_selling = []
+        monthly_cost = []
+        monthly_profit = []
+        monthly_projects = []
+
+        perf_dict = {}
+        for row in monthly_performance:
+            key = f"{int(row.year)}-{int(row.month):02d}"
+            perf_dict[key] = {
+                'selling': float(row.selling),
+                'cost': float(row.cost),
+                'count': int(row.project_count)
+            }
+
+        for i in range(12):
+            dt = twelve_months_ago + relativedelta(months=i)
+            key = dt.strftime('%Y-%m')
+            label = dt.strftime('%b %Y')  # Jan 2026
+            data = perf_dict.get(key, {'selling': 0, 'cost': 0, 'count': 0})
+
+            monthly_labels.append(label)
+            monthly_selling.append(round(data['selling'], 2))
+            monthly_cost.append(round(data['cost'], 2))
+            monthly_profit.append(round(data['selling'] - data['cost'], 2))
+            monthly_projects.append(data['count'])
+
+        # 构建业务类型数据
+        type_labels = []
+        type_values = []
+        for row in type_distribution:
+            name = row.name_en if row.name_en and row.name_en != 'None' else 'Other'
+            type_labels.append(name)
+            type_values.append(round(float(row.selling), 2))
+
+        chart_data = {
+            'monthly_labels': monthly_labels,
+            'monthly_selling': monthly_selling,
+            'monthly_cost': monthly_cost,
+            'monthly_profit': monthly_profit,
+            'monthly_projects': monthly_projects,
+            'type_labels': type_labels,
+            'type_values': type_values,
+        }
 
         return render_template('staff/staff_dashboard.html',
                              stats=stats,
                              pending_eo_list=pending_eo_list,
                              pending_invoice_refs=pending_invoice_refs,
-                             recent_projects=recent_projects)
+                             chart_data=chart_data)
 
     except Exception as e:
         # 错误处理
@@ -587,7 +629,12 @@ def dashboard():
                              },
                              pending_eo_list=[],
                              pending_invoice_refs=[],
-                             recent_projects=[])
+                             chart_data={
+                                 'monthly_labels': [], 'monthly_selling': [],
+                                 'monthly_cost': [], 'monthly_profit': [],
+                                 'monthly_projects': [],
+                                 'type_labels': [], 'type_values': [],
+                             })
 
 # ==================== 项目管理功能已移至 projects.py ====================
 
