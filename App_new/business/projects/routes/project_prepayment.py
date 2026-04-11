@@ -75,6 +75,30 @@ def list_prepayments():
         p._cached_used_amount = float(p.amount) - float(p.balance_amount)
         p._cached_available_balance = float(p.balance_amount)
 
+    # 批量查询银行对账匹配信息
+    from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+    from App_new.finance.models.statement import BankTransaction
+    prepayment_ids = [p.id for p in prepayment_records]
+    match_info = {}
+    if prepayment_ids:
+        matches = db.session.query(
+            BankTransactionMatch, BankTransaction
+        ).join(
+            BankTransaction, BankTransactionMatch.transaction_id == BankTransaction.id
+        ).filter(
+            BankTransactionMatch.match_type == 'prepayment',
+            BankTransactionMatch.match_id.in_(prepayment_ids)
+        ).all()
+        for btm, tx in matches:
+            match_info[btm.match_id] = {
+                'tx_date': tx.transaction_date.strftime('%Y-%m-%d') if tx.transaction_date else '',
+                'tx_amount': float(tx.amount or 0),
+                'tx_counterparty': tx.counterparty_name or '',
+                'tx_description': tx.description or '',
+                'tx_bank': tx.statement.bank_name if tx.statement else '',
+                'tx_account': tx.statement.account_name if tx.statement else '',
+            }
+
     # 获取供应商列表（用于筛选）
     suppliers = CustomerCompany.query.filter(
         CustomerCompany.is_supplier == True,
@@ -93,6 +117,7 @@ def list_prepayments():
                            total_amount=total_amount,
                            total_balance=total_balance,
                            total_used=total_used,
+                           match_info=match_info,
                            current_filters={
                                'supplier_id': supplier_id,
                                'status': status,
