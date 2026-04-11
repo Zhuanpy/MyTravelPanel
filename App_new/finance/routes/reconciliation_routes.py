@@ -1387,7 +1387,7 @@ def bank_eo_compare():
     ).distinct().all()}
 
     prepay_ids = {r[0] for r in db.session.query(SupplierPrepayment.supplier_id).filter(
-        SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+        SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed']),
         SupplierPrepayment.supplier_id.isnot(None)
     ).distinct().all()}
 
@@ -1650,7 +1650,7 @@ def get_eo_compare_data():
 
         # 查询预付款记录（银行转账方式的已确认记录）
         prepay_query = SupplierPrepayment.query.filter(
-            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed']),
             SupplierPrepayment.payment_method == 'bank_transfer'
         )
         if supplier_id:
@@ -1673,7 +1673,7 @@ def get_eo_compare_data():
             prepay_query = prepay_query.filter(SupplierPrepayment.id.in_(matched_prepayment_ids))
         elif status == 'reconciled':
             prepay_query = SupplierPrepayment.query.filter(
-                SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+                SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed']),
                 SupplierPrepayment.is_reconciled == True
             )
             if supplier_id:
@@ -1958,7 +1958,7 @@ def eo_auto_match_suggestions():
             BankTransactionMatch.match_type == 'prepayment'
         ).subquery()
         prepay_query = SupplierPrepayment.query.filter(
-            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
+            SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed']),
             SupplierPrepayment.payment_method == 'bank_transfer',
             ~SupplierPrepayment.id.in_(matched_prepay_ids),
             or_(SupplierPrepayment.is_reconciled == False, SupplierPrepayment.is_reconciled.is_(None))
