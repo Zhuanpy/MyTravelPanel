@@ -110,9 +110,10 @@ def project_detail(project_id):
                     'expected_balance': float(total_balance)
                 }
 
-        # 获取已经从预付款扣减过的EO ID列表
+        # 获取已经从预付款扣减过的EO ID列表（只算confirmed状态，排除已冲销的）
         used_eo_subquery = db.session.query(PrepaymentUsage.eo_id).filter(
-            PrepaymentUsage.eo_id.isnot(None)
+            PrepaymentUsage.eo_id.isnot(None),
+            PrepaymentUsage.status == 'confirmed'
         ).distinct().subquery()
 
         # 查询每个供应商的待付款EO总额（排除已从预付款扣减的）

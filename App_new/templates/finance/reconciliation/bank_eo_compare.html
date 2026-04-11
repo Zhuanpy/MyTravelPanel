@@ -1272,7 +1272,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                alert(`成功匹配 ${result.success_count} 条记录`);
+                let msg = `成功匹配 ${result.success_count} 条记录`;
+                if (result.failed_count > 0) {
+                    msg += `\n\n${result.failed_count} 条失败:`;
+                    result.failed_items.forEach(item => {
+                        msg += `\n- 交易${item.tx_id}: ${item.reason}`;
+                    });
+                }
+                alert(msg);
                 document.getElementById('suggestionsSection').style.display = 'none';
                 loadCompareData();
             } else {
@@ -1280,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (e) {
             console.error('批量匹配失败:', e);
-            alert('批量匹配失败');
+            alert('批量匹配失败: ' + e.message);
         } finally {
             this.innerHTML = '<i class="fas fa-check-double"></i> 全部接受';
             this.disabled = false;
@@ -1469,7 +1476,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                alert(`成功创建 ${result.success_count} 条匹配记录`);
+                let msg = `成功创建 ${result.success_count} 条匹配记录`;
+                if (result.failed_count > 0) {
+                    msg += `\n\n${result.failed_count} 条失败:`;
+                    result.failed_items.forEach(item => {
+                        msg += `\n- 交易${item.transaction_id}: ${item.reason}`;
+                    });
+                }
+                alert(msg);
                 bootstrap.Modal.getInstance(document.getElementById('multiMatchModal')).hide();
                 selectedTxIds.clear();
                 selectedRecordKeys.clear();

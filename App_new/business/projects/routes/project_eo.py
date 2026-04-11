@@ -616,6 +616,8 @@ def batch_pay_export():
 def batch_pay_submit():
     """批量付款提交 - 支持按供应商自动选择预付账款（FIFO），创建付款记录"""
     try:
+        from sqlalchemy import func
+
         data = request.get_json()
         eo_ids = data.get('eo_ids', [])
         payment_no = data.get('payment_no')
@@ -896,6 +898,20 @@ def batch_pay_submit():
         payment_record.prepayment_amount = prepayment_amount_used
         payment_record.eo_count = success_count
 
+        # 修正预付账款余额：根据confirmed用量重新计算balance_amount，防止冲销/重分配导致不同步
+        if payment_source == 'prepayment' and available_prepayments:
+            for prep in available_prepayments:
+                confirmed_used = db.session.query(
+                    func.coalesce(func.sum(PrepaymentUsage.amount), 0)
+                ).filter(
+                    PrepaymentUsage.prepayment_id == prep.id,
+                    PrepaymentUsage.status == 'confirmed'
+                ).scalar()
+                correct_balance = prep.amount - Decimal(str(float(confirmed_used)))
+                if abs(prep.balance_amount - correct_balance) > Decimal('0.01'):
+                    prep.balance_amount = correct_balance
+                    prep.update_status()
+
         db.session.commit()
 
         # 构建返回消息
@@ -1135,6 +1151,34 @@ def pay_eo(eo_id):
             # 日记账创建失败不影响EO付款
             import logging
             logging.getLogger(__name__).warning(f"创建EO付款日记账失败: {str(je_error)}")
+
+        # 修正预付账款余额：根据confirmed用量重新计算，防止冲销导致不同步
+        if payment_source == 'prepayment' and prepayment:
+            from sqlalchemy import func as sa_func
+            confirmed_used = db.session.query(
+                sa_func.coalesce(sa_func.sum(PrepaymentUsage.amount), 0)
+            ).filter(
+                PrepaymentUsage.prepayment_id == prepayment.id,
+                PrepaymentUsage.status == 'confirmed'
+            ).scalar()
+            correct_balance = prepayment.amount - Decimal(str(float(confirmed_used)))
+            if abs(prepayment.balance_amount - correct_balance) > Decimal('0.01'):
+                prepayment.balance_amount = correct_balance
+                prepayment.update_status()
+            # 如果切换了预付账款，也修正旧的
+            if existing_usage and existing_usage.status == 'reversed':
+                old_prep = SupplierPrepayment.query.get(existing_usage.prepayment_id)
+                if old_prep and old_prep.id != prepayment.id:
+                    old_confirmed_used = db.session.query(
+                        sa_func.coalesce(sa_func.sum(PrepaymentUsage.amount), 0)
+                    ).filter(
+                        PrepaymentUsage.prepayment_id == old_prep.id,
+                        PrepaymentUsage.status == 'confirmed'
+                    ).scalar()
+                    old_correct = old_prep.amount - Decimal(str(float(old_confirmed_used)))
+                    if abs(old_prep.balance_amount - old_correct) > Decimal('0.01'):
+                        old_prep.balance_amount = old_correct
+                        old_prep.update_status()
 
         db.session.commit()
 

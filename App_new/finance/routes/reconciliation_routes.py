@@ -1117,6 +1117,7 @@ def batch_match():
     try:
         data = request.get_json()
         matches = data.get('matches', [])  # [{transaction_id, receipt_id}, ...]
+        logger.info(f"[batch-match] 开始处理 {len(matches)} 条匹配, 请求数据: {data}")
 
         if not matches:
             return jsonify({'success': False, 'message': '没有选择要匹配的记录'})
@@ -1132,18 +1133,22 @@ def batch_match():
             receipt = ProjectReceipt.query.get(receipt_id)
 
             if not transaction:
+                logger.warning(f"[batch-match] 交易 {tx_id} 不存在")
                 failed_items.append({'tx_id': tx_id, 'reason': '交易不存在'})
                 continue
             if not receipt:
+                logger.warning(f"[batch-match] 收款 {receipt_id} 不存在")
                 failed_items.append({'tx_id': tx_id, 'reason': '收款不存在'})
                 continue
             if transaction.matched_receipt_id:
-                failed_items.append({'tx_id': tx_id, 'reason': '已有匹配'})
+                logger.warning(f"[batch-match] 交易 {tx_id} 已匹配到 receipt_id={transaction.matched_receipt_id}")
+                failed_items.append({'tx_id': tx_id, 'reason': f'已有匹配(receipt_id={transaction.matched_receipt_id})'})
                 continue
 
             existing = BankTransaction.query.filter_by(matched_receipt_id=receipt_id).first()
             if existing:
-                failed_items.append({'tx_id': tx_id, 'reason': '收款已被匹配'})
+                logger.warning(f"[batch-match] 收款 {receipt_id} 已被交易 {existing.id} 匹配")
+                failed_items.append({'tx_id': tx_id, 'reason': f'收款已被交易 {existing.id} 匹配'})
                 continue
 
             # 执行匹配
@@ -1152,22 +1157,21 @@ def batch_match():
 
             transaction.matched_receipt_id = receipt_id
             transaction.reconciliation_status = 'matched'
-            # 填充收款单号到 REF/EO 字段
             transaction.accounting_ref = receipt.receipt_number
-            # 自动确认该银行记录
             transaction.is_confirmed = True
             transaction.confirmed_at = current_time
             transaction.confirmed_by = current_user_name
             transaction.updated_at = current_time
 
-            # 同时更新收款记录的核对状态
             receipt.is_reconciled = True
             receipt.reconciled_at = current_time
             receipt.reconciled_by = current_user_name
 
             success_count += 1
+            logger.info(f"[batch-match] 匹配成功: tx={tx_id} -> receipt={receipt_id}({receipt.receipt_number})")
 
         db.session.commit()
+        logger.info(f"[batch-match] 完成: 成功={success_count}, 失败={len(failed_items)}, 失败详情={failed_items}")
 
         return jsonify({
             'success': True,
@@ -1179,7 +1183,9 @@ def batch_match():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"批量匹配失败: {str(e)}")
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"[batch-match] 批量匹配异常: {str(e)}\n{error_detail}")
         return jsonify({'success': False, 'message': f'批量匹配失败: {str(e)}'})
 
 
@@ -2571,6 +2577,7 @@ def eo_batch_match():
     try:
         data = request.get_json()
         matches = data.get('matches', [])  # [{transaction_id, match_type, match_id}, ...]
+        logger.info(f"[eo-batch-match] 开始处理 {len(matches)} 条匹配, 请求数据: {data}")
 
         if not matches:
             return jsonify({'success': False, 'message': '没有选择要匹配的记录'})
@@ -2592,14 +2599,17 @@ def eo_batch_match():
             if match_type == 'eo':
                 eo = ProjectEO.query.get(match_id)
                 if not eo:
-                    failed_items.append({'tx_id': tx_id, 'reason': 'EO不存在'})
+                    logger.warning(f"[eo-batch-match] EO {match_id} 不存在")
+                    failed_items.append({'tx_id': tx_id, 'reason': f'EO {match_id} 不存在'})
                     continue
                 if transaction.eo_id:
-                    failed_items.append({'tx_id': tx_id, 'reason': '已有匹配'})
+                    logger.warning(f"[eo-batch-match] 交易 {tx_id} 已匹配到 eo_id={transaction.eo_id}")
+                    failed_items.append({'tx_id': tx_id, 'reason': f'交易已匹配(eo_id={transaction.eo_id})'})
                     continue
                 existing = BankTransaction.query.filter_by(eo_id=match_id).first()
                 if existing:
-                    failed_items.append({'tx_id': tx_id, 'reason': 'EO已被匹配'})
+                    logger.warning(f"[eo-batch-match] EO {match_id} 已被交易 {existing.id} 匹配")
+                    failed_items.append({'tx_id': tx_id, 'reason': f'EO已被交易 {existing.id} 匹配'})
                     continue
                 transaction.eo_id = match_id
                 transaction.accounting_ref = eo.eo_number
@@ -2649,8 +2659,10 @@ def eo_batch_match():
             transaction.confirmed_by = current_user_name
             transaction.updated_at = datetime.utcnow()
             success_count += 1
+            logger.info(f"[eo-batch-match] 匹配成功: tx={tx_id} -> {match_type}={match_id}")
 
         db.session.commit()
+        logger.info(f"[eo-batch-match] 完成: 成功={success_count}, 失败={len(failed_items)}, 失败详情={failed_items}")
 
         return jsonify({
             'success': True,
@@ -2662,7 +2674,9 @@ def eo_batch_match():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"EO批量匹配失败: {str(e)}")
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"[eo-batch-match] 批量匹配异常: {str(e)}\n{error_detail}")
         return jsonify({'success': False, 'message': f'批量匹配失败: {str(e)}'})
 
 
@@ -2815,6 +2829,7 @@ def multi_match():
     try:
         data = request.get_json()
         matches = data.get('matches', [])
+        logger.info(f"[multi-match] 开始处理 {len(matches)} 条匹配, 请求数据: {data}")
 
         if not matches:
             return jsonify({'success': False, 'message': '没有提供匹配数据'})
@@ -2908,8 +2923,10 @@ def multi_match():
             target.reconciled_by = current_user_name
 
             success_count += 1
+            logger.info(f"[multi-match] 匹配成功: tx={tx_id} -> {match_type}={match_id}, amount={amount}")
 
         db.session.commit()
+        logger.info(f"[multi-match] 完成: 成功={success_count}, 失败={len(failed_items)}, 失败详情={failed_items}")
 
         return jsonify({
             'success': True,
@@ -2921,9 +2938,9 @@ def multi_match():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"多对多匹配失败: {str(e)}")
         import traceback
-        traceback.print_exc()
+        error_detail = traceback.format_exc()
+        logger.error(f"[multi-match] 匹配异常: {str(e)}\n{error_detail}")
         return jsonify({'success': False, 'message': f'匹配失败: {str(e)}'})
 
 
