@@ -2319,8 +2319,10 @@ def eo_manual_match():
         transaction_id = data.get('transaction_id')
         match_type = data.get('match_type', 'eo')
         match_id = data.get('match_id') or data.get('eo_id')
+        logger.info(f"[eo-manual-match] 请求: tx={transaction_id}, type={match_type}, id={match_id}")
 
         if not transaction_id or not match_id:
+            logger.warning(f"[eo-manual-match] 参数不完整: tx={transaction_id}, id={match_id}")
             return jsonify({'success': False, 'message': '缺少交易ID或匹配记录ID'})
 
         # 查找银行交易
@@ -2439,6 +2441,7 @@ def eo_manual_match():
             return jsonify({'success': False, 'message': f'不支持的匹配类型: {match_type}'})
 
         db.session.commit()
+        logger.info(f"[eo-manual-match] 成功: tx={transaction_id} -> {match_type}={match_id}")
 
         return jsonify({
             'success': True,
@@ -2450,7 +2453,9 @@ def eo_manual_match():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"手动匹配失败: {str(e)}")
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"[eo-manual-match] 异常: tx={transaction_id}, {match_type}={match_id}, error={str(e)}\n{error_detail}")
         return jsonify({'success': False, 'message': f'匹配失败: {str(e)}'})
 
 

@@ -1212,6 +1212,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
+                acceptBtn.innerHTML = '<i class="fas fa-check text-success"></i>';
+
                 // 平滑移除卡片
                 card.style.transition = 'all 0.3s ease';
                 card.style.opacity = '0';
@@ -1219,7 +1221,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 setTimeout(() => {
                     card.remove();
-                    // 更新建议数组
                     const realIdx = currentSuggestions.findIndex(s =>
                         s.transaction_id === suggestion.transaction_id &&
                         s.receipt_id === suggestion.receipt_id
@@ -1228,20 +1229,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         currentSuggestions.splice(realIdx, 1);
                     }
 
-                    // 如果没有更多建议，显示提示
                     if (currentSuggestions.length === 0) {
                         document.getElementById('suggestionsBody').innerHTML =
                             '<p class="text-center text-success py-4"><i class="fas fa-check-circle me-2"></i>所有建议已处理完成</p>';
                     }
                 }, 300);
             } else {
-                alert('匹配失败: ' + result.message);
-                acceptBtn.disabled = false;
-                acceptBtn.innerHTML = '<i class="fas fa-check"></i> 接受';
+                if (result.message && (result.message.includes('已匹配') || result.message.includes('已被') || result.message.includes('已有'))) {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '0.3';
+                    acceptBtn.innerHTML = '<i class="fas fa-info-circle"></i> 已匹配';
+                    setTimeout(() => card.remove(), 1000);
+                } else {
+                    alert('匹配失败: ' + result.message);
+                    acceptBtn.disabled = false;
+                    acceptBtn.innerHTML = '<i class="fas fa-check"></i> 接受';
+                }
             }
         } catch (e) {
             console.error('匹配失败:', e);
-            alert('匹配失败');
+            alert('匹配失败: ' + e.message);
             acceptBtn.disabled = false;
             acceptBtn.innerHTML = '<i class="fas fa-check"></i> 接受';
         }
