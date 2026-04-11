@@ -54,6 +54,8 @@ def uob_bank():
         'type': request.args.get('type', ''),
         'owner': request.args.get('owner', ''),
         'ref': request.args.get('ref', ''),
+        'amount_min': request.args.get('amount_min', ''),
+        'amount_max': request.args.get('amount_max', ''),
         'match_status': request.args.get('match_status', ''),
         'match_category': request.args.get('match_category', ''),
         'operation_status': request.args.get('operation_status', ''),
@@ -145,7 +147,22 @@ def uob_bank():
         transactions_query = transactions_query.filter(
             BankTransaction.accounting_ref.like(f'%{filters["ref"]}%')
         )
-    
+
+    if filters['amount_min']:
+        try:
+            transactions_query = transactions_query.filter(
+                BankTransaction.amount >= float(filters['amount_min'])
+            )
+        except ValueError:
+            pass
+    if filters['amount_max']:
+        try:
+            transactions_query = transactions_query.filter(
+                BankTransaction.amount <= float(filters['amount_max'])
+            )
+        except ValueError:
+            pass
+
     # 标记是否需要后置筛选差额非0
     filter_diff_nonzero = False
 

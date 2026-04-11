@@ -302,6 +302,14 @@
                         </select>
                     </div>
                     <div class="col-auto">
+                        <label class="form-label">金额范围</label>
+                        <div class="d-flex gap-1 align-items-center">
+                            <input type="number" class="form-control" name="amount_min" value="{{ filters.amount_min or '' }}" placeholder="最小" step="0.01" style="width:85px; font-size:12px; padding:4px 6px;">
+                            <span style="font-size:12px;">-</span>
+                            <input type="number" class="form-control" name="amount_max" value="{{ filters.amount_max or '' }}" placeholder="最大" step="0.01" style="width:85px; font-size:12px; padding:4px 6px;">
+                        </div>
+                    </div>
+                    <div class="col-auto">
                         <label class="form-label">REF/EO</label>
                         <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
                     </div>
