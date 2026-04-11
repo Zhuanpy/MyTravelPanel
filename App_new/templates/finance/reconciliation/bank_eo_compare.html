@@ -1078,8 +1078,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="d-flex justify-content-between align-items-center">
                                 <strong style="font-size:12px;">银行支出</strong>
                                 <div class="flex-shrink-0 d-flex gap-1">
-                                    <button type="button" class="btn btn-sm btn-success accept-suggestion-btn py-0 px-2" style="font-size:12px;" data-idx="${idx}"><i class="fas fa-check"></i></button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn py-0 px-2" style="font-size:12px;" data-idx="${idx}"><i class="fas fa-times"></i></button>
+                                    <button type="button" class="btn btn-sm btn-success accept-suggestion-btn py-0 px-2" style="font-size:12px;" data-tx-id="${s.transaction_id}" data-match-type="${matchType}" data-match-id="${matchId}"><i class="fas fa-check"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn py-0 px-2" style="font-size:12px;" data-tx-id="${s.transaction_id}" data-match-type="${matchType}" data-match-id="${matchId}"><i class="fas fa-times"></i></button>
                                 </div>
                             </div>
                             <div class="my-1">
@@ -1109,19 +1109,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         container.innerHTML = '<div class="suggestions-grid">' + html + '</div>';
 
-        // 绑定接受/拒绝按钮
+        // 绑定接受/拒绝按钮（通过 tx_id + match_id 定位，不依赖数组索引）
         container.querySelectorAll('.accept-suggestion-btn').forEach(btn => {
             btn.addEventListener('click', async function() {
-                const idx = parseInt(this.dataset.idx);
-                await acceptSuggestion(idx);
+                const txId = parseInt(this.dataset.txId);
+                const matchType = this.dataset.matchType;
+                const matchId = parseInt(this.dataset.matchId);
+                await acceptSuggestion(txId, matchType, matchId);
             });
         });
 
         container.querySelectorAll('.reject-suggestion-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                const idx = parseInt(this.dataset.idx);
-                document.getElementById(`suggestion-${idx}`).remove();
-                currentSuggestions.splice(idx, 1);
+                const txId = parseInt(this.dataset.txId);
+                const matchType = this.dataset.matchType;
+                const matchId = parseInt(this.dataset.matchId);
+                const card = document.querySelector(`.suggestion-card[data-tx-id="${txId}"][data-match-id="${matchId}"]`);
+                if (card) card.remove();
+                const sIdx = currentSuggestions.findIndex(s => s.transaction_id === txId && (s.match_id || s.eo_id) == matchId);
+                if (sIdx > -1) currentSuggestions.splice(sIdx, 1);
             });
         });
 
@@ -1162,26 +1168,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 接受单个建议
-    async function acceptSuggestion(idx) {
-        const suggestion = currentSuggestions[idx];
-        if (!suggestion) return;
-
-        const card = document.getElementById(`suggestion-${idx}`);
+    // 接受单个建议（通过 txId + matchId 定位，不依赖数组索引）
+    async function acceptSuggestion(txId, matchType, matchId) {
+        const card = document.querySelector(`.suggestion-card[data-tx-id="${txId}"][data-match-id="${matchId}"]`);
+        if (!card) return;
         const acceptBtn = card.querySelector('.accept-suggestion-btn');
+        if (!acceptBtn || acceptBtn.disabled) return;
 
         acceptBtn.disabled = true;
         acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        const matchType = suggestion.match_type || 'eo';
-        const matchId = suggestion.match_id || suggestion.eo_id;
 
         try {
             const response = await fetch('/reconciliation/api/eo-manual-match', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    transaction_id: suggestion.transaction_id,
+                    transaction_id: txId,
                     match_type: matchType,
                     match_id: matchId
                 })
@@ -1190,18 +1192,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
 
             if (result.success) {
-                // 立即禁用按钮防止重复点击
                 acceptBtn.innerHTML = '<i class="fas fa-check text-success"></i>';
 
                 // 从上方面板中移除已匹配的记录
-                const txRow = document.querySelector(`#txTableBody tr[data-tx-id="${suggestion.transaction_id}"]`);
+                const txRow = document.querySelector(`#txTableBody tr[data-tx-id="${txId}"]`);
                 if (txRow) txRow.remove();
                 const recordKey = `${matchType}:${matchId}`;
                 const recordRow = document.querySelector(`#eoTableBody tr[data-record-key="${recordKey}"]`);
                 if (recordRow) recordRow.remove();
 
                 // 从数据数组中移除
-                const txIdx = bankTransactions.findIndex(t => t.id === suggestion.transaction_id);
+                const txIdx = bankTransactions.findIndex(t => t.id === txId);
                 if (txIdx > -1) bankTransactions.splice(txIdx, 1);
                 const recordIdx = projectRecords.findIndex(r => r.record_type === matchType && (r.record_id || r.id) == matchId);
                 if (recordIdx > -1) projectRecords.splice(recordIdx, 1);
@@ -1217,23 +1218,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 setTimeout(() => {
                     card.remove();
-                    // 更新建议数组
-                    const realIdx = currentSuggestions.findIndex(s =>
-                        s.transaction_id === suggestion.transaction_id &&
-                        (s.match_id || s.eo_id) === (suggestion.match_id || suggestion.eo_id)
-                    );
-                    if (realIdx > -1) {
-                        currentSuggestions.splice(realIdx, 1);
-                    }
+                    const sIdx = currentSuggestions.findIndex(s => s.transaction_id === txId && (s.match_id || s.eo_id) == matchId);
+                    if (sIdx > -1) currentSuggestions.splice(sIdx, 1);
 
-                    // 如果没有更多建议，显示提示
                     if (currentSuggestions.length === 0) {
                         document.getElementById('suggestionsBody').innerHTML =
                             '<p class="text-center text-success py-4"><i class="fas fa-check-circle me-2"></i>所有建议已处理完成</p>';
                     }
                 }, 300);
             } else {
-                // 如果是"已匹配"错误，也移除卡片（数据已存在，无需重复操作）
                 if (result.message && (result.message.includes('已匹配') || result.message.includes('已被'))) {
                     card.style.transition = 'all 0.3s ease';
                     card.style.opacity = '0.3';
