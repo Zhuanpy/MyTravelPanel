@@ -1170,15 +1170,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 接受单个建议（通过 txId + matchId 定位，不依赖数组索引）
     async function acceptSuggestion(txId, matchType, matchId) {
+        console.log(`[acceptSuggestion] 开始: txId=${txId}, matchType=${matchType}, matchId=${matchId}`);
         const card = document.querySelector(`.suggestion-card[data-tx-id="${txId}"][data-match-id="${matchId}"]`);
-        if (!card) return;
+        if (!card) { console.error(`[acceptSuggestion] 找不到卡片: tx=${txId}, match=${matchId}`); return; }
         const acceptBtn = card.querySelector('.accept-suggestion-btn');
-        if (!acceptBtn || acceptBtn.disabled) return;
+        if (!acceptBtn || acceptBtn.disabled) { console.warn(`[acceptSuggestion] 按钮不可用或已禁用`); return; }
 
         acceptBtn.disabled = true;
         acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
+            console.log(`[acceptSuggestion] 发送请求...`);
             const response = await fetch('/reconciliation/api/eo-manual-match', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1189,16 +1191,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
+            console.log(`[acceptSuggestion] 响应状态: ${response.status}`);
             const result = await response.json();
+            console.log(`[acceptSuggestion] 响应内容:`, result);
 
             if (result.success) {
+                console.log(`[acceptSuggestion] 匹配成功，开始更新UI`);
                 acceptBtn.innerHTML = '<i class="fas fa-check text-success"></i>';
 
                 // 从上方面板中移除已匹配的记录
                 const txRow = document.querySelector(`#txTableBody tr[data-tx-id="${txId}"]`);
+                console.log(`[acceptSuggestion] 银行行: ${txRow ? '找到并移除' : '未找到'}`);
                 if (txRow) txRow.remove();
                 const recordKey = `${matchType}:${matchId}`;
                 const recordRow = document.querySelector(`#eoTableBody tr[data-record-key="${recordKey}"]`);
+                console.log(`[acceptSuggestion] 记录行(${recordKey}): ${recordRow ? '找到并移除' : '未找到'}`);
                 if (recordRow) recordRow.remove();
 
                 // 从数据数组中移除
@@ -1212,6 +1219,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 eoTotalCount.textContent = `${projectRecords.length} 条`;
 
                 // 平滑移除建议卡片
+                console.log(`[acceptSuggestion] 开始移除卡片动画`);
                 card.style.transition = 'all 0.3s ease';
                 card.style.opacity = '0';
                 card.style.transform = 'translateX(20px)';
@@ -1239,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } catch (e) {
-            console.error('匹配失败:', e);
+            console.error('[acceptSuggestion] 异常:', e, e.stack);
             alert('匹配失败: ' + e.message);
             acceptBtn.disabled = false;
             acceptBtn.innerHTML = '<i class="fas fa-check"></i> 接受';
