@@ -456,6 +456,7 @@ function updateSelectionDisplay() {
     document.getElementById('selectedCount').textContent = selectedEOIds.length;
     document.getElementById('totalAmount').textContent = currency + ' ' + totalAmount.toFixed(2);
     document.getElementById('pay_amount').value = totalAmount.toFixed(2);
+    updatePrepaymentRemaining();
 
     // 更新提交按钮状态
     document.getElementById('submitBtn').disabled = selectedEOIds.length === 0;
@@ -478,6 +479,19 @@ function updateSelectionDisplay() {
 
 let currentPrepaymentBalance = 0;
 let currentSupplierName = '';
+
+function updatePrepaymentRemaining() {
+    const el = document.getElementById('prepaymentRemaining');
+    if (!el || currentPrepaymentBalance <= 0) return;
+    const payAmount = parseFloat(document.getElementById('pay_amount').value) || 0;
+    if (payAmount > 0) {
+        const remaining = currentPrepaymentBalance - payAmount;
+        const color = remaining >= 0 ? 'text-primary' : 'text-danger';
+        el.innerHTML = `<br><small>扣款后余额: <strong class="${color}">SGD ${remaining.toFixed(2)}</strong></small>`;
+    } else {
+        el.innerHTML = '';
+    }
+}
 
 function togglePrepaymentSelect() {
     const isPrepayment = document.getElementById('source_prepayment').checked;
@@ -504,7 +518,9 @@ function loadPrepaymentBalance(supplierId) {
                 if (data.prepayments.length > 1) {
                     prepaymentInfo += `<br><small class="text-muted">共 ${data.prepayments.length} 笔预付账款，将按充值时间顺序自动抵扣</small>`;
                 }
+                prepaymentInfo += `<span id="prepaymentRemaining"></span>`;
                 textSpan.innerHTML = prepaymentInfo;
+                updatePrepaymentRemaining();
                 infoDiv.classList.remove('alert-warning', 'alert-danger');
                 infoDiv.classList.add('alert-info');
             } else {
