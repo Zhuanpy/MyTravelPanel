@@ -371,20 +371,80 @@ def dashboard():
         month_cost = float(month_stats.cost) if month_stats else 0
         month_profit = month_selling - month_cost
 
-        # 待收款金额（聚合查询：未结算项目的销售总额 - 已收款总额）
-        unsettled_selling = db.session.query(
-            func.coalesce(func.sum(ProjectRef.selling_price), 0)
+        # 待收款金额（按项目分别计算，三种收款方式合并，与项目列表一致）
+        from sqlalchemy import case, union_all
+        from ...business.projects.models.receipt import ReceiptInvoiceAllocation
+
+        # 子查询：每个未结算项目的销售总额
+        selling_subq = db.session.query(
+            ProjectRef.header_id.label('hid'),
+            func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_selling')
         ).join(ProjectHeader).filter(
             ProjectHeader.is_settled == False
-        ).scalar() or 0
+        ).group_by(ProjectRef.header_id).subquery()
 
-        total_received = db.session.query(
-            func.coalesce(func.sum(ProjectReceipt.amount), 0)
+        # 收款方式1: 通过发票分配表（按发票所属项目归集，正确处理跨项目收款）
+        alloc_receipt = db.session.query(
+            ProjectInvoice.header_id.label('hid'),
+            ReceiptInvoiceAllocation.allocated_amount.label('amount')
+        ).join(
+            ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
+            ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+        ).join(
+            ProjectHeader, ProjectInvoice.header_id == ProjectHeader.id
+        ).filter(
+            ProjectHeader.is_settled == False,
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id == None
+        )
+
+        # 收款方式2: REF级别直接收款
+        ref_receipt = db.session.query(
+            ProjectReceipt.header_id.label('hid'),
+            ProjectReceipt.amount.label('amount')
         ).join(ProjectHeader).filter(
-            ProjectHeader.is_settled == False
+            ProjectHeader.is_settled == False,
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id.isnot(None)
+        )
+
+        # 收款方式3: 无分配记录的旧项目级别收款
+        old_receipts_ids = db.session.query(
+            ReceiptInvoiceAllocation.receipt_id
+        ).distinct().subquery()
+
+        old_receipt = db.session.query(
+            ProjectReceipt.header_id.label('hid'),
+            ProjectReceipt.amount.label('amount')
+        ).join(ProjectHeader).filter(
+            ProjectHeader.is_settled == False,
+            ProjectReceipt.status == 'confirmed',
+            ProjectReceipt.ref_id == None,
+            ~ProjectReceipt.id.in_(old_receipts_ids)
+        )
+
+        # 合并三种收款方式，按项目分组求和
+        combined = union_all(alloc_receipt, ref_receipt, old_receipt).alias('combined_receipts')
+        receipt_subq = db.session.query(
+            combined.c.hid,
+            func.coalesce(func.sum(combined.c.amount), 0).label('total_received')
+        ).group_by(combined.c.hid).subquery()
+
+        # 汇总：每个项目的 max(0, 销售额 - 已收款)
+        total_receivable_result = db.session.query(
+            func.coalesce(func.sum(
+                case(
+                    (selling_subq.c.total_selling > func.coalesce(receipt_subq.c.total_received, 0),
+                     selling_subq.c.total_selling - func.coalesce(receipt_subq.c.total_received, 0)),
+                    else_=0
+                )
+            ), 0)
+        ).select_from(selling_subq).outerjoin(
+            receipt_subq, receipt_subq.c.hid == selling_subq.c.hid
         ).scalar() or 0
 
-        total_receivable = float(unsettled_selling) - float(total_received)
+        total_receivable = float(total_receivable_result)
 
         # 待付款 EO 统计（聚合查询）
         pending_eo_stats = db.session.query(
@@ -401,7 +461,7 @@ def dashboard():
         stats = {
             'month_selling': month_selling,
             'month_profit': month_profit,
-            'total_receivable': max(0, total_receivable),
+            'total_receivable': total_receivable,
             'pending_eo_count': pending_eo_count,
             'pending_eo_amount': pending_eo_amount,
         }

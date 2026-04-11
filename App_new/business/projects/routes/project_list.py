@@ -551,7 +551,7 @@ def list_projects():
         if all_filtered_ids:
             try:
                 from App_new.business.projects.models.invoice import ProjectInvoice
-                from sqlalchemy import union_all
+                from sqlalchemy import union_all, case
 
                 # 汇总所有筛选项目的销售和成本
                 all_refs_totals = db.session.query(
@@ -562,50 +562,82 @@ def list_projects():
                 total_selling_all = float(all_refs_totals.total_selling or 0)
                 total_cost_all = float(all_refs_totals.total_cost or 0)
 
-                # 计算总收款（通过发票分配 + REF直接收款 + 旧项目收款）
+                # 按项目计算收款（与筛选逻辑一致，通过 union_all 合并三种收款方式）
                 # 方式1: 通过发票分配表统计
-                alloc_total = db.session.query(
-                    db.func.coalesce(db.func.sum(ReceiptInvoiceAllocation.allocated_amount), 0)
+                alloc_by_project = db.session.query(
+                    ProjectInvoice.header_id.label('hid'),
+                    ReceiptInvoiceAllocation.allocated_amount.label('amount')
                 ).join(
-                    ProjectInvoice, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
                 ).join(
                     ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
                 ).filter(
                     ProjectInvoice.header_id.in_(all_filtered_ids),
                     ProjectReceipt.status == 'confirmed',
                     ProjectReceipt.ref_id == None
-                ).scalar() or 0
+                )
 
                 # 方式2: REF级别直接收款
-                ref_receipt_total = db.session.query(
-                    db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)
+                ref_receipt_by_project = db.session.query(
+                    ProjectReceipt.header_id.label('hid'),
+                    ProjectReceipt.amount.label('amount')
                 ).filter(
                     ProjectReceipt.header_id.in_(all_filtered_ids),
                     ProjectReceipt.status == 'confirmed',
                     ProjectReceipt.ref_id.isnot(None)
-                ).scalar() or 0
+                )
 
                 # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）
                 old_receipts_subq = db.session.query(
                     ReceiptInvoiceAllocation.receipt_id
                 ).distinct().subquery()
 
-                old_receipt_total = db.session.query(
-                    db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)
+                old_receipt_by_project = db.session.query(
+                    ProjectReceipt.header_id.label('hid'),
+                    ProjectReceipt.amount.label('amount')
                 ).filter(
                     ProjectReceipt.header_id.in_(all_filtered_ids),
                     ProjectReceipt.status == 'confirmed',
                     ProjectReceipt.ref_id == None,
                     ~ProjectReceipt.id.in_(old_receipts_subq)
-                ).scalar() or 0
+                )
 
-                total_received_all = float(alloc_total) + float(ref_receipt_total) + float(old_receipt_total)
+                # 合并三种收款方式，按项目分组求和
+                combined_receipts = union_all(
+                    alloc_by_project, ref_receipt_by_project, old_receipt_by_project
+                ).alias('combined_receipts_summary')
+
+                receipt_per_project = db.session.query(
+                    combined_receipts.c.hid,
+                    db.func.coalesce(db.func.sum(combined_receipts.c.amount), 0).label('total_received')
+                ).group_by(combined_receipts.c.hid).subquery()
+
+                # 每个项目的销售额
+                selling_per_project = db.session.query(
+                    ProjectRef.header_id.label('hid'),
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
+                ).filter(
+                    ProjectRef.header_id.in_(all_filtered_ids)
+                ).group_by(ProjectRef.header_id).subquery()
+
+                # 汇总：每个项目的 max(0, 销售额 - 已收款)，避免多收项目产生负数
+                total_balance_result = db.session.query(
+                    db.func.coalesce(db.func.sum(
+                        case(
+                            (selling_per_project.c.total_selling > db.func.coalesce(receipt_per_project.c.total_received, 0),
+                             selling_per_project.c.total_selling - db.func.coalesce(receipt_per_project.c.total_received, 0)),
+                            else_=0
+                        )
+                    ), 0)
+                ).select_from(selling_per_project).outerjoin(
+                    receipt_per_project, receipt_per_project.c.hid == selling_per_project.c.hid
+                ).scalar() or 0
 
                 summary_stats = {
                     'total_selling': total_selling_all,
                     'total_cost': total_cost_all,
                     'total_profit': total_selling_all - total_cost_all,
-                    'total_balance': total_selling_all - total_received_all
+                    'total_balance': float(total_balance_result)
                 }
             except Exception as e:
                 print(f"计算总计时出错: {e}")
