@@ -354,6 +354,52 @@ def toggle_reconcile(prepayment_id):
         return jsonify({'success': False, 'message': f'操作失败：{str(e)}'})
 
 
+@project_prepayment.route('/<int:prepayment_id>/unmatch', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def unmatch_prepayment(prepayment_id):
+    """解除预付款的银行匹配"""
+    try:
+        from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+        from App_new.finance.models.statement import BankTransaction
+
+        prepayment = SupplierPrepayment.query.get_or_404(prepayment_id)
+
+        # 查找并删除匹配记录
+        matches = BankTransactionMatch.query.filter_by(
+            match_type='prepayment',
+            match_id=prepayment_id
+        ).all()
+
+        if not matches:
+            return jsonify({'success': False, 'message': '未找到匹配记录'})
+
+        for match in matches:
+            # 恢复银行交易状态
+            tx = BankTransaction.query.get(match.transaction_id)
+            if tx:
+                tx.is_confirmed = False
+                tx.confirmed_at = None
+                tx.confirmed_by = None
+                tx.reconciliation_status = 'unmatched'
+                tx.accounting_ref = None
+                tx.updated_at = datetime.utcnow()
+            db.session.delete(match)
+
+        # 恢复预付款核对状态
+        prepayment.is_reconciled = False
+        prepayment.reconciled_at = None
+        prepayment.reconciled_by = None
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'已解除 {len(matches)} 条银行匹配'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'解除失败：{str(e)}'})
+
+
 @project_prepayment.route('/<int:prepayment_id>/cancel', methods=['POST'])
 @login_required
 @staff_only

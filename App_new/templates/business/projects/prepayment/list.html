@@ -138,10 +138,14 @@
                                 <span class="badge badge-unreconciled"><i class="fas fa-clock"></i> 未核对</span>
                             {% endif %}
                         </td>
-                        <td style="font-size: 0.78rem; max-width: 200px;">
+                        <td style="font-size: 0.78rem; max-width: 220px;">
                             {% set mi = match_info.get(p.id) %}
                             {% if mi %}
-                                <div><span class="text-muted">{{ mi.tx_date }}</span> <span class="fw-bold text-danger">{{ "%.2f"|format(mi.tx_amount) }}</span></div>
+                                <div><span class="text-muted">{{ mi.tx_date }}</span> <span class="fw-bold text-danger">{{ "%.2f"|format(mi.tx_amount) }}</span>
+                                    <button class="btn btn-link btn-sm p-0 ms-1 text-danger" onclick="unmatchPrepayment({{ p.id }})" title="解除匹配">
+                                        <i class="fas fa-unlink" style="font-size:11px;"></i>
+                                    </button>
+                                </div>
                                 <div class="text-truncate text-muted" title="{{ mi.tx_counterparty }}{{ ' · ' ~ mi.tx_description if mi.tx_description else '' }}">
                                     {{ mi.tx_counterparty }}{{ ' · ' ~ mi.tx_description if mi.tx_description else '' }}
                                 </div>
@@ -322,6 +326,25 @@ function confirmReconcile(id) {
             location.reload();
         } else {
             alert('操作失败: ' + data.message);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+// 解除银行匹配
+function unmatchPrepayment(prepaymentId) {
+    if (!confirm('确定解除此预付款的银行匹配？解除后需要重新对账匹配。')) return;
+
+    fetch(`/projects/prepayment/${prepaymentId}/unmatch`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('解除失败: ' + data.message);
         }
     })
     .catch(err => alert('请求失败: ' + err));
