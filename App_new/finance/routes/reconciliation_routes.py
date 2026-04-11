@@ -1989,37 +1989,72 @@ def eo_auto_match_suggestions():
 
         # 计算匹配建议
         suggestions = []
+        import re
         for tx in transactions:
             best_match = None
             best_score = 0
             best_match_type = 'eo'
 
-            # 优先：通过 accounting_ref 匹配编号
-            ref = (tx.accounting_ref or '').strip()
-            if ref:
-                if ref in eo_by_number:
-                    best_match = eo_by_number[ref]
-                    best_score = 200
-                    best_match_type = 'eo'
-                elif ref in pay_by_number:
-                    best_match = pay_by_number[ref]
-                    best_score = 200
-                    best_match_type = 'payment'
-                elif ref in prepay_by_number:
-                    best_match = prepay_by_number[ref]
-                    best_score = 200
-                    best_match_type = 'prepayment'
+            # 收集所有可能包含编号的文本（accounting_ref + description）
+            search_texts = []
+            if tx.accounting_ref:
+                search_texts.append(tx.accounting_ref.strip())
+            if tx.description:
+                search_texts.append(tx.description.strip())
+
+            # 优先1：通过编号精确匹配预付款（用户转账时通常输入预付编号）
+            for text in search_texts:
+                if best_match:
+                    break
+                # 在文本中搜索预付编号（SP开头）
+                for pn, prep in prepay_by_number.items():
+                    if pn in text:
+                        best_match = prep
+                        best_score = 200
+                        best_match_type = 'prepayment'
+                        break
+
+            # 优先2：通过编号匹配EO和付款记录
+            if not best_match:
+                for text in search_texts:
+                    if best_match:
+                        break
+                    if text in eo_by_number:
+                        best_match = eo_by_number[text]
+                        best_score = 200
+                        best_match_type = 'eo'
+                    elif text in pay_by_number:
+                        best_match = pay_by_number[text]
+                        best_score = 200
+                        best_match_type = 'payment'
+                    else:
+                        # 在文本中搜索付款编号（PAY-开头）
+                        for pn, pay in pay_by_number.items():
+                            if pn in text:
+                                best_match = pay
+                                best_score = 200
+                                best_match_type = 'payment'
+                                break
+                        if not best_match:
+                            # 在文本中搜索EO编号（E开头+数字）
+                            for en, eo_rec in eo_by_number.items():
+                                if en in text:
+                                    best_match = eo_rec
+                                    best_score = 200
+                                    best_match_type = 'eo'
+                                    break
 
             if not best_match:
-                # 回退：金额+日期匹配（EO）
-                for eo in eos:
-                    score = calculate_eo_match_score(tx, eo)
+                # 回退：金额+日期匹配，优先匹配预付款
+                # 先匹配预付款
+                for pre in unmatched_prepayments:
+                    score = calculate_prepayment_match_score(tx, pre)
                     if score > best_score and score >= 40:
                         best_score = score
-                        best_match = eo
-                        best_match_type = 'eo'
+                        best_match = pre
+                        best_match_type = 'prepayment'
 
-                # 金额+日期匹配（Payment）
+                # 再匹配付款记录
                 for pay in unmatched_payments:
                     score = calculate_payment_match_score(tx, pay)
                     if score > best_score and score >= 40:
@@ -2027,13 +2062,13 @@ def eo_auto_match_suggestions():
                         best_match = pay
                         best_match_type = 'payment'
 
-                # 金额+日期匹配（Prepayment）
-                for pre in unmatched_prepayments:
-                    score = calculate_prepayment_match_score(tx, pre)
+                # 最后匹配EO
+                for eo in eos:
+                    score = calculate_eo_match_score(tx, eo)
                     if score > best_score and score >= 40:
                         best_score = score
-                        best_match = pre
-                        best_match_type = 'prepayment'
+                        best_match = eo
+                        best_match_type = 'eo'
 
             if best_match:
                 suggestion = {
