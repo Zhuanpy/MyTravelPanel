@@ -340,48 +340,49 @@
     Chart.defaults.font.size = 12;
     Chart.defaults.color = '#6b7280';
 
-    // 1. 月度业绩趋势（折线图）
+    // 1. 月度业绩趋势（柱状图 + 折线图混合）
     new Chart(document.getElementById('chartPerformance'), {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: chartData.monthly_labels,
             datasets: [
                 {
                     label: 'Sales',
+                    type: 'bar',
                     data: chartData.monthly_selling,
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                    fill: true,
-                    tension: 0.3,
-                    borderWidth: 2.5,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    pointBackgroundColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.65)',
+                    hoverBackgroundColor: 'rgba(37, 99, 235, 0.85)',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    maxBarThickness: 28,
+                    order: 2,
                 },
                 {
                     label: 'Cost',
+                    type: 'bar',
                     data: chartData.monthly_cost,
-                    borderColor: '#9ca3af',
-                    backgroundColor: 'rgba(156, 163, 175, 0.05)',
-                    fill: true,
-                    tension: 0.3,
-                    borderWidth: 2,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
-                    pointBackgroundColor: '#9ca3af',
-                    borderDash: [4, 3],
+                    backgroundColor: 'rgba(156, 163, 175, 0.45)',
+                    hoverBackgroundColor: 'rgba(156, 163, 175, 0.7)',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    maxBarThickness: 28,
+                    order: 3,
                 },
                 {
                     label: 'Profit',
+                    type: 'line',
                     data: chartData.monthly_profit,
                     borderColor: '#16a34a',
                     backgroundColor: 'rgba(22, 163, 74, 0.08)',
                     fill: true,
-                    tension: 0.3,
+                    tension: 0.35,
                     borderWidth: 2.5,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    pointBackgroundColor: '#16a34a',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#16a34a',
+                    pointBorderWidth: 2,
+                    order: 1,
                 }
             ]
         },
