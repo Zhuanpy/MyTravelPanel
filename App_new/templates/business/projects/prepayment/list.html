@@ -38,6 +38,16 @@
         <div class="card-body py-2">
             <form method="get" class="row g-2 align-items-center">
                 <div class="col-auto">
+                    <select name="payment_method" class="form-select form-select-sm">
+                        <option value="">全部类型</option>
+                        <option value="bank_transfer" {% if current_filters.payment_method == 'bank_transfer' %}selected{% endif %}>银行转账</option>
+                        <option value="paynow" {% if current_filters.payment_method == 'paynow' %}selected{% endif %}>PayNow</option>
+                        <option value="credit_card" {% if current_filters.payment_method == 'credit_card' %}selected{% endif %}>信用卡</option>
+                        <option value="cash" {% if current_filters.payment_method == 'cash' %}selected{% endif %}>现金</option>
+                        <option value="other" {% if current_filters.payment_method == 'other' %}selected{% endif %}>其他</option>
+                    </select>
+                </div>
+                <div class="col-auto">
                     <select name="supplier_id" class="form-select form-select-sm">
                         <option value="">全部供应商</option>
                         {% for supplier in suppliers %}

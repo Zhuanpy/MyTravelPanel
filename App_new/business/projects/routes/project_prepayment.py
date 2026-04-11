@@ -29,6 +29,7 @@ def list_prepayments():
     from sqlalchemy import func, or_
 
     # 获取筛选参数
+    payment_method = request.args.get('payment_method', '')
     supplier_id = request.args.get('supplier_id', type=int)
     status = request.args.get('status', '')
     start_date = request.args.get('start_date', '')
@@ -43,6 +44,8 @@ def list_prepayments():
     # 构建查询
     query = SupplierPrepayment.query
 
+    if payment_method:
+        query = query.filter_by(payment_method=payment_method)
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
     if status:
@@ -119,6 +122,7 @@ def list_prepayments():
                            total_used=total_used,
                            match_info=match_info,
                            current_filters={
+                               'payment_method': payment_method,
                                'supplier_id': supplier_id,
                                'status': status,
                                'start_date': start_date,
