@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>编辑 {{ project.hid }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5; color: #333; line-height: 1.5;
+            -webkit-font-smoothing: antialiased; padding-bottom: 80px;
+        }
+
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex; align-items: center; padding: 0 16px;
+            z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-back { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; text-decoration: none; margin-right: 8px; }
+        .header-title { flex: 1; color: white; font-size: 16px; font-weight: 600; }
+
+        .main-content { padding-top: 56px; }
+
+        .form-card {
+            background: white; margin: 8px 12px; border-radius: 10px;
+            padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .form-card-title {
+            font-size: 13px; font-weight: 600; color: #64748b;
+            margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;
+        }
+        .form-card-title i { margin-right: 5px; color: #10b981; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 9px 10px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; color: #334155; background: white;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+        }
+        .form-textarea { resize: vertical; min-height: 60px; }
+        .form-row { display: flex; gap: 8px; }
+        .form-row > .form-group { flex: 1; }
+
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 68px;
+            background: white; display: flex; align-items: center;
+            padding: 0 16px; gap: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08); z-index: 100;
+        }
+        .cancel-btn {
+            height: 42px; padding: 0 20px; border-radius: 21px;
+            background: #f1f5f9; color: #64748b; border: none;
+            font-size: 14px; cursor: pointer; text-decoration: none;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .save-btn {
+            flex: 1; height: 42px; border: none; border-radius: 21px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .save-btn:disabled { opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="header-back"><i class="fas fa-arrow-left"></i></a>
+    <div class="header-title">编辑 {{ project.hid }}</div>
+</header>
+
+<main class="main-content">
+    <!-- 基本信息 -->
+    <div class="form-card">
+        <div class="form-card-title"><i class="fas fa-info-circle"></i> 基本信息</div>
+        <div class="form-group">
+            <label class="form-label">描述</label>
+            <input type="text" id="desc" class="form-input" value="{{ project.desc or '' }}" placeholder="项目描述">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">客户公司</label>
+                <select id="companyId" class="form-select">
+                    <option value="0" {% if not project.company_id %}selected{% endif %}>个人</option>
+                    {% for c in companies %}
+                    <option value="{{ c.id }}" {% if project.company_id == c.id %}selected{% endif %}>{{ c.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">联系人</label>
+                <input type="text" id="contact" class="form-input" value="{{ project.contact or '' }}" placeholder="联系人">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">经办人</label>
+                <select id="staffId" class="form-select">
+                    {% for s in staff_list %}
+                    <option value="{{ s.id }}" {% if project.staff_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">状态</label>
+                <select id="status" class="form-select">
+                    <option value="active" {% if project.status == 'active' %}selected{% endif %}>进行中</option>
+                    <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="cancelled" {% if project.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                    <option value="draft" {% if project.status == 'draft' %}selected{% endif %}>草稿</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提醒 -->
+    <div class="form-card">
+        <div class="form-card-title"><i class="fas fa-bell"></i> 提醒</div>
+        <div class="form-group">
+            <label class="form-label">提醒事项</label>
+            <input type="text" id="reminderEvent" class="form-input" value="{{ project.reminder_event or '' }}" placeholder="例：护照到期提醒">
+        </div>
+        <div class="form-group">
+            <label class="form-label">提醒日期</label>
+            <input type="date" id="reminderDate" class="form-input" value="{{ project.reminder_date.strftime('%Y-%m-%d') if project.reminder_date else '' }}">
+        </div>
+    </div>
+
+    <!-- 备注 -->
+    <div class="form-card">
+        <div class="form-card-title"><i class="fas fa-sticky-note"></i> 备注</div>
+        <div class="form-group">
+            <textarea id="remarks" class="form-textarea" rows="3" placeholder="项目备注...">{{ project.remarks or '' }}</textarea>
+        </div>
+    </div>
+</main>
+
+<div class="bottom-bar">
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="cancel-btn">取消</a>
+    <button type="button" class="save-btn" id="saveBtn" onclick="saveProject()">
+        <i class="fas fa-check"></i> 保存
+    </button>
+</div>
+
+<script>
+function saveProject() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+    fetch('{{ url_for("mobile.edit_project", project_id=project.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            desc: document.getElementById('desc').value,
+            company_id: document.getElementById('companyId').value,
+            contact: document.getElementById('contact').value,
+            staff_id: document.getElementById('staffId').value,
+            status: document.getElementById('status').value,
+            reminder_event: document.getElementById('reminderEvent').value,
+            reminder_date: document.getElementById('reminderDate').value,
+            remarks: document.getElementById('remarks').value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{{ url_for("mobile.project_detail", project_id=project.id) }}';
+        } else {
+            alert(data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> 保存';
+        }
+    })
+    .catch(() => {
+        alert('网络错误');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> 保存';
+    });
+}
+</script>
+
+</body>
+</html>

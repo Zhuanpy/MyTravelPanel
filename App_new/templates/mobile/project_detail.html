@@ -37,7 +37,7 @@
     </div>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
         <div style="display:flex; align-items:center; gap:10px;">
-            <a href="{{ url_for('business_projects.project_header.edit_header', header_id=project.id) }}" style="font-size:12px; color:#94a3b8; text-decoration:none;"><i class="fas fa-edit" style="margin-right:3px;"></i>编辑项目</a>
+            <a href="{{ url_for('mobile.edit_project', project_id=project.id) }}" style="font-size:12px; color:#94a3b8; text-decoration:none;"><i class="fas fa-edit" style="margin-right:3px;"></i>编辑项目</a>
             <span style="font-size:11px; color:#d1d5db;">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</span>
         </div>
         <div>

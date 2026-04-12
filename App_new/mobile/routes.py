@@ -1309,6 +1309,70 @@ def book_ticket(product_id):
                          company=company_info)
 
 
+@mobile_bp.route('/project/<int:project_id>/edit', methods=['GET', 'POST'])
+@csrf.exempt
+@login_required
+def edit_project(project_id):
+    """手机端编辑项目"""
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.auth.models.auth import AuthUser, UserProfile, Role
+    from App_new.shared.models.Suppliers import CustomerCompany
+    from App_new.utils.permissions import can_access_project
+
+    project = ProjectHeader.query.get_or_404(project_id)
+    if not can_access_project(project, current_user):
+        flash('无权操作', 'error')
+        return redirect(url_for('mobile.projects'))
+
+    # 获取公司列表
+    companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
+
+    # 获取员工列表
+    staff_role = Role.query.filter_by(name='staff').first()
+    admin_role = Role.query.filter_by(name='admin').first()
+    role_ids = [r.id for r in [staff_role, admin_role] if r]
+    staff_list = []
+    if role_ids:
+        users = db.session.query(AuthUser.id, AuthUser.username, UserProfile.first_name, UserProfile.last_name
+        ).outerjoin(UserProfile, AuthUser.id == UserProfile.user_id
+        ).filter(AuthUser.role_id.in_(role_ids), AuthUser.is_active == True).all()
+        for u in users:
+            name = f"{u.first_name or ''}{u.last_name or ''}".strip() or u.username
+            staff_list.append({'id': u.id, 'name': name})
+
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+
+            company_id = data.get('company_id')
+            project.company_id = int(company_id) if company_id and int(company_id) > 0 else None
+            project.desc = data.get('desc', project.desc)
+            project.contact = data.get('contact', project.contact)
+            project.staff_id = int(data.get('staff_id')) if data.get('staff_id') else project.staff_id
+            project.status = data.get('status', project.status)
+            project.remarks = data.get('remarks', project.remarks)
+            project.reminder_event = data.get('reminder_event', project.reminder_event)
+
+            reminder_date = data.get('reminder_date', '')
+            if reminder_date:
+                from datetime import datetime as dt
+                project.reminder_date = dt.strptime(reminder_date, '%Y-%m-%d').date()
+            elif data.get('reminder_date') == '':
+                project.reminder_date = None
+
+            db.session.commit()
+            return jsonify({'success': True, 'message': '保存成功'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)})
+
+    return render_template('mobile/edit_project.html',
+                         project=project,
+                         companies=companies,
+                         staff_list=staff_list)
+
+
 @mobile_bp.route('/project/<int:project_id>/receipts')
 @login_required
 def project_receipts(project_id):
