@@ -1440,6 +1440,96 @@ def project_invoices(project_id):
                          total_selling=total_selling)
 
 
+@mobile_bp.route('/invoice/<int:invoice_id>')
+@login_required
+def invoice_detail(invoice_id):
+    """手机端发票详情"""
+    from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+    import json
+
+    invoice = ProjectInvoice.query.get_or_404(invoice_id)
+
+    # 发票明细
+    items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+
+    # 收款记录
+    allocations = ReceiptInvoiceAllocation.query.filter_by(invoice_id=invoice_id).all()
+    payments = []
+    for alloc in allocations:
+        receipt = ProjectReceipt.query.get(alloc.receipt_id)
+        if receipt and receipt.status == 'confirmed':
+            payments.append({
+                'receipt_number': receipt.receipt_number,
+                'date': receipt.payment_date.strftime('%Y-%m-%d') if receipt.payment_date else '',
+                'method': receipt.payment_method_display,
+                'amount': float(alloc.allocated_amount),
+            })
+
+    return render_template('mobile/invoice_detail.html',
+                         invoice=invoice,
+                         items=items,
+                         payments=payments)
+
+
+@mobile_bp.route('/invoice/<int:invoice_id>/pdf')
+@login_required
+def invoice_pdf(invoice_id):
+    """手机端发票PDF - 渲染打印版发票"""
+    from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+    from App_new.business.projects.models.project_member import ProjectMember
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    import json
+
+    invoice = ProjectInvoice.query.get_or_404(invoice_id)
+    items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
+    company = CompanyInfo.query.first()
+    header = invoice.header
+
+    # 为每个item的ref构建extra_data
+    for item in items:
+        if item.ref and item.ref.extra_info:
+            try:
+                item.ref.extra_data = json.loads(item.ref.extra_info)
+            except:
+                item.ref.extra_data = {}
+        elif item.ref:
+            item.ref.extra_data = {}
+
+    # 客户显示信息
+    customer_display = invoice.customer_name or ''
+    customer_company_display = invoice.customer_company or ''
+    if header and header.company:
+        customer_company_display = header.company.company_name
+    if header and header.contact:
+        customer_display = header.contact
+
+    # 收款记录
+    payment_method_en = {
+        'cash': 'Cash', 'bank_transfer': 'Bank Transfer',
+        'credit_card': 'Credit Card', 'cheque': 'Cheque',
+        'wechat': 'WeChat', 'other': 'Other'
+    }
+    payments = []
+    allocations = ReceiptInvoiceAllocation.query.filter_by(invoice_id=invoice_id).all()
+    for alloc in allocations:
+        receipt = ProjectReceipt.query.get(alloc.receipt_id)
+        if receipt and receipt.status == 'confirmed':
+            payments.append({
+                'date': receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '',
+                'ref': receipt.receipt_number,
+                'method': payment_method_en.get(receipt.payment_method, receipt.payment_method),
+                'amount': float(alloc.allocated_amount),
+            })
+
+    return render_template('mobile/invoice_print.html',
+                         invoice=invoice, items=items, company=company,
+                         customer_display=customer_display,
+                         customer_company_display=customer_company_display,
+                         payments=payments)
+
+
 @mobile_bp.route('/project/<int:project_id>/receipt/create', methods=['GET', 'POST'])
 @csrf.exempt
 @login_required

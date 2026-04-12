@@ -60,13 +60,6 @@
     <a href="{{ url_for('mobile.projects', status=status, q=search, time='month') }}" class="time-tab {% if time_range == 'month' %}active{% endif %}">本月</a>
 </div>
 
-<!-- 状态筛选 -->
-<div class="filter-tabs">
-    <a href="{{ url_for('mobile.projects', time=time_range, q=search) }}" class="filter-tab {% if not status %}active{% endif %}">全部</a>
-    <a href="{{ url_for('mobile.projects', status='active', time=time_range, q=search) }}" class="filter-tab {% if status == 'active' %}active{% endif %}">进行中</a>
-    <a href="{{ url_for('mobile.projects', status='completed', time=time_range, q=search) }}" class="filter-tab {% if status == 'completed' %}active{% endif %}">已完成</a>
-    <a href="{{ url_for('mobile.projects', status='cancelled', time=time_range, q=search) }}" class="filter-tab {% if status == 'cancelled' %}active{% endif %}">已取消</a>
-</div>
 
 <!-- 项目列表 -->
 <div class="project-list">

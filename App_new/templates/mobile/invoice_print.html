@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice {{ invoice.invoice_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Times New Roman', Georgia, serif; font-size: 11px; color: #333; padding: 20px; background: white; }
+
+        .invoice-page { max-width: 800px; margin: 0 auto; }
+
+        /* 公司抬头 */
+        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+        .inv-logo { text-align: center; }
+        .inv-logo img { height: 50px; object-fit: contain; }
+        .inv-logo-text { font-size: 10px; margin-top: 3px; letter-spacing: 1px; }
+        .inv-company { text-align: right; font-size: 10px; line-height: 1.5; }
+        .inv-company .cn { font-size: 13px; font-weight: bold; }
+        .inv-company .en { font-size: 11px; font-weight: bold; }
+
+        /* 标题 */
+        .inv-title { text-align: center; font-size: 20px; font-weight: bold; margin: 12px 0; letter-spacing: 3px; }
+
+        /* 信息区 */
+        .inv-info { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .inv-info-left, .inv-info-right { font-size: 11px; line-height: 1.6; }
+        .inv-info-left { max-width: 55%; }
+        .inv-info-right { text-align: right; }
+        .inv-info td { padding: 1px 4px; vertical-align: top; }
+
+        /* 明细表 */
+        .inv-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        .inv-table th { background: #f5f5f5; padding: 6px 8px; text-align: left; font-size: 11px; border: 1px solid #ddd; }
+        .inv-table td { padding: 5px 8px; border: 1px solid #ddd; font-size: 11px; vertical-align: top; }
+        .inv-table .text-right { text-align: right; }
+        .inv-table .total-row { font-weight: bold; background: #f9f9f9; }
+
+        /* 收款记录 */
+        .inv-payments { margin-bottom: 12px; }
+        .inv-payments h4 { font-size: 11px; margin-bottom: 4px; }
+        .inv-payments table { width: 100%; border-collapse: collapse; }
+        .inv-payments th, .inv-payments td { padding: 3px 6px; border: 1px solid #ddd; font-size: 10px; }
+        .inv-payments th { background: #f5f5f5; }
+
+        /* 底部 */
+        .inv-footer { margin-top: 20px; font-size: 10px; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
+
+        /* 操作栏 */
+        .actions { text-align: center; margin: 16px 0; }
+        .actions button { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin: 0 6px; }
+        .btn-pdf { background: #10b981; color: white; }
+        .btn-back { background: #f1f5f9; color: #64748b; }
+
+        @media print {
+            .actions { display: none !important; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 操作栏 -->
+<div class="actions">
+    <button class="btn-back" onclick="history.back()"><i class="fas fa-arrow-left"></i> 返回</button>
+    <button class="btn-pdf" onclick="window.print()">保存 PDF / 打印</button>
+</div>
+
+<div class="invoice-page">
+    <!-- 公司抬头 -->
+    <div class="inv-header">
+        <div class="inv-logo">
+            {% if company and company.logo_path %}
+            <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo">
+            {% endif %}
+            {% if company and company.company_short_name %}
+            <div class="inv-logo-text">{{ company.company_short_name }}</div>
+            {% endif %}
+        </div>
+        <div class="inv-company">
+            {% if company and company.company_name_cn %}<div class="cn">{{ company.company_name_cn }}</div>{% endif %}
+            {% if company %}<div class="en">{{ company.company_name }}</div>{% endif %}
+            {% if company and company.ta_license %}TA License No.: {{ company.ta_license }}<br>{% endif %}
+            {% if company and company.email %}Email: {{ company.email }}{% endif %}
+        </div>
+    </div>
+
+    <!-- 发票标题 -->
+    <div class="inv-title">INVOICE</div>
+
+    <!-- 客户 + 发票信息 -->
+    <div class="inv-info">
+        <div class="inv-info-left">
+            <table>
+                <tr><td><strong>To</strong></td><td>:</td><td><strong>{{ customer_company_display or invoice.customer_name or '-' }}</strong></td></tr>
+                {% if invoice.customer_address %}
+                <tr><td></td><td></td><td>{{ invoice.customer_address }}</td></tr>
+                {% endif %}
+                <tr><td><strong>Attn</strong></td><td>:</td><td>{{ customer_display or '-' }}</td></tr>
+            </table>
+        </div>
+        <div class="inv-info-right">
+            <table>
+                <tr><td>Invoice</td><td>:</td><td><strong>{{ invoice.invoice_number }}</strong></td></tr>
+                <tr><td>Date</td><td>:</td><td>{{ invoice.invoice_date.strftime('%d/%m/%Y') if invoice.invoice_date else '-' }}</td></tr>
+                <tr><td>Due Date</td><td>:</td><td>{{ invoice.due_date.strftime('%d/%m/%Y') if invoice.due_date else '-' }}</td></tr>
+                <tr><td>Hd Id</td><td>:</td><td>{{ invoice.header.hid if invoice.header else '-' }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- 明细 -->
+    <table class="inv-table">
+        <thead>
+            <tr>
+                <th style="width:90px;">Ref/Type</th>
+                <th>Description</th>
+                <th style="width:80px;" class="text-right">Amount ({{ invoice.currency or 'SGD' }})</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    {% if item.ref and item.ref.ref_type %}
+                        {% set tn = item.ref.ref_type.name|default('') %}
+                        {% if tn == '机票' %}Air Ticket{% elif tn == '酒店' %}Hotel{% elif tn == '签证' %}Visa{% elif tn in ['旅游团','旅游套餐'] %}Tour{% elif tn == '保险' %}Insurance{% elif tn in ['景点/活动','门票'] %}Attraction{% else %}Service{% endif %}
+                    {% else %}Service{% endif %}
+                    <br><small>({{ item.ref.ref_number if item.ref else '' }})</small>
+                </td>
+                <td>
+                    {{ item.item_name or item.description or (item.ref.description if item.ref else '-') }}
+                    {% if item.ref and item.ref.extra_data %}
+                        {% set ed = item.ref.extra_data %}
+                        {% if ed.get('pax_names_display') %}<br>Pax: {{ ed.pax_names_display }}{% endif %}
+                        {% if ed.get('departure_date') %}<br>Date: {{ ed.departure_date }}{% endif %}
+                        {% if ed.get('route') %}<br>Route: {{ ed.route }}{% endif %}
+                    {% endif %}
+                </td>
+                <td class="text-right">{{ "%.2f"|format(item.total_price or item.unit_price or 0) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="2" class="text-right"><strong>TOTAL</strong></td>
+                <td class="text-right"><strong>{{ invoice.currency or 'SGD' }} {{ "%.2f"|format(invoice.amount or 0) }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 收款记录 -->
+    {% if payments %}
+    <div class="inv-payments">
+        <h4>Payment Record</h4>
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Ref</th><th>Method</th><th class="text-right">Amount</th></tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.date }}</td>
+                    <td>{{ p.ref }}</td>
+                    <td>{{ p.method }}</td>
+                    <td class="text-right">{{ "%.2f"|format(p.amount) }}</td>
+                </tr>
+                {% endfor %}
+                <tr style="font-weight:bold;">
+                    <td colspan="3" class="text-right">Balance Due</td>
+                    <td class="text-right">{{ invoice.currency or 'SGD' }} {{ "%.2f"|format(invoice.unpaid_amount) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="inv-footer">
+        Thank you for your business. | {{ company.company_name if company else '' }}
+    </div>
+</div>
+
+<script>
+// 自动弹出打印对话框（用户可选择"另存为PDF"）
+window.onload = function() {
+    setTimeout(function() { window.print(); }, 500);
+};
+</script>
+</body>
+</html>

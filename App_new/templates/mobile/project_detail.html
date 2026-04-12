@@ -28,8 +28,8 @@
 {% block content %}
 <!-- 项目信息 + 财务 -->
 <div class="mobile-card" style="padding-bottom:0;">
-    <div style="display:flex; align-items:center; gap:6px; font-size:13px; color:#64748b; flex-wrap:wrap;">
-        <span style="color:#1e293b; font-weight:500;">{{ project.display_desc or '无描述' }}</span>
+    <div style="display:flex; align-items:center; gap:6px; font-size:13px; color:#64748b; flex-wrap:nowrap; overflow:hidden;">
+        <span style="color:#1e293b; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:40%;">{{ project.display_desc or '无描述' }}</span>
         <span style="color:#d1d5db;">·</span>
         <span><i class="fas fa-building" style="font-size:11px; color:#94a3b8; margin-right:3px;"></i>{{ project.company.company_name if project.company else '个人' }}</span>
         <span style="color:#d1d5db;">·</span>
