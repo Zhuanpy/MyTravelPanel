@@ -26,39 +26,29 @@
 {% endblock %}
 
 {% block content %}
-<!-- 项目基本信息 -->
-<div class="mobile-card">
+<!-- 项目信息 + 财务 -->
+<div class="mobile-card" style="padding-bottom:0;">
     <div class="project-header">
-        <div class="project-hid">{{ project.hid }}</div>
-        <span class="status-badge status-{{ project.status }}">
-            {% if project.status == 'completed' %}已完成
-            {% elif project.status == 'cancelled' %}已取消
-            {% elif project.status == 'draft' %}草稿
-            {% else %}进行中{% endif %}
-        </span>
+        <div>
+            <span class="project-hid">{{ project.hid }}</span>
+            <span class="status-badge status-{{ project.status }}">
+                {% if project.status == 'completed' %}已完成
+                {% elif project.status == 'cancelled' %}已取消
+                {% elif project.status == 'draft' %}草稿
+                {% else %}进行中{% endif %}
+            </span>
+            {% if project.is_settled %}
+            <span class="status-badge" style="background:#f0fdf4; color:#16a34a;">已结算</span>
+            {% endif %}
+        </div>
+        <span style="font-size:11px; color:#94a3b8;">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</span>
     </div>
     <div class="project-desc">{{ project.display_desc or '无描述' }}</div>
-
     <div class="info-grid">
-        <div class="info-item">
-            <i class="fas fa-building"></i>
-            <span>{{ project.company.company_name if project.company else '个人' }}</span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-user"></i>
-            <span>{{ project.contact or project.staff_display_name }}</span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-money-bill"></i>
-            <span>{{ project.currency or 'SGD' }}</span>
-        </div>
-        <div class="info-item">
-            <i class="fas fa-calendar"></i>
-            <span>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</span>
-        </div>
+        <div class="info-item"><i class="fas fa-building"></i><span>{{ project.company.company_name if project.company else '个人' }}</span></div>
+        <div class="info-item"><i class="fas fa-user"></i><span>{{ project.contact or project.staff_display_name }}</span></div>
     </div>
 
-    <!-- 提醒信息 -->
     {% if project.reminder_event %}
     <div class="reminder-bar">
         <i class="fas fa-bell"></i>
@@ -72,52 +62,50 @@
 <div class="finance-summary">
     <div class="finance-item">
         <div class="finance-label">售价</div>
-        <div class="finance-value selling">{{ project.currency or 'SGD' }} {{ "%.2f"|format(project.total_selling_amount or 0) }}</div>
+        <div class="finance-value selling">{{ "%.0f"|format(project.total_selling_amount or 0) }}</div>
     </div>
     <div class="finance-item">
         <div class="finance-label">成本</div>
-        <div class="finance-value cost">{{ project.currency or 'SGD' }} {{ "%.2f"|format(project.total_cost_amount or 0) }}</div>
+        <div class="finance-value cost">{{ "%.0f"|format(project.total_cost_amount or 0) }}</div>
     </div>
     <div class="finance-item">
         <div class="finance-label">利润</div>
         <div class="finance-value {% if project.total_profit >= 0 %}profit{% else %}loss{% endif %}">
-            {{ project.currency or 'SGD' }} {{ "%.2f"|format(project.total_profit or 0) }}
+            {{ "%.0f"|format(project.total_profit or 0) }}
         </div>
     </div>
     <div class="finance-item">
         <div class="finance-label">未付</div>
-        <div class="finance-value unpaid">{{ project.currency or 'SGD' }} {{ "%.2f"|format(project.total_unpaid_amount or 0) }}</div>
+        <div class="finance-value unpaid">{{ "%.0f"|format(project.total_unpaid_amount or 0) }}</div>
     </div>
 </div>
 
-<!-- 人员名单（可折叠） -->
-<div class="mobile-card">
-    <div class="mobile-card-title" onclick="toggleSection('members-section')" style="cursor: pointer;">
-        <i class="fas fa-users"></i>
-        <span style="flex: 1;">人员名单 ({{ members|length }})</span>
-        <i class="fas fa-chevron-down toggle-icon" id="members-toggle"></i>
-    </div>
-    <div id="members-section" class="collapsible-section">
-        {% if members %}
-        <div class="members-list">
-            {% for member in members %}
-            <div class="member-item {% if member.is_leader %}is-leader{% endif %}">
-                <div class="member-info">
-                    <span class="member-name">
-                        {% if member.title %}{{ member.title }} {% endif %}{{ member.member_name }}
-                        {% if member.is_leader %}<span class="leader-badge">Leader</span>{% endif %}
-                    </span>
-                    {% if member.member_role %}
-                    <span class="member-role">{{ member.member_role }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
+<!-- 操作按钮 -->
+<div class="action-grid">
+    <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=project.id) }}" class="action-card">
+        <div class="action-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <i class="fas fa-file-invoice"></i>
         </div>
-        {% else %}
-        <div class="empty-hint">暂无人员</div>
-        {% endif %}
-    </div>
+        <span>发票</span>
+    </a>
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="action-card">
+        <div class="action-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <span>收款</span>
+    </a>
+    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="action-card">
+        <div class="action-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+            <i class="fas fa-desktop"></i>
+        </div>
+        <span>桌面版</span>
+    </a>
+    <a href="{{ url_for('business_projects.project_header.edit_header', header_id=project.id) }}" class="action-card">
+        <div class="action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+            <i class="fas fa-edit"></i>
+        </div>
+        <span>编辑</span>
+    </a>
 </div>
 
 <!-- REF 列表 -->
@@ -142,19 +130,24 @@
                 </div>
                 <div class="ref-desc">{{ ref.description or ref.detailed_description or '-' }}</div>
                 <div class="ref-finance">
-                    <span class="ref-selling">{{ ref.currency or 'SGD' }} {{ "%.2f"|format(ref.selling_price or 0) }}</span>
+                    <span class="ref-selling">{{ "%.0f"|format(ref.selling_price or 0) }}</span>
                     <span class="ref-separator">/</span>
-                    <span class="ref-cost">{{ "%.2f"|format(ref.cost_price or 0) }}</span>
+                    <span class="ref-cost">{{ "%.0f"|format(ref.cost_price or 0) }}</span>
                     {% set ref_profit = (ref.selling_price or 0) - (ref.cost_price or 0) %}
                     <span class="ref-profit {% if ref_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        ({% if ref_profit >= 0 %}+{% endif %}{{ "%.2f"|format(ref_profit) }})
+                        ({% if ref_profit >= 0 %}+{% endif %}{{ "%.0f"|format(ref_profit) }})
                     </span>
                 </div>
-                {% if ref.supplier %}
-                <div class="ref-supplier">
-                    <i class="fas fa-truck"></i> {{ ref.supplier.name }}
+                <div class="ref-tags">
+                    {% if ref.supplier %}
+                    <span class="ref-tag"><i class="fas fa-truck"></i> {{ ref.supplier.company_name }}</span>
+                    {% endif %}
+                    {% if ref.payment_status == 'paid' %}
+                    <span class="ref-tag" style="background:#dcfce7; color:#16a34a;"><i class="fas fa-check"></i> 已收款</span>
+                    {% elif ref.payment_status == 'partial' %}
+                    <span class="ref-tag" style="background:#fef3c7; color:#d97706;">部分收款</span>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             <i class="fas fa-chevron-right ref-arrow"></i>
         </div>
@@ -168,12 +161,40 @@
     {% endif %}
 </div>
 
+<!-- 人员名单（可折叠） -->
+{% if members %}
+<div class="mobile-card">
+    <div class="mobile-card-title" onclick="toggleSection('members-section')" style="cursor: pointer;">
+        <i class="fas fa-users"></i>
+        <span style="flex: 1;">人员名单 ({{ members|length }})</span>
+        <i class="fas fa-chevron-down toggle-icon" id="members-toggle"></i>
+    </div>
+    <div id="members-section" class="collapsible-section">
+        <div class="members-list">
+            {% for member in members %}
+            <div class="member-item {% if member.is_leader %}is-leader{% endif %}">
+                <div class="member-info">
+                    <span class="member-name">
+                        {% if member.title %}{{ member.title }} {% endif %}{{ member.member_name }}
+                        {% if member.is_leader %}<span class="leader-badge">Leader</span>{% endif %}
+                    </span>
+                    {% if member.member_role %}
+                    <span class="member-role">{{ member.member_role }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- 备注信息 -->
 {% if project.remarks %}
 <div class="mobile-card">
     <div class="mobile-card-title" onclick="toggleSection('remarks-section')" style="cursor: pointer;">
         <i class="fas fa-sticky-note"></i>
-        <span style="flex: 1;">备注信息</span>
+        <span style="flex: 1;">备注</span>
         <i class="fas fa-chevron-down toggle-icon" id="remarks-toggle"></i>
     </div>
     <div id="remarks-section" class="collapsible-section">
@@ -182,35 +203,7 @@
 </div>
 {% endif %}
 
-<!-- 操作按钮 -->
-<div class="action-grid">
-    <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
-            <i class="fas fa-file-invoice"></i>
-        </div>
-        <span>发票</span>
-    </a>
-    <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
-            <i class="fas fa-money-bill-wave"></i>
-        </div>
-        <span>收款</span>
-    </a>
-    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-            <i class="fas fa-desktop"></i>
-        </div>
-        <span>桌面版</span>
-    </a>
-    <a href="{{ url_for('business_projects.project_header.edit_header', header_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-            <i class="fas fa-edit"></i>
-        </div>
-        <span>编辑</span>
-    </a>
-</div>
-
-<!-- 添加REF快捷入口 -->
+<!-- 添加REF -->
 <div class="mobile-card">
     <div class="mobile-card-title">
         <i class="fas fa-plus-circle"></i>
@@ -218,28 +211,22 @@
     </div>
     <div class="add-ref-grid">
         <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-plane"></i>
-            <span>机票</span>
+            <i class="fas fa-plane"></i><span>机票</span>
         </a>
         <a href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-bed"></i>
-            <span>酒店</span>
+            <i class="fas fa-bed"></i><span>酒店</span>
         </a>
         <a href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-passport"></i>
-            <span>签证</span>
+            <i class="fas fa-passport"></i><span>签证</span>
         </a>
         <a href="{{ url_for('business_projects.project_ref.create_tour_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-map-marked-alt"></i>
-            <span>旅游</span>
+            <i class="fas fa-map-marked-alt"></i><span>旅游</span>
         </a>
         <a href="{{ url_for('business_projects.project_ref.create_insurance_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-shield-alt"></i>
-            <span>保险</span>
+            <i class="fas fa-shield-alt"></i><span>保险</span>
         </a>
         <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-plus"></i>
-            <span>其他</span>
+            <i class="fas fa-plus"></i><span>其他</span>
         </a>
     </div>
 </div>
@@ -485,13 +472,21 @@
     .ref-profit.positive { color: #16a34a; }
     .ref-profit.negative { color: #dc2626; }
 
-    .ref-supplier {
-        font-size: 11px;
-        color: #999;
+    .ref-tags {
+        display: flex;
+        gap: 4px;
         margin-top: 4px;
+        flex-wrap: wrap;
     }
-
-    .ref-supplier i { margin-right: 4px; }
+    .ref-tag {
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #f1f5f9;
+        color: #64748b;
+        white-space: nowrap;
+    }
+    .ref-tag i { margin-right: 2px; font-size: 9px; }
 
     .ref-arrow {
         color: #ccc;

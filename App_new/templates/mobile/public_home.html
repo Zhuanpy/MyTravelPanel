@@ -591,7 +591,7 @@
     <div class="footer-copyright">
         &copy; 2026 {{ company.company_name if company else 'JOYFUL ESCAPES' }}
         <br>
-        <a href="{{ url_for('auth_profile.logout', next='/staff/login') }}" style="color: rgba(255,255,255,0.4); text-decoration: none;">员工入口</a>
+        <a href="{{ url_for('auth_profile.logout', next=url_for('auth_profile.staff_login')) }}" style="color: rgba(255,255,255,0.4); text-decoration: none;">员工入口</a>
     </div>
 </footer>
 

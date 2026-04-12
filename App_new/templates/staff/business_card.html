@@ -511,12 +511,31 @@
                 justify-content: center;
             }
             .action-btn i { font-size: 0.85rem; }
+
+            /* 隐藏桌面专用按钮 */
+            .btn-desktop-only { display: none !important; }
+
+            /* 底部导航 */
+            .m-bottom-nav {
+                position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+                background: white; display: flex; justify-content: space-around; align-items: center;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
+            }
+            .m-nav-item {
+                display: flex; flex-direction: column; align-items: center;
+                text-decoration: none; color: #94a3b8; font-size: 10px; gap: 2px;
+            }
+            .m-nav-item i { font-size: 20px; }
+            .m-nav-item.active { color: #10b981; }
+
+            body { padding-bottom: 70px; }
         }
 
         /* 桌面端隐藏手机布局 */
         .mobile-card { display: none; }
         @media (max-width: 560px) {
             .mobile-card { display: flex; }
+            .m-bottom-nav { display: flex !important; }
         }
 
         /* ====== 打印（Save PDF 用浏览器打印 → 另存为PDF） ====== */
@@ -686,22 +705,6 @@
 
     <!-- 手机端竖版布局 -->
     <div class="mobile-card">
-        <!-- 公司品牌区 -->
-        {% if company %}
-        <div class="m-brand">
-            {% if company.logo_path %}
-            <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo" class="m-brand-logo">
-            <div class="m-brand-divider"></div>
-            {% endif %}
-            <div class="m-brand-text">
-                {% if company.company_name_cn %}
-                <div class="m-company-cn">{{ company.company_name_cn }}</div>
-                {% endif %}
-                <div class="m-company">{{ company.company_name }}</div>
-            </div>
-        </div>
-        {% endif %}
-
         <!-- 姓名 + 职位 -->
         <div class="m-header">
             <div class="m-name">{{ user.profile.get_full_name() if user.profile else user.username }}</div>
@@ -711,7 +714,6 @@
         </div>
 
         <!-- 个人联系方式 -->
-        <div class="m-section-label"><i class="fas fa-user me-1"></i>Contact</div>
         <div class="m-contacts">
             {% if user.profile and user.profile.phone %}
             <a href="tel:{{ user.profile.phone }}" class="m-contact-item">
@@ -755,8 +757,40 @@
             </a>
         </div>
 
+        <!-- 二维码 -->
+        {% if user.profile and (user.profile.wechat_qr or user.profile.whatsapp_qr) %}
+        <div class="m-qr-section">
+            {% if user.profile.wechat_qr %}
+            <div class="m-qr-card">
+                <img src="{{ url_for('static', filename=user.profile.wechat_qr) }}" alt="WeChat QR">
+                <div class="m-qr-label"><i class="fab fa-weixin me-1"></i>WeChat</div>
+            </div>
+            {% endif %}
+            {% if user.profile.whatsapp_qr %}
+            <div class="m-qr-card">
+                <img src="{{ url_for('static', filename=user.profile.whatsapp_qr) }}" alt="WhatsApp QR">
+                <div class="m-qr-label"><i class="fab fa-whatsapp me-1"></i>WhatsApp</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- 公司信息 -->
-        <div class="m-section-label"><i class="fas fa-building me-1"></i>Company</div>
+        {% if company %}
+        <div class="m-brand">
+            {% if company.logo_path %}
+            <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo" class="m-brand-logo">
+            <div class="m-brand-divider"></div>
+            {% endif %}
+            <div class="m-brand-text">
+                {% if company.company_name_cn %}
+                <div class="m-company-cn">{{ company.company_name_cn }}</div>
+                {% endif %}
+                <div class="m-company">{{ company.company_name }}</div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="m-contacts">
             {% if company and company.website %}
             <a href="{{ company.website }}" target="_blank" class="m-contact-item">
@@ -764,17 +798,6 @@
                 <div class="m-contact-info">
                     <div class="m-contact-label">Website</div>
                     <div class="m-contact-value">{{ company.website | replace('https://', '') | replace('http://', '') }}</div>
-                </div>
-                <span class="m-contact-arrow"><i class="fas fa-chevron-right"></i></span>
-            </a>
-            {% endif %}
-
-            {% if company and company.email %}
-            <a href="mailto:{{ company.email }}" class="m-contact-item">
-                <span class="m-contact-icon email"><i class="fas fa-envelope"></i></span>
-                <div class="m-contact-info">
-                    <div class="m-contact-label">Company Email</div>
-                    <div class="m-contact-value">{{ company.email }}</div>
                 </div>
                 <span class="m-contact-arrow"><i class="fas fa-chevron-right"></i></span>
             </a>
@@ -799,43 +822,15 @@
                 </div>
             </div>
             {% endif %}
-
-            {% if company and company.uen %}
-            <div class="m-contact-item">
-                <span class="m-contact-icon" style="background: #f0fdf4; color: #059669;"><i class="fas fa-fingerprint"></i></span>
-                <div class="m-contact-info">
-                    <div class="m-contact-label">UEN</div>
-                    <div class="m-contact-value">{{ company.uen }}</div>
-                </div>
-            </div>
-            {% endif %}
         </div>
-
-        <!-- 二维码 -->
-        {% if user.profile and (user.profile.wechat_qr or user.profile.whatsapp_qr) %}
-        <div class="m-qr-section">
-            {% if user.profile.wechat_qr %}
-            <div class="m-qr-card">
-                <img src="{{ url_for('static', filename=user.profile.wechat_qr) }}" alt="WeChat QR">
-                <div class="m-qr-label"><i class="fab fa-weixin me-1"></i>WeChat</div>
-            </div>
-            {% endif %}
-            {% if user.profile.whatsapp_qr %}
-            <div class="m-qr-card">
-                <img src="{{ url_for('static', filename=user.profile.whatsapp_qr) }}" alt="WhatsApp QR">
-                <div class="m-qr-label"><i class="fab fa-whatsapp me-1"></i>WhatsApp</div>
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
     </div>
 
     <!-- 操作栏（仅自己可见） -->
     <div class="action-bar">
-        <button class="action-btn primary" onclick="downloadImage()">
+        <button class="action-btn primary btn-desktop-only" onclick="downloadImage()">
             <i class="fas fa-image"></i> Save PNG
         </button>
-        <button class="action-btn primary" onclick="downloadPDF()">
+        <button class="action-btn primary btn-desktop-only" onclick="downloadPDF()">
             <i class="fas fa-file-pdf"></i> Save PDF
         </button>
         <button class="action-btn secondary" onclick="copyLink()">
@@ -845,12 +840,21 @@
             <i class="fas fa-share-alt"></i> Share
         </button>
         {% if is_owner %}
-        <a href="{{ url_for('staff.profile') }}" class="action-btn secondary">
+        <a href="{{ url_for('staff.profile') }}" class="action-btn secondary btn-desktop-only">
             <i class="fas fa-arrow-left"></i> Back
         </a>
         {% endif %}
     </div>
 </div>
+
+<!-- 手机端底部导航 -->
+<nav class="m-bottom-nav" style="display:none;">
+    <a href="{{ url_for('mobile.public_home') }}" class="m-nav-item"><i class="fas fa-home"></i><span>首页</span></a>
+    <a href="{{ url_for('mobile.tour_packages') }}" class="m-nav-item"><i class="fas fa-suitcase-rolling"></i><span>旅游</span></a>
+    <a href="{{ url_for('mobile.visa_services') }}" class="m-nav-item"><i class="fas fa-passport"></i><span>签证</span></a>
+    <a href="{{ url_for('mobile.attractions') }}" class="m-nav-item"><i class="fas fa-ticket-alt"></i><span>门票</span></a>
+    <a href="{{ url_for('mobile.contact') }}" class="m-nav-item active"><i class="fas fa-headset"></i><span>联系</span></a>
+</nav>
 
 <!-- Toast提示 -->
 <div class="toast-msg" id="toastMsg"></div>

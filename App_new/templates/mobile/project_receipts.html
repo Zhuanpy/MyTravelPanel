@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>收款记录 - {{ project.hid }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5; color: #333; line-height: 1.5;
+            -webkit-font-smoothing: antialiased; padding-bottom: 70px;
+        }
+
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex; align-items: center; padding: 0 16px;
+            z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-back { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; text-decoration: none; margin-right: 8px; }
+        .header-title { flex: 1; color: white; font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .header-action { color: white; font-size: 14px; text-decoration: none; padding: 6px 12px; background: rgba(255,255,255,0.2); border-radius: 8px; font-weight: 500; }
+
+        .main-content { padding-top: 56px; }
+
+        /* 财务概览 */
+        .finance-bar {
+            display: flex; background: white; padding: 12px 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .finance-item { flex: 1; text-align: center; }
+        .finance-item + .finance-item { border-left: 1px solid #f1f5f9; }
+        .fi-label { font-size: 11px; color: #94a3b8; }
+        .fi-value { font-size: 15px; font-weight: 700; }
+        .fi-value.green { color: #16a34a; }
+        .fi-value.blue { color: #2563eb; }
+        .fi-value.amber { color: #d97706; }
+
+        /* 进度条 */
+        .progress-bar {
+            margin: 0 12px; padding: 10px 14px; background: white;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .progress-track {
+            height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 3px; transition: width 0.3s;
+        }
+        .progress-text {
+            display: flex; justify-content: space-between; margin-top: 4px;
+            font-size: 11px; color: #94a3b8;
+        }
+
+        /* 收款列表 */
+        .section { padding: 10px 12px; }
+        .section-label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 8px; padding-left: 2px; }
+
+        .receipt-card {
+            background: white; border-radius: 10px; padding: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 8px;
+        }
+        .rc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .rc-number { font-size: 13px; font-weight: 600; color: #1e293b; }
+        .rc-amount { font-size: 16px; font-weight: 700; color: #16a34a; }
+        .rc-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        .rc-meta i { margin-right: 3px; font-size: 11px; }
+        .rc-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+        .rc-tag {
+            font-size: 10px; padding: 2px 7px; border-radius: 4px;
+            background: #f1f5f9; color: #64748b;
+        }
+        .rc-tag.confirmed { background: #dcfce7; color: #16a34a; }
+        .rc-tag.pending { background: #fef3c7; color: #d97706; }
+        .rc-tag.cancelled { background: #fee2e2; color: #dc2626; }
+
+        .rc-ref { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        .rc-ref i { margin-right: 3px; }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+        .empty-state i { font-size: 36px; margin-bottom: 12px; display: block; color: #d1d5db; }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+            background: white; display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
+        }
+        .nav-btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-decoration: none; color: #64748b;
+            font-size: 10px; gap: 2px;
+        }
+        .nav-btn i { font-size: 18px; }
+        .nav-btn.active { color: #10b981; }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="header-back"><i class="fas fa-arrow-left"></i></a>
+    <div class="header-title">{{ project.hid }} · 收款记录</div>
+    <a href="{{ url_for('mobile.create_receipt', project_id=project.id) }}" class="header-action"><i class="fas fa-plus"></i> 新增</a>
+</header>
+
+<main class="main-content">
+    <!-- 财务概览 -->
+    <div class="finance-bar">
+        <div class="finance-item">
+            <div class="fi-label">总销售额</div>
+            <div class="fi-value">{{ "%.0f"|format(total_selling) }}</div>
+        </div>
+        <div class="finance-item">
+            <div class="fi-label">已收款</div>
+            <div class="fi-value green">{{ "%.0f"|format(total_received) }}</div>
+        </div>
+        <div class="finance-item">
+            <div class="fi-label">未收款</div>
+            <div class="fi-value {% if unpaid > 0 %}amber{% else %}green{% endif %}">{{ "%.0f"|format(unpaid) }}</div>
+        </div>
+    </div>
+
+    <!-- 收款进度 -->
+    {% set pct = (total_received / total_selling * 100) if total_selling > 0 else 0 %}
+    <div class="progress-bar">
+        <div class="progress-track">
+            <div class="progress-fill" style="width: {{ [pct, 100]|min }}%;"></div>
+        </div>
+        <div class="progress-text">
+            <span>收款进度</span>
+            <span>{{ "%.1f"|format(pct) }}%</span>
+        </div>
+    </div>
+
+    <!-- 收款记录 -->
+    <div class="section">
+        <div class="section-label"><i class="fas fa-list" style="margin-right:4px;"></i> 共 {{ receipts|length }} 条记录</div>
+
+        {% if receipts %}
+        {% for rc in receipts %}
+        <div class="receipt-card">
+            <div class="rc-header">
+                <span class="rc-number">{{ rc.receipt_number }}</span>
+                <span class="rc-amount">{{ rc.currency or 'SGD' }} {{ "%.2f"|format(rc.amount) }}</span>
+            </div>
+            <div class="rc-meta">
+                <span><i class="fas fa-calendar"></i>{{ rc.payment_date.strftime('%Y-%m-%d') if rc.payment_date else '-' }}</span>
+                <span><i class="fas fa-credit-card"></i>{{ rc.payment_method_display }}</span>
+                {% if rc.payer_name %}
+                <span><i class="fas fa-user"></i>{{ rc.payer_name }}</span>
+                {% endif %}
+            </div>
+            <div class="rc-tags">
+                <span class="rc-tag {{ rc.status }}">
+                    {% if rc.status == 'confirmed' %}已确认
+                    {% elif rc.status == 'pending' %}待确认
+                    {% elif rc.status == 'cancelled' %}已取消
+                    {% else %}{{ rc.status }}{% endif %}
+                </span>
+                {% if rc.ref_id %}
+                <span class="rc-tag">REF级别</span>
+                {% else %}
+                <span class="rc-tag">项目级别</span>
+                {% endif %}
+                {% if rc.is_reconciled %}
+                <span class="rc-tag confirmed"><i class="fas fa-check-double"></i> 已核对</span>
+                {% endif %}
+            </div>
+            {% if rc.ref %}
+            <div class="rc-ref"><i class="fas fa-link"></i>{{ rc.ref.ref_number }} · {{ rc.ref.description or '' }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-money-bill-wave"></i>
+            <p>暂无收款记录</p>
+        </div>
+        {% endif %}
+    </div>
+</main>
+
+<!-- 底部导航 -->
+<nav class="bottom-nav">
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="nav-btn">
+        <i class="fas fa-arrow-left"></i><span>项目</span>
+    </a>
+    <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=project.id) }}" class="nav-btn">
+        <i class="fas fa-file-invoice"></i><span>发票</span>
+    </a>
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="nav-btn active">
+        <i class="fas fa-money-bill-wave"></i><span>收款</span>
+    </a>
+    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="nav-btn">
+        <i class="fas fa-desktop"></i><span>桌面版</span>
+    </a>
+</nav>
+
+</body>
+</html>

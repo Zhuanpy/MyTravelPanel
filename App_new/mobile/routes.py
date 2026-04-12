@@ -1298,6 +1298,183 @@ def book_ticket(product_id):
                          company=company_info)
 
 
+@mobile_bp.route('/project/<int:project_id>/receipts')
+@login_required
+def project_receipts(project_id):
+    """手机端项目收款记录"""
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.receipt import ProjectReceipt
+    from App_new.utils.permissions import can_access_project
+    import json
+
+    project = ProjectHeader.query.get_or_404(project_id)
+    if not can_access_project(project, current_user):
+        flash('无权访问', 'error')
+        return redirect(url_for('mobile.projects'))
+
+    # 收款记录
+    receipts = ProjectReceipt.query.filter_by(header_id=project_id).order_by(
+        ProjectReceipt.payment_date.desc()
+    ).all()
+
+    # 财务统计
+    total_selling = float(project.total_selling_amount or 0)
+    total_received = 0
+    for ref in project.refs:
+        if ref.selling_price:
+            total_received += ProjectReceipt.get_ref_total_received(ref.id, project_id)
+    unpaid = total_selling - total_received
+
+    return render_template('mobile/project_receipts.html',
+                         project=project,
+                         receipts=receipts,
+                         total_selling=total_selling,
+                         total_received=total_received,
+                         unpaid=unpaid)
+
+
+@mobile_bp.route('/project/<int:project_id>/receipt/create', methods=['GET', 'POST'])
+@csrf.exempt
+@login_required
+def create_receipt(project_id):
+    """手机端创建收款"""
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    from App_new.utils.permissions import can_access_project
+    import json
+
+    project = ProjectHeader.query.get_or_404(project_id)
+    if not can_access_project(project, current_user):
+        return jsonify({'success': False, 'message': '无权操作'})
+
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            amount = float(data.get('amount', 0))
+            payment_method = data.get('payment_method', 'bank_transfer')
+            payment_date = data.get('payment_date', '')
+            payer_name = data.get('payer_name', '')
+            remarks = data.get('remarks', '')
+
+            if amount <= 0:
+                return jsonify({'success': False, 'message': '金额必须大于0'})
+
+            unpaid = ProjectReceipt.get_project_unpaid_amount(project_id)
+            if amount > unpaid + 0.01:
+                return jsonify({'success': False, 'message': f'金额不能超过未收款{unpaid:.2f}'})
+
+            # 按顺序分配到发票
+            invoices = ProjectInvoice.query.filter_by(header_id=project_id).filter(
+                ProjectInvoice.status.in_(['confirmed', 'partial'])
+            ).order_by(ProjectInvoice.invoice_date).all()
+
+            allocations = {}
+            remaining = amount
+            for inv in invoices:
+                inv_unpaid = inv.unpaid_amount
+                if inv_unpaid > 0 and remaining > 0:
+                    allocated = min(inv_unpaid, remaining)
+                    allocations[inv.id] = round(allocated, 2)
+                    remaining -= allocated
+                    if remaining <= 0.01:
+                        break
+
+            if not allocations:
+                return jsonify({'success': False, 'message': '没有可分配的发票，请先生成发票'})
+
+            from datetime import datetime as dt
+            receipt_number = ProjectReceipt.generate_receipt_number()
+            receipt = ProjectReceipt(
+                receipt_number=receipt_number,
+                header_id=project_id,
+                amount=amount,
+                currency=project.currency or 'SGD',
+                payment_method=payment_method,
+                payment_date=dt.strptime(payment_date, '%Y-%m-%d').date() if payment_date else dt.now().date(),
+                payer_name=payer_name,
+                remarks=remarks,
+                status='confirmed',
+                extra_info=json.dumps({
+                    'distribution_method': 'sequential',
+                    'allocations': {str(k): v for k, v in allocations.items()},
+                    'total_amount': amount,
+                })
+            )
+            db.session.add(receipt)
+            db.session.flush()
+
+            for inv_id, alloc_amount in allocations.items():
+                alloc = ReceiptInvoiceAllocation(
+                    receipt_id=receipt.id,
+                    invoice_id=inv_id,
+                    allocated_amount=alloc_amount
+                )
+                db.session.add(alloc)
+
+            # 更新发票付款状态
+            for inv_id in allocations:
+                ProjectReceipt.update_invoice_paid_amount(inv_id)
+
+            db.session.commit()
+            return jsonify({'success': True, 'message': f'收款 {receipt_number} 创建成功'})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)})
+
+    # GET: 获取数据
+    unpaid = ProjectReceipt.get_project_unpaid_amount(project_id)
+    invoices = ProjectInvoice.query.filter_by(header_id=project_id).filter(
+        ProjectInvoice.status.in_(['confirmed', 'partial'])
+    ).order_by(ProjectInvoice.invoice_date).all()
+
+    invoice_list = []
+    for inv in invoices:
+        inv_unpaid = inv.unpaid_amount
+        if inv_unpaid > 0:
+            invoice_list.append({
+                'id': inv.id,
+                'number': inv.invoice_number,
+                'customer': inv.customer_name or '',
+                'amount': float(inv.amount or 0),
+                'unpaid': round(inv_unpaid, 2),
+            })
+
+    from datetime import date
+    return render_template('mobile/create_receipt.html',
+                         project=project,
+                         unpaid=unpaid,
+                         invoices=invoice_list,
+                         today=date.today().isoformat())
+
+
+@mobile_bp.route('/card/<int:user_id>')
+def business_card(user_id):
+    """手机端电子名片"""
+    from App_new.auth.models.auth import AuthUser
+    from App_new.business.tour.models.Packagemodels import CompanyInfo, HomeBanner
+    import random
+
+    user = AuthUser.query.get_or_404(user_id)
+    is_owner = current_user.is_authenticated and current_user.id == user_id
+    if not is_owner and (not user.profile or not user.profile.is_public):
+        flash('该名片不存在或未公开', 'warning')
+        return redirect(url_for('mobile.public_home'))
+
+    company = CompanyInfo.query.first()
+    banners = HomeBanner.get_active_banners()
+    banner_image = None
+    if banners:
+        banner = random.choice(banners)
+        from flask import url_for as _url_for
+        banner_image = _url_for('static', filename=banner.image_path)
+
+    return render_template('staff/business_card.html', user=user, company=company,
+                           is_owner=is_owner, banner_image=banner_image)
+
+
 @mobile_bp.route('/cart/add', methods=['POST'])
 @csrf.exempt
 @login_required

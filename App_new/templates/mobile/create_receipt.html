@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>新增收款 - {{ project.hid }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5; color: #333; line-height: 1.5;
+            -webkit-font-smoothing: antialiased; padding-bottom: 80px;
+        }
+
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex; align-items: center; padding: 0 16px;
+            z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-back { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; text-decoration: none; margin-right: 8px; }
+        .header-title { flex: 1; color: white; font-size: 16px; font-weight: 600; }
+
+        .main-content { padding-top: 56px; }
+
+        /* 未收款提示 */
+        .unpaid-bar {
+            background: white; padding: 12px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .unpaid-label { font-size: 13px; color: #64748b; }
+        .unpaid-value { font-size: 18px; font-weight: 700; color: #d97706; }
+
+        /* 待分配发票 */
+        .invoice-section { padding: 10px 12px; }
+        .invoice-label { font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+        .invoice-list { display: flex; flex-direction: column; gap: 4px; }
+        .invoice-item {
+            background: white; border-radius: 8px; padding: 8px 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px;
+        }
+        .inv-number { font-weight: 600; color: #1e293b; }
+        .inv-unpaid { color: #d97706; font-weight: 600; }
+
+        /* 表单 */
+        .form-card {
+            background: white; margin: 8px 12px; border-radius: 12px;
+            padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .form-card-title {
+            font-size: 14px; font-weight: 600; color: #1e293b;
+            margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;
+        }
+        .form-card-title i { margin-right: 6px; color: #10b981; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block; }
+        .form-label .req { color: #ef4444; }
+        .form-input, .form-select {
+            width: 100%; padding: 9px 10px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; color: #334155; background: white;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
+        .form-row { display: flex; gap: 8px; }
+        .form-row > .form-group { flex: 1; }
+
+        /* 金额输入特殊样式 */
+        .amount-input-wrap {
+            position: relative;
+        }
+        .amount-input-wrap .currency {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            font-size: 13px; color: #94a3b8; font-weight: 600;
+        }
+        .amount-input-wrap input {
+            padding-left: 40px; font-size: 18px; font-weight: 700; color: #16a34a;
+        }
+
+        /* 快捷金额 */
+        .quick-amounts { display: flex; gap: 6px; margin-top: 6px; }
+        .quick-amt {
+            padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+            font-size: 12px; color: #64748b; background: white; cursor: pointer;
+        }
+        .quick-amt:active { background: #f0fdf4; border-color: #10b981; color: #16a34a; }
+
+        /* 底部提交 */
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 68px;
+            background: white; display: flex; align-items: center;
+            padding: 0 16px; gap: 12px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08); z-index: 100;
+        }
+        .submit-btn {
+            flex: 1; height: 44px; border: none; border-radius: 22px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .submit-btn:disabled { opacity: 0.5; }
+        .cancel-btn {
+            height: 44px; padding: 0 20px; border-radius: 22px;
+            background: #f1f5f9; color: #64748b; border: none;
+            font-size: 14px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="header-back"><i class="fas fa-arrow-left"></i></a>
+    <div class="header-title">{{ project.hid }} · 新增收款</div>
+</header>
+
+<main class="main-content">
+    <!-- 未收款提示 -->
+    <div class="unpaid-bar">
+        <span class="unpaid-label">未收款金额</span>
+        <span class="unpaid-value">{{ project.currency or 'SGD' }} {{ "%.2f"|format(unpaid) }}</span>
+    </div>
+
+    <!-- 待收发票 -->
+    {% if invoices %}
+    <div class="invoice-section">
+        <div class="invoice-label">将按发票顺序自动分配</div>
+        <div class="invoice-list">
+            {% for inv in invoices %}
+            <div class="invoice-item">
+                <span class="inv-number">{{ inv.number }}</span>
+                <span class="inv-unpaid">未收 {{ "%.2f"|format(inv.unpaid) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 收款信息 -->
+    <div class="form-card">
+        <div class="form-card-title"><i class="fas fa-money-bill-wave"></i> 收款信息</div>
+
+        <div class="form-group">
+            <label class="form-label">收款金额 <span class="req">*</span></label>
+            <div class="amount-input-wrap">
+                <span class="currency">{{ project.currency or 'SGD' }}</span>
+                <input type="number" id="amount" class="form-input" step="0.01" max="{{ unpaid }}"
+                       placeholder="0.00" required>
+            </div>
+            <div class="quick-amounts">
+                <span class="quick-amt" onclick="setAmount({{ unpaid }})">全额 {{ "%.0f"|format(unpaid) }}</span>
+                {% for inv in invoices[:3] %}
+                <span class="quick-amt" onclick="setAmount({{ inv.unpaid }})">{{ inv.number[-4:] }} {{ "%.0f"|format(inv.unpaid) }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">付款方式 <span class="req">*</span></label>
+                <select id="paymentMethod" class="form-select">
+                    <option value="bank_transfer">银行转账</option>
+                    <option value="cash">现金</option>
+                    <option value="credit_card">信用卡</option>
+                    <option value="cheque">支票</option>
+                    <option value="wechat">微信</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">收款日期 <span class="req">*</span></label>
+                <input type="date" id="paymentDate" class="form-input" value="{{ today }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">付款人</label>
+            <input type="text" id="payerName" class="form-input" placeholder="付款人姓名或公司">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">备注</label>
+            <input type="text" id="remarks" class="form-input" placeholder="收款备注...">
+        </div>
+    </div>
+</main>
+
+<div class="bottom-bar">
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="cancel-btn">取消</a>
+    <button type="button" class="submit-btn" id="submitBtn" onclick="submitReceipt()">
+        <i class="fas fa-check-circle"></i> 确认收款
+    </button>
+</div>
+
+<script>
+function setAmount(val) {
+    document.getElementById('amount').value = val.toFixed(2);
+}
+
+function submitReceipt() {
+    const amount = parseFloat(document.getElementById('amount').value);
+    if (!amount || amount <= 0) { alert('请输入收款金额'); return; }
+    if (amount > {{ unpaid }} + 0.01) { alert('金额不能超过未收款金额'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+
+    fetch('{{ url_for("mobile.create_receipt", project_id=project.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            amount: amount,
+            payment_method: document.getElementById('paymentMethod').value,
+            payment_date: document.getElementById('paymentDate').value,
+            payer_name: document.getElementById('payerName').value,
+            remarks: document.getElementById('remarks').value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.href = '{{ url_for("mobile.project_receipts", project_id=project.id) }}';
+        } else {
+            alert(data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> 确认收款';
+        }
+    })
+    .catch(() => {
+        alert('网络错误');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> 确认收款';
+    });
+}
+</script>
+
+</body>
+</html>

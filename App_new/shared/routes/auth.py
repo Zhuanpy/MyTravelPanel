@@ -540,10 +540,15 @@ def resend_verification_code():
 @guest_only
 def staff_login():
     """员工登录"""
+    # 手机端使用手机版模板
+    template = 'auth/staff_login.html'
+    if is_mobile_device():
+        template = 'auth/staff_login_mobile.html'
+
     if request.method == 'POST':
-        return _handle_role_login('staff', 'auth/staff_login.html')
-    
-    return render_template('auth/staff_login.html', role_type='staff')
+        return _handle_role_login('staff', template)
+
+    return render_template(template, role_type='staff')
 
 @auth_profile.route('/staff/register', methods=['GET', 'POST'])
 @guest_only

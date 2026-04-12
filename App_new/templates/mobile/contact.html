@@ -181,10 +181,10 @@
     {% if staff_list %}
     <div class="section">
         <div class="section-label"><i class="fas fa-user-tie" style="margin-right:4px;"></i> 旅游顾问</div>
-        {% for staff in staff_list %}
-        <div class="staff-card">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div class="staff-avatar">
+        <div class="company-card" style="padding:0; overflow:hidden;">
+            {% for staff in staff_list %}
+            <a href="{{ url_for('mobile.business_card', user_id=staff.id) }}" style="display:flex; align-items:center; gap:10px; padding:12px 14px; text-decoration:none; color:inherit; {% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                <div class="staff-avatar" style="width:40px; height:40px; font-size:16px;">
                     {% if staff.avatar %}
                     <img src="/static/{{ staff.avatar }}" alt="{{ staff.name }}">
                     {% else %}
@@ -192,31 +192,13 @@
                     {% endif %}
                 </div>
                 <div style="flex:1; min-width:0;">
-                    <div style="font-size:14px; font-weight:600; color:#1e293b;">{{ staff.name }} <span style="font-size:11px; font-weight:400; color:#94a3b8;">{{ staff.position or '旅游顾问' }}</span></div>
-                    <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-                        {% if staff.phone %}
-                        <a href="tel:{{ staff.phone }}" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#f0fdf4; color:#16a34a; border-radius:6px; font-size:11px; text-decoration:none; font-weight:500;">
-                            <i class="fas fa-phone" style="font-size:10px;"></i> {{ staff.phone }}
-                        </a>
-                        {% endif %}
-                        {% if staff.whatsapp %}
-                        <a href="https://wa.me/{{ staff.whatsapp | replace('+', '') | replace(' ', '') }}" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#dcfce7; color:#16a34a; border-radius:6px; font-size:11px; text-decoration:none; font-weight:500;">
-                            <i class="fab fa-whatsapp" style="font-size:12px;"></i> WhatsApp
-                        </a>
-                        {% endif %}
-                        {% if staff.wechat_id %}
-                        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#dbeafe; color:#2563eb; border-radius:6px; font-size:11px; font-weight:500;">
-                            <i class="fab fa-weixin" style="font-size:12px;"></i> {{ staff.wechat_id }}
-                        </span>
-                        {% endif %}
-                    </div>
+                    <div style="font-size:14px; font-weight:600; color:#1e293b;">{{ staff.name }}</div>
+                    <div style="font-size:11px; color:#94a3b8;">{{ staff.position or '旅游顾问' }}</div>
                 </div>
-                <a href="{{ url_for('staff.business_card', user_id=staff.id) }}" style="color:#94a3b8; font-size:14px; flex-shrink:0;">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            </div>
+                <span style="font-size:11px; color:#10b981; white-space:nowrap;">查看名片 <i class="fas fa-chevron-right" style="font-size:10px;"></i></span>
+            </a>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% endif %}
 
