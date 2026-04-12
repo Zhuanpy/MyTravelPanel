@@ -57,13 +57,19 @@
     .btn-group-sm .btn { font-size: 0.8rem; padding: 5px 12px; }
 
     @media print {
-        .letter-form, .card-header, nav, .breadcrumb, .navbar,
-        .page-header, h1, h2, h3, .card { display: none !important; }
-        .letter-right, .letter-right .card { display: block !important; }
+        /* 隐藏所有非信件内容 */
+        nav, .navbar, .breadcrumb, .page-header, .content-header,
+        .letter-form, .letter-right .card-header,
+        footer, .sidebar, .toast-container { display: none !important; }
+
+        /* 只显示信件预览 */
+        .letter-wrap { max-width: 100%; margin: 0; padding: 0; display: block; }
+        .letter-right { width: 100%; }
+        .letter-right .card { border: none !important; box-shadow: none !important; }
         .letter-right .card-body { padding: 0 !important; }
-        .letter-preview { border: none; padding: 20px 0; box-shadow: none; }
-        .letter-wrap { max-width: 100%; }
-        body { background: white; }
+        .letter-preview { border: none; padding: 0; box-shadow: none; margin: 0; }
+        body { background: white; padding: 0; margin: 0; }
+        .container-fluid, .main-content { padding: 0 !important; margin: 0 !important; }
     }
     @media (max-width: 900px) {
         .letter-wrap { flex-direction: column; }
@@ -286,7 +292,29 @@ function generatePDF() {
 
 function printLetter() {
     if (!validateForm()) return;
-    window.print();
+    // 打开新窗口只包含信件内容
+    const content = document.getElementById('letterPreview').innerHTML;
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head><title>Print Letter</title>
+    <style>
+        body { font-family: 'Times New Roman', Georgia, serif; font-size: 12px; line-height: 1.45; margin: 40px; }
+        .lp-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; margin-bottom: 16px; }
+        .lp-logo-area { display: flex; flex-direction: column; align-items: center; }
+        .lp-logo-area img { width: 48px; height: 48px; object-fit: contain; margin-bottom: 4px; }
+        .lp-company-name { font-size: 13px; font-weight: bold; letter-spacing: 1px; }
+        .lp-company-sub { font-size: 10px; color: #555; }
+        .lp-contact { text-align: right; font-size: 10px; color: #444; line-height: 1.45; }
+        .lp-contact strong, .lp-contact div[style*="font-weight"] { font-weight: bold; }
+        .lp-recipient { margin-bottom: 8px; }
+        .lp-date { margin-bottom: 8px; color: #555; }
+        .lp-subject { font-weight: bold; margin-bottom: 10px; }
+        .lp-body { margin-bottom: 18px; text-align: justify; white-space: pre-wrap; }
+        .lp-signature { margin-top: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .lp-signature-text { line-height: 1.45; }
+        .lp-stamp img { width: 56px; height: 56px; object-fit: contain; }
+    </style></head><body>${content}</body></html>`);
+    win.document.close();
+    win.onload = function() { win.print(); win.close(); };
 }
 
 function validateForm() {
