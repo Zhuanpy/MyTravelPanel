@@ -183,7 +183,7 @@ def open_Athina():
 @files_process.route('/letter_generator')
 def letter_generator():
     """信件生成器页面"""
-    return render_template('shared/company_manager/letter_generator.html')
+    return render_template('shared/own_company/letter_generator.html')
 
 
 @files_process.route('/test_letter')
