@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash, send_file
+from App_new.exts import csrf
 from App_new.utils.VisaForm import MyPdfFile
 from App_new.utils.WordToPdf import WordToPDFConverter
 import subprocess
@@ -183,7 +184,11 @@ def open_Athina():
 @files_process.route('/letter_generator')
 def letter_generator():
     """信件生成器页面"""
-    return render_template('shared/own_company/letter_generator.html')
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    company = CompanyInfo.query.first()
+    return render_template('shared/own_company/letter_generator.html',
+                           today_date=datetime.date.today().isoformat(),
+                           company=company)
 
 
 @files_process.route('/test_letter')
@@ -199,6 +204,7 @@ def letter_demo():
 
 
 @files_process.route('/generate_letter_pdf', methods=['POST'])
+@csrf.exempt
 def generate_letter_pdf():
     """生成信件PDF"""
     try:
@@ -228,53 +234,121 @@ def generate_letter_pdf():
         doc = SimpleDocTemplate(buffer, pagesize=A4)
         story = []
         
+        # 注册中文字体
+        from flask import current_app
+        font_path = os.path.join(current_app.static_folder, 'fonts', 'msyh.ttc')
+        font_bold_path = os.path.join(current_app.static_folder, 'fonts', 'msyhbd.ttc')
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont('MSYH', font_path, subfontIndex=0))
+            if os.path.exists(font_bold_path):
+                pdfmetrics.registerFont(TTFont('MSYH-Bold', font_bold_path, subfontIndex=0))
+                pdfmetrics.registerFontFamily('MSYH', normal='MSYH', bold='MSYH-Bold')
+            cn_font = 'MSYH'
+        else:
+            cn_font = 'Helvetica'
+
         # 获取样式
         styles = getSampleStyleSheet()
-        
+
         # 创建自定义样式
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
+            fontName=cn_font,
             fontSize=18,
             spaceAfter=20,
             alignment=TA_CENTER
         )
-        
+
         company_style = ParagraphStyle(
             'CompanyStyle',
             parent=styles['Normal'],
+            fontName=cn_font,
             fontSize=12,
             spaceAfter=6
         )
-        
+
         normal_style = ParagraphStyle(
             'NormalStyle',
             parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=12,
+            fontName=cn_font,
+            fontSize=11,
+            spaceAfter=2,
+            leading=15,
             alignment=TA_LEFT
         )
         
-        # 添加公司抬头
-        story.append(Paragraph("JOYFUL ESCAPE", title_style))
-        story.append(Paragraph("Travel & Tourism Services", title_style))
-        story.append(Spacer(1, 20))
-        
-        # 添加公司信息
-        company_info = [
-            "JOYFUL ESCAPES PTE LTD",
-            "Travel & Tourism Services",
-            "TA License No.: TA03652",
-            "TEL: 9106 8716 / 9627 5316",
-            "Email: joyfulescape@hotmail.com"
-        ]
-        
-        for info in company_info:
-            story.append(Paragraph(info, company_style))
-        
-        story.append(Spacer(1, 30))
-        
-        # 添加收件人信息
+        from reportlab.platypus import Table, TableStyle, HRFlowable
+        from App_new.business.tour.models.Packagemodels import CompanyInfo
+
+        # 从数据库获取公司信息
+        company = CompanyInfo.query.first()
+        co_name = company.company_name if company else 'JOYFUL ESCAPES PTE LTD'
+        co_short = (company.company_short_name or 'JOYFUL ESCAPES').upper() if company else 'JOYFUL ESCAPES'
+        co_cn = company.company_name_cn or '' if company else ''
+        co_address = company.address or '' if company else ''
+        co_ta = company.ta_license or '' if company else ''
+        co_phone = company.phone or '' if company else ''
+        co_email = company.email or '' if company else ''
+
+        # Logo 路径
+        if company and company.logo_path:
+            logo_path = os.path.join(current_app.static_folder, company.logo_path)
+        else:
+            logo_path = os.path.join(current_app.static_folder, 'JE', 'LOGO.jpg')
+
+        # 右侧联系信息（中文名在最顶部）
+        contact_lines = []
+        if co_cn:
+            contact_lines.append(f"<b><font size=11>{co_cn}</font></b>")
+        contact_lines.append(f"<b>{co_name}</b>")
+        if co_address:
+            addr = co_address.replace('\n', '<br/>').replace('SINGAPORE', '<br/>SINGAPORE')
+            contact_lines.append(addr)
+        if co_ta:
+            contact_lines.append(f"TA License No.: {co_ta}")
+        if co_email:
+            contact_lines.append(f"Email: {co_email}")
+
+        contact_style = ParagraphStyle('ContactStyle', parent=styles['Normal'], fontName=cn_font, fontSize=9, alignment=TA_RIGHT, leading=13)
+        header_right = Paragraph('<br/>'.join(contact_lines), contact_style)
+
+        # 左侧：Logo + 英文简写 + 中文名（上下排列）
+        logo_center_style = ParagraphStyle('LogoCenter', parent=styles['Normal'], fontName=cn_font, fontSize=12, alignment=TA_CENTER, leading=14)
+        left_rows = []
+        if os.path.exists(logo_path):
+            left_rows.append([Image(logo_path, width=42, height=42)])
+        left_rows.append([Paragraph(f"<b>{co_short}</b>", logo_center_style)])
+
+        left_content = Table(left_rows, colWidths=[120])
+        left_content.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 1),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ]))
+
+        # 用表格实现左右排列
+        header_table = Table(
+            [[left_content, header_right]],
+            colWidths=[140, 340]
+        )
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+
+        story.append(header_table)
+        story.append(Spacer(1, 12))
+
+        # 日期
+        story.append(Paragraph(formatted_date, normal_style))
+        story.append(Spacer(1, 6))
+
+        # 收件人信息
         if recipient_name:
             story.append(Paragraph(f"<b>{recipient_name}</b>", normal_style))
         if recipient_title:
@@ -283,48 +357,82 @@ def generate_letter_pdf():
             story.append(Paragraph(recipient_company, normal_style))
         if recipient_address:
             story.append(Paragraph(recipient_address, normal_style))
-        
-        story.append(Spacer(1, 20))
-        
-        # 添加日期
-        story.append(Paragraph(formatted_date, normal_style))
-        story.append(Spacer(1, 20))
-        
-        # 添加主题
+
+        story.append(Spacer(1, 6))
+
+        # 主题
         if letter_subject:
             story.append(Paragraph(f"<b>Subject: {letter_subject}</b>", normal_style))
-            story.append(Spacer(1, 20))
-        
-        # 添加信件内容
+            story.append(Spacer(1, 6))
+
+        # 信件内容（保持原始换行）
+        body_style = ParagraphStyle('BodyStyle', parent=normal_style, spaceAfter=2, leading=16)
+        body_gap_style = ParagraphStyle('BodyGap', parent=normal_style, spaceAfter=8, leading=16)
         if letter_body:
-            # 将内容按段落分割
-            paragraphs = letter_body.split('\n')
-            for para in paragraphs:
-                if para.strip():
-                    story.append(Paragraph(para.strip(), normal_style))
-                    story.append(Spacer(1, 12))
-        
-        story.append(Spacer(1, 30))
-        
-        # 添加发件人信息和电子章
+            for line in letter_body.split('\n'):
+                if line.strip():
+                    story.append(Paragraph(line.strip(), body_style))
+                else:
+                    story.append(Spacer(1, 6))
+
+        story.append(Spacer(1, 10))
+
+        # 签名（电子章覆盖在公司名右上角）
+        sender_dept = request.form.get('senderDept', '')
+        sender_phone = request.form.get('senderPhone', '')
+
+        story.append(Paragraph("Yours faithfully,", normal_style))
+        story.append(Spacer(1, 16))
+
+        # 构建签名文本
+        sig_lines = []
         if sender_name:
-            story.append(Paragraph(f"<b>{sender_name}</b>", normal_style))
+            sig_lines.append(f"<b>{sender_name}</b>")
+        if sender_dept:
+            sig_lines.append(sender_dept)
         if sender_title:
-            story.append(Paragraph(sender_title, normal_style))
-        story.append(Paragraph("JOYFUL ESCAPES PTE LTD", normal_style))
-        
-        # 添加电子章（使用绝对路径）
+            sig_lines.append(sender_title)
+        if sender_phone:
+            sig_lines.append(f"Contact: {sender_phone}")
+        sig_lines.append(co_name)
+
+        sig_style = ParagraphStyle('SigStyle', parent=normal_style, spaceAfter=2)
+        sig_paragraph = Paragraph('<br/>'.join(sig_lines), sig_style)
+
+        # 加载电子章
+        stamp_cell = ''
         try:
-            # 使用绝对路径
-            stamp_path = os.path.join(os.getcwd(), 'App_new', 'static', 'JE', 'company digital stamp.png')
+            if company and company.stamp_path:
+                stamp_path = os.path.join(current_app.static_folder, company.stamp_path)
+            else:
+                stamp_path = os.path.join(current_app.static_folder, 'JE', 'company digital stamp.png')
             if os.path.exists(stamp_path):
-                stamp_image = Image(stamp_path, width=60, height=60)
-                story.append(Spacer(1, 10))
-                story.append(stamp_image)
+                stamp_cell = Image(stamp_path, width=80, height=80)
         except Exception as e:
-            # 如果电子章加载失败，继续生成PDF，不中断流程
             print(f"电子章加载失败: {e}")
-            pass
+
+        # 用表格实现签名+电子章，左对齐
+        if stamp_cell:
+            # 计算可用宽度（A4 宽 595pt - 左右边距各72pt = 451pt）
+            available_width = 451
+            sig_table = Table(
+                [[sig_paragraph, stamp_cell]],
+                colWidths=[available_width - 90, 90],
+                hAlign='LEFT'
+            )
+            sig_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (0, 0), 'TOP'),
+                ('VALIGN', (1, 0), (1, 0), 'BOTTOM'),
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            story.append(sig_table)
+        else:
+            story.append(sig_paragraph)
         
         # 生成PDF
         doc.build(story)

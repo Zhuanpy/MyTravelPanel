@@ -1,529 +1,305 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Letter Generator - JOYFUL ESCAPES</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+{% extends "shared/staff_base.html" %}
 
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
-      padding: 20px;
-    }
+{% block title %}信件生成器 - MyTravelPanel{% endblock %}
+{% block page_title %}信件生成器{% endblock %}
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      gap: 30px;
-    }
+{% block extra_css %}
+<style>
+    .letter-wrap { max-width: 1400px; margin: 0 auto; display: flex; gap: 16px; }
+    .letter-form { flex: 1; min-width: 0; }
+    .letter-right { flex: 1; min-width: 0; }
 
-    .form-section {
-      flex: 1;
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
+    /* 表单 */
+    .letter-form .card-body { padding: 16px 20px; }
+    .letter-form .form-label { font-size: 0.82rem; font-weight: 600; margin-bottom: 3px; color: #555; }
+    .letter-form .form-control, .letter-form .form-select { font-size: 0.85rem; padding: 6px 10px; }
+    .letter-form textarea.form-control { min-height: 160px; }
+    .letter-form .mb-2 { margin-bottom: 0.5rem !important; }
+    .form-row-2 { display: flex; gap: 10px; }
+    .form-row-2 > div { flex: 1; }
 
-    .preview-section {
-      flex: 1;
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-
-    h1 {
-      color: #333;
-      margin-bottom: 30px;
-      text-align: center;
-    }
-
-    h2 {
-      color: #555;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #007bff;
-      padding-bottom: 10px;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #333;
-    }
-
-    input[type="text"], 
-    input[type="email"], 
-    textarea, 
-    select {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-      font-family: inherit;
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
-
-    .form-row {
-      display: flex;
-      gap: 15px;
-    }
-
-    .form-row .form-group {
-      flex: 1;
-    }
-
-    .btn {
-      background: #007bff;
-      color: white;
-      padding: 12px 24px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      margin-right: 10px;
-      transition: background 0.3s;
-    }
-
-    .btn:hover {
-      background: #0056b3;
-    }
-
-    .btn-secondary {
-      background: #6c757d;
-    }
-
-    .btn-secondary:hover {
-      background: #545b62;
-    }
-
-    .btn-success {
-      background: #28a745;
-    }
-
-    .btn-success:hover {
-      background: #1e7e34;
-    }
-
-    .button-group {
-      margin-top: 30px;
-      text-align: center;
-    }
-
-    /* Letter Preview Styles */
+    /* 预览信件 - A4比例 */
     .letter-preview {
-      background: white;
-      padding: 40px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-family: 'Times New Roman', serif;
-      line-height: 1.6;
+        background: white;
+        padding: 28px 32px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: 'Times New Roman', Georgia, serif;
+        font-size: 12px;
+        line-height: 1.45;
+        min-height: 480px;
     }
 
-    .company-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
+    /* 公司抬头 */
+    .lp-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding-bottom: 10px;
+        margin-bottom: 16px;
     }
+    .lp-logo-area { display: flex; flex-direction: column; align-items: center; }
+    .lp-logo-area img { width: 48px; height: 48px; object-fit: contain; margin-bottom: 4px; }
+    .lp-company-name { font-size: 13px; font-weight: bold; color: #333; letter-spacing: 1px; }
+    .lp-company-sub { font-size: 10px; color: #555; }
+    .lp-contact { text-align: right; font-size: 10px; color: #444; line-height: 1.45; }
+    .lp-contact strong { font-size: 11px; }
 
-    .logo-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+    /* 信件内容 */
+    .lp-recipient { margin-bottom: 8px; font-size: 12px; }
+    .lp-date { margin-bottom: 8px; font-size: 12px; color: #555; }
+    .lp-subject { font-weight: bold; margin-bottom: 10px; font-size: 12px; }
+    .lp-body { margin-bottom: 18px; text-align: justify; white-space: pre-wrap; font-size: 12px; }
+    .lp-signature { margin-top: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .lp-signature-text { font-size: 12px; line-height: 1.45; }
+    .lp-stamp img { width: 56px; height: 56px; object-fit: contain; }
 
-    .logo {
-      width: 80px;
-      height: 80px;
-      margin-bottom: 10px;
-    }
-
-    .logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .company-name {
-      font-size: 18px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 5px;
-      text-align: center;
-    }
-
-    .company-name-chinese {
-      font-size: 16px;
-      color: #333;
-      text-align: center;
-    }
-
-    .contact-section {
-      text-align: right;
-      color: #333;
-    }
-
-    .company-name-full {
-      font-size: 14px;
-      margin-bottom: 5px;
-    }
-
-    .company-name-english {
-      font-size: 16px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-
-    .license-info {
-      font-size: 12px;
-      margin-bottom: 5px;
-    }
-
-    .phone-info {
-      font-size: 12px;
-      margin-bottom: 5px;
-    }
-
-    .email-info {
-      font-size: 12px;
-    }
-
-    .recipient-info {
-      margin-bottom: 20px;
-    }
-
-    .date-info {
-      margin-bottom: 20px;
-    }
-
-    .subject-info {
-      font-weight: bold;
-      margin-bottom: 20px;
-    }
-
-    .letter-body {
-      margin-bottom: 30px;
-      text-align: justify;
-    }
-
-    .signature-info {
-      margin-top: 40px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
-
-    .signature-content {
-      flex: 1;
-    }
-
-    .digital-stamp {
-      flex-shrink: 0;
-      margin-left: 20px;
-    }
-
-    .stamp-image {
-      width: 80px;
-      height: 80px;
-      object-fit: contain;
-    }
+    .btn-group-sm .btn { font-size: 0.8rem; padding: 5px 12px; }
 
     @media print {
-      .form-section, .button-group {
-        display: none;
-      }
-      
-      .preview-section {
-        box-shadow: none;
-        border: none;
-      }
+        .letter-form, .card-header, nav, .breadcrumb, .navbar,
+        .page-header, h1, h2, h3, .card { display: none !important; }
+        .letter-right, .letter-right .card { display: block !important; }
+        .letter-right .card-body { padding: 0 !important; }
+        .letter-preview { border: none; padding: 20px 0; box-shadow: none; }
+        .letter-wrap { max-width: 100%; }
+        body { background: white; }
     }
+    @media (max-width: 900px) {
+        .letter-wrap { flex-direction: column; }
+        .letter-form { flex: none; }
+    }
+</style>
+{% endblock %}
 
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 20px;
-    }
-
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #007bff;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 10px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <!-- Form Section -->
-    <div class="form-section">
-      <h1>Letter Generator</h1>
-      <h2>Enter Letter Information</h2>
-      
-      <form id="letterForm">
-        <!-- Recipient Information -->
-        <div class="form-group">
-          <label for="recipientName">Recipient Name *</label>
-          <input type="text" id="recipientName" name="recipientName" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="recipientTitle">Recipient Title</label>
-          <input type="text" id="recipientTitle" name="recipientTitle">
-        </div>
-        
-        <div class="form-group">
-          <label for="recipientCompany">Recipient Company</label>
-          <input type="text" id="recipientCompany" name="recipientCompany">
-        </div>
-        
-        <div class="form-group">
-          <label for="recipientAddress">Recipient Address</label>
-          <textarea id="recipientAddress" name="recipientAddress" rows="3"></textarea>
-        </div>
-        
-        <!-- Letter Information -->
-        <div class="form-row">
-          <div class="form-group">
-            <label for="letterDate">Letter Date</label>
-            <input type="date" id="letterDate" name="letterDate">
-          </div>
-          <div class="form-group">
-            <label for="letterSubject">Letter Subject *</label>
-            <input type="text" id="letterSubject" name="letterSubject" required>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="letterBody">Letter Content *</label>
-          <textarea id="letterBody" name="letterBody" rows="10" required 
-                    placeholder="Please enter your letter content..."></textarea>
-        </div>
-        
-        <!-- Signature Information -->
-        <div class="form-group">
-          <label for="senderName">Sender Name *</label>
-          <input type="text" id="senderName" name="senderName" required>
-        </div>
-        
-        <div class="form-group">
-          <label for="senderTitle">Sender Title</label>
-          <input type="text" id="senderTitle" name="senderTitle">
-        </div>
-        
-        <div class="button-group">
-          <button type="button" class="btn btn-secondary" onclick="previewLetter()">Preview Letter</button>
-          <button type="button" class="btn btn-success" onclick="generatePDF()">Generate PDF</button>
-          <button type="button" class="btn" onclick="printLetter()">Print Letter</button>
-        </div>
-      </form>
-    </div>
-    
-    <!-- Preview Section -->
-    <div class="preview-section">
-      <h2>Letter Preview</h2>
-      <div id="letterPreview" class="letter-preview">
-        <div class="company-header">
-          <div class="logo-section">
-            <div class="logo">
-              <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="JOYFUL ESCAPE Logo">
+{% block content %}
+<div class="letter-wrap">
+    <!-- 左侧表单 -->
+    <div class="letter-form">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0"><i class="fas fa-edit me-1"></i>信件信息</h6>
             </div>
-            <div class="company-name">JOYFUL ESCAPE</div>
-            <div class="company-name-chinese">Travel & Tourism Services</div>
-          </div>
-          
-          <div class="contact-section">
-            <div class="company-name-full">JOYFUL ESCAPES PTE LTD</div>
-            <div class="company-name-english">Travel & Tourism Services</div>
-            <div class="license-info">TA License No.: TA03652</div>
-            <div class="phone-info">TEL: 9106 8716 / 9627 5316</div>
-            <div class="email-info">Email: joyfulescape@hotmail.com</div>
-          </div>
+            <div class="card-body">
+                <form id="letterForm">
+                    <div class="mb-2">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" id="letterDate" name="letterDate" style="max-width:180px;" value="{{ today_date }}">
+                    </div>
+                    <hr class="my-2">
+                    <div class="mb-2">
+                        <label class="form-label">Recipient Name *</label>
+                        <input type="text" class="form-control" id="recipientName" name="recipientName" required placeholder="e.g. Mr. John Smith">
+                    </div>
+                    <div class="form-row-2 mb-2">
+                        <div>
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" id="recipientTitle" name="recipientTitle" placeholder="e.g. Visa Officer">
+                        </div>
+                        <div>
+                            <label class="form-label">Company</label>
+                            <input type="text" class="form-control" id="recipientCompany" name="recipientCompany" placeholder="e.g. Embassy of Japan">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-control" id="recipientAddress" name="recipientAddress" placeholder="e.g. 16 Nassim Road, Singapore 258390">
+                    </div>
+                    <hr class="my-2">
+                    <div class="mb-2">
+                        <label class="form-label">Subject *</label>
+                        <input type="text" class="form-control" id="letterSubject" name="letterSubject" required placeholder="e.g. Application for Entry Visa">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Content *</label>
+                        <textarea class="form-control" id="letterBody" name="letterBody" rows="8" required
+                                  placeholder="e.g. This serves to certify that the below named visa applicant is an employee of our company..."></textarea>
+                    </div>
+                    <hr class="my-2">
+                    <div class="form-row-2 mb-2">
+                        <div>
+                            <label class="form-label">Sender Name *</label>
+                            <input type="text" class="form-control" id="senderName" name="senderName" required placeholder="e.g. Zhang Zhuan">
+                        </div>
+                        <div>
+                            <label class="form-label">Department</label>
+                            <input type="text" class="form-control" id="senderDept" name="senderDept" placeholder="e.g. Admin Dept">
+                        </div>
+                    </div>
+                    <div class="form-row-2 mb-2">
+                        <div>
+                            <label class="form-label">Designation</label>
+                            <input type="text" class="form-control" id="senderTitle" name="senderTitle" placeholder="e.g. Director">
+                        </div>
+                        <div>
+                            <label class="form-label">Contact No.</label>
+                            <input type="text" class="form-control" id="senderPhone" name="senderPhone" placeholder="e.g. 9106 8716">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-success btn-sm flex-fill" onclick="generatePDF()">
+                            <i class="fas fa-file-pdf me-1"></i>Generate PDF
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm flex-fill" onclick="printLetter()">
+                            <i class="fas fa-print me-1"></i>Print
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        
-        <div class="recipient-info">
-          <strong id="previewRecipientName">Recipient Name</strong><br>
-          <span id="previewRecipientTitle">Recipient Title</span><br>
-          <span id="previewRecipientCompany">Recipient Company</span><br>
-          <span id="previewRecipientAddress">Recipient Address</span>
-        </div>
-        
-        <div class="date-info">
-          <span id="previewDate">Date</span>
-        </div>
-        
-        <div class="subject-info">
-          Subject: <span id="previewSubject">Letter Subject</span>
-        </div>
-        
-        <div class="letter-body">
-          <span id="previewBody">Letter content will be displayed here...</span>
-        </div>
-        
-        <div class="signature-info">
-          <div class="signature-content">
-            <strong id="previewSenderName">Sender Name</strong><br>
-            <span id="previewSenderTitle">Sender Title</span><br>
-            JOYFUL ESCAPES PTE LTD
-          </div>
-          <div class="digital-stamp">
-            <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" alt="Company Digital Stamp" class="stamp-image">
-          </div>
-        </div>
-      </div>
-      
-      <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <p>Generating PDF, please wait...</p>
-      </div>
     </div>
-  </div>
 
-  <script>
-    // Set default date to today
-    document.getElementById('letterDate').value = new Date().toISOString().split('T')[0];
-    
-    // Auto-preview when form changes
-    document.getElementById('letterForm').addEventListener('input', function() {
-      previewLetter();
-    });
-    
-    function previewLetter() {
-      // Update recipient info
-      document.getElementById('previewRecipientName').textContent = 
-        document.getElementById('recipientName').value || '收件人姓名';
-      document.getElementById('previewRecipientTitle').textContent = 
-        document.getElementById('recipientTitle').value || '';
-      document.getElementById('previewRecipientCompany').textContent = 
-        document.getElementById('recipientCompany').value || '';
-      document.getElementById('previewRecipientAddress').textContent = 
-        document.getElementById('recipientAddress').value || '';
-      
-      // Update date
-      const dateInput = document.getElementById('letterDate').value;
-      if (dateInput) {
-        const date = new Date(dateInput);
-        document.getElementById('previewDate').textContent = 
-          date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          });
-      }
-      
-      // Update subject
-      document.getElementById('previewSubject').textContent = 
-        document.getElementById('letterSubject').value || 'Letter Subject';
-      
-      // Update body
-      const bodyContent = document.getElementById('letterBody').value || 'Letter content will be displayed here...';
-      document.getElementById('previewBody').innerHTML = bodyContent.replace(/\n/g, '<br>');
-      
-      // Update sender info
-      document.getElementById('previewSenderName').textContent = 
-        document.getElementById('senderName').value || 'Sender Name';
-      document.getElementById('previewSenderTitle').textContent = 
-        document.getElementById('senderTitle').value || '';
+    <!-- 右侧预览 -->
+    <div class="letter-right">
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-eye me-1"></i>Preview</h6>
+                <span id="loading" style="display:none;" class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Generating...</span>
+            </div>
+            <div class="card-body p-2">
+                <div id="letterPreview" class="letter-preview">
+                    <!-- 公司抬头 -->
+                    <div class="lp-header">
+                        <div class="lp-logo-area">
+                            {% if company and company.logo_path %}
+                            <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Logo">
+                            {% endif %}
+                            <div class="lp-company-name">{{ company.company_short_name|upper if company and company.company_short_name else 'JOYFUL ESCAPES' }}</div>
+                        </div>
+                        <div class="lp-contact">
+                            {% if company and company.company_name_cn %}<div style="font-size:12px; font-weight:bold; margin-bottom:2px;">{{ company.company_name_cn }}</div>{% endif %}
+                            <strong>{{ company.company_name if company else 'JOYFUL ESCAPES PTE LTD' }}</strong><br>
+                            {% if company and company.address %}{{ company.address|replace('SINGAPORE', '<br>SINGAPORE')|safe }}<br>{% endif %}
+                            {% if company and company.ta_license %}TA License No.: {{ company.ta_license }}<br>{% endif %}
+                            {% if company and company.email %}Email: {{ company.email }}{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 日期 -->
+                    <div class="lp-date" id="previewDate">Date</div>
+
+                    <!-- 收件人 -->
+                    <div class="lp-recipient">
+                        <strong id="previewRecipientName">Recipient Name</strong><br>
+                        <span id="previewRecipientTitle"></span>
+                        <span id="previewRecipientCompany"></span>
+                        <span id="previewRecipientAddress"></span>
+                    </div>
+
+                    <!-- 主题 -->
+                    <div class="lp-subject">Subject: <span id="previewSubject">Letter Subject</span></div>
+
+                    <!-- 正文 -->
+                    <div class="lp-body" id="previewBody">Letter content will be displayed here...</div>
+
+                    <!-- 签名 -->
+                    <div class="lp-signature">
+                        <div class="lp-signature-text">
+                            Yours faithfully,<br><br><br>
+                            <strong id="previewSenderName">Sender Name</strong><br>
+                            <span id="previewSenderDept"></span>
+                            <span id="previewSenderTitle"></span>
+                            <span id="previewSenderPhone"></span>
+                            {{ company.company_name if company else 'JOYFUL ESCAPES PTE LTD' }}
+                        </div>
+                        <div class="lp-stamp">
+                            <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" alt="Stamp">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 自动填充今天日期
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById('letterDate').value = `${yyyy}-${mm}-${dd}`;
+    previewLetter();
+});
+
+document.getElementById('letterForm').addEventListener('input', previewLetter);
+
+function previewLetter() {
+    const get = id => document.getElementById(id).value.trim();
+
+    document.getElementById('previewRecipientName').textContent = get('recipientName') || 'Recipient Name';
+
+    const title = get('recipientTitle');
+    const company = get('recipientCompany');
+    const address = get('recipientAddress');
+    document.getElementById('previewRecipientTitle').innerHTML = title ? title + '<br>' : '';
+    document.getElementById('previewRecipientCompany').innerHTML = company ? company + '<br>' : '';
+    document.getElementById('previewRecipientAddress').innerHTML = address ? address : '';
+
+    const dateVal = get('letterDate');
+    if (dateVal) {
+        const d = new Date(dateVal);
+        document.getElementById('previewDate').textContent = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     }
-    
-    function generatePDF() {
-      if (!validateForm()) return;
-      
-      document.getElementById('loading').style.display = 'block';
-      
-      // Collect form data
-      const formData = new FormData(document.getElementById('letterForm'));
-      
-      // Send to backend for PDF generation
-      fetch('/files/generate_letter_pdf', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => {
-        const contentType = response.headers.get('Content-Type') || '';
-        if (!response.ok || !contentType.includes('application/pdf')) {
-          return response.text().then(text => {
-            const msg = text && text.length < 500 ? text : 'Failed to generate PDF';
-            throw new Error(msg);
-          });
+
+    document.getElementById('previewSubject').textContent = get('letterSubject') || 'Letter Subject';
+    document.getElementById('previewBody').innerHTML = (get('letterBody') || 'Letter content will be displayed here...').replace(/\n/g, '<br>');
+    document.getElementById('previewSenderName').textContent = get('senderName') || 'Sender Name';
+    const senderDept = get('senderDept');
+    const senderDesignation = get('senderTitle');
+    const senderPhone = get('senderPhone');
+    document.getElementById('previewSenderDept').innerHTML = senderDept ? senderDept + '<br>' : '';
+    document.getElementById('previewSenderTitle').innerHTML = senderDesignation ? senderDesignation + '<br>' : '';
+    document.getElementById('previewSenderPhone').innerHTML = senderPhone ? 'Contact: ' + senderPhone + '<br>' : '';
+}
+
+function generatePDF() {
+    if (!validateForm()) return;
+    document.getElementById('loading').style.display = 'inline';
+
+    const formData = new FormData(document.getElementById('letterForm'));
+    fetch('/files/generate_letter_pdf', { method: 'POST', body: formData })
+    .then(response => {
+        if (!response.ok || !(response.headers.get('Content-Type') || '').includes('application/pdf')) {
+            return response.text().then(t => { throw new Error(t.slice(0, 300) || 'PDF generation failed'); });
         }
         return response.blob();
-      })
-      .then(blob => {
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
+    })
+    .then(blob => {
         const a = document.createElement('a');
-        a.href = url;
+        a.href = URL.createObjectURL(blob);
         a.download = 'JOYFUL_ESCAPES_Letter.pdf';
-        document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
+        URL.revokeObjectURL(a.href);
         document.getElementById('loading').style.display = 'none';
-      })
-      .catch(error => {
-        console.error('Error generating PDF:', error);
-        alert('Error generating PDF: ' + (error && error.message ? error.message : 'Unknown error'));
+    })
+    .catch(err => {
+        alert('Error: ' + err.message);
         document.getElementById('loading').style.display = 'none';
-      });
-    }
-    
-    function printLetter() {
-      if (!validateForm()) return;
-      
-      window.print();
-    }
-    
-    function validateForm() {
-      const requiredFields = ['recipientName', 'letterSubject', 'letterBody', 'senderName'];
-      let isValid = true;
-      
-      requiredFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (!field.value.trim()) {
-          field.style.borderColor = 'red';
-          isValid = false;
-        } else {
-          field.style.borderColor = '#ddd';
-        }
-      });
-      
-      if (!isValid) {
-        alert('Please fill in all required fields');
-      }
-      
-      return isValid;
-    }
-    
-    // Initial preview
-    previewLetter();
-  </script>
-</body>
-</html>
+    });
+}
+
+function printLetter() {
+    if (!validateForm()) return;
+    window.print();
+}
+
+function validateForm() {
+    let ok = true;
+    ['recipientName', 'letterSubject', 'letterBody', 'senderName'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el.value.trim()) { el.style.borderColor = '#dc3545'; ok = false; }
+        else { el.style.borderColor = ''; }
+    });
+    if (!ok) alert('Please fill in all required fields');
+    return ok;
+}
+
+previewLetter();
+</script>
+{% endblock %}
