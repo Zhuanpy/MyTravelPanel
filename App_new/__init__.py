@@ -171,9 +171,11 @@ def create_app():
     from .shared.routes.business_type import business_types
     from .shared.routes.supplier import supplier
     from .utils.routes.checklist import checklist_bp
-    
+    from .shared.models.routes_files import files_process
+
     app.register_blueprint(utils_blue, url_prefix='/utils')
     app.register_blueprint(utils_process, url_prefix='/utils_process')
+    app.register_blueprint(files_process, url_prefix='/files')
     app.register_blueprint(account_routes, url_prefix='/account')
     app.register_blueprint(own_company, url_prefix='/own_company')
     app.register_blueprint(corporate, url_prefix='/company')
