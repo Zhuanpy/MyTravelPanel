@@ -1086,6 +1086,9 @@ def get_visa_documents(visa_type, identity):
 @public.route('/attractions')
 def attractions():
     """景点门票页面"""
+    if is_mobile_device():
+        return redirect(url_for('mobile.attractions', **request.args))
+
     from App_new.business.products.models import ProductsUnified, ProductCategory
     from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
     from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant

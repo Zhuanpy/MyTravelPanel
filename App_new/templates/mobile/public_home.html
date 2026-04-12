@@ -25,97 +25,94 @@
         /* Hero 区域 */
         .hero {
             position: relative;
-            height: 200px;
+            overflow: hidden;
+        }
+
+        .hero-banner {
+            position: relative;
+            height: 160px;
             overflow: hidden;
         }
 
         .hero-slider {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
         }
 
         .hero-slide {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background-size: cover;
             background-position: center;
             opacity: 0;
             transition: opacity 1s ease;
         }
 
-        .hero-slide.active {
-            opacity: 1;
-        }
+        .hero-slide.active { opacity: 1; }
 
         .hero-slide.default {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
 
         .hero-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                180deg,
-                rgba(0,0,0,0.3) 0%,
-                rgba(0,0,0,0.4) 50%,
-                rgba(0,0,0,0.6) 100%
-            );
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%);
             z-index: 1;
         }
 
         .hero-content {
-            position: relative;
-            z-index: 2;
+            position: relative; z-index: 2;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            display: flex; align-items: flex-end;
             padding: 16px;
-            text-align: center;
             color: white;
         }
 
         .hero-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
+            display: flex; align-items: center; gap: 10px;
         }
 
         .hero-logo {
-            width: 36px;
-            height: 36px;
+            width: 36px; height: 36px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             object-fit: contain;
             background: white;
             padding: 3px;
             flex-shrink: 0;
         }
 
-        .hero-title {
-            font-size: 16px;
-            font-weight: 700;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            line-height: 1.2;
-            margin: 0;
+        .hero-text h1 {
+            font-size: 16px; font-weight: 700;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            margin: 0; line-height: 1.2;
         }
 
-        .hero-subtitle {
-            font-size: 12px;
-            opacity: 0.9;
-            letter-spacing: 0.5px;
+        .hero-text p {
+            font-size: 11px; opacity: 0.85;
+            margin: 2px 0 0; letter-spacing: 0.3px;
         }
+
+        /* 快捷入口 */
+        .quick-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 14px 8px;
+            background: white;
+        }
+
+        .quick-nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            text-decoration: none; color: #334155; gap: 4px;
+        }
+
+        .quick-nav-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: white;
+        }
+
+        .quick-nav-label { font-size: 11px; color: #475569; }
 
         /* 区块标题 */
         .section {
@@ -412,45 +409,69 @@
 
 <!-- Hero 区域 -->
 <section class="hero">
-    <div class="hero-slider">
-        {% if banners and banners|length > 0 %}
-            {% for banner in banners %}
-            <div class="hero-slide {{ 'active' if loop.first else '' }}"
-                 style="background-image: url('/static/{{ banner.image_path }}');"></div>
-            {% endfor %}
-        {% else %}
-            <div class="hero-slide active default"></div>
-        {% endif %}
-    </div>
-    <div class="hero-overlay"></div>
-
-    <!-- 顶部用户栏 -->
-    <div class="top-bar">
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('mobile.orders_list') }}" class="user-btn">
-            <i class="fas fa-shopping-bag"></i>
-            我的订单
-        </a>
-        {% else %}
-        <a href="{{ url_for('mobile.member_login') }}" class="user-btn">
-            <i class="fas fa-user"></i>
-            登录
-        </a>
-        {% endif %}
-    </div>
-
-    <div class="hero-content">
-        <div class="hero-brand">
-            {% if company and company.logo_path %}
-                {% if company.logo_path.startswith('http://') or company.logo_path.startswith('https://') %}
-                <img src="{{ company.logo_path }}" alt="Logo" class="hero-logo">
-                {% else %}
-                <img src="/static/{{ company.logo_path }}" alt="Logo" class="hero-logo">
-                {% endif %}
+    <div class="hero-banner">
+        <div class="hero-slider">
+            {% if banners and banners|length > 0 %}
+                {% for banner in banners %}
+                <div class="hero-slide {{ 'active' if loop.first else '' }}"
+                     style="background-image: url('/static/{{ banner.image_path }}');"></div>
+                {% endfor %}
+            {% else %}
+                <div class="hero-slide active default"></div>
             {% endif %}
-            <h1 class="hero-title">{{ company.company_name if company else '悦行假期' }}</h1>
         </div>
-        <p class="hero-subtitle">专业旅游服务 · 签证办理 · 机票预订</p>
+        <div class="hero-overlay"></div>
+
+        <!-- 顶部用户栏 -->
+        <div class="top-bar">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('mobile.orders_list') }}" class="user-btn">
+                <i class="fas fa-shopping-bag"></i>
+                我的订单
+            </a>
+            {% else %}
+            <a href="{{ url_for('mobile.member_login') }}" class="user-btn">
+                <i class="fas fa-user"></i>
+                登录
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="hero-content">
+            <div class="hero-brand">
+                {% if company and company.logo_path %}
+                    {% if company.logo_path.startswith('http://') or company.logo_path.startswith('https://') %}
+                    <img src="{{ company.logo_path }}" alt="Logo" class="hero-logo">
+                    {% else %}
+                    <img src="/static/{{ company.logo_path }}" alt="Logo" class="hero-logo">
+                    {% endif %}
+                {% endif %}
+                <div class="hero-text">
+                    <h1>{{ company.company_short_name if company and company.company_short_name else (company.company_name if company else 'JOYFUL ESCAPES') }}</h1>
+                    <p>{{ company.company_name_cn if company and company.company_name_cn else '专业旅游服务' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="quick-nav">
+        <a href="{{ url_for('mobile.tour_packages') }}" class="quick-nav-item">
+            <div class="quick-nav-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb);"><i class="fas fa-suitcase-rolling"></i></div>
+            <span class="quick-nav-label">旅游配套</span>
+        </a>
+        <a href="{{ url_for('mobile.attractions') }}" class="quick-nav-item">
+            <div class="quick-nav-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);"><i class="fas fa-ticket-alt"></i></div>
+            <span class="quick-nav-label">景点门票</span>
+        </a>
+        <a href="{{ url_for('mobile.visa_services') }}" class="quick-nav-item">
+            <div class="quick-nav-icon" style="background:linear-gradient(135deg,#10b981,#059669);"><i class="fas fa-passport"></i></div>
+            <span class="quick-nav-label">签证服务</span>
+        </a>
+        <a href="{{ url_for('mobile.contact') }}" class="quick-nav-item">
+            <div class="quick-nav-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);"><i class="fas fa-headset"></i></div>
+            <span class="quick-nav-label">联系我们</span>
+        </a>
     </div>
 </section>
 
@@ -496,6 +517,45 @@
     {% endif %}
 </section>
 
+<!-- 景点门票 -->
+<section class="section">
+    <div class="section-header">
+        <h2 class="section-title">景点门票</h2>
+        <a href="{{ url_for('mobile.attractions') }}" class="section-more">查看全部 <i class="fas fa-chevron-right"></i></a>
+    </div>
+
+    {% if attractions %}
+    <div class="product-scroll">
+        {% for item in attractions %}
+        <a href="{{ url_for('mobile.attraction_detail', product_id=item.id) }}" class="product-card">
+            <div class="product-image" {% if item.image %}style="background-image: url('/static/{{ item.image }}');"{% endif %}>
+                {% if item.location %}
+                <span class="product-badge"><i class="fas fa-map-marker-alt"></i> {{ item.location }}</span>
+                {% endif %}
+                {% if item.is_featured %}
+                <span class="product-featured"><i class="fas fa-star"></i> 热门</span>
+                {% endif %}
+            </div>
+            <div class="product-body">
+                <h3 class="product-name">{{ item.name }}</h3>
+                {% if item.name_en %}
+                <div class="product-meta">
+                    <span>{{ item.name_en }}</span>
+                </div>
+                {% endif %}
+                <div class="product-price">{{ item.price }} <small>/人起</small></div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-ticket-alt"></i>
+        <p>暂无景点门票</p>
+    </div>
+    {% endif %}
+</section>
+
 <!-- 签证服务 -->
 <section class="section" style="background: white;">
     <div class="section-header">
@@ -526,39 +586,12 @@
     {% endif %}
 </section>
 
-<!-- 联系我们 -->
-<section class="contact-section">
-    <a href="{{ url_for('mobile.contact') }}" class="contact-btn">
-        <i class="fas fa-headset"></i>
-        在线咨询
-    </a>
-</section>
-
 <!-- 页脚 -->
 <footer class="footer">
-    <div class="footer-logo">{{ company.company_name if company else '悦行假期' }}</div>
-    <div class="footer-links">
-        <a href="{{ url_for('mobile.tour_packages') }}">旅游配套</a>
-        <a href="{{ url_for('mobile.visa_services') }}">签证服务</a>
-        <a href="{{ url_for('mobile.contact') }}">联系我们</a>
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('mobile.orders_list') }}">我的订单</a>
-        {% else %}
-        <a href="{{ url_for('mobile.member_login') }}">会员登录</a>
-        {% endif %}
-    </div>
-    {% if company %}
-    <div class="footer-contact">
-        <i class="fas fa-phone"></i>{{ company.phone or '+65 1234 5678' }}
-    </div>
-    <div class="footer-contact">
-        <i class="fas fa-envelope"></i>{{ company.email or 'info@joyesc.com' }}
-    </div>
-    {% endif %}
     <div class="footer-copyright">
-        &copy; 2026 {{ company.company_name if company else '悦行假期' }}. All rights reserved.
+        &copy; 2026 {{ company.company_name if company else 'JOYFUL ESCAPES' }}
         <br>
-        <a href="{{ url_for('auth_profile.staff_login') }}" style="color: rgba(255,255,255,0.4); text-decoration: none;">员工入口</a>
+        <a href="{{ url_for('auth_profile.logout', next='/staff/login') }}" style="color: rgba(255,255,255,0.4); text-decoration: none;">员工入口</a>
     </div>
 </footer>
 

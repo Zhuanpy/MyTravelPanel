@@ -384,6 +384,17 @@
         </div>
     </div>
 
+    <!-- 类型筛选 -->
+    <div class="filter-tabs" style="border-bottom:1px solid #f1f5f9;">
+        <div class="filter-tabs-inner">
+            <a href="{{ url_for('mobile.orders_list', status=current_status) }}" class="filter-tab {{ 'active' if not current_type else '' }}" style="font-size:12px; padding:6px 10px;">全部类型</a>
+            <a href="{{ url_for('mobile.orders_list', status=current_status, type='ticket') }}" class="filter-tab {{ 'active' if current_type == 'ticket' else '' }}" style="font-size:12px; padding:6px 10px;"><i class="fas fa-ticket-alt"></i> 门票</a>
+            <a href="{{ url_for('mobile.orders_list', status=current_status, type='tour') }}" class="filter-tab {{ 'active' if current_type == 'tour' else '' }}" style="font-size:12px; padding:6px 10px;"><i class="fas fa-suitcase-rolling"></i> 配套</a>
+            <a href="{{ url_for('mobile.orders_list', status=current_status, type='visa') }}" class="filter-tab {{ 'active' if current_type == 'visa' else '' }}" style="font-size:12px; padding:6px 10px;"><i class="fas fa-passport"></i> 签证</a>
+            <a href="{{ url_for('mobile.orders_list', status=current_status, type='flight') }}" class="filter-tab {{ 'active' if current_type == 'flight' else '' }}" style="font-size:12px; padding:6px 10px;"><i class="fas fa-plane"></i> 机票</a>
+        </div>
+    </div>
+
     <!-- 统计信息 -->
     <div class="stats-bar">
         <span>共 <span class="stats-count">{{ pagination.total if pagination else 0 }}</span> 个订单</span>
@@ -434,6 +445,15 @@
                         {{ order.currency }} {{ "%.2f"|format(order.total_amount) }}
                     </div>
                     <div class="order-actions">
+                        {% if order.status in ('draft', 'pending') %}
+                        <button type="button" class="order-btn" style="background:#fef2f2; color:#dc2626; border:none; cursor:pointer; padding:6px 12px; border-radius:8px; font-size:12px;" onclick="cancelOrder({{ order.id }})">
+                            <i class="fas fa-times"></i> 取消
+                        </button>
+                        {% elif order.status == 'cancelled' %}
+                        <button type="button" class="order-btn" style="background:#f1f5f9; color:#94a3b8; border:none; cursor:pointer; padding:6px 12px; border-radius:8px; font-size:12px;" onclick="deleteOrder({{ order.id }})">
+                            <i class="fas fa-trash-alt"></i> 删除
+                        </button>
+                        {% endif %}
                         <a href="{{ url_for('mobile.order_detail', order_id=order.id) }}" class="order-btn order-btn-primary">
                             <i class="fas fa-eye"></i> 详情
                         </a>
@@ -445,9 +465,7 @@
             <div class="empty-state">
                 <i class="fas fa-shopping-cart"></i>
                 <p>暂无订单记录</p>
-                <a href="{{ url_for('mobile.tour_packages') }}" class="btn">
-                    <i class="fas fa-plus"></i> 去下单
-                </a>
+                <p style="margin-top:8px;"><a href="{{ url_for('mobile.attractions') }}" style="color:#10b981; text-decoration:none; font-size:13px;">去逛逛 →</a></p>
             </div>
         {% endif %}
     </div>
@@ -481,6 +499,44 @@
 {% set menu_type = 'member' %}
 {% set active_tab = 'orders' %}
 {% include 'mobile/components/bottom_nav.html' %}
+
+<script>
+function cancelOrder(orderId) {
+    if (!confirm('确定要取消这个订单吗？取消后无法恢复。')) return;
+
+    fetch('/m/order/' + orderId + '/cancel', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '取消失败');
+        }
+    })
+    .catch(() => alert('网络错误'));
+}
+
+function deleteOrder(orderId) {
+    if (!confirm('确定要删除这个订单吗？删除后不可恢复。')) return;
+
+    fetch('/m/order/' + orderId + '/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    })
+    .catch(() => alert('网络错误'));
+}
+</script>
 
 </body>
 </html>

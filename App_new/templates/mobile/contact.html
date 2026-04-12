@@ -4,498 +4,186 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#10b981">
-    <title>联系我们 - {{ company.company_name if company else '悦行假期' }}</title>
+    <title>联系我们 - {{ company.company_name if company else 'JOYFUL ESCAPES' }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            padding-bottom: 70px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5; color: #333; line-height: 1.5;
+            -webkit-font-smoothing: antialiased; padding-bottom: 70px;
         }
 
-        /* Hero区域 - 与首页统一 */
-        .hero {
-            position: relative;
-            height: 180px;
-            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-            overflow: hidden;
-        }
-
-        .hero-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                180deg,
-                rgba(0,0,0,0.2) 0%,
-                rgba(0,0,0,0.3) 50%,
-                rgba(0,0,0,0.4) 100%
-            );
-        }
-
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            text-align: center;
-            color: white;
-        }
-
-        /* 顶部导航 */
-        .top-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            z-index: 10;
-        }
-
-        .back-btn {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            color: white;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .hero-icon {
-            width: 56px;
-            height: 56px;
-            background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 12px;
-        }
-
-        .hero-icon i {
-            font-size: 24px;
-            color: white;
-        }
-
-        .hero-title {
-            font-size: 22px;
-            font-weight: 700;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            margin-bottom: 6px;
-        }
-
-        .hero-subtitle {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-
-        /* 主内容区 */
-        .main-content {
-            padding: 0 16px;
-            margin-top: -30px;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* 区块标题 */
-        .section-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 24px 0 16px;
-        }
-
-        .section-title-icon {
-            width: 32px;
-            height: 32px;
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
             background: linear-gradient(135deg, #10b981, #059669);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
+            display: flex; align-items: center; padding: 0 16px;
+            z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        .header-back { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; text-decoration: none; margin-right: 8px; }
+        .header-title { flex: 1; color: white; font-size: 18px; font-weight: 600; }
 
-        .section-title h2 {
-            font-size: 17px;
-            font-weight: 600;
-            color: #1e293b;
+        .main-content { padding-top: 56px; }
+
+        /* 快速联系 */
+        .quick-actions {
+            display: flex; gap: 10px; padding: 14px 12px; background: white;
+        }
+        .quick-btn {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            gap: 6px; padding: 12px; border-radius: 10px;
+            text-decoration: none; font-size: 13px; font-weight: 600;
+        }
+        .quick-btn:active { transform: scale(0.97); }
+        .quick-btn.phone-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .quick-btn.wa-btn { background: #25d366; color: white; }
+        .quick-btn.email-btn { background: #3b82f6; color: white; }
+
+        /* 区块 */
+        .section { padding: 12px; }
+        .section-label {
+            font-size: 13px; font-weight: 600; color: #64748b;
+            margin-bottom: 8px; padding-left: 4px;
         }
 
         /* 员工卡片 */
-        .staff-cards {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
         .staff-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            background: white; border-radius: 12px; padding: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04); margin-bottom: 10px;
         }
-
-        .staff-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 16px;
-        }
-
+        .staff-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .staff-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+            width: 48px; height: 48px; border-radius: 50%;
             background: linear-gradient(135deg, #10b981, #059669);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            font-weight: 600;
-            flex-shrink: 0;
-            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 20px; font-weight: 600; flex-shrink: 0; overflow: hidden;
         }
-
-        .staff-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .staff-info {
-            flex: 1;
-        }
-
-        .staff-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 4px;
-        }
-
-        .staff-position {
-            font-size: 13px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .staff-position i {
-            color: #10b981;
-        }
+        .staff-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .staff-name { font-size: 16px; font-weight: 600; color: #1e293b; }
+        .staff-position { font-size: 12px; color: #64748b; }
 
         /* 联系方式网格 */
-        .contact-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
+        .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 10px;
-            text-decoration: none;
-            color: inherit;
-            transition: all 0.2s;
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px; background: #f8fafc; border-radius: 8px;
+            text-decoration: none; color: inherit;
+        }
+        .contact-item:active { background: #f1f5f9; }
+        .ci-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .ci-icon.whatsapp { background: #dcfce7; color: #16a34a; }
+        .ci-icon.wechat { background: #dbeafe; color: #2563eb; }
+        .ci-icon.phone { background: #fef3c7; color: #d97706; }
+        .ci-icon.email { background: #fce7f3; color: #db2777; }
+        .ci-label { font-size: 10px; color: #94a3b8; }
+        .ci-value { font-size: 12px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* 微信二维码 */
+        .qr-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; text-align: center; }
+        .qr-label { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+        .qr-image { width: 120px; height: 120px; margin: 0 auto; }
+        .qr-image img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+
+        /* 名片链接 */
+        .card-link {
+            display: block; margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid #f1f5f9; text-align: center;
+            text-decoration: none; color: #10b981; font-size: 12px; font-weight: 600;
         }
 
-        .contact-item:active {
-            background: #f1f5f9;
-            transform: scale(0.98);
-        }
-
-        .contact-item-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-        }
-
-        .contact-item-icon.whatsapp {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .contact-item-icon.wechat {
-            background: #dbeafe;
-            color: #2563eb;
-        }
-
-        .contact-item-icon.phone {
-            background: #fef3c7;
-            color: #d97706;
-        }
-
-        .contact-item-icon.email {
-            background: #fce7f3;
-            color: #db2777;
-        }
-
-        .contact-item-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .contact-item-label {
-            font-size: 11px;
-            color: #94a3b8;
-        }
-
-        .contact-item-value {
-            font-size: 13px;
-            font-weight: 600;
-            color: #1e293b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* 微信二维码区域 */
-        .wechat-qr-section {
-            margin-top: 14px;
-            padding-top: 14px;
-            border-top: 1px solid #f1f5f9;
-        }
-
-        .wechat-qr-label {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .wechat-qr-label i {
-            color: #10b981;
-        }
-
-        .wechat-qr-image {
-            width: 140px;
-            height: 140px;
-            background: #f8fafc;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
-            border: 2px dashed #e2e8f0;
-        }
-
-        .wechat-qr-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 10px;
-        }
-
-        .wechat-qr-placeholder {
-            text-align: center;
-            color: #94a3b8;
-        }
-
-        .wechat-qr-placeholder i {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-
-        .wechat-qr-placeholder p {
-            font-size: 12px;
-        }
-
-        /* 公司信息卡片 */
+        /* 公司信息 */
         .company-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            background: white; border-radius: 12px; padding: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
+        .company-row {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 8px 0; font-size: 13px;
+        }
+        .company-row + .company-row { border-top: 1px solid #f8fafc; }
+        .company-row i { width: 16px; color: #10b981; margin-top: 2px; flex-shrink: 0; text-align: center; }
+        .company-row .label { width: 55px; color: #94a3b8; font-size: 12px; flex-shrink: 0; }
+        .company-row .value { flex: 1; color: #334155; }
 
-        .company-info-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+            background: white; display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
         }
-
-        .company-info-item:last-child {
-            border-bottom: none;
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            text-decoration: none; color: #94a3b8; font-size: 10px; gap: 2px;
         }
-
-        .company-info-icon {
-            width: 36px;
-            height: 36px;
-            background: #f0fdf4;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #10b981;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-
-        .company-info-content {
-            flex: 1;
-        }
-
-        .company-info-label {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 2px;
-        }
-
-        .company-info-value {
-            font-size: 14px;
-            font-weight: 500;
-            color: #1e293b;
-        }
-
-        /* 快速联系按钮 */
-        .quick-actions {
-            display: flex;
-            gap: 12px;
-            margin: 24px 0;
-        }
-
-        .quick-btn {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .quick-btn.primary {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-        }
-
-        .quick-btn.whatsapp {
-            background: #25d366;
-            color: white;
-            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
-        }
-
-        .quick-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* 空状态 */
-        .empty-staff {
-            background: white;
-            border-radius: 16px;
-            padding: 40px 20px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-        }
-
-        .empty-staff i {
-            font-size: 48px;
-            color: #cbd5e1;
-            margin-bottom: 16px;
-        }
-
-        .empty-staff p {
-            font-size: 14px;
-            color: #64748b;
-            margin-bottom: 16px;
-        }
-
-        .empty-staff-contact {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            background: #f0fdf4;
-            border-radius: 20px;
-            color: #10b981;
-            font-size: 14px;
-            font-weight: 500;
-            text-decoration: none;
-        }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: #10b981; }
     </style>
 </head>
 <body>
 
-<!-- Hero区域 -->
-<section class="hero">
-    <div class="hero-overlay"></div>
-
-    <!-- 顶部返回 -->
-    <div class="top-bar">
-        <a href="{{ url_for('mobile.public_home') }}" class="back-btn">
-            <i class="fas fa-arrow-left"></i>
-            返回
-        </a>
-    </div>
-
-    <div class="hero-content">
-        <div class="hero-icon">
-            <i class="fas fa-headset"></i>
-        </div>
-        <h1 class="hero-title">联系我们</h1>
-        <p class="hero-subtitle">专业旅游顾问为您服务</p>
-    </div>
-</section>
+<header class="header">
+    <a href="{{ url_for('mobile.public_home') }}" class="header-back"><i class="fas fa-arrow-left"></i></a>
+    <div class="header-title">联系我们</div>
+</header>
 
 <main class="main-content">
-    <!-- 员工卡片区域 -->
-    <div class="section-title">
-        <div class="section-title-icon">
-            <i class="fas fa-users"></i>
+    <!-- 公司信息 -->
+    <div class="section">
+        <div class="company-card">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #f1f5f9;">
+                {% if company and company.logo_path %}
+                <img src="/static/{{ company.logo_path }}" alt="Logo" style="width:44px; height:44px; object-fit:contain; border-radius:8px; background:#f8fafc; padding:4px;">
+                {% endif %}
+                <div>
+                    <div style="font-size:15px; font-weight:700; color:#1e293b;">{{ company.company_name if company else 'JOYFUL ESCAPES PTE. LTD' }}</div>
+                    {% if company and company.company_name_cn %}
+                    <div style="font-size:12px; color:#64748b;">{{ company.company_name_cn }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="company-row">
+                <i class="fas fa-map-marker-alt"></i>
+                <span class="label">地址</span>
+                <span class="value">{{ contact.address }}</span>
+            </div>
+            <div class="company-row">
+                <i class="fas fa-phone"></i>
+                <span class="label">电话</span>
+                <span class="value"><a href="tel:{{ contact.phone }}" style="color:#334155; text-decoration:none;">{{ contact.phone }}</a></span>
+            </div>
+            <div class="company-row">
+                <i class="fas fa-envelope"></i>
+                <span class="label">邮箱</span>
+                <span class="value"><a href="mailto:{{ contact.email }}" style="color:#334155; text-decoration:none;">{{ contact.email }}</a></span>
+            </div>
+            {% if contact.business_hours %}
+            <div class="company-row">
+                <i class="fas fa-clock"></i>
+                <span class="label">营业</span>
+                <span class="value">{{ contact.business_hours }}</span>
+            </div>
+            {% endif %}
+            {% if company and company.ta_license %}
+            <div class="company-row">
+                <i class="fas fa-certificate"></i>
+                <span class="label">执照</span>
+                <span class="value">TA License: {{ company.ta_license }}</span>
+            </div>
+            {% endif %}
         </div>
-        <h2>旅游顾问</h2>
     </div>
 
+    <!-- 旅游顾问 -->
     {% if staff_list %}
-    <div class="staff-cards">
+    <div class="section">
+        <div class="section-label"><i class="fas fa-user-tie" style="margin-right:4px;"></i> 旅游顾问</div>
         {% for staff in staff_list %}
         <div class="staff-card">
-            <div class="staff-header">
+            <div style="display:flex; align-items:center; gap:10px;">
                 <div class="staff-avatar">
                     {% if staff.avatar %}
                     <img src="/static/{{ staff.avatar }}" alt="{{ staff.name }}">
@@ -503,160 +191,57 @@
                     {{ staff.name[0] if staff.name else 'S' }}
                     {% endif %}
                 </div>
-                <div class="staff-info">
-                    <div class="staff-name">{{ staff.name }}</div>
-                    <div class="staff-position">
-                        <i class="fas fa-briefcase"></i>
-                        {{ staff.position or '旅游顾问' }}
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:14px; font-weight:600; color:#1e293b;">{{ staff.name }} <span style="font-size:11px; font-weight:400; color:#94a3b8;">{{ staff.position or '旅游顾问' }}</span></div>
+                    <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+                        {% if staff.phone %}
+                        <a href="tel:{{ staff.phone }}" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#f0fdf4; color:#16a34a; border-radius:6px; font-size:11px; text-decoration:none; font-weight:500;">
+                            <i class="fas fa-phone" style="font-size:10px;"></i> {{ staff.phone }}
+                        </a>
+                        {% endif %}
+                        {% if staff.whatsapp %}
+                        <a href="https://wa.me/{{ staff.whatsapp | replace('+', '') | replace(' ', '') }}" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#dcfce7; color:#16a34a; border-radius:6px; font-size:11px; text-decoration:none; font-weight:500;">
+                            <i class="fab fa-whatsapp" style="font-size:12px;"></i> WhatsApp
+                        </a>
+                        {% endif %}
+                        {% if staff.wechat_id %}
+                        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#dbeafe; color:#2563eb; border-radius:6px; font-size:11px; font-weight:500;">
+                            <i class="fab fa-weixin" style="font-size:12px;"></i> {{ staff.wechat_id }}
+                        </span>
+                        {% endif %}
                     </div>
                 </div>
-            </div>
-
-            <div class="contact-grid">
-                {% if staff.whatsapp %}
-                <a href="https://wa.me/{{ staff.whatsapp | replace('+', '') | replace(' ', '') }}" class="contact-item">
-                    <div class="contact-item-icon whatsapp">
-                        <i class="fab fa-whatsapp"></i>
-                    </div>
-                    <div class="contact-item-content">
-                        <div class="contact-item-label">WhatsApp</div>
-                        <div class="contact-item-value">{{ staff.whatsapp }}</div>
-                    </div>
+                <a href="{{ url_for('staff.business_card', user_id=staff.id) }}" style="color:#94a3b8; font-size:14px; flex-shrink:0;">
+                    <i class="fas fa-chevron-right"></i>
                 </a>
-                {% endif %}
-
-                {% if staff.wechat_id %}
-                <div class="contact-item">
-                    <div class="contact-item-icon wechat">
-                        <i class="fab fa-weixin"></i>
-                    </div>
-                    <div class="contact-item-content">
-                        <div class="contact-item-label">微信号</div>
-                        <div class="contact-item-value">{{ staff.wechat_id }}</div>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if staff.phone %}
-                <a href="tel:{{ staff.phone }}" class="contact-item">
-                    <div class="contact-item-icon phone">
-                        <i class="fas fa-phone"></i>
-                    </div>
-                    <div class="contact-item-content">
-                        <div class="contact-item-label">电话</div>
-                        <div class="contact-item-value">{{ staff.phone }}</div>
-                    </div>
-                </a>
-                {% endif %}
-
-                {% if staff.email %}
-                <a href="mailto:{{ staff.email }}" class="contact-item">
-                    <div class="contact-item-icon email">
-                        <i class="fas fa-envelope"></i>
-                    </div>
-                    <div class="contact-item-content">
-                        <div class="contact-item-label">邮箱</div>
-                        <div class="contact-item-value">{{ staff.email }}</div>
-                    </div>
-                </a>
-                {% endif %}
             </div>
-
-            {% if staff.wechat_qr %}
-            <div class="wechat-qr-section">
-                <div class="wechat-qr-label">
-                    <i class="fas fa-qrcode"></i>
-                    扫码添加微信
-                </div>
-                <div class="wechat-qr-image">
-                    <img src="/static/{{ staff.wechat_qr }}" alt="微信二维码">
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- 查看完整名片链接 -->
-            <a href="{{ url_for('staff.business_card', user_id=staff.id) }}" style="display:block;margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;text-align:center;text-decoration:none;color:#10b981;font-size:13px;font-weight:600;">
-                <i class="fas fa-id-card" style="margin-right:6px;"></i>查看完整电子名片
-                <i class="fas fa-chevron-right" style="margin-left:4px;font-size:11px;"></i>
-            </a>
         </div>
         {% endfor %}
     </div>
-    {% else %}
-    <div class="empty-staff">
-        <i class="fas fa-user-tie"></i>
-        <p>暂无公开的顾问信息</p>
-        <a href="tel:{{ contact.phone }}" class="empty-staff-contact">
-            <i class="fas fa-phone"></i>
-            直接拨打客服热线
-        </a>
-    </div>
     {% endif %}
 
-    <!-- 公司信息 -->
-    <div class="section-title">
-        <div class="section-title-icon">
-            <i class="fas fa-building"></i>
-        </div>
-        <h2>公司信息</h2>
-    </div>
-
-    <div class="company-card">
-        <div class="company-info-item">
-            <div class="company-info-icon">
-                <i class="fas fa-map-marker-alt"></i>
-            </div>
-            <div class="company-info-content">
-                <div class="company-info-label">办公地址</div>
-                <div class="company-info-value">{{ contact.address }}</div>
-            </div>
-        </div>
-        <div class="company-info-item">
-            <div class="company-info-icon">
-                <i class="fas fa-phone"></i>
-            </div>
-            <div class="company-info-content">
-                <div class="company-info-label">客服热线</div>
-                <div class="company-info-value">{{ contact.phone }}</div>
-            </div>
-        </div>
-        <div class="company-info-item">
-            <div class="company-info-icon">
-                <i class="fas fa-envelope"></i>
-            </div>
-            <div class="company-info-content">
-                <div class="company-info-label">电子邮箱</div>
-                <div class="company-info-value">{{ contact.email }}</div>
-            </div>
-        </div>
-        <div class="company-info-item">
-            <div class="company-info-icon">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="company-info-content">
-                <div class="company-info-label">营业时间</div>
-                <div class="company-info-value">{{ contact.business_hours }}</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 快速联系按钮 -->
+    <!-- 快速联系 -->
     <div class="quick-actions">
-        <a href="tel:{{ contact.phone }}" class="quick-btn primary">
-            <i class="fas fa-phone"></i>
-            电话咨询
+        <a href="tel:{{ contact.phone }}" class="quick-btn phone-btn">
+            <i class="fas fa-phone"></i> 电话
         </a>
-        <a href="https://wa.me/{{ contact.phone | replace('+', '') | replace(' ', '') }}" class="quick-btn whatsapp">
-            <i class="fab fa-whatsapp"></i>
-            WhatsApp
+        <a href="https://wa.me/{{ contact.phone | replace('+', '') | replace(' ', '') | replace('-', '') }}" class="quick-btn wa-btn">
+            <i class="fab fa-whatsapp"></i> WhatsApp
+        </a>
+        <a href="mailto:{{ contact.email }}" class="quick-btn email-btn">
+            <i class="fas fa-envelope"></i> 邮件
         </a>
     </div>
 </main>
 
 <!-- 底部导航 -->
-{% set menu_type = 'public' %}
-{% set active_tab = 'contact' %}
-{% include 'mobile/components/bottom_nav.html' %}
+<nav class="bottom-nav">
+    <a href="{{ url_for('mobile.public_home') }}" class="nav-item"><i class="fas fa-home"></i><span>首页</span></a>
+    <a href="{{ url_for('mobile.tour_packages') }}" class="nav-item"><i class="fas fa-suitcase-rolling"></i><span>旅游</span></a>
+    <a href="{{ url_for('mobile.visa_services') }}" class="nav-item"><i class="fas fa-passport"></i><span>签证</span></a>
+    <a href="{{ url_for('mobile.attractions') }}" class="nav-item"><i class="fas fa-ticket-alt"></i><span>门票</span></a>
+    <a href="{{ url_for('mobile.contact') }}" class="nav-item active"><i class="fas fa-headset"></i><span>联系</span></a>
+</nav>
 
 </body>
 </html>

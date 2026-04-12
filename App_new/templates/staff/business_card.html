@@ -557,17 +557,8 @@
         <!-- 名片主体内容 -->
         <div class="card-main">
 
-            <!-- 左侧：Logo + 二维码 -->
+            <!-- 左侧：二维码 + Logo -->
             <div class="card-left">
-                <div class="logo-area">
-                    {% if company and company.logo_path %}
-                    <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo">
-                    {% endif %}
-                    {% if company and company.company_short_name %}
-                    <div class="logo-text">{{ company.company_short_name }}</div>
-                    {% endif %}
-                </div>
-
                 {% if user.profile and (user.profile.wechat_qr or user.profile.whatsapp_qr) %}
                 <div class="qr-area">
                     {% if user.profile.wechat_qr %}
@@ -584,6 +575,15 @@
                     {% endif %}
                 </div>
                 {% endif %}
+
+                <div class="logo-area">
+                    {% if company and company.logo_path %}
+                    <img src="{{ url_for('static', filename=company.logo_path) }}" alt="Logo">
+                    {% endif %}
+                    {% if company and company.company_short_name %}
+                    <div class="logo-text">{{ company.company_short_name }}</div>
+                    {% endif %}
+                </div>
             </div>
 
             <!-- 竖向分隔线 -->

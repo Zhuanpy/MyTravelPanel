@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, desc
 
 from . import mobile_bp
-from App_new.exts import db
+from App_new.exts import db, csrf
 
 
 @mobile_bp.route('/')
@@ -624,6 +624,43 @@ def public_home():
         'visa_count': vc[2]
     } for vc in visa_countries_raw]
 
+    # 获取景点门票（最多6个）
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+
+    attractions_raw = ProductsUnified.query.filter(
+        ProductsUnified.product_category == 'ticket',
+        ProductsUnified.parent_id.is_(None),
+        ProductsUnified.product_status == 'active',
+    ).order_by(ProductsUnified.is_featured.desc(), ProductsUnified.view_count.desc(), ProductsUnified.sort_order).limit(6).all()
+
+    attractions = []
+    for p in attractions_raw:
+        # 计算最低价
+        min_price = db.session.query(func.min(ProductsTicketVariant.adult_selling_price)).filter(
+            ProductsTicketVariant.product_id == p.id,
+            ProductsTicketVariant.is_active == True,
+            ProductsTicketVariant.adult_selling_price > 0
+        ).scalar()
+        price_display = f"SGD {float(min_price):,.0f}" if min_price else "价格面议"
+
+        location = ''
+        if p.country:
+            location = p.country
+            if p.city:
+                location += f' · {p.city}'
+
+        attractions.append({
+            'id': p.id,
+            'name': p.product_name,
+            'name_en': p.product_name_en or '',
+            'location': location,
+            'price': price_display,
+            'image': p.cover_image,
+            'is_featured': p.is_featured,
+            'currency': p.currency or 'SGD',
+        })
+
     # 获取首页轮播图
     banners = HomeBanner.get_active_banners()
 
@@ -631,6 +668,7 @@ def public_home():
     stats = {
         'packages': len(tour_packages_raw),
         'visa_countries': len(visa_countries),
+        'attractions': len(attractions),
         'destinations': db.session.query(ProductCity.country_name).filter(
             ProductCity.country_name.isnot(None)
         ).distinct().count()
@@ -640,6 +678,7 @@ def public_home():
                          company=company_info,
                          tour_packages=tour_packages,
                          visa_countries=visa_countries,
+                         attractions=attractions,
                          banners=banners,
                          stats=stats)
 
@@ -981,6 +1020,451 @@ def tour_package_detail(package_id):
                          company=company_info)
 
 
+@mobile_bp.route('/attractions')
+def attractions():
+    """手机端景点门票列表页"""
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+
+    keyword = request.args.get('keyword', '').strip()
+    country = request.args.get('country', '').strip()
+
+    query = ProductsUnified.query.outerjoin(
+        ProductsTicketExt, ProductsTicketExt.product_id == ProductsUnified.id
+    ).filter(
+        ProductsUnified.product_category == 'ticket',
+        ProductsUnified.parent_id.is_(None),
+        ProductsUnified.product_status == 'active',
+    )
+
+    if keyword:
+        query = query.filter(
+            or_(
+                ProductsUnified.product_name.ilike(f'%{keyword}%'),
+                ProductsUnified.product_name_en.ilike(f'%{keyword}%'),
+                ProductsTicketExt.venue_name.ilike(f'%{keyword}%'),
+            )
+        )
+    if country:
+        query = query.filter(ProductsUnified.country == country)
+
+    products = query.order_by(
+        ProductsUnified.is_featured.desc(), ProductsUnified.view_count.desc(), ProductsUnified.sort_order
+    ).all()
+
+    attractions_data = []
+    for p in products:
+        min_price = db.session.query(func.min(ProductsTicketVariant.adult_selling_price)).filter(
+            ProductsTicketVariant.product_id == p.id,
+            ProductsTicketVariant.is_active == True,
+            ProductsTicketVariant.adult_selling_price > 0
+        ).scalar()
+
+        location = ''
+        if p.country:
+            location = p.country
+            if p.city:
+                location += f' · {p.city}'
+
+        attractions_data.append({
+            'id': p.id,
+            'name': p.product_name,
+            'name_en': p.product_name_en or '',
+            'location': location,
+            'price': f"SGD {float(min_price):,.0f}" if min_price else "价格面议",
+            'image': p.cover_image,
+            'is_featured': p.is_featured,
+        })
+
+    # 国家列表
+    countries = [c[0] for c in db.session.query(ProductsUnified.country).filter(
+        ProductsUnified.product_category == 'ticket',
+        ProductsUnified.product_status == 'active',
+        ProductsUnified.parent_id.is_(None),
+        ProductsUnified.country.isnot(None),
+        ProductsUnified.country != ''
+    ).distinct().order_by(ProductsUnified.country).all()]
+
+    company_info = CompanyInfo.query.first()
+    return render_template('mobile/attractions.html',
+                         attractions=attractions_data,
+                         countries=countries,
+                         keyword=keyword,
+                         country=country,
+                         company=company_info)
+
+
+@mobile_bp.route('/attractions/<int:product_id>')
+def attraction_detail(product_id):
+    """手机端景点门票详情页"""
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+
+    product = ProductsUnified.query.filter_by(
+        id=product_id, product_category='ticket', product_status='active'
+    ).first()
+    if not product:
+        return "未找到该景点门票", 404
+
+    product.view_count = (product.view_count or 0) + 1
+    db.session.commit()
+
+    ticket_ext = ProductsTicketExt.query.filter_by(product_id=product_id).first()
+    variants = ProductsTicketVariant.query.filter_by(
+        product_id=product_id, is_active=True
+    ).order_by(ProductsTicketVariant.sort_order, ProductsTicketVariant.id).all()
+
+    delivery_map = {
+        'e_ticket': '电子票', 'physical': '实体票',
+        'voucher': '兑换券', 'pickup': '现场取票'
+    }
+
+    def none_safe(val):
+        if val is not None and str(val).strip().lower() == 'none':
+            return None
+        return val
+
+    variants_data = []
+    for v in variants:
+        variants_data.append({
+            'id': v.id,
+            'name': v.variant_name,
+            'name_en': none_safe(v.variant_name_en),
+            'description': none_safe(v.description),
+            'adult_price': float(v.adult_selling_price) if v.adult_selling_price else None,
+            'child_price': float(v.child_selling_price) if v.child_selling_price else None,
+            'delivery_type': delivery_map.get(v.delivery_type, v.delivery_type) if none_safe(v.delivery_type) else None,
+            'includes': none_safe(v.includes),
+            'excludes': none_safe(v.excludes),
+            'important_notes': none_safe(v.important_notes),
+            'currency': v.currency or 'SGD',
+        })
+
+    # 清理 None 字符串
+    for f in ['description', 'product_name_en']:
+        val = getattr(product, f, None)
+        if val and str(val).strip().lower() == 'none':
+            setattr(product, f, None)
+
+    company_info = CompanyInfo.query.first()
+    return render_template('mobile/attraction_detail.html',
+                         product=product,
+                         ticket_ext=ticket_ext,
+                         variants=variants_data,
+                         is_logged_in=current_user.is_authenticated,
+                         company=company_info)
+
+
+@mobile_bp.route('/book-ticket/<int:product_id>', methods=['GET', 'POST'])
+@csrf.exempt
+@login_required
+def book_ticket(product_id):
+    """手机端景点门票下单"""
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_ext import ProductsTicketExt
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+    from App_new.member.models.order import Order
+    from datetime import date, datetime
+    import json, random
+
+    company_info = CompanyInfo.query.first()
+    product = ProductsUnified.query.filter_by(
+        id=product_id, product_category='ticket', product_status='active'
+    ).first_or_404()
+
+    ticket_ext = ProductsTicketExt.query.filter_by(product_id=product_id).first()
+    variants = ProductsTicketVariant.query.filter_by(
+        product_id=product_id, is_active=True
+    ).order_by(ProductsTicketVariant.sort_order, ProductsTicketVariant.id).all()
+
+    def none_safe(val):
+        if val is not None and str(val).strip().lower() == 'none':
+            return None
+        return val
+
+    if request.method == 'POST':
+        try:
+            variant_id = request.form.get('variant_id', type=int)
+            visit_date = request.form.get('visit_date', '')
+            adult_count = int(request.form.get('adult_count', 1))
+            child_count = int(request.form.get('child_count', 0))
+            contact_name = request.form.get('contact_name', '')
+            contact_email = request.form.get('contact_email', '')
+            contact_phone = request.form.get('contact_phone', '')
+            special_requirements = request.form.get('special_requirements', '')
+
+            if not contact_name or not contact_phone:
+                flash('请填写联系人信息', 'error')
+                return redirect(url_for('mobile.book_ticket', product_id=product_id))
+
+            # 获取票种
+            variant = ProductsTicketVariant.query.get(variant_id) if variant_id else (variants[0] if variants else None)
+            if not variant:
+                flash('请选择票种', 'error')
+                return redirect(url_for('mobile.book_ticket', product_id=product_id))
+
+            # 计算价格
+            adult_price = float(variant.adult_selling_price or 0)
+            child_price = float(variant.child_selling_price or 0)
+            total_amount = adult_count * adult_price + child_count * child_price
+
+            # 生成订单号
+            order_number = f"TK{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(1000, 9999)}"
+
+            location = product.country or ''
+            if product.city:
+                location += f' · {product.city}'
+
+            description = f"""景点门票: {product.product_name}
+票种: {variant.variant_name}
+地点: {location}
+游玩日期: {visit_date or '待定'}
+人数: 成人{adult_count}人"""
+            if child_count > 0:
+                description += f", 儿童{child_count}人"
+
+            notes = json.dumps({
+                'product_id': product_id,
+                'variant_id': variant.id,
+                'variant_name': variant.variant_name,
+                'visit_date': visit_date,
+                'adult_count': adult_count,
+                'child_count': child_count,
+                'adult_price': adult_price,
+                'child_price': child_price,
+            }, ensure_ascii=False)
+
+            order = Order(
+                order_number=order_number,
+                user_id=current_user.id,
+                service_type='ticket',
+                service_name=product.product_name,
+                description=description,
+                status='pending',
+                currency=variant.currency or 'SGD',
+                base_price=total_amount,
+                total_amount=total_amount,
+                customer_name=contact_name,
+                customer_email=contact_email,
+                customer_phone=contact_phone,
+                special_requirements=special_requirements,
+                notes=notes
+            )
+            db.session.add(order)
+            db.session.commit()
+
+            flash('下单成功！我们将尽快与您联系确认', 'success')
+            return redirect(url_for('mobile.orders_list'))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'门票下单失败: {str(e)}')
+            flash(f'下单失败: {str(e)}', 'error')
+            return redirect(url_for('mobile.book_ticket', product_id=product_id))
+
+    # GET: 显示下单表单
+    variants_data = []
+    for v in variants:
+        variants_data.append({
+            'id': v.id,
+            'name': v.variant_name,
+            'name_en': none_safe(v.variant_name_en),
+            'adult_price': float(v.adult_selling_price) if v.adult_selling_price else 0,
+            'child_price': float(v.child_selling_price) if v.child_selling_price else 0,
+            'currency': v.currency or 'SGD',
+        })
+
+    user_profile = current_user.profile if hasattr(current_user, 'profile') else None
+
+    # 从详情页传来的预选参数
+    prefill = {
+        'variant_id': request.args.get('variant_id', type=int),
+        'visit_date': request.args.get('visit_date', ''),
+        'adult_count': request.args.get('adult_count', 1, type=int),
+        'child_count': request.args.get('child_count', 0, type=int),
+    }
+
+    return render_template('mobile/book_ticket.html',
+                         product=product,
+                         ticket_ext=ticket_ext,
+                         variants=variants_data,
+                         prefill=prefill,
+                         user_profile=user_profile,
+                         company=company_info)
+
+
+@mobile_bp.route('/cart/add', methods=['POST'])
+@csrf.exempt
+@login_required
+def cart_add():
+    """添加到购物车"""
+    from App_new.member.models.cart import CartItem
+    from App_new.business.products.models import ProductsUnified
+    from App_new.business.products.models.products_ticket_variant import ProductsTicketVariant
+
+    data = request.get_json()
+    product_id = data.get('product_id')
+    variant_id = data.get('variant_id')
+    adult_qty = data.get('adult_count', 1)
+    child_qty = data.get('child_count', 0)
+    visit_date = data.get('visit_date', '')
+
+    product = ProductsUnified.query.get(product_id)
+    variant = ProductsTicketVariant.query.get(variant_id)
+    if not product or not variant:
+        return jsonify({'success': False, 'message': '产品或票种不存在'})
+
+    # 检查是否已在购物车（同产品同票种合并）
+    existing = CartItem.query.filter_by(
+        user_id=current_user.id, product_id=product_id, variant_id=variant_id
+    ).first()
+
+    if existing:
+        existing.adult_qty = adult_qty
+        existing.child_qty = child_qty
+        if visit_date:
+            existing.visit_date = visit_date
+        existing.adult_price = variant.adult_selling_price or 0
+        existing.child_price = variant.child_selling_price or 0
+    else:
+        location = product.country or ''
+        if product.city:
+            location += f' · {product.city}'
+
+        item = CartItem(
+            user_id=current_user.id,
+            product_id=product_id,
+            variant_id=variant_id,
+            adult_qty=adult_qty,
+            child_qty=child_qty,
+            adult_price=variant.adult_selling_price or 0,
+            child_price=variant.child_selling_price or 0,
+            currency=variant.currency or 'SGD',
+            visit_date=visit_date,
+            properties={
+                'product_name': product.product_name,
+                'variant_name': variant.variant_name,
+                'cover_image': product.cover_image,
+                'location': location,
+            }
+        )
+        db.session.add(item)
+
+    db.session.commit()
+
+    cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    return jsonify({'success': True, 'message': '已加入购物车', 'cart_count': cart_count})
+
+
+@mobile_bp.route('/cart')
+@login_required
+def cart():
+    """购物车页面"""
+    from App_new.member.models.cart import CartItem
+    from App_new.business.tour.models.Packagemodels import CompanyInfo
+
+    items = CartItem.query.filter_by(user_id=current_user.id).order_by(CartItem.created_at.desc()).all()
+    company_info = CompanyInfo.query.first()
+
+    return render_template('mobile/cart.html', items=items, company=company_info)
+
+
+@mobile_bp.route('/cart/remove', methods=['POST'])
+@csrf.exempt
+@login_required
+def cart_remove():
+    """移除购物车项"""
+    from App_new.member.models.cart import CartItem
+
+    data = request.get_json()
+    item_id = data.get('item_id')
+    item = CartItem.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+
+    cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    return jsonify({'success': True, 'cart_count': cart_count})
+
+
+@mobile_bp.route('/cart/checkout', methods=['POST'])
+@csrf.exempt
+@login_required
+def cart_checkout():
+    """购物车结算 — 批量创建订单"""
+    from App_new.member.models.cart import CartItem
+    from App_new.member.models.order import Order
+    from datetime import datetime
+    import json, random
+
+    items = CartItem.query.filter_by(user_id=current_user.id).all()
+    if not items:
+        return jsonify({'success': False, 'message': '购物车为空'})
+
+    data = request.get_json() or {}
+    contact_name = data.get('contact_name', '')
+    contact_phone = data.get('contact_phone', '')
+    contact_email = data.get('contact_email', '')
+
+    if not contact_name or not contact_phone:
+        return jsonify({'success': False, 'message': '请填写联系人信息'})
+
+    try:
+        for item in items:
+            props = item.properties or {}
+            adult_total = float(item.adult_price or 0) * (item.adult_qty or 0)
+            child_total = float(item.child_price or 0) * (item.child_qty or 0)
+            total_amount = adult_total + child_total
+
+            order_number = f"TK{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(1000, 9999)}"
+
+            description = f"景点门票: {props.get('product_name', '')}\n票种: {props.get('variant_name', '')}\n地点: {props.get('location', '')}\n游玩日期: {item.visit_date or '待定'}\n人数: 成人{item.adult_qty}人"
+            if item.child_qty > 0:
+                description += f", 儿童{item.child_qty}人"
+
+            notes = json.dumps({
+                'product_id': item.product_id,
+                'variant_id': item.variant_id,
+                'variant_name': props.get('variant_name'),
+                'visit_date': item.visit_date,
+                'adult_count': item.adult_qty,
+                'child_count': item.child_qty,
+                'adult_price': float(item.adult_price),
+                'child_price': float(item.child_price),
+            }, ensure_ascii=False)
+
+            order = Order(
+                order_number=order_number,
+                user_id=current_user.id,
+                service_type='ticket',
+                service_name=props.get('product_name', '景点门票'),
+                description=description,
+                status='pending',
+                currency=item.currency or 'SGD',
+                base_price=total_amount,
+                total_amount=total_amount,
+                customer_name=contact_name,
+                customer_email=contact_email,
+                customer_phone=contact_phone,
+                notes=notes
+            )
+            db.session.add(order)
+
+        # 清空购物车
+        CartItem.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': f'成功下单 {len(items)} 个产品'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'结算失败: {str(e)}'})
+
+
 @mobile_bp.route('/contact')
 def contact():
     """手机端联系我们页面"""
@@ -1223,7 +1707,7 @@ def member_login():
 
         if user and user.check_password(password):
             # 检查用户角色
-            if user.role and user.role.name not in ['member', 'admin']:
+            if user.role and user.role.name not in ['member', 'admin', 'staff']:
                 flash('该账号不是会员账号', 'error')
                 return render_template('mobile/member_login.html', company=company_info)
 
@@ -1493,6 +1977,7 @@ def orders_list():
 
     # 获取筛选参数
     status = request.args.get('status', '')
+    service_type = request.args.get('type', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
@@ -1501,6 +1986,8 @@ def orders_list():
 
     if status:
         query = query.filter_by(status=status)
+    if service_type:
+        query = query.filter_by(service_type=service_type)
 
     # 按创建时间倒序排列
     query = query.order_by(Order.created_at.desc())
@@ -1513,6 +2000,7 @@ def orders_list():
                          orders=orders,
                          pagination=pagination,
                          current_status=status,
+                         current_type=service_type,
                          company=company_info)
 
 
@@ -1532,6 +2020,47 @@ def order_detail(order_id):
     return render_template('mobile/order_detail.html',
                          order=order,
                          company=company_info)
+
+
+@mobile_bp.route('/order/<int:order_id>/cancel', methods=['POST'])
+@csrf.exempt
+@login_required
+def cancel_order(order_id):
+    """手机端取消订单"""
+    from App_new.member.models.order import Order
+
+    order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
+    if not order:
+        return jsonify({'success': False, 'message': '订单不存在'})
+
+    if order.status not in ('draft', 'pending'):
+        return jsonify({'success': False, 'message': '当前状态不可取消'})
+
+    order.status = 'cancelled'
+    order.cancelled_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '订单已取消'})
+
+
+@mobile_bp.route('/order/<int:order_id>/delete', methods=['POST'])
+@csrf.exempt
+@login_required
+def delete_order(order_id):
+    """手机端删除已取消的订单"""
+    from App_new.member.models.order import Order
+
+    order = Order.query.filter_by(id=order_id, user_id=current_user.id).first()
+    if not order:
+        return jsonify({'success': False, 'message': '订单不存在'})
+
+    if order.status != 'cancelled':
+        return jsonify({'success': False, 'message': '只能删除已取消的订单'})
+
+    db.session.delete(order)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '订单已删除'})
 
 
 @mobile_bp.route('/book-tour/<int:product_id>', methods=['GET', 'POST'])
