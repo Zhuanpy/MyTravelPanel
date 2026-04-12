@@ -28,9 +28,19 @@
 {% block content %}
 <!-- 项目信息 + 财务 -->
 <div class="mobile-card" style="padding-bottom:0;">
-    <div class="project-header">
+    <div style="display:flex; align-items:center; gap:6px; font-size:13px; color:#64748b; flex-wrap:wrap;">
+        <span style="color:#1e293b; font-weight:500;">{{ project.display_desc or '无描述' }}</span>
+        <span style="color:#d1d5db;">·</span>
+        <span><i class="fas fa-building" style="font-size:11px; color:#94a3b8; margin-right:3px;"></i>{{ project.company.company_name if project.company else '个人' }}</span>
+        <span style="color:#d1d5db;">·</span>
+        <span><i class="fas fa-user" style="font-size:11px; color:#94a3b8; margin-right:3px;"></i>{{ project.contact or project.staff_display_name }}</span>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <a href="{{ url_for('business_projects.project_header.edit_header', header_id=project.id) }}" style="font-size:12px; color:#94a3b8; text-decoration:none;"><i class="fas fa-edit" style="margin-right:3px;"></i>编辑项目</a>
+            <span style="font-size:11px; color:#d1d5db;">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</span>
+        </div>
         <div>
-            <span class="project-hid">{{ project.hid }}</span>
             <span class="status-badge status-{{ project.status }}">
                 {% if project.status == 'completed' %}已完成
                 {% elif project.status == 'cancelled' %}已取消
@@ -41,22 +51,22 @@
             <span class="status-badge" style="background:#f0fdf4; color:#16a34a;">已结算</span>
             {% endif %}
         </div>
-        <span style="font-size:11px; color:#94a3b8;">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</span>
     </div>
-    <div class="project-desc">{{ project.display_desc or '无描述' }}</div>
-    <div class="info-grid">
-        <div class="info-item"><i class="fas fa-building"></i><span>{{ project.company.company_name if project.company else '个人' }}</span></div>
-        <div class="info-item"><i class="fas fa-user"></i><span>{{ project.contact or project.staff_display_name }}</span></div>
-    </div>
-
-    {% if project.reminder_event %}
-    <div class="reminder-bar">
-        <i class="fas fa-bell"></i>
-        <span>{{ project.reminder_event }}</span>
-        <span class="reminder-date">{{ project.reminder_date.strftime('%m-%d') if project.reminder_date else '' }}</span>
-    </div>
-    {% endif %}
 </div>
+
+<!-- 人员名单 -->
+{% if members %}
+<div class="mobile-card" style="padding:8px 12px;">
+    <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+        <span style="font-size:12px; color:#94a3b8; margin-right:4px;"><i class="fas fa-users"></i> 人员:</span>
+        {% for member in members %}
+        <span style="font-size:12px; {% if member.is_leader %}color:#16a34a; font-weight:600;{% else %}color:#475569;{% endif %}">
+            {% if member.title %}{{ member.title }} {% endif %}{{ member.member_name }}{% if not loop.last %}、{% endif %}
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <!-- 财务汇总 -->
 <div class="finance-summary">
@@ -81,75 +91,82 @@
 </div>
 
 <!-- 操作按钮 -->
-<div class="action-grid">
-    <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
-            <i class="fas fa-file-invoice"></i>
-        </div>
-        <span>发票</span>
+<div style="display:flex; gap:8px; margin-bottom:12px;">
+    <a href="{{ url_for('mobile.project_invoices', project_id=project.id) }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; background:white; border-radius:8px; text-decoration:none; color:#16a34a; font-size:13px; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <i class="fas fa-file-invoice"></i> 发票
     </a>
-    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
-            <i class="fas fa-money-bill-wave"></i>
-        </div>
-        <span>收款</span>
-    </a>
-    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-            <i class="fas fa-desktop"></i>
-        </div>
-        <span>桌面版</span>
-    </a>
-    <a href="{{ url_for('business_projects.project_header.edit_header', header_id=project.id) }}" class="action-card">
-        <div class="action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-            <i class="fas fa-edit"></i>
-        </div>
-        <span>编辑</span>
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; background:white; border-radius:8px; text-decoration:none; color:#2563eb; font-size:13px; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <i class="fas fa-money-bill-wave"></i> 收款
     </a>
 </div>
 
-<!-- REF 列表 -->
+<!-- 添加REF + REF列表 -->
 <div class="mobile-card">
     <div class="mobile-card-title">
         <i class="fas fa-list-alt"></i>
         <span style="flex: 1;">REF明细 ({{ refs|length }})</span>
     </div>
+    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:4px; margin-bottom:8px;">
+        <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-plane" style="color:#3b82f6; font-size:13px;"></i>机票</a>
+        <a href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-bed" style="color:#8b5cf6; font-size:13px;"></i>酒店</a>
+        <a href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-passport" style="color:#10b981; font-size:13px;"></i>签证</a>
+        <a href="{{ url_for('business_projects.project_ref.create_tour_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-map-marked-alt" style="color:#f59e0b; font-size:13px;"></i>旅游</a>
+        <a href="{{ url_for('business_projects.project_ref.create_insurance_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-shield-alt" style="color:#ec4899; font-size:13px;"></i>保险</a>
+        <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-plus" style="color:#94a3b8; font-size:13px;"></i>其他</a>
+    </div>
 
     {% if refs %}
     <div class="ref-list">
         {% for ref in refs %}
-        <div class="ref-item" onclick="window.location.href='{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}'">
-            <div class="ref-icon" style="background: {{ ref.ref_type.color if ref.ref_type and ref.ref_type.color else '#e9ecef' }}20;">
-                <i class="fas fa-{% if ref.ref_type and ref.ref_type.code == 'AIR' %}plane{% elif ref.ref_type and ref.ref_type.code == 'HTL' %}bed{% elif ref.ref_type and ref.ref_type.code == 'VSA' %}passport{% elif ref.ref_type and ref.ref_type.code == 'INS' %}shield-alt{% elif ref.ref_type and ref.ref_type.code == 'TRN' %}car{% elif ref.ref_type and ref.ref_type.code == 'TUR' %}map-marked-alt{% elif ref.ref_type and ref.ref_type.code == 'ATT' %}ticket-alt{% else %}file-alt{% endif %}"
-                   style="color: {{ ref.ref_type.color if ref.ref_type and ref.ref_type.color else '#666' }};"></i>
-            </div>
-            <div class="ref-content">
-                <div class="ref-header">
-                    <span class="ref-number">{{ ref.ref_number }}</span>
-                    <span class="ref-type-badge">{{ ref.ref_type.name if ref.ref_type else '其他' }}</span>
+        <div class="ref-item" style="background:#f8fafc; border-radius:8px; padding:10px; margin-bottom:6px;">
+            <div style="display:flex; flex-wrap:wrap; gap:4px 0;">
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">REF</div>
+                    <div style="font-size:12px; font-weight:600; color:#1e293b;">{{ ref.ref_number }}</div>
                 </div>
-                <div class="ref-desc">{{ ref.description or ref.detailed_description or '-' }}</div>
-                <div class="ref-finance">
-                    <span class="ref-selling">{{ "%.0f"|format(ref.selling_price or 0) }}</span>
-                    <span class="ref-separator">/</span>
-                    <span class="ref-cost">{{ "%.0f"|format(ref.cost_price or 0) }}</span>
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">类型</div>
+                    <div style="font-size:12px; color:{{ ref.ref_type.color if ref.ref_type and ref.ref_type.color else '#666' }};">
+                        <i class="fas fa-{% if ref.ref_type and ref.ref_type.code == 'AIR' %}plane{% elif ref.ref_type and ref.ref_type.code == 'HTL' %}bed{% elif ref.ref_type and ref.ref_type.code == 'VSA' %}passport{% elif ref.ref_type and ref.ref_type.code == 'INS' %}shield-alt{% elif ref.ref_type and ref.ref_type.code == 'TRN' %}car{% elif ref.ref_type and ref.ref_type.code == 'TUR' %}map-marked-alt{% elif ref.ref_type and ref.ref_type.code == 'ATT' %}ticket-alt{% else %}file-alt{% endif %}" style="font-size:10px; margin-right:2px;"></i>{{ ref.ref_type.name if ref.ref_type else '其他' }}
+                    </div>
+                </div>
+                <div style="width:60%; min-width:100px;">
+                    <div style="font-size:10px; color:#94a3b8;">名称</div>
+                    <div style="font-size:12px; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ ref.description or ref.detailed_description or '-' }}</div>
+                </div>
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">Invoice</div>
+                    <div style="font-size:12px; color:#16a34a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if ref._invoice_numbers %}{{ ref._invoice_numbers|join(', ') }}{% else %}-{% endif %}</div>
+                </div>
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">EO</div>
+                    <div style="font-size:12px; color:#1d4ed8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if ref._eo_list %}{{ ref._eo_list|map(attribute='eo_number')|join(', ') }}{% else %}-{% endif %}</div>
+                </div>
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">售价</div>
+                    <div style="font-size:12px; font-weight:600; color:#1e293b;">{{ "%.0f"|format(ref.selling_price or 0) }}</div>
+                </div>
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">成本</div>
+                    <div style="font-size:12px; color:#64748b;">{{ "%.0f"|format(ref.cost_price or 0) }}</div>
+                </div>
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">利润</div>
                     {% set ref_profit = (ref.selling_price or 0) - (ref.cost_price or 0) %}
-                    <span class="ref-profit {% if ref_profit >= 0 %}positive{% else %}negative{% endif %}">
-                        ({% if ref_profit >= 0 %}+{% endif %}{{ "%.0f"|format(ref_profit) }})
-                    </span>
+                    <div style="font-size:12px; font-weight:600;" class="ref-profit {% if ref_profit >= 0 %}positive{% else %}negative{% endif %}">{% if ref_profit >= 0 %}+{% endif %}{{ "%.0f"|format(ref_profit) }}</div>
                 </div>
-                <div class="ref-tags">
-                    {% if ref.supplier %}
-                    <span class="ref-tag"><i class="fas fa-truck"></i> {{ ref.supplier.company_name }}</span>
-                    {% endif %}
-                    {% if ref.payment_status == 'paid' %}
-                    <span class="ref-tag" style="background:#dcfce7; color:#16a34a;"><i class="fas fa-check"></i> 已收款</span>
-                    {% elif ref.payment_status == 'partial' %}
-                    <span class="ref-tag" style="background:#fef3c7; color:#d97706;">部分收款</span>
-                    {% endif %}
+                <div style="width:20%; min-width:50px;">
+                    <div style="font-size:10px; color:#94a3b8;">未付款</div>
+                    {% set ref_unpaid = (ref.selling_price or 0) - (ref.total_received if ref.total_received is defined else 0) %}
+                    <div style="font-size:12px; font-weight:600; color:{% if ref.payment_status == 'paid' %}#16a34a{% elif ref.payment_status == 'partial' %}#d97706{% else %}#dc2626{% endif %};">
+                        {% if ref.payment_status == 'paid' %}0{% else %}{{ "%.0f"|format(ref.unpaid_amount if ref.unpaid_amount is defined else (ref.selling_price or 0)) }}{% endif %}
+                    </div>
+                </div>
+                <div style="width:40%; min-width:80px;">
+                    <div style="font-size:10px; color:#94a3b8;">供应商</div>
+                    <div style="font-size:12px; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if ref.supplier %}{{ ref.supplier.company_name }}{% else %}-{% endif %}</div>
                 </div>
             </div>
-            <i class="fas fa-chevron-right ref-arrow"></i>
         </div>
         {% endfor %}
     </div>
@@ -160,34 +177,6 @@
     </div>
     {% endif %}
 </div>
-
-<!-- 人员名单（可折叠） -->
-{% if members %}
-<div class="mobile-card">
-    <div class="mobile-card-title" onclick="toggleSection('members-section')" style="cursor: pointer;">
-        <i class="fas fa-users"></i>
-        <span style="flex: 1;">人员名单 ({{ members|length }})</span>
-        <i class="fas fa-chevron-down toggle-icon" id="members-toggle"></i>
-    </div>
-    <div id="members-section" class="collapsible-section">
-        <div class="members-list">
-            {% for member in members %}
-            <div class="member-item {% if member.is_leader %}is-leader{% endif %}">
-                <div class="member-info">
-                    <span class="member-name">
-                        {% if member.title %}{{ member.title }} {% endif %}{{ member.member_name }}
-                        {% if member.is_leader %}<span class="leader-badge">Leader</span>{% endif %}
-                    </span>
-                    {% if member.member_role %}
-                    <span class="member-role">{{ member.member_role }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
 
 <!-- 备注信息 -->
 {% if project.remarks %}
@@ -203,33 +192,16 @@
 </div>
 {% endif %}
 
-<!-- 添加REF -->
+<!-- 提醒 -->
+{% if project.reminder_event %}
 <div class="mobile-card">
-    <div class="mobile-card-title">
-        <i class="fas fa-plus-circle"></i>
-        添加REF
-    </div>
-    <div class="add-ref-grid">
-        <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-plane"></i><span>机票</span>
-        </a>
-        <a href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-bed"></i><span>酒店</span>
-        </a>
-        <a href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-passport"></i><span>签证</span>
-        </a>
-        <a href="{{ url_for('business_projects.project_ref.create_tour_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-map-marked-alt"></i><span>旅游</span>
-        </a>
-        <a href="{{ url_for('business_projects.project_ref.create_insurance_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-shield-alt"></i><span>保险</span>
-        </a>
-        <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=project.id) }}" class="add-ref-btn">
-            <i class="fas fa-plus"></i><span>其他</span>
-        </a>
+    <div class="reminder-bar">
+        <i class="fas fa-bell"></i>
+        <span>{{ project.reminder_event }}</span>
+        <span class="reminder-date">{{ project.reminder_date.strftime('%m-%d') if project.reminder_date else '' }}</span>
     </div>
 </div>
+{% endif %}
 
 <!-- Toast -->
 <div id="toast" class="toast"></div>
@@ -311,37 +283,38 @@
     /* 财务汇总 */
     .finance-summary {
         display: flex;
-        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-        border-radius: 12px;
-        padding: 12px 8px;
+        background: white;
+        border-radius: 10px;
+        padding: 10px 4px;
         margin-bottom: 12px;
-        color: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .finance-item {
         flex: 1;
         text-align: center;
-        border-right: 1px solid rgba(255,255,255,0.2);
+        border-right: 1px solid #f1f5f9;
     }
 
     .finance-item:last-child { border-right: none; }
 
     .finance-label {
         font-size: 11px;
-        opacity: 0.85;
-        margin-bottom: 4px;
+        color: #94a3b8;
+        margin-bottom: 2px;
     }
 
     .finance-value {
-        font-size: 13px;
-        font-weight: 600;
+        font-size: 14px;
+        font-weight: 700;
+        color: #1e293b;
     }
 
-    .finance-value.selling { color: #86efac; }
-    .finance-value.cost { color: #fca5a5; }
-    .finance-value.profit { color: #86efac; }
-    .finance-value.loss { color: #fca5a5; }
-    .finance-value.unpaid { color: #fde047; }
+    .finance-value.selling { color: #1e293b; }
+    .finance-value.cost { color: #94a3b8; }
+    .finance-value.profit { color: #16a34a; }
+    .finance-value.loss { color: #dc2626; }
+    .finance-value.unpaid { color: #d97706; }
 
     /* 可折叠区域 */
     .collapsible-section {
@@ -402,95 +375,39 @@
     }
 
     /* REF列表 */
-    .ref-list {
-        padding-top: 4px;
-    }
+    .ref-list { padding-top: 4px; }
 
     .ref-item {
-        display: flex;
-        align-items: center;
-        padding: 12px 0;
+        padding: 10px 0;
         border-bottom: 1px solid #f0f0f0;
-        cursor: pointer;
     }
-
     .ref-item:last-child { border-bottom: none; }
-    .ref-item:active { background: #f8f9fa; margin: 0 -12px; padding: 12px; }
 
-    .ref-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 12px;
-        font-size: 18px;
-        flex-shrink: 0;
-    }
-
-    .ref-content { flex: 1; min-width: 0; }
-
-    .ref-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 4px;
-    }
-
-    .ref-number {
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-    }
+    .ref-number { font-size: 13px; font-weight: 600; color: #1e293b; }
 
     .ref-type-badge {
-        font-size: 11px;
-        padding: 2px 6px;
-        background: #e9ecef;
-        color: #666;
-        border-radius: 4px;
+        font-size: 10px; padding: 2px 7px;
+        border-radius: 4px; font-weight: 500;
+        display: inline-flex; align-items: center;
     }
 
     .ref-desc {
-        font-size: 13px;
-        color: #666;
-        margin-bottom: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        font-size: 12px; color: #64748b;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    .ref-finance {
-        font-size: 12px;
-    }
-
-    .ref-selling { color: #16a34a; font-weight: 500; }
-    .ref-separator { color: #ccc; margin: 0 4px; }
-    .ref-cost { color: #dc2626; }
-    .ref-profit { margin-left: 4px; }
+    .ref-finance { font-size: 12px; }
+    .ref-selling { color: #16a34a; font-weight: 600; }
+    .ref-separator { color: #d1d5db; margin: 0 3px; }
+    .ref-cost { color: #94a3b8; }
+    .ref-profit { margin-left: 3px; font-weight: 500; }
     .ref-profit.positive { color: #16a34a; }
     .ref-profit.negative { color: #dc2626; }
 
-    .ref-tags {
-        display: flex;
-        gap: 4px;
-        margin-top: 4px;
-        flex-wrap: wrap;
-    }
+    .ref-tags { display: flex; gap: 4px; flex-wrap: wrap; }
     .ref-tag {
-        font-size: 10px;
-        padding: 1px 6px;
-        border-radius: 4px;
-        background: #f1f5f9;
-        color: #64748b;
-        white-space: nowrap;
-    }
-    .ref-tag i { margin-right: 2px; font-size: 9px; }
-
-    .ref-arrow {
-        color: #ccc;
-        margin-left: 8px;
+        font-size: 10px; padding: 1px 6px; border-radius: 4px;
+        background: #f1f5f9; color: #64748b; white-space: nowrap;
     }
 
     /* 空状态 */

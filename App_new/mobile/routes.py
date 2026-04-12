@@ -221,6 +221,17 @@ def project_detail(project_id):
     # 获取REF列表
     refs = ProjectRef.query.filter_by(header_id=project_id).all()
 
+    # 预加载每个REF的EO和Invoice信息
+    from App_new.business.projects.models.eo import ProjectEO
+    from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
+    for ref in refs:
+        ref._eo_list = ProjectEO.query.filter_by(ref_id=ref.id).all()
+        invoice_items = InvoiceItem.query.filter_by(ref_id=ref.id).all()
+        ref._invoice_numbers = list(set(
+            item.invoice.invoice_number for item in invoice_items
+            if item.invoice and item.invoice.status != 'cancelled'
+        ))
+
     # 获取人员列表
     members = ProjectMember.query.filter_by(header_id=project_id).order_by(
         ProjectMember.is_leader.desc(),
@@ -1332,6 +1343,37 @@ def project_receipts(project_id):
                          total_selling=total_selling,
                          total_received=total_received,
                          unpaid=unpaid)
+
+
+@mobile_bp.route('/project/<int:project_id>/invoices')
+@login_required
+def project_invoices(project_id):
+    """手机端项目发票列表"""
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    from App_new.utils.permissions import can_access_project
+
+    project = ProjectHeader.query.get_or_404(project_id)
+    if not can_access_project(project, current_user):
+        flash('无权访问', 'error')
+        return redirect(url_for('mobile.projects'))
+
+    invoices = ProjectInvoice.query.filter_by(header_id=project_id).order_by(
+        ProjectInvoice.created_at.desc()
+    ).all()
+
+    total_invoiced = ProjectInvoice.get_header_total_invoiced(project_id)
+    total_paid = ProjectInvoice.get_header_total_paid(project_id)
+    total_unpaid = total_invoiced - total_paid
+    total_selling = sum(float(ref.selling_price or 0) for ref in project.refs)
+
+    return render_template('mobile/project_invoices.html',
+                         project=project,
+                         invoices=invoices,
+                         total_invoiced=total_invoiced,
+                         total_paid=total_paid,
+                         total_unpaid=total_unpaid,
+                         total_selling=total_selling)
 
 
 @mobile_bp.route('/project/<int:project_id>/receipt/create', methods=['GET', 'POST'])

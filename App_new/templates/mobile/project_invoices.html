@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#10b981">
+    <title>发票列表 - {{ project.hid }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5; color: #333; line-height: 1.5;
+            -webkit-font-smoothing: antialiased; padding-bottom: 70px;
+        }
+
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex; align-items: center; padding: 0 16px;
+            z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-back { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; text-decoration: none; margin-right: 8px; }
+        .header-title { flex: 1; color: white; font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .main-content { padding-top: 56px; }
+
+        /* 财务概览 */
+        .finance-bar { display: flex; background: white; padding: 12px 8px; border-bottom: 1px solid #f1f5f9; }
+        .finance-item { flex: 1; text-align: center; }
+        .finance-item + .finance-item { border-left: 1px solid #f1f5f9; }
+        .fi-label { font-size: 11px; color: #94a3b8; }
+        .fi-value { font-size: 14px; font-weight: 700; }
+        .fi-value.green { color: #16a34a; }
+        .fi-value.blue { color: #2563eb; }
+        .fi-value.amber { color: #d97706; }
+
+        .section { padding: 10px 12px; }
+        .section-label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 8px; padding-left: 2px; }
+
+        /* 发票卡片 */
+        .invoice-card {
+            background: white; border-radius: 10px; padding: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 8px;
+        }
+        .inv-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .inv-number { font-size: 14px; font-weight: 600; color: #1e293b; }
+        .inv-amount { font-size: 16px; font-weight: 700; color: #1e293b; }
+
+        .inv-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; margin-bottom: 6px; }
+        .inv-meta i { margin-right: 3px; font-size: 11px; }
+
+        .inv-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+        .inv-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+        .inv-tag.confirmed { background: #dbeafe; color: #1d4ed8; }
+        .inv-tag.cancelled { background: #fee2e2; color: #dc2626; }
+        .inv-tag.paid { background: #dcfce7; color: #16a34a; }
+        .inv-tag.partial { background: #fef3c7; color: #d97706; }
+        .inv-tag.unpaid { background: #f1f5f9; color: #64748b; }
+
+        .inv-progress { margin-top: 6px; }
+        .inv-progress-bar {
+            height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;
+        }
+        .inv-progress-fill {
+            height: 100%; border-radius: 2px;
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+        .inv-progress-text {
+            display: flex; justify-content: space-between; margin-top: 3px;
+            font-size: 11px; color: #94a3b8;
+        }
+
+        .inv-customer { font-size: 12px; color: #94a3b8; }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+        .empty-state i { font-size: 36px; margin-bottom: 12px; display: block; color: #d1d5db; }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+            background: white; display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
+        }
+        .nav-btn {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-decoration: none; color: #64748b;
+            font-size: 10px; gap: 2px;
+        }
+        .nav-btn i { font-size: 18px; }
+        .nav-btn.active { color: #10b981; }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="header-back"><i class="fas fa-arrow-left"></i></a>
+    <div class="header-title">{{ project.hid }} · 发票列表</div>
+</header>
+
+<main class="main-content">
+    <!-- 财务概览 -->
+    <div class="finance-bar">
+        <div class="finance-item">
+            <div class="fi-label">总售价</div>
+            <div class="fi-value">{{ "%.0f"|format(total_selling) }}</div>
+        </div>
+        <div class="finance-item">
+            <div class="fi-label">已开票</div>
+            <div class="fi-value blue">{{ "%.0f"|format(total_invoiced) }}</div>
+        </div>
+        <div class="finance-item">
+            <div class="fi-label">已收款</div>
+            <div class="fi-value green">{{ "%.0f"|format(total_paid) }}</div>
+        </div>
+        <div class="finance-item">
+            <div class="fi-label">未收款</div>
+            <div class="fi-value {% if total_unpaid > 0 %}amber{% else %}green{% endif %}">{{ "%.0f"|format(total_unpaid) }}</div>
+        </div>
+    </div>
+
+    <!-- 发票列表 -->
+    <div class="section">
+        <div class="section-label"><i class="fas fa-file-invoice" style="margin-right:4px;"></i> 共 {{ invoices|length }} 张发票</div>
+
+        {% if invoices %}
+        {% for inv in invoices %}
+        <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=inv.id) }}" class="invoice-card" style="display:block; text-decoration:none; color:inherit;">
+            <div class="inv-header">
+                <span class="inv-number">{{ inv.invoice_number }}</span>
+                <span class="inv-amount">{{ inv.currency or 'SGD' }} {{ "%.2f"|format(inv.amount or 0) }}</span>
+            </div>
+            <div class="inv-meta">
+                <span><i class="fas fa-calendar"></i>{{ inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '-' }}</span>
+                {% if inv.customer_name %}
+                <span><i class="fas fa-user"></i>{{ inv.customer_name }}</span>
+                {% endif %}
+                {% if inv.due_date %}
+                <span><i class="fas fa-clock"></i>到期 {{ inv.due_date.strftime('%m-%d') }}</span>
+                {% endif %}
+            </div>
+            <div class="inv-tags">
+                <span class="inv-tag {{ inv.status }}">
+                    {% if inv.status == 'confirmed' %}已确认
+                    {% elif inv.status == 'cancelled' %}已取消
+                    {% elif inv.status == 'draft' %}草稿
+                    {% else %}{{ inv.status }}{% endif %}
+                </span>
+                {% if inv.payment_status == 'paid' %}
+                <span class="inv-tag paid"><i class="fas fa-check"></i> 已付清</span>
+                {% elif inv.payment_status == 'partial_paid' %}
+                <span class="inv-tag partial">部分付款</span>
+                {% elif inv.status != 'cancelled' %}
+                <span class="inv-tag unpaid">未付款</span>
+                {% endif %}
+            </div>
+            {% if inv.status != 'cancelled' and inv.amount and inv.amount > 0 %}
+            {% set paid_pct = ((inv.paid_amount or 0) / inv.amount * 100) if inv.amount > 0 else 0 %}
+            <div class="inv-progress">
+                <div class="inv-progress-bar">
+                    <div class="inv-progress-fill" style="width:{{ [paid_pct, 100]|min }}%;"></div>
+                </div>
+                <div class="inv-progress-text">
+                    <span>已收 {{ inv.currency or 'SGD' }} {{ "%.0f"|format(inv.paid_amount or 0) }}</span>
+                    <span>{{ "%.0f"|format(paid_pct) }}%</span>
+                </div>
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-invoice"></i>
+            <p>暂无发票</p>
+        </div>
+        {% endif %}
+    </div>
+</main>
+
+<!-- 底部导航 -->
+<nav class="bottom-nav">
+    <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="nav-btn">
+        <i class="fas fa-arrow-left"></i><span>项目</span>
+    </a>
+    <a href="{{ url_for('mobile.project_invoices', project_id=project.id) }}" class="nav-btn active">
+        <i class="fas fa-file-invoice"></i><span>发票</span>
+    </a>
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="nav-btn">
+        <i class="fas fa-money-bill-wave"></i><span>收款</span>
+    </a>
+    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="nav-btn">
+        <i class="fas fa-desktop"></i><span>桌面版</span>
+    </a>
+</nav>
+
+</body>
+</html>

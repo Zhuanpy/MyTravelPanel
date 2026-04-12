@@ -189,7 +189,7 @@
     <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="nav-btn">
         <i class="fas fa-arrow-left"></i><span>项目</span>
     </a>
-    <a href="{{ url_for('business_projects.project_invoice.header_invoices', header_id=project.id) }}" class="nav-btn">
+    <a href="{{ url_for('mobile.project_invoices', project_id=project.id) }}" class="nav-btn">
         <i class="fas fa-file-invoice"></i><span>发票</span>
     </a>
     <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="nav-btn active">
