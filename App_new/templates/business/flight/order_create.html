@@ -886,15 +886,15 @@ function applyOcrData() {
 
     const data = ocrParsedData;
 
-    // 0) 自动选择供应商
+    // 0) 自动选择供应商（去掉连字符/空格等干扰字符后模糊匹配）
     if (data.platform && PLATFORM_SUPPLIER_MAP[data.platform]) {
-        const keyword = PLATFORM_SUPPLIER_MAP[data.platform].toLowerCase();
+        const normalize = s => s.toLowerCase().replace(/[-_\s]/g, '');
+        const keyword = normalize(PLATFORM_SUPPLIER_MAP[data.platform]);
         const supplierSelect = document.getElementById('supplier_name');
         const options = supplierSelect.querySelectorAll('option');
         for (const opt of options) {
-            if (opt.textContent.toLowerCase().includes(keyword)) {
+            if (normalize(opt.textContent).includes(keyword)) {
                 supplierSelect.value = opt.value;
-                // 同时重置供应商类型筛选，确保选中的供应商可见
                 document.getElementById('supplier_type').value = '';
                 filterSuppliers();
                 break;
