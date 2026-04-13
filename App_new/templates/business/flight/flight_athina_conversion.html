@@ -766,7 +766,7 @@
                                 <div class="form-text" style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.85rem;">
                                     支持格式：Trip.com、携程、Google Flights、酷航（直接从网页复制粘贴即可）
                                 </div>
-                                <textarea id="parse_input" class="visa-form-textarea" placeholder="从 Trip.com / 携程 / Google Flights / 酷航 网页复制航班信息，粘贴到这里..." style="min-height: 200px; font-family: 'Consolas', 'Monaco', monospace;"></textarea>
+                                <textarea id="parse_input" class="visa-form-textarea" placeholder="粘贴航班信息，支持以下格式：&#10;• Trip.com / 携程 / Google Flights / 酷航 网页复制&#10;• 手动输入（英文）: 1.SINGAPORE - DHAKA, Flight No: BS 310, 22APR, Departure: 15:25 - Arrival: 17:35&#10;• 手动输入（中文）: 1.新加坡 - 温州, 航班号：GJ6030，05月29号，出发：15:00 - 抵达：20:05" style="min-height: 200px; font-family: 'Consolas', 'Monaco', monospace;"></textarea>
                             </div>
 
                             <div class="visa-flex visa-gap-2 visa-mb-3">
@@ -1197,14 +1197,17 @@
     }
 
     // 显示Toast提示
-    function showToast(message) {
+    function showToast(message, type) {
         const toast = document.getElementById('copyToast');
         toast.textContent = message;
+        toast.style.background = type === 'warning' ? '#ff9800' : '#333';
         toast.classList.add('show');
+        const duration = type === 'warning' ? 3000 : 1000;
         setTimeout(() => {
             toast.classList.remove('show');
             toast.textContent = '已复制到剪贴板';
-        }, 1000);
+            toast.style.background = '#333';
+        }, duration);
     }
 
     // ========================================
@@ -1948,7 +1951,12 @@
             // 保存到记忆
             saveParseMemory(inputText, result.segments, result.format_detected);
 
-            showToast('解析成功');
+            // 显示警告信息（如有未识别的机场）
+            if (result.warning) {
+                showToast(result.warning, 'warning');
+            } else {
+                showToast('解析成功');
+            }
         })
         .catch(error => {
             segmentsArea.value = '';

@@ -33,6 +33,10 @@
     .indigo-header { background: #2B1F6B !important; color: #fff; }
     .indigo-btn { background: #2B1F6B; border-color: #2B1F6B; color: #fff; }
     .indigo-btn:hover { background: #1e1550; border-color: #1e1550; color: #fff; }
+    /* Expedia 配色 */
+    .expedia-header { background: #FBCC33 !important; color: #1A1A2E; }
+    .expedia-btn { background: #FBCC33; border-color: #FBCC33; color: #1A1A2E; }
+    .expedia-btn:hover { background: #e0b52e; border-color: #e0b52e; color: #1A1A2E; }
     /* 去哪儿配色 */
     .qunar-header { background: #FF7E00 !important; color: #fff; }
     .qunar-btn { background: #FF7E00; border-color: #FF7E00; color: #fff; }
@@ -60,6 +64,11 @@
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-indigo" type="button">
                 <i class="fas fa-eraser me-1"></i>IndiGo 去价格
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-expedia" type="button">
+                <i class="fas fa-broom me-1"></i>Expedia 清理
             </button>
         </li>
         <li class="nav-item">
@@ -213,6 +222,38 @@
             </div>
         </div>
     </div><!-- /tab-indigo -->
+
+    <!-- ==================== Expedia Tab ==================== -->
+    <div class="tab-pane fade" id="tab-expedia">
+        <div class="card ub-card mb-3">
+            <div class="card-header expedia-header">
+                <i class="fas fa-broom me-1"></i>Expedia 行程单清理
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>去除 Expedia 顶部 logo/header 图片</li>
+                    <li>去除 "Expedia itinerary" 行</li>
+                    <li>去除行李费用金额（保留行李额度信息）</li>
+                    <li>去除 Economy 舱位子代码</li>
+                    <li>去除 Email address / Phone number / Preferences 段落</li>
+                    <li>去除 Airline rules and restrictions 段落</li>
+                    <li>去除 Payment details 及之后所有内容</li>
+                    <li>输出 A4 纸张，内容居中、压缩空白</li>
+                </ul>
+                <div class="row align-items-center g-2">
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm" id="expediaFile" accept=".pdf">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm expedia-btn" onclick="cleanExpedia()" id="btnCleanExpedia">
+                            <i class="fas fa-magic me-1"></i>清理并下载
+                        </button>
+                    </div>
+                </div>
+                <div id="expediaMsg" class="mt-2" style="display:none;"></div>
+            </div>
+        </div>
+    </div><!-- /tab-expedia -->
 
     <!-- ==================== Qunar Tab ==================== -->
     <div class="tab-pane fade" id="tab-qunar">
@@ -566,6 +607,61 @@ function cleanIndigo() {
     })
     .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>处理并下载'; });
 }
+
+// ========== Expedia 清理 ==========
+
+function cleanExpedia() {
+    const fileInput = document.getElementById('expediaFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnCleanExpedia');
+    const msgEl = document.getElementById('expediaMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>处理中...';
+    msgEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.clean_expedia") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(resp => {
+        const ct = resp.headers.get('Content-Type') || '';
+        if (ct.includes('application/pdf')) {
+            return resp.blob().then(blob => {
+                const cd = resp.headers.get('Content-Disposition') || '';
+                let fn = 'expedia_clean.pdf';
+                const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+                if (m) fn = decodeURIComponent(m[1]);
+                const a = document.createElement('a');
+                a.href = window.URL.createObjectURL(blob);
+                a.download = fn;
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+                msgEl.className = 'mt-2 text-success small';
+                msgEl.textContent = '处理完成，已下载清理后的文件';
+                msgEl.style.display = '';
+            });
+        } else {
+            return resp.json().then(d => {
+                msgEl.className = 'mt-2 text-danger small';
+                msgEl.textContent = d.message || '处理失败';
+                msgEl.style.display = '';
+            });
+        }
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 text-danger small';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>清理并下载'; });
+}
+
+// ========== 去哪儿清理 ==========
 
 function cleanQunar() {
     const fileInput = document.getElementById('qunarFile');

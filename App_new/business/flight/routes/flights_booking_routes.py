@@ -9,7 +9,7 @@ from App_new.business.flight.models.flight import ProjectFlightSegment, ProjectF
 from App_new.shared.models.business_types import BusinessType
 from App_new.utils.decorators import staff_only
 from datetime import datetime, timedelta
-from App_new.exts import db
+from App_new.exts import db, csrf
 import random
 import string
 import json
@@ -1431,4 +1431,28 @@ def search_airports():
     return jsonify([{
         'id': airport.airport_IATA,
         'text': f'{airport.airport_IATA} - {airport.city_name} ({airport.airport_name_cn})'
-    } for airport in airports]) 
+    } for airport in airports])
+
+
+@flights_booking.route('/parse_flight_image', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def parse_flight_image():
+    """从截图中OCR提取航班信息，支持自动检测或手动指定平台"""
+    try:
+        from App_new.utils.ocr_flight_extract import extract_from_image
+
+        data = request.get_json()
+        if not data or not data.get('image'):
+            return jsonify({'success': False, 'error': '未提供图片数据'}), 400
+
+        # platform 参数: 为空时自动检测，指定时强制使用该解析器
+        platform = data.get('platform', '')
+        result = extract_from_image(data['image'], platform=platform or None)
+        return jsonify(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'解析失败: {str(e)}'}), 500

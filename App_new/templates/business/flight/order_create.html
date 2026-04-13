@@ -66,6 +66,53 @@
             </div>
         </div>
 
+        <!-- 截图识别区域 -->
+        <div class="form-section" id="ocrSection">
+            <div class="section-title"><i class="fas fa-camera me-2"></i>截图识别（自动填充订单）</div>
+            <div id="ocrDropZone" style="border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s; background: #f7fafc;">
+                <div id="ocrPlaceholder">
+                    <i class="fas fa-paste" style="font-size: 28px; color: #a0aec0; margin-bottom: 8px; display: block;"></i>
+                    <p style="margin: 0 0 4px; font-size: 13px; color: #4a5568; font-weight: 600;">Ctrl+V 粘贴截图 或 点击上传图片</p>
+                    <p style="margin: 0; font-size: 11px; color: #a0aec0;">支持: US Bangla 出票截图（后续扩展更多平台）</p>
+                    <input type="file" id="ocrFileInput" accept="image/*" style="display: none;">
+                </div>
+                <div id="ocrPreview" style="display: none;">
+                    <div style="display: flex; align-items: flex-start; gap: 16px; text-align: left;">
+                        <img id="ocrPreviewImg" src="" style="max-height: 150px; max-width: 300px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="flex: 1;">
+                            <div id="ocrStatus" style="font-size: 12px; color: #718096; margin-bottom: 8px;">
+                                <i class="fas fa-spinner fa-spin"></i> 识别中...
+                            </div>
+                            <div id="ocrResult" style="font-size: 12px; display: none;"></div>
+                            <!-- 自动识别失败时显示手动选择平台 -->
+                            <div id="ocrManualSelect" style="display: none; margin-top: 6px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-size: 12px; color: #E53E3E; white-space: nowrap;">
+                                        <i class="fas fa-hand-pointer"></i> 请手动选择平台:
+                                    </label>
+                                    <select id="ocrPlatformSelect" class="form-select form-select-sm" style="width: auto; font-size: 12px;">
+                                        <option value="">-- 选择平台 --</option>
+                                        <option value="usbangla">US Bangla Airlines</option>
+                                    </select>
+                                    <button type="button" class="btn btn-primary btn-sm" style="font-size: 11px;" onclick="retryWithPlatform()">
+                                        <i class="fas fa-redo me-1"></i>重新识别
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="margin-top: 8px; display: flex; gap: 6px;">
+                                <button type="button" class="btn btn-success btn-sm" id="ocrApplyBtn" style="display: none;" onclick="applyOcrData()">
+                                    <i class="fas fa-check me-1"></i>应用到表单
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearOcr()">
+                                    <i class="fas fa-times me-1"></i>清除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Supplier & Staff -->
         <div class="form-section">
             <div class="section-title"><i class="fas fa-truck me-2"></i>供应商 & 人员</div>
@@ -646,6 +693,291 @@ function parseFlightSegmentsFromModal() {
 
 function clearModalParser() {
     document.getElementById('modalFlightParser').value = '';
+}
+
+// ==================== 截图OCR识别功能 ====================
+
+// 存储OCR解析后的数据
+let ocrParsedData = null;
+
+// 初始化：粘贴事件 + 点击上传 + 拖拽
+document.addEventListener('paste', function(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let item of items) {
+        if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            handleOcrImage(file);
+            return;
+        }
+    }
+});
+
+document.getElementById('ocrDropZone')?.addEventListener('click', function() {
+    if (ocrParsedData) return; // 已有结果时不触发上传
+    document.getElementById('ocrFileInput').click();
+});
+
+document.getElementById('ocrFileInput')?.addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        handleOcrImage(e.target.files[0]);
+    }
+});
+
+// 拖拽支持
+const dropZone = document.getElementById('ocrDropZone');
+if (dropZone) {
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#4299E1';
+        this.style.background = '#EBF8FF';
+    });
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#cbd5e0';
+        this.style.background = '#f7fafc';
+    });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#cbd5e0';
+        this.style.background = '#f7fafc';
+        if (e.dataTransfer.files.length > 0) {
+            handleOcrImage(e.dataTransfer.files[0]);
+        }
+    });
+}
+
+// 保存当前图片base64，用于手动选择平台后重试
+let ocrCurrentImageData = null;
+
+function handleOcrImage(file) {
+    if (!file || !file.type.startsWith('image/')) {
+        alert('请上传图片文件');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        ocrCurrentImageData = e.target.result;
+        sendOcrRequest(ocrCurrentImageData);
+    };
+    reader.readAsDataURL(file);
+}
+
+function sendOcrRequest(dataUrl, platform) {
+    // 显示预览
+    document.getElementById('ocrPlaceholder').style.display = 'none';
+    document.getElementById('ocrPreview').style.display = 'block';
+    document.getElementById('ocrPreviewImg').src = dataUrl;
+    document.getElementById('ocrStatus').innerHTML = '<i class="fas fa-spinner fa-spin"></i> OCR识别中，请稍候...';
+    document.getElementById('ocrStatus').style.display = 'block';
+    document.getElementById('ocrResult').style.display = 'none';
+    document.getElementById('ocrApplyBtn').style.display = 'none';
+    document.getElementById('ocrManualSelect').style.display = 'none';
+
+    const payload = { image: dataUrl };
+    if (platform) payload.platform = platform;
+
+    fetch("{{ url_for('flights_booking.parse_flight_image') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': $('input[name="csrf_token"]').val()
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            ocrParsedData = result.data;
+            document.getElementById('ocrManualSelect').style.display = 'none';
+            showOcrResult(result.data);
+        } else {
+            document.getElementById('ocrStatus').innerHTML =
+                `<i class="fas fa-exclamation-triangle" style="color: #E53E3E;"></i> ${result.error}`;
+
+            // 自动识别失败时显示手动选择面板
+            if (result.need_manual_select) {
+                const selectEl = document.getElementById('ocrPlatformSelect');
+                // 动态更新可选平台列表
+                if (result.supported_platforms) {
+                    selectEl.innerHTML = '<option value="">-- 选择平台 --</option>';
+                    result.supported_platforms.forEach(p => {
+                        selectEl.innerHTML += `<option value="${p.key}">${p.name}</option>`;
+                    });
+                }
+                document.getElementById('ocrManualSelect').style.display = 'block';
+            }
+
+            if (result.raw_text) {
+                document.getElementById('ocrResult').innerHTML =
+                    `<details><summary style="cursor:pointer; color:#718096;">查看OCR原文</summary><pre style="font-size:10px; max-height:100px; overflow:auto; background:#f7fafc; padding:6px; border-radius:4px; margin-top:4px;">${escapeHtml(result.raw_text)}</pre></details>`;
+                document.getElementById('ocrResult').style.display = 'block';
+            }
+        }
+    })
+    .catch(error => {
+        document.getElementById('ocrStatus').innerHTML =
+            `<i class="fas fa-times-circle" style="color: #E53E3E;"></i> 请求失败: ${error.message}`;
+    });
+}
+
+// 手动选择平台后重新识别
+function retryWithPlatform() {
+    const platform = document.getElementById('ocrPlatformSelect').value;
+    if (!platform) {
+        alert('请先选择平台');
+        return;
+    }
+    if (!ocrCurrentImageData) {
+        alert('图片数据丢失，请重新上传');
+        return;
+    }
+    sendOcrRequest(ocrCurrentImageData, platform);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showOcrResult(data) {
+    const seg = data.segments?.[0];
+    const pax = data.passengers || [];
+    const paxCount = pax.length;
+
+    let html = `<div style="color: #38A169; margin-bottom: 6px;"><i class="fas fa-check-circle"></i> <strong>${data.platform}</strong> 识别成功</div>`;
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 6px;">';
+
+    if (seg) {
+        html += `<span class="badge bg-primary">${seg.flight_number}</span>`;
+        html += `<span class="badge bg-info">${seg.departure_airport} → ${seg.arrival_airport}</span>`;
+        html += `<span class="badge bg-secondary">${seg.departure_date} ${seg.departure_time}</span>`;
+        if (seg.ticket_number) html += `<span class="badge bg-dark">票号: ${seg.ticket_number}</span>`;
+    }
+    if (paxCount > 0) {
+        html += `<span class="badge bg-warning text-dark">${paxCount}位乘客</span>`;
+        if (pax[0].selling_price > 0) html += `<span class="badge bg-success">售价: $${pax[0].selling_price}</span>`;
+        if (pax[0].cost_price > 0) html += `<span class="badge bg-danger">成本: $${pax[0].cost_price}</span>`;
+    }
+    if (data.pnr) html += `<span class="badge bg-dark">PNR: ${data.pnr}</span>`;
+
+    html += '</div>';
+
+    document.getElementById('ocrStatus').style.display = 'none';
+    document.getElementById('ocrResult').innerHTML = html;
+    document.getElementById('ocrResult').style.display = 'block';
+    document.getElementById('ocrApplyBtn').style.display = 'inline-flex';
+}
+
+// 平台名称 → 供应商名称关键词映射（用于自动选择供应商）
+const PLATFORM_SUPPLIER_MAP = {
+    'US Bangla': 'US Bangla',
+    // 后续扩展:
+    // 'Scoot': 'Scoot',
+    // 'AirAsia': 'AirAsia',
+};
+
+function applyOcrData() {
+    if (!ocrParsedData) return;
+
+    const data = ocrParsedData;
+
+    // 0) 自动选择供应商
+    if (data.platform && PLATFORM_SUPPLIER_MAP[data.platform]) {
+        const keyword = PLATFORM_SUPPLIER_MAP[data.platform].toLowerCase();
+        const supplierSelect = document.getElementById('supplier_name');
+        const options = supplierSelect.querySelectorAll('option');
+        for (const opt of options) {
+            if (opt.textContent.toLowerCase().includes(keyword)) {
+                supplierSelect.value = opt.value;
+                // 同时重置供应商类型筛选，确保选中的供应商可见
+                document.getElementById('supplier_type').value = '';
+                filterSuppliers();
+                break;
+            }
+        }
+    }
+
+    // 1) 清空现有航段和乘客
+    $('#flightSegmentsContainer').empty();
+    $('#passengersContainer').empty();
+
+    // 2) 填充航段
+    if (data.segments && data.segments.length > 0) {
+        data.segments.forEach(seg => {
+            addFlightSegment({
+                flightNumber: seg.flight_number || '',
+                cabinCode: seg.cabin_code || 'Y',
+                departureAirport: seg.departure_airport || '',
+                arrivalAirport: seg.arrival_airport || '',
+                departureDate: seg.departure_date || '',
+                departureTime: seg.departure_time || '',
+                arrivalDate: seg.arrival_date || '',
+                arrivalTime: seg.arrival_time || '',
+                airlineName: seg.airline_name || '',
+                cabinClass: seg.cabin_class || '',
+                departureTerminal: seg.departure_terminal || '',
+                arrivalTerminal: seg.arrival_terminal || '',
+                ticketNumber: seg.ticket_number || '',
+                pnr: seg.pnr || '',
+                baggage: seg.baggage || '',
+            });
+        });
+    }
+
+    // 3) 填充乘客
+    if (data.passengers && data.passengers.length > 0) {
+        data.passengers.forEach(pax => {
+            addPassenger();
+            const lastCard = $('.passenger-card').last();
+            lastCard.find('.passenger-name-input').val(pax.name || '');
+            lastCard.find('.passenger-type-select').val(pax.type || 'adult');
+            lastCard.find('.selling-price-input').val(pax.selling_price || 0);
+            lastCard.find('.cost-price-input').val(pax.cost_price || 0);
+            if (pax.passport_number) {
+                lastCard.find('input[name="passport_number[]"]').val(pax.passport_number);
+            }
+        });
+    } else {
+        // 至少添加一个空乘客
+        addPassenger();
+    }
+
+    // 4) 填充备注
+    if (data.remarks) {
+        const remarksField = $('textarea[name="remarks"]');
+        const existing = remarksField.val();
+        remarksField.val(existing ? existing + '\n' + data.remarks : data.remarks);
+    }
+
+    // 5) 更新价格汇总
+    updatePriceSummary();
+
+    // 6) 视觉反馈
+    document.getElementById('ocrApplyBtn').innerHTML = '<i class="fas fa-check me-1"></i>已应用';
+    document.getElementById('ocrApplyBtn').disabled = true;
+    document.getElementById('ocrApplyBtn').classList.replace('btn-success', 'btn-outline-success');
+
+    // 滚动到航段区域
+    document.querySelector('#flightSegmentsContainer')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function clearOcr() {
+    ocrParsedData = null;
+    ocrCurrentImageData = null;
+    document.getElementById('ocrPlaceholder').style.display = 'block';
+    document.getElementById('ocrPreview').style.display = 'none';
+    document.getElementById('ocrPreviewImg').src = '';
+    document.getElementById('ocrFileInput').value = '';
+    document.getElementById('ocrApplyBtn').style.display = 'none';
+    document.getElementById('ocrApplyBtn').disabled = false;
+    document.getElementById('ocrApplyBtn').innerHTML = '<i class="fas fa-check me-1"></i>应用到表单';
+    document.getElementById('ocrApplyBtn').classList.replace('btn-outline-success', 'btn-success');
+    document.getElementById('ocrManualSelect').style.display = 'none';
 }
 
 // 点击外部不关闭弹窗，只能通过按钮关闭

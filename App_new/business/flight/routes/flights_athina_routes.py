@@ -1,3 +1,4 @@
+import re
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from ..models.models import FlightSchedule, AirportData
@@ -5,7 +6,7 @@ from ..models.models import FlightSchedule, AirportData
 from App_new.utils.cache import simple_cache
 from App_new.utils.ConvertFlightItinerary import format_flight_info
 from App_new.utils.utils import FlightData as flight
-from App_new.exts import csrf
+from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
 
 flights_athina = Blueprint('flights_athina', __name__, url_prefix='/flights_athina')
@@ -227,9 +228,10 @@ def generate_booking_code():
 @login_required
 @staff_only
 def parse_flights_api():
-    """解析航班信息API - 支持 Trip.com / Ctrip / Google Flights / Scoot 格式"""
+    """解析航班信息API - 支持 Trip.com / Ctrip / Google Flights / Scoot / 手动输入格式"""
     try:
-        from App_new.utils.parse_flights import parse_flights
+        from App_new.utils.parse_flights import parse_flights, resolve_airport_codes, format_segments
+        from App_new.business.flight.models.models import AirportData
 
         data = request.get_json()
         if not data:
@@ -239,25 +241,77 @@ def parse_flights_api():
         if not input_text.strip():
             return jsonify({'error': '请输入航班信息'}), 400
 
-        import sys
-        print(f"[DEBUG parse_flights] 输入文本前200字符: {repr(input_text[:200])}", file=sys.stderr)
         result = parse_flights(input_text)
-        print(f"[DEBUG parse_flights] 格式={result.get('format_detected')}, 航班数={len(result.get('flights', []))}", file=sys.stderr)
-        for f in result.get('flights', []):
-            print(f"[DEBUG parse_flights]   {f.get('airline','')}{f.get('number','')}: {f.get('dep_code','')} -> {f.get('arr_code','')}", file=sys.stderr)
 
         if not result['success']:
             return jsonify({
-                'error': '未能识别航班信息格式。支持的格式：Trip.com、携程、Google Flights、酷航'
+                'error': '未能识别航班信息格式。支持的格式：Trip.com、携程、Google Flights、酷航、手动输入'
             }), 400
 
-        # 航段信息（segments）已经在 result 中
-        # 同时生成行程转换所需的输入格式（与 segments 相同，可直接用于行程转换）
+        # 如果是手动输入格式，需要查找IATA代码
+        if result['format_detected'] == '手动输入':
+            def lookup_iata(name):
+                """根据城市/机场名称查找IATA代码"""
+                # 去掉括号内容，如 "新加坡（樟宜机场）" → "新加坡" 和 "樟宜机场"
+                clean_name = re.sub(r'[（(][^）)]*[）)]', '', name).strip()
+                paren_content = re.search(r'[（(]([^）)]*)[）)]', name)
+
+                # 搜索列表：先原名，再去括号名，再括号内容
+                search_names = [name.strip()]
+                if clean_name != name.strip():
+                    search_names.append(clean_name)
+                if paren_content:
+                    search_names.append(paren_content.group(1).strip())
+
+                for search_name in search_names:
+                    sn = search_name.upper()
+                    # 精确匹配城市名或机场名
+                    airport = AirportData.query.filter(
+                        db.or_(
+                            db.func.upper(AirportData.city_name) == sn,
+                            db.func.upper(AirportData.city_name_en) == sn,
+                            db.func.upper(AirportData.airport_name_cn) == sn,
+                            db.func.upper(AirportData.airport_name_en) == sn,
+                        )
+                    ).first()
+                    if airport:
+                        return airport.airport_IATA
+
+                    # 模糊匹配
+                    airport = AirportData.query.filter(
+                        db.or_(
+                            AirportData.city_name.ilike(f'%{search_name}%'),
+                            AirportData.city_name_en.ilike(f'%{search_name}%'),
+                            AirportData.airport_name_cn.ilike(f'%{search_name}%'),
+                            AirportData.airport_name_en.ilike(f'%{search_name}%'),
+                        )
+                    ).first()
+                    if airport:
+                        return airport.airport_IATA
+
+                return None
+
+            resolve_airport_codes(result['flights'], lookup_iata)
+            # 重新格式化segments
+            result['segments'] = format_segments(result['flights'])
+
+            # 检查是否有未识别的机场
+            unknown = []
+            for f in result['flights']:
+                if f['dep_code'] == '???':
+                    unknown.append(f.get('_original_dep', f['dep_code']))
+                if f['arr_code'] == '???':
+                    unknown.append(f.get('_original_arr', f['arr_code']))
+
+            if unknown:
+                result['warning'] = f'以下城市/机场未找到IATA代码: {", ".join(set(unknown))}，显示为???'
+
         return jsonify({
             'success': True,
             'segments': result['segments'],
             'format_detected': result['format_detected'],
-            'flight_count': len(result['flights'])
+            'flight_count': len(result['flights']),
+            'warning': result.get('warning')
         })
 
     except Exception as e:

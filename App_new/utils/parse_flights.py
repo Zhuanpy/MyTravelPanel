@@ -6,6 +6,7 @@
 - 携程 (Ctrip) 网页复制格式
 - Google Flights 网页复制格式
 - Scoot 酷航网页复制格式
+- 手动输入格式（中英文）
 """
 import re
 from datetime import datetime
@@ -365,6 +366,177 @@ def parse_format_scoot(text, year=None):
     return flights
 
 
+# 中文月份映射
+_CN_MONTH_MAP = {
+    '01': 'JAN', '02': 'FEB', '03': 'MAR', '04': 'APR',
+    '05': 'MAY', '06': 'JUN', '07': 'JUL', '08': 'AUG',
+    '09': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DEC',
+    '1': 'JAN', '2': 'FEB', '3': 'MAR', '4': 'APR',
+    '5': 'MAY', '6': 'JUN', '7': 'JUL', '8': 'AUG',
+    '9': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DEC',
+}
+
+# 英文月份缩写映射
+_EN_MONTH_MAP = {
+    'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+    'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12,
+}
+
+
+def _parse_manual_date(date_str, year=None):
+    """解析手动输入的日期字符串，返回 (dep_date_str, dep_day)
+
+    支持格式：
+    - 22APR / 22Apr
+    - 05月29号 / 5月29日
+    - 2026-05-29 / 2026/05/29
+    """
+    if year is None:
+        year = datetime.now().year
+
+    date_str = date_str.strip()
+
+    # 格式：22APR 或 22Apr
+    m = re.match(r'(\d{1,2})\s*([A-Za-z]{3})', date_str)
+    if m:
+        day = int(m.group(1))
+        month_abbr = m.group(2).upper()
+        if month_abbr in _EN_MONTH_MAP:
+            dt = datetime(year, _EN_MONTH_MAP[month_abbr], day)
+            return dt.strftime("%d%b").upper(), DAY_ABBR[dt.weekday()], dt
+
+    # 格式：05月29号 / 5月29日
+    m = re.match(r'(\d{1,2})月(\d{1,2})[号日]?', date_str)
+    if m:
+        month = int(m.group(1))
+        day = int(m.group(2))
+        dt = datetime(year, month, day)
+        return dt.strftime("%d%b").upper(), DAY_ABBR[dt.weekday()], dt
+
+    # 格式：2026-05-29 / 2026/05/29
+    m = re.match(r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})', date_str)
+    if m:
+        dt = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        return dt.strftime("%d%b").upper(), DAY_ABBR[dt.weekday()], dt
+
+    return None, None, None
+
+
+def parse_format_manual(text, year=None):
+    """解析手动输入格式（中英文）
+
+    支持格式：
+    英文: 1.SINGAPORE - DHAKA, Flight No: BS 310, 22APR, Departure: 15:25 - Arrival: 17:35
+    中文: 1.新加坡（樟宜机场） - 温州永强机场, 航班号：GJ6030，05月29号，出发：15:00 - 抵达：20:05
+
+    返回的航班数据中 dep_code/arr_code 存储城市/机场名称（而非IATA代码），
+    需要调用方通过 resolve_airport_codes() 解析为IATA代码。
+    """
+    if year is None:
+        year = datetime.now().year
+
+    flights = []
+    # 将文本按航段拆分（每段以 数字. 开头）
+    # 先合并换行（有些格式跨两行）
+    text = re.sub(r'\n\s+', ' ', text.strip())
+    segments = re.split(r'(?=\d+\s*[.、])', text.strip())
+
+    for seg in segments:
+        seg = seg.strip()
+        if not seg:
+            continue
+
+        # 去掉开头的序号
+        seg = re.sub(r'^\d+\s*[.、]\s*', '', seg)
+
+        # 提取出发地 - 目的地
+        # 英文: SINGAPORE - DHAKA, ...
+        # 中文: 新加坡（樟宜机场） - 温州永强机场, ...
+        route_m = re.match(r'(.+?)\s*[-–—]\s*(.+?)\s*[,，]', seg)
+        if not route_m:
+            continue
+        dep_name = route_m.group(1).strip()
+        arr_name = route_m.group(2).strip()
+
+        rest = seg[route_m.end():]
+
+        # 提取航班号
+        # 英文: Flight No: BS 310 或 Flight No: BS310
+        # 中文: 航班号：GJ6030 或 航班号: GJ 6030
+        fn_m = re.search(
+            r'(?:Flight\s*No[:：]?\s*|航班号[:：]?\s*)([A-Z]{2})\s*(\d{2,5})',
+            rest, re.IGNORECASE
+        )
+        if not fn_m:
+            continue
+        airline = fn_m.group(1).upper()
+        number = fn_m.group(2)
+
+        # 提取日期
+        # 英文: 22APR
+        # 中文: 05月29号 / 05月29日
+        date_m = re.search(
+            r'(\d{1,2}\s*[A-Za-z]{3}|\d{1,2}月\d{1,2}[号日]?|\d{4}[/-]\d{1,2}[/-]\d{1,2})',
+            rest
+        )
+        if not date_m:
+            continue
+        dep_date_str, dep_day, dep_dt = _parse_manual_date(date_m.group(1), year)
+        if not dep_date_str:
+            continue
+
+        # 提取出发时间和到达时间
+        # 英文: Departure: 15:25 - Arrival: 17:35
+        # 中文: 出发：15:00 - 抵达：20:05
+        time_m = re.search(
+            r'(?:Departure|出发)[:：]?\s*(\d{1,2}:\d{2})\s*[-–—]\s*(?:Arrival|抵达|到达)[:：]?\s*(\d{1,2}:\d{2})',
+            rest, re.IGNORECASE
+        )
+        if not time_m:
+            continue
+        dep_time = time_m.group(1).replace(":", "")
+        arr_time = time_m.group(2).replace(":", "")
+
+        # 判断是否跨天（到达时间小于出发时间）
+        next_day = int(arr_time) < int(dep_time)
+
+        flights.append({
+            "airline": airline,
+            "number": number,
+            "dep_code": dep_name,  # 暂存城市/机场名称
+            "arr_code": arr_name,  # 暂存城市/机场名称
+            "dep_time": dep_time,
+            "arr_time": arr_time,
+            "dep_date": dep_date_str,
+            "dep_day": dep_day,
+            "next_day": next_day,
+            "_needs_iata_lookup": True,  # 标记需要IATA代码查找
+        })
+
+    return flights
+
+
+def resolve_airport_codes(flights, lookup_fn):
+    """将航班中的城市/机场名称解析为IATA代码
+
+    Args:
+        flights: 航班列表
+        lookup_fn: 查找函数，接受城市/机场名称，返回IATA代码或None
+    """
+    for f in flights:
+        if not f.get('_needs_iata_lookup'):
+            continue
+        # 保存原始名称用于提示未识别的机场
+        f['_original_dep'] = f['dep_code']
+        f['_original_arr'] = f['arr_code']
+        dep_code = lookup_fn(f['dep_code'])
+        arr_code = lookup_fn(f['arr_code'])
+        f['dep_code'] = dep_code or '???'
+        f['arr_code'] = arr_code or '???'
+        f.pop('_needs_iata_lookup', None)
+    return flights
+
+
 def format_segments(flights):
     """格式化为航段信息（Athina格式）"""
     lines = []
@@ -401,13 +573,14 @@ def parse_flights(text):
     """
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    # 依次尝试各种格式
+    # 依次尝试各种格式（手动格式放最后，因为匹配比较宽松）
     for parser, name in [
         (parse_format_trip, "Trip.com"),
         (parse_format_ctrip, "Ctrip/携程"),
         (parse_format_ctrip_order, "Ctrip/携程(订单)"),
         (parse_format_scoot, "Scoot/酷航"),
         (parse_format_google, "Google Flights"),
+        (parse_format_manual, "手动输入"),
     ]:
         flights = parser(text)
         if flights:

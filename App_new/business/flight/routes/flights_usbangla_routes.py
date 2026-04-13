@@ -1170,6 +1170,343 @@ def process_qunar_pdf(file_stream):
         raise
 
 
+# ==================== Expedia 行程单清理 ====================
+
+_EXPEDIA_FONTNAME = "helv"
+_EXPEDIA_FONTSIZE = 10.5
+_EXPEDIA_COLOR = (0, 0, 0)
+_EXPEDIA_A4_W = 595.28
+_EXPEDIA_A4_H = 841.89
+
+
+def _expedia_get_content_segments(page):
+    """分析 Expedia 页面，返回去除区域、redact 矩形、重写项目"""
+    import fitz
+    blocks = page.get_text("dict")["blocks"]
+    pw = page.rect.width
+    ph = page.rect.height
+
+    remove_regions = []
+    redact_rects = []
+    rewrite_items = []
+
+    # 找关键段落的 y 位置
+    section_starts = {}
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                bbox = span["bbox"]
+                for key in ["Location", "Airline rules and restrictions",
+                            "Traveller info",
+                            "Email address", "Phone number", "Preferences",
+                            "Payment details", "Your One Key rewards",
+                            "Expedia support"]:
+                    if txt == key:
+                        section_starts[key] = bbox[1]
+
+    # Expedia header 图片
+    first_text_y = 999
+    for b in blocks:
+        if b["type"] == 0:
+            for line in b["lines"]:
+                for span in line["spans"]:
+                    if span["text"].strip():
+                        first_text_y = min(first_text_y, span["bbox"][1])
+    for b in blocks:
+        if b["type"] == 1 and b["bbox"][1] < 80:
+            rect = fitz.Rect(b["bbox"])
+            if rect.y1 > first_text_y - 2:
+                rect.y1 = first_text_y - 2
+            if rect.y1 > rect.y0:
+                redact_rects.append(rect)
+                remove_regions.append((rect.y0, rect.y1))
+
+    # Expedia itinerary 行
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                if txt.startswith("Expedia itinerary:"):
+                    bbox = span["bbox"]
+                    redact_rects.append(fitz.Rect(bbox[0] - 2, bbox[1] - 2, pw - 50, bbox[3] + 2))
+                    remove_regions.append((bbox[1] - 2, bbox[3] + 2))
+
+    # 行李费用清理
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                bbox = span["bbox"]
+                if "checked bag:" in txt and ("US$" in txt or "S$" in txt):
+                    redact_rects.append(fitz.Rect(bbox))
+                    remove_regions.append((bbox[1] - 1, bbox[3] + 1))
+                if "No fee up to" in txt:
+                    redact_rects.append(fitz.Rect(bbox))
+                    clean_txt = txt.replace("No fee up to", "up to").replace(":  up to", ": up to")
+                    rewrite_items.append({
+                        "text": clean_txt, "x": bbox[0],
+                        "y": bbox[1] + _EXPEDIA_FONTSIZE, "size": span["size"]
+                    })
+                if "Estimated baggage fees" in txt or "weight and size restrictions" in txt:
+                    redact_rects.append(fitz.Rect(bbox))
+                    remove_regions.append((bbox[1] - 1, bbox[3] + 1))
+
+    # Economy 舱位代码
+    for b in blocks:
+        if b["type"] != 0:
+            continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                txt = span["text"].strip()
+                if txt.startswith("Economy (") and txt.endswith(")"):
+                    bbox = span["bbox"]
+                    redact_rects.append(fitz.Rect(bbox))
+                    rewrite_items.append({
+                        "text": "Economy", "x": bbox[0],
+                        "y": bbox[1] + _EXPEDIA_FONTSIZE, "size": span["size"]
+                    })
+
+    # Location 段
+    if "Location" in section_starts:
+        loc_y = section_starts["Location"] - 4
+        redact_rects.append(fitz.Rect(0, loc_y, pw, ph))
+        remove_regions.append((loc_y, ph))
+
+    # Airline rules and restrictions
+    if "Airline rules and restrictions" in section_starts:
+        y = section_starts["Airline rules and restrictions"] - 10
+        next_y = ph
+        if "Traveller info" in section_starts and section_starts["Traveller info"] > y:
+            next_y = section_starts["Traveller info"] - 10
+        redact_rects.append(fitz.Rect(0, y, pw, next_y))
+        remove_regions.append((y, next_y))
+
+    # Email address 段
+    if "Email address" in section_starts:
+        ea_y = section_starts["Email address"] - 4
+        next_y = ph
+        for key in ["Phone number", "Preferences", "Payment details"]:
+            if key in section_starts and section_starts[key] > ea_y:
+                next_y = min(next_y, section_starts[key] - 4)
+                break
+        redact_rects.append(fitz.Rect(0, ea_y, pw, next_y))
+        remove_regions.append((ea_y, next_y))
+
+    # Phone number 段
+    if "Phone number" in section_starts:
+        pn_y = section_starts["Phone number"] - 4
+        next_y = ph
+        for key in ["Preferences", "Payment details"]:
+            if key in section_starts and section_starts[key] > pn_y:
+                next_y = min(next_y, section_starts[key] - 4)
+                break
+        redact_rects.append(fitz.Rect(0, pn_y, pw, next_y))
+        remove_regions.append((pn_y, next_y))
+
+    # Preferences 段
+    if "Preferences" in section_starts:
+        pr_y = section_starts["Preferences"] - 4
+        next_y = ph
+        for key in ["Payment details"]:
+            if key in section_starts and section_starts[key] > pr_y:
+                next_y = min(next_y, section_starts[key] - 4)
+                break
+        redact_rects.append(fitz.Rect(0, pr_y, pw, next_y))
+        remove_regions.append((pr_y, next_y))
+
+    # Payment details 及之后
+    if "Payment details" in section_starts:
+        pd_y = section_starts["Payment details"] - 10
+        redact_rects.append(fitz.Rect(0, pd_y, pw, ph))
+        remove_regions.append((pd_y, ph))
+
+    # One Key / Expedia support 兜底
+    for key in ["Your One Key rewards", "Expedia support"]:
+        if key in section_starts:
+            ky = section_starts[key] - 4
+            redact_rects.append(fitz.Rect(0, ky, pw, ph))
+            remove_regions.append((ky, ph))
+
+    return remove_regions, redact_rects, rewrite_items
+
+
+def _expedia_merge_regions(regions):
+    """合并重叠的区域"""
+    if not regions:
+        return []
+    regions.sort()
+    merged = [regions[0]]
+    for s, e in regions[1:]:
+        if s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+    return merged
+
+
+def _expedia_get_keep_regions(remove_regions, ph):
+    """从去除区域计算保留区域"""
+    merged = _expedia_merge_regions(remove_regions)
+    keep = []
+    y = 0
+    for rs, re in merged:
+        if y < rs:
+            keep.append((y, rs))
+        y = re
+    if y < ph:
+        keep.append((y, ph))
+    return keep
+
+
+def process_expedia_pdf(file_stream):
+    """处理 Expedia 行程单PDF，返回清理后的 BytesIO"""
+    import fitz
+
+    tmp_path = tempfile.mktemp(suffix=".pdf")
+    try:
+        # 保存上传文件到临时文件
+        data = file_stream.read()
+        with open(tmp_path, 'wb') as f:
+            f.write(data)
+
+        doc = fitz.open(tmp_path)
+        total_pages = doc.page_count
+
+        # 收集每页的保留区域
+        page_keep_data = []
+
+        for pi in range(total_pages):
+            page = doc[pi]
+            pw = page.rect.width
+            ph = page.rect.height
+
+            remove_regions, redact_rects, rewrite_items = _expedia_get_content_segments(page)
+
+            # 应用 redactions
+            for rect in redact_rects:
+                page.add_redact_annot(rect.irect, fill=(1, 1, 1))
+            page.apply_redactions()
+
+            # 重写文字
+            for item in rewrite_items:
+                page.insert_text(
+                    fitz.Point(item["x"], item["y"]),
+                    item["text"],
+                    fontname=_EXPEDIA_FONTNAME, fontsize=item["size"], color=_EXPEDIA_COLOR
+                )
+
+            keep_regions = _expedia_get_keep_regions(remove_regions, ph)
+            keep_regions = [(s, e) for s, e in keep_regions if e - s > 5]
+            page_keep_data.append((pi, keep_regions, pw, ph))
+
+        # 保存 redact 后的临时文件
+        tmp2_path = tmp_path + ".tmp"
+        doc.save(tmp2_path)
+        doc.close()
+
+        # 重建为 A4 页面
+        doc = fitz.open(tmp2_path)
+        margin_lr = 50
+        min_margin_tb = 60
+
+        all_segments = []
+        for pi, keep_regions, src_pw, src_ph in page_keep_data:
+            for ys, ye in keep_regions:
+                all_segments.append((pi, ys, ye, src_pw))
+
+        total_content_h = sum(ye - ys for _, ys, ye, _ in all_segments)
+        usable_h = _EXPEDIA_A4_H - 2 * min_margin_tb
+
+        final_doc = fitz.open()
+
+        if total_content_h <= usable_h:
+            # 单页居中
+            margin_top = max(min_margin_tb, (_EXPEDIA_A4_H - total_content_h) * 0.38)
+            new_page = final_doc.new_page(width=_EXPEDIA_A4_W, height=_EXPEDIA_A4_H)
+            dest_y = margin_top
+            for pi, ys, ye, src_pw in all_segments:
+                seg_h = ye - ys
+                scale = (_EXPEDIA_A4_W - 2 * margin_lr) / (src_pw - 2 * margin_lr)
+                if scale > 1:
+                    scale = 1
+                clip = fitz.Rect(0, ys, src_pw, ye)
+                x_offset = (_EXPEDIA_A4_W - src_pw * scale) / 2
+                dest = fitz.Rect(x_offset, dest_y, x_offset + src_pw * scale, dest_y + seg_h * scale)
+                new_page.show_pdf_page(dest, doc, pi, clip=clip)
+                dest_y += seg_h * scale
+        else:
+            # 多页分割
+            margin_top = min_margin_tb
+            dest_y = margin_top
+            page_bottom = _EXPEDIA_A4_H - min_margin_tb
+            new_page = final_doc.new_page(width=_EXPEDIA_A4_W, height=_EXPEDIA_A4_H)
+            for pi, ys, ye, src_pw in all_segments:
+                scale = (_EXPEDIA_A4_W - 2 * margin_lr) / (src_pw - 2 * margin_lr)
+                if scale > 1:
+                    scale = 1
+                x_offset = (_EXPEDIA_A4_W - src_pw * scale) / 2
+                remaining_seg_y = ys
+                while remaining_seg_y < ye:
+                    avail = page_bottom - dest_y
+                    seg_remaining_h = ye - remaining_seg_y
+                    place_h = min(seg_remaining_h, avail / scale)
+                    if place_h < 5:
+                        new_page = final_doc.new_page(width=_EXPEDIA_A4_W, height=_EXPEDIA_A4_H)
+                        dest_y = margin_top
+                        continue
+                    clip = fitz.Rect(0, remaining_seg_y, src_pw, remaining_seg_y + place_h)
+                    dest = fitz.Rect(x_offset, dest_y, x_offset + src_pw * scale, dest_y + place_h * scale)
+                    new_page.show_pdf_page(dest, doc, pi, clip=clip)
+                    dest_y += place_h * scale
+                    remaining_seg_y += place_h
+                    if remaining_seg_y < ye and dest_y >= page_bottom - 5:
+                        new_page = final_doc.new_page(width=_EXPEDIA_A4_W, height=_EXPEDIA_A4_H)
+                        dest_y = margin_top
+
+        output = BytesIO()
+        final_doc.save(output, deflate=True)
+        final_doc.close()
+        doc.close()
+        output.seek(0)
+
+        for p in [tmp_path, tmp2_path]:
+            if os.path.exists(p):
+                os.remove(p)
+
+        return output
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        tmp2 = tmp_path + ".tmp"
+        if os.path.exists(tmp2):
+            os.remove(tmp2)
+        raise
+
+
+@flights_usbangla.route('/clean_expedia', methods=['POST'])
+@login_required
+@staff_only
+def clean_expedia():
+    """处理 Expedia 行程单：去除logo、价格、个人信息等"""
+    file = request.files.get('pdf_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+    try:
+        output = process_expedia_pdf(file.stream)
+        original_name = file.filename or 'expedia_ticket.pdf'
+        clean_name = original_name.rsplit('.', 1)[0] + '_clean.pdf'
+        return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
 @flights_usbangla.route('/clean_qunar', methods=['POST'])
 @login_required
 @staff_only

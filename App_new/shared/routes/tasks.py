@@ -122,6 +122,11 @@ def list_todos():
         if source_type:
             query = query.filter(Todo.source_type == source_type)
 
+        # 来源ID筛选
+        source_id = request.args.get('source_id', '')
+        if source_id:
+            query = query.filter(Todo.source_id == int(source_id))
+
         # 执行查询
         todos = query.order_by(Todo.created_at.desc()).all()
 

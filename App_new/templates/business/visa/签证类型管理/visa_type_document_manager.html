@@ -499,7 +499,7 @@
 
 .additional-field textarea {
     width: 100%;
-    min-height: 80px;
+    min-height: 300px;
     padding: 0.625rem;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -1172,6 +1172,7 @@ async function saveAll() {
 
         if (data.success) {
             showSaveStatus('saved');
+            showToast('自动保存成功', 'success');
         } else {
             showSaveStatus('error');
             showToast('保存失败: ' + data.message, 'error');

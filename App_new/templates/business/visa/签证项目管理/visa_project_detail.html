@@ -444,33 +444,64 @@
     </div>
 </div>
 
-<!-- 邮件提醒模态框 (Bootstrap) -->
+<!-- 项目提醒模态框 (Bootstrap) -->
 <div class="modal fade" id="reminderModal2" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">添加提醒</h5>
+            <div class="modal-header" style="background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-bottom: 2px solid #ffc107;">
+                <h5 class="modal-title" style="color: #856404;">
+                    <i class="fas fa-bell"></i> 添加项目提醒
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="visa-form-label">收件邮箱（可多个，逗号/分号分隔）</label>
+                    <label class="visa-form-label">提醒标题 <span style="color: red;">*</span></label>
+                    <input type="text" id="reminderTitle" class="visa-form-control"
+                           value="[签证提醒] {{ project.applicant_name or '未知' }} - {{ project.visa_type or '未知类型' }}"
+                           placeholder="输入提醒标题">
+                </div>
+                <div class="mb-3">
+                    <label class="visa-form-label">提醒内容</label>
+                    <textarea id="reminderDescription" class="visa-form-control" rows="3"
+                              placeholder="输入提醒详细内容">项目ID: {{ project.id }}
+签证类型: {{ project.visa_type or '未知' }}
+申请人: {{ project.applicant_name or '未设置' }}</textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="visa-form-label">到期时间 <span style="color: red;">*</span></label>
+                        <input type="text" id="reminderDue" class="visa-form-control" placeholder="选择日期时间">
+                    </div>
+                    <div class="col-6">
+                        <label class="visa-form-label">优先级</label>
+                        <select id="reminderPriority" class="visa-form-select">
+                            <option value="1">高优先级</option>
+                            <option value="2" selected>中优先级</option>
+                            <option value="3">低优先级</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="visa-form-label">收件邮箱（可多个，逗号分隔）</label>
                     <input type="text" id="reminderRecipient" class="visa-form-control" placeholder="a@b.com, c@d.com">
                     <div class="form-text">留空则默认发送至当前登录用户邮箱</div>
                 </div>
-                <div class="mb-3">
-                    <label class="visa-form-label">提醒时间</label>
-                    <input type="text" id="reminderDue" class="visa-form-control" placeholder="选择日期时间">
-                </div>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="reminderSendEmail" checked>
-                    <label class="form-check-label" for="reminderSendEmail">发送邮件</label>
+                    <label class="form-check-label" for="reminderSendEmail">发送邮件提醒</label>
                 </div>
-                <small class="text-muted">将创建一条"签证提醒"待办，并按到期时间自动发送邮件。</small>
+                <div class="mt-2 p-2" style="background: #f0f8ff; border-radius: 6px; font-size: 0.8rem; color: #666;">
+                    <i class="fas fa-info-circle text-info"></i> 提醒将自动保存到
+                    <a href="{{ url_for('utils_blue.render_todo_list') }}" target="_blank" style="color: #0d6efd;">任务管理中心</a>，
+                    可在任务中心统一查看和管理所有提醒。
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="visa-btn visa-btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="visa-btn visa-btn-primary" id="btnCreateReminder">保存</button>
+                <button type="button" class="visa-btn visa-btn-primary" id="btnCreateReminder">
+                    <i class="fas fa-save"></i> 保存提醒
+                </button>
             </div>
         </div>
     </div>
@@ -1004,56 +1035,61 @@ function initFormHandlers() {
     }
 }
 
-// ==================== 邮件提醒功能 ====================
-function createEmailReminder() {
-    const recipient = document.getElementById('reminderRecipient')?.value.trim() || '';
+// ==================== 项目提醒功能 ====================
+function createProjectReminder() {
+    const title = document.getElementById('reminderTitle')?.value.trim() || '';
+    const description = document.getElementById('reminderDescription')?.value.trim() || '';
     const due = document.getElementById('reminderDue')?.value.trim() || '';
+    const priority = document.getElementById('reminderPriority')?.value || '2';
+    const recipient = document.getElementById('reminderRecipient')?.value.trim() || '';
     const sendEmail = document.getElementById('reminderSendEmail')?.checked || false;
 
-    console.log('创建提醒，参数:', { recipient, due, sendEmail });
+    // 验证必填项
+    if (!title) {
+        showMessage('请输入提醒标题', 'error');
+        return;
+    }
+    if (!due) {
+        showMessage('请选择到期时间', 'error');
+        return;
+    }
 
     const payload = {
-        title: `[签证提醒] ${PROJECT_FOLDER_NAME} (#${PROJECT_ID})`,
-        description: `项目ID: ${PROJECT_ID}\n签证类型: ${VISA_TYPE}\n申请人: ${APPLICANT_NAME}`,
-        category: 'visa_reminder',
-        priority: 2,
+        title: title,
+        description: description,
+        category: '项目提醒',
+        priority: parseInt(priority),
         due_date: due ? due.replace(' ', 'T') : null,
         recipient_email: recipient || null,
-        send_email: sendEmail
+        send_email: sendEmail,
+        source_type: 'visa',
+        source_id: PROJECT_ID,
+        auto_generated: false
     };
-
-    console.log('提醒payload:', payload);
 
     const button = document.getElementById('btnCreateReminder');
     if (!button) return;
-    
+
     const originalText = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
 
     fetch('/utils/todos/create', {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            'X-CSRFToken': CSRF_TOKEN 
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
         },
         body: JSON.stringify(payload)
     })
-    .then(response => {
-        console.log('响应状态:', response.status);
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        console.log('响应数据:', data);
-        
         if (data && data.success) {
-            showMessage('提醒已添加', 'success');
+            showMessage('提醒已保存到任务管理中心', 'success');
             // 关闭Bootstrap模态框
             const modalElement = document.getElementById('reminderModal2');
             const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            }
+            if (modal) modal.hide();
             // 重新加载提醒列表
             loadReminders();
         } else {
@@ -1126,51 +1162,29 @@ document.addEventListener('click', function(e) {
 // ==================== 提醒事件功能 ====================
 function loadReminders() {
     const container = document.getElementById('remindersContainer');
-    console.log('开始加载提醒事件，项目ID:', PROJECT_ID);
-    
-    // 先尝试用project_id筛选
-    fetch(`/utils/todos/list?category=visa_reminder&project_id=${PROJECT_ID}`)
-        .then(response => {
-            console.log('提醒列表响应状态:', response.status);
-            return response.json();
-        })
+
+    // 用source_type和source_id精确筛选当前项目的提醒
+    fetch(`/utils/todos/list?source_type=visa&source_id=${PROJECT_ID}`)
+        .then(response => response.json())
         .then(data => {
-            console.log('提醒列表数据:', data);
             if (data.success) {
-                const todos = data.todos || [];
-                console.log('找到提醒数量:', todos.length);
-                
-                // 如果用project_id筛选没有结果，尝试只用category筛选并手动过滤
+                let todos = data.todos || [];
+                // 兼容旧数据：同时加载旧category的提醒
                 if (todos.length === 0) {
-                    console.log('没有找到提醒，尝试用category筛选并手动过滤...');
                     fetch(`/utils/todos/list?category=visa_reminder`)
-                        .then(response => response.json())
-                        .then(categoryData => {
-                            console.log('category筛选结果:', categoryData);
-                            if (categoryData.success) {
-                                // 手动过滤：标题或描述中包含项目ID或项目文件夹名
-                                const filtered = (categoryData.todos || []).filter(todo => {
-                                    const titleMatch = todo.title && (
-                                        todo.title.includes(`#${PROJECT_ID}`) || 
-                                        todo.title.includes(PROJECT_FOLDER_NAME)
-                                    );
-                                    const descMatch = todo.description && (
-                                        todo.description.includes(`项目ID: ${PROJECT_ID}`) ||
-                                        todo.description.includes(`id/${PROJECT_ID}`)
-                                    );
-                                    console.log(`检查todo ${todo.id}:`, { titleMatch, descMatch, title: todo.title });
-                                    return titleMatch || descMatch;
-                                });
-                                console.log('手动过滤后的提醒数量:', filtered.length);
+                        .then(r => r.json())
+                        .then(oldData => {
+                            if (oldData.success) {
+                                const filtered = (oldData.todos || []).filter(todo =>
+                                    (todo.title && (todo.title.includes(`#${PROJECT_ID}`) || todo.title.includes(PROJECT_FOLDER_NAME))) ||
+                                    (todo.description && todo.description.includes(`项目ID: ${PROJECT_ID}`))
+                                );
                                 displayReminders(filtered);
                             } else {
                                 displayReminders([]);
                             }
                         })
-                        .catch(err => {
-                            console.error('category筛选失败:', err);
-                            displayReminders([]);
-                        });
+                        .catch(() => displayReminders([]));
                 } else {
                     displayReminders(todos);
                 }
@@ -1179,11 +1193,11 @@ function loadReminders() {
             }
         })
         .catch(error => {
-            console.error('Error loading reminders:', error);
+            console.error('加载提醒失败:', error);
             container.innerHTML = `
-                <div class="visa-text-center" style="color: var(--visa-text-muted); padding: 2rem;">
-                    <i class="fas fa-exclamation-circle fa-2x" style="margin-bottom: 1rem;"></i>
-                    <p>加载提醒失败: ${error.message}</p>
+                <div class="text-center" style="color: #6c757d; padding: 1rem;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p style="margin: 0.5rem 0 0; font-size: 0.8rem;">加载失败</p>
                 </div>
             `;
         });
@@ -1192,7 +1206,7 @@ function loadReminders() {
 function displayReminders(reminders) {
     const container = document.getElementById('remindersContainer');
     const badge = document.getElementById('reminderBadge');
-    
+
     // 更新徽章显示
     const pendingCount = reminders.filter(r => !r.is_completed).length;
     if (pendingCount > 0) {
@@ -1201,7 +1215,7 @@ function displayReminders(reminders) {
     } else {
         badge.style.display = 'none';
     }
-    
+
     if (reminders.length === 0) {
         container.innerHTML = `
             <div class="text-center" style="color: #6c757d; padding: 1rem;">
@@ -1211,38 +1225,45 @@ function displayReminders(reminders) {
         `;
         return;
     }
-    
+
+    const priorityIcons = { 1: '🔴', 2: '🟡', 3: '🟢' };
     const remindersHtml = reminders.map(reminder => {
         const status = getReminderStatus(reminder);
-        const dueDate = reminder.due_date ? new Date(reminder.due_date).toLocaleDateString('zh-CN') : '-';
-        
+        const dueDate = reminder.due_date ? new Date(reminder.due_date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+        const priorityIcon = priorityIcons[reminder.priority] || '🟡';
+
         return `
-            <div style="padding: 0.5rem; border-bottom: 1px solid #ffeeba; ${reminder.is_completed ? 'opacity: 0.6;' : ''}">
+            <div style="padding: 0.5rem; border-bottom: 1px solid #ffeeba; ${reminder.is_completed ? 'opacity: 0.5; text-decoration: line-through;' : ''}">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.25rem;">
-                    <span style="font-size: 0.8rem; font-weight: 500; color: #333; flex: 1;">${reminder.title}</span>
-                    <span class="badge bg-${status.class}" style="font-size: 0.65rem; margin-left: 0.5rem;">${status.text}</span>
+                    <span style="font-size: 0.78rem; font-weight: 500; color: #333; flex: 1;">
+                        ${priorityIcon} ${reminder.title}
+                    </span>
+                    <span class="badge bg-${status.class}" style="font-size: 0.6rem; margin-left: 0.5rem; white-space: nowrap;">${status.text}</span>
                 </div>
-                <div style="font-size: 0.7rem; color: #6c757d; margin-bottom: 0.25rem;">
-                    <i class="fas fa-calendar"></i> ${dueDate}
-                </div>
-                <div style="display: flex; gap: 0.5rem;">
-                    ${!reminder.is_completed ? `
-                        <button class="btn btn-link btn-sm p-0 text-success" style="font-size: 0.7rem;" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="true">
-                            <i class="fas fa-check"></i> 完成
+                ${reminder.description ? `<div style="font-size: 0.7rem; color: #888; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${reminder.description.split('\\n')[0]}</div>` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.68rem; color: #6c757d;">
+                        <i class="fas fa-clock"></i> ${dueDate}
+                    </span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        ${!reminder.is_completed ? `
+                            <button class="btn btn-link btn-sm p-0 text-success" style="font-size: 0.68rem;" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="true">
+                                <i class="fas fa-check"></i> 完成
+                            </button>
+                        ` : `
+                            <button class="btn btn-link btn-sm p-0 text-warning" style="font-size: 0.68rem;" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="false">
+                                <i class="fas fa-undo"></i> 恢复
+                            </button>
+                        `}
+                        <button class="btn btn-link btn-sm p-0 text-danger" style="font-size: 0.68rem;" data-action="delete-reminder" data-reminder-id="${reminder.id}">
+                            <i class="fas fa-trash"></i>
                         </button>
-                    ` : `
-                        <button class="btn btn-link btn-sm p-0 text-warning" style="font-size: 0.7rem;" data-action="toggle-reminder" data-reminder-id="${reminder.id}" data-completed="false">
-                            <i class="fas fa-undo"></i> 恢复
-                        </button>
-                    `}
-                    <button class="btn btn-link btn-sm p-0 text-danger" style="font-size: 0.7rem;" data-action="delete-reminder" data-reminder-id="${reminder.id}">
-                        <i class="fas fa-trash"></i> 删除
-                    </button>
+                    </div>
                 </div>
             </div>
         `;
     }).join('');
-    
+
     container.innerHTML = remindersHtml;
 }
 
@@ -1356,15 +1377,14 @@ function initFieldListeners() {
 
 // ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('页面初始化开始');
-    
-    // 初始化Flatpickr
+    // 初始化Flatpickr日期时间选择器
     if (window.flatpickr) {
-        flatpickr('#reminderDue', { 
-            enableTime: true, 
-            dateFormat: 'Y-m-d H:i' 
+        flatpickr('#reminderDue', {
+            enableTime: true,
+            dateFormat: 'Y-m-d H:i',
+            minDate: 'today',
+            locale: { firstDayOfWeek: 1 }
         });
-        console.log('Flatpickr已初始化');
     }
     
     // 初始化表单处理器
@@ -1373,22 +1393,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化字段监听器
     initFieldListeners();
     
-    // 绑定邮件提醒按钮事件
+    // 绑定项目提醒按钮事件
     const btnCreateReminder = document.getElementById('btnCreateReminder');
     if (btnCreateReminder) {
-        console.log('找到btnCreateReminder按钮，绑定事件');
         btnCreateReminder.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('btnCreateReminder按钮被点击');
-            createEmailReminder();
+            createProjectReminder();
         });
-    } else {
-        console.error('未找到btnCreateReminder按钮');
     }
     
-    // 加载提醒事件列表
+    // 加载项目提醒列表
     loadReminders();
-    
+
     // 悬浮提醒面板切换
     const toggleRemindersBtn = document.getElementById('toggleRemindersBtn');
     const closeRemindersBtn = document.getElementById('closeRemindersBtn');
@@ -1426,8 +1442,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==================== 文件上传功能 ====================
     initFileUpload();
     loadProjectFiles();
-    
-    console.log('页面初始化完成');
 });
 
 // 文件上传初始化
