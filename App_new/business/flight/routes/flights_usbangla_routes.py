@@ -194,28 +194,70 @@ def _extract_passengers(text):
 
 # ========== PDF 生成 ==========
 
+def _extract_pdf_header_image(file_bytes):
+    """从原始US-Bangla PDF中提取头部区域（logo+蓝色横幅+二维码）保存为临时图片
+
+    返回临时文件ID，后续生成PDF时使用。
+    """
+    import fitz
+    import uuid
+
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    page = doc[0]
+
+    # 截取头部区域：y=0到115（蓝色横幅+logo+e-ticket+二维码+booking ref）
+    clip = fitz.Rect(0, 0, page.rect.width, 115)
+    pix = page.get_pixmap(clip=clip, dpi=200)
+
+    header_id = uuid.uuid4().hex[:12]
+    header_dir = os.path.join(tempfile.gettempdir(), 'usbangla_headers')
+    os.makedirs(header_dir, exist_ok=True)
+    header_path = os.path.join(header_dir, f'{header_id}.png')
+    pix.save(header_path)
+
+    doc.close()
+    return header_id
+
+
+def _get_header_image_path(header_id):
+    """根据header_id获取临时头部图片路径"""
+    if not header_id:
+        return None
+    header_path = os.path.join(tempfile.gettempdir(), 'usbangla_headers', f'{header_id}.png')
+    return header_path if os.path.exists(header_path) else None
+
+
 def _create_ticket_pdf_class():
     from fpdf import FPDF
 
     class TicketPDF(FPDF):
-        def __init__(self, booking_ref, logo_path):
+        def __init__(self, booking_ref, logo_path, header_image_path=None):
             super().__init__()
             self.booking_ref = booking_ref
             self.logo_path = logo_path
+            self.header_image_path = header_image_path
 
         def header(self):
-            if os.path.exists(self.logo_path):
-                self.image(self.logo_path, x=10, y=8, w=60)
-            self.set_font("Helvetica", "B", 18)
-            self.set_text_color(0, 51, 102)
-            self.set_y(10)
-            self.cell(0, 10, "e-ticket", align="R", new_x="LMARGIN", new_y="NEXT")
-            self.set_font("Helvetica", "B", 12)
-            self.set_text_color(80, 80, 80)
-            self.cell(0, 7, f"Booking reference # {self.booking_ref}", align="R", new_x="LMARGIN", new_y="NEXT")
-            self.set_y(max(self.get_y(), 24))
-            self.line(10, self.get_y() + 2, 200, self.get_y() + 2)
-            self.ln(5)
+            if self.header_image_path and os.path.exists(self.header_image_path):
+                # 使用原始PDF的头部图片（包含logo+蓝色横幅+二维码+booking ref）
+                self.image(self.header_image_path, x=0, y=0, w=210)
+                self.set_y(40)
+                self.line(10, self.get_y(), 200, self.get_y())
+                self.ln(3)
+            else:
+                # 降级：使用静态logo
+                if os.path.exists(self.logo_path):
+                    self.image(self.logo_path, x=10, y=8, w=60)
+                self.set_font("Helvetica", "B", 18)
+                self.set_text_color(0, 51, 102)
+                self.set_y(10)
+                self.cell(0, 10, "e-ticket", align="R", new_x="LMARGIN", new_y="NEXT")
+                self.set_font("Helvetica", "B", 12)
+                self.set_text_color(80, 80, 80)
+                self.cell(0, 7, f"Booking reference # {self.booking_ref}", align="R", new_x="LMARGIN", new_y="NEXT")
+                self.set_y(max(self.get_y(), 24))
+                self.line(10, self.get_y() + 2, 200, self.get_y() + 2)
+                self.ln(5)
 
         def footer(self):
             self.set_y(-15)
@@ -243,13 +285,13 @@ def draw_table_row(pdf, x, widths, texts, bold=False, fill=False, h=7):
     pdf.ln(h)
 
 
-def generate_single_ticket(pax, flight_data, logo_path):
+def generate_single_ticket(pax, flight_data, logo_path, header_image_path=None):
     """生成单个乘客的机票 PDF（支持多航段），返回 bytes"""
     TicketPDF = _create_ticket_pdf_class()
     booking_ref = flight_data.get('booking_ref', '')
     segments = flight_data.get('segments', [])
 
-    pdf = TicketPDF(booking_ref, logo_path)
+    pdf = TicketPDF(booking_ref, logo_path, header_image_path=header_image_path)
     pdf.add_page()
 
     # === Passenger Information ===
@@ -358,22 +400,28 @@ def parse_pdf():
     if not file:
         return jsonify({'success': False, 'message': '请选择PDF文件'})
     try:
-        result = parse_usbangla_pdf(file.stream)
+        # 读取文件内容（后续PyPDF2和PyMuPDF都要用）
+        file_bytes = file.stream.read()
+
+        result = parse_usbangla_pdf(BytesIO(file_bytes))
 
         # 如果PDF正文中未提取到预订编号，尝试从文件名中提取
         booking_ref = result['booking_ref']
         if not booking_ref and file.filename:
-            # 文件名格式如：E-ticket_09LWC4-ALAM_DAC.pdf 或 E-ticket_09LWC4_xxx.pdf
             fn_match = re.search(r'[_\-]([A-Z0-9]{5,8})[_\-]', file.filename) or \
                        re.search(r'[_\-]([A-Z0-9]{5,8})\.pdf', file.filename, re.IGNORECASE)
             if fn_match:
                 booking_ref = fn_match.group(1)
+
+        # 从原始PDF提取头部图片（logo + 蓝色横幅 + 二维码）
+        header_id = _extract_pdf_header_image(file_bytes)
 
         return jsonify({
             'success': True,
             'booking_ref': booking_ref,
             'segments': result['segments'],
             'passengers': result['passengers'],
+            'header_id': header_id,
         })
     except Exception as e:
         return jsonify({'success': False, 'message': f'PDF解析失败：{str(e)}'})
@@ -400,9 +448,13 @@ def generate_tickets():
 
     booking_ref = flight_data['booking_ref'] or 'UNKNOWN'
 
+    # 获取原始PDF的头部图片
+    header_id = data.get('header_id', '')
+    header_image_path = _get_header_image_path(header_id)
+
     if len(passengers) == 1:
         pax = passengers[0]
-        pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH)
+        pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH, header_image_path=header_image_path)
         output = BytesIO(pdf_bytes)
         safe_name = pax['name'].replace(' ', '_')
         filename = f"E-ticket_{booking_ref}_{safe_name}.pdf"
@@ -411,7 +463,7 @@ def generate_tickets():
         zip_buffer = BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
             for pax in passengers:
-                pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH)
+                pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH, header_image_path=header_image_path)
                 safe_name = pax['name'].replace(' ', '_')
                 filename = f"E-ticket_{booking_ref}_{safe_name}.pdf"
                 zf.writestr(filename, pdf_bytes)

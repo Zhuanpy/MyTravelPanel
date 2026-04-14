@@ -403,6 +403,8 @@ function uploadAndParse() {
         if (!data.success) { alert('解析失败：' + data.message); return; }
         fillSegments(data.booking_ref, data.segments || []);
         fillPassengers(data.passengers || []);
+        // 保存原始PDF的头部图片ID
+        window._ubHeaderId = data.header_id || '';
         document.getElementById('resultSection').style.display = '';
     })
     .catch(err => alert('错误：' + err.message))
@@ -486,7 +488,7 @@ function doGenerate(passengers, btnId) {
     fetch('{{ url_for("flights_usbangla.generate_tickets") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-        body: JSON.stringify({ booking_ref, segments, passengers })
+        body: JSON.stringify({ booking_ref, segments, passengers, header_id: window._ubHeaderId || '' })
     })
     .then(resp => {
         if (!resp.ok) return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
