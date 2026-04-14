@@ -345,18 +345,54 @@ document.addEventListener('DOMContentLoaded', function() {
 // 恢复保存的选择状态
 function restoreSelections() {
     const saved = getSavedSelections();
-    const checkboxes = document.querySelectorAll('.eo-checkbox');
+    const savedIds = Object.keys(saved);
 
+    // 先恢复当前页的勾选状态
+    const checkboxes = document.querySelectorAll('.eo-checkbox');
     checkboxes.forEach(cb => {
-        const eoId = cb.value;
-        if (saved[eoId]) {
+        if (saved[cb.value]) {
             cb.checked = true;
             cb.closest('tr').classList.add('selected-row');
         }
     });
 
-    // 更新汇总显示
-    updateSelectionDisplay();
+    // 如果有保存的选择，验证它们是否仍然有效（未作废、未删除）
+    if (savedIds.length > 0) {
+        fetch('/projects/eo/batch-pay/validate-eos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({eo_ids: savedIds.map(id => parseInt(id))})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const validIds = new Set(data.valid_ids.map(String));
+                let cleaned = false;
+                savedIds.forEach(eoId => {
+                    if (!validIds.has(eoId)) {
+                        delete saved[eoId];
+                        cleaned = true;
+                        // 取消当前页上对应的勾选
+                        const cb = document.querySelector(`.eo-checkbox[value="${eoId}"]`);
+                        if (cb) {
+                            cb.checked = false;
+                            cb.closest('tr').classList.remove('selected-row');
+                        }
+                    }
+                });
+                if (cleaned) {
+                    saveSelections(saved);
+                }
+            }
+            updateSelectionDisplay();
+        })
+        .catch(() => {
+            // 验证失败时仍正常显示
+            updateSelectionDisplay();
+        });
+    } else {
+        updateSelectionDisplay();
+    }
 }
 
 function toggleAll(checkbox) {

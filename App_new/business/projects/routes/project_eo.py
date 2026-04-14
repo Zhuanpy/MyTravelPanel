@@ -609,6 +609,31 @@ def batch_pay_export():
         return redirect(url_for('business_projects.project_eo.batch_pay'))
 
 
+@project_eo.route('/batch-pay/validate-eos', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def batch_pay_validate_eos():
+    """验证EO列表中哪些仍然有效（confirmed且未付款）"""
+    try:
+        data = request.get_json()
+        eo_ids = data.get('eo_ids', [])
+        if not eo_ids:
+            return jsonify({'success': True, 'valid_ids': []})
+
+        # 查询仍然有效的EO ID
+        valid_eos = ProjectEO.query.filter(
+            ProjectEO.id.in_(eo_ids),
+            ProjectEO.status == 'confirmed',
+            ProjectEO.is_paid == False
+        ).with_entities(ProjectEO.id).all()
+
+        valid_ids = [eo.id for eo in valid_eos]
+        return jsonify({'success': True, 'valid_ids': valid_ids})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
 @project_eo.route('/batch-pay/submit', methods=['POST'])
 @csrf.exempt
 @login_required
