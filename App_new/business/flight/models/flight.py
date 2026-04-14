@@ -71,7 +71,7 @@ class ProjectFlightSegment(db.Model):
     # 舱位信息
     cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
     cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
-    baggage = db.Column(db.String(20), comment='行李额')
+    baggage = db.Column(db.String(50), comment='行李额')
     seat = db.Column(db.String(10), comment='座位号')
 
     # 票号信息

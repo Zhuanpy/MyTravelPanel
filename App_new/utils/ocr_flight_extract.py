@@ -318,11 +318,17 @@ def parse_indigo(text: str) -> dict:
         r'(?:Mr|Mrs|Ms|Miss|Mstr)\.?\s+([A-Z][A-Z\s]+?)(?:\s*\n|\s*$)',
         text, re.MULTILINE
     )
+    seen_names = set()
     for pm in pax_matches:
         name_raw = pm.group(0).strip()
         # 排除包含航线/机场关键词的误匹配
         if any(kw in name_raw for kw in ['SINGAPORE', 'AIRPORT', 'INTERNATIONAL', 'TERMINAL']):
             continue
+        # 去重：同一个名字只添加一次
+        name_key = re.sub(r'\s+', ' ', name_raw).upper()
+        if name_key in seen_names:
+            continue
+        seen_names.add(name_key)
         result['passengers'].append({
             'name': name_raw,
             'type': 'adult',
@@ -333,7 +339,8 @@ def parse_indigo(text: str) -> dict:
 
     # === 航班号 + 机型 ===
     # 格式: 6E 1024 . A320  或  6E 1024 A320
-    flight_match = re.search(r'(6E)\s*(\d{3,4})\s*[.\s]*\b(A\d{3}|B\d{3}|Boeing[\s\d-]+|Airbus[\s\w-]+)?\b', text)
+    # 注意: Tesseract常把 6E 识别成 6£ 或 6€，需要兼容
+    flight_match = re.search(r'(6[E£€e])\s*(\d{3,4})\s*[.\s]*\b(A\d{3}|B\d{3}|Boeing[\s\d-]+|Airbus[\s\w-]+)?\b', text)
     flight_number = ''
     aircraft = ''
     if flight_match:
@@ -388,9 +395,13 @@ def parse_indigo(text: str) -> dict:
 
     # === 出发/到达时间 ===
     # IndiGo格式: 时间单独一行 "05:55" ... "07:30"
-    times = re.findall(r'\b(\d{1,2}:\d{2})\b', text)
+    # 需要排除 "Check-in closes 04:40" 等非航班时间
     dep_time = ''
     arr_time = ''
+    # 先去掉干扰行再提取时间
+    clean_text_for_time = re.sub(r'[Cc]heck[- ]?in\s+closes\s+\d{1,2}:\d{2}', '', text)
+    clean_text_for_time = re.sub(r'Travel\s+Time\s+\d+\s+Hour\s+\d+\s+min', '', clean_text_for_time)
+    times = re.findall(r'\b(\d{1,2}:\d{2})\b', clean_text_for_time)
     if len(times) >= 2:
         dep_time = times[0]
         arr_time = times[1]
