@@ -1005,24 +1005,28 @@ def _qunar_find_and_remove_logos(page):
 
 
 def _qunar_find_and_remove_price_lines(page):
-    """去除票价 FARE、税款 TAX、付款方式 FORM OF PAYMENT 行"""
+    """去除票价/税款/付款方式行（中英文关键词）"""
     import fitz
     pw = page.rect.width
     gaps = []
 
-    for keyword in ["FARE:", "FARE："]:
-        for r in page.search_for(keyword):
-            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw * 0.5, r.y1 + 2), fill=(1, 1, 1))
-            gaps.append((r.y0 - 2, r.y1 + 2))
-
-    for keyword in ["TAX:", "TAX："]:
+    # 票价行: "FARE:" / "机票款"
+    for keyword in ["FARE:", "FARE：", "机票款"]:
         for r in page.search_for(keyword):
             page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
             gaps.append((r.y0 - 2, r.y1 + 2))
 
-    for r in page.search_for("FORM OF PAYMENT"):
-        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
-        gaps.append((r.y0 - 2, r.y1 + 2))
+    # 税款行: "TAX:" / "稅款" / "税款"
+    for keyword in ["TAX:", "TAX：", "稅款", "税款"]:
+        for r in page.search_for(keyword):
+            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+            gaps.append((r.y0 - 2, r.y1 + 2))
+
+    # 付款方式行: "FORM OF PAYMENT" / "付款方式"
+    for keyword in ["FORM OF PAYMENT", "付款方式"]:
+        for r in page.search_for(keyword):
+            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+            gaps.append((r.y0 - 2, r.y1 + 2))
 
     return gaps
 
@@ -1039,17 +1043,19 @@ def _qunar_find_and_remove_ie_pnr(page):
 
 
 def _qunar_find_and_remove_agency_info(page):
-    """去除 AGENCY ADDRESS、IATA CODE、TEL 行"""
+    """去除代理信息行（中英文关键词）"""
     import fitz
     pw = page.rect.width
     gaps = []
-    for keyword in ["AGENCY ADDRESS", "IATA CODE"]:
+    for keyword in ["AGENCY ADDRESS", "IATA CODE", "代理人地址", "航协代码"]:
         for r in page.search_for(keyword):
             page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
             gaps.append((r.y0 - 2, r.y1 + 2))
-    for r in page.search_for("TEL"):
-        page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
-        gaps.append((r.y0 - 2, r.y1 + 2))
+    # 电话/传真行: 匹配 "电话" / "TEL" 开头的行（整行清除，因为传真在同一行）
+    for keyword in ["电话", "TEL"]:
+        for r in page.search_for(keyword):
+            page.add_redact_annot(fitz.Rect(r.x0 - 2, r.y0 - 2, pw - 30, r.y1 + 2), fill=(1, 1, 1))
+            gaps.append((r.y0 - 2, r.y1 + 2))
     return gaps
 
 
@@ -1071,7 +1077,7 @@ def _qunar_remove_page_numbers(page):
                         fill=(1, 1, 1))
 
 
-def process_qunar_pdf(file_stream):
+def process_qunar_pdf(file_stream, baggage=''):
     """处理去哪儿行程单PDF，返回清理后的 BytesIO"""
     import fitz
 
@@ -1153,6 +1159,10 @@ def process_qunar_pdf(file_stream):
         else:
             final_doc = fitz.open(tmp2_path)
 
+        # 在最终页面上添加行李信息（压缩后，确保文字在最上层）
+        if baggage:
+            _qunar_add_baggage_info(final_doc, baggage)
+
         output = BytesIO()
         final_doc.save(output, deflate=True)
         final_doc.close()
@@ -1168,6 +1178,70 @@ def process_qunar_pdf(file_stream):
             if os.path.exists(p):
                 os.remove(p)
         raise
+
+
+def _qunar_add_baggage_info(doc, baggage_text):
+    """在每页航班表格下方追加行李额文本（清理后、压缩前调用）
+
+    定位策略：找 "付款方式" / "FORM OF PAYMENT" 行的位置（已被redact清除），
+    用该行的y坐标插入BAGGAGE文本（视觉上替代被删除的付款行）。
+    若找不到付款行，则在 "注：" / "注:" 上方插入。
+    """
+    import fitz
+
+    for page_idx in range(doc.page_count):
+        page = doc[page_idx]
+        blocks = page.get_text("dict")["blocks"]
+
+        # 策略1: 找 "注：" / "注:" 的位置，在其上方插入
+        note_y = None
+        for b in blocks:
+            if b["type"] != 0:
+                continue
+            for line in b["lines"]:
+                for span in line["spans"]:
+                    txt = span["text"].strip()
+                    if txt.startswith("注：") or txt.startswith("注:"):
+                        note_y = span["bbox"][1]
+
+        # 策略2: 找最后一个OK/OPEN行
+        last_flight_y = 0
+        for b in blocks:
+            if b["type"] != 0:
+                continue
+            for line in b["lines"]:
+                for span in line["spans"]:
+                    txt = span["text"].strip()
+                    if txt in ("OK", "OPEN"):
+                        last_flight_y = max(last_flight_y, span["bbox"][3])
+
+        if last_flight_y <= 0:
+            continue
+
+        # 确定插入y坐标（baseline）
+        if note_y and note_y > last_flight_y:
+            # "注："上方，留出间距
+            insert_baseline = note_y - 16
+        else:
+            # 没有"注："时，用最后航班行下方推算
+            insert_baseline = last_flight_y + 25
+
+        label = f"BAGGAGE:  {baggage_text}"
+        # 文字区域：baseline往上约12px为顶部，往下约2px为底部
+        text_top = insert_baseline - 12
+        text_bottom = insert_baseline + 2
+        pw = page.rect.width
+        # 先用白色矩形覆盖该区域的横线，避免线条穿过文字
+        page.draw_rect(
+            fitz.Rect(38, text_top, pw - 30, text_bottom),
+            color=(1, 1, 1), fill=(1, 1, 1))
+        page.insert_text(
+            fitz.Point(39, insert_baseline),
+            label,
+            fontsize=9,
+            fontname="helv",
+            color=(0, 0, 0),
+        )
 
 
 # ==================== Expedia 行程单清理 ====================
@@ -1516,7 +1590,8 @@ def clean_qunar():
     if not file:
         return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
     try:
-        output = process_qunar_pdf(file.stream)
+        baggage = request.form.get('baggage', '').strip()
+        output = process_qunar_pdf(file.stream, baggage=baggage)
         original_name = file.filename or 'qunar_ticket.pdf'
         clean_name = original_name.rsplit('.', 1)[0] + '_clean.pdf'
         return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')

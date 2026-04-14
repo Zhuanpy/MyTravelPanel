@@ -269,10 +269,30 @@
                     <li>去除去哪儿订单号 (IE PNR) 行</li>
                     <li>去除代理信息（AGENCY ADDRESS、IATA CODE、TEL）</li>
                     <li>减少去除内容后的空白区域</li>
+                    <li>可选：在航班信息后追加行李额等备注</li>
                 </ul>
-                <div class="row align-items-center g-2">
+                <div class="row align-items-center g-2 mb-2">
                     <div class="col">
                         <input type="file" class="form-control form-control-sm" id="qunarFile" accept=".pdf">
+                    </div>
+                </div>
+                <div class="row align-items-center g-2">
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm" id="qunarBaggageSelect" onchange="onQunarBaggageSelect()" style="width: auto; font-size: 12px;">
+                            <option value="">-- 常用行李规格 --</option>
+                            <option value="20Kg Check-in">20Kg Check-in</option>
+                            <option value="23Kg x 1PC">23Kg x 1PC</option>
+                            <option value="23Kg x 2PC">23Kg x 2PC</option>
+                            <option value="30Kg Check-in">30Kg Check-in</option>
+                            <option value="40Kg Check-in">40Kg Check-in</option>
+                            <option value="7Kg Cabin + 20Kg Check-in">7Kg Cabin + 20Kg Check-in</option>
+                            <option value="7Kg Cabin + 30Kg Check-in">7Kg Cabin + 30Kg Check-in</option>
+                            <option value="custom">自定义...</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control form-control-sm" id="qunarBaggage"
+                               placeholder="选择或输入行李额（留空则不添加）">
                     </div>
                     <div class="col-auto">
                         <button class="btn btn-sm qunar-btn" onclick="cleanQunar()" id="btnCleanQunar">
@@ -663,6 +683,18 @@ function cleanExpedia() {
 
 // ========== 去哪儿清理 ==========
 
+function onQunarBaggageSelect() {
+    const sel = document.getElementById('qunarBaggageSelect');
+    const input = document.getElementById('qunarBaggage');
+    if (sel.value === 'custom') {
+        input.value = '';
+        input.focus();
+        sel.value = '';
+    } else if (sel.value) {
+        input.value = sel.value;
+    }
+}
+
 function cleanQunar() {
     const fileInput = document.getElementById('qunarFile');
     if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
@@ -675,6 +707,8 @@ function cleanQunar() {
 
     const formData = new FormData();
     formData.append('pdf_file', fileInput.files[0]);
+    const baggage = document.getElementById('qunarBaggage').value.trim();
+    if (baggage) formData.append('baggage', baggage);
 
     fetch('{{ url_for("flights_usbangla.clean_qunar") }}', {
         method: 'POST',
