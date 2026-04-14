@@ -93,6 +93,7 @@
                                     <select id="ocrPlatformSelect" class="form-select form-select-sm" style="width: auto; font-size: 12px;">
                                         <option value="">-- 选择平台 --</option>
                                         <option value="usbangla">US Bangla Airlines</option>
+                                        <option value="indigo">IndiGo Airlines</option>
                                     </select>
                                     <button type="button" class="btn btn-primary btn-sm" style="font-size: 11px;" onclick="retryWithPlatform()">
                                         <i class="fas fa-redo me-1"></i>重新识别
@@ -715,8 +716,10 @@ document.addEventListener('paste', function(e) {
     }
 });
 
-document.getElementById('ocrDropZone')?.addEventListener('click', function() {
+document.getElementById('ocrDropZone')?.addEventListener('click', function(e) {
     if (ocrParsedData) return; // 已有结果时不触发上传
+    // 点击下拉框/按钮等交互元素时不触发上传
+    if (e.target.closest('select, button, a, .btn')) return;
     document.getElementById('ocrFileInput').click();
 });
 
@@ -876,6 +879,7 @@ function showOcrResult(data) {
 // 平台名称 → 供应商名称关键词映射（用于自动选择供应商）
 const PLATFORM_SUPPLIER_MAP = {
     'US Bangla': 'US Bangla',
+    'IndiGo': 'IndiGo',
     // 后续扩展:
     // 'Scoot': 'Scoot',
     // 'AirAsia': 'AirAsia',

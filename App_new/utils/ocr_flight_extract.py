@@ -6,6 +6,7 @@ OCR航班图片解析模块
 
 目前支持的航司/平台:
 - US Bangla Airlines (Amadeus出票界面)
+- IndiGo Airlines (IndiGo官网确认页截图)
 
 后续可按需添加新的解析器（每个平台一个 parse_ 函数）。
 """
@@ -283,14 +284,223 @@ def parse_usbangla(text: str) -> dict:
     return result
 
 
+def parse_indigo(text: str) -> dict:
+    """解析 IndiGo Airlines 机票截图的OCR文本
+
+    IndiGo截图格式特征:
+    - 顶部: IndiGo / IndiGo access
+    - 乘客: Mr./Mrs./Ms. LASTNAME FIRSTNAME
+    - 航段: SIN → TRZ, 航班号 6E XXXX
+    - 日期: Fri, 17 Apr
+    - 时间: 05:55 / 07:30
+    - 机型: A320 等
+    - 价格: SGD xxx.x 各项费用明细, Total fare SGD xxx.x
+    """
+    result = {
+        'platform': 'IndiGo',
+        'segments': [],
+        'passengers': [],
+        'pnr': '',
+        'remarks': '',
+    }
+
+    # === PNR (6位字母数字，排除常见误匹配如机型A320) ===
+    pnr_match = re.search(r'\b([A-Z0-9]{6})\b', text)
+    if pnr_match:
+        candidate = pnr_match.group(1)
+        # 排除纯数字和常见机型
+        if not candidate.isdigit() and candidate not in ('ACCESS', 'INDIGO'):
+            result['pnr'] = candidate
+
+    # === 乘客信息 ===
+    # 格式: Mr. VENGATESHWARAN RAMU 或 Mrs. LASTNAME FIRSTNAME
+    pax_matches = re.finditer(
+        r'(?:Mr|Mrs|Ms|Miss|Mstr)\.?\s+([A-Z][A-Z\s]+?)(?:\s*\n|\s*$)',
+        text, re.MULTILINE
+    )
+    for pm in pax_matches:
+        name_raw = pm.group(0).strip()
+        # 排除包含航线/机场关键词的误匹配
+        if any(kw in name_raw for kw in ['SINGAPORE', 'AIRPORT', 'INTERNATIONAL', 'TERMINAL']):
+            continue
+        result['passengers'].append({
+            'name': name_raw,
+            'type': 'adult',
+            'selling_price': 0,
+            'cost_price': 0,
+            'passport_number': '',
+        })
+
+    # === 航班号 + 机型 ===
+    # 格式: 6E 1024 . A320  或  6E 1024 A320
+    flight_match = re.search(r'(6E)\s*(\d{3,4})\s*[.\s]*\b(A\d{3}|B\d{3}|Boeing[\s\d-]+|Airbus[\s\w-]+)?\b', text)
+    flight_number = ''
+    aircraft = ''
+    if flight_match:
+        flight_number = f'6E{flight_match.group(2)}'
+        if flight_match.group(3):
+            aircraft = flight_match.group(3).strip()
+
+    # === 出发/到达机场 ===
+    # 寻找三字码机场对: SIN ... TRZ，优先从航段信息区域提取
+    dep_airport = ''
+    arr_airport = ''
+
+    # 方式1: 找 "SIN" 和 "TRZ" 这样大写三字码在航段区域
+    # IndiGo格式中会出现加粗的机场代码行
+    airport_pairs = re.findall(r'\b([A-Z]{3})\b', text)
+    # 过滤掉常见非机场词
+    non_airport = {'THE', 'AND', 'FOR', 'NOT', 'NON', 'PER', 'SGD', 'USD', 'INR', 'BDT',
+                   'MRS', 'MIS', 'TAX', 'FEE', 'AIR', 'GET', 'ADD', 'NET', 'ALL',
+                   'HRS', 'MIN', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT',
+                   'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'FRI', 'SAT', 'SUN', 'MON',
+                   'TUE', 'WED', 'THU', 'MR.', 'STOP'}
+    airports = [a for a in airport_pairs if a not in non_airport]
+
+    # 从 "SIN TRZ" 这样的行或 "SIN" 后面跟 "TRZ" 提取
+    route_match = re.search(r'\b([A-Z]{3})\b\s+\b([A-Z]{3})\b', text)
+    if route_match:
+        dep_airport = route_match.group(1)
+        arr_airport = route_match.group(2)
+        # 验证不是非机场词
+        if dep_airport in non_airport or arr_airport in non_airport:
+            dep_airport = ''
+            arr_airport = ''
+
+    # 方式2: 从带城市名的行提取  "SIN\nSINGAPORE (T2)" ... "TRZ\nTIRUCHIRAPPALLI"
+    if not dep_airport:
+        airport_city = re.findall(r'\b([A-Z]{3})\b\s*\n\s*[A-Z]{2,}', text)
+        airport_city = [a for a in airport_city if a not in non_airport]
+        if len(airport_city) >= 2:
+            dep_airport = airport_city[0]
+            arr_airport = airport_city[1]
+
+    # === 日期 ===
+    # 格式: "Fri, 17 Apr" 或 "17 Apr" 或 "17Apr"
+    dep_date_iso = ''
+    date_match = re.search(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[,.]?\s*(\d{1,2})\s*([A-Za-z]{3})', text)
+    if date_match:
+        dep_date_iso = _parse_date_str(date_match.group(1) + date_match.group(2))
+    else:
+        date_match2 = re.search(r'(\d{1,2})\s*([A-Za-z]{3})\s*(?:\d{4})?', text)
+        if date_match2:
+            dep_date_iso = _parse_date_str(date_match2.group(1) + date_match2.group(2))
+
+    # === 出发/到达时间 ===
+    # IndiGo格式: 时间单独一行 "05:55" ... "07:30"
+    times = re.findall(r'\b(\d{1,2}:\d{2})\b', text)
+    dep_time = ''
+    arr_time = ''
+    if len(times) >= 2:
+        dep_time = times[0]
+        arr_time = times[1]
+
+    # === 航站楼 ===
+    # 格式: "SIN-Changi Airport(T2)" 或 "(T2)" 或 "Terminal 2"
+    dep_terminal = ''
+    arr_terminal = ''
+    terminal_matches = re.findall(r'\(T(\d)\)|Terminal\s*(\d)', text)
+    if terminal_matches:
+        dep_terminal = f'T{terminal_matches[0][0] or terminal_matches[0][1]}'
+        if len(terminal_matches) > 1:
+            arr_terminal = f'T{terminal_matches[1][0] or terminal_matches[1][1]}'
+
+    # === 行李 ===
+    baggage = ''
+    bag_match = re.search(r'(\d+)\s*[Kk]g\s*Cabin.*?(\d+)\s*[Kk]g\s*Check', text, re.DOTALL)
+    if bag_match:
+        baggage = f'{bag_match.group(1)}Kg Cabin + {bag_match.group(2)}Kg Check-in'
+    else:
+        bag_match2 = re.search(r'(\d+)\s*[Kk]g\s*(?:Cabin|Check)', text)
+        if bag_match2:
+            baggage = bag_match2.group(0).strip()
+
+    # 到达日期（默认同天，跨天则+1）
+    arr_date_iso = dep_date_iso
+    if dep_time and arr_time and dep_date_iso:
+        dep_minutes = int(dep_time.split(':')[0]) * 60 + int(dep_time.split(':')[1])
+        arr_minutes = int(arr_time.split(':')[0]) * 60 + int(arr_time.split(':')[1])
+        if arr_minutes < dep_minutes:
+            from datetime import timedelta
+            dep_dt = datetime.strptime(dep_date_iso, '%Y-%m-%d')
+            arr_date_iso = (dep_dt + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    # 构建航段
+    if dep_airport and arr_airport:
+        segment = {
+            'flight_number': flight_number,
+            'cabin_code': 'Y',
+            'departure_airport': dep_airport,
+            'arrival_airport': arr_airport,
+            'departure_date': dep_date_iso,
+            'departure_time': dep_time,
+            'arrival_date': arr_date_iso,
+            'arrival_time': arr_time,
+            'airline_name': 'IndiGo',
+            'cabin_class': 'Economy',
+            'departure_terminal': dep_terminal,
+            'arrival_terminal': arr_terminal,
+            'ticket_number': '',
+            'pnr': result['pnr'],
+            'baggage': baggage,
+        }
+        result['segments'].append(segment)
+
+    # === 价格信息 ===
+    # IndiGo格式: Total fare SGD 364.3 或各项费用 SGD xxx
+    total_selling = 0
+
+    # 1) Total fare 行
+    total_match = re.search(r'Total\s+fare\s*(?:SGD|USD|INR)?\s*([\d,]+\.?\d*)', text, re.IGNORECASE)
+    if total_match:
+        total_selling = float(_clean_amount(total_match.group(1)))
+
+    # 2) 兜底: 找 "SGD xxx.x" 格式金额取最大值
+    if total_selling == 0:
+        all_amounts = re.findall(r'SGD\s*([\d,]+\.?\d*)', text)
+        amounts = [float(_clean_amount(v)) for v in all_amounts if float(_clean_amount(v)) > 0]
+        if amounts:
+            total_selling = max(amounts)
+
+    # IndiGo一般没有佣金，成本=售价
+    cost_sgd = total_selling
+
+    # 分配价格给乘客
+    pax_count = len(result['passengers']) or 1
+    per_pax_selling = round(total_selling / pax_count, 2)
+    per_pax_cost = round(cost_sgd / pax_count, 2)
+
+    for pax in result['passengers']:
+        pax['selling_price'] = per_pax_selling
+        pax['cost_price'] = per_pax_cost
+
+    # === 备注信息 ===
+    remarks_parts = []
+    if aircraft:
+        remarks_parts.append(f'机型: {aircraft}')
+    if result['pnr']:
+        remarks_parts.append(f'PNR: {result["pnr"]}')
+    if baggage:
+        remarks_parts.append(f'行李: {baggage}')
+    result['remarks'] = ' | '.join(remarks_parts)
+
+    return result
+
+
 # === 解析器注册表 ===
 # 每个平台一个解析函数，通过关键词自动检测
 PARSERS = [
     {
         'name': 'US Bangla',
-        'key': 'usbangla',  # 前端手动选择时使用的标识
+        'key': 'usbangla',
         'keywords': ['US-Bangla', 'US Bangla', 'USBANGLA', 'BS3', 'BS 3', 'Bangla', 'BDT'],
         'parser': parse_usbangla,
+    },
+    {
+        'name': 'IndiGo',
+        'key': 'indigo',
+        'keywords': ['IndiGo', 'INDIGO', 'indigo', '6E ', '6E1', '6E2', '6E3', '6E4', '6E5', '6E6', '6E7', '6E8', '6E9'],
+        'parser': parse_indigo,
     },
     # 后续添加其它平台:
     # { 'name': 'Scoot', 'key': 'scoot', 'keywords': ['Scoot', 'TR '], 'parser': parse_scoot },
