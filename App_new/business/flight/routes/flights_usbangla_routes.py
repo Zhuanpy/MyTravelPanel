@@ -205,8 +205,26 @@ def _extract_pdf_header_image(file_bytes):
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     page = doc[0]
 
-    # 截取头部区域：y=0到115（蓝色横幅+logo+e-ticket+二维码+booking ref）
-    clip = fitz.Rect(0, 0, page.rect.width, 115)
+    # 截取头部区域：找到内容实际左右边界（蓝色横幅/图片），精确裁剪
+    pw = page.rect.width
+    x_min, x_max = pw, 0
+    # 从绘制元素（蓝色横幅线）找边界
+    for d in page.get_drawings():
+        r = d['rect']
+        if r.y0 < 115 and r.width > 100:
+            x_min = min(x_min, r.x0)
+            x_max = max(x_max, r.x1)
+    # 从图片找边界
+    for info in page.get_image_info():
+        bbox = info['bbox']
+        if bbox[1] < 115:
+            x_min = min(x_min, bbox[0])
+            x_max = max(x_max, bbox[2])
+    # 兜底
+    if x_min >= x_max:
+        x_min, x_max = 0, pw
+    # 内缩1pt去掉原始PDF的边框线
+    clip = fitz.Rect(x_min + 1, 1, x_max - 1, 114)
     pix = page.get_pixmap(clip=clip, dpi=200)
 
     header_id = uuid.uuid4().hex[:12]
@@ -240,9 +258,8 @@ def _create_ticket_pdf_class():
         def header(self):
             if self.header_image_path and os.path.exists(self.header_image_path):
                 # 使用原始PDF的头部图片（包含logo+蓝色横幅+二维码+booking ref）
-                self.image(self.header_image_path, x=0, y=0, w=210)
-                self.set_y(40)
-                self.line(10, self.get_y(), 200, self.get_y())
+                self.image(self.header_image_path, x=10, y=3, w=190)
+                self.set_y(42)
                 self.ln(3)
             else:
                 # 降级：使用静态logo
@@ -313,7 +330,7 @@ def generate_single_ticket(pax, flight_data, logo_path, header_image_path=None):
     pdf.cell(0, 10, "Travel Itinerary", new_x="LMARGIN", new_y="NEXT")
 
     it_headers = ["Flight", "Check-in", "From", "To", "Departure", "Arrival", "Cabin", "Status"]
-    it_widths = [18, 18, 35, 30, 28, 28, 20, 15]
+    it_widths = [18, 18, 34, 30, 28, 28, 20, 14]
     draw_table_row(pdf, 10, it_widths, it_headers, bold=True, fill=True)
 
     for seg in segments:
@@ -347,7 +364,7 @@ def generate_single_ticket(pax, flight_data, logo_path, header_image_path=None):
     pdf.cell(0, 10, "Baggage Details", new_x="LMARGIN", new_y="NEXT")
 
     bg_headers = ["Trip Segment", "Pax. Name", "Baggage Allowance"]
-    bg_widths = [50, 60, 50]
+    bg_widths = [60, 70, 60]
     draw_table_row(pdf, 10, bg_widths, bg_headers, bold=True, fill=True)
 
     for seg in segments:
