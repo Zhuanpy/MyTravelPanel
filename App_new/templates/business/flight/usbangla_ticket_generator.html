@@ -491,7 +491,13 @@ function doGenerate(passengers, btnId) {
         body: JSON.stringify({ booking_ref, segments, passengers, header_id: window._ubHeaderId || '' })
     })
     .then(resp => {
-        if (!resp.ok) return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
+        if (!resp.ok) {
+            const ct = resp.headers.get('Content-Type') || '';
+            if (ct.includes('application/json')) {
+                return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
+            }
+            throw new Error(`生成失败 (${resp.status})`);
+        }
         return resp.blob().then(blob => ({ blob, resp }));
     })
     .then(({ blob, resp }) => {

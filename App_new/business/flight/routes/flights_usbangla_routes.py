@@ -469,24 +469,27 @@ def generate_tickets():
     header_id = data.get('header_id', '')
     header_image_path = _get_header_image_path(header_id)
 
-    if len(passengers) == 1:
-        pax = passengers[0]
-        pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH, header_image_path=header_image_path)
-        output = BytesIO(pdf_bytes)
-        safe_name = pax['name'].replace(' ', '_')
-        filename = f"E-ticket_{booking_ref}_{safe_name}.pdf"
-        return send_file(output, download_name=filename, as_attachment=True, mimetype='application/pdf')
-    else:
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for pax in passengers:
-                pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH, header_image_path=header_image_path)
-                safe_name = pax['name'].replace(' ', '_')
-                filename = f"E-ticket_{booking_ref}_{safe_name}.pdf"
-                zf.writestr(filename, pdf_bytes)
-        zip_buffer.seek(0)
-        zip_filename = f"E-tickets_{booking_ref}.zip"
-        return send_file(zip_buffer, download_name=zip_filename, as_attachment=True, mimetype='application/zip')
+    try:
+        if len(passengers) == 1:
+            pax = passengers[0]
+            pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH, header_image_path=header_image_path)
+            output = BytesIO(pdf_bytes)
+            safe_name = pax['name'].replace(' ', '_')
+            filename = f"E-ticket_{booking_ref}_{safe_name}.pdf"
+            return send_file(output, download_name=filename, as_attachment=True, mimetype='application/pdf')
+        else:
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for pax in passengers:
+                    pdf_bytes = generate_single_ticket(pax, flight_data, LOGO_PATH, header_image_path=header_image_path)
+                    safe_name = pax['name'].replace(' ', '_')
+                    filename = f"E-ticket_{booking_ref}_{safe_name}.pdf"
+                    zf.writestr(filename, pdf_bytes)
+            zip_buffer.seek(0)
+            zip_filename = f"E-tickets_{booking_ref}.zip"
+            return send_file(zip_buffer, download_name=zip_filename, as_attachment=True, mimetype='application/zip')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500
 
 
 # ====================================================================
