@@ -748,10 +748,11 @@ def parse_format_manual(text, year=None):
         rest = seg[route_m.end():]
 
         # 提取航班号
-        # 英文: Flight No: BS 310 或 Flight No: BS310
+        # 英文: Flight No: BS 310 或 Flight No: BS310 或 Flight No: 6E1002
         # 中文: 航班号：GJ6030 或 航班号: GJ 6030
+        # 航空公司代码支持字母+数字组合（如 6E、3K、9W）
         fn_m = re.search(
-            r'(?:Flight\s*No[:：]?\s*|航班号[:：]?\s*)([A-Z]{2})\s*(\d{2,5})',
+            r'(?:Flight\s*No[:：]?\s*|航班号[:：]?\s*)([A-Z\d]{2})\s*(\d{2,5})',
             rest, re.IGNORECASE
         )
         if not fn_m:
