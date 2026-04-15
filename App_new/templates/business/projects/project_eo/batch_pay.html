@@ -514,6 +514,7 @@ function updateSelectionDisplay() {
 }
 
 let currentPrepaymentBalance = 0;
+let currentExistingUsage = 0;  // 已选EO中已有的pending/confirmed使用额
 let currentSupplierName = '';
 
 function updatePrepaymentRemaining() {
@@ -521,7 +522,9 @@ function updatePrepaymentRemaining() {
     if (!el || currentPrepaymentBalance <= 0) return;
     const payAmount = parseFloat(document.getElementById('pay_amount').value) || 0;
     if (payAmount > 0) {
-        const remaining = currentPrepaymentBalance - payAmount;
+        // 实际可用余额 = 当前余额 + 已有使用额（已扣过balance_amount，付款时会复用不会重复扣）
+        const actualAvailable = currentPrepaymentBalance + currentExistingUsage;
+        const remaining = actualAvailable - payAmount;
         const color = remaining >= 0 ? 'text-primary' : 'text-danger';
         el.innerHTML = `<br><small>扣款后余额: <strong class="${color}">SGD ${remaining.toFixed(2)}</strong></small>`;
     } else {
@@ -538,7 +541,12 @@ function togglePrepaymentSelect() {
 }
 
 function loadPrepaymentBalance(supplierId) {
-    fetch(`/company/${supplierId}/prepayments`)
+    // 获取已选EO的ID列表，传给后端计算已有使用额
+    const saved = getSavedSelections();
+    const eoIds = Object.keys(saved).map(id => parseInt(id));
+    const eoIdsParam = eoIds.length > 0 ? `?eo_ids=${eoIds.join(',')}` : '';
+
+    fetch(`/company/${supplierId}/prepayments${eoIdsParam}`)
         .then(response => response.json())
         .then(data => {
             const infoDiv = document.getElementById('prepaymentBalanceInfo');
@@ -547,6 +555,7 @@ function loadPrepaymentBalance(supplierId) {
             if (data.success && data.prepayments && data.prepayments.length > 0) {
                 // 使用 API 返回的总余额和供应商名称
                 currentPrepaymentBalance = data.total_balance || 0;
+                currentExistingUsage = data.existing_usage_total || 0;
                 currentSupplierName = data.supplier_name || '';
 
                 // 显示预付账款列表信息
@@ -575,6 +584,7 @@ function loadPrepaymentBalance(supplierId) {
 
 function resetPrepaymentInfo() {
     currentPrepaymentBalance = 0;
+    currentExistingUsage = 0;
     currentSupplierName = '';
     const textSpan = document.getElementById('prepaymentBalanceText');
     textSpan.textContent = '请先选择同一供应商的EO';

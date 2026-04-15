@@ -318,11 +318,30 @@ def get_company_prepayments(company_id):
                 result_prepayments.append(p_dict)
                 total_available += available
 
+        # 如果传入了eo_ids，计算已有的pending/confirmed使用记录总额
+        # 这些EO已经扣了balance_amount，批量付款时不需要重复扣减
+        existing_usage_total = 0
+        eo_ids_str = request.args.get('eo_ids', '')
+        if eo_ids_str:
+            try:
+                from App_new.business.projects.models.supplier_prepayment import PrepaymentUsage
+                eo_ids = [int(x) for x in eo_ids_str.split(',') if x.strip()]
+                if eo_ids:
+                    from sqlalchemy import func
+                    usage_sum = db.session.query(func.sum(PrepaymentUsage.amount)).filter(
+                        PrepaymentUsage.eo_id.in_(eo_ids),
+                        PrepaymentUsage.status.in_(['pending', 'confirmed'])
+                    ).scalar()
+                    existing_usage_total = float(usage_sum) if usage_sum else 0
+            except (ValueError, TypeError):
+                pass
+
         return jsonify({
             'success': True,
             'prepayments': result_prepayments,
             'supplier_name': supplier_name,
-            'total_balance': total_available
+            'total_balance': total_available,
+            'existing_usage_total': existing_usage_total
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
