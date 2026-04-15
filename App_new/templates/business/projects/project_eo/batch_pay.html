@@ -558,8 +558,9 @@ function loadPrepaymentBalance(supplierId) {
                 currentExistingUsage = data.existing_usage_total || 0;
                 currentSupplierName = data.supplier_name || '';
 
-                // 显示预付账款列表信息
-                let prepaymentInfo = `<strong>${currentSupplierName}</strong> 可用预付余额: <strong class="text-success">SGD ${currentPrepaymentBalance.toFixed(2)}</strong>`;
+                // 显示预付账款列表信息（实际可用 = 当前余额 + 已选EO的已有使用额）
+                const actualAvailable = currentPrepaymentBalance + currentExistingUsage;
+                let prepaymentInfo = `<strong>${currentSupplierName}</strong> 可用预付余额: <strong class="text-success">SGD ${actualAvailable.toFixed(2)}</strong>`;
                 if (data.prepayments.length > 1) {
                     prepaymentInfo += `<br><small class="text-muted">共 ${data.prepayments.length} 笔预付账款，将按充值时间顺序自动抵扣</small>`;
                 }
