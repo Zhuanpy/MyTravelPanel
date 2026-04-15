@@ -620,12 +620,13 @@ function submitBatchPayment() {
             alert('请选择同一供应商的EO');
             return;
         }
-        if (currentPrepaymentBalance <= 0) {
+        const actualBalance = currentPrepaymentBalance + currentExistingUsage;
+        if (actualBalance <= 0) {
             alert('该供应商无可用预付账款');
             return;
         }
-        if (parseFloat(pay_amount) > currentPrepaymentBalance) {
-            alert(`付款金额 (${pay_amount}) 超过供应商预付余额 (${currentPrepaymentBalance.toFixed(2)})`);
+        if (parseFloat(pay_amount) > actualBalance) {
+            alert(`付款金额 (${pay_amount}) 超过供应商预付余额 (${actualBalance.toFixed(2)})`);
             return;
         }
     }
