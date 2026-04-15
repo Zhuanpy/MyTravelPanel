@@ -245,7 +245,7 @@ def parse_flights_api():
 
         if not result['success']:
             return jsonify({
-                'error': '未能识别航班信息格式。支持的格式：Trip.com、携程、Google Flights、酷航、手动输入'
+                'error': '未能识别航班信息格式。支持的格式：Trip.com、携程、Google Flights、酷航、航空公司官网（土耳其航空等）、手动输入'
             }), 400
 
         # 如果是手动输入格式，需要查找IATA代码

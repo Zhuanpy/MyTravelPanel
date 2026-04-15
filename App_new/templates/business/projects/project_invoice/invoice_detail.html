@@ -579,6 +579,45 @@
                                 </tr>
                                 {% endif %}
                             </table>
+                            {% elif type_code == 'flight' or type_name == '机票' %}
+                            {# 机票类型专用显示 #}
+                            {% set segments = item.ref.flight_segments %}
+                            {% set passengers = item.ref.flight_passengers %}
+                            {% set first_pnr = passengers[0].pnr if passengers else '' %}
+                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+                                <tr>
+                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {% if extra_data.pax_names_display is defined and extra_data.pax_names_display %}
+                                            {% set pax_list = extra_data.pax_names_display.split(', ') %}
+                                            {% if pax_list|length > 1 %}
+                                                {% for pax in pax_list %}{{ loop.index }}. {{ pax }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                            {% else %}
+                                                {{ extra_data.pax_names_display }}
+                                            {% endif %}
+                                        {% else %}-{% endif %}
+                                    </td>
+                                </tr>
+                                {% if segments %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Itin</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        {% for seg in segments %}
+                                        {{ loop.index }}.{{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }} {{ seg.departure_airport }}-{{ seg.arrival_airport }} {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }} {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}{% if not loop.last %}<br>{% endif %}
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if item.ref.remarks %}
+                                <tr>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks | replace('\n', '<br>') | safe }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
                             {% else %}
                             {# 其他类型通用显示 #}
                             <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
@@ -675,13 +714,8 @@
                             
                             <table style="border: none; font-size: 11px; width: 100%;">
                                 <tr>
-                                    <td style="width: 60px; border: none;">Itin</td>
+                                    <td style="width: 60px; border: none;">Detail</td>
                                     <td style="width: 10px; border: none;">:</td>
-                                    <td style="border: none;">{{ ref.description or '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="border: none;">Detail</td>
-                                    <td style="border: none;">:</td>
                                     <td style="border: none;"></td>
                                 </tr>
                                 <tr>
@@ -710,19 +744,17 @@
                                 </tr>
                                 {% endfor %}
                                 <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
-                                {% for seg in segments %}
+                                {% if segments %}
                                 <tr>
-                                    <td style="border: none;">Itin</td>
-                                    <td style="border: none;">:</td>
+                                    <td style="border: none; vertical-align: top;">Itin</td>
+                                    <td style="border: none; vertical-align: top;">:</td>
                                     <td style="border: none;">
-                                        {{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }} 
-                                        {{ seg.departure_airport }}-{{ seg.arrival_airport }} 
-                                        {{ seg.cabin_code }} {{ seg.status or 'HK' }} 
-                                        {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }} 
-                                        {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}
+                                        {% for seg in segments %}
+                                        {{ loop.index }}.{{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }} {{ seg.departure_airport }}-{{ seg.arrival_airport }} {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }} {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}{% if not loop.last %}<br>{% endif %}
+                                        {% endfor %}
                                     </td>
                                 </tr>
-                                {% endfor %}
+                                {% endif %}
                                 <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
                                 <tr>
                                     <td style="border: none;">Note</td>

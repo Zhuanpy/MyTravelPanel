@@ -311,6 +311,293 @@ def parse_format_google(text, year=None):
     return flights
 
 
+def parse_format_airline_web(text, year=None):
+    """解析航空公司官网/OTA网页复制格式（通用）
+
+    支持土耳其航空、新加坡航空等网页复制格式，特征：
+    - 时间+城市名在同一行: "20:05Panama City" 或 "17:05Istanbul"
+    - 机场代码在括号中: "(PTY)" 或 "(IST)"
+    - 航班号: "Turkish Airlines - TK900" 或 "TK900"
+    - 日期: "Wednesday, April 29" 或 "Thursday, April 30"
+
+    示例输入：
+    20:05Panama City
+    Tocumen International Airport (PTY)
+    Turkish Airlines - TK900
+    17:05Istanbul
+    Wednesday, April 29
+    Istanbul Airport (IST)
+    """
+    if year is None:
+        year = datetime.now().year
+
+    flights = []
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+
+    # 提取所有时间+城市行: "20:05Panama City" 或 "08:45Singapore"
+    time_city_indices = []
+    for i, line in enumerate(lines):
+        m = re.match(r'^(\d{1,2}:\d{2})\s*(.+)', line)
+        if m:
+            time_city_indices.append((i, m.group(1), m.group(2).strip()))
+
+    # 提取所有机场代码行: "... (PTY)" 或 "(IST)"
+    airport_map = {}
+    for i, line in enumerate(lines):
+        m = re.search(r'\(([A-Z]{3})\)\s*$', line)
+        if m:
+            airport_map[i] = m.group(1)
+
+    # 提取所有航班号: "TK900" 或 "Turkish Airlines - TK900"
+    flight_num_map = {}
+    for i, line in enumerate(lines):
+        m = re.search(r'(?:^|\s|-\s*)([A-Z]{2})(\d{2,5})\b', line)
+        if m:
+            # 排除时间行和机场代码行的误匹配
+            if not re.match(r'^\d{1,2}:\d{2}', line) and 'Airport' not in line and 'Terminal' not in line:
+                flight_num_map[i] = (m.group(1), m.group(2))
+
+    # 提取所有日期行: "Wednesday, April 29" 或 "Friday, May 1"
+    date_map = {}
+    for i, line in enumerate(lines):
+        m = re.match(r'(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+(\w+)\s+(\d{1,2})', line)
+        if m:
+            try:
+                dt = datetime.strptime(f'{m.group(1)} {m.group(2)} {year}', '%B %d %Y')
+                date_map[i] = dt
+            except ValueError:
+                pass
+
+    # 时间+城市必须成对出现（出发+到达），每对构成一个航段
+    if len(time_city_indices) < 2:
+        return []
+
+    # 逐对配对
+    seg_idx = 0
+    while seg_idx + 1 < len(time_city_indices):
+        dep_idx, dep_time, dep_city = time_city_indices[seg_idx]
+        arr_idx, arr_time, arr_city = time_city_indices[seg_idx + 1]
+
+        # 找出发机场代码（dep_idx之后最近的机场代码行）
+        dep_code = None
+        for j in range(dep_idx + 1, arr_idx):
+            if j in airport_map:
+                dep_code = airport_map[j]
+                break
+
+        # 找到达机场代码（arr_idx之后最近的机场代码行）
+        arr_code = None
+        next_seg_idx = time_city_indices[seg_idx + 2][0] if seg_idx + 2 < len(time_city_indices) else len(lines)
+        for j in range(arr_idx + 1, next_seg_idx):
+            if j in airport_map:
+                arr_code = airport_map[j]
+                break
+
+        # 找航班号（在出发和到达之间，或紧接其后）
+        airline = None
+        number = None
+        for j in range(dep_idx, min(arr_idx + 5, len(lines))):
+            if j in flight_num_map:
+                airline, number = flight_num_map[j]
+                break
+
+        # 找日期（在到达行附近）
+        dep_dt = None
+        # 先找到达时间附近的日期（通常日期在到达时间行之后）
+        for j in range(arr_idx - 2, min(arr_idx + 3, len(lines))):
+            if j in date_map:
+                dep_dt = date_map[j]
+                break
+        # 再找出发时间附近的日期
+        if dep_dt is None:
+            for j in range(dep_idx - 2, arr_idx):
+                if j in date_map:
+                    dep_dt = date_map[j]
+                    break
+
+        if not airline or not dep_code or not arr_code:
+            seg_idx += 1
+            continue
+
+        # 计算出发日期：到达日期行标注的是到达日期
+        # 如果到达时间 < 出发时间，说明出发在前一天
+        dep_time_int = int(dep_time.replace(':', ''))
+        arr_time_int = int(arr_time.replace(':', ''))
+        next_day = False
+
+        if dep_dt:
+            # dep_dt 可能是到达日期，如果出发时间>到达时间，出发日期=到达日期-1天
+            if dep_time_int > arr_time_int:
+                # 跨天：出发在前一天
+                from datetime import timedelta
+                dep_date_obj = dep_dt - timedelta(days=1)
+                next_day = True
+            else:
+                dep_date_obj = dep_dt
+            dep_date_str = dep_date_obj.strftime('%d%b').upper()
+            dep_day = DAY_ABBR[dep_date_obj.weekday()]
+        else:
+            dep_date_str = '01JAN'
+            dep_day = 'MO'
+
+        flights.append({
+            'airline': airline,
+            'number': number,
+            'dep_code': dep_code,
+            'arr_code': arr_code,
+            'dep_time': dep_time.replace(':', ''),
+            'arr_time': arr_time.replace(':', ''),
+            'dep_date': dep_date_str,
+            'dep_day': dep_day,
+            'next_day': next_day,
+        })
+
+        seg_idx += 2
+
+    return flights
+
+
+def parse_format_ctrip_detail(text, year=None):
+    """解析携程/Trip.com航班详情页格式
+
+    特征：
+    - 航班号独立一行: "CX636"
+    - 时间独立一行: "20:05"
+    - 机场行以IATA代码开头: "SIN Singapore ChangiT4"
+    - 日期行: "Apr 20"
+    - 航空公司名称行: "Cathay Pacific"
+
+    示例：
+    20:05
+    SIN Singapore ChangiT4
+    Cathay Pacific
+    CX636
+    ...
+    Apr 20
+    00:10
+    HKG Hong Kong Intl.T1
+    """
+    if year is None:
+        year = datetime.now().year
+
+    flights = []
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+
+    # 找所有航班号行（独立一行，格式: CX636 / TK900 / SQ321）
+    fn_indices = []
+    for i, line in enumerate(lines):
+        if re.match(r'^([A-Z]{2})(\d{2,5})$', line):
+            fn_indices.append(i)
+
+    if not fn_indices:
+        return []
+
+    for fn_idx in fn_indices:
+        m = re.match(r'^([A-Z]{2})(\d{2,5})$', lines[fn_idx])
+        airline = m.group(1)
+        number = m.group(2)
+
+        # 向上查找出发时间和出发机场（在航班号行之前）
+        dep_time = None
+        dep_code = None
+        for j in range(fn_idx - 1, max(fn_idx - 8, -1), -1):
+            line = lines[j]
+            # 机场行: "SIN Singapore ChangiT4" — 以IATA代码开头
+            if dep_code is None:
+                am = re.match(r'^([A-Z]{3})\s+\S', line)
+                if am:
+                    dep_code = am.group(1)
+                    continue
+            # 时间行: "20:05"
+            if dep_time is None:
+                tm = re.match(r'^(\d{2}:\d{2})$', line)
+                if tm:
+                    dep_time = tm.group(1)
+                    break
+
+        # 向下查找到达日期、时间和机场（在航班号行之后）
+        arr_time = None
+        arr_code = None
+        arr_date_str = None
+        for j in range(fn_idx + 1, min(fn_idx + 10, len(lines))):
+            line = lines[j]
+            # 遇到下一个航班号或Transfer行就停止
+            if re.match(r'^[A-Z]{2}\d{2,5}$', line):
+                break
+            # 日期行: "Apr 20"
+            if arr_date_str is None:
+                dm = re.match(r'^(\w{3})\s+(\d{1,2})$', line)
+                if dm:
+                    try:
+                        datetime.strptime(f'{dm.group(1)} {dm.group(2)}', '%b %d')
+                        arr_date_str = f'{dm.group(1)} {dm.group(2)}'
+                    except ValueError:
+                        pass
+                    continue
+            # 时间行: "00:10"（在日期行之后）
+            if arr_date_str and arr_time is None:
+                tm = re.match(r'^(\d{2}:\d{2})$', line)
+                if tm:
+                    arr_time = tm.group(1)
+                    continue
+            # 机场行: "HKG Hong Kong Intl.T1"
+            if arr_time and arr_code is None:
+                am = re.match(r'^([A-Z]{3})\s+\S', line)
+                if am:
+                    arr_code = am.group(1)
+                    break
+
+        if not dep_time or not dep_code or not arr_time or not arr_code:
+            continue
+
+        # 出发日期：从行首 "Sun, Apr 19" 或从到达日期推算
+        dep_dt = None
+        arr_dt = None
+
+        if arr_date_str:
+            arr_dt = datetime.strptime(f'{arr_date_str} {year}', '%b %d %Y')
+
+        # 向上查找出发日期: "Sun, Apr 19Duration..." 或 "Apr 19"
+        for j in range(fn_idx - 1, max(fn_idx - 12, -1), -1):
+            line = lines[j]
+            dm = re.match(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\w{3})\s+(\d{1,2})', line)
+            if dm:
+                try:
+                    dep_dt = datetime.strptime(f'{dm.group(1)} {dm.group(2)} {year}', '%b %d %Y')
+                    break
+                except ValueError:
+                    pass
+
+        # 如果没有找到出发日期，用到达日期推算
+        if dep_dt is None and arr_dt:
+            dep_time_int = int(dep_time.replace(':', ''))
+            arr_time_int = int(arr_time.replace(':', ''))
+            if dep_time_int > arr_time_int:
+                from datetime import timedelta
+                dep_dt = arr_dt - timedelta(days=1)
+            else:
+                dep_dt = arr_dt
+
+        if dep_dt is None:
+            continue
+
+        next_day = arr_dt.date() > dep_dt.date() if arr_dt else False
+
+        flights.append({
+            'airline': airline,
+            'number': number,
+            'dep_code': dep_code,
+            'arr_code': arr_code,
+            'dep_time': dep_time.replace(':', ''),
+            'arr_time': arr_time.replace(':', ''),
+            'dep_date': dep_dt.strftime('%d%b').upper(),
+            'dep_day': DAY_ABBR[dep_dt.weekday()],
+            'next_day': next_day,
+        })
+
+    return flights
+
+
 def parse_format_scoot(text, year=None):
     """解析酷航 Scoot 网页格式"""
     if year is None:
@@ -486,19 +773,20 @@ def parse_format_manual(text, year=None):
             continue
 
         # 提取出发时间和到达时间
-        # 英文: Departure: 15:25 - Arrival: 17:35
+        # 英文: Departure: 15:25 - Arrival: 17:35 或 Arrival: #06:00（#表示次日到达）
         # 中文: 出发：15:00 - 抵达：20:05
         time_m = re.search(
-            r'(?:Departure|出发)[:：]?\s*(\d{1,2}:\d{2})\s*[-–—]\s*(?:Arrival|抵达|到达)[:：]?\s*(\d{1,2}:\d{2})',
+            r'(?:Departure|出发)[:：]?\s*(\d{1,2}:\d{2})\s*[-–—]\s*(?:Arrival|抵达|到达)[:：]?\s*(#?)(\d{1,2}:\d{2})',
             rest, re.IGNORECASE
         )
         if not time_m:
             continue
         dep_time = time_m.group(1).replace(":", "")
-        arr_time = time_m.group(2).replace(":", "")
+        arr_next_day_mark = time_m.group(2)  # '#' 表示次日到达
+        arr_time = time_m.group(3).replace(":", "")
 
-        # 判断是否跨天（到达时间小于出发时间）
-        next_day = int(arr_time) < int(dep_time)
+        # 判断是否跨天：有#标记 或 到达时间小于出发时间
+        next_day = bool(arr_next_day_mark) or int(arr_time) < int(dep_time)
 
         flights.append({
             "airline": airline,
@@ -578,7 +866,9 @@ def parse_flights(text):
         (parse_format_trip, "Trip.com"),
         (parse_format_ctrip, "Ctrip/携程"),
         (parse_format_ctrip_order, "Ctrip/携程(订单)"),
+        (parse_format_ctrip_detail, "Ctrip/携程(详情)"),
         (parse_format_scoot, "Scoot/酷航"),
+        (parse_format_airline_web, "航空公司官网"),
         (parse_format_google, "Google Flights"),
         (parse_format_manual, "手动输入"),
     ]:
