@@ -83,6 +83,13 @@
                 </select>
             </div>
             <div class="col-auto">
+                <input type="date" class="form-control" name="date_from" value="{{ current_filters.date_from or '' }}" title="起始日期" style="width: 140px;">
+            </div>
+            <div class="col-auto d-flex align-items-center">~</div>
+            <div class="col-auto">
+                <input type="date" class="form-control" name="date_to" value="{{ current_filters.date_to or '' }}" title="结束日期" style="width: 140px;">
+            </div>
+            <div class="col-auto">
                 <input type="text" class="form-control" name="keyword" placeholder="搜索..." value="{{ current_filters.keyword or '' }}" style="width: 150px;">
             </div>
             <div class="col-auto">

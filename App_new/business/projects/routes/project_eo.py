@@ -1513,6 +1513,8 @@ def eo_list():
         supplier_id = request.args.get('supplier', None, type=int)
         external_system = request.args.get('external_system', '')
         date_range = request.args.get('date_range', '')
+        date_from = request.args.get('date_from', '')  # 自定义起始日期
+        date_to = request.args.get('date_to', '')  # 自定义结束日期
         min_amount = request.args.get('min_amount', None, type=float)
         max_amount = request.args.get('max_amount', None, type=float)
         keyword = request.args.get('keyword', '')
@@ -1623,6 +1625,21 @@ def eo_list():
                     ProjectEO.created_at >= start_date,
                     ProjectEO.created_at < end_date
                 ))
+
+            # 自定义日期范围筛选（优先级低于date_range）
+            if not date_range:
+                if date_from:
+                    try:
+                        start_dt = datetime.strptime(date_from, '%Y-%m-%d')
+                        filters.append(ProjectEO.created_at >= start_dt)
+                    except ValueError:
+                        pass
+                if date_to:
+                    try:
+                        end_dt = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+                        filters.append(ProjectEO.created_at < end_dt)
+                    except ValueError:
+                        pass
 
             if min_amount is not None and min_amount > 0:
                 filters.append(ProjectRef.cost_price >= float(min_amount))
@@ -1899,6 +1916,8 @@ def eo_list():
                                  'supplier': supplier_id,
                                  'external_system': external_system,
                                  'date_range': date_range,
+                                 'date_from': date_from,
+                                 'date_to': date_to,
                                  'min_amount': min_amount,
                                  'max_amount': max_amount,
                                  'keyword': keyword,
@@ -1907,7 +1926,7 @@ def eo_list():
                                  'has_invoice': has_invoice,
                                  'match_status': match_status
                              })
-                             
+
     except Exception as e:
         import traceback
         print(f"EO列表加载失败: {str(e)}")
