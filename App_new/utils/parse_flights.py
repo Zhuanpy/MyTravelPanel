@@ -486,14 +486,25 @@ def parse_format_ctrip_detail(text, year=None):
     # 找所有航班号行（独立一行，格式: CX636 / TK900 / SQ321）
     fn_indices = []
     for i, line in enumerate(lines):
-        if re.match(r'^([A-Z]{2})(\d{2,5})$', line):
+        if re.match(r'^([A-Z\d]{2})(\d{2,5})$', line):
             fn_indices.append(i)
 
     if not fn_indices:
         return []
 
+    # 预扫描：从头部查找行程日期（如 "...Fri, Apr 17Duration 23h 25m"）
+    header_date = None
+    for line in lines:
+        dm = re.search(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\w{3})\s+(\d{1,2})', line)
+        if dm:
+            try:
+                header_date = datetime.strptime(f'{dm.group(1)} {dm.group(2)} {year}', '%b %d %Y')
+                break
+            except ValueError:
+                pass
+
     for fn_idx in fn_indices:
-        m = re.match(r'^([A-Z]{2})(\d{2,5})$', lines[fn_idx])
+        m = re.match(r'^([A-Z\d]{2})(\d{2,5})$', lines[fn_idx])
         airline = m.group(1)
         number = m.group(2)
 
@@ -521,8 +532,8 @@ def parse_format_ctrip_detail(text, year=None):
         arr_date_str = None
         for j in range(fn_idx + 1, min(fn_idx + 10, len(lines))):
             line = lines[j]
-            # 遇到下一个航班号或Transfer行就停止
-            if re.match(r'^[A-Z]{2}\d{2,5}$', line):
+            # 遇到下一个航班号就停止
+            if re.match(r'^[A-Z\d]{2}\d{2,5}$', line):
                 break
             # 日期行: "Apr 20"
             if arr_date_str is None:
@@ -534,8 +545,8 @@ def parse_format_ctrip_detail(text, year=None):
                     except ValueError:
                         pass
                     continue
-            # 时间行: "00:10"（在日期行之后）
-            if arr_date_str and arr_time is None:
+            # 时间行: "00:10"（可能在日期行之后，也可能没有日期行）
+            if arr_time is None:
                 tm = re.match(r'^(\d{2}:\d{2})$', line)
                 if tm:
                     arr_time = tm.group(1)
@@ -557,16 +568,20 @@ def parse_format_ctrip_detail(text, year=None):
         if arr_date_str:
             arr_dt = datetime.strptime(f'{arr_date_str} {year}', '%b %d %Y')
 
-        # 向上查找出发日期: "Sun, Apr 19Duration..." 或 "Apr 19"
-        for j in range(fn_idx - 1, max(fn_idx - 12, -1), -1):
+        # 向上查找出发日期: "...Fri, Apr 17Duration..." 或 "Apr 19"
+        for j in range(fn_idx - 1, -1, -1):
             line = lines[j]
-            dm = re.match(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\w{3})\s+(\d{1,2})', line)
+            dm = re.search(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\w{3})\s+(\d{1,2})', line)
             if dm:
                 try:
                     dep_dt = datetime.strptime(f'{dm.group(1)} {dm.group(2)} {year}', '%b %d %Y')
                     break
                 except ValueError:
                     pass
+
+        # 使用头部日期作为兜底
+        if dep_dt is None and header_date:
+            dep_dt = header_date
 
         # 如果没有找到出发日期，用到达日期推算
         if dep_dt is None and arr_dt:
@@ -581,7 +596,13 @@ def parse_format_ctrip_detail(text, year=None):
         if dep_dt is None:
             continue
 
-        next_day = arr_dt.date() > dep_dt.date() if arr_dt else False
+        if arr_dt:
+            next_day = arr_dt.date() > dep_dt.date()
+        else:
+            # 没有到达日期时，简单判断：到达时间 < 出发时间视为跨天
+            dep_time_int = int(dep_time.replace(':', ''))
+            arr_time_int = int(arr_time.replace(':', ''))
+            next_day = arr_time_int < dep_time_int
 
         flights.append({
             'airline': airline,
