@@ -1,0 +1,580 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}护照识别{% endblock %}
+{% block page_title %}护照识别{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('business_projects.frequent_traveler.list_page') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-users me-1"></i>常用旅客管理
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    :root { --pp-primary: #2563eb; --pp-primary-dark: #1d4ed8; }
+
+    .pp-wrap { max-width: 1080px; margin: 0 auto; padding-bottom: 3rem; }
+
+    /* 上传 / 预览区 */
+    .pp-drop {
+        border: 2px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s;
+        position: relative;
+    }
+    .pp-drop:hover, .pp-drop.dragover {
+        border-color: var(--pp-primary);
+        background: #eff6ff;
+    }
+    .pp-drop-hint i { font-size: 2.4rem; color: #94a3b8; margin-bottom: 0.5rem; }
+    .pp-drop-hint p { color: #64748b; margin: 0.4rem 0; font-size: 0.95rem; }
+    .pp-drop-hint .small { color: #94a3b8; font-size: 0.78rem; }
+    .pp-drop input[type=file] { display: none; }
+
+    .pp-preview-wrap { display: none; padding: 0; }
+    .pp-preview-wrap.show { display: block; }
+    .pp-preview-img {
+        max-width: 100%; max-height: 360px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    /* 状态条 */
+    .pp-status {
+        display: none;
+        padding: 0.5rem 0.85rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        margin-top: 0.6rem;
+    }
+    .pp-status.show { display: block; }
+    .pp-status.loading { background: #eff6ff; color: #1d4ed8; }
+    .pp-status.success { background: #ecfdf5; color: #15803d; }
+    .pp-status.error { background: #fef2f2; color: #dc2626; }
+
+    /* 提取结果表单 */
+    .pp-form-card {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.1rem 1.3rem;
+        margin-top: 1rem;
+        display: none;
+    }
+    .pp-form-card.show { display: block; }
+    .pp-form-card h6 {
+        font-size: 0.95rem; font-weight: 600; color: #1f2937;
+        margin: 0 0 0.85rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .pp-form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem 1rem; }
+    .pp-form-row .form-group label {
+        font-size: 0.78rem; color: #6b7280; margin-bottom: 0.2rem; display: block;
+    }
+    .pp-form-row .form-control {
+        font-size: 0.9rem; height: 34px; padding: 0.3rem 0.55rem;
+        border: 1px solid #e5e7eb; border-radius: 5px; width: 100%;
+    }
+    .pp-form-row .form-control:focus {
+        border-color: var(--pp-primary);
+        box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
+        outline: none;
+    }
+    .pp-form-actions {
+        display: flex; justify-content: flex-end; gap: 0.5rem;
+        margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid #f1f5f9;
+    }
+
+    /* MRZ 原文展示 */
+    .pp-mrz-box {
+        margin-top: 0.85rem; padding: 0.65rem 0.85rem;
+        background: #1e293b; color: #e2e8f0;
+        border-radius: 6px;
+        font-family: 'Courier New', Consolas, monospace;
+        font-size: 0.85rem; line-height: 1.5;
+        white-space: pre; overflow-x: auto;
+    }
+    .pp-mrz-label {
+        font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.3rem;
+        font-family: inherit;
+    }
+    .pp-warn {
+        background: #fef3c7; color: #92400e;
+        padding: 0.55rem 0.85rem; border-radius: 6px;
+        font-size: 0.82rem; margin-top: 0.85rem;
+        display: flex; align-items: flex-start; gap: 0.4rem;
+    }
+    .pp-warn i { margin-top: 2px; flex-shrink: 0; }
+    .pp-score-badge {
+        display: inline-block; padding: 2px 8px;
+        border-radius: 10px; font-size: 0.72rem; font-weight: 600;
+    }
+    .pp-score-badge.high { background: #dcfce7; color: #16a34a; }
+    .pp-score-badge.mid { background: #fef3c7; color: #b45309; }
+    .pp-score-badge.low { background: #fee2e2; color: #dc2626; }
+
+    /* 近期保存 */
+    .pp-recent-card {
+        background: #fff; border: 1px solid #e9ecef; border-radius: 10px;
+        margin-top: 1.25rem; overflow: hidden;
+    }
+    .pp-recent-header {
+        padding: 0.75rem 1rem; border-bottom: 1px solid #f0f0f0;
+        font-size: 0.95rem; font-weight: 600; color: #495057;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .pp-recent-search input {
+        font-size: 0.85rem; height: 32px; padding: 0.2rem 0.55rem;
+        border: 1px solid #e5e7eb; border-radius: 5px; width: 200px;
+    }
+    .pp-recent-row {
+        display: flex; align-items: center; gap: 0.85rem;
+        padding: 0.7rem 1rem; border-bottom: 1px solid #f5f5f5;
+        font-size: 0.88rem;
+    }
+    .pp-recent-row:last-child { border-bottom: none; }
+    .pp-recent-row:hover { background: #fafafa; }
+    .pp-r-name { font-weight: 600; color: #1f2937; min-width: 200px; }
+    .pp-r-no { color: #4b5563; font-family: 'Segoe UI Mono', Consolas, monospace; min-width: 130px; }
+    .pp-r-meta { color: #6b7280; font-size: 0.8rem; flex: 1; }
+    .pp-r-time { color: #9ca3af; font-size: 0.78rem; }
+    .pp-r-actions { display: flex; gap: 0.35rem; }
+    .pp-r-actions .btn { font-size: 0.78rem; padding: 0.2rem 0.55rem; }
+    .pp-empty { padding: 2.5rem 1rem; text-align: center; color: #9ca3af; font-size: 0.9rem; }
+</style>
+
+<div class="pp-wrap">
+
+    <!-- 1. 图片上传 / 预览 -->
+    <div class="pp-drop" id="ppDrop">
+        <div class="pp-drop-hint" id="ppDropHint">
+            <i class="fas fa-image d-block"></i>
+            <p><strong>粘贴</strong> (Ctrl+V) / <strong>拖入</strong> / <strong>点击选择</strong> 护照图片</p>
+            <p class="small">支持 PNG / JPG / WEBP，建议清晰拍摄护照底部 MRZ 两行</p>
+        </div>
+        <div class="pp-preview-wrap" id="ppPreviewWrap">
+            <img class="pp-preview-img" id="ppPreviewImg" alt="护照预览">
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="ppClearBtn">
+                    <i class="fas fa-times me-1"></i>重新选择
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="ppExtractBtn">
+                    <i class="fas fa-magic me-1"></i>提取信息
+                </button>
+            </div>
+        </div>
+        <input type="file" id="ppFileInput" accept="image/*">
+    </div>
+
+    <div class="pp-status" id="ppStatus"></div>
+
+    <!-- 2. 提取结果（可编辑） -->
+    <div class="pp-form-card" id="ppFormCard">
+        <h6>
+            <span><i class="fas fa-id-card me-1"></i>提取信息（可编辑后保存）</span>
+            <span id="ppValidScore"></span>
+        </h6>
+
+        <!-- 低置信度警告（动态显示） -->
+        <div id="ppLowScoreWarn" style="display:none;"></div>
+
+        <!-- MRZ 原文（折叠，点击展开） -->
+        <details id="ppMrzDetails" style="margin-bottom: 0.85rem;">
+            <summary style="cursor:pointer; font-size:0.82rem; color:#475569;">
+                <i class="fas fa-code me-1"></i>查看 MRZ 原始机读码
+            </summary>
+            <div class="pp-mrz-label">MRZ (机读区两行原始文本，对照护照底部核对):</div>
+            <div class="pp-mrz-box" id="ppMrzText"></div>
+        </details>
+
+        <form id="ppForm">
+            <div class="pp-form-row">
+                <div class="form-group">
+                    <label>姓 Surname</label>
+                    <input type="text" class="form-control" name="surname" required>
+                </div>
+                <div class="form-group">
+                    <label>名 Given Name</label>
+                    <input type="text" class="form-control" name="given_name" required>
+                </div>
+                <div class="form-group">
+                    <label>性别 Sex</label>
+                    <input type="text" class="form-control" name="sex" maxlength="1" placeholder="M / F">
+                </div>
+                <div class="form-group">
+                    <label>出生日期 DOB</label>
+                    <input type="text" class="form-control" name="date_of_birth" placeholder="19 NOV 1998">
+                </div>
+                <div class="form-group">
+                    <label>国籍 Nationality</label>
+                    <input type="text" class="form-control" name="nationality" maxlength="3" placeholder="CHN">
+                </div>
+                <div class="form-group">
+                    <label>护照号 Passport No.</label>
+                    <input type="text" class="form-control" name="passport_number" required>
+                </div>
+                <div class="form-group">
+                    <label>有效期至 Expiry</label>
+                    <input type="text" class="form-control" name="expiration_date" placeholder="28 SEP 2030">
+                </div>
+                <div class="form-group">
+                    <label>签发国 Country</label>
+                    <input type="text" class="form-control" name="country_code" maxlength="3">
+                </div>
+                <div class="form-group">
+                    <label>个人编号 Personal No.</label>
+                    <input type="text" class="form-control" name="personal_number">
+                </div>
+            </div>
+            <input type="hidden" name="document_type">
+            <div class="pp-form-actions">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="ppResetFormBtn">
+                    <i class="fas fa-undo me-1"></i>清空
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="ppSaveBtn">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 3. 近期保存 -->
+    <div class="pp-recent-card">
+        <div class="pp-recent-header">
+            <span><i class="fas fa-history me-1"></i>近期保存</span>
+            <div class="pp-recent-search">
+                <input type="search" id="ppSearchInput" placeholder="搜索 姓名 / 护照号">
+            </div>
+        </div>
+        <div id="ppRecentList">
+            {% if recent_list %}
+            {% for p in recent_list %}
+            <div class="pp-recent-row" data-id="{{ p.id }}">
+                <span class="pp-r-name">{{ p.surname }} {{ p.given_name }}</span>
+                <span class="pp-r-no">{{ p.passport_number }}</span>
+                <span class="pp-r-meta">
+                    {{ p.nationality }} · {{ p.sex }} · 生日 {{ p.date_of_birth }} · 有效至 {{ p.expiration_date }}
+                </span>
+                <span class="pp-r-time">{{ p.updated_at }}</span>
+                <span class="pp-r-actions">
+                    <button class="btn btn-outline-primary btn-sm pp-r-fill"
+                            data-record='{{ p|tojson|forceescape }}' title="填回上方表单">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm pp-r-del" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="pp-empty">暂无保存记录，提取后点"保存"即可。</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var csrfToken = document.querySelector('meta[name="csrf-token"]');
+    csrfToken = csrfToken ? csrfToken.getAttribute('content') : '';
+
+    var dropZone = document.getElementById('ppDrop');
+    var dropHint = document.getElementById('ppDropHint');
+    var previewWrap = document.getElementById('ppPreviewWrap');
+    var previewImg = document.getElementById('ppPreviewImg');
+    var fileInput = document.getElementById('ppFileInput');
+    var clearBtn = document.getElementById('ppClearBtn');
+    var extractBtn = document.getElementById('ppExtractBtn');
+    var statusBar = document.getElementById('ppStatus');
+    var formCard = document.getElementById('ppFormCard');
+    var form = document.getElementById('ppForm');
+    var validScoreEl = document.getElementById('ppValidScore');
+    var saveBtn = document.getElementById('ppSaveBtn');
+    var resetFormBtn = document.getElementById('ppResetFormBtn');
+    var recentList = document.getElementById('ppRecentList');
+    var searchInput = document.getElementById('ppSearchInput');
+
+    var currentFile = null;
+
+    function setStatus(text, type) {
+        statusBar.className = 'pp-status show ' + (type || '');
+        statusBar.innerHTML = text;
+    }
+    function clearStatus() {
+        statusBar.className = 'pp-status';
+        statusBar.innerHTML = '';
+    }
+
+    function showPreview(file) {
+        currentFile = file;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            previewImg.src = e.target.result;
+            previewWrap.classList.add('show');
+            dropHint.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+        clearStatus();
+        formCard.classList.remove('show');
+    }
+
+    function clearPreview() {
+        currentFile = null;
+        previewImg.src = '';
+        previewWrap.classList.remove('show');
+        dropHint.style.display = '';
+        fileInput.value = '';
+        clearStatus();
+        formCard.classList.remove('show');
+    }
+
+    // 点击区域 → 文件选择（避开预览/按钮区）
+    dropZone.addEventListener('click', function (e) {
+        if (previewWrap.classList.contains('show')) return;
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files[0]) showPreview(fileInput.files[0]);
+    });
+
+    // 拖拽
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        dropZone.addEventListener(ev, function (e) {
+            e.preventDefault(); e.stopPropagation();
+            dropZone.classList.add('dragover');
+        });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        dropZone.addEventListener(ev, function (e) {
+            e.preventDefault(); e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+    });
+    dropZone.addEventListener('drop', function (e) {
+        var dt = e.dataTransfer;
+        if (dt && dt.files && dt.files[0] && dt.files[0].type.startsWith('image/')) {
+            showPreview(dt.files[0]);
+        }
+    });
+
+    // 全局粘贴
+    document.addEventListener('paste', function (e) {
+        if (!e.clipboardData) return;
+        var items = e.clipboardData.items;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type && items[i].type.indexOf('image') === 0) {
+                var blob = items[i].getAsFile();
+                if (blob) {
+                    // 给一个文件名（剪贴板图片默认无 name）
+                    var named = new File([blob], 'paste-' + Date.now() + '.png', { type: blob.type });
+                    showPreview(named);
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+    });
+
+    clearBtn.addEventListener('click', clearPreview);
+
+    // 提取
+    extractBtn.addEventListener('click', function () {
+        if (!currentFile) {
+            setStatus('请先选择护照图片', 'error');
+            return;
+        }
+        var fd = new FormData();
+        fd.append('image', currentFile);
+        extractBtn.disabled = true;
+        setStatus('<i class="fas fa-spinner fa-spin me-1"></i> 识别中...', 'loading');
+
+        fetch("{{ url_for('flights_passport.ocr') }}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: fd
+        })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+        .then(function (resp) {
+            extractBtn.disabled = false;
+            if (!resp.json.success) {
+                setStatus('<i class="fas fa-exclamation-circle me-1"></i> ' + (resp.json.error || '识别失败'), 'error');
+                return;
+            }
+            fillForm(resp.json.data);
+            setStatus('<i class="fas fa-check-circle me-1"></i> 识别成功，请核对后保存', 'success');
+        })
+        .catch(function (err) {
+            extractBtn.disabled = false;
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 网络错误: ' + err, 'error');
+        });
+    });
+
+    function fillForm(data) {
+        var fields = ['surname', 'given_name', 'sex', 'date_of_birth', 'nationality',
+                      'country_code', 'passport_number', 'expiration_date',
+                      'personal_number', 'document_type'];
+        fields.forEach(function (k) {
+            var el = form.querySelector('[name="' + k + '"]');
+            if (el) el.value = data[k] || '';
+        });
+
+        // 校验分数徽章
+        var score = data.valid_score;
+        var mrzDetails = document.getElementById('ppMrzDetails');
+        var mrzText = document.getElementById('ppMrzText');
+        var lowWarn = document.getElementById('ppLowScoreWarn');
+
+        if (score !== undefined && score !== null && score !== '') {
+            var s = Math.round(Number(score));
+            var cls = s >= 80 ? 'high' : (s >= 60 ? 'mid' : 'low');
+            validScoreEl.innerHTML = '<span class="pp-score-badge ' + cls + '">校验分数 ' + s + '</span>';
+            if (s < 80) {
+                lowWarn.style.display = '';
+                lowWarn.className = 'pp-warn';
+                lowWarn.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>'
+                    + '<strong>OCR 置信度较低</strong>，请逐项对照护照原图核对：'
+                    + '常见错误 — 字母 <code>K</code> 可能实际是填充符 <code>&lt;</code>；'
+                    + '护照号首字符 <code>E</code> 可能被误识为 <code>2</code> 或 <code>F</code>；'
+                    + '展开下方"MRZ 原始机读码"对照原文修正。</span>';
+            } else {
+                lowWarn.style.display = 'none';
+            }
+        } else {
+            validScoreEl.innerHTML = '';
+            lowWarn.style.display = 'none';
+        }
+
+        // MRZ 原文
+        if (data.mrz_raw) {
+            mrzText.textContent = data.mrz_raw;
+            mrzDetails.style.display = '';
+            // 低分自动展开 MRZ 方便对照
+            if (score !== undefined && Number(score) < 80) mrzDetails.open = true;
+            else mrzDetails.open = false;
+        } else {
+            mrzDetails.style.display = 'none';
+        }
+
+        formCard.classList.add('show');
+    }
+
+    function clearForm() {
+        form.reset();
+        validScoreEl.textContent = '';
+    }
+
+    resetFormBtn.addEventListener('click', clearForm);
+
+    // 保存
+    saveBtn.addEventListener('click', function () {
+        var payload = {};
+        new FormData(form).forEach(function (v, k) { payload[k] = v; });
+        if (!payload.surname || !payload.given_name || !payload.passport_number) {
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 姓 / 名 / 护照号 必填', 'error');
+            return;
+        }
+        saveBtn.disabled = true;
+        fetch("{{ url_for('flights_passport.save') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(payload)
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+            saveBtn.disabled = false;
+            if (j.success) {
+                setStatus('<i class="fas fa-check-circle me-1"></i> 已' + (j.action === 'updated' ? '更新' : '保存'), 'success');
+                refreshRecent();
+            } else {
+                setStatus('<i class="fas fa-exclamation-circle me-1"></i> ' + (j.error || '保存失败'), 'error');
+            }
+        })
+        .catch(function (err) {
+            saveBtn.disabled = false;
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 网络错误: ' + err, 'error');
+        });
+    });
+
+    // 近期列表 - 填回 / 删除
+    function bindRowActions(scope) {
+        scope.querySelectorAll('.pp-r-fill').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var rec;
+                try { rec = JSON.parse(btn.getAttribute('data-record')); }
+                catch (e) { return; }
+                fillForm(rec);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+        scope.querySelectorAll('.pp-r-del').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (!confirm('删除这条护照记录？')) return;
+                var row = btn.closest('.pp-recent-row');
+                var id = row.getAttribute('data-id');
+                fetch('/flights_passport/' + id, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrfToken }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    if (j.success) row.remove();
+                    else alert(j.error || '删除失败');
+                });
+            });
+        });
+    }
+    bindRowActions(recentList);
+
+    function renderRecent(items) {
+        if (!items || !items.length) {
+            recentList.innerHTML = '<div class="pp-empty">暂无保存记录</div>';
+            return;
+        }
+        var html = items.map(function (p) {
+            var dataAttr = JSON.stringify(p).replace(/&/g, '&amp;').replace(/'/g, '&apos;').replace(/"/g, '&quot;');
+            return '<div class="pp-recent-row" data-id="' + p.id + '">'
+                + '<span class="pp-r-name">' + escapeHtml(p.surname) + ' ' + escapeHtml(p.given_name) + '</span>'
+                + '<span class="pp-r-no">' + escapeHtml(p.passport_number) + '</span>'
+                + '<span class="pp-r-meta">' + escapeHtml(p.nationality || '') + ' · ' + escapeHtml(p.sex || '')
+                +     ' · 生日 ' + escapeHtml(p.date_of_birth || '') + ' · 有效至 ' + escapeHtml(p.expiration_date || '') + '</span>'
+                + '<span class="pp-r-time">' + escapeHtml(p.updated_at || '') + '</span>'
+                + '<span class="pp-r-actions">'
+                +     '<button class="btn btn-outline-primary btn-sm pp-r-fill" data-record="' + dataAttr + '" title="填回上方表单"><i class="fas fa-arrow-up"></i></button>'
+                +     '<button class="btn btn-outline-danger btn-sm pp-r-del" title="删除"><i class="fas fa-trash"></i></button>'
+                + '</span>'
+                + '</div>';
+        }).join('');
+        recentList.innerHTML = html;
+        bindRowActions(recentList);
+    }
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function refreshRecent(q) {
+        var url = "{{ url_for('flights_passport.recent') }}";
+        if (q) url += '?q=' + encodeURIComponent(q);
+        fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+            if (j.success) renderRecent(j.data);
+        });
+    }
+
+    // 搜索
+    var searchTimer = null;
+    searchInput.addEventListener('input', function () {
+        clearTimeout(searchTimer);
+        var v = searchInput.value.trim();
+        searchTimer = setTimeout(function () { refreshRecent(v); }, 300);
+    });
+})();
+</script>
+{% endblock %}

@@ -36,6 +36,7 @@ python-docx==0.8.11
 PyPDF2==3.0.1
 Pillow==10.3.0
 pytesseract==0.3.13
+passporteye==2.2.2
 reportlab==4.1.0
 fpdf2==2.8.3
 

@@ -121,12 +121,14 @@ def create_app():
     from .business.flight.routes.flights_schedule import flights_schedule
     from .business.flight.routes.flights_athina_routes import flights_athina
     from .business.flight.routes.flights_usbangla_routes import flights_usbangla
+    from .business.flight.routes.passport_routes import flights_passport
     app.register_blueprint(flight_routes, url_prefix='/flight_routes')
     app.register_blueprint(flight_home, url_prefix='/flight_home')
     app.register_blueprint(flights_booking, url_prefix='/flights_booking')
     app.register_blueprint(flights_schedule, url_prefix='/flight_schedule')
     app.register_blueprint(flights_athina, url_prefix='/flights_athina')
     app.register_blueprint(flights_usbangla, url_prefix='/flights_usbangla')
+    app.register_blueprint(flights_passport)
 
     # 签证模块
     from .business.visa.routes.visa_home import visa_home
