@@ -98,12 +98,38 @@ fi
 echo ""
 echo "[6/6] 重启服务..."
 
-echo ">>> 停止旧的 gunicorn 进程..."
-pkill -f gunicorn || true
+GUNICORN_PATTERN="gunicorn.*app_new:app"
 
-echo ">>> 启动 gunicorn..."
+echo ">>> 优雅停止旧的 gunicorn 进程 (TERM)..."
+pkill -TERM -f "$GUNICORN_PATTERN" || true
+sleep 3
+
+# 兜底：还活着的强杀
+if pgrep -f "$GUNICORN_PATTERN" > /dev/null; then
+    echo ">>> 仍有残留进程，强制终止 (KILL)..."
+    pkill -KILL -f "$GUNICORN_PATTERN" || true
+    sleep 1
+fi
+
+# 确认全部清理
+if pgrep -f "$GUNICORN_PATTERN" > /dev/null; then
+    echo ">>> 错误：旧 gunicorn 进程未能终止，请手动检查"
+    ps -eo pid,lstart,cmd | grep gunicorn | grep -v grep
+    exit 1
+fi
+
+echo ">>> 启动新的 gunicorn..."
 gunicorn --workers 3 --bind 127.0.0.1:8000 app_new:app --daemon
 sleep 2
+
+# 验证新进程启动成功
+NEW_PROCS=$(pgrep -f "$GUNICORN_PATTERN" | wc -l)
+if [ "$NEW_PROCS" -lt 3 ]; then
+    echo ">>> 错误：gunicorn 启动异常，进程数 $NEW_PROCS（期望 ≥ 3）"
+    exit 1
+fi
+echo ">>> gunicorn 启动成功（进程数 $NEW_PROCS）"
+ps -eo pid,lstart,cmd | grep "$GUNICORN_PATTERN" | grep -v grep
 
 echo ">>> 重启 nginx..."
 sudo systemctl restart nginx
