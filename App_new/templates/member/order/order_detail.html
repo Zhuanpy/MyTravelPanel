@@ -177,6 +177,18 @@
         </div>
     </div>
 
+    <!-- 待核款：已提交付款确认 -->
+    {% if order.status == 'paid' %}
+    <div class="od-section" style="border-color:#fde68a; background:#fffbeb;">
+        <div class="od-section-title" style="color:#92400e; border-color:#fde68a;">
+            <i class="fas fa-hourglass-half me-1"></i>付款确认待核对
+        </div>
+        <div style="font-size:0.9rem; color:#78350f;">
+            我们已收到您的付款确认通知，工作人员将尽快核对账户。核对完成后订单状态会自动更新为"已确认"。
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 待付款：显示付款信息 -->
     {% if order.status == 'awaiting_payment' and payment_config %}
     <div class="od-section od-payment-card">
@@ -296,10 +308,30 @@
         {% if order.special_requirements %}
         <div class="od-remark"><span class="text-muted">备注：</span>{{ order.special_requirements }}</div>
         {% endif %}
-        {% if order.notes %}
-        <div class="od-remark"><span class="text-muted">备注：</span>{{ order.notes }}</div>
-        {% endif %}
     </div>
+
+    <!-- 订单处理记录（仅系统自动生成的事件） -->
+    {% if processing_log %}
+    <div class="od-section">
+        <div class="od-section-title"><i class="fas fa-history me-1"></i>订单处理记录</div>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            {% for entry in processing_log %}
+            <li style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid #f3f4f6; font-size:0.85rem;">
+                <span style="color:#374151;">
+                    {% if '付款' in entry.action %}<i class="fas fa-check-circle me-1" style="color:#16a34a;"></i>
+                    {% elif '催促' in entry.action %}<i class="fas fa-bell me-1" style="color:#d97706;"></i>
+                    {% else %}<i class="fas fa-circle me-1" style="color:#9ca3af; font-size:0.6rem;"></i>
+                    {% endif %}
+                    {{ entry.action }}
+                </span>
+                {% if entry.timestamp %}
+                <span class="text-muted" style="font-size:0.8rem;">{{ entry.timestamp }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
 
     <!-- 相关文档（有才显示） -->
     {% if order.documents %}

@@ -5,210 +5,319 @@
 {% block page_title %}我的订单{% endblock %}
 
 {% block page_actions %}
-<div class="btn-toolbar mb-2 mb-md-0">
-    <div class="btn-group me-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-filter me-1"></i>筛选
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-download me-1"></i>导出
-        </button>
-    </div>
-    </div>
+<a href="{{ url_for('member.services') }}" class="btn btn-sm btn-primary">
+    <i class="fas fa-plus me-1"></i>新建订单
+</a>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+    .ord-wrap { width: 100%; }
+
+    /* 状态标签栏 */
+    .ord-tabs {
+        display: flex;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 0.85rem;
+    }
+    .ord-tabs a {
+        flex: 1;
+        padding: 0.7rem 0.5rem;
+        text-align: center;
+        text-decoration: none;
+        color: #6c757d;
+        border-right: 1px solid #f1f5f9;
+        font-size: 0.95rem;
+        transition: background 0.15s;
+        white-space: nowrap;
+    }
+    .ord-tabs a:last-child { border-right: none; }
+    .ord-tabs a:hover { background: #f9fafb; color: #333; }
+    .ord-tabs a.active {
+        background: #ecfdf5;
+        color: #16a34a;
+        font-weight: 600;
+    }
+
+    /* 筛选栏 */
+    .ord-filter {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.5rem 0.85rem;
+        margin-bottom: 0.85rem;
+    }
+    .ord-filter form {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .ord-filter select {
+        font-size: 0.9rem;
+        height: 36px;
+        padding: 0.25rem 0.6rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 5px;
+        background: #fff;
+        max-width: 160px;
+    }
+    .ord-filter .btn-sm { font-size: 0.88rem; padding: 0.35rem 0.85rem; }
+
+    /* 列表卡 */
+    .ord-section {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .ord-section-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #495057;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .ord-section-header .count { color: #9ca3af; font-weight: 400; font-size: 0.85rem; margin-left: 0.35rem; }
+
+    /* 列表行 */
+    .ord-row {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #f5f5f5;
+        text-decoration: none;
+        color: inherit;
+        font-size: 0.95rem;
+        transition: background 0.15s;
+    }
+    .ord-row:last-child { border-bottom: none; }
+    .ord-row:hover { background: #fafafa; }
+    .ord-num {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.88rem;
+        min-width: 185px;
+        font-family: 'Segoe UI Mono', Consolas, monospace;
+    }
+    .ord-name {
+        flex: 1;
+        color: #374151;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+    .ord-type {
+        font-size: 0.78rem;
+        color: #6c757d;
+        background: #f3f4f6;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-right: 0.4rem;
+    }
+    .ord-status {
+        padding: 4px 11px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    .ord-status.pending { background: #fef3c7; color: #b45309; }
+    .ord-status.awaiting_payment { background: #dbeafe; color: #2563eb; }
+    .ord-status.paid { background: #f97316; color: #fff; }
+    .ord-status.confirmed { background: #dcfce7; color: #16a34a; }
+    .ord-status.in_progress { background: #ede9fe; color: #7c3aed; }
+    .ord-status.completed { background: #dcfce7; color: #16a34a; }
+    .ord-status.cancelled { background: #fee2e2; color: #dc2626; }
+    .ord-status.draft { background: #f3f4f6; color: #6b7280; }
+    .ord-status.refunded { background: #f3f4f6; color: #374151; }
+    .ord-amount {
+        font-weight: 600;
+        color: #16a34a;
+        font-size: 0.95rem;
+        min-width: 110px;
+        text-align: right;
+        flex-shrink: 0;
+    }
+    .ord-date {
+        color: #9ca3af;
+        font-size: 0.85rem;
+        min-width: 90px;
+        text-align: right;
+        flex-shrink: 0;
+    }
+    .ord-cancel-btn {
+        margin-left: 0.35rem;
+        padding: 3px 10px;
+        font-size: 0.8rem;
+        color: #dc2626;
+        background: transparent;
+        border: 1px solid #fecaca;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .ord-cancel-btn:hover { background: #fee2e2; }
+
+    /* 空状态 */
+    .ord-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #9ca3af;
+    }
+    .ord-empty i { font-size: 3rem; opacity: 0.3; margin-bottom: 0.85rem; }
+    .ord-empty p { font-size: 1rem; margin: 0.5rem 0 1rem; }
+
+    @media (max-width: 768px) {
+        .ord-tabs { flex-wrap: wrap; }
+        .ord-tabs a { flex: 1 1 33%; border-bottom: 1px solid #f1f5f9; }
+        .ord-row { flex-wrap: wrap; }
+        .ord-num { min-width: 0; flex: 1 1 60%; }
+        .ord-date { display: none; }
+    }
+</style>
 {% endblock %}
 
 {% block member_content %}
-
-<!-- 筛选栏 -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-3">
-                        <label for="status" class="form-label">订单状态</label>
-                        <select class="form-select" id="status" name="status">
-                            <option value="">全部状态</option>
-                            <option value="pending" {{ 'selected' if current_status == 'pending' }}>待处理</option>
-                            <option value="awaiting_payment" {{ 'selected' if current_status == 'awaiting_payment' }}>待付款</option>
-                            <option value="confirmed" {{ 'selected' if current_status == 'confirmed' }}>已确认</option>
-                            <option value="in_progress" {{ 'selected' if current_status == 'in_progress' }}>处理中</option>
-                            <option value="completed" {{ 'selected' if current_status == 'completed' }}>已完成</option>
-                            <option value="cancelled" {{ 'selected' if current_status == 'cancelled' }}>已取消</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="service_type" class="form-label">服务类型</label>
-                        <select class="form-select" id="service_type" name="service_type">
-                            <option value="">全部类型</option>
-                            <option value="visa" {{ 'selected' if current_service_type == 'visa' }}>签证办理</option>
-                            <option value="flight" {{ 'selected' if current_service_type == 'flight' }}>机票预订</option>
-                            <option value="tour" {{ 'selected' if current_service_type == 'tour' }}>旅游配套</option>
-                            <option value="hotel" {{ 'selected' if current_service_type == 'hotel' }}>酒店预订</option>
-                            <option value="ticket" {{ 'selected' if current_service_type == 'ticket' }}>景点门票</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="date_range" class="form-label">时间范围</label>
-                        <select class="form-select" id="date_range" name="date_range">
-                            <option value="">全部时间</option>
-                            <option value="today" {{ 'selected' if current_date_range == 'today' }}>今天</option>
-                            <option value="week" {{ 'selected' if current_date_range == 'week' }}>最近一周</option>
-                            <option value="month" {{ 'selected' if current_date_range == 'month' }}>最近一月</option>
-                            <option value="quarter" {{ 'selected' if current_date_range == 'quarter' }}>最近三月</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">&nbsp;</label>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-1"></i>搜索
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="ord-wrap">
+    <!-- 状态标签栏 -->
+    <div class="ord-tabs">
+        <a href="{{ url_for('orders.list') }}" class="{{ 'active' if not current_status }}">全部</a>
+        <a href="{{ url_for('orders.list', status='pending') }}" class="{{ 'active' if current_status == 'pending' }}">待处理</a>
+        <a href="{{ url_for('orders.list', status='awaiting_payment') }}" class="{{ 'active' if current_status == 'awaiting_payment' }}">待付款</a>
+        <a href="{{ url_for('orders.list', status='paid') }}" class="{{ 'active' if current_status == 'paid' }}">待核款</a>
+        <a href="{{ url_for('orders.list', status='confirmed') }}" class="{{ 'active' if current_status == 'confirmed' }}">已确认</a>
+        <a href="{{ url_for('orders.list', status='in_progress') }}" class="{{ 'active' if current_status == 'in_progress' }}">处理中</a>
+        <a href="{{ url_for('orders.list', status='completed') }}" class="{{ 'active' if current_status == 'completed' }}">已完成</a>
+        <a href="{{ url_for('orders.list', status='cancelled') }}" class="{{ 'active' if current_status == 'cancelled' }}">已取消</a>
     </div>
-</div>
 
-<!-- 订单列表 -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-list me-2"></i>订单列表</span>
-                <a href="{{ url_for('member.services') }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus me-1"></i>新建订单
-                </a>
-            </div>
-            <div class="card-body">
-                {% if orders %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>订单编号</th>
-                                <th>服务类型</th>
-                                <th>服务详情</th>
-                                <th>状态</th>
-                                <th>金额</th>
-                                <th>创建时间</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in orders %}
-                            <tr>
-                                <td>
-                                    <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="text-decoration-none">
-                                        <strong>{{ order.order_number }}</strong>
-                                    </a>
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ order.service_type }}</span>
-                                </td>
-                                <td>{{ order.service_name }}</td>
-                                <td>
-                                    <span class="badge bg-{{ order.status_color }}">{{ order.status_display }}</span>
-                                </td>
-                                <td>
-                                    <strong class="text-success">{{ order.currency }} {{ "%.2f"|format(order.total_amount) }}</strong>
-                                </td>
-                                <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td>
-                                    {% if order.status == 'pending' %}
-                                    <button class="btn btn-sm btn-outline-danger" title="取消订单"
-                                            onclick="cancelOrder({{ order.id }})">
-                                        <i class="fas fa-times me-1"></i>取消
-                                    </button>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- 分页 -->
-                {% if pagination %}
-                <nav aria-label="订单分页">
-                    <ul class="pagination justify-content-center">
-                        {% if pagination.has_prev %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('orders.list', page=pagination.prev_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">
-                                <i class="fas fa-chevron-left"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        {% for page_num in pagination.iter_pages() %}
-                            {% if page_num %}
-                                {% if page_num != pagination.page %}
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('orders.list', page=page_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">{{ page_num }}</a>
-                                </li>
-                                {% else %}
-                                <li class="page-item active">
-                                    <span class="page-link">{{ page_num }}</span>
-                                </li>
-                                {% endif %}
-                            {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link">…</span>
-                            </li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if pagination.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('orders.list', page=pagination.next_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">
-                                <i class="fas fa-chevron-right"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
-                
-                {% else %}
-                <!-- 空状态 -->
-                <div class="text-center py-5">
-                    <i class="fas fa-shopping-cart text-muted" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 text-muted">暂无订单记录</h4>
-                    <p class="text-muted">您还没有任何订单，快去选择我们的服务吧！</p>
-                    <a href="{{ url_for('member.services') }}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-plus me-2"></i>申请服务
+    <!-- 筛选栏 -->
+    <div class="ord-filter">
+        <form method="GET">
+            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+            <select name="service_type">
+                <option value="">全部类型</option>
+                <option value="visa" {{ 'selected' if current_service_type == 'visa' }}>签证办理</option>
+                <option value="flight" {{ 'selected' if current_service_type == 'flight' }}>机票预订</option>
+                <option value="tour" {{ 'selected' if current_service_type == 'tour' }}>旅游套餐</option>
+                <option value="hotel" {{ 'selected' if current_service_type == 'hotel' }}>酒店预订</option>
+                <option value="ticket" {{ 'selected' if current_service_type == 'ticket' }}>景点门票</option>
+            </select>
+            <select name="date_range">
+                <option value="">全部时间</option>
+                <option value="today" {{ 'selected' if current_date_range == 'today' }}>今天</option>
+                <option value="week" {{ 'selected' if current_date_range == 'week' }}>最近一周</option>
+                <option value="month" {{ 'selected' if current_date_range == 'month' }}>最近一月</option>
+                <option value="quarter" {{ 'selected' if current_date_range == 'quarter' }}>最近三月</option>
+            </select>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-search me-1"></i>筛选
+            </button>
+            {% if current_service_type or current_date_range %}
+            <a href="{{ url_for('orders.list', status=current_status) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-redo me-1"></i>重置
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- 列表 -->
+    <div class="ord-section">
+        <div class="ord-section-header">
+            <span>
+                <i class="fas fa-list me-1"></i>订单列表
+                {% if pagination %}<span class="count">共 {{ pagination.total }} 条</span>{% endif %}
+            </span>
+        </div>
+
+        {% if orders %}
+        {% for order in orders %}
+        <a href="{{ url_for('orders.order_detail', order_id=order.id) }}" class="ord-row">
+            <span class="ord-num">{{ order.order_number }}</span>
+            <span class="ord-name">
+                <span class="ord-type">{{ order.service_type }}</span>{{ order.service_name }}
+            </span>
+            <span class="ord-status {{ order.status }}">{{ order.status_display }}</span>
+            <span class="ord-amount">{{ order.currency }} {{ "%.0f"|format(order.total_amount) }}</span>
+            <span class="ord-date">{{ order.created_at.strftime('%m-%d %H:%M') }}</span>
+            {% if order.status == 'pending' %}
+            <button type="button" class="ord-cancel-btn" onclick="event.preventDefault(); event.stopPropagation(); cancelOrder({{ order.id }});">
+                取消
+            </button>
+            {% endif %}
+        </a>
+        {% endfor %}
+
+        {# 分页 #}
+        {% if pagination and pagination.pages > 1 %}
+        <nav class="pt-2 pb-2 px-3">
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('orders.list', page=pagination.prev_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">
+                        <i class="fas fa-chevron-left"></i>
                     </a>
-                </div>
+                </li>
                 {% endif %}
-            </div>
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                            <a class="page-link" href="{{ url_for('orders.list', page=page_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('orders.list', page=pagination.next_num, status=current_status, service_type=current_service_type, date_range=current_date_range) }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="ord-empty">
+            <i class="fas fa-shopping-cart d-block"></i>
+            <p>暂无{% if current_status %}该状态的{% endif %}订单</p>
+            <a href="{{ url_for('member.services') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i>申请服务
+            </a>
         </div>
+        {% endif %}
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
 function cancelOrder(orderId) {
-    if (confirm('确定要取消这个订单吗？此操作不可恢复。')) {
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/member/orders/' + orderId + '/cancel';
-        var csrf = document.querySelector('meta[name=csrf-token]');
-        if (csrf) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'csrf_token';
-            input.value = csrf.getAttribute('content');
-            form.appendChild(input);
-        }
-        document.body.appendChild(form);
-        form.submit();
+    if (!confirm('确定要取消这个订单吗？此操作不可恢复。')) return;
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/member/orders/' + orderId + '/cancel';
+    var csrf = document.querySelector('meta[name=csrf-token]');
+    if (csrf) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrf_token';
+        input.value = csrf.getAttribute('content');
+        form.appendChild(input);
     }
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 {% endblock %}

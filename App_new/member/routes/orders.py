@@ -303,7 +303,27 @@ def order_detail(order_id):
             from App_new.shared.models.system_config import SystemConfig
             payment_config = SystemConfig.get_payment_config()
 
-        return render_template('member/order/order_detail.html', order=order, payment_config=payment_config)
+        # 从 notes 抽取系统自动记录（[客户已确认付款 ...]、[催促] ...），
+        # 作为"订单处理记录"展示。员工手写备注（非括号形式）不暴露给客户。
+        import re
+        processing_log = []
+        if order.notes:
+            pattern = re.compile(r'\[([^\]]+)\](?:\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}))?')
+            for m in pattern.finditer(order.notes):
+                content = m.group(1).strip()
+                trailing = m.group(2)
+                # 形如 "客户已确认付款 2026-04-16 23:48" → 拆出动作和时间
+                inner = re.match(r'^(.+?)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})$', content)
+                if inner:
+                    action, timestamp = inner.group(1).strip(), inner.group(2)
+                else:
+                    action, timestamp = content, trailing or ''
+                processing_log.append({'action': action, 'timestamp': timestamp})
+
+        return render_template('member/order/order_detail.html',
+                               order=order,
+                               payment_config=payment_config,
+                               processing_log=processing_log)
     except Exception as e:
         current_app.logger.error(f'加载订单详情失败: {str(e)}')
         flash('加载订单详情失败', 'error')
@@ -438,7 +458,8 @@ def confirm_payment(order_id):
         if order.status != 'awaiting_payment':
             return jsonify({'success': False, 'message': '订单状态不正确'}), 400
 
-        # 添加付款备注，状态不变，等待员工确认
+        # 状态推进到 "待核款"，等待员工核对
+        order.status = OrderStatus.PAID.value
         order.notes = (order.notes or '') + f'\n[客户已确认付款 {datetime.utcnow().strftime("%Y-%m-%d %H:%M")}]'
         order.updated_at = datetime.utcnow()
         db.session.commit()

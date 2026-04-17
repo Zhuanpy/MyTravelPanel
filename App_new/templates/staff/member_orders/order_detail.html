@@ -11,7 +11,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <style>
-    .od-wrap { max-width: 960px; }
+    .od-wrap { max-width: 960px; margin: 0 auto; }
 
     /* 顶部摘要条 */
     .od-summary {
@@ -32,6 +32,7 @@
     }
     .badge-status.pending { background: #fef3c7; color: #b45309; }
     .badge-status.awaiting_payment { background: #dbeafe; color: #2563eb; }
+    .badge-status.paid { background: #f97316; color: #fff; box-shadow: 0 0 0 2px #fed7aa; }
     .badge-status.confirmed { background: #dcfce7; color: #16a34a; }
     .badge-status.in_progress { background: #ede9fe; color: #7c3aed; }
     .badge-status.completed { background: #dcfce7; color: #16a34a; }
@@ -39,8 +40,22 @@
     .badge-status.draft { background: #f3f4f6; color: #6b7280; }
     .badge-status.refunded { background: #f3f4f6; color: #374151; }
 
-    /* 两栏布局 */
-    .od-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1rem; }
+    /* 上下结构布局 */
+    .od-layout { display: block; }
+    /* 右侧操作面板变为横向两列，卡片等高 */
+    .od-ops-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+    .od-ops-grid > .od-card {
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    /* 内部备注：textarea 撑满卡片剩余空间 */
+    .od-ops-grid .notes-card textarea { flex: 1 1 auto; }
 
     /* 通用卡片 */
     .od-card {
@@ -77,6 +92,85 @@
     .status-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .status-actions .btn { font-size: 0.73rem; padding: 0.25rem 0.6rem; border-radius: 5px; }
 
+    /* 订单流程步骤条 */
+    .status-flow {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin: 0.25rem 0 1.25rem;
+        gap: 0;
+        position: relative;
+    }
+    .flow-step {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+    }
+    .flow-step .flow-dot {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: #e5e7eb; color: #9ca3af;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.72rem; font-weight: 700;
+        border: 2px solid #e5e7eb;
+        transition: all 0.2s;
+    }
+    .flow-step .flow-label {
+        margin-top: 0.35rem;
+        font-size: 0.72rem;
+        color: #9ca3af;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .flow-step .flow-time {
+        margin-top: 0.2rem;
+        font-size: 0.68rem;
+        color: #9ca3af;
+        text-align: center;
+        white-space: nowrap;
+        letter-spacing: -0.02em;
+    }
+    .flow-step.done .flow-time,
+    .flow-step.current .flow-time { color: #6b7280; }
+    /* 已完成：绿色 */
+    .flow-step.done .flow-dot {
+        background: #16a34a; color: #fff; border-color: #16a34a;
+    }
+    .flow-step.done .flow-label { color: #16a34a; font-weight: 600; }
+    /* 当前步骤：橙色高亮 + 外圈 */
+    .flow-step.current .flow-dot {
+        background: #f97316; color: #fff; border-color: #f97316;
+        box-shadow: 0 0 0 4px #fed7aa;
+    }
+    .flow-step.current .flow-label { color: #c2410c; font-weight: 700; }
+    /* 连接线：放在每个 step 左侧（第一个除外） */
+    .flow-step:not(:first-child)::before {
+        content: '';
+        position: absolute;
+        top: 13px;
+        right: 50%;
+        left: -50%;
+        height: 2px;
+        background: #e5e7eb;
+        z-index: -1;
+    }
+    .flow-step.done:not(:first-child)::before,
+    .flow-step.current:not(:first-child)::before {
+        background: #16a34a;
+    }
+
+    /* 已取消/已退款 横幅 */
+    .status-banner {
+        padding: 0.6rem 0.9rem; border-radius: 6px;
+        font-size: 0.85rem; font-weight: 600;
+        margin-bottom: 0.75rem;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .status-banner.cancelled { background: #fee2e2; color: #dc2626; }
+    .status-banner.refunded { background: #f3f4f6; color: #374151; }
+
     .price-row {
         display: flex; justify-content: space-between; align-items: center;
         padding: 0.3rem 0; font-size: 0.82rem;
@@ -98,8 +192,8 @@
     }
     .timeline .tl-label { font-weight: 500; color: #374151; }
 
-    @media (max-width: 992px) {
-        .od-layout { grid-template-columns: 1fr; }
+    @media (max-width: 768px) {
+        .od-ops-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 576px) {
         .od-summary { flex-direction: column; align-items: flex-start; }
@@ -123,7 +217,7 @@
     </div>
 
     <div class="od-layout">
-        <!-- 左栏 -->
+        <!-- 主内容 -->
         <div>
             <!-- 客户信息 -->
             <div class="od-card">
@@ -175,25 +269,56 @@
             </div>
             {% endif %}
 
-            <!-- 备注（如有） -->
-            {% if order.notes or order.description %}
-            <div class="od-card">
-                <div class="od-card-title"><i class="fas fa-sticky-note"></i> 备注</div>
-                {% if order.description %}
-                <div style="font-size: 0.85rem; color: #374151; margin-bottom: 0.5rem;">{{ order.description }}</div>
-                {% endif %}
-                {% if order.notes %}
-                <div style="font-size: 0.85rem; color: #374151;">{{ order.notes }}</div>
-                {% endif %}
-            </div>
-            {% endif %}
         </div>
 
-        <!-- 右栏：操作 -->
+        <!-- 操作面板：状态操作全宽，下面三列（价格 / 时间 / 内部备注） -->
         <div>
-            <!-- 状态管理 -->
+            <!-- 状态管理（全宽） -->
             <div class="od-card">
-                <div class="od-card-title"><i class="fas fa-exchange-alt"></i> 状态操作</div>
+                <div class="od-card-title"><i class="fas fa-exchange-alt"></i> 订单流程</div>
+
+                {# 状态 → 步骤序号映射：达到该序号及之前的步骤视为已完成，当前状态高亮 #}
+                {% set flow_map = {'pending': 1, 'awaiting_payment': 2, 'paid': 3, 'confirmed': 4, 'in_progress': 5, 'completed': 6} %}
+                {% set current_step = flow_map.get(order.status, 0) %}
+
+                {% if order.status == 'cancelled' %}
+                <div class="status-banner cancelled">
+                    <i class="fas fa-times-circle"></i> 订单已取消
+                    {% if order.cancelled_at %}<span class="ms-2" style="font-weight:400; opacity:0.75;">{{ order.cancelled_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+                </div>
+                {% elif order.status == 'refunded' %}
+                <div class="status-banner refunded">
+                    <i class="fas fa-undo"></i> 订单已退款
+                    {% if order.updated_at %}<span class="ms-2" style="font-weight:400; opacity:0.75;">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+                </div>
+                {% else %}
+                {# 每个步骤关联的时间戳：仅对有明确字段的步骤显示 #}
+                {% set step_times = {
+                    1: order.created_at,
+                    4: order.confirmed_at,
+                    6: order.completed_at
+                } %}
+                <div class="status-flow">
+                    {% set steps = [(1, '待处理'), (2, '待付款'), (3, '待核款'), (4, '已确认'), (5, '处理中'), (6, '已完成')] %}
+                    {% for idx, label in steps %}
+                    <div class="flow-step {% if idx < current_step %}done{% elif idx == current_step %}current{% endif %}">
+                        <div class="flow-dot">
+                            {% if idx < current_step %}<i class="fas fa-check"></i>{% else %}{{ idx }}{% endif %}
+                        </div>
+                        <div class="flow-label">{{ label }}</div>
+                        {% if step_times.get(idx) and idx <= current_step %}
+                        <div class="flow-time">{{ step_times.get(idx).strftime('%m-%d %H:%M') }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if order.updated_at %}
+                <div class="text-muted" style="font-size:0.72rem; text-align:right; margin-top:-0.5rem;">
+                    最后更新：{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+                {% endif %}
+                {% endif %}
+
                 <div class="status-actions">
                     {% if order.status == 'pending' %}
                     <button class="btn btn-info btn-sm" onclick="updateStatus('awaiting_payment')">
@@ -208,6 +333,19 @@
                     {% elif order.status == 'awaiting_payment' %}
                     <button class="btn btn-success btn-sm" onclick="updateStatus('confirmed')">
                         <i class="fas fa-check-circle"></i> 确认收款
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="updateStatus('cancelled')">
+                        <i class="fas fa-times"></i> 取消
+                    </button>
+                    {% elif order.status == 'paid' %}
+                    <div class="w-100 mb-2" style="background:#fef3c7; color:#92400e; padding:0.5rem 0.75rem; border-radius:6px; font-size:0.78rem;">
+                        <i class="fas fa-info-circle me-1"></i>客户已点击"我已付款"，请核对账户后点击"确认收款"
+                    </div>
+                    <button class="btn btn-success btn-sm" onclick="updateStatus('confirmed')">
+                        <i class="fas fa-check-circle"></i> 确认收款
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="updateStatus('awaiting_payment')">
+                        <i class="fas fa-undo"></i> 未收到，退回待付款
                     </button>
                     <button class="btn btn-danger btn-sm" onclick="updateStatus('cancelled')">
                         <i class="fas fa-times"></i> 取消
@@ -235,77 +373,72 @@
                 </div>
             </div>
 
-            <!-- 价格管理 -->
+            <!-- 下方三列：价格 / 时间 / 内部备注 -->
+            <div class="od-ops-grid">
+            <!-- 价格管理：仅"待处理"阶段可编辑，之后锁定 -->
+            {% set price_editable = order.status in ('pending', 'draft') %}
             <div class="od-card">
-                <div class="od-card-title"><i class="fas fa-dollar-sign"></i> 价格 ({{ order.currency }})</div>
+                <div class="od-card-title">
+                    <i class="fas fa-dollar-sign"></i> 价格 ({{ order.currency }})
+                    {% if not price_editable %}
+                    <span class="ms-auto" style="font-size:0.7rem; color:#9ca3af; font-weight:500;">
+                        <i class="fas fa-lock"></i> 已锁定
+                    </span>
+                    {% endif %}
+                </div>
                 <div class="price-row">
                     <span>基础价格</span>
+                    {% if price_editable %}
                     <input type="number" step="0.01" class="price-input" id="basePrice"
                            value="{{ '%.2f'|format(order.base_price) }}">
+                    {% else %}
+                    <span style="font-weight:500; color:#374151;">{{ "%.2f"|format(order.base_price) }}</span>
+                    {% endif %}
                 </div>
                 <div class="price-row">
                     <span>附加费用</span>
+                    {% if price_editable %}
                     <input type="number" step="0.01" class="price-input" id="additionalFees"
                            value="{{ '%.2f'|format(order.additional_fees or 0) }}">
+                    {% else %}
+                    <span style="font-weight:500; color:#374151;">{{ "%.2f"|format(order.additional_fees or 0) }}</span>
+                    {% endif %}
                 </div>
                 <div class="price-row">
                     <span>折扣</span>
+                    {% if price_editable %}
                     <input type="number" step="0.01" class="price-input" id="discountAmount"
                            value="{{ '%.2f'|format(order.discount_amount or 0) }}">
+                    {% else %}
+                    <span style="font-weight:500; color:#374151;">{{ "%.2f"|format(order.discount_amount or 0) }}</span>
+                    {% endif %}
                 </div>
                 <div class="price-row total">
                     <span>总计</span>
                     <span class="price-val" id="totalDisplay">{{ "%.2f"|format(order.total_amount) }}</span>
                 </div>
+                {% if price_editable %}
                 <button class="btn btn-outline-primary btn-sm mt-2 w-100" onclick="updatePrice()" style="font-size:0.75rem;">
                     <i class="fas fa-save"></i> 保存价格
                 </button>
-            </div>
-
-            <!-- 时间线 -->
-            <div class="od-card">
-                <div class="od-card-title"><i class="fas fa-clock"></i> 时间</div>
-                <ul class="timeline">
-                    <li>
-                        <span class="tl-label">创建</span>
-                        <span>{{ order.created_at.strftime('%m-%d %H:%M') if order.created_at else '-' }}</span>
-                    </li>
-                    {% if order.confirmed_at %}
-                    <li>
-                        <span class="tl-label">确认</span>
-                        <span>{{ order.confirmed_at.strftime('%m-%d %H:%M') }}</span>
-                    </li>
-                    {% endif %}
-                    {% if order.completed_at %}
-                    <li>
-                        <span class="tl-label">完成</span>
-                        <span>{{ order.completed_at.strftime('%m-%d %H:%M') }}</span>
-                    </li>
-                    {% endif %}
-                    {% if order.cancelled_at %}
-                    <li>
-                        <span class="tl-label">取消</span>
-                        <span>{{ order.cancelled_at.strftime('%m-%d %H:%M') }}</span>
-                    </li>
-                    {% endif %}
-                    {% if order.updated_at %}
-                    <li>
-                        <span class="tl-label">更新</span>
-                        <span>{{ order.updated_at.strftime('%m-%d %H:%M') }}</span>
-                    </li>
-                    {% endif %}
-                </ul>
+                {% else %}
+                <div class="text-muted mt-2" style="font-size:0.72rem; background:#f9fafb; padding:0.4rem 0.6rem; border-radius:5px; line-height:1.4;">
+                    <i class="fas fa-info-circle me-1"></i>
+                    订单已进入「{{ order.status_display }}」阶段，价格已对客户确认，不可再修改。如需调整请先取消订单重新下单。
+                </div>
+                {% endif %}
             </div>
 
             <!-- 内部备注 -->
-            <div class="od-card">
+            <div class="od-card notes-card">
                 <div class="od-card-title"><i class="fas fa-pen"></i> 内部备注</div>
-                <textarea class="form-control form-control-sm" id="orderNotes" rows="2"
-                          placeholder="添加备注..." style="font-size: 0.78rem; border-radius: 5px;">{{ order.notes or '' }}</textarea>
+                <textarea class="form-control form-control-sm" id="orderNotes"
+                          placeholder="添加备注..." style="font-size: 0.78rem; border-radius: 5px; min-height: 180px; resize: vertical;">{{ order.notes or '' }}</textarea>
                 <button class="btn btn-outline-primary btn-sm mt-2 w-100" onclick="saveNotes()" style="font-size:0.75rem;">
                     <i class="fas fa-save"></i> 保存备注
                 </button>
             </div>
+            </div><!-- /.od-ops-grid -->
         </div>
     </div>
 </div>
@@ -319,8 +452,9 @@ var currency = '{{ order.currency }}';
 
 function updateStatus(status) {
     var labels = {
-        'awaiting_payment': '通知付款', 'confirmed': '确认收款', 'in_progress': '开始处理',
-        'completed': '完成', 'cancelled': '取消', 'refunded': '退款', 'pending': '重新打开'
+        'awaiting_payment': '通知付款', 'paid': '客户已付款', 'confirmed': '确认收款',
+        'in_progress': '开始处理', 'completed': '完成', 'cancelled': '取消',
+        'refunded': '退款', 'pending': '重新打开'
     };
     if (!confirm('确定要将订单状态改为「' + (labels[status] || status) + '」吗？')) return;
 

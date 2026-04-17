@@ -15,8 +15,9 @@ class OrderStatus(Enum):
     """订单状态枚举"""
     DRAFT = "draft"           # 草稿
     PENDING = "pending"       # 待处理
-    AWAITING_PAYMENT = "awaiting_payment"  # 待付款
-    CONFIRMED = "confirmed"   # 已确认
+    AWAITING_PAYMENT = "awaiting_payment"  # 待付款（等客户汇款）
+    PAID = "paid"             # 客户已付款（等员工核对）
+    CONFIRMED = "confirmed"   # 已确认（员工已核对收款）
     IN_PROGRESS = "in_progress"  # 处理中
     COMPLETED = "completed"   # 已完成
     CANCELLED = "cancelled"   # 已取消
@@ -91,6 +92,7 @@ class Order(db.Model):
             OrderStatus.DRAFT.value: '草稿',
             OrderStatus.PENDING.value: '待处理',
             OrderStatus.AWAITING_PAYMENT.value: '待付款',
+            OrderStatus.PAID.value: '待核款',
             OrderStatus.CONFIRMED.value: '已确认',
             OrderStatus.IN_PROGRESS.value: '处理中',
             OrderStatus.COMPLETED.value: '已完成',
@@ -106,6 +108,7 @@ class Order(db.Model):
             OrderStatus.DRAFT.value: 'secondary',
             OrderStatus.PENDING.value: 'warning',
             OrderStatus.AWAITING_PAYMENT.value: 'info',
+            OrderStatus.PAID.value: 'warning',
             OrderStatus.CONFIRMED.value: 'success',
             OrderStatus.IN_PROGRESS.value: 'primary',
             OrderStatus.COMPLETED.value: 'success',
@@ -121,7 +124,7 @@ class Order(db.Model):
     
     def can_cancel(self):
         """是否可以取消"""
-        return self.status in [OrderStatus.DRAFT.value, OrderStatus.PENDING.value, OrderStatus.AWAITING_PAYMENT.value, OrderStatus.CONFIRMED.value]
+        return self.status in [OrderStatus.DRAFT.value, OrderStatus.PENDING.value, OrderStatus.AWAITING_PAYMENT.value, OrderStatus.PAID.value, OrderStatus.CONFIRMED.value]
     
     def can_modify(self):
         """是否可以修改"""

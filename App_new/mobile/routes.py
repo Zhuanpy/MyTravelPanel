@@ -1239,17 +1239,6 @@ def book_ticket(product_id):
             if child_count > 0:
                 description += f", 儿童{child_count}人"
 
-            notes = json.dumps({
-                'product_id': product_id,
-                'variant_id': variant.id,
-                'variant_name': variant.variant_name,
-                'visit_date': visit_date,
-                'adult_count': adult_count,
-                'child_count': child_count,
-                'adult_price': adult_price,
-                'child_price': child_price,
-            }, ensure_ascii=False)
-
             order = Order(
                 order_number=order_number,
                 user_id=current_user.id,
@@ -1264,9 +1253,32 @@ def book_ticket(product_id):
                 customer_email=contact_email,
                 customer_phone=contact_phone,
                 special_requirements=special_requirements,
-                notes=notes
             )
             db.session.add(order)
+            db.session.flush()
+
+            # 订单项：结构化数据放到 properties（与桌面端保持一致）
+            from App_new.member.models.order import OrderItem
+            order_item = OrderItem(
+                order_id=order.id,
+                item_name=f"{product.product_name} - {variant.variant_name}",
+                item_description=location,
+                item_type='ticket',
+                quantity=adult_count + child_count,
+                unit_price=adult_price,
+                total_price=total_amount,
+                properties={
+                    'product_id': product_id,
+                    'variant_id': variant.id,
+                    'variant_name': variant.variant_name,
+                    'visit_date': visit_date,
+                    'adult_count': adult_count,
+                    'child_count': child_count,
+                    'adult_price': adult_price,
+                    'child_price': child_price,
+                }
+            )
+            db.session.add(order_item)
             db.session.commit()
 
             flash('下单成功！我们将尽快与您联系确认', 'success')
@@ -1788,6 +1800,7 @@ def cart_checkout():
         return jsonify({'success': False, 'message': '请填写联系人信息'})
 
     try:
+        from App_new.member.models.order import OrderItem
         for item in items:
             props = item.properties or {}
             adult_total = float(item.adult_price or 0) * (item.adult_qty or 0)
@@ -1799,17 +1812,6 @@ def cart_checkout():
             description = f"景点门票: {props.get('product_name', '')}\n票种: {props.get('variant_name', '')}\n地点: {props.get('location', '')}\n游玩日期: {item.visit_date or '待定'}\n人数: 成人{item.adult_qty}人"
             if item.child_qty > 0:
                 description += f", 儿童{item.child_qty}人"
-
-            notes = json.dumps({
-                'product_id': item.product_id,
-                'variant_id': item.variant_id,
-                'variant_name': props.get('variant_name'),
-                'visit_date': item.visit_date,
-                'adult_count': item.adult_qty,
-                'child_count': item.child_qty,
-                'adult_price': float(item.adult_price),
-                'child_price': float(item.child_price),
-            }, ensure_ascii=False)
 
             order = Order(
                 order_number=order_number,
@@ -1824,9 +1826,31 @@ def cart_checkout():
                 customer_name=contact_name,
                 customer_email=contact_email,
                 customer_phone=contact_phone,
-                notes=notes
             )
             db.session.add(order)
+            db.session.flush()
+
+            # 订单项：结构化数据放到 properties
+            order_item = OrderItem(
+                order_id=order.id,
+                item_name=f"{props.get('product_name', '景点门票')} - {props.get('variant_name', '')}".rstrip(' -'),
+                item_description=props.get('location', ''),
+                item_type='ticket',
+                quantity=(item.adult_qty or 0) + (item.child_qty or 0),
+                unit_price=float(item.adult_price or 0),
+                total_price=total_amount,
+                properties={
+                    'product_id': item.product_id,
+                    'variant_id': item.variant_id,
+                    'variant_name': props.get('variant_name'),
+                    'visit_date': item.visit_date,
+                    'adult_count': item.adult_qty,
+                    'child_count': item.child_qty,
+                    'adult_price': float(item.adult_price or 0),
+                    'child_price': float(item.child_price or 0),
+                }
+            )
+            db.session.add(order_item)
 
         # 清空购物车
         CartItem.query.filter_by(user_id=current_user.id).delete()
@@ -2513,19 +2537,6 @@ def book_tour(product_id):
             if infant_count > 0:
                 description += f", 婴儿{infant_count}人"
 
-            # 备注信息
-            notes = json.dumps({
-                'product_id': product_id,
-                'product_code': product.product_code,
-                'travel_date': travel_date,
-                'adult_count': adult_count,
-                'child_count': child_count,
-                'infant_count': infant_count,
-                'adult_price': base_price,
-                'child_price': child_price,
-                'infant_price': infant_price
-            }, ensure_ascii=False)
-
             # 创建订单
             order = Order(
                 order_number=order_number,
@@ -2541,10 +2552,34 @@ def book_tour(product_id):
                 customer_email=contact_email,
                 customer_phone=contact_phone,
                 special_requirements=special_requirements,
-                notes=notes
             )
 
             db.session.add(order)
+            db.session.flush()
+
+            # 订单项：结构化数据放到 properties（与桌面端保持一致）
+            from App_new.member.models.order import OrderItem
+            order_item = OrderItem(
+                order_id=order.id,
+                item_name=product.product_name,
+                item_description=f"{destination} | {duration}",
+                item_type='tour_package',
+                quantity=adult_count + child_count + infant_count,
+                unit_price=base_price,
+                total_price=total_amount,
+                properties={
+                    'product_id': product_id,
+                    'product_code': product.product_code,
+                    'travel_date': travel_date,
+                    'adult_count': adult_count,
+                    'child_count': child_count,
+                    'infant_count': infant_count,
+                    'adult_price': base_price,
+                    'child_price': child_price,
+                    'infant_price': infant_price,
+                }
+            )
+            db.session.add(order_item)
             db.session.commit()
 
             flash('预订提交成功！我们将尽快与您联系确认', 'success')

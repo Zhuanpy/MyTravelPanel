@@ -2714,6 +2714,7 @@ def member_order_list():
         'total': Order.query.count(),
         'pending': Order.query.filter_by(status=OrderStatus.PENDING.value).count(),
         'awaiting_payment': Order.query.filter_by(status=OrderStatus.AWAITING_PAYMENT.value).count(),
+        'paid': Order.query.filter_by(status=OrderStatus.PAID.value).count(),
         'confirmed': Order.query.filter_by(status=OrderStatus.CONFIRMED.value).count(),
         'in_progress': Order.query.filter_by(status=OrderStatus.IN_PROGRESS.value).count(),
         'completed': Order.query.filter_by(status=OrderStatus.COMPLETED.value).count(),
@@ -2787,12 +2788,20 @@ def member_order_update_status(order_id):
 @login_required
 @staff_only
 def member_order_update_price(order_id):
-    """更新订单价格"""
-    from ...member.models.order import Order
+    """更新订单价格（仅 pending/draft 阶段允许修改）"""
+    from ...member.models.order import Order, OrderStatus
     from ...exts import db
     from decimal import Decimal
 
     order = Order.query.get_or_404(order_id)
+
+    # 一旦通知客户付款，价格就对客户固化，不允许再改
+    if order.status not in (OrderStatus.DRAFT.value, OrderStatus.PENDING.value):
+        return jsonify({
+            'success': False,
+            'message': f'订单已进入「{order.status_display}」阶段，价格已锁定'
+        }), 400
+
     data = request.get_json()
 
     try:

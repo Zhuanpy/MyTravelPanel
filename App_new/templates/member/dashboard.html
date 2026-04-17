@@ -7,28 +7,33 @@
 {% block extra_css %}
 {{ super() }}
 <style>
-    .dash-wrap { max-width: 900px; }
+    .dash-wrap { width: 100%; }
 
-    /* 统计条 */
+    /* 统计条：一行紧凑样式 */
     .dash-stats {
         display: flex;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
-        flex-wrap: wrap;
-    }
-    .dash-stat {
-        flex: 1;
-        min-width: 120px;
         background: #fff;
         border: 1px solid #e9ecef;
         border-radius: 8px;
-        padding: 0.75rem 1rem;
-        text-align: center;
+        margin-bottom: 1rem;
+        overflow: hidden;
     }
+    .dash-stat {
+        flex: 1;
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.55rem 0.75rem;
+        border-right: 1px solid #f1f5f9;
+        min-width: 0;
+    }
+    .dash-stat:last-child { border-right: none; }
     .dash-stat-num {
-        font-size: 1.25rem;
+        font-size: 1rem;
         font-weight: 700;
         color: #333;
+        line-height: 1.2;
     }
     .dash-stat-num.primary { color: var(--primary-color, #48b968); }
     .dash-stat-num.warning { color: #d97706; }
@@ -36,7 +41,13 @@
     .dash-stat-label {
         font-size: 0.75rem;
         color: #6c757d;
-        margin-top: 0.15rem;
+    }
+
+    @media (max-width: 576px) {
+        .dash-stats { flex-wrap: wrap; }
+        .dash-stat { flex: 1 1 50%; border-bottom: 1px solid #f1f5f9; }
+        .dash-stat:nth-child(even) { border-right: none; }
+        .dash-stat:nth-last-child(-n+2) { border-bottom: none; }
     }
 
     /* 通用 section */
@@ -137,7 +148,6 @@
     .dash-empty p { font-size: 0.85rem; margin-top: 0.5rem; }
 
     @media (max-width: 576px) {
-        .dash-stat { min-width: 0; flex: 1 1 45%; }
         .dash-order-num { min-width: 100px; font-size: 0.78rem; }
         .dash-order-date { display: none; }
     }

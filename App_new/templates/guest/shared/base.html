@@ -22,12 +22,19 @@
             --bg-light: #f8f9fa;
         }
 
+        html, body { height: 100%; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--text-dark);
             padding-top: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
+        /* Sticky footer：内容区至少撑满剩余高度，把 footer 推到底部 */
+        body > main { flex: 1 0 auto; }
+        body > footer { flex-shrink: 0; }
 
         /* 导航栏样式 */
         .navbar {
