@@ -12,8 +12,9 @@
         已确认 {{ transactions|selectattr('is_confirmed', 'equalto', True)|list|length }}
         {% if pagination %} | 第{{ pagination.page }}/{{ pagination.pages }}页{% endif %}
     </div>
-    <!-- 右侧：批量操作 -->
+    <!-- 右侧：批量操作（统计文字放在按钮组左侧，避免增长时挤压按钮） -->
     <div class="batch-controls d-flex align-items-center gap-1">
+        <span class="text-muted small me-2 text-end" id="selectedCount">已选 0</span>
         <button class="btn btn-outline-primary btn-sm" id="selectAllBtn" title="选择所有未确认的交易">一键选择</button>
         <button class="btn btn-success btn-sm" id="batchConfirmBtn" title="确认所有选中的交易">一键确认</button>
         <span class="text-muted small mx-1">|</span>
@@ -21,7 +22,6 @@
         <button class="btn btn-warning btn-sm" id="batchUnlockBtn" title="解锁所有选中的锁定交易">一键解锁</button>
         <span class="text-muted small mx-1">|</span>
         <button class="btn btn-outline-secondary btn-sm" id="clearSelectionBtn" title="清除所有选择">重置</button>
-        <span class="text-muted small" id="selectedCount">已选 0</span>
     </div>
 </div>
 

@@ -60,9 +60,27 @@
     .btn-group-sm .btn { padding: 1px 4px; font-size: 10px; }
 
     /* 银行选择器紧凑 */
-    .bank-selector { margin-bottom: 12px; }
+    .bank-selector {
+        margin-bottom: 12px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 10px 14px;
+    }
+    .bank-selector .toolbar-row { row-gap: 6px; }
+    .bank-selector .toolbar-label {
+        font-size: 12px; font-weight: 600; color: #6c757d;
+        display: inline-block;
+    }
+    .bank-selector .toolbar-divider {
+        display: inline-block;
+        width: 1px;
+        height: 20px;
+        background-color: #dee2e6;
+        margin: 0 6px;
+    }
     .bank-btn {
-        margin-right: 6px;
+        margin-right: 0;
         padding: 4px 10px;
         border: 1px solid #dee2e6;
         border-radius: 4px;
@@ -128,15 +146,62 @@
 
 {% block content %}
 <div class="bank-statement-container">
-    <!-- 银行和账户选择器 + 数据导入 -->
+    <!-- 工具栏：左侧（银行+账户+导入），右侧（对比工具） -->
     <div class="bank-selector mb-4">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-            <!-- 左侧：银行选择 -->
-            <div class="d-flex align-items-center gap-2">
+        <div class="toolbar-row d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <!-- 左侧：银行 + 账户 + 导入 -->
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="toolbar-label">银行：</span>
                 <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="bank-btn {{ 'active' if bank_name == 'OCBC' else '' }}">OCBC银行</a>
                 <a href="{{ url_for('uob_routes.uob_bank') }}" class="bank-btn {{ 'active' if bank_name == 'UOB' else '' }}">UOB银行</a>
                 <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="bank-btn {{ 'active' if bank_name == 'CMB' else '' }}">招商银行</a>
-                <span class="mx-2 text-muted">|</span>
+
+                <span class="toolbar-divider"></span>
+
+                <span class="toolbar-label">账户：</span>
+                <select id="global-account-selector" class="form-select form-select-sm" style="width: 160px;" onchange="switchAccount(this.value)">
+                    <option value="">全部账户</option>
+                    {% for acc_name in account_name_options %}
+                    <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
+                    {% endfor %}
+                    <option value="__new__">+ 新建账户</option>
+                </select>
+                <input type="text" id="new-account-name-input" class="form-control form-control-sm" placeholder="新账户名称" style="width: 140px; display: none;">
+
+                <span class="toolbar-divider"></span>
+
+                <span class="toolbar-label">导入：</span>
+                <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx,.csv" style="display: none;">
+                <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-file-excel"></i> 选择文件
+                </button>
+                <span id="{{ bank_name.lower() }}-file-info" class="text-muted small" style="max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success btn-sm" disabled>
+                    <i class="fas fa-upload"></i> 入库
+                </button>
+                <form action="{{ url_for('statement_common_routes.open_statement_folder', bank_name=bank_name) }}" method="post" class="d-inline m-0">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-folder-open"></i> 打开{{ bank_name }}文件夹
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 最近对账单 -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <h5 class="mb-0">最近对账单</h5>
+                {% if statements and statements|length > 10 %}
+                <button type="button" id="toggleStatementsBtn" class="btn btn-link btn-sm p-0" onclick="toggleStatementsTable()">
+                    展开全部 ({{ statements|length }})
+                </button>
+                {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="toolbar-label">对比：</span>
                 <a href="{{ url_for('reconciliation.bank_receipt_compare', bank_name=bank_name, account_name=filters.account_name or '') }}" class="btn btn-outline-info btn-sm">
                     <i class="fas fa-balance-scale"></i> 收款对比
                 </a>
@@ -144,54 +209,11 @@
                     <i class="fas fa-file-invoice-dollar"></i> 支出对比
                 </a>
             </div>
-            <!-- 右侧：账户选择 + 数据导入 -->
-            <div class="d-flex align-items-center gap-3">
-                <!-- 账户选择 -->
-                <div class="d-flex align-items-center gap-2">
-                    <label class="form-label mb-0 fw-bold">账户：</label>
-                    <select id="global-account-selector" class="form-select" style="width: 180px;" onchange="switchAccount(this.value)">
-                        <option value="">全部账户</option>
-                        {% for acc_name in account_name_options %}
-                        <option value="{{ acc_name }}" {% if filters.account_name == acc_name %}selected{% endif %}>{{ acc_name }}</option>
-                        {% endfor %}
-                        <option value="__new__">+ 新建账户</option>
-                    </select>
-                    <input type="text" id="new-account-name-input" class="form-control" placeholder="新账户名称" style="width: 150px; display: none;">
-                </div>
-                <!-- 数据导入 -->
-                <div class="d-flex align-items-center gap-2">
-                    <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx,.csv" style="display: none;">
-                    <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-file-excel"></i> 选择文件
-                    </button>
-                    <span id="{{ bank_name.lower() }}-file-info" class="text-muted small" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-                    <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success btn-sm" disabled>
-                        <i class="fas fa-upload"></i> 入库
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 最近对账单 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">最近对账单</h5>
         </div>
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <form action="{{ url_for('statement_common_routes.open_statement_folder', bank_name=bank_name) }}" method="post">
-                        <button type="submit" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-folder-open"></i> 打开{{ bank_name }}文件夹
-                        </button>
-                    </form>
-                </div>
-            </div>
-            
             {% if statements %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
+                    <table class="table table-striped table-hover" id="statementsTable" data-collapsed="1">
                         <thead class="table-dark">
                             <tr>
                                 <th>对账单号</th>
@@ -205,7 +227,7 @@
                         </thead>
                         <tbody>
                             {% for s in statements %}
-                            <tr>
+                            <tr {% if loop.index > 10 %}class="statement-extra" style="display: none;"{% endif %}>
                                 <td>{{ s.statement_number }}</td>
                                 <td>
                                     <span class="account-name-display" data-statement-id="{{ s.id }}">{{ s.account_name }}</span>
@@ -453,6 +475,18 @@
 
 <!-- JavaScript -->
 <script>
+// 切换"最近对账单"展开/收起
+function toggleStatementsTable() {
+    const table = document.getElementById('statementsTable');
+    const btn = document.getElementById('toggleStatementsBtn');
+    if (!table || !btn) return;
+    const collapsed = table.dataset.collapsed === '1';
+    const extras = table.querySelectorAll('.statement-extra');
+    extras.forEach(tr => { tr.style.display = collapsed ? '' : 'none'; });
+    table.dataset.collapsed = collapsed ? '0' : '1';
+    btn.textContent = collapsed ? '收起' : `展开全部 (${extras.length + 10})`;
+}
+
 // 全局账户切换函数
 function switchAccount(accountName) {
     const newAccountInput = document.getElementById('new-account-name-input');
