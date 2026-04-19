@@ -1345,7 +1345,13 @@ td .btn-group {
     .navbar-collapse {
         display: flex !important;
     }
-    
+
+    /* 防止 769-992px 区间菜单项竖排 */
+    .navbar-collapse .navbar-nav {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+    }
+
     .navbar-toggler {
         display: none !important;
     }
