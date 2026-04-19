@@ -53,22 +53,14 @@
             <div class="row g-2">
                 <div class="col-3">
                     <label class="form-label small mb-1">国家 <span class="text-danger">*</span></label>
+                    {# value 统一用 country_name_EN.upper()，与 route 归一化逻辑对齐；显示用中文+英文 #}
                     <select name="country" id="country" class="form-select form-select-sm" required onchange="updateDescription()">
                         <option value="">-- 请选择 --</option>
-                        <option value="CHINA" {% if extra_info and extra_info.country == 'CHINA' %}selected{% endif %}>China</option>
-                        <option value="INDIA" {% if extra_info and extra_info.country == 'INDIA' %}selected{% endif %}>India</option>
-                        <option value="VIETNAM" {% if extra_info and extra_info.country == 'VIETNAM' %}selected{% endif %}>Vietnam</option>
-                        <option value="THAILAND" {% if extra_info and extra_info.country == 'THAILAND' %}selected{% endif %}>Thailand</option>
-                        <option value="JAPAN" {% if extra_info and extra_info.country == 'JAPAN' %}selected{% endif %}>Japan</option>
-                        <option value="KOREA" {% if extra_info and extra_info.country == 'KOREA' %}selected{% endif %}>South Korea</option>
-                        <option value="AUSTRALIA" {% if extra_info and extra_info.country == 'AUSTRALIA' %}selected{% endif %}>Australia</option>
-                        <option value="USA" {% if extra_info and extra_info.country == 'USA' %}selected{% endif %}>United States</option>
-                        <option value="UK" {% if extra_info and extra_info.country == 'UK' %}selected{% endif %}>United Kingdom</option>
-                        <option value="SCHENGEN" {% if extra_info and extra_info.country == 'SCHENGEN' %}selected{% endif %}>Schengen</option>
-                        <option value="MALAYSIA" {% if extra_info and extra_info.country == 'MALAYSIA' %}selected{% endif %}>Malaysia</option>
-                        <option value="INDONESIA" {% if extra_info and extra_info.country == 'INDONESIA' %}selected{% endif %}>Indonesia</option>
-                        <option value="PHILIPPINES" {% if extra_info and extra_info.country == 'PHILIPPINES' %}selected{% endif %}>Philippines</option>
-                        <option value="OTHER" {% if extra_info and extra_info.country == 'OTHER' %}selected{% endif %}>Other</option>
+                        {% for c in countries %}
+                        {% set c_val = c.country_name_EN|upper %}
+                        <option value="{{ c_val }}" {% if extra_info and extra_info.country == c_val %}selected{% endif %}>{{ c.country_name_CN }} ({{ c.country_name_EN }})</option>
+                        {% endfor %}
+                        <option value="OTHER" {% if extra_info and extra_info.country == 'OTHER' %}selected{% endif %}>其他 (Other)</option>
                     </select>
                 </div>
                 <div class="col-3">

@@ -40,6 +40,30 @@ def _parse_departure_date(value):
         return None
 
 
+def _normalize_country_for_display(raw_value, countries):
+    """把 extra_info['country'] 的各种历史格式统一成 country_name_EN.upper()
+
+    历史上 country 字段混用：
+    - 英文 enum（'CHINA' / 'AUSTRALIA' / 'KOREA'）— 早期写死下拉值
+    - 中文名（'中国' / '台湾' / '澳洲'）— 更早期或另一批数据
+    - 短别名（'UK' / 'USA'）— 与 VisaCountries.country_name_EN 不一致
+    - 'OTHER' — 兜底
+
+    返回统一后的 uppercase EN 名（匹配模板 dropdown 的 value），便于回显选中。
+    """
+    if not raw_value:
+        return ''
+    v = str(raw_value).strip()
+    legacy_aliases = {'UK': 'UNITED KINGDOM', 'USA': 'UNITED STATES'}
+    if v in legacy_aliases:
+        return legacy_aliases[v]
+    cn_to_en_upper = {c.country_name_CN: c.country_name_EN.upper() for c in countries}
+    if v in cn_to_en_upper:
+        return cn_to_en_upper[v]
+    # 已是 EN upper 或未知（如 'OTHER'）
+    return v.upper() if v.isascii() else v
+
+
 def _build_pax_names_display(pax_name_ids):
     """根据 ProjectMember ID 列表生成显示串，失败返回空串"""
     if not pax_name_ids:
@@ -1789,18 +1813,23 @@ def visa_ref_detail(ref_id):
         visa_info.setdefault('country', visa_project.country or '')
         visa_info.setdefault('visa_type', visa_project.visa_type or '')
         visa_info.setdefault('pax_names_display', visa_project.applicant_name or '')
-    
+
+    # 归一化 country 字段（历史混合格式 -> country_name_EN.upper()）
+    countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+    visa_info['country'] = _normalize_country_for_display(visa_info.get('country'), countries)
+
     # 获取业务类型名称
     business_type = BusinessType.query.get(ref.ref_type_id)
     ref_type_name = business_type.name if business_type else None
-    
+
     # 获取供应商名称
     supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
     supplier_name = supplier.name if supplier else None
-    
-    return render_template('business/projects/project_ref/visa_ref_detail.html', 
-                         ref=ref, 
+
+    return render_template('business/projects/project_ref/visa_ref_detail.html',
+                         ref=ref,
                          visa_info=visa_info,
+                         countries=countries,
                          ref_type_name=ref_type_name,
                          supplier_name=supplier_name)
 
@@ -1910,6 +1939,9 @@ def edit_visa_ref(ref_id):
         visa_info.setdefault('country', visa_project.country or '')
         visa_info.setdefault('visa_type', visa_project.visa_type or '')
         visa_info.setdefault('pax_names_display', visa_project.applicant_name or '')
+
+    # 归一化 country 字段（历史混合格式 -> country_name_EN.upper()，与下拉 value 对齐）
+    visa_info['country'] = _normalize_country_for_display(visa_info.get('country'), countries)
 
     # 获取项目人员列表
     from App_new.business.projects.models.project_member import ProjectMember
