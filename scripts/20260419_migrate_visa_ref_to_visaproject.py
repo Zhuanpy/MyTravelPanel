@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-签证 REF -> VisaProject 数据迁移脚本
+签证 REF -> VisaProject 数据迁移脚本（保守版）
 
 背景：
 - 以前创建"签证 REF"时不会同时创建 VisaProject，两张表各自存一份签证业务数据。
-- ProjectRef.extra_info (JSON) 里的 country / visa_type / visa_name / pax_names_display
-  与 VisaProject 的 country / visa_type / applicant_name 重复。
+- 历史教训（2026-04-19 事件）：最初版本想把 extra_info 中的 country/visa_type/applicant
+  合并进 VisaProject，结果发现 REF 的 visa_type 是 'TOURIST' 这类粗粒度 enum，而
+  VisaProject.visa_type 实际是 '韩国单次签证' 这类具体签证产品名——语义不同，合并会覆盖
+  掉签证管理模块的详细数据。回滚后重写为本保守版。
 
-本脚本做三件事：
+本脚本只做两件事：
 1. 给 visa_projects 表新增 country 列（若还没有）。
-2. 扫描所有 ref_type=visa 的 ProjectRef，若没有对应 VisaProject 则补建一条，
-   并把 extra_info 中的 country / visa_type / pax_names_display 写入 VisaProject。
-3. 从 ProjectRef.extra_info 中剔除已由 VisaProject 托管的共享键
-   (country / visa_type / visa_name / pax_names_display)。
+2. 扫描所有 ref_type=visa 的 ProjectRef，**只对没有关联 VisaProject 的"孤儿 REF"**补建一条
+   VisaProject（初值来自 extra_info，但仅当 VP 新建时写入）；已存在的 VisaProject 完全不动。
+   也**不**剔除 extra_info 的任何键（它们由 REF 自己维护）。
 
 使用：
     python scripts/20260419_migrate_visa_ref_to_visaproject.py           # 干跑（只打印、不改库）
@@ -39,7 +40,8 @@ from App_new.business.projects.models.project_member import ProjectMember
 from App_new.shared.models.business_types import BusinessType
 
 
-SHARED_KEYS = ('country', 'visa_type', 'visa_name', 'pax_names_display')
+# 历史教训：不再从 extra_info 剔除任何键
+SHARED_KEYS = ()
 
 
 def ensure_country_column(apply_changes):
@@ -105,10 +107,10 @@ def _vp_for_ref_via_sql(ref_id):
 
 
 def migrate_refs(apply_changes, column_ready):
-    """扫描签证 REF，补建 VisaProject + 剔除 extra_info 共享键。
+    """扫描签证 REF，只为没有关联 VisaProject 的"孤儿 REF"补建一条。
 
-    column_ready=False（dry-run 且列尚未添加）时，只打印 REF 数量与将要剔除的 extra_info 键，
-    不查询 VisaProject，避免 ORM 引用不存在的列。
+    column_ready=False（dry-run 且列尚未添加）时，走原生 SQL 查 ref_id 关联情况，
+    避免 ORM 引用不存在的 country 列。
     """
     visa_bt = BusinessType.query.filter_by(code='visa').first()
     if not visa_bt:
@@ -119,12 +121,9 @@ def migrate_refs(apply_changes, column_ready):
     print(f'[data] 共发现 {len(refs)} 条签证 REF。')
 
     if not column_ready:
-        print('[data] (dry-run) country 列尚未添加，仅预览 extra_info 清理动作，'
-              '不比对 VisaProject。')
+        print('[data] (dry-run) country 列尚未添加，走原生 SQL 只判断 VisaProject 是否存在。')
 
     created_vp = 0
-    updated_vp = 0
-    trimmed_refs = 0
 
     for ref in refs:
         extra_info = {}
@@ -164,47 +163,12 @@ def migrate_refs(apply_changes, column_ready):
                     vp.estimated_date = dep_date
                 db.session.add(vp)
             created_vp += 1
-        elif column_ready:
-            changed_fields = []
-            if vp.country != country:
-                changed_fields.append(f'country: {vp.country!r} -> {country!r}')
-                if apply_changes:
-                    vp.country = country
-            if vp.visa_type != visa_type:
-                changed_fields.append(f'visa_type: {vp.visa_type!r} -> {visa_type!r}')
-                if apply_changes:
-                    vp.visa_type = visa_type
-            if pax_display and vp.applicant_name != pax_display:
-                changed_fields.append(f'applicant: {vp.applicant_name!r} -> {pax_display!r}')
-                if apply_changes:
-                    vp.applicant_name = pax_display
-            if vp.header_id != ref.header_id:
-                changed_fields.append(f'header_id: {vp.header_id!r} -> {ref.header_id!r}')
-                if apply_changes:
-                    vp.header_id = ref.header_id
-            if dep_date and vp.estimated_date != dep_date:
-                changed_fields.append(f'estimated_date: {vp.estimated_date!r} -> {dep_date!r}')
-                if apply_changes:
-                    vp.estimated_date = dep_date
-            if changed_fields:
-                print(f'  ~ REF {ref.id} ({ref.ref_number}): 更新 VisaProject {vp.id}'
-                      f'  [{"; ".join(changed_fields)}]')
-                updated_vp += 1
-
-        # 剔除 extra_info 共享键
-        keys_to_drop = [k for k in SHARED_KEYS if k in extra_info]
-        if keys_to_drop:
-            trimmed_refs += 1
-            print(f'  - REF {ref.id} ({ref.ref_number}): 剔除 extra_info 键 {keys_to_drop}')
-            if apply_changes:
-                new_extra = {k: v for k, v in extra_info.items() if k not in SHARED_KEYS}
-                ref.extra_info = json.dumps(new_extra, ensure_ascii=False)
+        # 已存在 VisaProject 的情况：完全不动（保守策略）
 
     if apply_changes:
         db.session.commit()
 
-    print(f'\n[summary] 新建 VisaProject: {created_vp}，更新: {updated_vp}，'
-          f'剔除 extra_info 共享键的 REF: {trimmed_refs}')
+    print(f'\n[summary] 新建 VisaProject: {created_vp}（已存在的 VisaProject 均未动）')
 
 
 def main():

@@ -25,8 +25,9 @@ import re
 project_ref = Blueprint('project_ref', __name__)
 
 
-# 与签证管理模块共享的 extra_info 键（写入 VisaProject 后从 extra_info 中剔除）
-_VISA_SHARED_EXTRA_KEYS = ('country', 'visa_type', 'visa_name', 'pax_names_display')
+# 保留原 extra_info 结构不动（历史教训：VisaProject.visa_type 是具体签证产品名 eg '韩国单次签证'，
+# REF.extra_info.visa_type 是粗粒度 enum eg 'TOURIST'，语义不同，不能合并）
+_VISA_SHARED_EXTRA_KEYS = ()
 
 
 def _parse_departure_date(value):
@@ -58,37 +59,36 @@ def _build_pax_names_display(pax_name_ids):
 
 
 def _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date_str):
-    """为签证 REF 创建或更新关联的 VisaProject
+    """为签证 REF 创建或（谨慎地）更新关联的 VisaProject
 
-    目的：让签证 REF 和签证管理模块共用一张表（VisaProject），避免同一份签证业务数据在两个地方各存一份。
+    目的：解决"新建签证 REF 时没有对应 VisaProject，需用户手工双线维护"的问题。
     关联方式：`VisaProject.ref_id` 指向 `ProjectRef.id`（已有的反向 FK）。
 
     规则：
-    - 不存在则 create，存在则 update。
-    - 只同步"共享字段"（国家、签证类型、申请人、预估日期、header_id），其它字段（visa_status、
-      contact_name、singapore_status、hid_or_serial 等）由签证管理模块自行维护，这里不覆盖。
-    - visa_status 默认 '待递交'，已存在的记录不改。
+    - 不存在则 create，并用 REF 的数据作为初始值（粗粒度 enum，用户之后可在签证管理模块细化）。
+    - 已存在则**只更新 header_id**（保持结构关联），不覆盖任何业务字段。
+      因为 VisaProject.visa_type（"韩国单次签证"）与 REF.extra_info.visa_type（"TOURIST" enum）
+      语义不同；applicant_name 可能已被签证管理模块细化过；estimated_date 同理。
+      这些字段由签证管理模块独立维护，REF 这边只做首次创建。
     """
     visa_project = VisaProject.query.filter_by(ref_id=ref.id).first()
-    is_new = visa_project is None
-    if is_new:
-        # VisaProject.__init__ 要求 name（并非真正的列），沿用 visa_project.py 现有 pattern
+    if visa_project is None:
         folder_name = f'REF-{ref.ref_number}'
         visa_project = VisaProject(name=folder_name, visa_status='待递交')
         visa_project.project_folder_name = folder_name
         visa_project.ref_id = ref.id
-
-    visa_project.header_id = ref.header_id
-    visa_project.country = country or None
-    visa_project.visa_type = visa_type or None
-    visa_project.applicant_name = applicant_display or None
-
-    dep_date = _parse_departure_date(departure_date_str)
-    if dep_date is not None:
-        visa_project.estimated_date = dep_date
-
-    if is_new:
+        visa_project.header_id = ref.header_id
+        visa_project.country = country or None
+        visa_project.visa_type = visa_type or None
+        visa_project.applicant_name = applicant_display or None
+        dep_date = _parse_departure_date(departure_date_str)
+        if dep_date is not None:
+            visa_project.estimated_date = dep_date
         db.session.add(visa_project)
+    else:
+        # 只同步结构关联字段，业务字段不覆盖
+        if visa_project.header_id != ref.header_id:
+            visa_project.header_id = ref.header_id
     return visa_project
 
 
@@ -980,14 +980,16 @@ def submit_visa_ref():
         description = request.form.get('description') or description_generated
         detailed_description = request.form.get('detailed_description') or description
 
-        # 计算申请人显示串（同步到 VisaProject.applicant_name，不再写回 extra_info）
+        # 计算申请人显示串并写回 extra_info（维持原行为），同时用作新建 VisaProject 时的初值
         applicant_display = _build_pax_names_display(extra_info.get('pax_names', []))
+        if applicant_display:
+            extra_info['pax_names_display'] = applicant_display
 
         # 获取总售价和总成本
         selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
         cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
 
-        # 从 extra_info 中剔除由 VisaProject 托管的共享字段
+        # 历史教训：_VISA_SHARED_EXTRA_KEYS 现为空，extra_info 保留全部键不再剔除。
         extra_info_for_ref = {k: v for k, v in extra_info.items() if k not in _VISA_SHARED_EXTRA_KEYS}
 
         # 如果是编辑现有REF
@@ -1852,13 +1854,15 @@ def edit_visa_ref(ref_id):
             description = request.form.get('description') or 'Visa Application'
             detailed_description = request.form.get('detailed_description', description)
 
-            # 共享字段（将写入 VisaProject）
+            # 共享字段（仅在新建 VisaProject 时作为初值，不覆盖已存在记录）
             country = (extra_info.get('country') or '').strip()
             visa_type = (extra_info.get('visa_type') or '').strip()
             departure_date = extra_info.get('departure_date', '')
             applicant_display = _build_pax_names_display(extra_info.get('pax_names', []))
+            if applicant_display:
+                extra_info['pax_names_display'] = applicant_display
 
-            # 从 extra_info 中剔除共享字段
+            # extra_info 保留全部键（历史教训：不再剔除任何键）
             extra_info_for_ref = {k: v for k, v in extra_info.items() if k not in _VISA_SHARED_EXTRA_KEYS}
 
             # 更新REF数据
