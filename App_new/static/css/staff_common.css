@@ -1342,8 +1342,11 @@ td .btn-group {
 
 /* 桌面端导航栏样式 */
 @media (min-width: 769px) {
+    /* 防止 769-992px 区间 navbar-collapse 被挤到下一行（导致 sidebar 切换按钮跑到右上角） */
     .navbar-collapse {
         display: flex !important;
+        flex-basis: auto !important;
+        flex-grow: 1;
     }
 
     /* 防止 769-992px 区间菜单项竖排 */
