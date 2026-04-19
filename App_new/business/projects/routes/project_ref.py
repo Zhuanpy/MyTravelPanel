@@ -12,7 +12,7 @@ from App_new.business.flight.models.flight import ProjectFlightPassenger, Projec
 from App_new.business.flight.models.models import AirportData
 from App_new.exts import csrf, db
 from App_new.business.projects.models.project import CustomerCompany
-from App_new.business.visa.models.Visamodels import VisaCountries
+from App_new.business.visa.models.Visamodels import VisaCountries, VisaProject
 from App_new.shared.models.business_types import BusinessType
 from App_new.business.projects.forms.ref_forms import ProjectRefForm
 from App_new.utils.decorators import staff_only, admin_only
@@ -23,6 +23,73 @@ import json
 import re
 
 project_ref = Blueprint('project_ref', __name__)
+
+
+# 与签证管理模块共享的 extra_info 键（写入 VisaProject 后从 extra_info 中剔除）
+_VISA_SHARED_EXTRA_KEYS = ('country', 'visa_type', 'visa_name', 'pax_names_display')
+
+
+def _parse_departure_date(value):
+    """把表单/JSON 里的 departure_date 转成 date 对象，失败返回 None"""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _build_pax_names_display(pax_name_ids):
+    """根据 ProjectMember ID 列表生成显示串，失败返回空串"""
+    if not pax_name_ids:
+        return ''
+    try:
+        from App_new.business.projects.models.project_member import ProjectMember
+        pax_ids = [int(pid) for pid in pax_name_ids if pid]
+        if not pax_ids:
+            return ''
+        members = ProjectMember.query.filter(ProjectMember.id.in_(pax_ids)).all()
+        return ', '.join(
+            f"{m.title} {m.member_name}" if m.title else m.member_name
+            for m in members
+        )
+    except Exception:
+        return ''
+
+
+def _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date_str):
+    """为签证 REF 创建或更新关联的 VisaProject
+
+    目的：让签证 REF 和签证管理模块共用一张表（VisaProject），避免同一份签证业务数据在两个地方各存一份。
+    关联方式：`VisaProject.ref_id` 指向 `ProjectRef.id`（已有的反向 FK）。
+
+    规则：
+    - 不存在则 create，存在则 update。
+    - 只同步"共享字段"（国家、签证类型、申请人、预估日期、header_id），其它字段（visa_status、
+      contact_name、singapore_status、hid_or_serial 等）由签证管理模块自行维护，这里不覆盖。
+    - visa_status 默认 '待递交'，已存在的记录不改。
+    """
+    visa_project = VisaProject.query.filter_by(ref_id=ref.id).first()
+    is_new = visa_project is None
+    if is_new:
+        # VisaProject.__init__ 要求 name（并非真正的列），沿用 visa_project.py 现有 pattern
+        folder_name = f'REF-{ref.ref_number}'
+        visa_project = VisaProject(name=folder_name, visa_status='待递交')
+        visa_project.project_folder_name = folder_name
+        visa_project.ref_id = ref.id
+
+    visa_project.header_id = ref.header_id
+    visa_project.country = country or None
+    visa_project.visa_type = visa_type or None
+    visa_project.applicant_name = applicant_display or None
+
+    dep_date = _parse_departure_date(departure_date_str)
+    if dep_date is not None:
+        visa_project.estimated_date = dep_date
+
+    if is_new:
+        db.session.add(visa_project)
+    return visa_project
 
 
 def get_city_name_en(iata_code):
@@ -892,8 +959,8 @@ def submit_visa_ref():
             }
 
         # 基于 extra_info 生成英文 description（确保格式正确）
-        country = extra_info.get('country', '')
-        visa_type = extra_info.get('visa_type', '')
+        country = (extra_info.get('country') or '').strip()
+        visa_type = (extra_info.get('visa_type') or '').strip()
         departure_date = extra_info.get('departure_date', '')
 
         if country and visa_type:
@@ -913,19 +980,15 @@ def submit_visa_ref():
         description = request.form.get('description') or description_generated
         detailed_description = request.form.get('detailed_description') or description
 
-        # 生成 pax_names_display
-        pax_names = extra_info.get('pax_names', [])
-        if pax_names:
-            from App_new.business.projects.models.project_member import ProjectMember
-            pax_ids = [int(pid) for pid in pax_names if pid]
-            if pax_ids:
-                members = ProjectMember.query.filter(ProjectMember.id.in_(pax_ids)).all()
-                pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
-                extra_info['pax_names_display'] = ', '.join(pax_names_list)
+        # 计算申请人显示串（同步到 VisaProject.applicant_name，不再写回 extra_info）
+        applicant_display = _build_pax_names_display(extra_info.get('pax_names', []))
 
         # 获取总售价和总成本
         selling_price = float(request.form.get('selling_price', 0)) if request.form.get('selling_price') else 0
         cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
+
+        # 从 extra_info 中剔除由 VisaProject 托管的共享字段
+        extra_info_for_ref = {k: v for k, v in extra_info.items() if k not in _VISA_SHARED_EXTRA_KEYS}
 
         # 如果是编辑现有REF
         if ref_id:
@@ -937,7 +1000,7 @@ def submit_visa_ref():
             ref.status = request.form.get('status', 'confirmed')
             ref.selling_price = selling_price
             ref.cost_price = cost_price
-            ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
+            ref.extra_info = json.dumps(extra_info_for_ref, ensure_ascii=False)
         else:
             # 创建新的REF
             header = ProjectHeader.query.get_or_404(header_id)
@@ -961,9 +1024,15 @@ def submit_visa_ref():
                 payment_status='unpaid',
                 selling_price=selling_price,
                 cost_price=cost_price,
-                extra_info=json.dumps(extra_info, ensure_ascii=False)
+                extra_info=json.dumps(extra_info_for_ref, ensure_ascii=False)
             )
             db.session.add(ref)
+
+        # flush 以保证新 REF 拿到 id，供 VisaProject.ref_id 引用
+        db.session.flush()
+
+        # 同步到签证管理模块（VisaProject）
+        _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date)
 
         db.session.commit()
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -1703,14 +1772,21 @@ def hotel_ref_detail(ref_id):
 def visa_ref_detail(ref_id):
     """签证REF详情页面"""
     ref = ProjectRef.query.get_or_404(ref_id)
-    
-    # 解析签证专属信息
+
+    # 解析签证专属信息（extra_info 中已不再存 country/visa_type/visa_name/pax_names_display）
     visa_info = {}
     if ref.extra_info:
         try:
             visa_info = json.loads(ref.extra_info)
         except json.JSONDecodeError:
             visa_info = {}
+
+    # 合并关联 VisaProject 的共享字段（兼容未迁移的旧数据：setdefault 不会覆盖）
+    visa_project = VisaProject.query.filter_by(ref_id=ref.id).first()
+    if visa_project:
+        visa_info.setdefault('country', visa_project.country or '')
+        visa_info.setdefault('visa_type', visa_project.visa_type or '')
+        visa_info.setdefault('pax_names_display', visa_project.applicant_name or '')
     
     # 获取业务类型名称
     business_type = BusinessType.query.get(ref.ref_type_id)
@@ -1773,18 +1849,17 @@ def edit_visa_ref(ref_id):
                 }
 
             # 获取描述字段（前端自动生成）
-            description = request.form.get('description', extra_info.get('visa_name', 'Visa Application'))
+            description = request.form.get('description') or 'Visa Application'
             detailed_description = request.form.get('detailed_description', description)
 
-            # 生成 pax_names_display
-            pax_names = extra_info.get('pax_names', [])
-            if pax_names:
-                from App_new.business.projects.models.project_member import ProjectMember
-                pax_ids = [int(pid) for pid in pax_names if pid]
-                if pax_ids:
-                    members = ProjectMember.query.filter(ProjectMember.id.in_(pax_ids)).all()
-                    pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
-                    extra_info['pax_names_display'] = ', '.join(pax_names_list)
+            # 共享字段（将写入 VisaProject）
+            country = (extra_info.get('country') or '').strip()
+            visa_type = (extra_info.get('visa_type') or '').strip()
+            departure_date = extra_info.get('departure_date', '')
+            applicant_display = _build_pax_names_display(extra_info.get('pax_names', []))
+
+            # 从 extra_info 中剔除共享字段
+            extra_info_for_ref = {k: v for k, v in extra_info.items() if k not in _VISA_SHARED_EXTRA_KEYS}
 
             # 更新REF数据
             ref.description = description
@@ -1794,7 +1869,10 @@ def edit_visa_ref(ref_id):
             ref.cost_price = float(request.form.get('cost_price', 0)) if request.form.get('cost_price') else 0
             ref.status = request.form.get('status') or 'confirmed'
             ref.remarks = request.form.get('remarks', '')
-            ref.extra_info = json.dumps(extra_info, ensure_ascii=False)
+            ref.extra_info = json.dumps(extra_info_for_ref, ensure_ascii=False)
+
+            # 同步到签证管理模块（VisaProject）
+            _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date)
 
             # 提交数据库更改
             db.session.commit()
@@ -1813,13 +1891,21 @@ def edit_visa_ref(ref_id):
     # 获取所有国家数据
     countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
 
-    # 解析签证专属信息
+    # 解析签证专属信息（extra_info 中已不再存 country/visa_type/visa_name/pax_names_display）
     visa_info = {}
     if ref and ref.extra_info:
         try:
             visa_info = json.loads(ref.extra_info)
         except json.JSONDecodeError:
             visa_info = {}
+
+    # 从关联的 VisaProject 读取共享字段（国家、签证类型、申请人显示串）
+    visa_project = VisaProject.query.filter_by(ref_id=ref.id).first()
+    if visa_project:
+        # 写入 visa_info 字典供模板回填，不覆盖已有（兼容未迁移的旧数据）
+        visa_info.setdefault('country', visa_project.country or '')
+        visa_info.setdefault('visa_type', visa_project.visa_type or '')
+        visa_info.setdefault('pax_names_display', visa_project.applicant_name or '')
 
     # 获取项目人员列表
     from App_new.business.projects.models.project_member import ProjectMember
