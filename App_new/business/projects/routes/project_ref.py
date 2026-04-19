@@ -918,6 +918,16 @@ def create_visa_ref(header_id):
 
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
 
+        # 加载 VisaTypes 按归一化国家 key 分组（供前端切国家时动态填充签证类型）
+        from App_new.business.visa.models.Visamodels import VisaTypes
+        all_types = VisaTypes.query.join(VisaCountries).order_by(
+            VisaCountries.country_name_CN, VisaTypes.visa_type
+        ).all()
+        visa_types_by_country = {}
+        for vt in all_types:
+            key = (vt.country.country_name_EN or '').upper()
+            visa_types_by_country.setdefault(key, []).append(vt.visa_type)
+
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
         members = ProjectMember.query.filter_by(header_id=header_id).order_by(ProjectMember.id).all()
@@ -928,6 +938,8 @@ def create_visa_ref(header_id):
                              suppliers=suppliers,
                              supplier_types=supplier_types,
                              countries=countries,
+                             visa_types=[],
+                             visa_types_by_country=visa_types_by_country,
                              members=members,
                              extra_info=None,
                              visa_info=None,
@@ -1959,16 +1971,19 @@ def edit_visa_ref(ref_id):
         if ref.eos.pay_amount or ref.eos.is_paid:
             eo_paid = True
 
-    # 获取预选的签证类型列表
-    visa_types = []
-    # 检查 country 或 visa_country 键
-    country_name = visa_info.get('country') or visa_info.get('visa_country')
-    if country_name:
-        # 根据国家名获取国家ID
-        country_obj = VisaCountries.query.filter_by(country_name_CN=country_name).first()
-        if country_obj:
-            from App_new.business.visa.models.Visamodels import VisaTypes
-            visa_types = VisaTypes.query.filter_by(country_id=country_obj.id).all()
+    # 加载 VisaTypes 并按"归一化国家 key"分组（供前端切国家时动态刷新）
+    from App_new.business.visa.models.Visamodels import VisaTypes
+    all_types = VisaTypes.query.join(VisaCountries).order_by(
+        VisaCountries.country_name_CN, VisaTypes.visa_type
+    ).all()
+    visa_types_by_country = {}
+    for vt in all_types:
+        key = (vt.country.country_name_EN or '').upper()
+        visa_types_by_country.setdefault(key, []).append(vt.visa_type)
+
+    # 当前已选国家对应的 visa_types（用于初始渲染）
+    current_country_key = (visa_info.get('country') or '').upper()
+    visa_types = visa_types_by_country.get(current_country_key, [])
 
     return render_template('business/projects/project_ref/create_visa_ref.html',
                          ref=ref,
@@ -1980,6 +1995,7 @@ def edit_visa_ref(ref_id):
                          visa_info=visa_info,
                          extra_info=visa_info,
                          visa_types=visa_types,
+                         visa_types_by_country=visa_types_by_country,
                          members=members,
                          is_create=False,
                          has_invoice=has_invoice,

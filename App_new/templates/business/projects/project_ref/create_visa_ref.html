@@ -54,7 +54,7 @@
                 <div class="col-3">
                     <label class="form-label small mb-1">国家 <span class="text-danger">*</span></label>
                     {# value 统一用 country_name_EN.upper()，与 route 归一化逻辑对齐；显示用中文+英文 #}
-                    <select name="country" id="country" class="form-select form-select-sm" required onchange="updateDescription()">
+                    <select name="country" id="country" class="form-select form-select-sm" required onchange="onCountryChange()">
                         <option value="">-- 请选择 --</option>
                         {% for c in countries %}
                         {% set c_val = c.country_name_EN|upper %}
@@ -65,14 +65,18 @@
                 </div>
                 <div class="col-3">
                     <label class="form-label small mb-1">签证类型 <span class="text-danger">*</span></label>
+                    {# 从 VisaTypes 表按当前国家动态渲染；切国家由 JS 刷新。
+                       若存储值不在当前选项里（老数据如 'TOURIST'），追加一个兼容选项让它能回显。 #}
+                    {% set current_vt = extra_info.visa_type if extra_info else '' %}
+                    {% set vt_exists_in_list = current_vt in (visa_types or []) %}
                     <select name="visa_type" id="visa_type" class="form-select form-select-sm" required onchange="updateDescription()">
                         <option value="">-- 请选择 --</option>
-                        <option value="TOURIST" {% if extra_info and extra_info.visa_type == 'TOURIST' %}selected{% endif %}>旅游签证</option>
-                        <option value="BUSINESS" {% if extra_info and extra_info.visa_type == 'BUSINESS' %}selected{% endif %}>商务签证</option>
-                        <option value="WORK" {% if extra_info and extra_info.visa_type == 'WORK' %}selected{% endif %}>工作签证</option>
-                        <option value="STUDENT" {% if extra_info and extra_info.visa_type == 'STUDENT' %}selected{% endif %}>学生签证</option>
-                        <option value="TRANSIT" {% if extra_info and extra_info.visa_type == 'TRANSIT' %}selected{% endif %}>过境签证</option>
-                        <option value="MULTIPLE" {% if extra_info and extra_info.visa_type == 'MULTIPLE' %}selected{% endif %}>多次入境</option>
+                        {% for vt in visa_types or [] %}
+                        <option value="{{ vt }}" {% if current_vt == vt %}selected{% endif %}>{{ vt }}</option>
+                        {% endfor %}
+                        {% if current_vt and not vt_exists_in_list %}
+                        <option value="{{ current_vt }}" selected data-legacy="1">{{ current_vt }} (旧数据)</option>
+                        {% endif %}
                     </select>
                 </div>
                 <div class="col-3">
@@ -265,6 +269,28 @@ function formatDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return d.getDate().toString().padStart(2, '0') + ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getMonth()];
+}
+
+// 所有国家的 VisaTypes 映射（由后端 visa_types_by_country 注入）
+const VISA_TYPES_BY_COUNTRY = {{ (visa_types_by_country or {}) | tojson }};
+
+function onCountryChange() {
+    // 国家切换时，重建签证类型下拉（清空用户手选的旧值）
+    const country = document.getElementById('country').value;
+    const select = document.getElementById('visa_type');
+    const currentVal = select.value;
+    const options = VISA_TYPES_BY_COUNTRY[country] || [];
+    let html = '<option value="">-- 请选择 --</option>';
+    for (const vt of options) {
+        const selected = vt === currentVal ? ' selected' : '';
+        html += `<option value="${vt}"${selected}>${vt}</option>`;
+    }
+    // 如果旧值在新国家的类型里找不到，保留为兼容项
+    if (currentVal && !options.includes(currentVal)) {
+        html += `<option value="${currentVal}" selected data-legacy="1">${currentVal} (旧数据)</option>`;
+    }
+    select.innerHTML = html;
+    updateDescription();
 }
 
 function updateDescription() {
