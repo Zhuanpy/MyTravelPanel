@@ -229,6 +229,15 @@
                     <label>个人编号 Personal No.</label>
                     <input type="text" class="form-control" name="personal_number">
                 </div>
+                <div class="form-group">
+                    <label>集团 Group <small class="text-muted">(选填，便于筛选)</small></label>
+                    <input type="text" class="form-control" name="group_name" list="ppGroupList" placeholder="如 ALIBABA / BAONENG">
+                    <datalist id="ppGroupList">
+                        {% for g in groups or [] %}
+                        <option value="{{ g }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
             </div>
             <input type="hidden" name="document_type">
             <div class="pp-form-actions">
@@ -431,7 +440,7 @@
     function fillForm(data) {
         var fields = ['surname', 'given_name', 'sex', 'date_of_birth', 'nationality',
                       'country_code', 'passport_number', 'expiration_date',
-                      'personal_number', 'document_type'];
+                      'personal_number', 'document_type', 'group_name'];
         fields.forEach(function (k) {
             var el = form.querySelector('[name="' + k + '"]');
             if (el) el.value = data[k] || '';

@@ -20,6 +20,7 @@ from App_new.utils.decorators import staff_only
 from App_new.exts import db, csrf
 from App_new.business.projects.models.frequent_traveler import FrequentTraveler
 from App_new.business.projects.models.traveler_file import TravelerFile
+from App_new.business.projects.models.project import CustomerCompany
 from ..services.passport_ocr import extract_from_path
 
 flights_passport = Blueprint('flights_passport', __name__, url_prefix='/flights_passport')
@@ -97,6 +98,7 @@ def _traveler_to_passport_dict(t: FrequentTraveler) -> dict:
         'country_code': t.passport_issuing_country or '',
         'passport_number': t.passport_number or '',
         'expiration_date': _format_date(t.passport_expiry_date),
+        'group_name': t.group_name or '',
         'updated_at': t.updated_at.strftime('%Y-%m-%d %H:%M') if t.updated_at else '',
     }
 
@@ -112,8 +114,19 @@ def extract_page():
               .order_by(desc(FrequentTraveler.updated_at))
               .limit(20)
               .all())
+
+    # 集团下拉：CustomerCompany.group_name + FrequentTraveler.group_name 的去重并集
+    company_groups = {g[0] for g in db.session.query(CustomerCompany.group_name)
+                      .filter(CustomerCompany.group_name.isnot(None),
+                              CustomerCompany.group_name != '').distinct().all()}
+    traveler_groups = {g[0] for g in db.session.query(FrequentTraveler.group_name)
+                       .filter(FrequentTraveler.group_name.isnot(None),
+                               FrequentTraveler.group_name != '').distinct().all()}
+    groups = sorted(company_groups | traveler_groups)
+
     return render_template('business/flight/passport_extract.html',
-                           recent_list=[_traveler_to_passport_dict(t) for t in recent])
+                           recent_list=[_traveler_to_passport_dict(t) for t in recent],
+                           groups=groups)
 
 
 @flights_passport.route('/ocr', methods=['POST'])
@@ -168,6 +181,7 @@ def _upsert_traveler_from_passport(data):
     expiry = _parse_date(data.get('expiration_date') or '')
     issuing_country = (data.get('country_code') or '').strip().upper()
     cn_name = (data.get('name') or '').strip()
+    group_name = (data.get('group_name') or '').strip() or None
 
     existing = FrequentTraveler.query.filter_by(passport_number=passport_number).first()
     if existing:
@@ -184,6 +198,8 @@ def _upsert_traveler_from_passport(data):
             existing.passport_expiry_date = expiry
         if cn_name:
             existing.name = cn_name
+        if group_name:
+            existing.group_name = group_name
         existing.updated_at = datetime.utcnow()
         return existing, 'updated'
 
@@ -196,6 +212,7 @@ def _upsert_traveler_from_passport(data):
         passport_number=passport_number,
         passport_issuing_country=issuing_country or None,
         passport_expiry_date=expiry,
+        group_name=group_name,
     )
     db.session.add(record)
     return record, 'created'
