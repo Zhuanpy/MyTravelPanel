@@ -173,7 +173,8 @@ def migrate_refs(apply_changes, column_ready):
 
 def main():
     parser = argparse.ArgumentParser(description='迁移签证 REF 的共享字段到 VisaProject')
-    parser.add_argument('--apply', action='store_true', help='实际执行（默认 dry-run）')
+    parser.add_argument('--apply', '--execute', dest='apply', action='store_true',
+                        help='实际执行（默认 dry-run）；--execute 为老部署脚本兼容别名')
     args = parser.parse_args()
 
     app = create_app()

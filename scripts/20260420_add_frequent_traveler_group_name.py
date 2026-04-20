@@ -87,7 +87,8 @@ def backfill(apply_changes, column_ready):
 
 def main():
     parser = argparse.ArgumentParser(description='给 frequent_travelers 加 group_name 列并回填')
-    parser.add_argument('--apply', action='store_true', help='实际执行（默认 dry-run）')
+    parser.add_argument('--apply', '--execute', dest='apply', action='store_true',
+                        help='实际执行（默认 dry-run）；--execute 为老部署脚本兼容别名')
     args = parser.parse_args()
 
     app = create_app()
