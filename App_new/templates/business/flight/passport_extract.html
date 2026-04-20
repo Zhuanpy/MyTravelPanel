@@ -236,7 +236,11 @@
                     <i class="fas fa-undo me-1"></i>清空
                 </button>
                 <button type="button" class="btn btn-primary btn-sm" id="ppSaveBtn">
-                    <i class="fas fa-save me-1"></i>保存
+                    <i class="fas fa-save me-1"></i>保存信息
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="ppSaveImageBtn" disabled
+                        title="识别护照后可用">
+                    <i class="fas fa-image me-1"></i>保存图片
                 </button>
             </div>
         </form>
@@ -295,6 +299,7 @@
     var form = document.getElementById('ppForm');
     var validScoreEl = document.getElementById('ppValidScore');
     var saveBtn = document.getElementById('ppSaveBtn');
+    var saveImageBtn = document.getElementById('ppSaveImageBtn');
     var resetFormBtn = document.getElementById('ppResetFormBtn');
     var recentList = document.getElementById('ppRecentList');
     var searchInput = document.getElementById('ppSearchInput');
@@ -310,6 +315,12 @@
         statusBar.innerHTML = '';
     }
 
+    function updateSaveImageBtnState() {
+        // 有图片 + 表单进入可编辑状态（formCard 已展示）时才启用"保存图片"
+        var ready = !!currentFile && formCard.classList.contains('show');
+        saveImageBtn.disabled = !ready;
+    }
+
     function showPreview(file) {
         currentFile = file;
         var reader = new FileReader();
@@ -321,6 +332,7 @@
         reader.readAsDataURL(file);
         clearStatus();
         formCard.classList.remove('show');
+        updateSaveImageBtnState();
     }
 
     function clearPreview() {
@@ -331,6 +343,7 @@
         fileInput.value = '';
         clearStatus();
         formCard.classList.remove('show');
+        updateSaveImageBtnState();
     }
 
     // 点击区域 → 文件选择（避开预览/按钮区）
@@ -462,6 +475,7 @@
         }
 
         formCard.classList.add('show');
+        updateSaveImageBtnState();
     }
 
     function clearForm() {
@@ -497,6 +511,40 @@
         })
         .catch(function (err) {
             saveBtn.disabled = false;
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 网络错误: ' + err, 'error');
+        });
+    });
+
+    // 保存图片：把当前预览的图片连同表单护照字段一起 POST 到 /save_image
+    saveImageBtn.addEventListener('click', function () {
+        if (!currentFile) {
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 没有可保存的图片', 'error');
+            return;
+        }
+        var fd = new FormData(form);  // 带上表单里的护照字段（用于 find-or-create 旅客）
+        fd.append('image', currentFile, currentFile.name || 'passport.jpg');
+        if (!fd.get('surname') || !fd.get('given_name') || !fd.get('passport_number')) {
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 姓 / 名 / 护照号 必填（决定图片挂到哪位旅客）', 'error');
+            return;
+        }
+        saveImageBtn.disabled = true;
+        fetch("{{ url_for('flights_passport.save_image') }}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: fd
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+            saveImageBtn.disabled = false;
+            if (j.success) {
+                setStatus('<i class="fas fa-check-circle me-1"></i> 图片已保存到常用旅客附件', 'success');
+                refreshRecent();
+            } else {
+                setStatus('<i class="fas fa-exclamation-circle me-1"></i> ' + (j.error || '图片保存失败'), 'error');
+            }
+        })
+        .catch(function (err) {
+            saveImageBtn.disabled = false;
             setStatus('<i class="fas fa-exclamation-circle me-1"></i> 网络错误: ' + err, 'error');
         });
     });

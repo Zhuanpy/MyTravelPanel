@@ -8,14 +8,18 @@
 import os
 import re
 import tempfile
+import uuid
+from pathlib import Path
 from datetime import date, datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import desc, or_
+from werkzeug.utils import secure_filename
 
 from App_new.utils.decorators import staff_only
-from App_new.exts import db
+from App_new.exts import db, csrf
 from App_new.business.projects.models.frequent_traveler import FrequentTraveler
+from App_new.business.projects.models.traveler_file import TravelerFile
 from ..services.passport_ocr import extract_from_path
 
 flights_passport = Blueprint('flights_passport', __name__, url_prefix='/flights_passport')
@@ -143,76 +147,151 @@ def ocr():
             pass
 
 
-@flights_passport.route('/save', methods=['POST'])
-@login_required
-@staff_only
-def save():
-    """写入或更新 FrequentTraveler。去重 key: passport_number。"""
-    data = request.get_json() or {}
+def _upsert_traveler_from_passport(data):
+    """根据前端传来的护照字段 find-or-create FrequentTraveler
 
+    返回 (record, action)：action 为 'created' / 'updated'
+    失败时抛 ValueError（调用方负责转成 400 响应）
+    """
     surname = (data.get('surname') or '').strip().upper()
     given_name = (data.get('given_name') or '').strip().upper()
     passport_number = (data.get('passport_number') or '').strip().upper()
     nationality = (data.get('nationality') or '').strip().upper()
 
     if not (surname and given_name and passport_number):
-        return jsonify({'success': False, 'error': '姓 / 名 / 护照号 不能为空'}), 400
+        raise ValueError('姓 / 名 / 护照号 不能为空')
 
-    # 组合英文全名，保留 "SURNAME GIVEN" 格式（与机票订票口径一致）
     name_en = f'{surname} {given_name}'
-
     sex_raw = (data.get('sex') or '').strip().upper()[:1]
-    gender = _SEX_MAP.get(sex_raw)  # 'M' → 'male', 'F' → 'female', else None
-
+    gender = _SEX_MAP.get(sex_raw)
     dob = _parse_date(data.get('date_of_birth') or '')
     expiry = _parse_date(data.get('expiration_date') or '')
     issuing_country = (data.get('country_code') or '').strip().upper()
-    cn_name = (data.get('name') or '').strip()  # 可选：员工补的中文姓名
+    cn_name = (data.get('name') or '').strip()
 
+    existing = FrequentTraveler.query.filter_by(passport_number=passport_number).first()
+    if existing:
+        existing.name_en = name_en
+        if gender:
+            existing.gender = gender
+        if dob:
+            existing.date_of_birth = dob
+        if nationality:
+            existing.nationality = nationality
+        if issuing_country:
+            existing.passport_issuing_country = issuing_country
+        if expiry:
+            existing.passport_expiry_date = expiry
+        if cn_name:
+            existing.name = cn_name
+        existing.updated_at = datetime.utcnow()
+        return existing, 'updated'
+
+    record = FrequentTraveler(
+        name=cn_name or name_en,
+        name_en=name_en,
+        gender=gender,
+        date_of_birth=dob,
+        nationality=nationality or None,
+        passport_number=passport_number,
+        passport_issuing_country=issuing_country or None,
+        passport_expiry_date=expiry,
+    )
+    db.session.add(record)
+    return record, 'created'
+
+
+def _get_traveler_files_dir(traveler_id):
+    """返回旅客的文件存储目录（与 frequent_traveler 路由保持一致）"""
+    base = Path(os.getcwd()) / '资源' / 'Travelers' / str(traveler_id)
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+@flights_passport.route('/save', methods=['POST'])
+@login_required
+@staff_only
+def save():
+    """写入或更新 FrequentTraveler。去重 key: passport_number。"""
+    data = request.get_json() or {}
     try:
-        existing = FrequentTraveler.query.filter_by(passport_number=passport_number).first()
-
-        if existing:
-            existing.name_en = name_en
-            if gender:
-                existing.gender = gender
-            if dob:
-                existing.date_of_birth = dob
-            if nationality:
-                existing.nationality = nationality
-            if issuing_country:
-                existing.passport_issuing_country = issuing_country
-            if expiry:
-                existing.passport_expiry_date = expiry
-            if cn_name:
-                existing.name = cn_name
-            existing.updated_at = datetime.utcnow()
-            action = 'updated'
-            record = existing
-        else:
-            # 新建：name 必填，没填中文就用英文姓名
-            record = FrequentTraveler(
-                name=cn_name or name_en,
-                name_en=name_en,
-                gender=gender,
-                date_of_birth=dob,
-                nationality=nationality or None,
-                passport_number=passport_number,
-                passport_issuing_country=issuing_country or None,
-                passport_expiry_date=expiry,
-            )
-            db.session.add(record)
-            action = 'created'
-
+        record, action = _upsert_traveler_from_passport(data)
         db.session.commit()
         return jsonify({
             'success': True,
             'action': action,
             'data': _traveler_to_passport_dict(record),
         })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         current_app.logger.exception('护照保存到 FrequentTraveler 失败')
+        return jsonify({'success': False, 'error': f'保存失败: {e}'}), 500
+
+
+@flights_passport.route('/save_image', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def save_image():
+    """保存护照图片到 TravelerFile
+
+    前端 multipart/form-data：
+    - image: 图片文件（必填）
+    - surname / given_name / passport_number 等：与 /save 同格式，用来 find-or-create 旅客
+    """
+    file = request.files.get('image')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'error': '请上传护照图片'}), 400
+    if not _allowed(file.filename):
+        return jsonify({'success': False, 'error': '图片格式不支持，请用 PNG/JPG/JPEG/WEBP'}), 400
+
+    # 用表单里的护照字段 find-or-create 旅客
+    try:
+        record, action = _upsert_traveler_from_passport(request.form)
+        db.session.flush()  # 新建时拿到 traveler.id
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('保存图片前置旅客 upsert 失败')
+        return jsonify({'success': False, 'error': f'保存失败: {e}'}), 500
+
+    # 保存文件 + 写 TravelerFile
+    try:
+        original = secure_filename(file.filename) or file.filename
+        ext = os.path.splitext(original)[1].lower() or '.jpg'
+        stored = f'{uuid.uuid4().hex}{ext}'
+        file_dir = _get_traveler_files_dir(record.id)
+        full_path = file_dir / stored
+        file.save(str(full_path))
+        size = os.path.getsize(str(full_path))
+        if size > MAX_BYTES:
+            os.unlink(str(full_path))
+            return jsonify({'success': False, 'error': f'图片过大 ({size//1024} KB)，请压缩到 10 MB 以内'}), 400
+
+        tf = TravelerFile(
+            traveler_id=record.id,
+            file_category='passport',
+            filename=file.filename,
+            stored_filename=stored,
+            file_path=str(full_path),
+            file_size=size,
+            file_type=file.content_type,
+            description='护照识别页面上传',
+        )
+        db.session.add(tf)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'action': action,  # 'created'/'updated' 表示 FrequentTraveler 状态
+            'traveler_id': record.id,
+            'file': tf.to_dict(),
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception('护照图片保存失败')
         return jsonify({'success': False, 'error': f'保存失败: {e}'}), 500
 
 
