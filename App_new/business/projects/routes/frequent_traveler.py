@@ -39,7 +39,18 @@ frequent_traveler_bp = Blueprint('frequent_traveler', __name__, url_prefix='/fre
 def list_page():
     """常用旅客管理页面"""
     companies = CustomerCompany.query.filter_by(is_customer=True).order_by(CustomerCompany.company_name).all()
-    return render_template('business/projects/frequent_traveler.html', companies=companies)
+
+    # 集团下拉：CustomerCompany.group_name + FrequentTraveler.group_name 的去重并集
+    company_groups = {g[0] for g in db.session.query(CustomerCompany.group_name)
+                      .filter(CustomerCompany.group_name.isnot(None),
+                              CustomerCompany.group_name != '').distinct().all()}
+    traveler_groups = {g[0] for g in db.session.query(FrequentTraveler.group_name)
+                       .filter(FrequentTraveler.group_name.isnot(None),
+                               FrequentTraveler.group_name != '').distinct().all()}
+    groups = sorted(company_groups | traveler_groups)
+
+    return render_template('business/projects/frequent_traveler.html',
+                           companies=companies, groups=groups)
 
 
 @frequent_traveler_bp.route('/api/list', methods=['GET'])
@@ -47,6 +58,7 @@ def api_list():
     """获取常用旅客列表（支持搜索和分页）"""
     keyword = request.args.get('keyword', '').strip()
     company_id = request.args.get('company_id', '', type=str)
+    group_name = request.args.get('group_name', '', type=str).strip()
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
 
@@ -66,6 +78,15 @@ def api_list():
 
     if company_id:
         query = query.filter_by(company_id=int(company_id))
+
+    if group_name:
+        # 匹配旅客自身 group_name，或其关联公司的 group_name
+        query = query.outerjoin(CustomerCompany, FrequentTraveler.company_id == CustomerCompany.id).filter(
+            db.or_(
+                FrequentTraveler.group_name == group_name,
+                CustomerCompany.group_name == group_name,
+            )
+        )
 
     query = query.order_by(FrequentTraveler.name)
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -173,6 +194,7 @@ def api_create():
         id_card_number=data.get('id_card_number'),
         airline_memberships=json.dumps(data.get('airline_memberships', []), ensure_ascii=False) if data.get('airline_memberships') else None,
         company_id=data.get('company_id') or None,
+        group_name=(data.get('group_name') or '').strip() or None,
         remarks=data.get('remarks'),
     )
     db.session.add(traveler)
@@ -209,6 +231,8 @@ def api_update(traveler_id):
         traveler.passport_expiry_date = data['passport_expiry_date'] or None
     if 'company_id' in data:
         traveler.company_id = data['company_id'] or None
+    if 'group_name' in data:
+        traveler.group_name = (data['group_name'] or '').strip() or None
     if 'airline_memberships' in data:
         traveler.airline_memberships = json.dumps(data['airline_memberships'], ensure_ascii=False) if data['airline_memberships'] else None
 
@@ -252,6 +276,7 @@ EXCEL_COLUMNS = [
     ('id_card_number', '身份证号码', 20),
     ('airline_memberships', '航空会员(航司:号码,多个用;分隔)', 30),
     ('company_name', '关联公司', 20),
+    ('group_name', '集团', 15),
     ('remarks', '备注', 25),
 ]
 
@@ -315,6 +340,7 @@ def api_export():
             d['id_card_number'] or '',
             memberships_str,
             d['company_name'] or '',
+            d['group_name'] or '',
             d['remarks'] or '',
         ]
         for col_idx, value in enumerate(row_data, 1):
@@ -374,7 +400,7 @@ def api_template():
     example = ['', 'MR', '张三', 'ZHANG SAN', 'male', '1990-01-15', 'CHINA',
                '+65 91234567', 'zhangsan@email.com', 'E12345678', 'CHINA',
                '2030-12-31', '110101199001150011', 'SQ:1234567890;CX:987654',
-               '', '示例数据，请删除此行']
+               '', 'ALIBABA', '示例数据，请删除此行']
     example_font = Font(color='999999', italic=True)
     for col_idx, value in enumerate(example, 1):
         cell = ws.cell(row=2, column=col_idx, value=value)
@@ -502,6 +528,7 @@ def api_import():
             'id_card_number': get_val('id_card_number'),
             'airline_memberships': json.dumps(memberships, ensure_ascii=False) if memberships else None,
             'company_id': company_id,
+            'group_name': get_val('group_name') or None,
             'remarks': get_val('remarks'),
         }
 

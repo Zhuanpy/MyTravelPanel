@@ -37,6 +37,10 @@ class FrequentTraveler(db.Model):
     # 关联公司（可选，便于按公司筛选常用旅客）
     company_id = db.Column(db.Integer, db.ForeignKey('customer_companies.id'), nullable=True, comment='关联客户公司ID')
 
+    # 集团/关联标签（与 CustomerCompany.group_name 同风格的字符串标签；
+    # 可由公司 group_name 自动回填，也支持无公司时直接打标签）
+    group_name = db.Column(db.String(100), nullable=True, comment='集团/关联标签')
+
     # 备注
     remarks = db.Column(db.Text, nullable=True, comment='备注')
 
@@ -76,6 +80,7 @@ class FrequentTraveler(db.Model):
             'airline_memberships': memberships,
             'company_id': self.company_id,
             'company_name': self.company.company_name if self.company else None,
+            'group_name': self.group_name or (self.company.group_name if self.company else None),
             'remarks': self.remarks,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

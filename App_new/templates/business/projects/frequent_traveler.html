@@ -43,6 +43,14 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="searchGroup">
+                        <option value="">全部集团</option>
+                        {% for g in groups %}
+                        <option value="{{ g }}">{{ g }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <button class="btn btn-sm btn-outline-primary" onclick="loadTravelers()">
                         <i class="fas fa-search"></i> 搜索
                     </button>
@@ -60,17 +68,18 @@
                     <tr>
                         <th style="width: 4%;">#</th>
                         <th style="width: 6%;">称谓</th>
-                        <th style="width: 14%;">姓名</th>
-                        <th style="width: 12%;">电话</th>
-                        <th style="width: 14%;">护照号</th>
-                        <th style="width: 10%;">护照有效期</th>
-                        <th style="width: 12%;">公司</th>
-                        <th style="width: 12%;">资料</th>
-                        <th style="width: 16%;">操作</th>
+                        <th style="width: 13%;">姓名</th>
+                        <th style="width: 11%;">电话</th>
+                        <th style="width: 12%;">护照号</th>
+                        <th style="width: 9%;">护照有效期</th>
+                        <th style="width: 11%;">公司</th>
+                        <th style="width: 9%;">集团</th>
+                        <th style="width: 10%;">资料</th>
+                        <th style="width: 15%;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="travelersTbody">
-                    <tr><td colspan="9" class="text-center text-muted py-4">加载中...</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-4">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -200,14 +209,24 @@
                         </div>
                     </div>
                     <div class="row g-2 mt-0">
-                        <div class="col-md-8">
+                        <div class="col-md-5">
                             <label class="form-label">关联公司</label>
-                            <select class="form-select form-select-sm" id="travelerCompany">
+                            <select class="form-select form-select-sm" id="travelerCompany" onchange="autofillGroupFromCompany()">
                                 <option value="">无</option>
                                 {% for c in companies %}
-                                <option value="{{ c.id }}">{{ c.company_name }}</option>
+                                <option value="{{ c.id }}" data-group="{{ c.group_name or '' }}">{{ c.company_name }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">集团 <small class="text-muted">(可从公司带出，或手动输入)</small></label>
+                            <input type="text" class="form-control form-control-sm" id="travelerGroup"
+                                   list="groupList" placeholder="如 ALIBABA / BAONENG">
+                            <datalist id="groupList">
+                                {% for g in groups %}
+                                <option value="{{ g }}"></option>
+                                {% endfor %}
+                            </datalist>
                         </div>
                     </div>
                 </div>
@@ -399,9 +418,11 @@ function loadTravelers(page) {
     currentPage = page || 1;
     const keyword = document.getElementById('searchKeyword').value.trim();
     const companyId = document.getElementById('searchCompany').value;
+    const groupName = document.getElementById('searchGroup').value;
     const params = new URLSearchParams({page: currentPage, per_page: 20});
     if (keyword) params.set('keyword', keyword);
     if (companyId) params.set('company_id', companyId);
+    if (groupName) params.set('group_name', groupName);
 
     fetch(`/projects/frequent_traveler/api/list?${params}`)
         .then(r => r.json())
@@ -418,7 +439,7 @@ function renderTravelers(travelers, total, page, pages) {
     document.getElementById('travelerCount').textContent = `共 ${total} 条记录`;
 
     if (!travelers.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
         document.getElementById('travelerPagination').innerHTML = '';
         return;
     }
@@ -435,6 +456,7 @@ function renderTravelers(travelers, total, page, pages) {
             <td>${t.passport_number || ''}</td>
             <td class="${expiryClass}">${t.passport_expiry_date || ''}</td>
             <td><small>${t.company_name || ''}</small></td>
+            <td><small class="text-muted">${t.group_name || ''}</small></td>
             <td style="white-space: nowrap;">
                 <button class="btn btn-sm btn-outline-success py-0 px-1" onclick="event.stopPropagation(); quickUpload(${t.id})" title="上传资料" style="font-size: 0.75rem;">
                     <i class="fas fa-upload"></i>
@@ -474,7 +496,19 @@ function renderTravelers(travelers, total, page, pages) {
 function resetSearch() {
     document.getElementById('searchKeyword').value = '';
     document.getElementById('searchCompany').value = '';
+    document.getElementById('searchGroup').value = '';
     loadTravelers(1);
+}
+
+// 公司变化时，若集团输入为空，自动带出公司的 group
+function autofillGroupFromCompany() {
+    const sel = document.getElementById('travelerCompany');
+    const opt = sel.options[sel.selectedIndex];
+    const group = opt ? (opt.dataset.group || '') : '';
+    const groupInput = document.getElementById('travelerGroup');
+    if (group && !groupInput.value.trim()) {
+        groupInput.value = group;
+    }
 }
 
 // ---- 模态框操作 ----
@@ -504,6 +538,7 @@ function openTravelerModal(traveler) {
         document.getElementById('travelerPassportExpiry').value = traveler.passport_expiry_date || '';
         document.getElementById('travelerIdCard').value = traveler.id_card_number || '';
         document.getElementById('travelerCompany').value = traveler.company_id || '';
+        document.getElementById('travelerGroup').value = traveler.group_name || '';
         document.getElementById('travelerRemarks').value = traveler.remarks || '';
 
         // 航空会员
@@ -581,6 +616,7 @@ function saveTraveler() {
         id_card_number: document.getElementById('travelerIdCard').value.trim(),
         airline_memberships: collectMemberships(),
         company_id: document.getElementById('travelerCompany').value || null,
+        group_name: document.getElementById('travelerGroup').value.trim(),
         remarks: document.getElementById('travelerRemarks').value.trim(),
     };
 
@@ -700,7 +736,8 @@ function viewTraveler(id) {
                 </div>
                 ${membershipsHtml}
                 <div class="row mt-2">
-                    <div class="col-12"><strong>关联公司:</strong> ${t.company_name || '-'}</div>
+                    <div class="col-6"><strong>关联公司:</strong> ${t.company_name || '-'}</div>
+                    <div class="col-6"><strong>集团:</strong> ${t.group_name || '-'}</div>
                 </div>
                 ${t.remarks ? `<div class="row mt-1"><div class="col-12"><strong>备注:</strong> ${t.remarks}</div></div>` : ''}
                 <div id="detailFilesArea" class="mt-3"></div>
