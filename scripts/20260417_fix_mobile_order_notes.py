@@ -144,5 +144,7 @@ def migrate(dry_run=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dry-run', action='store_true', help='只预览不写入数据库')
+    # server_update.sh 统一传 --execute，这里接受但等同于默认行为
+    parser.add_argument('--execute', action='store_true', help='兼容部署脚本，默认即为执行')
     args = parser.parse_args()
     migrate(dry_run=args.dry_run)
