@@ -121,18 +121,18 @@
     <div class="row justify-content-center">
         <div class="col-lg-10 col-md-12">
             <!-- 页面头部 -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-nowrap gap-3">
+                <div class="flex-grow-1" style="min-width: 0;">
                     <h2 class="mb-1">
                         <i class="fas fa-money-bill-wave text-primary"></i>
                         项目收款记录
                     </h2>
-                    <p class="text-muted mb-0">
-                        项目: <strong>{{ header.hid }}</strong> | 
+                    <p class="text-muted mb-0 text-truncate" title="描述: {{ header.display_desc }}">
+                        项目: <strong>{{ header.hid }}</strong> |
                         描述: <strong>{{ header.display_desc }}</strong>
                     </p>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-shrink-0">
                     <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" 
                        class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> 返回项目详情
