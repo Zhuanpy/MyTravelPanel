@@ -30,6 +30,8 @@
         box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
     }
     .batch-panel.show { display: block; }
+    /* 面板显示时给 body 底部留白，避免遮挡翻页按钮 */
+    body.has-batch-panel { padding-bottom: 90px; }
     .batch-panel-content {
         max-width: 1400px;
         margin: 0 auto;
@@ -474,8 +476,17 @@ const STORAGE_KEY = 'invoice_selected';
 const FILTER_KEY = 'invoice_filter_params';
 
 // 筛选条件变化时清除选中状态，避免不同筛选结果的选中数据混在一起
+// 注意：翻页（page / per_page 变化）不算筛选变化，需排除，否则会误清已选
 (function() {
-    const currentFilter = window.location.search;
+    function normalizeFilter(search) {
+        const p = new URLSearchParams(search);
+        p.delete('page');
+        p.delete('per_page');
+        // 排序后拼接，避免参数顺序不同导致误判
+        const entries = [...p.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+        return entries.map(([k, v]) => `${k}=${v}`).join('&');
+    }
+    const currentFilter = normalizeFilter(window.location.search);
     const savedFilter = sessionStorage.getItem(FILTER_KEY);
     if (savedFilter !== currentFilter) {
         sessionStorage.removeItem(STORAGE_KEY);
@@ -587,8 +598,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedAmountEl.textContent = totalUnpaid.toFixed(2) + ' (多币种)';
             }
             batchPanel.classList.add('show');
+            document.body.classList.add('has-batch-panel');
         } else {
             batchPanel.classList.remove('show');
+            document.body.classList.remove('has-batch-panel');
         }
     }
 
@@ -621,6 +634,7 @@ function clearSelection() {
     const sa = document.getElementById('selectAll');
     if (sa) { sa.checked = false; sa.indeterminate = false; }
     document.getElementById('batchPanel').classList.remove('show');
+    document.body.classList.remove('has-batch-panel');
     const bar = document.getElementById('crossPageBar');
     if (bar) bar.classList.remove('show');
 }
