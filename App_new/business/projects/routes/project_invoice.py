@@ -1226,6 +1226,125 @@ def invoice_list():
         return redirect(url_for('business_projects.list.list_projects'))
 
 
+@project_invoice.route('/list/all_ids', methods=['GET'])
+@login_required
+@staff_only
+def invoice_list_all_ids():
+    """返回当前筛选条件下所有未付款发票的ID（跨页全选使用）
+
+    复用 invoice_list 的筛选参数，但不分页，强制排除已付款发票。
+    返回精简字段：id、amount、unpaid、currency，供前端同步 sessionStorage。
+    """
+    try:
+        from sqlalchemy import and_, or_
+        from datetime import timedelta, date
+
+        # 获取筛选参数（与 invoice_list 保持一致）
+        status = request.args.get('status', 'confirmed').strip()
+        payment_status = request.args.get('payment_status', '').strip()
+        invoice_type = request.args.get('invoice_type', '').strip()
+        currency = request.args.get('currency', '').strip()
+        company_id = request.args.get('company_id', None, type=int)
+        date_range = request.args.get('date_range', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        min_amount = request.args.get('min_amount', None, type=float)
+        max_amount = request.args.get('max_amount', None, type=float)
+        keyword = request.args.get('keyword', '').strip()
+        tag = request.args.get('tag', '').strip()
+
+        query = db.session.query(ProjectInvoice).join(
+            ProjectHeader, ProjectInvoice.header_id == ProjectHeader.id, isouter=True
+        )
+
+        filters = []
+        # 跨页全选仅选可收款的发票（未付或部分付款）
+        filters.append(ProjectInvoice.payment_status != 'paid')
+
+        if status:
+            filters.append(ProjectInvoice.status == status)
+        if company_id:
+            filters.append(ProjectHeader.company_id == company_id)
+        if payment_status:
+            filters.append(ProjectInvoice.payment_status == payment_status)
+        if invoice_type:
+            filters.append(ProjectInvoice.invoice_type == invoice_type)
+        if currency:
+            filters.append(ProjectInvoice.currency == currency)
+
+        if start_date:
+            try:
+                sd = datetime.strptime(start_date, '%Y-%m-%d').date()
+                filters.append(ProjectInvoice.invoice_date >= sd)
+            except ValueError:
+                pass
+        if end_date:
+            try:
+                ed = datetime.strptime(end_date, '%Y-%m-%d').date()
+                filters.append(ProjectInvoice.invoice_date <= ed)
+            except ValueError:
+                pass
+
+        if (not start_date and not end_date) and date_range:
+            today = date.today()
+            if date_range == 'today':
+                filters.append(ProjectInvoice.invoice_date == today)
+            elif date_range == 'week':
+                start = today - timedelta(days=today.weekday())
+                end = start + timedelta(days=6)
+                filters.append(and_(ProjectInvoice.invoice_date >= start, ProjectInvoice.invoice_date <= end))
+            elif date_range == 'month':
+                start = today.replace(day=1)
+                if today.month == 12:
+                    end = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+                else:
+                    end = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+                filters.append(and_(ProjectInvoice.invoice_date >= start, ProjectInvoice.invoice_date <= end))
+            elif date_range == 'year':
+                start = today.replace(month=1, day=1)
+                end = today.replace(month=12, day=31)
+                filters.append(and_(ProjectInvoice.invoice_date >= start, ProjectInvoice.invoice_date <= end))
+
+        if min_amount is not None and min_amount > 0:
+            filters.append(ProjectInvoice.amount >= float(min_amount))
+        if max_amount is not None and max_amount > 0:
+            filters.append(ProjectInvoice.amount <= float(max_amount))
+
+        if keyword:
+            kw = f"%{keyword}%"
+            filters.append(or_(
+                ProjectInvoice.invoice_number.ilike(kw),
+                ProjectInvoice.customer_name.ilike(kw),
+                ProjectInvoice.customer_company.ilike(kw),
+                ProjectInvoice.remarks.ilike(kw),
+                ProjectHeader.hid.ilike(kw),
+                ProjectHeader.desc.ilike(kw)
+            ))
+
+        if tag:
+            filters.append(ProjectInvoice.tags.like(f'%"{tag}"%'))
+
+        if filters:
+            query = query.filter(and_(*filters))
+
+        invoices = query.all()
+        items = [{
+            'id': inv.id,
+            'amount': float(inv.amount) if inv.amount else 0,
+            'unpaid': float(inv.unpaid_amount) if inv.unpaid_amount else 0,
+            'currency': inv.currency or 'SGD'
+        } for inv in invoices]
+
+        return jsonify({
+            'success': True,
+            'total': len(items),
+            'items': items
+        })
+    except Exception as e:
+        logger.exception('invoice_list_all_ids failed')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @project_invoice.route('/<int:invoice_id>/tags', methods=['POST'])
 @login_required
 @staff_only

@@ -63,6 +63,28 @@
     .btn-batch-cancel { background: rgba(255,255,255,0.15); color: white; }
     .btn-batch-cancel:hover { background: rgba(255,255,255,0.25); }
 
+    /* 跨页全选提示条 */
+    .cross-page-bar {
+        display: none;
+        background: #fff7ed;
+        border: 1px solid #fdba74;
+        color: #9a3412;
+        padding: 8px 14px;
+        font-size: 0.82rem;
+        border-bottom: 1px solid #fdba74;
+    }
+    .cross-page-bar.show { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+    .cross-page-bar .link-btn {
+        background: none;
+        border: none;
+        color: #c2410c;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 0;
+        font-size: 0.82rem;
+    }
+    .cross-page-bar .link-btn:disabled { color: #9ca3af; cursor: wait; text-decoration: none; }
 </style>
 {% endblock %}
 
@@ -139,6 +161,14 @@
 
     <!-- 发票列表 -->
     <div class="card">
+        <!-- 跨页全选提示条 -->
+        <div class="cross-page-bar" id="crossPageBar">
+            <span id="crossPageMsg"></span>
+            <button type="button" class="link-btn" id="selectAllPagesBtn" onclick="selectAllPages()">
+                选中全部符合条件的发票
+            </button>
+            <button type="button" class="link-btn" onclick="clearSelection()">取消全选</button>
+        </div>
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
@@ -465,14 +495,21 @@ function saveSelectedMap(map) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
+// 当前分页是否存在下一页（存在则说明需要提示跨页全选）
+const HAS_MORE_PAGES = {% if pagination and pagination.pages > 1 %}true{% else %}false{% endif %};
+// 当前筛选下可选发票总数（含已付款，仅作上限参考，实际以 API 返回为准）
+const TOTAL_ON_ALL_PAGES = {{ pagination.total if pagination else 0 }};
+
 document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const invoiceCheckboxes = document.querySelectorAll('.invoice-checkbox');
     const batchPanel = document.getElementById('batchPanel');
     const selectedCountEl = document.getElementById('selectedCount');
     const selectedAmountEl = document.getElementById('selectedAmount');
+    const crossPageBar = document.getElementById('crossPageBar');
+    const crossPageMsg = document.getElementById('crossPageMsg');
 
-    // 页面加载时，从 sessionStorage 恢复当前页的选中状态
+    // 页面加载时，从 sessionStorage 恢复选中状态（含其他页已选）
     const selectedMap = getSelectedMap();
     invoiceCheckboxes.forEach(cb => {
         const id = cb.dataset.id;
@@ -482,6 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     updateSelectAll();
     updateBatchPanel();
+    updateCrossPageBar();
 
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
@@ -490,6 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 syncCheckboxToStorage(cb);
             });
             updateBatchPanel();
+            updateCrossPageBar();
         });
     }
 
@@ -498,6 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
             syncCheckboxToStorage(this);
             updateSelectAll();
             updateBatchPanel();
+            updateCrossPageBar();
         });
     });
 
@@ -551,14 +591,89 @@ document.addEventListener('DOMContentLoaded', function() {
             batchPanel.classList.remove('show');
         }
     }
+
+    // 显示/隐藏"跨页全选"提示条
+    // 触发条件：分页存在多页，且本页所有可选发票已全部勾选
+    function updateCrossPageBar() {
+        if (!crossPageBar) return;
+        const pageBoxes = document.querySelectorAll('.invoice-checkbox');
+        const pageChecked = document.querySelectorAll('.invoice-checkbox:checked').length;
+        const allOnPageChecked = pageBoxes.length > 0 && pageChecked === pageBoxes.length;
+        const selectedTotal = Object.keys(getSelectedMap()).length;
+
+        // 仅当尚未跨页扩展时（累计已选 == 当前页已选）才提示
+        if (HAS_MORE_PAGES && allOnPageChecked && selectedTotal === pageChecked) {
+            crossPageMsg.textContent = `已选中本页 ${pageChecked} 张发票。`;
+            crossPageBar.classList.add('show');
+        } else {
+            crossPageBar.classList.remove('show');
+        }
+    }
+
+    // 暴露给全局，供 selectAllPages / clearSelection 使用
+    window.__invoiceUpdateCrossPageBar = updateCrossPageBar;
+    window.__invoiceUpdateBatchPanel = updateBatchPanel;
 });
 
 function clearSelection() {
     sessionStorage.removeItem(STORAGE_KEY);
     document.querySelectorAll('.invoice-checkbox').forEach(cb => cb.checked = false);
-    document.getElementById('selectAll').checked = false;
-    document.getElementById('selectAll').indeterminate = false;
+    const sa = document.getElementById('selectAll');
+    if (sa) { sa.checked = false; sa.indeterminate = false; }
     document.getElementById('batchPanel').classList.remove('show');
+    const bar = document.getElementById('crossPageBar');
+    if (bar) bar.classList.remove('show');
+}
+
+// 跨页全选：拉取当前筛选条件下所有未付款发票，写入 sessionStorage
+function selectAllPages() {
+    const btn = document.getElementById('selectAllPagesBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '加载中...'; }
+
+    // 保留当前 URL 的筛选参数，去掉 page 即可拿到全部
+    const params = new URLSearchParams(window.location.search);
+    params.delete('page');
+    params.delete('per_page');
+
+    fetch('{{ url_for("business_projects.project_invoice.invoice_list_all_ids") }}?' + params.toString())
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                alert(data.message || '加载失败');
+                return;
+            }
+            const map = {};
+            data.items.forEach(item => {
+                map[item.id] = {
+                    amount: item.amount || 0,
+                    unpaid: item.unpaid || 0,
+                    currency: item.currency || 'SGD'
+                };
+            });
+            saveSelectedMap(map);
+            // 勾选当前页上匹配到的 checkbox
+            document.querySelectorAll('.invoice-checkbox').forEach(cb => {
+                cb.checked = !!map[cb.dataset.id];
+            });
+            const sa = document.getElementById('selectAll');
+            if (sa) {
+                const total = document.querySelectorAll('.invoice-checkbox').length;
+                const checked = document.querySelectorAll('.invoice-checkbox:checked').length;
+                sa.checked = total > 0 && checked === total;
+                sa.indeterminate = checked > 0 && checked < total;
+            }
+            if (window.__invoiceUpdateBatchPanel) window.__invoiceUpdateBatchPanel();
+            // 跨页全选完成后隐藏提示条
+            const bar = document.getElementById('crossPageBar');
+            if (bar) bar.classList.remove('show');
+        })
+        .catch(err => {
+            console.error(err);
+            alert('加载失败，请重试');
+        })
+        .finally(() => {
+            if (btn) { btn.disabled = false; btn.textContent = '选中全部符合条件的发票'; }
+        });
 }
 
 // 批量收款弹窗
