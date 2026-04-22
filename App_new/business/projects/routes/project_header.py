@@ -7,9 +7,14 @@ from App_new.exts import csrf, db
 from App_new.business.projects.forms.project_forms import ProjectHeaderForm
 from App_new.utils.decorators import staff_only, admin_only
 from datetime import datetime
-from sqlalchemy import func
+from sqlalchemy import func, collate
 import traceback
 import json
+
+# project_invoices.customer_company 与 customer_companies.company_name 的 collation
+# 可能不一致 (MySQL 8 常见 utf8mb4_unicode_ci vs utf8mb4_0900_ai_ci),
+# 跨字段 / 对比 Python 字符串时显式 COLLATE 统一
+_INVOICE_COMPANY_COLLATION = 'utf8mb4_unicode_ci'
 
 project_header = Blueprint('project_header', __name__)
 
@@ -283,33 +288,40 @@ def update_header_desc():
 @project_header.route('/update_company', methods=['POST'])
 @csrf.exempt
 def update_header_company():
-    """更新项目公司"""
+    """更新项目公司
+
+    当公司发生变化时，检查该项目下 confirmed + unpaid 且
+    customer_company 快照与新公司名不一致的发票数量，
+    在响应中返回 unsynced_invoices 信息供前端弹窗确认是否同步抬头。
+    """
+    from App_new.business.projects.models.invoice import ProjectInvoice
+
     data = request.get_json()
     print(f"DEBUG update_company: 收到数据 {data}")
-    
+
     header_id = data.get('header_id')
     # 兼容两种参数名
     company_id = data.get('company_id') or data.get('company')
-    
+
     if not header_id:
         return jsonify({'success': False, 'message': '参数错误: header_id为空'})
-    
+
     # 转换为整数
     header_id = int(header_id)
-    
+
     header = ProjectHeader.query.get(header_id)
     if not header:
         return jsonify({'success': False, 'message': f'项目不存在: header_id={header_id}'})
-    
+
     # 处理company_id
     old_company_id = header.company_id
     if company_id is None or company_id == 0 or company_id == '':
         new_company_id = None
     else:
         new_company_id = int(company_id)
-    
+
     print(f"DEBUG update_company: header_id={header_id}, old={old_company_id}, new={new_company_id}")
-    
+
     # 直接更新数据库
     try:
         ProjectHeader.query.filter_by(id=header_id).update({'company_id': new_company_id})
@@ -319,8 +331,79 @@ def update_header_company():
         db.session.rollback()
         print(f"DEBUG update_company: 提交失败 - {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
-    
-    return jsonify({'success': True, 'company_id': new_company_id})
+
+    # 公司确实发生变化时，统计抬头快照与新公司不一致的未付款发票
+    unsynced = {'count': 0, 'new_company_name': None, 'invoice_numbers': []}
+    if old_company_id != new_company_id:
+        new_company_name = None
+        if new_company_id:
+            new_company = CustomerCompany.query.get(new_company_id)
+            new_company_name = new_company.company_name if new_company else None
+
+        if new_company_name:
+            mismatched = ProjectInvoice.query.filter(
+                ProjectInvoice.header_id == header_id,
+                ProjectInvoice.status == 'confirmed',
+                ProjectInvoice.payment_status != 'paid',
+                db.or_(
+                    ProjectInvoice.customer_company.is_(None),
+                    ProjectInvoice.customer_company != collate(db.literal(new_company_name), _INVOICE_COMPANY_COLLATION)
+                )
+            ).all()
+
+            unsynced['count'] = len(mismatched)
+            unsynced['new_company_name'] = new_company_name
+            unsynced['invoice_numbers'] = [inv.invoice_number for inv in mismatched[:10]]
+
+    return jsonify({
+        'success': True,
+        'company_id': new_company_id,
+        'unsynced_invoices': unsynced
+    })
+
+
+@project_header.route('/sync_invoice_company', methods=['POST'])
+@csrf.exempt
+def sync_invoice_customer_company():
+    """将项目下 confirmed + unpaid 的发票 customer_company 同步为项目当前公司名"""
+    from App_new.business.projects.models.invoice import ProjectInvoice
+
+    data = request.get_json() or {}
+    header_id = data.get('header_id')
+    if not header_id:
+        return jsonify({'success': False, 'message': '参数错误: header_id为空'})
+
+    header_id = int(header_id)
+    header = ProjectHeader.query.get(header_id)
+    if not header:
+        return jsonify({'success': False, 'message': f'项目不存在: header_id={header_id}'})
+
+    new_company_name = header.company.company_name if header.company else None
+    if not new_company_name:
+        return jsonify({'success': False, 'message': '项目当前未关联公司，无法同步'})
+
+    try:
+        result = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id == header_id,
+            ProjectInvoice.status == 'confirmed',
+            ProjectInvoice.payment_status != 'paid',
+            db.or_(
+                ProjectInvoice.customer_company.is_(None),
+                ProjectInvoice.customer_company != collate(db.literal(new_company_name), _INVOICE_COMPANY_COLLATION)
+            )
+        ).update(
+            {'customer_company': new_company_name},
+            synchronize_session=False
+        )
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'updated': int(result or 0),
+            'customer_company': new_company_name
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
 
 @project_header.route('/update_status', methods=['POST'])
 @csrf.exempt

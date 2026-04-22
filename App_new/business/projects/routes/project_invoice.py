@@ -1073,13 +1073,15 @@ def invoice_list():
         
         if keyword:
             kw = f"%{keyword}%"
+            # 同时匹配项目当前归属公司名，避免发票快照 customer_company 过期导致漏搜
             filters.append(or_(
                 ProjectInvoice.invoice_number.ilike(kw),
                 ProjectInvoice.customer_name.ilike(kw),
                 ProjectInvoice.customer_company.ilike(kw),
                 ProjectInvoice.remarks.ilike(kw),
                 ProjectHeader.hid.ilike(kw),
-                ProjectHeader.desc.ilike(kw)
+                ProjectHeader.desc.ilike(kw),
+                CustomerCompany.company_name.ilike(kw)
             ))
 
         # 标签筛选
@@ -1238,6 +1240,7 @@ def invoice_list_all_ids():
     try:
         from sqlalchemy import and_, or_
         from datetime import timedelta, date
+        from App_new.business.projects.models.project import CustomerCompany
 
         # 获取筛选参数（与 invoice_list 保持一致）
         status = request.args.get('status', 'confirmed').strip()
@@ -1255,6 +1258,8 @@ def invoice_list_all_ids():
 
         query = db.session.query(ProjectInvoice).join(
             ProjectHeader, ProjectInvoice.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
         )
 
         filters = []
@@ -1312,13 +1317,15 @@ def invoice_list_all_ids():
 
         if keyword:
             kw = f"%{keyword}%"
+            # 同时匹配项目当前归属公司名，避免发票快照 customer_company 过期导致漏搜
             filters.append(or_(
                 ProjectInvoice.invoice_number.ilike(kw),
                 ProjectInvoice.customer_name.ilike(kw),
                 ProjectInvoice.customer_company.ilike(kw),
                 ProjectInvoice.remarks.ilike(kw),
                 ProjectHeader.hid.ilike(kw),
-                ProjectHeader.desc.ilike(kw)
+                ProjectHeader.desc.ilike(kw),
+                CustomerCompany.company_name.ilike(kw)
             ))
 
         if tag:

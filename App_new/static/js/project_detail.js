@@ -7,7 +7,8 @@ class ProjectDetailManager {
         this.csrfToken = this.getCSRFToken();
         this.apiEndpoints = {
             updateDesc: '/projects/header/update_desc',
-            updateCompany: '/projects/header/update_company', 
+            updateCompany: '/projects/header/update_company',
+            syncInvoiceCompany: '/projects/header/sync_invoice_company',
             updateStatus: '/projects/header/update_status',
             updateContact: '/projects/header/update_contact',
             updateRemarks: '/projects/header/update_remarks',
@@ -214,8 +215,13 @@ class ProjectDetailManager {
                 } else {
                     displayElement.textContent = value || '未设置';
                 }
-                
+
                 this.showMessage('保存成功', 'success');
+
+                // 公司变更后，若存在抬头快照不一致的未付款发票，提示是否同步
+                if (type === 'company' && response.unsynced_invoices && response.unsynced_invoices.count > 0) {
+                    this.confirmSyncInvoiceCompany(headerId, response.unsynced_invoices);
+                }
             } else {
                 this.showMessage(response.message || '保存失败', 'error');
             }
@@ -223,6 +229,34 @@ class ProjectDetailManager {
             this.showMessage('网络错误，保存失败', 'error');
         } finally {
             this.cancelInlineEdit(inputElement);
+        }
+    }
+
+    /**
+     * 公司变更后，询问是否把项目下未付款发票的抬头一并同步到新公司
+     */
+    async confirmSyncInvoiceCompany(headerId, info) {
+        const preview = (info.invoice_numbers || []).slice(0, 5).join(', ');
+        const more = info.count > 5 ? ` 等共 ${info.count} 张` : '';
+        const confirmed = window.confirm(
+            `该项目下有 ${info.count} 张 "Confirmed + 未付款" 的发票抬头与新公司不一致：\n`
+            + `${preview}${more}\n\n`
+            + `是否将这些发票的客户公司同步为 "${info.new_company_name}"？\n`
+            + `（不会改动已付款或已作废的发票）`
+        );
+        if (!confirmed) return;
+
+        try {
+            const resp = await this.makeRequest(this.apiEndpoints.syncInvoiceCompany, {
+                header_id: headerId
+            });
+            if (resp.success) {
+                this.showMessage(`已同步 ${resp.updated} 张发票抬头`, 'success');
+            } else {
+                this.showMessage(resp.message || '同步失败', 'error');
+            }
+        } catch (e) {
+            this.showMessage('网络错误，同步失败', 'error');
         }
     }
 
