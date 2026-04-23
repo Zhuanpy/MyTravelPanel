@@ -50,6 +50,10 @@ def create_app():
     app.permanent_session_lifetime = timedelta(days=1)
     app.config['STATIC_FOLDER'] = 'static'
 
+    # 性能监控（慢请求 + 慢 SQL 日志，写入 logs/slow_request.log 与 logs/slow_query.log）
+    from .shared.monitoring import init_monitoring
+    init_monitoring(app)
+
     # /favicon.ico 兼容
     @app.route('/favicon.ico')
     def favicon():
