@@ -204,7 +204,7 @@
                         {% else %}Service{% endif %}
                         <br>({{ ref.ref_number }})
                     </td>
-                    <td style="vertical-align: top; line-height: 1.8;">
+                    <td style="vertical-align: top; line-height: 1.2;">
                         {% set type_code = ref.ref_type.code|default('') if ref.ref_type else '' %}
                         {% set type_name = ref.ref_type.name|default('') if ref.ref_type else '' %}
                         {% if type_code == 'flight' or type_name == '机票' %}
@@ -213,62 +213,45 @@
                             {% set passengers = ref.flight_passengers %}
                             {% set first_pnr = passengers[0].pnr if passengers else '' %}
 
-                            <table style="border: none; font-size: 11px; width: 100%;">
+                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
                                 <tr>
-                                    <td style="width: 60px; border: none;">Itin</td>
-                                    <td style="width: 10px; border: none;">:</td>
-                                    <td style="border: none;">{{ ref.description or '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="border: none;">Detail</td>
-                                    <td style="border: none;">:</td>
-                                    <td style="border: none;"></td>
-                                </tr>
-                                <tr>
-                                    <td colspan="3" style="border: none; padding-left: 20px;">
-                                        Air ticket details -- {% if first_pnr %}(PNR:{{ first_pnr }}){% endif %}
-                                    </td>
+                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Itin</td>
+                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ ref.description or '-' }}{% if first_pnr %} &nbsp;(PNR: {{ first_pnr }}){% endif %}</td>
                                 </tr>
                                 {% for pax in passengers %}
                                 <tr>
-                                    <td style="border: none;">Pax</td>
-                                    <td style="border: none;">:</td>
-                                    <td style="border: none;">
-                                        <table style="width: 100%; border: none;">
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}Pax{% endif %}</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}:{% endif %}</td>
+                                    <td style="border: none; padding: 1px 0;">
+                                        <table style="width: 100%; border: none; line-height: 1.2;">
                                             <tr>
-                                                <td style="border: none;">{{ loop.index }}. {{ pax.name }}</td>
-                                                <td style="border: none; text-align: right; width: 120px;">Airfare :</td>
-                                                <td style="border: none; text-align: right; width: 60px;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="border: none; padding-left: 20px;">TKT: {{ pax.ticket_number or 'T.B.A' }}</td>
-                                                <td style="border: none; text-align: right;">Tax :</td>
-                                                <td style="border: none; text-align: right;">0.00</td>
+                                                <td style="border: none; padding: 1px 0;">{{ loop.index }}. {{ pax.name }}{% if pax.ticket_number %} &nbsp;(TKT: {{ pax.ticket_number }}){% endif %}</td>
+                                                <td style="border: none; text-align: right; width: 80px; padding: 1px 0;">Airfare :</td>
+                                                <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
                                             </tr>
                                         </table>
                                     </td>
                                 </tr>
                                 {% endfor %}
-                                <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
                                 {% for seg in segments %}
                                 <tr>
-                                    <td style="border: none;">Itin</td>
-                                    <td style="border: none;">:</td>
-                                    <td style="border: none;">
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}Flight{% endif %}</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}:{% endif %}</td>
+                                    <td style="border: none; padding: 1px 0;">
                                         {{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }}
                                         {{ seg.departure_airport }}-{{ seg.arrival_airport }}
-                                        {{ seg.cabin_code }} {{ seg.status or 'HK' }}
+                                        {{ seg.cabin_code }} {{ 'HK' if not seg.status or seg.status == 'pending' else seg.status }}
                                         {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }}
                                         {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}
                                     </td>
                                 </tr>
                                 {% endfor %}
-                                <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
                                 {% if ref.remarks %}
                                 <tr>
-                                    <td style="border: none;">Note</td>
-                                    <td style="border: none;">:</td>
-                                    <td style="border: none;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+                                    <td style="border: none; padding: 1px 0;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
                                 </tr>
                                 {% endif %}
                             </table>
