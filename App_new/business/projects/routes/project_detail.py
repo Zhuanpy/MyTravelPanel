@@ -741,7 +741,7 @@ def send_project_email(project_id):
     """发送项目邮件"""
     try:
         from flask import current_app
-        from flask_mail import Mail, Message
+        from flask_mail import Message
         from App_new.business.projects.models.project import ProjectHeader, ProjectEmail, EmailTemplate
         from werkzeug.utils import secure_filename
         import json
@@ -809,7 +809,7 @@ def send_project_email(project_id):
                             'type': mime_type
                         })
         
-        # 创建邮件记录
+        # 创建邮件记录（status=draft 表示已入队待发送，由后台线程发送完成后更新为 sent/failed）
         email_record = ProjectEmail(
             header_id=project_id,
             template_id=int(template_id) if template_id else None,
@@ -822,127 +822,103 @@ def send_project_email(project_id):
             created_by=current_user.username if current_user.is_authenticated else 'system'
         )
         db.session.add(email_record)
-        
-        # 发送邮件
+
+        # 提前 commit 拿到 record id，让后台线程能凭 id 更新状态
         try:
-            # 检查邮件配置
-            mail_server = current_app.config.get('MAIL_SERVER')
-            mail_username = current_app.config.get('MAIL_USERNAME')
-            mail_password = current_app.config.get('MAIL_PASSWORD')
-            mail_port = current_app.config.get('MAIL_PORT')
-            mail_use_ssl = current_app.config.get('MAIL_USE_SSL', False)
-            mail_use_tls = current_app.config.get('MAIL_USE_TLS', False)
-            
-            # 记录配置信息（用于调试，不记录密码）
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"邮件发送配置检查 - 服务器: {mail_server}, 端口: {mail_port}, SSL: {mail_use_ssl}, TLS: {mail_use_tls}, 用户名: {mail_username}")
-            
-            if not mail_server:
-                raise ValueError('邮件服务器(MAIL_SERVER)未配置，请检查环境变量或配置文件')
-            if not mail_username:
-                raise ValueError('邮件用户名(MAIL_USERNAME)未配置，请检查环境变量或配置文件')
-            if not mail_password:
-                raise ValueError('邮件密码(MAIL_PASSWORD)未配置，请检查环境变量或配置文件')
-            
-            mail = Mail(current_app)
-            sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or mail_username
-            
-            # 处理邮件正文：将换行符转换为HTML格式
-            # 检查是否包含HTML标签（简单判断）
-            has_html_tags = '<' in body and '>' in body and any(tag in body.lower() for tag in ['<br', '<p', '<div', '<span', '<h'])
-            
-            if not has_html_tags:
-                # 纯文本格式，将换行符转换为<br>，并包装在HTML中
-                # 先转义HTML特殊字符
-                import html
-                escaped_body = html.escape(body)
-                html_body = escaped_body.replace('\n', '<br>')
-                html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
-            else:
-                # 已经是HTML格式，但可能还有未转换的换行符，补充转换
-                # 只转换不在HTML标签内的换行符（简单处理）
-                html_body = body.replace('\n', '<br>')
-            
-            msg = Message(
-                subject=subject,
-                sender=sender_email,
-                recipients=recipients,
-                cc=cc if cc else None,
-                html=html_body
-            )
-            
-            # 添加附件
-            for att_info in attachments_info:
-                with open(att_info['path'], 'rb') as f:
-                    msg.attach(
-                        att_info['name'],
-                        att_info['type'],
-                        f.read()
-                    )
-            
-            logger.info(f"准备发送邮件 - 主题: {subject}, 收件人: {recipients}, 抄送: {cc}")
-            mail.send(msg)
-            logger.info("邮件发送成功")
-            
-            # 更新发送状态
-            email_record.status = 'sent'
-            email_record.sent_at = datetime.utcnow()
             db.session.commit()
-            
-            # 清理临时文件
-            for temp_file in temp_files:
-                try:
-                    if os.path.exists(temp_file):
-                        os.remove(temp_file)
-                except Exception as e:
-                    print(f"清理临时文件失败: {temp_file}, 错误: {e}")
-            
-            return jsonify({
-                'success': True,
-                'message': f'邮件发送成功，已发送至 {len(recipients)} 位收件人' + (f'，包含 {len(attachments_info)} 个附件' if attachments_info else ''),
-                'email_id': email_record.id
-            })
-            
-        except Exception as mail_error:
-            import traceback
+        except Exception as e:
+            db.session.rollback()
             import logging
-            logger = logging.getLogger(__name__)
-            
-            # 记录详细错误信息
-            error_detail = str(mail_error)
-            error_traceback = traceback.format_exc()
-            logger.error(f"邮件发送失败 - 错误: {error_detail}")
-            logger.error(f"错误堆栈: {error_traceback}")
-            
-            # 检查常见错误原因并提供友好提示
-            error_message = f'邮件发送失败：{error_detail}'
-            
-            # 常见错误提示
-            if 'timeout' in error_detail.lower() or 'timed out' in error_detail.lower():
-                error_message += '。可能原因：网络连接超时，请检查服务器是否能访问SMTP服务器'
-            elif 'connection' in error_detail.lower() or 'refused' in error_detail.lower():
-                error_message += '。可能原因：无法连接到SMTP服务器，请检查网络连接和防火墙设置'
-            elif 'authentication' in error_detail.lower() or 'login' in error_detail.lower() or '535' in error_detail:
-                error_message += '。可能原因：邮箱账号或密码错误，请检查MAIL_USERNAME和MAIL_PASSWORD配置'
-            elif 'ssl' in error_detail.lower() or 'certificate' in error_detail.lower():
-                error_message += '。可能原因：SSL/TLS证书验证失败，请检查MAIL_USE_SSL和MAIL_USE_TLS配置'
-            elif '550' in error_detail or '553' in error_detail:
-                error_message += '。可能原因：邮件被拒绝，请检查发件人地址和收件人地址是否正确'
-            
+            logging.getLogger(__name__).error(f"邮件记录入库失败: {e}", exc_info=True)
+            return jsonify({'success': False, 'message': f'邮件记录入库失败: {e}'}), 500
+
+        email_record_id = email_record.id
+
+        # 同步检查邮件配置（让用户立刻看到配置错误，而不是发到一半才失败）
+        import logging
+        logger = logging.getLogger(__name__)
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or mail_username
+
+        config_error = None
+        if not mail_server:
+            config_error = '邮件服务器(MAIL_SERVER)未配置'
+        elif not mail_username:
+            config_error = '邮件用户名(MAIL_USERNAME)未配置'
+        elif not mail_password:
+            config_error = '邮件密码(MAIL_PASSWORD)未配置'
+
+        if config_error:
             email_record.status = 'failed'
-            email_record.error_message = error_detail
+            email_record.error_message = config_error
             db.session.commit()
-            
-            # 清理临时文件
-            for temp_file in temp_files:
-                try:
-                    if os.path.exists(temp_file):
-                        os.remove(temp_file)
-                except:
-                    pass
-            
-            return jsonify({'success': False, 'message': error_message}), 500
+            from App_new.utils.async_email import cleanup_temp_files
+            cleanup_temp_files(temp_files)
+            return jsonify({'success': False, 'message': f'邮件发送失败：{config_error}'}), 500
+
+        # 处理邮件正文：纯文本转 HTML，已包含标签则补充换行
+        has_html_tags = '<' in body and '>' in body and any(
+            tag in body.lower() for tag in ['<br', '<p', '<div', '<span', '<h']
+        )
+        if not has_html_tags:
+            import html
+            escaped_body = html.escape(body)
+            html_body = escaped_body.replace('\n', '<br>')
+            html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
+        else:
+            html_body = body.replace('\n', '<br>')
+
+        msg = Message(
+            subject=subject,
+            sender=sender_email,
+            recipients=recipients,
+            cc=cc if cc else None,
+            html=html_body,
+        )
+
+        # 附件需要在主线程读出来塞进 msg，因为附件文件可能在异步任务跑之前被清理
+        for att_info in attachments_info:
+            with open(att_info['path'], 'rb') as f:
+                msg.attach(att_info['name'], att_info['type'], f.read())
+
+        # 异步发送：立刻返回，后台线程负责发送 + 状态更新 + 临时文件清理
+        from App_new.utils.async_email import send_email_async, cleanup_temp_files
+
+        app_obj = current_app._get_current_object()
+
+        def _on_done(success, error):
+            # 在 send_email_async 提供的 app_context 内执行
+            from App_new.business.projects.models.project import ProjectEmail as _PE
+            try:
+                rec = _PE.query.get(email_record_id)
+                if rec is not None:
+                    if success:
+                        rec.status = 'sent'
+                        rec.sent_at = datetime.utcnow()
+                    else:
+                        rec.status = 'failed'
+                        rec.error_message = (str(error) if error else 'unknown error')[:500]
+                    db.session.commit()
+            except Exception as cb_e:
+                db.session.rollback()
+                logger.error(f"更新邮件状态失败: {cb_e}", exc_info=True)
+            finally:
+                cleanup_temp_files(temp_files)
+
+        logger.info(f"邮件已加入异步发送队列 - 主题: {subject}, 收件人: {recipients}, 抄送: {cc}")
+        send_email_async(app_obj, msg, on_done=_on_done)
+
+        return jsonify({
+            'success': True,
+            'message': (
+                f'邮件已加入发送队列，将稍后发送至 {len(recipients)} 位收件人'
+                + (f'，包含 {len(attachments_info)} 个附件' if attachments_info else '')
+                + '。可在邮件历史中查看发送结果。'
+            ),
+            'email_id': email_record_id,
+        })
         
     except Exception as e:
         db.session.rollback()
