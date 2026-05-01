@@ -35,13 +35,12 @@ def reminder_dashboard():
 @login_required
 @staff_only
 def sync_reminders():
-    """同步项目提醒到待办事项"""
-    try:
-        count = sync_project_reminders()
-        flash(f'同步完成，共同步 {count} 个项目提醒到待办事项', 'success')
-    except Exception as e:
-        flash(f'同步失败：{str(e)}', 'error')
-    
+    """已退役：旧版 ProjectHeader.reminder_event 同步入口
+
+    多提醒已迁移到新系统（ProjectReminder + Todo source_type='project_reminder'）。
+    保留路由仅返回提示信息，避免破坏前端可能存在的链接。
+    """
+    flash('该入口已退役。项目提醒请在项目详情页直接添加管理。', 'info')
     return redirect(url_for('reminder.reminder_dashboard'))
 
 

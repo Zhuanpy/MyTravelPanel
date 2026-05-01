@@ -274,14 +274,9 @@ def manage_reminder(header_id):
         
         db.session.commit()
         
-        # 如果有提醒信息，同步到待办事项（创建者作为负责人）
-        if header.reminder_event and header.reminder_date:
-            try:
-                from App_new.utils.reminder_utils import create_reminder_todo
-                creator_id = current_user.id if current_user and hasattr(current_user, 'id') else None
-                create_reminder_todo(header, creator_id=creator_id)
-            except Exception as e:
-                print(f"DEBUG: Failed to create reminder todo: {str(e)}")
+        # 注意：header.reminder_event/date 单字段仅保留用于邮件提醒（email_reminder.py 直接读取）
+        # 不再向 Todo 表生成"项目提醒: HID"型旧式 todo —— 多提醒已迁移到 ProjectReminder/新版 Todo
+        # （source_type='project_reminder'）系统，由 /projects/reminder/<header>/create 路由维护
         
         action = '添加' if request.method == 'POST' else '更新'
         return jsonify({

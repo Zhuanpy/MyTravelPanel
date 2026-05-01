@@ -113,8 +113,10 @@ def run_scheduler():
     # 每天上午9点发送提醒邮件
     schedule.every().day.at("09:00").do(send_daily_reminders)
 
-    # 每天凌晨2点同步项目提醒到待办事项
-    schedule.every().day.at("02:00").do(sync_project_reminders)
+    # 已退役：sync_project_reminders（同步 ProjectHeader.reminder_event 单字段到 Todo）
+    # 多提醒已统一迁移到新系统（ProjectReminder + Todo source_type='project_reminder'），
+    # 由 /projects/reminder/<header>/create 路由维护，无需后台同步
+    # schedule.every().day.at("02:00").do(sync_project_reminders)
 
     # 每天早上8点自动生成重复清单任务
     schedule.every().day.at("08:00").do(auto_generate_checklist_todos)
