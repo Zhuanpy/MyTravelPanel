@@ -7,39 +7,62 @@ from App_new.business.projects.models.project import ProjectHeader
 from App_new.shared.models.Utilsmodels import Todo
 
 
+LEGACY_REMINDER_SOURCE_TYPE = 'project_header_reminder'
+
+
 def create_reminder_todo(project_header):
     """
-    为项目表头创建提醒待办事项
-    
-    Args:
-        project_header: ProjectHeader实例
+    为项目表头创建/更新提醒待办事项（基于 ProjectHeader.reminder_event/date 单字段）。
+
+    dedup 策略：
+    1. 主键：source_type='project_header_reminder' + source_id=header.id（稳定，
+       不受 desc/event 内容变化影响）
+    2. fallback：旧的 title+description+category 匹配（兼容尚未回填的历史记录）
+       命中后顺手回填 source_type/source_id
+
+    与新版 project_reminder blueprint（source_type='project_reminder'，每项目可
+    多条）通过不同的 source_type 隔离，避免语义混淆。
     """
     if not project_header.reminder_event or not project_header.reminder_date:
         return None
-    
-    # 检查是否已经存在相同的提醒待办事项
+
+    title = f"项目提醒: {project_header.hid}"
+    description = f"项目: {project_header.desc}\n提醒事件: {project_header.reminder_event}"
+
+    # 主路径：按稳定键查
     existing_todo = Todo.query.filter_by(
-        title=f"项目提醒: {project_header.hid}",
-        description=f"项目: {project_header.desc}\n提醒事件: {project_header.reminder_event}",
-        category="项目提醒"
+        source_type=LEGACY_REMINDER_SOURCE_TYPE,
+        source_id=project_header.id
     ).first()
-    
+
+    # fallback：兼容尚未回填的历史记录
+    if not existing_todo:
+        existing_todo = Todo.query.filter_by(
+            title=title,
+            description=description,
+            category="项目提醒"
+        ).first()
+
     if existing_todo:
-        # 更新现有待办事项的截止日期
+        # 更新内容并补齐 source 字段（自动回填历史记录）
+        existing_todo.title = title
+        existing_todo.description = description
         existing_todo.due_date = project_header.reminder_date
+        existing_todo.source_type = LEGACY_REMINDER_SOURCE_TYPE
+        existing_todo.source_id = project_header.id
         existing_todo.updated_at = datetime.utcnow()
         db.session.commit()
         return existing_todo
-    
-    # 创建新的待办事项
+
     todo = Todo(
-        title=f"项目提醒: {project_header.hid}",
-        description=f"项目: {project_header.desc}\n提醒事件: {project_header.reminder_event}",
+        title=title,
+        description=description,
         category="项目提醒",
-        priority=2,  # 中等优先级
-        due_date=project_header.reminder_date
+        priority=2,
+        due_date=project_header.reminder_date,
+        source_type=LEGACY_REMINDER_SOURCE_TYPE,
+        source_id=project_header.id
     )
-    
     db.session.add(todo)
     db.session.commit()
     return todo
