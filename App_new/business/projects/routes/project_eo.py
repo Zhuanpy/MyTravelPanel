@@ -1023,7 +1023,8 @@ def pay_eo(eo_id):
             if not prepayment:
                 return jsonify({'success': False, 'message': '预付账款不存在'}), 400
 
-            if prepayment.status not in ('confirmed', 'partial_used'):
+            # 用余额而非 status 判定可用性，防止状态漂移误拒
+            if prepayment.status in ('cancelled', 'draft') or prepayment.balance_amount <= 0:
                 return jsonify({'success': False, 'message': '该预付账款状态不允许使用'}), 400
 
             if existing_usage and existing_usage.prepayment_id == prepayment_id:

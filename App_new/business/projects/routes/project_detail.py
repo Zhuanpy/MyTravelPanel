@@ -89,13 +89,16 @@ def project_detail(project_id):
         supplier_balances = {}
 
         # 查询所有有余额的供应商预付记录
+        # 注意：用 balance_amount > 0 过滤，不依赖 status，
+        # 防止历史脏数据（status='consumed' 但余额恢复后 > 0）导致漏算
         prepayment_balances = db.session.query(
             SupplierPrepayment.supplier_id,
             func.sum(SupplierPrepayment.balance_amount).label('total_balance'),
             SupplierPrepayment.currency
         ).filter(
-            SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-            SupplierPrepayment.balance_amount > 0
+            SupplierPrepayment.balance_amount > 0,
+            SupplierPrepayment.status != 'cancelled',
+            SupplierPrepayment.status != 'draft'
         ).group_by(
             SupplierPrepayment.supplier_id,
             SupplierPrepayment.currency

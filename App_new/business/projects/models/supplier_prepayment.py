@@ -170,7 +170,8 @@ class SupplierPrepayment(db.Model):
         使用预付金额
         返回: (实际使用金额, 是否成功)
         """
-        if self.status not in ('confirmed', 'partial_used'):
+        # 用余额而非 status 判定，防止状态漂移误拒
+        if self.status in ('cancelled', 'draft') or self.balance_amount <= 0:
             return Decimal('0'), False
 
         amount = Decimal(str(amount))

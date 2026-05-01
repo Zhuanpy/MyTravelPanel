@@ -246,10 +246,12 @@ class ProjectRef(db.Model):
         if not pending_usage:
             if new_cost_decimal > 0:
                 # 查找该供应商的可用预付账款
+                # 用 balance_amount > 0 过滤，不依赖 status
                 prepayment = SupplierPrepayment.query.filter(
                     SupplierPrepayment.supplier_id == self.supplier_id,
-                    SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-                    SupplierPrepayment.balance_amount > 0
+                    SupplierPrepayment.balance_amount > 0,
+                    SupplierPrepayment.status != 'cancelled',
+                    SupplierPrepayment.status != 'draft'
                 ).order_by(SupplierPrepayment.created_at.asc()).first()
 
                 if prepayment and prepayment.balance_amount >= new_cost_decimal:
