@@ -83,7 +83,8 @@ def create_reminder(header_id):
         except ValueError:
             return jsonify({'success': False, 'message': '日期格式错误'}), 400
 
-        # 直接创建 Todo
+        # 直接创建 Todo（创建者自动作为负责人）
+        creator_id = current_user.id if current_user and hasattr(current_user, 'id') else None
         todo = Todo(
             title=f"[{header.hid}] {reminder_event}",
             description=f"项目: {header.hid}\n描述: {header.desc or ''}\n提醒事件: {reminder_event}",
@@ -93,7 +94,10 @@ def create_reminder(header_id):
             source_type='project_reminder',
             source_id=header_id,
             is_completed=False,
-            user_id=current_user.id if current_user and hasattr(current_user, 'id') else None
+            user_id=creator_id,
+            assigned_to=creator_id,
+            assigned_by=creator_id,
+            assigned_at=datetime.utcnow() if creator_id else None
         )
 
         db.session.add(todo)

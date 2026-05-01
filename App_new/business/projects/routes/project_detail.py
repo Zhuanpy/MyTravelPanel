@@ -274,11 +274,12 @@ def manage_reminder(header_id):
         
         db.session.commit()
         
-        # 如果有提醒信息，同步到待办事项
+        # 如果有提醒信息，同步到待办事项（创建者作为负责人）
         if header.reminder_event and header.reminder_date:
             try:
                 from App_new.utils.reminder_utils import create_reminder_todo
-                create_reminder_todo(header)
+                creator_id = current_user.id if current_user and hasattr(current_user, 'id') else None
+                create_reminder_todo(header, creator_id=creator_id)
             except Exception as e:
                 print(f"DEBUG: Failed to create reminder todo: {str(e)}")
         

@@ -65,7 +65,8 @@ class TaskReminderService:
                     if not expiry_date:
                         continue
                     
-                    # 创建提醒任务
+                    # 创建提醒任务（项目责任人作为负责人）
+                    staff_id = getattr(project, 'staff_id', None)
                     try:
                         todo = Todo.create(
                             title=f'[签证提醒] {getattr(project, "applicant_name", "")} - {getattr(project, "visa_type", "")}',
@@ -77,7 +78,10 @@ class TaskReminderService:
                             source_id=project.id,
                             reminder_days_before=days_ahead,
                             auto_generated=True,
-                            user_id=getattr(project, 'staff_id', None)  # 可以设置为项目负责人
+                            user_id=staff_id,
+                            assigned_to=staff_id,
+                            assigned_by=staff_id,
+                            assigned_at=datetime.utcnow() if staff_id else None
                         )
                         created_count += 1
                         current_app.logger.info(f'创建签证提醒任务: {todo.id}')

@@ -10,7 +10,7 @@ from App_new.shared.models.Utilsmodels import Todo
 LEGACY_REMINDER_SOURCE_TYPE = 'project_header_reminder'
 
 
-def create_reminder_todo(project_header):
+def create_reminder_todo(project_header, creator_id=None):
     """
     为项目表头创建/更新提醒待办事项（基于 ProjectHeader.reminder_event/date 单字段）。
 
@@ -22,12 +22,17 @@ def create_reminder_todo(project_header):
 
     与新版 project_reminder blueprint（source_type='project_reminder'，每项目可
     多条）通过不同的 source_type 隔离，避免语义混淆。
+
+    负责人（assigned_to）来源优先级：
+        显式传入的 creator_id（来自 current_user） > project_header.staff_id
+    更新已有 todo 时，仅在 assigned_to 为空时补齐，避免覆盖人工调整。
     """
     if not project_header.reminder_event or not project_header.reminder_date:
         return None
 
     title = f"项目提醒: {project_header.hid}"
     description = f"项目: {project_header.desc}\n提醒事件: {project_header.reminder_event}"
+    assignee_id = creator_id or getattr(project_header, 'staff_id', None)
 
     # 主路径：按稳定键查
     existing_todo = Todo.query.filter_by(
@@ -50,6 +55,11 @@ def create_reminder_todo(project_header):
         existing_todo.due_date = project_header.reminder_date
         existing_todo.source_type = LEGACY_REMINDER_SOURCE_TYPE
         existing_todo.source_id = project_header.id
+        # 仅在尚未分配时补齐负责人，不覆盖已有的人工调整
+        if assignee_id and not existing_todo.assigned_to:
+            existing_todo.assigned_to = assignee_id
+            existing_todo.assigned_by = assignee_id
+            existing_todo.assigned_at = datetime.utcnow()
         existing_todo.updated_at = datetime.utcnow()
         db.session.commit()
         return existing_todo
@@ -61,7 +71,11 @@ def create_reminder_todo(project_header):
         priority=2,
         due_date=project_header.reminder_date,
         source_type=LEGACY_REMINDER_SOURCE_TYPE,
-        source_id=project_header.id
+        source_id=project_header.id,
+        user_id=assignee_id,
+        assigned_to=assignee_id,
+        assigned_by=assignee_id,
+        assigned_at=datetime.utcnow() if assignee_id else None
     )
     db.session.add(todo)
     db.session.commit()
