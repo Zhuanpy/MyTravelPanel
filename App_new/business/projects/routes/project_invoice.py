@@ -1161,19 +1161,25 @@ def invoice_list():
             ('final', '尾款发票')
         ]
 
-        # 计算汇总数据
+        # 计算汇总数据：基于整个筛选集（所有页），不仅当前页
+        summary_row = query.with_entities(
+            func.coalesce(func.sum(ProjectInvoice.amount), 0).label('total_gross'),
+            func.coalesce(func.sum(ProjectInvoice.paid_amount), 0).label('total_paid')
+        ).order_by(None).first()
+        total_gross_all = float(summary_row.total_gross or 0) if summary_row else 0
+        total_paid_all = float(summary_row.total_paid or 0) if summary_row else 0
         summary = {
-            'total_gross': sum(item['amount'] for item in items),
+            'total_gross': total_gross_all,
             'total_tax': 0,
             'total_discount': 0,
-            'grand_total': sum(item['amount'] for item in items),
+            'grand_total': total_gross_all,
             'total_cost': 0,
             'total_cost_tax': 0,
             'grand_total_cost': 0,
             'total_profit': 0,
             'avg_margin': 0,
-            'total_paid': sum(item['paid_amount'] for item in items),
-            'total_balance': sum(item['unpaid_amount'] for item in items)
+            'total_paid': total_paid_all,
+            'total_balance': total_gross_all - total_paid_all
         }
 
         # 获取公司列表（按名称排序）
