@@ -301,9 +301,13 @@ def get_company_prepayments(company_id):
         supplier_name = company.company_name if company else ''
 
         # 查询该公司的有效预付记录（按时间升序，用于 FIFO）
+        # 注意：用 balance_amount > 0 而非 status 过滤，
+        # 防止历史脏数据（status='consumed' 但余额因冲销恢复 > 0）导致漏算
         prepayments = SupplierPrepayment.query.filter(
             SupplierPrepayment.supplier_id == company_id,
-            SupplierPrepayment.status.in_(['confirmed', 'partial_used'])
+            SupplierPrepayment.balance_amount > 0,
+            SupplierPrepayment.status != 'cancelled',
+            SupplierPrepayment.status != 'draft'
         ).order_by(SupplierPrepayment.created_at.asc()).all()
 
         # 直接使用 balance_amount 字段计算可用余额

@@ -524,9 +524,13 @@ def get_supplier_prepayments(supplier_id):
     """获取供应商的可用预付账款（API）"""
     from sqlalchemy import func
 
+    # 用 balance_amount > 0 过滤，不依赖 status，
+    # 防止历史脏数据（status='consumed' 但余额恢复后 > 0）导致漏算
     prepayments = SupplierPrepayment.query.filter(
         SupplierPrepayment.supplier_id == supplier_id,
-        SupplierPrepayment.status.in_(['confirmed', 'partial_used'])
+        SupplierPrepayment.balance_amount > 0,
+        SupplierPrepayment.status != 'cancelled',
+        SupplierPrepayment.status != 'draft'
     ).order_by(SupplierPrepayment.payment_date.asc()).all()
 
     # 批量查询 confirmed 使用金额

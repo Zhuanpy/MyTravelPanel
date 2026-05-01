@@ -699,10 +699,13 @@ def batch_pay_submit():
                 return jsonify({'success': False, 'message': '请选择同一供应商的EO'}), 400
 
             # 按创建时间升序获取可用预付账款（FIFO），使用行级锁防止并发扣减
+            # 注意：用 balance_amount > 0 过滤，不依赖 status，
+            # 防止历史脏数据（status='consumed' 但余额恢复后 > 0）导致漏算
             available_prepayments = SupplierPrepayment.query.filter(
                 SupplierPrepayment.supplier_id == supplier_id,
-                SupplierPrepayment.status.in_(['confirmed', 'partial_used']),
-                SupplierPrepayment.balance_amount > 0
+                SupplierPrepayment.balance_amount > 0,
+                SupplierPrepayment.status != 'cancelled',
+                SupplierPrepayment.status != 'draft'
             ).order_by(SupplierPrepayment.created_at.asc()).with_for_update().all()
 
             if not available_prepayments:
