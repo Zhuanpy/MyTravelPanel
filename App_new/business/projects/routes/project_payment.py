@@ -21,7 +21,7 @@ project_payment = Blueprint('project_payment', __name__, url_prefix='/payment')
 @staff_only
 def list_payments():
     """付款记录列表页面"""
-    from sqlalchemy import and_, or_
+    from sqlalchemy import and_, or_, func
     from App_new.finance.models.bank_transaction_match import BankTransactionMatch
     from App_new.finance.models.statement import BankTransaction
 
@@ -66,6 +66,14 @@ def list_payments():
                 SupplierPayment.is_reconciled.is_(None)
             ))
 
+    # 计算汇总：基于整个筛选集（所有页），不仅当前页
+    summary_row = query.with_entities(
+        func.coalesce(func.sum(SupplierPayment.total_amount), 0).label('total_amount'),
+        func.coalesce(func.sum(SupplierPayment.prepayment_amount), 0).label('total_prepayment')
+    ).order_by(None).first()
+    total_amount = float(summary_row.total_amount or 0) if summary_row else 0
+    total_prepayment = float(summary_row.total_prepayment or 0) if summary_row else 0
+
     # 排序并分页
     query = query.order_by(SupplierPayment.created_at.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -76,10 +84,6 @@ def list_payments():
         CustomerCompany.is_supplier == True,
         CustomerCompany.status == 'active'
     ).order_by(CustomerCompany.company_name).all()
-
-    # 计算汇总
-    total_amount = sum(float(p.total_amount) for p in payment_records)
-    total_prepayment = sum(float(p.prepayment_amount or 0) for p in payment_records)
 
     # 批量获取匹配信息
     payment_ids = [p.id for p in payment_records]
