@@ -403,14 +403,14 @@
                 <input type="text" class="visa-form-control" id="reminderSearchInput" placeholder="搜索项目编号..." onkeyup="debounceSearch(loadProjectReminders, 300)">
             </div>
         </div>
-        <div class="visa-card" style="max-width:960px; margin:0 auto;">
+        <div class="visa-card" style="max-width:1040px; margin:0 auto;">
             <table class="visa-table" style="table-layout:fixed; width:100%;">
                 <thead>
                     <tr>
                         <th style="width:60px; white-space:nowrap;" class="text-center">状态</th>
                         <th style="width:auto;">提醒内容</th>
                         <th style="width:140px; white-space:nowrap;">截止日期</th>
-                        <th style="width:90px; white-space:nowrap;">负责人</th>
+                        <th style="width:130px; white-space:nowrap;">负责人</th>
                         <th style="width:90px; white-space:nowrap;">项目</th>
                         <th style="width:100px; white-space:nowrap;">操作</th>
                     </tr>
@@ -750,19 +750,57 @@ let canAssignTask = false;
 let currentTab = 'my-tasks';
 let searchTimeout = null;
 
+// 标签页与 URL 参数 ?tab=xxx 同步，便于刷新/分享时保留当前标签
+const VALID_TABS = ['my-tasks', 'project-reminders', 'team-tasks', 'statistics'];
+
+function getInitialTab() {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return VALID_TABS.includes(tab) ? tab : 'my-tasks';
+}
+
+function updateUrlForTab(tabName) {
+    const url = new URL(window.location);
+    if (tabName === 'my-tasks') {
+        url.searchParams.delete('tab');  // 默认标签不写入参数，URL 更干净
+    } else {
+        url.searchParams.set('tab', tabName);
+    }
+    history.replaceState(null, '', url);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化
     checkPermissionsAndLoadStaff();
-    loadMyTasks();
-    loadProjectReminders();  // 加载项目提醒数量badge
+
+    const initialTab = getInitialTab();
+    // 项目提醒 badge 永远要加载（无论默认在哪个标签）
+    if (initialTab !== 'project-reminders') {
+        loadProjectReminders();
+    }
+
+    if (initialTab === 'my-tasks') {
+        loadMyTasks();
+    } else {
+        // 切到目标 tab（switchTab 会加载相应数据）
+        switchTab(initialTab);
+    }
 
     // 保存按钮事件
     document.getElementById('saveTodo').addEventListener('click', saveTodo);
+
+    // 浏览器前进/后退按钮支持
+    window.addEventListener('popstate', function() {
+        const tab = getInitialTab();
+        if (tab !== currentTab) {
+            switchTab(tab);
+        }
+    });
 });
 
 // 切换标签页
 function switchTab(tabName) {
     currentTab = tabName;
+    updateUrlForTab(tabName);
 
     // 更新标签状态
     document.querySelectorAll('.task-tab').forEach(tab => {
