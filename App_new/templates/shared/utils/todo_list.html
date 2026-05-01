@@ -750,8 +750,30 @@ let canAssignTask = false;
 let currentTab = 'my-tasks';
 let searchTimeout = null;
 
-// 标签页与 URL 参数 ?tab=xxx 同步，便于刷新/分享时保留当前标签
+// 标签页与 URL 参数 ?tab=xxx&priority=1&... 双向同步，
+// 便于刷新/分享/书签时保留当前标签和筛选条件
 const VALID_TABS = ['my-tasks', 'project-reminders', 'team-tasks', 'statistics'];
+// 所有标签可能用到的筛选参数（用于切 tab 时清理旧 tab 残留）
+const ALL_FILTER_PARAMS = ['priority', 'category', 'status', 'search', 'staff'];
+// 各 tab 的筛选 DOM ↔ URL 参数映射
+const TAB_FILTERS = {
+    'my-tasks': [
+        { id: 'myPriorityFilter', param: 'priority', default: '' },
+        { id: 'myCategoryFilter', param: 'category', default: '' },
+        { id: 'myStatusFilter', param: 'status', default: 'pending' },
+        { id: 'mySearchInput', param: 'search', default: '' }
+    ],
+    'project-reminders': [
+        { id: 'reminderStatusFilter', param: 'status', default: 'pending' },
+        { id: 'reminderSearchInput', param: 'search', default: '' }
+    ],
+    'team-tasks': [
+        { id: 'teamStaffFilter', param: 'staff', default: '' },
+        { id: 'teamPriorityFilter', param: 'priority', default: '' },
+        { id: 'teamStatusFilter', param: 'status', default: 'pending' },
+        { id: 'teamSearchInput', param: 'search', default: '' }
+    ]
+};
 
 function getInitialTab() {
     const tab = new URLSearchParams(window.location.search).get('tab');
@@ -768,22 +790,46 @@ function updateUrlForTab(tabName) {
     history.replaceState(null, '', url);
 }
 
+// 从 URL 把筛选值填入对应 tab 的 DOM 控件
+function applyFiltersFromUrl(tabName) {
+    const params = new URLSearchParams(window.location.search);
+    const filters = TAB_FILTERS[tabName] || [];
+    filters.forEach(({ id, param, default: def }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = params.get(param);
+        el.value = v !== null ? v : def;
+    });
+}
+
+// 把当前 tab 的筛选值写回 URL（覆盖式：先清掉所有可能的筛选参数，再写当前 tab 的非默认值）
+function syncFiltersToUrl(tabName) {
+    const url = new URL(window.location);
+    ALL_FILTER_PARAMS.forEach(p => url.searchParams.delete(p));
+    const filters = TAB_FILTERS[tabName] || [];
+    filters.forEach(({ id, param, default: def }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = el.value;
+        if (v !== def) {
+            url.searchParams.set(param, v);
+        }
+    });
+    history.replaceState(null, '', url);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化
     checkPermissionsAndLoadStaff();
 
     const initialTab = getInitialTab();
+    applyFiltersFromUrl(initialTab);  // 从 URL 读筛选条件填充对应 tab 的 UI
+
     // 项目提醒 badge 永远要加载（无论默认在哪个标签）
     if (initialTab !== 'project-reminders') {
         loadProjectReminders();
     }
-
-    if (initialTab === 'my-tasks') {
-        loadMyTasks();
-    } else {
-        // 切到目标 tab（switchTab 会加载相应数据）
-        switchTab(initialTab);
-    }
+    switchTab(initialTab);  // 切换并加载（switchTab 自身会处理 URL）
 
     // 保存按钮事件
     document.getElementById('saveTodo').addEventListener('click', saveTodo);
@@ -791,6 +837,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 浏览器前进/后退按钮支持
     window.addEventListener('popstate', function() {
         const tab = getInitialTab();
+        applyFiltersFromUrl(tab);
         if (tab !== currentTab) {
             switchTab(tab);
         }
@@ -801,6 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function switchTab(tabName) {
     currentTab = tabName;
     updateUrlForTab(tabName);
+    syncFiltersToUrl(tabName);  // 切 tab 时清理旧 tab 残留筛选参数，写入新 tab 的状态
 
     // 更新标签状态
     document.querySelectorAll('.task-tab').forEach(tab => {
@@ -869,6 +917,7 @@ function checkPermissionsAndLoadStaff() {
 
 // 加载我的任务（按时间分组）
 function loadMyTasks() {
+    if (currentTab === 'my-tasks') syncFiltersToUrl('my-tasks');
     const priority = document.getElementById('myPriorityFilter').value;
     const category = document.getElementById('myCategoryFilter').value;
     const status = document.getElementById('myStatusFilter').value;
@@ -1024,6 +1073,7 @@ function renderTaskCard(todo, isOverdue) {
 
 // 加载项目提醒
 function loadProjectReminders() {
+    if (currentTab === 'project-reminders') syncFiltersToUrl('project-reminders');
     const status = document.getElementById('reminderStatusFilter').value;
     const search = document.getElementById('reminderSearchInput').value;
 
@@ -1106,6 +1156,7 @@ function renderProjectReminders(todos) {
 
 // 加载团队任务
 function loadTeamTasks() {
+    if (currentTab === 'team-tasks') syncFiltersToUrl('team-tasks');
     const staffId = document.getElementById('teamStaffFilter').value;
     const priority = document.getElementById('teamPriorityFilter').value;
     const status = document.getElementById('teamStatusFilter').value;
