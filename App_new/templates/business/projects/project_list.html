@@ -279,11 +279,6 @@
                                    class="text-primary fw-bold">
                                     {{ project.hid }}
                                 </a>
-                                <i class="fas fa-copy text-warning copy-project"
-                                   style="cursor:pointer; font-size:12px; margin-left:4px; opacity:0.8;"
-                                   data-project-id="{{ project.id }}"
-                                   data-project-hid="{{ project.hid }}"
-                                   title="复制项目"></i>
                             </td>
                             <td>
                                 {% set type_map = {
@@ -399,14 +394,22 @@
                             </td>
                             <td class="text-center">
                                 {% set stats = project_stats.get(project.id, {}) %}
-                                {% if not stats.has_eo and not stats.has_receipt and not stats.has_invoice %}
-                                <button type="button" class="btn btn-outline-danger btn-sm delete-project"
-                                        data-project-id="{{ project.id }}"
-                                        data-project-hid="{{ project.hid }}"
-                                        title="删除">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                {% endif %}
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-warning copy-project"
+                                            data-project-id="{{ project.id }}"
+                                            data-project-hid="{{ project.hid }}"
+                                            title="复制项目">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    {% if not stats.has_eo and not stats.has_receipt and not stats.has_invoice %}
+                                    <button type="button" class="btn btn-outline-danger delete-project"
+                                            data-project-id="{{ project.id }}"
+                                            data-project-hid="{{ project.hid }}"
+                                            title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
