@@ -998,6 +998,7 @@ def invoice_list():
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
+        month = request.args.get('month', '').strip()  # YYYY-MM，起止日期都为空时生效
         min_amount = request.args.get('min_amount', None, type=float)
         max_amount = request.args.get('max_amount', None, type=float)
         keyword = request.args.get('keyword', '').strip()
@@ -1032,7 +1033,7 @@ def invoice_list():
         if currency:
             filters.append(ProjectInvoice.currency == currency)
         
-        # 日期筛选
+        # 日期筛选（优先级：start_date/end_date > month > date_range）
         if start_date:
             try:
                 sd = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -1045,8 +1046,21 @@ def invoice_list():
                 filters.append(ProjectInvoice.invoice_date <= ed)
             except ValueError:
                 pass
-        
-        if (not start_date and not end_date) and date_range:
+
+        # 月份筛选：仅当起止日期都未填时生效
+        if (not start_date and not end_date) and month:
+            try:
+                year_str, month_str = month.split('-')
+                yr, mo = int(year_str), int(month_str)
+                m_start = date(yr, mo, 1)
+                m_end = date(yr + 1, 1, 1) - timedelta(days=1) if mo == 12 \
+                        else date(yr, mo + 1, 1) - timedelta(days=1)
+                filters.append(and_(ProjectInvoice.invoice_date >= m_start,
+                                    ProjectInvoice.invoice_date <= m_end))
+            except (ValueError, TypeError):
+                pass
+
+        if (not start_date and not end_date and not month) and date_range:
             today = date.today()
             if date_range == 'today':
                 filters.append(ProjectInvoice.invoice_date == today)
@@ -1219,6 +1233,7 @@ def invoice_list():
                                  'date_range': date_range,
                                  'start_date': start_date,
                                  'end_date': end_date,
+                                 'month': month,
                                  'min_amount': min_amount,
                                  'max_amount': max_amount,
                                  'keyword': keyword,
@@ -1257,6 +1272,7 @@ def invoice_list_all_ids():
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
+        month = request.args.get('month', '').strip()
         min_amount = request.args.get('min_amount', None, type=float)
         max_amount = request.args.get('max_amount', None, type=float)
         keyword = request.args.get('keyword', '').strip()
@@ -1296,7 +1312,20 @@ def invoice_list_all_ids():
             except ValueError:
                 pass
 
-        if (not start_date and not end_date) and date_range:
+        # 月份筛选：仅当起止日期都未填时生效
+        if (not start_date and not end_date) and month:
+            try:
+                year_str, month_str = month.split('-')
+                yr, mo = int(year_str), int(month_str)
+                m_start = date(yr, mo, 1)
+                m_end = date(yr + 1, 1, 1) - timedelta(days=1) if mo == 12 \
+                        else date(yr, mo + 1, 1) - timedelta(days=1)
+                filters.append(and_(ProjectInvoice.invoice_date >= m_start,
+                                    ProjectInvoice.invoice_date <= m_end))
+            except (ValueError, TypeError):
+                pass
+
+        if (not start_date and not end_date and not month) and date_range:
             today = date.today()
             if date_range == 'today':
                 filters.append(ProjectInvoice.invoice_date == today)

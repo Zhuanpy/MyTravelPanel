@@ -6,7 +6,8 @@ from flask_login import login_required, current_user
 from App_new.exts import db, csrf
 from App_new.finance.models.statement import BankStatement, BankTransaction
 from App_new.finance.models.bank_transaction_match import BankTransactionMatch
-from App_new.business.projects.models.receipt import ProjectReceipt
+from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
+from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.eo import ProjectEO
 from App_new.business.projects.models.ref import ProjectRef
@@ -16,10 +17,61 @@ from App_new.business.projects.models.supplier_prepayment import SupplierPrepaym
 from App_new.finance.models.shareholder_loan import ShareholderLoan, ShareholderLoanRepayment
 from App_new.utils.decorators import staff_only
 from datetime import datetime, timedelta
+from decimal import Decimal
 from sqlalchemy import desc, func, or_, and_
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _auto_allocate_receipt_to_invoices(receipt, header_id):
+    """把一笔 project-level receipt 按 FIFO 分配到该项目未付/部分付的 invoice 上。
+
+    - 候选 invoice：status != cancelled、payment_status in (unpaid, partial_paid)
+    - 排序：invoice_date asc → id asc（先进先出）
+    - 创建 ReceiptInvoiceAllocation 记录 + 更新 invoice.paid_amount / payment_status
+    - receipt.amount 大于总未付时，仅分配到等于"总未付"的部分（不会自动新建 invoice）
+    - 不会 commit，由调用方负责事务
+
+    Returns: dict {allocated_total, allocations: [(invoice_id, amount)], leftover}
+    """
+    candidates = ProjectInvoice.query.filter(
+        ProjectInvoice.header_id == header_id,
+        ProjectInvoice.status != 'cancelled',
+        ProjectInvoice.payment_status.in_(['unpaid', 'partial_paid'])
+    ).order_by(ProjectInvoice.invoice_date.asc(), ProjectInvoice.id.asc()).all()
+
+    result = {'allocated_total': Decimal('0'), 'allocations': [], 'leftover': Decimal(str(receipt.amount or 0))}
+    if not candidates:
+        return result
+
+    remaining = Decimal(str(receipt.amount or 0))
+    for inv in candidates:
+        if remaining <= 0:
+            break
+        inv_amount = Decimal(str(inv.amount or 0))
+        inv_paid = Decimal(str(inv.paid_amount or 0))
+        inv_unpaid = inv_amount - inv_paid
+        if inv_unpaid <= 0:
+            continue
+
+        alloc = min(remaining, inv_unpaid)
+        db.session.add(ReceiptInvoiceAllocation(
+            receipt_id=receipt.id,
+            invoice_id=inv.id,
+            allocated_amount=alloc
+        ))
+
+        new_paid = inv_paid + alloc
+        inv.paid_amount = new_paid
+        inv.payment_status = 'paid' if new_paid >= inv_amount else 'partial_paid'
+
+        result['allocations'].append((inv.id, alloc))
+        result['allocated_total'] += alloc
+        remaining -= alloc
+
+    result['leftover'] = remaining
+    return result
 
 # 创建蓝图
 reconciliation_bp = Blueprint('reconciliation', __name__, url_prefix='/reconciliation')
@@ -1081,6 +1133,23 @@ def create_receipt_from_transaction():
         db.session.add(new_receipt)
         db.session.flush()  # 获取新收款记录ID
 
+        # 自动按 FIFO 分配到该项目未付/部分付的 invoice 上
+        # 否则 invoice.paid_amount 永远是 0，列表里一直显示 unpaid（旧版漏点）
+        alloc_result = _auto_allocate_receipt_to_invoices(new_receipt, header_id)
+        alloc_msg = ''
+        if alloc_result['allocations']:
+            invs = ', '.join(str(iid) for iid, _ in alloc_result['allocations'])
+            alloc_msg = f'，已自动分配到 invoice [{invs}]'
+            if alloc_result['leftover'] > 0:
+                alloc_msg += f'（剩余未分配 {alloc_result["leftover"]}）'
+            logger.info(f"[create_receipt_from_transaction] receipt {new_receipt.id} "
+                        f"自动分配 {alloc_result['allocated_total']} → {len(alloc_result['allocations'])} 张 invoice，"
+                        f"剩余 {alloc_result['leftover']}")
+        else:
+            alloc_msg = '（项目无未付 invoice，未自动分配）'
+            logger.warning(f"[create_receipt_from_transaction] receipt {new_receipt.id} "
+                           f"项目 {header_id} 无未付 invoice，未自动分配")
+
         # 关联银行交易
         transaction.matched_receipt_id = new_receipt.id
         transaction.reconciliation_status = 'matched'
@@ -1096,10 +1165,13 @@ def create_receipt_from_transaction():
 
         return jsonify({
             'success': True,
-            'message': '收款记录创建成功，已自动确认银行记录',
+            'message': f'收款记录创建成功{alloc_msg}',
             'receipt_id': new_receipt.id,
             'receipt_number': new_receipt.receipt_number,
-            'transaction_id': transaction_id
+            'transaction_id': transaction_id,
+            'allocations': [{'invoice_id': iid, 'amount': float(amt)}
+                            for iid, amt in alloc_result['allocations']],
+            'leftover': float(alloc_result['leftover'])
         })
 
     except Exception as e:
