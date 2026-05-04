@@ -7,7 +7,7 @@
 <style>
     .soa-container {
         padding: 15px;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
     }
     .page-header {
@@ -117,9 +117,19 @@
 
 {% block content %}
 <div class="container-fluid soa-container">
-    <div class="page-header">
-        <h1 class="h3 mb-0">SOA 对账单管理</h1>
-        <p class="text-muted">生成和下载客户对账单</p>
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 mb-0">SOA 对账单管理</h1>
+            <p class="text-muted mb-0">生成和下载客户对账单</p>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-success" id="batchDownloadBtn" title="下载Excel">
+                <i class="fas fa-file-excel"></i> Excel
+            </button>
+            <button class="btn btn-danger" id="batchDownloadPdfBtn" title="下载PDF">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
+        </div>
     </div>
 
     <!-- 搜索区域 -->
@@ -173,12 +183,6 @@
             </div>
             <div class="col text-right">
                 <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-success" id="batchDownloadBtn" title="下载Excel">
-                        <i class="fas fa-file-excel"></i>
-                    </button>
-                    <button class="btn btn-danger" id="batchDownloadPdfBtn" title="下载PDF">
-                        <i class="fas fa-file-pdf"></i>
-                    </button>
                     <button class="btn btn-primary" id="refreshBtn" title="刷新">
                         <i class="fas fa-sync-alt"></i>
                     </button>
