@@ -1028,11 +1028,15 @@ def invoice_list():
             filters.append(ProjectHeader.company_id == company_id)
         if payment_status:
             filters.append(ProjectInvoice.payment_status == payment_status)
+            # 兜底：unpaid 时排除零额壳子发票（amount=0 不应该出现在"待收款"清单里，
+            # 即便历史 payment_status 没被同步到 paid，列表也保持干净）
+            if payment_status == 'unpaid':
+                filters.append(ProjectInvoice.amount > 0)
         if invoice_type:
             filters.append(ProjectInvoice.invoice_type == invoice_type)
         if currency:
             filters.append(ProjectInvoice.currency == currency)
-        
+
         # 日期筛选（优先级：start_date/end_date > month > date_range）
         if start_date:
             try:

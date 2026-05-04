@@ -318,3 +318,29 @@ class InvoiceItem(db.Model):
             'remarks': self.remarks
         }
 
+
+# ---------------------------------------------------------------------------
+# 自动同步 payment_status：每次 INSERT / UPDATE 前按 amount / paid_amount 推算一次
+# 历史漂移成因——零额发票创建后从没人调过 update_payment_status，导致 0/0 一直挂
+# 着默认值 'unpaid'。用 ORM 钩子兜底，避免漏调。
+# 注：cancelled 状态不动；payment_status 视为派生字段（不应再手动赋值）。
+# ---------------------------------------------------------------------------
+from sqlalchemy import event as _sa_event
+
+
+def _sync_invoice_payment_status(mapper, connection, target):
+    if target.status == 'cancelled':
+        return
+    amount = float(target.amount or 0)
+    paid = float(target.paid_amount or 0)
+    if paid >= amount:
+        target.payment_status = 'paid'
+    elif paid > 0:
+        target.payment_status = 'partial_paid'
+    else:
+        target.payment_status = 'unpaid'
+
+
+_sa_event.listen(ProjectInvoice, 'before_insert', _sync_invoice_payment_status)
+_sa_event.listen(ProjectInvoice, 'before_update', _sync_invoice_payment_status)
+
