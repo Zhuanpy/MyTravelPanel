@@ -33,13 +33,16 @@ def soa_data():
         per_page = request.args.get('per_page', 20, type=int)
         search = request.args.get('search', '')
         month = request.args.get('month', '')
+        # BK.DATE 起止日期（YYYY-MM-DD），任一存在则覆盖 month
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
         company = request.args.get('company', '')
         group = request.args.get('group', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         profit_loss = request.args.get('profit_loss', '')  # profit, loss, even
 
         soa_service = SOAService()
-        result = soa_service.get_soa_list(page=page, per_page=per_page, search=search, month=month, company=company, group=group, balance_positive=balance_positive, profit_loss=profit_loss)
+        result = soa_service.get_soa_list(page=page, per_page=per_page, search=search, month=month, company=company, group=group, balance_positive=balance_positive, profit_loss=profit_loss, start_date=start_date, end_date=end_date)
 
         return jsonify(result)
 
@@ -87,19 +90,23 @@ def soa_batch_download():
         group = request.args.get('group', '')
         company = request.args.get('company', '')
         month = request.args.get('month', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
         search = request.args.get('search', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         profit_loss = request.args.get('profit_loss', '')  # profit, loss, even
         format_type = request.args.get('format', 'excel')
 
         # 记录请求参数用于调试
-        current_app.logger.info(f"SOA批量下载请求 - 集团: {group}, 公司: {company}, 月份: {month}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}, 格式: {format_type}")
+        current_app.logger.info(f"SOA批量下载请求 - 集团: {group}, 公司: {company}, 月份: {month}, 区间: {start_date}~{end_date}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}, 格式: {format_type}")
 
         soa_service = SOAService()
         excel_content, error = soa_service.batch_download_soa(
             group=group if group else None,
             company=company if company else None,
             month=month if month else None,
+            start_date=start_date if start_date else None,
+            end_date=end_date if end_date else None,
             search=search if search else None,
             balance_positive=balance_positive,
             profit_loss=profit_loss if profit_loss else None,
@@ -153,18 +160,22 @@ def soa_batch_download_pdf():
         group = request.args.get('group', '')
         company = request.args.get('company', '')
         month = request.args.get('month', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
         search = request.args.get('search', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         profit_loss = request.args.get('profit_loss', '')  # profit, loss, even
 
         # 记录请求参数用于调试
-        current_app.logger.info(f"SOA批量下载PDF请求 - 集团: {group}, 公司: {company}, 月份: {month}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}")
+        current_app.logger.info(f"SOA批量下载PDF请求 - 集团: {group}, 公司: {company}, 月份: {month}, 区间: {start_date}~{end_date}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}")
 
         soa_service = SOAService()
         pdf_content, error = soa_service.batch_download_soa_pdf(
             group=group if group else None,
             company=company if company else None,
             month=month if month else None,
+            start_date=start_date if start_date else None,
+            end_date=end_date if end_date else None,
             search=search if search else None,
             balance_positive=balance_positive,
             profit_loss=profit_loss if profit_loss else None

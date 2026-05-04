@@ -129,6 +129,13 @@
                 <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份" style="width: 140px;">
             </div>
             <div class="col-auto">
+                <div class="input-group input-group-sm" style="width: 280px;" title="按出单日期(BK.DATE)区间筛选；任一日期填写时将忽略月份">
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" placeholder="起始日期">
+                    <span class="input-group-text px-1">~</span>
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" placeholder="结束日期">
+                </div>
+            </div>
+            <div class="col-auto">
                 <select class="form-control form-control-sm" id="groupFilter" style="width: 120px;">
                     <option value="">所有集团</option>
                 </select>
@@ -249,6 +256,8 @@ class SOAManager {
             page: 1,
             search: '',
             month: getCurrentMonthStr(),
+            start_date: '',
+            end_date: '',
             group: '',
             company: '',
             balance_positive: false,
@@ -260,6 +269,8 @@ class SOAManager {
         this.currentPage = parseInt(params.get('page')) || this.defaults.page;
         this.searchTerm = params.get('search') ?? this.defaults.search;
         this.monthFilter = params.get('month') ?? this.defaults.month;
+        this.startDateFilter = params.get('start_date') ?? this.defaults.start_date;
+        this.endDateFilter = params.get('end_date') ?? this.defaults.end_date;
         this.groupFilter = params.get('group') ?? this.defaults.group;
         this.companyFilter = params.get('company') ?? this.defaults.company;
         this.balanceFilter = params.get('balance_positive') === 'true';
@@ -295,6 +306,8 @@ class SOAManager {
     // 把当前筛选状态同步到 UI 控件（用于初始化和 popstate 后回填）
     applyFiltersToUi() {
         document.getElementById('monthFilter').value = this.monthFilter;
+        document.getElementById('startDateFilter').value = this.startDateFilter;
+        document.getElementById('endDateFilter').value = this.endDateFilter;
         document.getElementById('groupFilter').value = this.groupFilter;
         document.getElementById('companyFilter').value = this.companyFilter;
         document.getElementById('searchInput').value = this.searchTerm;
@@ -317,6 +330,8 @@ class SOAManager {
         set('page', this.currentPage, this.defaults.page);
         set('search', this.searchTerm, this.defaults.search);
         set('month', this.monthFilter, this.defaults.month);
+        set('start_date', this.startDateFilter, this.defaults.start_date);
+        set('end_date', this.endDateFilter, this.defaults.end_date);
         set('group', this.groupFilter, this.defaults.group);
         set('company', this.companyFilter, this.defaults.company);
         set('balance_positive', this.balanceFilter, this.defaults.balance_positive);
@@ -329,6 +344,8 @@ class SOAManager {
         this.currentPage = parseInt(params.get('page')) || this.defaults.page;
         this.searchTerm = params.get('search') ?? this.defaults.search;
         this.monthFilter = params.get('month') ?? this.defaults.month;
+        this.startDateFilter = params.get('start_date') ?? this.defaults.start_date;
+        this.endDateFilter = params.get('end_date') ?? this.defaults.end_date;
         const newGroup = params.get('group') ?? this.defaults.group;
         const groupChanged = newGroup !== this.groupFilter;
         this.groupFilter = newGroup;
@@ -403,19 +420,26 @@ class SOAManager {
         }
     }
 
+    // 把所有 UI 控件的当前值同步到 this.* 状态（一处定义，避免多个事件处理器各自漏读）
+    pullFiltersFromUi() {
+        this.searchTerm = document.getElementById('searchInput').value;
+        this.monthFilter = document.getElementById('monthFilter').value;
+        this.startDateFilter = document.getElementById('startDateFilter').value;
+        this.endDateFilter = document.getElementById('endDateFilter').value;
+        this.groupFilter = document.getElementById('groupFilter').value;
+        this.companyFilter = document.getElementById('companyFilter').value;
+        this.balanceFilter = document.getElementById('balanceFilter').checked;
+        this.profitLossFilter = document.getElementById('profitLossFilter').value;
+    }
+
     bindEvents() {
         // 搜索按钮
         const searchBtn = document.getElementById('searchBtn');
         if (searchBtn) {
             searchBtn.addEventListener('click', () => {
-            this.searchTerm = document.getElementById('searchInput').value;
-            this.monthFilter = document.getElementById('monthFilter').value;
-            this.groupFilter = document.getElementById('groupFilter').value;
-            this.companyFilter = document.getElementById('companyFilter').value;
-            this.balanceFilter = document.getElementById('balanceFilter').checked;
-            this.profitLossFilter = document.getElementById('profitLossFilter').value;
-            this.currentPage = 1;
-            this.loadData();
+                this.pullFiltersFromUi();
+                this.currentPage = 1;
+                this.loadData();
             });
         }
 
@@ -423,16 +447,11 @@ class SOAManager {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.searchTerm = e.target.value;
-                this.monthFilter = document.getElementById('monthFilter').value;
-                this.groupFilter = document.getElementById('groupFilter').value;
-                this.companyFilter = document.getElementById('companyFilter').value;
-                this.balanceFilter = document.getElementById('balanceFilter').checked;
-                this.profitLossFilter = document.getElementById('profitLossFilter').value;
-                this.currentPage = 1;
-                this.loadData();
-            }
+                if (e.key === 'Enter') {
+                    this.pullFiltersFromUi();
+                    this.currentPage = 1;
+                    this.loadData();
+                }
             });
         }
 
@@ -440,12 +459,24 @@ class SOAManager {
         const monthFilter = document.getElementById('monthFilter');
         if (monthFilter) {
             monthFilter.addEventListener('change', () => {
-            this.monthFilter = document.getElementById('monthFilter').value;
-            this.balanceFilter = document.getElementById('balanceFilter').checked;
-            this.currentPage = 1;
-            this.loadData();
+                this.monthFilter = document.getElementById('monthFilter').value;
+                this.balanceFilter = document.getElementById('balanceFilter').checked;
+                this.currentPage = 1;
+                this.loadData();
             });
         }
+
+        // BK.DATE 起止日期变化（任一存在则后端忽略 month）
+        ['startDateFilter', 'endDateFilter'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => {
+                this.startDateFilter = document.getElementById('startDateFilter').value;
+                this.endDateFilter = document.getElementById('endDateFilter').value;
+                this.currentPage = 1;
+                this.loadData();
+            });
+        });
 
         // 集团过滤变化
         const groupFilter = document.getElementById('groupFilter');
@@ -532,6 +563,8 @@ class SOAManager {
         // 重置到默认值（此处沿用与 defaults 一致的取值）
         this.searchTerm = this.defaults.search;
         this.monthFilter = this.defaults.month;
+        this.startDateFilter = this.defaults.start_date;
+        this.endDateFilter = this.defaults.end_date;
         this.groupFilter = this.defaults.group;
         this.companyFilter = this.defaults.company;
         this.balanceFilter = this.defaults.balance_positive;
@@ -554,6 +587,8 @@ class SOAManager {
                 per_page: this.perPage,
                 search: this.searchTerm,
                 month: this.monthFilter,
+                start_date: this.startDateFilter,
+                end_date: this.endDateFilter,
                 group: this.groupFilter,
                 company: this.companyFilter,
                 balance_positive: this.balanceFilter,
@@ -674,6 +709,8 @@ class SOAManager {
                     group: this.groupFilter,
                     company: this.companyFilter,
                     month: this.monthFilter,
+                    start_date: this.startDateFilter,
+                    end_date: this.endDateFilter,
                     search: this.searchTerm,
                     balance_positive: this.balanceFilter,
                     profit_loss: this.profitLossFilter,
@@ -726,6 +763,8 @@ class SOAManager {
                     group: this.groupFilter,
                     company: this.companyFilter,
                     month: this.monthFilter,
+                    start_date: this.startDateFilter,
+                    end_date: this.endDateFilter,
                     search: this.searchTerm,
                     balance_positive: this.balanceFilter,
                     profit_loss: this.profitLossFilter

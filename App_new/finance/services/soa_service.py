@@ -29,6 +29,44 @@ class SOAService:
     def __init__(self):
         pass
 
+    def _resolve_date_range(self, month=None, start_date=None, end_date=None):
+        """根据 month / start_date / end_date 解析出 BK.DATE 的过滤区间 [start, end)。
+
+        优先级：start_date / end_date 任一存在时按区间过滤（忽略 month）；
+        否则回退到 month（按整月过滤）。返回 (start, end_exclusive)；
+        任一边界为 None 表示该侧不限。解析失败的字段视为未提供。
+        """
+        from datetime import date, timedelta
+
+        def _parse(s):
+            if not s:
+                return None
+            try:
+                return datetime.strptime(s, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return None
+
+        start = _parse(start_date)
+        end_inclusive = _parse(end_date)
+
+        if start is not None or end_inclusive is not None:
+            # 用户显式指定区间：end_date 是包含日，转为半开区间右端 +1 天
+            end_exclusive = (end_inclusive + timedelta(days=1)) if end_inclusive else None
+            return start, end_exclusive
+
+        if month:
+            try:
+                year, month_num = month.split('-')
+                year = int(year)
+                month_num = int(month_num)
+                month_start = date(year, month_num, 1)
+                month_end = date(year + 1, 1, 1) if month_num == 12 else date(year, month_num + 1, 1)
+                return month_start, month_end
+            except (ValueError, TypeError):
+                pass
+
+        return None, None
+
     def _calculate_project_balance(self, project_id, total_selling):
         """计算项目余额（销售金额 - 已收款金额）"""
         try:
@@ -89,7 +127,7 @@ class SOAService:
             pass
         return ''
 
-    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None):
+    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None, start_date=None, end_date=None):
         """获取可生成SOA的项目列表"""
         try:
             query = ProjectHeader.query.options(
@@ -114,27 +152,12 @@ class SOAService:
                 # 集团过滤（只在没有指定公司时生效）
                 query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
 
-            # 月份过滤
-            if month:
-                try:
-                    year, month_num = month.split('-')
-                    year = int(year)
-                    month_num = int(month_num)
-
-                    from datetime import date
-                    start_date = date(year, month_num, 1)
-
-                    if month_num == 12:
-                        end_date = date(year + 1, 1, 1)
-                    else:
-                        end_date = date(year, month_num + 1, 1)
-
-                    query = query.filter(
-                        ProjectHeader.created_at >= start_date,
-                        ProjectHeader.created_at < end_date
-                    )
-                except (ValueError, TypeError):
-                    pass
+            # BK.DATE 过滤：start_date/end_date 优先，否则回退到 month
+            range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
+            if range_start is not None:
+                query = query.filter(ProjectHeader.created_at >= range_start)
+            if range_end is not None:
+                query = query.filter(ProjectHeader.created_at < range_end)
 
             # 获取所有符合条件的项目（先不分页，因为需要计算余额后再过滤）
             # 如果按集团筛选，则先按公司名称排序，再按HID排序
@@ -292,7 +315,7 @@ class SOAService:
                 'message': f'获取集团列表失败: {str(e)}'
             }
 
-    def batch_download_soa(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel'):
+    def batch_download_soa(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel', start_date=None, end_date=None):
         """批量下载SOA - 生成Excel表格"""
         try:
             import pandas as pd
@@ -319,26 +342,12 @@ class SOAService:
                 # 集团过滤（只在没有指定公司时生效）
                 query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
 
-            if month:
-                try:
-                    year, month_num = month.split('-')
-                    year = int(year)
-                    month_num = int(month_num)
-
-                    from datetime import date
-                    start_date = date(year, month_num, 1)
-
-                    if month_num == 12:
-                        end_date = date(year + 1, 1, 1)
-                    else:
-                        end_date = date(year, month_num + 1, 1)
-
-                    query = query.filter(
-                        ProjectHeader.created_at >= start_date,
-                        ProjectHeader.created_at < end_date
-                    )
-                except (ValueError, TypeError):
-                    pass
+            # BK.DATE 过滤：start_date/end_date 优先，否则回退到 month
+            range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
+            if range_start is not None:
+                query = query.filter(ProjectHeader.created_at >= range_start)
+            if range_end is not None:
+                query = query.filter(ProjectHeader.created_at < range_end)
 
             # 获取所有符合条件的项目
             # 如果按集团筛选，则先按公司名称排序，再按HID排序
@@ -565,7 +574,7 @@ class SOAService:
             traceback.print_exc()
             return None, f"生成Excel文件时出错: {str(e)}"
 
-    def batch_download_soa_pdf(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None):
+    def batch_download_soa_pdf(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, start_date=None, end_date=None):
         """批量下载SOA - 生成PDF文件"""
         try:
             # 构建查询条件
@@ -590,26 +599,12 @@ class SOAService:
                 # 集团过滤（只在没有指定公司时生效）
                 query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
 
-            if month:
-                try:
-                    year, month_num = month.split('-')
-                    year = int(year)
-                    month_num = int(month_num)
-
-                    from datetime import date
-                    start_date = date(year, month_num, 1)
-
-                    if month_num == 12:
-                        end_date = date(year + 1, 1, 1)
-                    else:
-                        end_date = date(year, month_num + 1, 1)
-
-                    query = query.filter(
-                        ProjectHeader.created_at >= start_date,
-                        ProjectHeader.created_at < end_date
-                    )
-                except (ValueError, TypeError):
-                    pass
+            # BK.DATE 过滤：start_date/end_date 优先，否则回退到 month
+            range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
+            if range_start is not None:
+                query = query.filter(ProjectHeader.created_at >= range_start)
+            if range_end is not None:
+                query = query.filter(ProjectHeader.created_at < range_end)
 
             # 获取所有符合条件的项目
             # 如果按集团筛选，则先按公司名称排序，再按HID排序
@@ -799,13 +794,16 @@ class SOAService:
             story.append(Paragraph("SOA Statement of Account", title_style))
             story.append(Spacer(1, 12))
 
-            # 筛选条件说明（同时展示集团/公司/月份等条件）
+            # 筛选条件说明（同时展示集团/公司/日期等条件）
             filter_parts = []
             if group:
                 filter_parts.append(f"Group: {group}")
             if company:
                 filter_parts.append(f"Company: {company}")
-            if month:
+            # 日期区间优先于 month
+            if start_date or end_date:
+                filter_parts.append(f"BK.Date: {start_date or '...'} ~ {end_date or '...'}")
+            elif month:
                 filter_parts.append(f"Month: {month}")
             filter_text = " | ".join(filter_parts) if filter_parts else "All Data"
 
