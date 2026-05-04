@@ -74,10 +74,12 @@
     /* 列宽设置 - 固定布局 */
     .col-inv { width: 80px; }
     .col-hid { width: 60px; }
-    .col-company { width: auto; }  /* 自动填充剩余空间，显示完整公司名 */
+    /* COMPANY 与 ITIN DESCRIPTION 两列共享剩余宽度，等宽显示 */
+    .col-company { width: auto; }
+    .col-itin { width: auto; }
     .col-date { width: 90px; }
     .col-client { width: 130px; }
-    .col-itin { width: 180px; }
+    .col-dp-date { width: 90px; }
     .col-currency { width: 50px; }
     .col-amount { width: 100px; }
     .col-balance { width: 100px; }
@@ -138,16 +140,6 @@
     <div class="search-section">
         <div class="row align-items-center g-2">
             <div class="col-auto">
-                <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份" style="width: 140px;">
-            </div>
-            <div class="col-auto">
-                <div class="input-group input-group-sm" style="width: 280px;" title="按发票日期(INV.DATE)区间筛选；任一日期填写时将忽略月份">
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter" placeholder="起始日期">
-                    <span class="input-group-text px-1">~</span>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter" placeholder="结束日期">
-                </div>
-            </div>
-            <div class="col-auto">
                 <select class="form-control form-control-sm" id="groupFilter" style="width: 120px;">
                     <option value="">所有集团</option>
                 </select>
@@ -156,6 +148,16 @@
                 <select class="form-control form-control-sm" id="companyFilter" style="width: 150px;">
                     <option value="">所有公司</option>
                 </select>
+            </div>
+            <div class="col-auto">
+                <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份" style="width: 140px;">
+            </div>
+            <div class="col-auto">
+                <div class="input-group input-group-sm" style="width: 280px;" title="按发票日期(INV.DATE)区间筛选；任一日期填写时将忽略月份">
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" placeholder="起始日期">
+                    <span class="input-group-text px-1">~</span>
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" placeholder="结束日期">
+                </div>
             </div>
             <div class="col-auto">
                 <div class="input-group input-group-sm" style="width: 160px;">
@@ -220,6 +222,7 @@
                         <th class="col-company">COMPANY</th>
                         <th class="col-date">INV.DATE</th>
                         <th class="col-client">CLIENT NAME</th>
+                        <th class="col-dp-date">DP.DATE</th>
                         <th class="col-itin">ITIN DESCRIPTION</th>
                         <th class="col-currency">CCY</th>
                         <th class="col-amount text-right">AMOUNT</th>
@@ -230,7 +233,7 @@
                 </tbody>
                 <tfoot id="tableFoot" style="display: none;">
                     <tr class="table-info font-weight-bold">
-                        <td colspan="6" class="text-right">筛选记录数: <span id="statTotalCount">0</span> 条</td>
+                        <td colspan="7" class="text-right">筛选记录数: <span id="statTotalCount">0</span> 条</td>
                         <td>TOTAL</td>
                         <td class="text-right" id="statTotalAmount">$0.00</td>
                         <td class="text-right" id="statTotalBalance">$0.00</td>
@@ -642,6 +645,7 @@ class SOAManager {
                 <td title="${inv.corporate_name || ''}">${inv.corporate_name || '-'}</td>
                 <td>${inv.invoice_date || '-'}</td>
                 <td title="${inv.client_name || ''}">${inv.client_name || '-'}</td>
+                <td>${inv.dep_date || '-'}</td>
                 <td title="${inv.itin_desc || ''}">${inv.itin_desc || '-'}</td>
                 <td>${inv.currency || 'SGD'}</td>
                 <td class="text-right">$${(inv.amount || 0).toFixed(2)}</td>

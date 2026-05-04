@@ -183,31 +183,69 @@ class SOAService:
         if not invoices:
             return []
 
-        # 批量预加载：每个项目的第一条 REF（用于 itin_desc / dep_date）
+        # 解析每张发票直接关联的 REF（ProjectInvoice.ref_ids 是 JSON 数组），
+        # 这样描述/出发日期能反映该发票本身的内容，而不是项目的第一条 REF
+        invoice_ref_ids = {}  # invoice.id -> 保留 JSON 中顺序的 ref id 列表
+        all_invoice_ref_ids = set()
+        for inv in invoices:
+            ids = []
+            if inv.ref_ids:
+                try:
+                    parsed = json.loads(inv.ref_ids)
+                    if isinstance(parsed, list):
+                        for x in parsed:
+                            try:
+                                ids.append(int(x))
+                            except (TypeError, ValueError):
+                                continue
+                except (json.JSONDecodeError, TypeError):
+                    ids = []
+            invoice_ref_ids[inv.id] = ids
+            all_invoice_ref_ids.update(ids)
+
+        # 项目第一条 REF 的 id（仅用于发票未挂任何 REF 时的回退展示）
         header_ids = list({inv.header_id for inv in invoices if inv.header_id})
-        first_refs_by_header = {}
+        first_ref_id_by_header = {}
         if header_ids:
             from sqlalchemy import func
-            first_ref_subq = db.session.query(
+            for hid, rid in db.session.query(
                 ProjectRef.header_id,
-                func.min(ProjectRef.id).label('first_ref_id')
-            ).filter(ProjectRef.header_id.in_(header_ids)).group_by(ProjectRef.header_id).subquery()
+                func.min(ProjectRef.id)
+            ).filter(ProjectRef.header_id.in_(header_ids)).group_by(ProjectRef.header_id).all():
+                first_ref_id_by_header[hid] = rid
 
-            for r in db.session.query(ProjectRef).join(
-                first_ref_subq, ProjectRef.id == first_ref_subq.c.first_ref_id
-            ).all():
-                first_refs_by_header[r.header_id] = r
+        # 一次性加载所有要用到的 REF（发票挂的 + 回退用的）
+        needed_ref_ids = set(all_invoice_ref_ids)
+        needed_ref_ids.update(first_ref_id_by_header.values())
+        refs_by_id = {}
+        if needed_ref_ids:
+            for r in ProjectRef.query.filter(ProjectRef.id.in_(list(needed_ref_ids))).all():
+                refs_by_id[r.id] = r
 
-        # 批量预加载：第一条 REF 对应的最早出发时间
-        first_ref_ids = [r.id for r in first_refs_by_header.values()]
+        # 一次性加载这些 REF 对应的最早出发时间（机票/航段）
         dep_date_by_ref = {}
-        if first_ref_ids:
+        if needed_ref_ids:
             for row in db.session.query(
                 ProjectFlightSegment.ref_id,
                 db.func.min(ProjectFlightSegment.departure_time).label('first_dep')
-            ).filter(ProjectFlightSegment.ref_id.in_(first_ref_ids)).group_by(ProjectFlightSegment.ref_id).all():
+            ).filter(ProjectFlightSegment.ref_id.in_(list(needed_ref_ids))).group_by(ProjectFlightSegment.ref_id).all():
                 if row.first_dep:
                     dep_date_by_ref[row.ref_id] = row.first_dep.strftime('%Y-%m-%d')
+
+        # 没有航段日期的 REF（如酒店）从 extra_info 里回退取 checkin_date
+        # 酒店表单同时存了 checkin_date 与 departure_date(=checkin_date)，两个键都试一下兼容旧数据
+        for rid, ref in refs_by_id.items():
+            if rid in dep_date_by_ref or not ref.extra_info:
+                continue
+            try:
+                info = json.loads(ref.extra_info)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not isinstance(info, dict):
+                continue
+            d = info.get('checkin_date') or info.get('departure_date')
+            if d:
+                dep_date_by_ref[rid] = d
 
         # 项目盈亏（仅当用到 profit_loss 过滤时才查）
         project_pl = {}
@@ -241,9 +279,34 @@ class SOAService:
                 elif profit_loss == 'even' and project_profit != 0:
                     continue
 
-            first_ref = first_refs_by_header.get(header.id)
-            itin_desc = (first_ref.description if first_ref and first_ref.description else header.desc) or ''
-            dep_date = dep_date_by_ref.get(first_ref.id, '') if first_ref else ''
+            # 取本发票挂的 REF 列表（按 ref_ids 中的顺序）
+            inv_refs = [refs_by_id[rid] for rid in invoice_ref_ids.get(inv.id, []) if rid in refs_by_id]
+
+            # ITIN 描述：用本发票的 REF 描述拼接（多个用 / 分隔）；无则回退到项目第一条 REF / header.desc
+            descs = []
+            for ref in inv_refs:
+                d = (ref.description or getattr(ref, 'detailed_description', None) or '').strip()
+                if d:
+                    descs.append(d)
+
+            if descs:
+                itin_desc = ' / '.join(descs)
+            else:
+                first_ref_id = first_ref_id_by_header.get(header.id)
+                first_ref = refs_by_id.get(first_ref_id) if first_ref_id else None
+                itin_desc = (first_ref.description if first_ref and first_ref.description else header.desc) or ''
+
+            # 出发日期：先取本发票第一条挂的 REF 的最早出发时间；没有再回退项目第一条 REF
+            dep_date = ''
+            for ref in inv_refs:
+                d = dep_date_by_ref.get(ref.id, '')
+                if d:
+                    dep_date = d
+                    break
+            if not dep_date:
+                first_ref_id = first_ref_id_by_header.get(header.id)
+                if first_ref_id:
+                    dep_date = dep_date_by_ref.get(first_ref_id, '')
 
             rows.append({
                 'invoice_id': inv.id,
