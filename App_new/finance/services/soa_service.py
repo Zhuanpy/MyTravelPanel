@@ -12,6 +12,7 @@ from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
 from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.business.flight.models.flight import ProjectFlightSegment
+from sqlalchemy.orm import contains_eager
 from flask import render_template
 import io
 from reportlab.lib.pagesizes import A4, landscape
@@ -127,129 +128,167 @@ class SOAService:
             pass
         return ''
 
-    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None, start_date=None, end_date=None):
-        """获取可生成SOA的项目列表"""
-        try:
-            query = ProjectHeader.query.options(
-                db.joinedload(ProjectHeader.company)
+    def _query_invoice_rows(self, search=None, month=None, company=None, group=None,
+                             balance_positive=False, profit_loss=None,
+                             start_date=None, end_date=None):
+        """查询符合条件的发票行（每张 confirmed 发票一行）。
+
+        - 日期过滤作用于 invoice_date
+        - 没有 confirmed 发票的项目自然不会出现
+        - 结果按公司名稳定排序便于下载时分组求小计；公司内部按发票日期倒序
+        """
+        # 主查询：confirmed 发票 + 关联项目
+        q = ProjectInvoice.query.join(
+            ProjectHeader, ProjectInvoice.header_id == ProjectHeader.id
+        ).options(
+            contains_eager(ProjectInvoice.header).joinedload(ProjectHeader.company)
+        ).filter(ProjectInvoice.status == 'confirmed')
+
+        if search:
+            s = search.lower()
+            q = q.filter(db.or_(
+                ProjectInvoice.invoice_number.ilike(f'%{s}%'),
+                ProjectHeader.hid.ilike(f'%{s}%'),
+                ProjectHeader.desc.ilike(f'%{s}%'),
+                ProjectHeader.contact.ilike(f'%{s}%'),
+                ProjectHeader.leader_name.ilike(f'%{s}%')
+            ))
+
+        if company:
+            q = q.join(CustomerCompany).filter(CustomerCompany.company_name == company)
+        elif group:
+            q = q.join(CustomerCompany).filter(CustomerCompany.group_name == group)
+
+        # 日期过滤：作用于发票日期（invoice_date）
+        range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
+        if range_start is not None:
+            q = q.filter(ProjectInvoice.invoice_date >= range_start)
+        if range_end is not None:
+            q = q.filter(ProjectInvoice.invoice_date < range_end)
+
+        # 排序：按集团筛选时先按公司名分组，否则按发票日期倒序
+        if group:
+            q = q.order_by(
+                CustomerCompany.company_name,
+                ProjectInvoice.invoice_date.desc(),
+                ProjectInvoice.id.desc()
+            )
+        else:
+            q = q.order_by(
+                ProjectInvoice.invoice_date.desc(),
+                ProjectInvoice.id.desc()
             )
 
-            if search:
-                search_lower = search.lower()
-                query = query.filter(
-                    db.or_(
-                        ProjectHeader.hid.ilike(f'%{search_lower}%'),
-                        ProjectHeader.desc.ilike(f'%{search_lower}%'),
-                        ProjectHeader.contact.ilike(f'%{search_lower}%'),
-                        ProjectHeader.leader_name.ilike(f'%{search_lower}%')
-                    )
-                )
+        invoices = q.all()
+        if not invoices:
+            return []
 
-            # 公司过滤
-            if company:
-                query = query.join(CustomerCompany).filter(CustomerCompany.company_name == company)
-            elif group:
-                # 集团过滤（只在没有指定公司时生效）
-                query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
+        # 批量预加载：每个项目的第一条 REF（用于 itin_desc / dep_date）
+        header_ids = list({inv.header_id for inv in invoices if inv.header_id})
+        first_refs_by_header = {}
+        if header_ids:
+            from sqlalchemy import func
+            first_ref_subq = db.session.query(
+                ProjectRef.header_id,
+                func.min(ProjectRef.id).label('first_ref_id')
+            ).filter(ProjectRef.header_id.in_(header_ids)).group_by(ProjectRef.header_id).subquery()
 
-            # BK.DATE 过滤：start_date/end_date 优先，否则回退到 month
-            range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
-            if range_start is not None:
-                query = query.filter(ProjectHeader.created_at >= range_start)
-            if range_end is not None:
-                query = query.filter(ProjectHeader.created_at < range_end)
+            for r in db.session.query(ProjectRef).join(
+                first_ref_subq, ProjectRef.id == first_ref_subq.c.first_ref_id
+            ).all():
+                first_refs_by_header[r.header_id] = r
 
-            # 获取所有符合条件的项目（先不分页，因为需要计算余额后再过滤）
-            # 如果按集团筛选，则先按公司名称排序，再按HID排序
-            if group:
-                all_headers = query.order_by(
-                    CustomerCompany.company_name,
-                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-                ).all()
-            else:
-                all_headers = query.order_by(
-                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-                ).all()
+        # 批量预加载：第一条 REF 对应的最早出发时间
+        first_ref_ids = [r.id for r in first_refs_by_header.values()]
+        dep_date_by_ref = {}
+        if first_ref_ids:
+            for row in db.session.query(
+                ProjectFlightSegment.ref_id,
+                db.func.min(ProjectFlightSegment.departure_time).label('first_dep')
+            ).filter(ProjectFlightSegment.ref_id.in_(first_ref_ids)).group_by(ProjectFlightSegment.ref_id).all():
+                if row.first_dep:
+                    dep_date_by_ref[row.ref_id] = row.first_dep.strftime('%Y-%m-%d')
 
-            # 获取所有项目的财务数据
-            all_project_ids = [h.id for h in all_headers]
+        # 项目盈亏（仅当用到 profit_loss 过滤时才查）
+        project_pl = {}
+        if profit_loss and header_ids:
+            for r in db.session.query(
+                ProjectRef.header_id,
+                db.func.sum(ProjectRef.selling_price).label('total_selling'),
+                db.func.sum(ProjectRef.cost_price).label('total_cost')
+            ).filter(ProjectRef.header_id.in_(header_ids)).group_by(ProjectRef.header_id).all():
+                project_pl[r.header_id] = float(r.total_selling or 0) - float(r.total_cost or 0)
 
-            # 批量查询 REF 销售数据
-            refs_data = {}
-            if all_project_ids:
-                refs_query = db.session.query(
-                    ProjectRef.header_id,
-                    db.func.sum(ProjectRef.selling_price).label('total_selling'),
-                    db.func.sum(ProjectRef.cost_price).label('total_cost')
-                ).filter(ProjectRef.header_id.in_(all_project_ids)).group_by(ProjectRef.header_id).all()
+        rows = []
+        for inv in invoices:
+            header = inv.header
+            if not header:
+                continue
 
-                for r in refs_query:
-                    refs_data[r.header_id] = {
-                        'total_selling': float(r.total_selling or 0),
-                        'total_cost': float(r.total_cost or 0)
-                    }
+            amount = float(inv.amount or 0)
+            paid = float(inv.paid_amount or 0)
+            unpaid = amount - paid
 
-            # 构建所有项目数据并应用过滤
-            all_headers_data = []
-            for header in all_headers:
-                ref_info = refs_data.get(header.id, {'total_selling': 0, 'total_cost': 0})
-                total_selling = ref_info['total_selling']
-                total_cost = ref_info['total_cost']
-                profit = total_selling - total_cost
-                balance = self._calculate_project_balance(header.id, total_selling)
+            if balance_positive and unpaid <= 0:
+                continue
 
-                # 应用余额过滤
-                if balance_positive and balance <= 0:
+            if profit_loss:
+                project_profit = project_pl.get(header.id, 0.0)
+                if profit_loss == 'profit' and project_profit <= 0:
+                    continue
+                elif profit_loss == 'loss' and project_profit >= 0:
+                    continue
+                elif profit_loss == 'even' and project_profit != 0:
                     continue
 
-                # 应用盈亏过滤
-                if profit_loss:
-                    if profit_loss == 'profit' and profit <= 0:
-                        continue
-                    elif profit_loss == 'loss' and profit >= 0:
-                        continue
-                    elif profit_loss == 'even' and profit != 0:
-                        continue
+            first_ref = first_refs_by_header.get(header.id)
+            itin_desc = (first_ref.description if first_ref and first_ref.description else header.desc) or ''
+            dep_date = dep_date_by_ref.get(first_ref.id, '') if first_ref else ''
 
-                # 获取第一个REF的描述和出发日期
-                first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
-                itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
+            rows.append({
+                'invoice_id': inv.id,
+                'invoice_number': inv.invoice_number,
+                'invoice_date': inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '',
+                'header_id': header.id,
+                'hid': header.hid,
+                'corporate_name': header.company.company_name if header.company else None,
+                'client_name': header.leader_member_name or header.leader_name or header.contact,
+                'itin_desc': itin_desc,
+                'dep_date': dep_date,
+                'currency': inv.currency or 'SGD',
+                'amount': amount,
+                'paid_amount': paid,
+                'unpaid_amount': unpaid,
+            })
 
-                # 从REF的航段获取出发日期
-                dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
+        return rows
 
-                all_headers_data.append({
-                    'id': header.id,
-                    'booking_header_id': header.hid,
-                    'corporate_name': header.company.company_name if header.company else None,
-                    'book_date': header.created_at.strftime('%Y-%m-%d') if header.created_at else None,
-                    'client_name': header.leader_member_name or header.leader_name or header.contact,
-                    'dep_date': dep_date,
-                    'itin_desc': itin_desc,
-                    'invoice_no': None,
-                    'invoice_date': None,
-                    'sub_total_balance': balance,
-                    'detail_count': ProjectRef.query.filter_by(header_id=header.id).count()
-                })
+    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None, start_date=None, end_date=None):
+        """获取可生成SOA的发票列表（每张 confirmed 发票一行）"""
+        try:
+            rows = self._query_invoice_rows(
+                search=search, month=month, company=company, group=group,
+                balance_positive=balance_positive, profit_loss=profit_loss,
+                start_date=start_date, end_date=end_date
+            )
 
-            # 计算统计数据（基于所有过滤后的数据）
-            total_balance = sum(h['sub_total_balance'] for h in all_headers_data)
-            total_count = len(all_headers_data)
+            total_amount = sum(r['amount'] for r in rows)
+            total_balance = sum(r['unpaid_amount'] for r in rows)
+            total_count = len(rows)
 
-            # 在Python中进行分页
             total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
             start_idx = (page - 1) * per_page
-            end_idx = start_idx + per_page
-            headers_data = all_headers_data[start_idx:end_idx]
+            page_rows = rows[start_idx:start_idx + per_page]
 
             return {
-                'headers': headers_data,
+                'invoices': page_rows,
                 'total': total_count,
                 'pages': total_pages,
                 'current_page': page,
                 'per_page': per_page,
                 'statistics': {
                     'total_balance': total_balance,
+                    'total_amount': total_amount,
                     'total_count': total_count
                 }
             }
@@ -316,139 +355,61 @@ class SOAService:
             }
 
     def batch_download_soa(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel', start_date=None, end_date=None):
-        """批量下载SOA - 生成Excel表格"""
+        """批量下载SOA - 生成Excel表格（每张 confirmed 发票一行）"""
         try:
             import pandas as pd
 
-            # 构建查询条件
-            query = ProjectHeader.query.options(
-                db.joinedload(ProjectHeader.company)
+            invoice_rows = self._query_invoice_rows(
+                search=search, month=month, company=company, group=group,
+                balance_positive=bool(balance_positive), profit_loss=profit_loss,
+                start_date=start_date, end_date=end_date
             )
 
-            if search:
-                search_lower = search.lower()
-                query = query.filter(
-                    db.or_(
-                        ProjectHeader.hid.ilike(f'%{search_lower}%'),
-                        ProjectHeader.desc.ilike(f'%{search_lower}%'),
-                        ProjectHeader.contact.ilike(f'%{search_lower}%'),
-                        ProjectHeader.leader_name.ilike(f'%{search_lower}%')
-                    )
-                )
-
-            if company:
-                query = query.join(CustomerCompany).filter(CustomerCompany.company_name == company)
-            elif group:
-                # 集团过滤（只在没有指定公司时生效）
-                query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
-
-            # BK.DATE 过滤：start_date/end_date 优先，否则回退到 month
-            range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
-            if range_start is not None:
-                query = query.filter(ProjectHeader.created_at >= range_start)
-            if range_end is not None:
-                query = query.filter(ProjectHeader.created_at < range_end)
-
-            # 获取所有符合条件的项目
-            # 如果按集团筛选，则先按公司名称排序，再按HID排序
-            if group:
-                headers = query.order_by(
-                    CustomerCompany.company_name,
-                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-                ).all()
-            else:
-                headers = query.order_by(
-                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-                ).all()
-
-            if not headers:
+            if not invoice_rows:
                 return None, "没有找到符合条件的SOA数据"
 
-            # 批量获取财务数据
-            project_ids = [h.id for h in headers]
-            refs_data = {}
-            if project_ids:
-                refs_query = db.session.query(
-                    ProjectRef.header_id,
-                    db.func.sum(ProjectRef.selling_price).label('total_selling'),
-                    db.func.sum(ProjectRef.cost_price).label('total_cost')
-                ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
-
-                for r in refs_query:
-                    refs_data[r.header_id] = {
-                        'total_selling': float(r.total_selling or 0),
-                        'total_cost': float(r.total_cost or 0)
-                    }
-
-            # 准备Excel数据
-            excel_data = []
-
-            for header in headers:
-                ref_info = refs_data.get(header.id, {'total_selling': 0, 'total_cost': 0})
-                total_selling = ref_info['total_selling']
-                total_cost = ref_info['total_cost']
-                profit = total_selling - total_cost
-                balance = self._calculate_project_balance(header.id, total_selling)
-
-                # 应用余额过滤
-                if balance_positive and balance <= 0:
-                    continue
-
-                # 应用盈亏过滤
-                if profit_loss:
-                    if profit_loss == 'profit' and profit <= 0:
-                        continue
-                    elif profit_loss == 'loss' and profit >= 0:
-                        continue
-                    elif profit_loss == 'even' and profit != 0:
-                        continue
-
-                # 获取第一个REF的描述和出发日期
-                first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
-                itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
-
-                # 从REF的航段获取出发日期
-                dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
-
-                # 构建Excel行数据
-                row_data = {
-                    'HID': header.hid,
-                    'COMPANY': header.company.company_name if header.company else '',
-                    'BK.DATE': header.created_at.strftime('%Y-%m-%d') if header.created_at else '',
-                    'CLIENT NAME': header.leader_member_name or header.leader_name or header.contact or '',
-                    'DP.DATE': dep_date,
-                    'ITIN DESCRIPTION': itin_desc or '',
-                    'CCY': 'SGD',
-                    'BAL': balance
+            # 准备 Excel 行：列顺序固定为 INV NO / HID / COMPANY / INV.DATE / CLIENT / DP.DATE / ITIN / CCY / AMOUNT / BAL
+            def _data_row(r):
+                return {
+                    'INV NO': r['invoice_number'] or '',
+                    'HID': r['hid'] or '',
+                    'COMPANY': r['corporate_name'] or '',
+                    'INV.DATE': r['invoice_date'] or '',
+                    'CLIENT NAME': r['client_name'] or '',
+                    'DP.DATE': r['dep_date'] or '',
+                    'ITIN DESCRIPTION': r['itin_desc'] or '',
+                    'CCY': r['currency'] or 'SGD',
+                    'AMOUNT': r['amount'],
+                    'BAL': r['unpaid_amount'],
                 }
 
-                excel_data.append(row_data)
+            excel_data = [_data_row(r) for r in invoice_rows]
 
-            if not excel_data:
-                return None, "没有找到符合条件的SOA数据"
-
-            # 按公司分组，每家公司加一行小计；最后视情况加总计
-            # 用稳定排序仅按公司名分组，保留每家公司内部已有的 HID 排序
+            # 按公司分组：稳定排序仅按公司名，公司内部保留 invoice_date 倒序
             excel_data.sort(key=lambda row: (row['COMPANY'] or ''))
 
             final_rows = []
-            subtotal_row_indices = []  # 标记小计行（用于样式），0-based 在 final_rows 中
+            subtotal_row_indices = []
             companies_seen = []
             current_company = None
-            company_subtotal = 0.0
+            company_amount_subtotal = 0.0
+            company_bal_subtotal = 0.0
             company_count = 0
-            grand_total = 0.0
+            grand_amount = 0.0
+            grand_bal = 0.0
 
-            def _append_subtotal(company, subtotal, count):
+            def _append_subtotal(company, amount_sub, bal_sub, count):
                 final_rows.append({
+                    'INV NO': '',
                     'HID': '',
                     'COMPANY': company or '',
-                    'BK.DATE': '',
+                    'INV.DATE': '',
                     'CLIENT NAME': '',
                     'DP.DATE': '',
                     'ITIN DESCRIPTION': f'SUBTOTAL ({count} item{"s" if count > 1 else ""})',
                     'CCY': 'SGD',
-                    'BAL': subtotal
+                    'AMOUNT': amount_sub,
+                    'BAL': bal_sub,
                 })
                 subtotal_row_indices.append(len(final_rows) - 1)
 
@@ -456,33 +417,38 @@ class SOAService:
                 if current_company is None:
                     current_company = row['COMPANY']
                 elif row['COMPANY'] != current_company:
-                    _append_subtotal(current_company, company_subtotal, company_count)
+                    _append_subtotal(current_company, company_amount_subtotal, company_bal_subtotal, company_count)
                     companies_seen.append(current_company)
                     current_company = row['COMPANY']
-                    company_subtotal = 0.0
+                    company_amount_subtotal = 0.0
+                    company_bal_subtotal = 0.0
                     company_count = 0
 
                 final_rows.append(row)
-                company_subtotal += row['BAL']
+                company_amount_subtotal += row['AMOUNT']
+                company_bal_subtotal += row['BAL']
                 company_count += 1
-                grand_total += row['BAL']
+                grand_amount += row['AMOUNT']
+                grand_bal += row['BAL']
 
             # 最后一家公司的小计
-            _append_subtotal(current_company, company_subtotal, company_count)
+            _append_subtotal(current_company, company_amount_subtotal, company_bal_subtotal, company_count)
             companies_seen.append(current_company)
 
-            # 仅当有多家公司时才显示总计行（单家公司时小计即总计，避免重复）
+            # 仅当有多家公司时才显示总计行
             grand_total_row_index = None
             if len(companies_seen) > 1:
                 final_rows.append({
+                    'INV NO': '',
                     'HID': '',
                     'COMPANY': '',
-                    'BK.DATE': '',
+                    'INV.DATE': '',
                     'CLIENT NAME': '',
                     'DP.DATE': '',
                     'ITIN DESCRIPTION': 'GRAND TOTAL',
                     'CCY': 'SGD',
-                    'BAL': grand_total
+                    'AMOUNT': grand_amount,
+                    'BAL': grand_bal,
                 })
                 grand_total_row_index = len(final_rows) - 1
 
@@ -496,18 +462,19 @@ class SOAService:
 
                 worksheet = writer.sheets['SOA Data']
 
-                # 设置列宽
+                # 设置列宽（A..J 对应 INV NO, HID, COMPANY, INV.DATE, CLIENT, DP.DATE, ITIN, CCY, AMOUNT, BAL）
                 column_widths = {
-                    'A': 12,  # HID
-                    'B': 25,  # COMPANY
-                    'C': 12,  # BK.DATE
-                    'D': 25,  # CLIENT NAME
-                    'E': 12,  # DP.DATE
-                    'F': 30,  # ITIN DESCRIPTION
-                    'G': 8,   # CCY
-                    'H': 12   # BAL
+                    'A': 12,  # INV NO
+                    'B': 10,  # HID
+                    'C': 25,  # COMPANY
+                    'D': 12,  # INV.DATE
+                    'E': 25,  # CLIENT NAME
+                    'F': 12,  # DP.DATE
+                    'G': 30,  # ITIN DESCRIPTION
+                    'H': 8,   # CCY
+                    'I': 12,  # AMOUNT
+                    'J': 12,  # BAL
                 }
-
                 for col, width in column_widths.items():
                     worksheet.column_dimensions[col].width = width
 
@@ -516,18 +483,18 @@ class SOAService:
                 header_font = Font(bold=True, color="FFFFFF")
                 header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
                 header_alignment = Alignment(horizontal="center", vertical="center")
-
                 for cell in worksheet[1]:
                     cell.font = header_font
                     cell.fill = header_fill
                     cell.alignment = header_alignment
 
-                # 设置数字格式
+                # AMOUNT(第 9 列, idx 8) 与 BAL(第 10 列, idx 9) 设置货币格式
                 for row in worksheet.iter_rows(min_row=2):
-                    if len(row) > 7:
-                        row[7].number_format = '$#,##0.00'
+                    if len(row) > 9:
+                        row[8].number_format = '$#,##0.00'
+                        row[9].number_format = '$#,##0.00'
 
-                # 小计行样式（浅黄底、加粗）；表头是第 1 行，数据从第 2 行开始
+                # 小计行样式（浅黄底、加粗）
                 subtotal_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
                 subtotal_font = Font(bold=True, color="664D03")
                 for idx in subtotal_row_indices:
@@ -536,8 +503,9 @@ class SOAService:
                     for cell in row_cells:
                         cell.fill = subtotal_fill
                         cell.font = subtotal_font
-                    if len(row_cells) > 7:
-                        row_cells[7].number_format = '$#,##0.00'
+                    if len(row_cells) > 9:
+                        row_cells[8].number_format = '$#,##0.00'
+                        row_cells[9].number_format = '$#,##0.00'
 
                 # 总计行样式（仅当有多家公司时存在）
                 if grand_total_row_index is not None:
@@ -548,8 +516,9 @@ class SOAService:
                     for cell in total_row:
                         cell.fill = total_fill
                         cell.font = total_font
-                    if len(total_row) > 7:
-                        total_row[7].number_format = '$#,##0.00'
+                    if len(total_row) > 9:
+                        total_row[8].number_format = '$#,##0.00'
+                        total_row[9].number_format = '$#,##0.00'
 
                 # 添加公司付款账户信息
                 bank_info_start_row = worksheet.max_row + 3
@@ -575,67 +544,16 @@ class SOAService:
             return None, f"生成Excel文件时出错: {str(e)}"
 
     def batch_download_soa_pdf(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, start_date=None, end_date=None):
-        """批量下载SOA - 生成PDF文件"""
+        """批量下载SOA - 生成PDF文件（每张 confirmed 发票一行）"""
         try:
-            # 构建查询条件
-            query = ProjectHeader.query.options(
-                db.joinedload(ProjectHeader.company)
+            invoice_rows = self._query_invoice_rows(
+                search=search, month=month, company=company, group=group,
+                balance_positive=bool(balance_positive), profit_loss=profit_loss,
+                start_date=start_date, end_date=end_date
             )
 
-            if search:
-                search_lower = search.lower()
-                query = query.filter(
-                    db.or_(
-                        ProjectHeader.hid.ilike(f'%{search_lower}%'),
-                        ProjectHeader.desc.ilike(f'%{search_lower}%'),
-                        ProjectHeader.contact.ilike(f'%{search_lower}%'),
-                        ProjectHeader.leader_name.ilike(f'%{search_lower}%')
-                    )
-                )
-
-            if company:
-                query = query.join(CustomerCompany).filter(CustomerCompany.company_name == company)
-            elif group:
-                # 集团过滤（只在没有指定公司时生效）
-                query = query.join(CustomerCompany).filter(CustomerCompany.group_name == group)
-
-            # BK.DATE 过滤：start_date/end_date 优先，否则回退到 month
-            range_start, range_end = self._resolve_date_range(month=month, start_date=start_date, end_date=end_date)
-            if range_start is not None:
-                query = query.filter(ProjectHeader.created_at >= range_start)
-            if range_end is not None:
-                query = query.filter(ProjectHeader.created_at < range_end)
-
-            # 获取所有符合条件的项目
-            # 如果按集团筛选，则先按公司名称排序，再按HID排序
-            if group:
-                headers = query.order_by(
-                    CustomerCompany.company_name,
-                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-                ).all()
-            else:
-                headers = query.order_by(
-                    db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
-                ).all()
-
-            if not headers:
+            if not invoice_rows:
                 return None, "没有找到符合条件的SOA数据"
-
-            # 批量获取财务数据
-            project_ids = [h.id for h in headers]
-            refs_data = {}
-            if project_ids:
-                refs_query = db.session.query(
-                    ProjectRef.header_id,
-                    db.func.sum(ProjectRef.selling_price).label('total_selling'),
-                    db.func.sum(ProjectRef.cost_price).label('total_cost')
-                ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
-
-                for r in refs_query:
-                    refs_data[r.header_id] = {
-                        'total_selling': float(r.total_selling or 0),
-                        'total_cost': float(r.total_cost or 0)
-                    }
 
             # 创建批量PDF换行样式
             batch_wrap_style = ParagraphStyle(
@@ -649,51 +567,30 @@ class SOAService:
                 spaceAfter=0
             )
 
-            # 先收集每条数据，附带 company_name / balance 用于后续按公司分组求小计
-            collected = []  # list of dict: {company, balance, row}
-            for header in headers:
-                ref_info = refs_data.get(header.id, {'total_selling': 0, 'total_cost': 0})
-                total_selling = ref_info['total_selling']
-                total_cost = ref_info['total_cost']
-                profit = total_selling - total_cost
-                balance = self._calculate_project_balance(header.id, total_selling)
-
-                # 应用余额过滤
-                if balance_positive and balance <= 0:
-                    continue
-
-                # 应用盈亏过滤
-                if profit_loss:
-                    if profit_loss == 'profit' and profit <= 0:
-                        continue
-                    elif profit_loss == 'loss' and profit >= 0:
-                        continue
-                    elif profit_loss == 'even' and profit != 0:
-                        continue
-
-                # 获取第一个REF的描述和出发日期
-                first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
-                itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
-                dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
-                company_name = header.company.company_name if header.company else ''
-
+            # 把每条发票行转成 PDF 表格行（列顺序：INV NO/HID/COMPANY/INV.DATE/CLIENT/DP.DATE/ITIN/CCY/AMOUNT/BAL）
+            collected = []  # list of dict: {company, amount, balance, row}
+            for r in invoice_rows:
+                company_name = r['corporate_name'] or ''
                 row_data = [
-                    Paragraph(header.hid or '', batch_wrap_style),
+                    Paragraph(r['invoice_number'] or '', batch_wrap_style),
+                    Paragraph(r['hid'] or '', batch_wrap_style),
                     Paragraph(company_name, batch_wrap_style),
-                    Paragraph(header.created_at.strftime('%Y-%m-%d') if header.created_at else '', batch_wrap_style),
-                    Paragraph(header.leader_member_name or header.leader_name or header.contact or '', batch_wrap_style),
-                    Paragraph(dep_date, batch_wrap_style),  # DP.DATE
-                    Paragraph(itin_desc or '', batch_wrap_style),
-                    Paragraph('SGD', batch_wrap_style),
-                    Paragraph(f"${balance:,.2f}", batch_wrap_style)
+                    Paragraph(r['invoice_date'] or '', batch_wrap_style),
+                    Paragraph(r['client_name'] or '', batch_wrap_style),
+                    Paragraph(r['dep_date'] or '', batch_wrap_style),
+                    Paragraph(r['itin_desc'] or '', batch_wrap_style),
+                    Paragraph(r['currency'] or 'SGD', batch_wrap_style),
+                    Paragraph(f"${r['amount']:,.2f}", batch_wrap_style),
+                    Paragraph(f"${r['unpaid_amount']:,.2f}", batch_wrap_style)
                 ]
+                collected.append({
+                    'company': company_name,
+                    'amount': r['amount'],
+                    'balance': r['unpaid_amount'],
+                    'row': row_data
+                })
 
-                collected.append({'company': company_name, 'balance': balance, 'row': row_data})
-
-            if not collected:
-                return None, "没有找到符合条件的SOA数据"
-
-            # 按公司分组（稳定排序仅按公司名，公司内部保留 HID 排序）
+            # 按公司稳定排序，公司内部保留发票日期倒序
             collected.sort(key=lambda r: r['company'] or '')
 
             # 小计/总计行样式
@@ -718,8 +615,10 @@ class SOAService:
                 spaceAfter=0
             )
 
-            def _make_subtotal_row(company, subtotal, count):
+            def _make_subtotal_row(company, amount_sub, bal_sub, count):
+                # 列：INV NO / HID / COMPANY / INV.DATE / CLIENT / DP.DATE / ITIN / CCY / AMOUNT / BAL
                 return [
+                    Paragraph('', subtotal_wrap_style),
                     Paragraph('', subtotal_wrap_style),
                     Paragraph(f"<b>{company or ''}</b>", subtotal_wrap_style),
                     Paragraph('', subtotal_wrap_style),
@@ -727,36 +626,41 @@ class SOAService:
                     Paragraph('', subtotal_wrap_style),
                     Paragraph(f"<b>SUBTOTAL ({count} item{'s' if count > 1 else ''})</b>", subtotal_wrap_style),
                     Paragraph('SGD', subtotal_wrap_style),
-                    Paragraph(f"<b>${subtotal:,.2f}</b>", subtotal_wrap_style)
+                    Paragraph(f"<b>${amount_sub:,.2f}</b>", subtotal_wrap_style),
+                    Paragraph(f"<b>${bal_sub:,.2f}</b>", subtotal_wrap_style)
                 ]
 
-            # 拼装 pdf_data：每家公司块结束后插入小计行；并记录小计/总计行索引（在 pdf_data 中）
             pdf_data = []
             subtotal_pdf_indices = []
             companies_seen = []
             current_company = None
-            company_subtotal = 0.0
+            company_amount_subtotal = 0.0
+            company_bal_subtotal = 0.0
             company_count = 0
-            grand_total = 0.0
+            grand_amount = 0.0
+            grand_bal = 0.0
 
             for item in collected:
                 if current_company is None:
                     current_company = item['company']
                 elif item['company'] != current_company:
-                    pdf_data.append(_make_subtotal_row(current_company, company_subtotal, company_count))
+                    pdf_data.append(_make_subtotal_row(current_company, company_amount_subtotal, company_bal_subtotal, company_count))
                     subtotal_pdf_indices.append(len(pdf_data) - 1)
                     companies_seen.append(current_company)
                     current_company = item['company']
-                    company_subtotal = 0.0
+                    company_amount_subtotal = 0.0
+                    company_bal_subtotal = 0.0
                     company_count = 0
 
                 pdf_data.append(item['row'])
-                company_subtotal += item['balance']
+                company_amount_subtotal += item['amount']
+                company_bal_subtotal += item['balance']
                 company_count += 1
-                grand_total += item['balance']
+                grand_amount += item['amount']
+                grand_bal += item['balance']
 
             # 最后一家公司的小计
-            pdf_data.append(_make_subtotal_row(current_company, company_subtotal, company_count))
+            pdf_data.append(_make_subtotal_row(current_company, company_amount_subtotal, company_bal_subtotal, company_count))
             subtotal_pdf_indices.append(len(pdf_data) - 1)
             companies_seen.append(current_company)
 
@@ -769,9 +673,11 @@ class SOAService:
                     Paragraph('', total_wrap_style),
                     Paragraph('', total_wrap_style),
                     Paragraph('', total_wrap_style),
+                    Paragraph('', total_wrap_style),
                     Paragraph('<b>GRAND TOTAL</b>', total_wrap_style),
                     Paragraph('<b>SGD</b>', total_wrap_style),
-                    Paragraph(f"<b>${grand_total:,.2f}</b>", total_wrap_style)
+                    Paragraph(f"<b>${grand_amount:,.2f}</b>", total_wrap_style),
+                    Paragraph(f"<b>${grand_bal:,.2f}</b>", total_wrap_style)
                 ])
                 grand_total_pdf_index = len(pdf_data) - 1
 
@@ -802,7 +708,7 @@ class SOAService:
                 filter_parts.append(f"Company: {company}")
             # 日期区间优先于 month
             if start_date or end_date:
-                filter_parts.append(f"BK.Date: {start_date or '...'} ~ {end_date or '...'}")
+                filter_parts.append(f"Inv.Date: {start_date or '...'} ~ {end_date or '...'}")
             elif month:
                 filter_parts.append(f"Month: {month}")
             filter_text = " | ".join(filter_parts) if filter_parts else "All Data"
@@ -822,19 +728,21 @@ class SOAService:
                 spaceAfter=0
             )
 
-            # 创建表格
+            # 创建表格（10 列：INV NO/HID/COMPANY/INV.DATE/CLIENT/DP.DATE/ITIN/CCY/AMOUNT/BAL）
             table_data = [
-                [Paragraph('HID', batch_header_style),
+                [Paragraph('INV NO', batch_header_style),
+                 Paragraph('HID', batch_header_style),
                  Paragraph('COMPANY', batch_header_style),
-                 Paragraph('BK.DATE', batch_header_style),
+                 Paragraph('INV.DATE', batch_header_style),
                  Paragraph('CLIENT NAME', batch_header_style),
                  Paragraph('DP.DATE', batch_header_style),
                  Paragraph('ITIN DESCRIPTION', batch_header_style),
                  Paragraph('CCY', batch_header_style),
+                 Paragraph('AMOUNT', batch_header_style),
                  Paragraph('BAL', batch_header_style)]
             ] + pdf_data
 
-            table = Table(table_data, colWidths=[0.6*inch, 1.85*inch, 0.8*inch, 1.5*inch, 0.8*inch, 1.85*inch, 0.6*inch, 0.8*inch])
+            table = Table(table_data, colWidths=[0.7*inch, 0.55*inch, 1.65*inch, 0.7*inch, 1.4*inch, 0.7*inch, 1.65*inch, 0.5*inch, 0.85*inch, 0.85*inch])
 
             # 基础样式：表头绿、数据行浅灰、整表网格
             style_cmds = [

@@ -72,12 +72,14 @@
         font-size: 0.8rem;
     }
     /* 列宽设置 - 固定布局 */
+    .col-inv { width: 80px; }
     .col-hid { width: 60px; }
     .col-company { width: auto; }  /* 自动填充剩余空间，显示完整公司名 */
     .col-date { width: 90px; }
-    .col-client { width: 140px; }
+    .col-client { width: 130px; }
     .col-itin { width: 180px; }
     .col-currency { width: 50px; }
+    .col-amount { width: 100px; }
     .col-balance { width: 100px; }
     .table tfoot td {
         font-weight: 600;
@@ -139,7 +141,7 @@
                 <input type="month" class="form-control form-control-sm" id="monthFilter" placeholder="选择月份" style="width: 140px;">
             </div>
             <div class="col-auto">
-                <div class="input-group input-group-sm" style="width: 280px;" title="按出单日期(BK.DATE)区间筛选；任一日期填写时将忽略月份">
+                <div class="input-group input-group-sm" style="width: 280px;" title="按发票日期(INV.DATE)区间筛选；任一日期填写时将忽略月份">
                     <input type="date" class="form-control form-control-sm" id="startDateFilter" placeholder="起始日期">
                     <span class="input-group-text px-1">~</span>
                     <input type="date" class="form-control form-control-sm" id="endDateFilter" placeholder="结束日期">
@@ -213,12 +215,14 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th class="col-inv">INV NO</th>
                         <th class="col-hid">HID</th>
                         <th class="col-company">COMPANY</th>
-                        <th class="col-date">BK.DATE</th>
+                        <th class="col-date">INV.DATE</th>
                         <th class="col-client">CLIENT NAME</th>
                         <th class="col-itin">ITIN DESCRIPTION</th>
-                        <th class="col-currency">货币</th>
+                        <th class="col-currency">CCY</th>
+                        <th class="col-amount text-right">AMOUNT</th>
                         <th class="col-balance text-right">BAL</th>
                     </tr>
                 </thead>
@@ -226,8 +230,9 @@
                 </tbody>
                 <tfoot id="tableFoot" style="display: none;">
                     <tr class="table-info font-weight-bold">
-                        <td colspan="5" class="text-right">筛选记录数: <span id="statTotalCount">0</span> 条</td>
+                        <td colspan="6" class="text-right">筛选记录数: <span id="statTotalCount">0</span> 条</td>
                         <td>TOTAL</td>
+                        <td class="text-right" id="statTotalAmount">$0.00</td>
                         <td class="text-right" id="statTotalBalance">$0.00</td>
                     </tr>
                 </tfoot>
@@ -617,7 +622,8 @@ class SOAManager {
         const tbody = document.getElementById('dataTableBody');
         tbody.innerHTML = '';
 
-        if (!data.headers || data.headers.length === 0) {
+        const invoices = data.invoices || [];
+        if (invoices.length === 0) {
             this.showNoData();
             this.hideStatistics();
             return;
@@ -628,16 +634,18 @@ class SOAManager {
             this.renderStatistics(data.statistics);
         }
 
-        data.headers.forEach(header => {
+        invoices.forEach(inv => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><a href="/projects/detail/${header.id}" target="_blank">${header.booking_header_id}</a></td>
-                <td title="${header.corporate_name || ''}">${header.corporate_name || '-'}</td>
-                <td>${header.book_date || '-'}</td>
-                <td title="${header.client_name || ''}">${header.client_name || '-'}</td>
-                <td title="${header.itin_desc || ''}">${header.itin_desc || '-'}</td>
-                <td>SGD</td>
-                <td class="text-right ${header.sub_total_balance > 0 ? 'text-danger' : 'text-success'}">$${header.sub_total_balance.toFixed(2)}</td>
+                <td><a href="/projects/invoice/${inv.invoice_id}" target="_blank">${inv.invoice_number || '-'}</a></td>
+                <td><a href="/projects/detail/${inv.header_id}" target="_blank">${inv.hid || '-'}</a></td>
+                <td title="${inv.corporate_name || ''}">${inv.corporate_name || '-'}</td>
+                <td>${inv.invoice_date || '-'}</td>
+                <td title="${inv.client_name || ''}">${inv.client_name || '-'}</td>
+                <td title="${inv.itin_desc || ''}">${inv.itin_desc || '-'}</td>
+                <td>${inv.currency || 'SGD'}</td>
+                <td class="text-right">$${(inv.amount || 0).toFixed(2)}</td>
+                <td class="text-right ${inv.unpaid_amount > 0 ? 'text-danger' : 'text-success'}">$${(inv.unpaid_amount || 0).toFixed(2)}</td>
             `;
             tbody.appendChild(row);
         });
@@ -649,6 +657,7 @@ class SOAManager {
 
     renderStatistics(statistics) {
         document.getElementById('statTotalCount').textContent = statistics.total_count || 0;
+        document.getElementById('statTotalAmount').textContent = `$${(statistics.total_amount || 0).toFixed(2)}`;
         document.getElementById('statTotalBalance').textContent = `$${(statistics.total_balance || 0).toFixed(2)}`;
         document.getElementById('tableFoot').style.display = 'table-footer-group';
     }
