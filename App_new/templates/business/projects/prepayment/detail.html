@@ -1,6 +1,6 @@
 {% extends 'staff_base.html' %}
 {% block title %}预付账款详情 - {{ prepayment.prepayment_number }}{% endblock %}
-{% block page_title %}预付账款详情 <small class="text-muted fw-normal" style="font-size: 0.6em;">{{ prepayment.prepayment_number }}</small>{% endblock %}
+{% block page_title %}预付账款详情{% endblock %}
 {% block page_actions %}
 <div class="d-flex gap-2">
     <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary btn-sm">
@@ -35,54 +35,65 @@
 
     <!-- 基本信息 + 金额概览 -->
     <div class="card mb-3">
-        <div class="card-body py-3">
-            <div class="row align-items-center">
-                <div class="col">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <h5 class="mb-0">{{ prepayment.supplier.company_name if prepayment.supplier else '-' }}</h5>
+        <div class="card-body">
+            <!-- 头部：编号 + 状态（左）/ 充值日期（右） -->
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h4 class="mb-0 font-monospace">{{ prepayment.prepayment_number }}</h4>
                         <span class="badge bg-{{ st[0] }}">{{ st[1] }}</span>
                     </div>
-                    <div class="row small text-muted">
-                        <div class="col-auto">
-                            <i class="fas fa-calendar me-1"></i>{{ prepayment.payment_date.strftime('%Y-%m-%d') if prepayment.payment_date else '-' }}
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-credit-card me-1"></i>{{ prepayment.payment_method_display }}
-                        </div>
-                        {% if prepayment.reference %}
-                        <div class="col-auto">
-                            <i class="fas fa-hashtag me-1"></i>{{ prepayment.reference }}
-                        </div>
-                        {% endif %}
-                        {% if prepayment.remarks %}
-                        <div class="col-auto">
-                            <i class="fas fa-comment me-1"></i>{{ prepayment.remarks }}
-                        </div>
-                        {% endif %}
+                    <div class="text-muted">
+                        <i class="fas fa-building me-1"></i>{{ prepayment.supplier.company_name if prepayment.supplier else '-' }}
                     </div>
                 </div>
-                <div class="col-auto text-end">
-                    <div class="small text-muted">剩余可用</div>
-                    <h4 class="mb-0 text-primary">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.balance_amount) }}</h4>
+                <div class="text-end">
+                    <div class="small text-muted">充值日期</div>
+                    <div class="fw-semibold">{{ prepayment.payment_date.strftime('%Y-%m-%d') if prepayment.payment_date else '-' }}</div>
                 </div>
             </div>
-            <!-- 金额条 -->
-            <div class="row mt-3 pt-2 border-top small">
-                <div class="col-auto">
-                    <span class="text-muted">充值金额：</span>
-                    <span class="fw-bold">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.amount) }}</span>
+
+            <!-- 金额三联块 -->
+            <div class="row text-center g-0 border rounded overflow-hidden mb-3">
+                <div class="col py-3 border-end">
+                    <div class="small text-muted mb-1">充值金额</div>
+                    <h5 class="mb-0">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.amount) }}</h5>
                 </div>
-                <div class="col-auto">
-                    <span class="text-muted">已使用：</span>
-                    <span class="fw-bold text-danger">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.used_amount) }}</span>
+                <div class="col py-3 border-end">
+                    <div class="small text-muted mb-1">已使用</div>
+                    <h5 class="mb-0 text-danger">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.used_amount) }}</h5>
                 </div>
-                <div class="col">
-                    <div class="progress mt-1" style="height: 6px;">
+                <div class="col py-3">
+                    <div class="small text-muted mb-1">剩余可用</div>
+                    <h5 class="mb-0 text-primary">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.balance_amount) }}</h5>
+                </div>
+            </div>
+
+            <!-- 进度条 -->
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="flex-grow-1">
+                    <div class="progress" style="height: 6px;">
                         <div class="progress-bar bg-primary" style="width: {{ prepayment.usage_percentage }}%"></div>
                     </div>
                 </div>
-                <div class="col-auto text-muted">{{ prepayment.usage_percentage }}%</div>
+                <div class="text-muted small">已用 {{ prepayment.usage_percentage }}%</div>
             </div>
+
+            <!-- 元信息：付款方式 / 参考号 / 备注 -->
+            <dl class="row mb-0 small">
+                <dt class="col-sm-3 text-muted fw-normal">付款方式</dt>
+                <dd class="col-sm-9 mb-1">{{ prepayment.payment_method_display }}</dd>
+
+                {% if prepayment.reference %}
+                <dt class="col-sm-3 text-muted fw-normal">参考号</dt>
+                <dd class="col-sm-9 mb-1 font-monospace">{{ prepayment.reference }}</dd>
+                {% endif %}
+
+                {% if prepayment.remarks %}
+                <dt class="col-sm-3 text-muted fw-normal">备注</dt>
+                <dd class="col-sm-9 mb-0">{{ prepayment.remarks }}</dd>
+                {% endif %}
+            </dl>
         </div>
     </div>
 
