@@ -418,25 +418,66 @@ class SOAService:
             if not excel_data:
                 return None, "没有找到符合条件的SOA数据"
 
-            # 创建DataFrame
-            df = pd.DataFrame(excel_data)
+            # 按公司分组，每家公司加一行小计；最后视情况加总计
+            # 用稳定排序仅按公司名分组，保留每家公司内部已有的 HID 排序
+            excel_data.sort(key=lambda row: (row['COMPANY'] or ''))
 
-            # 计算BAL总数
-            total_balance = df['BAL'].sum()
+            final_rows = []
+            subtotal_row_indices = []  # 标记小计行（用于样式），0-based 在 final_rows 中
+            companies_seen = []
+            current_company = None
+            company_subtotal = 0.0
+            company_count = 0
+            grand_total = 0.0
 
-            # 添加总计行
-            total_row = {
-                'HID': '',
-                'COMPANY': '',
-                'BK.DATE': '',
-                'CLIENT NAME': '',
-                'DP.DATE': '',
-                'ITIN DESCRIPTION': 'TOTAL',
-                'CCY': '',
-                'BAL': total_balance
-            }
+            def _append_subtotal(company, subtotal, count):
+                final_rows.append({
+                    'HID': '',
+                    'COMPANY': company or '',
+                    'BK.DATE': '',
+                    'CLIENT NAME': '',
+                    'DP.DATE': '',
+                    'ITIN DESCRIPTION': f'SUBTOTAL ({count} item{"s" if count > 1 else ""})',
+                    'CCY': 'SGD',
+                    'BAL': subtotal
+                })
+                subtotal_row_indices.append(len(final_rows) - 1)
 
-            df = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+            for row in excel_data:
+                if current_company is None:
+                    current_company = row['COMPANY']
+                elif row['COMPANY'] != current_company:
+                    _append_subtotal(current_company, company_subtotal, company_count)
+                    companies_seen.append(current_company)
+                    current_company = row['COMPANY']
+                    company_subtotal = 0.0
+                    company_count = 0
+
+                final_rows.append(row)
+                company_subtotal += row['BAL']
+                company_count += 1
+                grand_total += row['BAL']
+
+            # 最后一家公司的小计
+            _append_subtotal(current_company, company_subtotal, company_count)
+            companies_seen.append(current_company)
+
+            # 仅当有多家公司时才显示总计行（单家公司时小计即总计，避免重复）
+            grand_total_row_index = None
+            if len(companies_seen) > 1:
+                final_rows.append({
+                    'HID': '',
+                    'COMPANY': '',
+                    'BK.DATE': '',
+                    'CLIENT NAME': '',
+                    'DP.DATE': '',
+                    'ITIN DESCRIPTION': 'GRAND TOTAL',
+                    'CCY': 'SGD',
+                    'BAL': grand_total
+                })
+                grand_total_row_index = len(final_rows) - 1
+
+            df = pd.DataFrame(final_rows)
 
             # 生成Excel文件
             excel_buffer = io.BytesIO()
@@ -477,23 +518,32 @@ class SOAService:
                     if len(row) > 7:
                         row[7].number_format = '$#,##0.00'
 
-                # 设置总计行样式
-                max_row = worksheet.max_row
-                if max_row > 1:
-                    total_row = worksheet[max_row]
+                # 小计行样式（浅黄底、加粗）；表头是第 1 行，数据从第 2 行开始
+                subtotal_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+                subtotal_font = Font(bold=True, color="664D03")
+                for idx in subtotal_row_indices:
+                    excel_row_num = idx + 2
+                    row_cells = worksheet[excel_row_num]
+                    for cell in row_cells:
+                        cell.fill = subtotal_fill
+                        cell.font = subtotal_font
+                    if len(row_cells) > 7:
+                        row_cells[7].number_format = '$#,##0.00'
 
+                # 总计行样式（仅当有多家公司时存在）
+                if grand_total_row_index is not None:
+                    excel_row_num = grand_total_row_index + 2
+                    total_row = worksheet[excel_row_num]
                     total_fill = PatternFill(start_color="E6F3FF", end_color="E6F3FF", fill_type="solid")
                     total_font = Font(bold=True, color="000080")
-
                     for cell in total_row:
                         cell.fill = total_fill
                         cell.font = total_font
-
                     if len(total_row) > 7:
                         total_row[7].number_format = '$#,##0.00'
 
                 # 添加公司付款账户信息
-                bank_info_start_row = max_row + 3
+                bank_info_start_row = worksheet.max_row + 3
 
                 bank_info_font = Font(bold=False, color="000000")
                 bank_title_font = Font(bold=True, color="000000")
@@ -592,10 +642,6 @@ class SOAService:
                         'total_cost': float(r.total_cost or 0)
                     }
 
-            # 准备PDF数据
-            pdf_data = []
-            total_balance = 0
-
             # 创建批量PDF换行样式
             batch_wrap_style = ParagraphStyle(
                 'BatchWrapStyle',
@@ -608,6 +654,8 @@ class SOAService:
                 spaceAfter=0
             )
 
+            # 先收集每条数据，附带 company_name / balance 用于后续按公司分组求小计
+            collected = []  # list of dict: {company, balance, row}
             for header in headers:
                 ref_info = refs_data.get(header.id, {'total_selling': 0, 'total_cost': 0})
                 total_selling = ref_info['total_selling']
@@ -628,19 +676,15 @@ class SOAService:
                     elif profit_loss == 'even' and profit != 0:
                         continue
 
-                total_balance += balance
-
                 # 获取第一个REF的描述和出发日期
                 first_ref = ProjectRef.query.filter_by(header_id=header.id).first()
                 itin_desc = first_ref.description if first_ref and first_ref.description else header.desc
-
-                # 从REF的航段获取出发日期
                 dep_date = self._get_project_departure_date(first_ref.id) if first_ref else ''
+                company_name = header.company.company_name if header.company else ''
 
-                # 构建PDF行数据
                 row_data = [
                     Paragraph(header.hid or '', batch_wrap_style),
-                    Paragraph(header.company.company_name if header.company else '', batch_wrap_style),
+                    Paragraph(company_name, batch_wrap_style),
                     Paragraph(header.created_at.strftime('%Y-%m-%d') if header.created_at else '', batch_wrap_style),
                     Paragraph(header.leader_member_name or header.leader_name or header.contact or '', batch_wrap_style),
                     Paragraph(dep_date, batch_wrap_style),  # DP.DATE
@@ -649,12 +693,25 @@ class SOAService:
                     Paragraph(f"${balance:,.2f}", batch_wrap_style)
                 ]
 
-                pdf_data.append(row_data)
+                collected.append({'company': company_name, 'balance': balance, 'row': row_data})
 
-            if not pdf_data:
+            if not collected:
                 return None, "没有找到符合条件的SOA数据"
 
-            # 添加总计行
+            # 按公司分组（稳定排序仅按公司名，公司内部保留 HID 排序）
+            collected.sort(key=lambda r: r['company'] or '')
+
+            # 小计/总计行样式
+            subtotal_wrap_style = ParagraphStyle(
+                'SubtotalWrapStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                fontSize=8,
+                leading=9,
+                leftIndent=0,
+                rightIndent=0,
+                spaceBefore=0,
+                spaceAfter=0
+            )
             total_wrap_style = ParagraphStyle(
                 'TotalWrapStyle',
                 parent=getSampleStyleSheet()['Normal'],
@@ -666,17 +723,62 @@ class SOAService:
                 spaceAfter=0
             )
 
-            total_row = [
-                Paragraph('', total_wrap_style),
-                Paragraph('', total_wrap_style),
-                Paragraph('', total_wrap_style),
-                Paragraph('', total_wrap_style),
-                Paragraph('', total_wrap_style),
-                Paragraph('TOTAL', total_wrap_style),
-                Paragraph('', total_wrap_style),
-                Paragraph(f"${total_balance:,.2f}", total_wrap_style)
-            ]
-            pdf_data.append(total_row)
+            def _make_subtotal_row(company, subtotal, count):
+                return [
+                    Paragraph('', subtotal_wrap_style),
+                    Paragraph(f"<b>{company or ''}</b>", subtotal_wrap_style),
+                    Paragraph('', subtotal_wrap_style),
+                    Paragraph('', subtotal_wrap_style),
+                    Paragraph('', subtotal_wrap_style),
+                    Paragraph(f"<b>SUBTOTAL ({count} item{'s' if count > 1 else ''})</b>", subtotal_wrap_style),
+                    Paragraph('SGD', subtotal_wrap_style),
+                    Paragraph(f"<b>${subtotal:,.2f}</b>", subtotal_wrap_style)
+                ]
+
+            # 拼装 pdf_data：每家公司块结束后插入小计行；并记录小计/总计行索引（在 pdf_data 中）
+            pdf_data = []
+            subtotal_pdf_indices = []
+            companies_seen = []
+            current_company = None
+            company_subtotal = 0.0
+            company_count = 0
+            grand_total = 0.0
+
+            for item in collected:
+                if current_company is None:
+                    current_company = item['company']
+                elif item['company'] != current_company:
+                    pdf_data.append(_make_subtotal_row(current_company, company_subtotal, company_count))
+                    subtotal_pdf_indices.append(len(pdf_data) - 1)
+                    companies_seen.append(current_company)
+                    current_company = item['company']
+                    company_subtotal = 0.0
+                    company_count = 0
+
+                pdf_data.append(item['row'])
+                company_subtotal += item['balance']
+                company_count += 1
+                grand_total += item['balance']
+
+            # 最后一家公司的小计
+            pdf_data.append(_make_subtotal_row(current_company, company_subtotal, company_count))
+            subtotal_pdf_indices.append(len(pdf_data) - 1)
+            companies_seen.append(current_company)
+
+            # 仅当有多家公司时才显示总计行
+            grand_total_pdf_index = None
+            if len(companies_seen) > 1:
+                pdf_data.append([
+                    Paragraph('', total_wrap_style),
+                    Paragraph('', total_wrap_style),
+                    Paragraph('', total_wrap_style),
+                    Paragraph('', total_wrap_style),
+                    Paragraph('', total_wrap_style),
+                    Paragraph('<b>GRAND TOTAL</b>', total_wrap_style),
+                    Paragraph('<b>SGD</b>', total_wrap_style),
+                    Paragraph(f"<b>${grand_total:,.2f}</b>", total_wrap_style)
+                ])
+                grand_total_pdf_index = len(pdf_data) - 1
 
             # 生成PDF
             pdf_buffer = io.BytesIO()
@@ -697,14 +799,15 @@ class SOAService:
             story.append(Paragraph("SOA Statement of Account", title_style))
             story.append(Spacer(1, 12))
 
-            # 筛选条件说明
-            filter_text = ""
+            # 筛选条件说明（同时展示集团/公司/月份等条件）
+            filter_parts = []
+            if group:
+                filter_parts.append(f"Group: {group}")
             if company:
-                filter_text = f"Company: {company}"
-            elif month:
-                filter_text = f"Month: {month}"
-            else:
-                filter_text = "All Data"
+                filter_parts.append(f"Company: {company}")
+            if month:
+                filter_parts.append(f"Month: {month}")
+            filter_text = " | ".join(filter_parts) if filter_parts else "All Data"
 
             story.append(Paragraph(filter_text, styles['Normal']))
             story.append(Spacer(1, 12))
@@ -735,7 +838,8 @@ class SOAService:
 
             table = Table(table_data, colWidths=[0.6*inch, 1.85*inch, 0.8*inch, 1.5*inch, 0.8*inch, 1.85*inch, 0.6*inch, 0.8*inch])
 
-            table_style = TableStyle([
+            # 基础样式：表头绿、数据行浅灰、整表网格
+            style_cmds = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -743,17 +847,32 @@ class SOAService:
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#f8f9fa')),
-                ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -2), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
                 ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f5e8')),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, -1), (-1, -1), 10),
-                ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#000080')),
-            ])
+            ]
 
-            table.setStyle(table_style)
+            # 小计行：浅黄底、深棕字、加粗。pdf_data 索引 +1 即表格行索引（第 0 行是表头）
+            for idx in subtotal_pdf_indices:
+                row = idx + 1
+                style_cmds.extend([
+                    ('BACKGROUND', (0, row), (-1, row), colors.HexColor('#FFF3CD')),
+                    ('TEXTCOLOR', (0, row), (-1, row), colors.HexColor('#664D03')),
+                    ('FONTNAME', (0, row), (-1, row), 'Helvetica-Bold'),
+                ])
+
+            # 总计行：浅绿底、深蓝字、加粗（仅当存在）
+            if grand_total_pdf_index is not None:
+                row = grand_total_pdf_index + 1
+                style_cmds.extend([
+                    ('BACKGROUND', (0, row), (-1, row), colors.HexColor('#e8f5e8')),
+                    ('TEXTCOLOR', (0, row), (-1, row), colors.HexColor('#000080')),
+                    ('FONTNAME', (0, row), (-1, row), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, row), (-1, row), 10),
+                ])
+
+            table.setStyle(TableStyle(style_cmds))
             story.append(table)
 
             # 银行信息

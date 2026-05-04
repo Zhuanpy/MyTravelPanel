@@ -234,37 +234,113 @@
 
 {% block extra_js %}
 <script>
+// 当前月份字符串，作为 month 筛选默认值
+function getCurrentMonthStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+}
+
 class SOAManager {
     constructor() {
-        this.currentPage = 1;
         this.perPage = 20;
-        this.searchTerm = '';
-        this.monthFilter = '';
-        this.groupFilter = '';
-        this.companyFilter = '';
-        this.balanceFilter = false;
-        this.profitLossFilter = '';
+
+        // 默认值集合，用于决定哪些参数需要写入 URL（仅写入非默认值，保持 URL 简洁）
+        this.defaults = {
+            page: 1,
+            search: '',
+            month: getCurrentMonthStr(),
+            group: '',
+            company: '',
+            balance_positive: false,
+            profit_loss: ''
+        };
+
+        // 从 URL 读取初始筛选状态，无参数则使用默认值
+        const params = new URLSearchParams(window.location.search);
+        this.currentPage = parseInt(params.get('page')) || this.defaults.page;
+        this.searchTerm = params.get('search') ?? this.defaults.search;
+        this.monthFilter = params.get('month') ?? this.defaults.month;
+        this.groupFilter = params.get('group') ?? this.defaults.group;
+        this.companyFilter = params.get('company') ?? this.defaults.company;
+        this.balanceFilter = params.get('balance_positive') === 'true';
+        this.profitLossFilter = params.get('profit_loss') ?? this.defaults.profit_loss;
+
         this.init();
     }
 
-    init() {
+    async init() {
         this.populateMonthFilter();
-        this.populateGroupFilter();
-        this.populateCompanyFilter();
+        // 集团/公司下拉是异步加载的，必须 await 完成后再回填值，
+        // 否则从 URL 恢复的 group/company 选项还不存在，赋值会失败
+        await Promise.all([
+            this.populateGroupFilter(),
+            // 初始公司列表按当前集团筛选，避免默认拉所有公司
+            this.populateCompanyFilter(this.groupFilter)
+        ]);
+        this.applyFiltersToUi();
         this.bindEvents();
+
+        // 浏览器前进/后退：重新从 URL 读取状态并刷新
+        window.addEventListener('popstate', () => this.handlePopState());
+
         this.loadData();
     }
 
     populateMonthFilter() {
         // 月份选择器使用HTML5的month input，不需要动态生成选项
-        // 设置默认值为当前月份
-        const monthFilter = document.getElementById('monthFilter');
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-        monthFilter.value = `${currentYear}-${currentMonth}`;
-        // 同步更新 this.monthFilter
-        this.monthFilter = monthFilter.value;
+        // 当前实例的 monthFilter 已在构造函数从 URL 或默认值确定
+        document.getElementById('monthFilter').value = this.monthFilter;
+    }
+
+    // 把当前筛选状态同步到 UI 控件（用于初始化和 popstate 后回填）
+    applyFiltersToUi() {
+        document.getElementById('monthFilter').value = this.monthFilter;
+        document.getElementById('groupFilter').value = this.groupFilter;
+        document.getElementById('companyFilter').value = this.companyFilter;
+        document.getElementById('searchInput').value = this.searchTerm;
+        document.getElementById('balanceFilter').checked = this.balanceFilter;
+        document.getElementById('profitLossFilter').value = this.profitLossFilter;
+    }
+
+    // 把当前筛选状态写入 URL（仅写非默认值，保持 URL 干净）
+    syncStateToUrl() {
+        const url = new URL(window.location);
+        const set = (key, value, def) => {
+            // 仅当与默认值相同（或空值）才从 URL 移除，否则写入；
+            // 这样用户把 month 显式清空表示"全部月份"也能保留在 URL 中
+            if (value === def || value === null || value === undefined) {
+                url.searchParams.delete(key);
+            } else {
+                url.searchParams.set(key, value);
+            }
+        };
+        set('page', this.currentPage, this.defaults.page);
+        set('search', this.searchTerm, this.defaults.search);
+        set('month', this.monthFilter, this.defaults.month);
+        set('group', this.groupFilter, this.defaults.group);
+        set('company', this.companyFilter, this.defaults.company);
+        set('balance_positive', this.balanceFilter, this.defaults.balance_positive);
+        set('profit_loss', this.profitLossFilter, this.defaults.profit_loss);
+        history.replaceState(null, '', url);
+    }
+
+    async handlePopState() {
+        const params = new URLSearchParams(window.location.search);
+        this.currentPage = parseInt(params.get('page')) || this.defaults.page;
+        this.searchTerm = params.get('search') ?? this.defaults.search;
+        this.monthFilter = params.get('month') ?? this.defaults.month;
+        const newGroup = params.get('group') ?? this.defaults.group;
+        const groupChanged = newGroup !== this.groupFilter;
+        this.groupFilter = newGroup;
+        this.companyFilter = params.get('company') ?? this.defaults.company;
+        this.balanceFilter = params.get('balance_positive') === 'true';
+        this.profitLossFilter = params.get('profit_loss') ?? this.defaults.profit_loss;
+
+        if (groupChanged) {
+            await this.populateCompanyFilter(this.groupFilter);
+        }
+        this.applyFiltersToUi();
+        this.loadData();
     }
 
     async populateGroupFilter() {
@@ -453,35 +529,23 @@ class SOAManager {
     }
 
     resetAllFilters() {
-        // 重置所有筛选条件到默认状态
-        this.searchTerm = '';
-        this.monthFilter = '';
-        this.groupFilter = '';
-        this.companyFilter = '';
-        this.balanceFilter = false;
-        this.profitLossFilter = '';
-        this.currentPage = 1;
+        // 重置到默认值（此处沿用与 defaults 一致的取值）
+        this.searchTerm = this.defaults.search;
+        this.monthFilter = this.defaults.month;
+        this.groupFilter = this.defaults.group;
+        this.companyFilter = this.defaults.company;
+        this.balanceFilter = this.defaults.balance_positive;
+        this.profitLossFilter = this.defaults.profit_loss;
+        this.currentPage = this.defaults.page;
 
-        // 重置UI控件
-        document.getElementById('searchInput').value = '';
-        document.getElementById('groupFilter').value = '';
-        document.getElementById('companyFilter').value = '';
-        document.getElementById('balanceFilter').checked = false;
-        document.getElementById('profitLossFilter').value = '';
-
-        // 设置月份为当前月份
-        const monthFilter = document.getElementById('monthFilter');
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-        monthFilter.value = `${currentYear}-${currentMonth}`;
-        this.monthFilter = monthFilter.value;
+        this.applyFiltersToUi();
 
         // 重新加载数据
         this.loadData();
     }
 
     async loadData() {
+        this.syncStateToUrl();
         this.showLoading();
 
         try {
