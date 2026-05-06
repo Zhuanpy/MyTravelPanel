@@ -415,6 +415,31 @@ def invoice_detail(invoice_id):
     # 优先显示项目联系人，其次是 leader
     project_contact = (header.contact if header else None) or project_leader_name
 
+    # 上一个 / 下一个发票导航
+    # 与发票列表默认排序保持一致：invoice_date desc, id desc（仅 confirmed）
+    # "上一个" = 列表中位于当前条目上方（更新的那条），"下一个" = 更老的那条
+    from sqlalchemy import or_, and_
+    prev_invoice = None
+    next_invoice = None
+    if invoice.invoice_date is not None:
+        prev_invoice = ProjectInvoice.query.filter(
+            ProjectInvoice.status == 'confirmed',
+            or_(
+                ProjectInvoice.invoice_date > invoice.invoice_date,
+                and_(ProjectInvoice.invoice_date == invoice.invoice_date,
+                     ProjectInvoice.id > invoice.id)
+            )
+        ).order_by(ProjectInvoice.invoice_date.asc(), ProjectInvoice.id.asc()).first()
+
+        next_invoice = ProjectInvoice.query.filter(
+            ProjectInvoice.status == 'confirmed',
+            or_(
+                ProjectInvoice.invoice_date < invoice.invoice_date,
+                and_(ProjectInvoice.invoice_date == invoice.invoice_date,
+                     ProjectInvoice.id < invoice.id)
+            )
+        ).order_by(ProjectInvoice.invoice_date.desc(), ProjectInvoice.id.desc()).first()
+
     return render_template('business/projects/project_invoice/invoice_detail.html',
                          invoice=invoice,
                          related_refs=related_refs,
@@ -425,7 +450,9 @@ def invoice_detail(invoice_id):
                          project_contact=project_contact,
                          project_leader_name=project_leader_name,
                          payments=payments,
-                         balance=balance)
+                         balance=balance,
+                         prev_invoice=prev_invoice,
+                         next_invoice=next_invoice)
 
 
 @project_invoice.route('/<int:invoice_id>/edit', methods=['GET', 'POST'])

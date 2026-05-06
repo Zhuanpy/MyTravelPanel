@@ -101,12 +101,36 @@
 {% block content %}
 <div class="container mt-4" style="max-width: 900px;">
     <!-- 页面头部 -->
-    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
-        <div>
-            <h4 class="mb-1">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <h4 class="mb-0">
                 <i class="fas fa-file-invoice text-primary"></i>
                 发票 <strong>{{ invoice.invoice_number }}</strong>
             </h4>
+            <div class="btn-group btn-group-sm" role="group" aria-label="发票导航">
+                {% if prev_invoice %}
+                <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=prev_invoice.id) }}"
+                   class="btn btn-outline-primary"
+                   title="上一个发票：{{ prev_invoice.invoice_number }}">
+                    <i class="fas fa-chevron-left"></i> 上一个
+                </a>
+                {% else %}
+                <button class="btn btn-outline-secondary" disabled title="已是第一个发票">
+                    <i class="fas fa-chevron-left"></i> 上一个
+                </button>
+                {% endif %}
+                {% if next_invoice %}
+                <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=next_invoice.id) }}"
+                   class="btn btn-outline-primary"
+                   title="下一个发票：{{ next_invoice.invoice_number }}">
+                    下一个 <i class="fas fa-chevron-right"></i>
+                </a>
+                {% else %}
+                <button class="btn btn-outline-secondary" disabled title="已是最后一个发票">
+                    下一个 <i class="fas fa-chevron-right"></i>
+                </button>
+                {% endif %}
+            </div>
         </div>
         <div>
             <button onclick="syncRefPrices()" class="btn btn-warning btn-sm me-2" title="从REF同步最新价格和描述信息">
@@ -115,36 +139,10 @@
             <button onclick="printInvoice()" class="btn btn-success btn-sm me-2">
                 <i class="fas fa-print"></i> 打印发票
             </button>
-            <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}" 
+            <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}"
                class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left"></i> 返回项目
             </a>
-        </div>
-    </div>
-
-    <!-- 发票状态卡片 -->
-    <div class="card shadow-sm mb-3">
-        <div class="card-body py-3">
-            <div class="row align-items-center text-center">
-                <div class="col-md-4">
-                    <h4 class="text-primary mb-0">{{ invoice.currency }} {{ "%.2f"|format(invoice.amount) }}</h4>
-                    <small class="text-muted">发票金额</small>
-                </div>
-                <div class="col-md-4">
-                    <h4 class="text-success mb-0">{{ invoice.currency }} {{ "%.2f"|format(invoice.paid_amount) }}</h4>
-                    <small class="text-muted">已付金额</small>
-                </div>
-                <div class="col-md-4">
-                    <h4 class="text-danger mb-0">{{ invoice.currency }} {{ "%.2f"|format(invoice.unpaid_amount) }}</h4>
-                    <small class="text-muted">未付金额</small>
-                </div>
-            </div>
-            <!-- 付款进度条 -->
-            <div class="progress mt-3" style="height: 6px;">
-                <div class="progress-bar bg-success" 
-                     style="width: {% if invoice.amount > 0 %}{{ (invoice.paid_amount / invoice.amount) * 100 }}{% else %}0{% endif %}%">
-                </div>
-            </div>
         </div>
     </div>
 
@@ -167,17 +165,6 @@
                         <tr>
                             <th class="text-muted">发票日期</th>
                             <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">到期日期</th>
-                            <td>
-                                {% if invoice.due_date %}
-                                    <span class="{% if invoice.is_overdue %}text-danger{% endif %}">
-                                        {{ invoice.due_date.strftime('%Y-%m-%d') }}
-                                        {% if invoice.is_overdue %}<i class="fas fa-exclamation-triangle"></i>{% endif %}
-                                    </span>
-                                {% else %}-{% endif %}
-                            </td>
                         </tr>
                         <tr>
                             <th class="text-muted">关联项目</th>
@@ -322,27 +309,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- 备注和条款 -->
-    {% if invoice.terms or invoice.remarks %}
-    <div class="card shadow-sm mb-3">
-        <div class="card-header bg-light py-2">
-            <h6 class="mb-0"><i class="fas fa-sticky-note text-primary"></i> 备注和条款</h6>
-        </div>
-        <div class="card-body" style="font-size: 13px;">
-            {% if invoice.terms %}
-            <div class="mb-2">
-                <strong>付款条款：</strong> {{ invoice.terms }}
-            </div>
-            {% endif %}
-            {% if invoice.remarks %}
-            <div>
-                <strong>备注：</strong> {{ invoice.remarks }}
-            </div>
-            {% endif %}
         </div>
     </div>
     {% endif %}
