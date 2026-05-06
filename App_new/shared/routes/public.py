@@ -812,8 +812,8 @@ def tour_package_detail(package_id):
 
 @public.route('/about')
 def about():
-    """关于我们页面"""
-    return render_template('guest/main/about.html')
+    """关于我们页面 - 已合并到联系我们页"""
+    return redirect(url_for('public.contact'), code=301)
 
 @public.route('/contact', methods=['GET', 'POST'])
 def contact():
