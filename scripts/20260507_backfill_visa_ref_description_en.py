@@ -91,7 +91,7 @@ def build_descriptions(extra, visa_type_en_map, countries):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--apply', action='store_true',
+    parser.add_argument('--apply', '--execute', dest='apply', action='store_true',
                         help='实际写入数据库（默认仅 dry-run 预览）')
     args = parser.parse_args()
 
