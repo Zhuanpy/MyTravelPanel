@@ -34,10 +34,11 @@
             <div class="visa-filter-item">
                 <label for="filter_country" class="visa-form-label">国家：</label>
                 <select name="filter_country" id="filter_country" class="visa-form-select" onchange="this.form.submit()">
-                    <option value="all" {% if filter_country == 'all' %}selected{% endif %}>全部</option>
+                    <option value="all" {% if filter_country == 'all' %}selected{% endif %}>All</option>
                     {% for country in countries %}
-                    <option value="{{ country.country_name_CN }}" {% if filter_country == country.country_name_CN %}selected{% endif %}>
-                        {{ country.country_name_CN }}
+                    <option value="{{ country.country_name_EN }}"
+                            {% if filter_country == country.country_name_EN or filter_country == country.country_name_CN %}selected{% endif %}>
+                        {{ country.country_name_EN }}
                     </option>
                     {% endfor %}
                 </select>
@@ -204,9 +205,9 @@
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                 <select id="countryFilterSelect" onchange="filterVisaTypes()"
                         style="flex: 1; padding: 0.625rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem;">
-                    <option value="">全部国家</option>
+                    <option value="">All Countries</option>
                     {% for country in countries %}
-                    <option value="{{ country.country_name_CN }}">{{ country.country_name_CN }}</option>
+                    <option value="{{ country.country_name_EN }}">{{ country.country_name_EN }}</option>
                     {% endfor %}
                 </select>
                 <input type="text" id="visaTypeSearchInput" placeholder="搜索..."
@@ -218,15 +219,15 @@
                 {% for type in visa_types %}
                 <a href="{{ url_for('visa_project.visa_processing', visa_type=type.visa_type) }}"
                    class="visa-type-item"
-                   data-country="{{ type.country.country_name_CN if type.country else '' }}"
+                   data-country="{{ type.country.country_name_EN if type.country else '' }}"
                    style="display: flex; align-items: center; padding: 0.75rem 1rem; text-decoration: none; color: #1f2937; border-bottom: 1px solid #f3f4f6; transition: background 0.15s;"
                    onmouseover="this.style.background='#f9fafb'"
                    onmouseout="this.style.background='white'">
                     <i class="fas fa-passport" style="color: #667eea; margin-right: 0.75rem; flex-shrink: 0;"></i>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 500;">{{ type.visa_type }}</div>
+                        <div style="font-weight: 500;">{{ type.visa_type_en or type.visa_type }}</div>
                         {% if type.country %}
-                        <div style="font-size: 0.75rem; color: #9ca3af;">{{ type.country.country_name_CN }}</div>
+                        <div style="font-size: 0.75rem; color: #9ca3af;">{{ type.country.country_name_EN }}</div>
                         {% endif %}
                     </div>
                     <i class="fas fa-chevron-right" style="color: #d1d5db; font-size: 0.75rem;"></i>

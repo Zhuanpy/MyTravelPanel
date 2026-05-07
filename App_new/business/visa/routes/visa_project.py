@@ -106,11 +106,15 @@ def show_current_all_projects():
         if filter_visa_type != 'all':
             query = query.filter(VisaProject.visa_type == filter_visa_type)
 
-        # 应用国家筛选
+        # 应用国家筛选（按 country_name_EN，兼容旧 URL 里的中文值）
         if filter_country != 'all':
+            from sqlalchemy import or_
             query = query.join(VisaTypes, VisaProject.visa_type == VisaTypes.visa_type)\
                 .join(VisaCountries, VisaTypes.country_id == VisaCountries.id)\
-                .filter(VisaCountries.country_name_CN == filter_country)
+                .filter(or_(
+                    VisaCountries.country_name_EN == filter_country,
+                    VisaCountries.country_name_CN == filter_country
+                ))
             
         # 应用申请人姓名搜索
         if search_name:
@@ -131,8 +135,8 @@ def show_current_all_projects():
         # 获取所有签证类型
         visa_types = VisaTypes.query.all()
         
-        # 获取所有国家
-        countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
+        # 获取所有国家（按英文名排序，便于在下拉里键入字母快速定位）
+        countries = VisaCountries.query.order_by(VisaCountries.country_name_EN).all()
         
         # 获取签证类型分类（用于快速链接）
         visa_categories = VisaTypes.query.distinct(VisaTypes.visa_type).all()
