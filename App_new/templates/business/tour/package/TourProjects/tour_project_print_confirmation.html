@@ -256,6 +256,24 @@
             word-wrap: break-word;
         }
 
+        /* 行程图片 */
+        .day-images {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .day-image-item { flex: 0 0 auto; }
+        .itinerary-image {
+            width: 180px;
+            height: 135px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            object-fit: cover;
+        }
+
         .no-data {
             text-align: center;
             color: #999;
@@ -404,6 +422,17 @@
             .itinerary-day {
                 page-break-inside: avoid;
                 break-inside: avoid;
+            }
+
+            /* 行程图片打印样式 */
+            .day-images {
+                margin-top: 10px !important;
+                justify-content: center !important;
+            }
+            .itinerary-image {
+                width: 180px !important;
+                height: 120px !important;
+                border-radius: 4px !important;
             }
             
             .section-title, .section-title-bilingual {
@@ -772,6 +801,19 @@
             <div class="day-header">{{ day.day_title }}</div>
             <div class="day-date">{{ day.date.strftime('%Y年%m月%d日') if day.date else '' }}</div>
             <div class="day-content">{{ day.content | safe }}</div>
+
+            {% if day.images %}
+            <div class="day-images">
+                {% for image_path in day.images %}
+                <div class="day-image-item">
+                    <img src="{{ url_for('utils_process.serve_print_image', image_path=image_path) }}"
+                         alt="行程图片"
+                         class="itinerary-image"
+                         loading="lazy">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     {% endfor %}
 {% else %}
@@ -809,9 +851,8 @@
     {% endif %}
     {% if tour.important_notes %}
     <div class="price-item">
-        <strong>注意事项 / Important Notes:</strong> 
+        <strong>注意事项 / Important Notes:</strong>
         <div style="white-space: pre-wrap;">{{ tour.important_notes }}</div>
-        <span class="english-text" style="white-space: pre-wrap;">{{ tour.important_notes }}</span>
     </div>
     {% endif %}
     {% if not tour.included_items and not tour.excluded_items and not tour.important_notes %}
