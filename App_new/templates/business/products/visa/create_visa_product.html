@@ -23,12 +23,17 @@
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">签证产品名称 <span class="text-danger">*</span></label>
+                            <div class="col-md-4">
+                                <label class="form-label">签证产品名称（中文） <span class="text-danger">*</span></label>
                                 <input type="text" name="visa_type" class="form-control" required
                                        placeholder="例如：日本单次旅游签证">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <label class="form-label">签证产品名称（英文）</label>
+                                <input type="text" name="visa_type_en" class="form-control"
+                                       placeholder="例如：Japan Single-Entry Tourist Visa">
+                            </div>
+                            <div class="col-md-4">
                                 <label class="form-label">所属国家/地区 <span class="text-danger">*</span></label>
                                 <select name="country_id" class="form-select" required>
                                     <option value="">请选择</option>

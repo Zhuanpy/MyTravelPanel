@@ -1972,6 +1972,7 @@ def edit_visa_ref(ref_id):
             eo_paid = True
 
     # 加载 VisaTypes 并按"归一化国家 key"分组（供前端切国家时动态刷新）
+    # 每项是 {value, display}：value 是中文（存储用），display 优先英文
     from App_new.business.visa.models.Visamodels import VisaTypes
     all_types = VisaTypes.query.join(VisaCountries).order_by(
         VisaCountries.country_name_CN, VisaTypes.visa_type
@@ -1979,7 +1980,10 @@ def edit_visa_ref(ref_id):
     visa_types_by_country = {}
     for vt in all_types:
         key = (vt.country.country_name_EN or '').upper()
-        visa_types_by_country.setdefault(key, []).append(vt.visa_type)
+        visa_types_by_country.setdefault(key, []).append({
+            'value': vt.visa_type,
+            'display': vt.visa_type_en or vt.visa_type,
+        })
 
     # 当前已选国家对应的 visa_types（用于初始渲染）
     current_country_key = (visa_info.get('country') or '').upper()

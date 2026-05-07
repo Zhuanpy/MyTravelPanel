@@ -49,49 +49,51 @@
 
         <!-- Visa Info & Status -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-passport me-2"></i>签证信息与状态</div>
+            <div class="section-title"><i class="fas fa-passport me-2"></i>Visa Info & Status</div>
             <div class="row g-2">
                 <div class="col-3">
-                    <label class="form-label small mb-1">国家 <span class="text-danger">*</span></label>
-                    {# value 统一用 country_name_EN.upper()，与 route 归一化逻辑对齐；显示用中文+英文 #}
+                    <label class="form-label small mb-1">Country <span class="text-danger">*</span></label>
+                    {# value 统一用 country_name_EN.upper()，与 route 归一化逻辑对齐 #}
                     <select name="country" id="country" class="form-select form-select-sm" required onchange="onCountryChange()">
-                        <option value="">-- 请选择 --</option>
+                        <option value="">-- Select --</option>
                         {% for c in countries %}
                         {% set c_val = c.country_name_EN|upper %}
-                        <option value="{{ c_val }}" {% if extra_info and extra_info.country == c_val %}selected{% endif %}>{{ c.country_name_CN }} ({{ c.country_name_EN }})</option>
+                        <option value="{{ c_val }}" {% if extra_info and extra_info.country == c_val %}selected{% endif %}>{{ c.country_name_EN }}</option>
                         {% endfor %}
-                        <option value="OTHER" {% if extra_info and extra_info.country == 'OTHER' %}selected{% endif %}>其他 (Other)</option>
+                        <option value="OTHER" {% if extra_info and extra_info.country == 'OTHER' %}selected{% endif %}>Other</option>
                     </select>
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">签证类型 <span class="text-danger">*</span></label>
+                    <label class="form-label small mb-1">Visa Type <span class="text-danger">*</span></label>
                     {# 从 VisaTypes 表按当前国家动态渲染；切国家由 JS 刷新。
+                       value 用 visa_type（中文，存储 key），显示文本优先 visa_type_en，没有则回退到中文。
                        若存储值不在当前选项里（老数据如 'TOURIST'），追加一个兼容选项让它能回显。 #}
                     {% set current_vt = extra_info.visa_type if extra_info else '' %}
-                    {% set vt_exists_in_list = current_vt in (visa_types or []) %}
+                    {% set vt_values = (visa_types or []) | map(attribute='value') | list %}
+                    {% set vt_exists_in_list = current_vt in vt_values %}
                     <select name="visa_type" id="visa_type" class="form-select form-select-sm" required onchange="updateDescription()">
-                        <option value="">-- 请选择 --</option>
+                        <option value="">-- Select --</option>
                         {% for vt in visa_types or [] %}
-                        <option value="{{ vt }}" {% if current_vt == vt %}selected{% endif %}>{{ vt }}</option>
+                        <option value="{{ vt.value }}" {% if current_vt == vt.value %}selected{% endif %}>{{ vt.display }}</option>
                         {% endfor %}
                         {% if current_vt and not vt_exists_in_list %}
-                        <option value="{{ current_vt }}" selected data-legacy="1">{{ current_vt }} (旧数据)</option>
+                        <option value="{{ current_vt }}" selected data-legacy="1">{{ current_vt }} (Legacy)</option>
                         {% endif %}
                     </select>
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">办理方式</label>
+                    <label class="form-label small mb-1">Processing Type</label>
                     <select name="processing_type" id="processing_type" class="form-select form-select-sm">
-                        <option value="NORMAL" {% if extra_info and extra_info.processing_type == 'NORMAL' %}selected{% endif %}>普通</option>
-                        <option value="EXPRESS" {% if extra_info and extra_info.processing_type == 'EXPRESS' %}selected{% endif %}>加急</option>
-                        <option value="URGENT" {% if extra_info and extra_info.processing_type == 'URGENT' %}selected{% endif %}>特急</option>
+                        <option value="NORMAL" {% if extra_info and extra_info.processing_type == 'NORMAL' %}selected{% endif %}>Normal</option>
+                        <option value="EXPRESS" {% if extra_info and extra_info.processing_type == 'EXPRESS' %}selected{% endif %}>Express</option>
+                        <option value="URGENT" {% if extra_info and extra_info.processing_type == 'URGENT' %}selected{% endif %}>Urgent</option>
                     </select>
                 </div>
                 <div class="col-3">
-                    <label class="form-label small mb-1">状态</label>
+                    <label class="form-label small mb-1">Status</label>
                     <select name="status" id="status" class="form-select form-select-sm">
-                        <option value="confirmed" {% if not (ref is defined and ref) or ref.status == 'confirmed' %}selected{% endif %}>已确认</option>
-                        <option value="cancelled" {% if ref is defined and ref and ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                        <option value="confirmed" {% if not (ref is defined and ref) or ref.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                        <option value="cancelled" {% if ref is defined and ref and ref.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                     </select>
                 </div>
             </div>
@@ -272,6 +274,7 @@ function formatDate(dateStr) {
 }
 
 // 所有国家的 VisaTypes 映射（由后端 visa_types_by_country 注入）
+// 每项形如 {value: '中国M类签证', display: 'China M-Visa'}
 const VISA_TYPES_BY_COUNTRY = {{ (visa_types_by_country or {}) | tojson }};
 
 function onCountryChange() {
@@ -280,14 +283,15 @@ function onCountryChange() {
     const select = document.getElementById('visa_type');
     const currentVal = select.value;
     const options = VISA_TYPES_BY_COUNTRY[country] || [];
-    let html = '<option value="">-- 请选择 --</option>';
+    const values = options.map(o => o.value);
+    let html = '<option value="">-- Select --</option>';
     for (const vt of options) {
-        const selected = vt === currentVal ? ' selected' : '';
-        html += `<option value="${vt}"${selected}>${vt}</option>`;
+        const selected = vt.value === currentVal ? ' selected' : '';
+        html += `<option value="${vt.value}"${selected}>${vt.display}</option>`;
     }
     // 如果旧值在新国家的类型里找不到，保留为兼容项
-    if (currentVal && !options.includes(currentVal)) {
-        html += `<option value="${currentVal}" selected data-legacy="1">${currentVal} (旧数据)</option>`;
+    if (currentVal && !values.includes(currentVal)) {
+        html += `<option value="${currentVal}" selected data-legacy="1">${currentVal} (Legacy)</option>`;
     }
     select.innerHTML = html;
     updateDescription();
@@ -295,13 +299,33 @@ function onCountryChange() {
 
 function updateDescription() {
     const country = document.getElementById('country').value;
-    const visaType = document.getElementById('visa_type').value;
+    const visaSelect = document.getElementById('visa_type');
+    const visaTypeValue = visaSelect.value;  // 中文存储 key
+    let visaTypeDisplay = '';
+    let isLegacyOrSameAsValue = false;
+    if (visaSelect.selectedIndex > 0) {
+        const opt = visaSelect.options[visaSelect.selectedIndex];
+        visaTypeDisplay = opt.text.replace(/\s*\(Legacy\)\s*$/, '');
+        // 显示文本与 value 相同 = visa_type_en 没填，回退到中文
+        // 或者是 (Legacy) 历史自由文本
+        isLegacyOrSameAsValue = (visaTypeDisplay === visaTypeValue) || opt.dataset.legacy === '1';
+    }
     const departureDate = document.getElementById('departure_date').value;
 
+    // 三档策略：
+    // 1) 已填英文（display !== value）→ 直接用英文
+    // 2) 没填英文（display === value）→ "<COUNTRY> <visa_type_cn> VISA"（与历史一致）
+    // 3) 没选 visa_type → "<COUNTRY> VISA"
     let visaName = '';
-    if (country && visaType) visaName = `${country} ${visaType} VISA`;
-    else if (country) visaName = `${country} VISA`;
-    else if (visaType) visaName = `${visaType} VISA`;
+    if (visaTypeDisplay && !isLegacyOrSameAsValue) {
+        visaName = visaTypeDisplay;
+    } else if (visaTypeDisplay && country) {
+        visaName = `${country} ${visaTypeDisplay} VISA`;
+    } else if (visaTypeDisplay) {
+        visaName = `${visaTypeDisplay} VISA`;
+    } else if (country) {
+        visaName = `${country} VISA`;
+    }
 
     let description = visaName || 'VISA APPLICATION';
     if (departureDate) description += ' | ' + formatDate(departureDate);

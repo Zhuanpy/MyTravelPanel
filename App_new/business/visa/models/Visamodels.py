@@ -82,6 +82,9 @@ class VisaTypes(db.Model):
     # 签证类别名称
     visa_type = db.Column(db.String(50), nullable=False)
 
+    # 签证类型英文名（面向客户页面显示）
+    visa_type_en = db.Column(db.String(100), nullable=True, comment='签证类型英文名')
+
     # 处理时间
     processing_time = db.Column(db.String(200), nullable=False)
 

@@ -25,16 +25,22 @@
                     <i class="fas fa-info-circle me-1"></i>基本信息
                 </h6>
                 <div class="row g-2 mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small mb-1">产品编号</label>
                         <input type="text" class="form-control form-control-sm" value="{{ product.product_code }}" readonly>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label small mb-1">签证产品名称 <span class="text-danger">*</span></label>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">签证产品名称（中文） <span class="text-danger">*</span></label>
                         <input type="text" name="visa_type" class="form-control form-control-sm" required
                                value="{{ visa_type.visa_type }}">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">签证产品名称（英文）</label>
+                        <input type="text" name="visa_type_en" class="form-control form-control-sm"
+                               placeholder="例如：China M-Visa"
+                               value="{{ visa_type.visa_type_en or '' }}">
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label small mb-1">所属国家/地区 <span class="text-danger">*</span></label>
                         <select name="country_id" class="form-select form-select-sm" required>
                             <option value="">请选择</option>

@@ -433,6 +433,7 @@ def create_visa():
             # 创建签证类型记录
             new_visa_type = VisaTypes(
                 visa_type=visa_type_name,
+                visa_type_en=(request.form.get('visa_type_en') or '').strip() or None,
                 processing_time=processing_time,
                 fee=fee,
                 cost=cost,
@@ -513,6 +514,7 @@ def edit_visa(product_id):
                     return redirect(url_for('products.edit_visa', product_id=product_id))
                 visa_type.visa_type = new_name
 
+            visa_type.visa_type_en = (request.form.get('visa_type_en') or '').strip() or None
             visa_type.processing_time = request.form.get('processing_time')
             visa_type.fee = request.form.get('fee')
             visa_type.cost = request.form.get('cost')
