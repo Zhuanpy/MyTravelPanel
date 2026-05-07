@@ -72,8 +72,8 @@
                     <label class="form-label">邮件主题 <span class="text-danger">*</span></label>
                     <input type="text" name="subject" class="form-control"
                            value="{{ template.subject if template else '' }}"
-                           placeholder="如：[{hid}] 机票确认" required>
-                    <small class="text-muted">可使用变量：{hid}、{contact}、{company}、{leader_name}、{ref_description}</small>
+                           placeholder="如：[{hid}] 机票确认 或 [{invoice_number}] Invoice" required>
+                    <small class="text-muted">可使用变量：{hid}、{contact}、{company}、{leader_name}、{ref_description}、{invoice_number}、{invoice_amount}</small>
                 </div>
 
                 <div class="mb-3">
@@ -86,11 +86,22 @@
                 <div class="variable-hint">
                     <strong><i class="fas fa-info-circle"></i> 可用变量：</strong>
                     <div class="mt-2">
-                        <code>{hid}</code> - 项目编号<br>
-                        <code>{contact}</code> - 联系人姓名<br>
-                        <code>{company}</code> - 公司名称<br>
-                        <code>{leader_name}</code> - 客户姓名（Leader）<br>
-                        <code>{ref_description}</code> - REF服务描述
+                        <div class="mb-2">
+                            <em class="text-muted">通用（项目页 + 发票页都会被替换）</em><br>
+                            <code>{hid}</code> - 项目编号<br>
+                            <code>{contact}</code> - 联系人姓名<br>
+                            <code>{company}</code> - 公司名称<br>
+                            <code>{leader_name}</code> - 客户姓名（Leader）<br>
+                            <code>{ref_description}</code> - REF服务描述
+                            <small class="text-muted d-block mt-1">注：在发票页打开时，{ref_description} 仅取本发票关联的 REF</small>
+                        </div>
+                        <div>
+                            <em class="text-muted">仅发票页发送邮件时可用</em><br>
+                            <code>{invoice_number}</code> - 发票号码<br>
+                            <code>{invoice_amount}</code> - 发票金额（含币种，如 SGD 3,500.00）<br>
+                            <code>{currency}</code> - 币种<br>
+                            <code>{amount}</code> - 金额（不含币种）
+                        </div>
                     </div>
                 </div>
 
