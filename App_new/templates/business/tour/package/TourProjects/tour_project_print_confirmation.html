@@ -256,7 +256,7 @@
             word-wrap: break-word;
         }
 
-        /* 行程图片 */
+        /* 行程图片 — 网格版（3 张及以上时使用） */
         .day-images {
             margin-top: 12px;
             display: flex;
@@ -272,6 +272,30 @@
             border: 1px solid #ddd;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             object-fit: cover;
+        }
+
+        /* 行程图片 — 侧栏版（1-2 张时使用，文字左 + 图片右纵向叠放） */
+        .day-side-row {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            margin-top: 6px;
+        }
+        .day-text-col { flex: 1; min-width: 0; }
+        .day-images-col {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .day-images-col img {
+            width: 200px;
+            height: 140px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            object-fit: cover;
+            display: block;
         }
 
         .no-data {
@@ -418,41 +442,62 @@
                 height: auto !important;
             }
             
-            /* 确保内容可以正常分页 */
+            /* 允许行程块跨页（页内紧凑优先于"整块在一页"）
+               只在标题后避免立刻分页，让标题和首段保持在一起 */
             .itinerary-day {
-                page-break-inside: avoid;
-                break-inside: avoid;
+                margin-bottom: 8px !important;
+                padding: 8px 10px !important;
+                box-shadow: none !important;
+                border-width: 1px !important;
             }
 
             /* 行程图片打印样式 */
             .day-images {
-                margin-top: 10px !important;
+                margin-top: 6px !important;
                 justify-content: center !important;
+                gap: 4px !important;
             }
             .itinerary-image {
-                width: 180px !important;
-                height: 120px !important;
+                width: 150px !important;
+                height: 100px !important;
                 border-radius: 4px !important;
             }
-            
+
+            /* 侧栏布局打印样式（1-2 张图） */
+            .day-side-row {
+                gap: 10px !important;
+                margin-top: 4px !important;
+            }
+            .day-images-col { gap: 4px !important; }
+            .day-images-col img {
+                width: 170px !important;
+                height: 115px !important;
+                border-radius: 4px !important;
+                box-shadow: none !important;
+            }
+
             .section-title, .section-title-bilingual {
                 page-break-after: avoid;
                 break-after: avoid;
+                margin-top: 8px !important;
+                margin-bottom: 6px !important;
+                padding: 4px 10px !important;
             }
-            
-            .group-details {
+
+            .day-header {
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+
+            /* group-details / price-section 允许跨页，但内部 price-item 尽量保持完整 */
+            .price-item {
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
-            
-            .price-section {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            
+
             header {
-                margin-bottom: 15px;
-                padding-bottom: 8px;
+                margin-bottom: 8px !important;
+                padding-bottom: 6px !important;
                 border-bottom: 2px solid #4CAF50 !important;
             }
             
@@ -613,8 +658,8 @@
             }
             
             footer {
-                margin-top: 30px !important;
-                padding-top: 10px !important;
+                margin-top: 12px !important;
+                padding-top: 6px !important;
                 border-top: 1px solid #ccc !important;
                 font-size: 8pt !important;
                 color: #666 !important;
@@ -793,22 +838,40 @@
 
 {% if itinerary and itinerary|length > 0 %}
     {% for day in itinerary %}
+        {% set img_count = day.images|length if day.images else 0 %}
         <div class="itinerary-day">
             <div class="day-header">{{ day.day_title }}</div>
             <div class="day-date">{{ day.date.strftime('%Y年%m月%d日') if day.date else '' }}</div>
-            <div class="day-content">{{ day.content | safe }}</div>
 
-            {% if day.images %}
-            <div class="day-images">
-                {% for image_path in day.images %}
-                <div class="day-image-item">
-                    <img src="{{ url_for('utils_process.serve_print_image', image_path=image_path) }}"
-                         alt="行程图片"
-                         class="itinerary-image"
-                         loading="lazy">
+            {% if img_count >= 1 and img_count <= 2 %}
+                {# 1-2 张图：文字左 + 图片右纵向叠放 #}
+                <div class="day-side-row">
+                    <div class="day-text-col">
+                        <div class="day-content">{{ day.content | safe }}</div>
+                    </div>
+                    <div class="day-images-col">
+                        {% for image_path in day.images %}
+                        <img src="{{ url_for('utils_process.serve_print_image', image_path=image_path) }}"
+                             alt="行程图片"
+                             loading="lazy">
+                        {% endfor %}
+                    </div>
                 </div>
-                {% endfor %}
-            </div>
+            {% else %}
+                {# 0 张：纯文字；3+ 张：文字在上 + 图片网格在下 #}
+                <div class="day-content">{{ day.content | safe }}</div>
+                {% if img_count >= 3 %}
+                <div class="day-images">
+                    {% for image_path in day.images %}
+                    <div class="day-image-item">
+                        <img src="{{ url_for('utils_process.serve_print_image', image_path=image_path) }}"
+                             alt="行程图片"
+                             class="itinerary-image"
+                             loading="lazy">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             {% endif %}
         </div>
     {% endfor %}
