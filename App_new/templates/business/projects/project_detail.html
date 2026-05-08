@@ -229,6 +229,9 @@
                 </a>
                 {% if not header.is_settled %}
                 <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
+                <button type="button" class="btn btn-warning btn-sm" onclick="copyRefFromOther()" title="按REF编号从其他订单复制一条REF到当前项目">
+                    <i class="fas fa-copy"></i> 从其他订单复制
+                </button>
                 <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plane"></i> 机票
                 </a>
@@ -2849,6 +2852,55 @@ function copyRef(refId, refNumber) {
     })
     .catch(error => {
         console.error('复制REF失败:', error);
+        alert('复制REF时发生错误');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+// 从其他订单按REF编号复制到当前项目
+function copyRefFromOther() {
+    const headerId = window.headerId;
+    if (!headerId) {
+        alert('当前项目ID缺失，无法复制');
+        return;
+    }
+
+    const input = prompt('请输入要复制的REF编号（如：R123）：');
+    if (input === null) return;  // 用户取消
+
+    const refNumber = input.trim();
+    if (!refNumber) {
+        alert('REF编号不能为空');
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
+
+    fetch(`/projects/ref/copy_from/${headerId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ ref_number: refNumber })
+    })
+    .then(response => response.json().then(data => ({ ok: response.ok, data })))
+    .then(({ ok, data }) => {
+        if (ok && data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('复制失败：' + (data.message || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('从其他订单复制REF失败:', error);
         alert('复制REF时发生错误');
     })
     .finally(() => {

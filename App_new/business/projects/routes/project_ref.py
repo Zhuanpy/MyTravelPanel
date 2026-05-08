@@ -2473,6 +2473,125 @@ def copy_ref(ref_id):
         }), 500
 
 
+@project_ref.route('/copy_from/<int:target_header_id>', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def copy_ref_from_other(target_header_id):
+    """跨项目复制REF - 按REF编号从其他订单复制到当前项目
+
+    复制内容与同项目内 copy_ref 一致：
+    - REF 基本字段（描述、类型、供应商、价格、币种、备注、extra_info）
+    - 机票航段（如有）
+    - 机票乘客（如有，不复制票号/PNR）
+    不复制：EO、收款、发票、附件等
+    """
+    try:
+        # 1. 校验目标项目存在且未结算
+        target_header = ProjectHeader.query.get_or_404(target_header_id)
+        if target_header.is_settled:
+            return jsonify({
+                'success': False,
+                'message': '当前项目已结算，无法添加REF'
+            }), 400
+
+        # 2. 取参数
+        data = request.get_json() or {}
+        source_ref_number = (data.get('ref_number') or '').strip()
+        if not source_ref_number:
+            return jsonify({
+                'success': False,
+                'message': '请输入要复制的REF编号'
+            }), 400
+
+        # 3. 按编号查找源 REF（ref_number 全局唯一）
+        original = ProjectRef.query.filter_by(ref_number=source_ref_number).first()
+        if not original:
+            return jsonify({
+                'success': False,
+                'message': f'未找到REF编号：{source_ref_number}'
+            }), 404
+
+        # 4. 生成新 REF 编号，绑定到目标项目
+        new_ref_number = ProjectRef.generate_ref_number()
+        new_ref = ProjectRef(
+            header_id=target_header_id,
+            ref_number=new_ref_number,
+            description=original.description,
+            detailed_description=original.detailed_description,
+            ref_type_id=original.ref_type_id,
+            supplier_id=original.supplier_id,
+            selling_price=original.selling_price,
+            cost_price=original.cost_price,
+            currency=original.currency,
+            remarks=original.remarks,
+            extra_info=original.extra_info,
+            status='confirmed',
+            payment_status='unpaid',
+        )
+        db.session.add(new_ref)
+        db.session.flush()  # 获取新REF ID
+
+        # 5. 复制机票航段
+        segment_count = 0
+        segments = ProjectFlightSegment.query.filter_by(ref_id=original.id).all()
+        for seg in segments:
+            new_segment = ProjectFlightSegment(
+                ref_id=new_ref.id,
+                flight_number=seg.flight_number,
+                departure_airport=seg.departure_airport,
+                arrival_airport=seg.arrival_airport,
+                departure_time=seg.departure_time,
+                arrival_time=seg.arrival_time,
+                cabin_class=seg.cabin_class,
+                cabin_code=seg.cabin_code,
+                status=seg.status,
+            )
+            db.session.add(new_segment)
+            segment_count += 1
+
+        # 6. 复制机票乘客（不复制票号/PNR）
+        passenger_count = 0
+        passengers = ProjectFlightPassenger.query.filter_by(ref_id=original.id).all()
+        for pax in passengers:
+            new_passenger = ProjectFlightPassenger(
+                ref_id=new_ref.id,
+                name=pax.name,
+                passenger_type=pax.passenger_type,
+                selling_price=pax.selling_price,
+                cost_price=pax.cost_price,
+                ticket_number=None,
+                pnr=None,
+            )
+            db.session.add(new_passenger)
+            passenger_count += 1
+
+        db.session.commit()
+
+        # 7. 构建成功消息
+        source_hid = original.header.hid if original.header else ''
+        msg = f'已从 {source_hid} / {source_ref_number} 复制，新REF编号：{new_ref_number}'
+        if segment_count > 0:
+            msg += f'，含 {segment_count} 个航段'
+        if passenger_count > 0:
+            msg += f'，{passenger_count} 个乘客'
+
+        return jsonify({
+            'success': True,
+            'message': msg,
+            'new_ref_id': new_ref.id,
+            'new_ref_number': new_ref_number
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'复制失败：{str(e)}'
+        }), 500
+
+
 @project_ref.route('/update_status', methods=['POST'])
 @csrf.exempt
 def update_ref_status():
