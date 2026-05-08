@@ -1270,26 +1270,44 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 acceptBtn.innerHTML = '<i class="fas fa-check text-success"></i>';
 
-                // 平滑移除卡片
-                card.style.transition = 'all 0.3s ease';
+                // 乐观更新：立即把主表对应记录标为已匹配，避免界面"卡顿"感
+                const tx = bankTransactions.find(t => t.id === suggestion.transaction_id);
+                if (tx) {
+                    tx.reconciliation_status = 'matched';
+                    tx.is_matched = true;
+                }
+                const rec = incomeRecords.find(r =>
+                    (r.record_id || r.id) === suggestion.receipt_id &&
+                    (r.record_type || 'receipt') === matchType
+                );
+                if (rec) rec.is_matched = true;
+                if (matchType === 'receipt') {
+                    const pr = projectReceipts.find(r => r.id === suggestion.receipt_id);
+                    if (pr) pr.is_matched = true;
+                } else if (matchType === 'loan_borrow') {
+                    const sl = shareholderLoans.find(l => l.id === suggestion.receipt_id);
+                    if (sl) sl.is_reconciled = true;
+                }
+                renderTransactions();
+                renderReceipts();
+
+                // 同步移除其他建议中已被这条匹配占用的相同 tx 或 receipt（避免重复匹配）
+                currentSuggestions = currentSuggestions.filter(s =>
+                    !(s.transaction_id === suggestion.transaction_id ||
+                      (s.receipt_id === suggestion.receipt_id && (s.match_type || 'receipt') === matchType))
+                );
+
+                // 平滑移除当前卡片
+                card.style.transition = 'all 0.2s ease';
                 card.style.opacity = '0';
                 card.style.transform = 'translateX(20px)';
-
                 setTimeout(() => {
                     card.remove();
-                    const realIdx = currentSuggestions.findIndex(s =>
-                        s.transaction_id === suggestion.transaction_id &&
-                        s.receipt_id === suggestion.receipt_id
-                    );
-                    if (realIdx > -1) {
-                        currentSuggestions.splice(realIdx, 1);
-                    }
-
                     if (currentSuggestions.length === 0) {
                         document.getElementById('suggestionsBody').innerHTML =
                             '<p class="text-center text-success py-4"><i class="fas fa-check-circle me-2"></i>所有建议已处理完成</p>';
                     }
-                }, 300);
+                }, 200);
             } else {
                 if (result.message && (result.message.includes('已匹配') || result.message.includes('已被') || result.message.includes('已有'))) {
                     card.style.transition = 'all 0.3s ease';
