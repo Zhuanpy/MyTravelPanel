@@ -197,8 +197,8 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 6px 18px;
-        padding: 8px 12px;
+        gap: 4px 12px;
+        padding: 6px 10px;
         border-radius: 6px;
         border-left: 4px solid transparent;
         background: #f8f9fa;
@@ -217,20 +217,21 @@
     }
     .suggestion-row .row-label {
         font-weight: 600;
-        min-width: 84px;
+        min-width: 56px;
         flex-shrink: 0;
+        font-size: 0.85rem;
     }
     .suggestion-row .field {
         display: inline-flex;
         align-items: baseline;
-        gap: 4px;
-        font-size: 0.9rem;
+        gap: 3px;
+        font-size: 0.85rem;
         white-space: nowrap;
     }
     .suggestion-row .field.wide {
         white-space: normal;
         word-break: break-word;
-        flex: 1 1 220px;
+        flex: 1 1 140px;
         min-width: 0;
     }
     .suggestion-row .field .field-label {
@@ -1170,7 +1171,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        let html = '';
+        let html = '<div class="row g-2 suggestion-grid">';
         currentSuggestions.forEach((s, idx) => {
             const scoreClass = s.match_score >= 80 ? 'high' : (s.match_score >= 60 ? 'medium' : 'low');
             // 区分收款记录和股东借款
@@ -1182,16 +1183,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const receiptRowClass = isLoan ? 'suggestion-row receipt loan' : 'suggestion-row receipt';
             html += `
-                <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}">
-                    <div class="row align-items-center g-2">
-                        <div class="col-auto d-flex flex-column align-items-center justify-content-center" style="min-width: 70px;">
+                <div class="col-12 col-lg-6">
+                <div class="suggestion-card h-100" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}">
+                    <div class="row align-items-center g-2 flex-nowrap">
+                        <div class="col-auto d-flex flex-column align-items-center justify-content-center" style="min-width: 56px;">
                             <div class="match-score ${scoreClass}">${s.match_score}</div>
                             <small class="text-muted d-block text-center">${s.match_level}</small>
                         </div>
-                        <div class="col">
+                        <div class="col" style="min-width: 0;">
                             <div class="suggestion-pair">
                                 <div class="suggestion-row bank">
-                                    <span class="row-label"><i class="fas fa-university me-1"></i>银行记录</span>
+                                    <span class="row-label"><i class="fas fa-university me-1"></i>银行</span>
                                     <span class="field"><span class="field-label">日期</span><span>${s.transaction_date}</span></span>
                                     <span class="field"><span class="field-label">金额</span><span class="text-success fw-bold">${formatAmount(s.transaction_amount)}</span></span>
                                     <span class="field wide"><span class="field-label">对方</span><span>${escapeHtml(s.transaction_counterparty)}</span></span>
@@ -1204,7 +1206,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </div>
-                        <div class="col-auto d-flex flex-column gap-1" style="min-width: 96px;">
+                        <div class="col-auto d-flex flex-column gap-1" style="min-width: 76px;">
                             <button type="button" class="btn btn-sm btn-success accept-suggestion-btn" data-idx="${idx}">
                                 <i class="fas fa-check"></i> 接受
                             </button>
@@ -1214,8 +1216,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 </div>
+                </div>
             `;
         });
+        html += '</div>';
 
         container.innerHTML = html;
 
