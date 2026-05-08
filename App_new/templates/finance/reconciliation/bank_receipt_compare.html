@@ -164,80 +164,41 @@
     .suggestions-section {
         margin-top: 20px;
     }
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    @media (max-width: 1400px) {
+        .suggestions-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 992px) {
+        .suggestions-grid { grid-template-columns: 1fr; }
+    }
     .suggestion-card {
         border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 10px;
+        border-radius: 6px;
+        padding: 12px 14px;
         background: #fff;
+        font-size: 13px;
+        line-height: 1.6;
     }
     .suggestion-card:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
     .suggestion-card.accepted {
         background: #d4edda;
         border-color: #28a745;
     }
     .match-score {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: bold;
         text-align: center;
+        line-height: 1;
     }
     .match-score.high { color: #28a745; }
     .match-score.medium { color: #ffc107; }
     .match-score.low { color: #dc3545; }
-
-    /* 自动匹配建议 - 上下分组对比 */
-    .suggestion-pair {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-    .suggestion-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 4px 12px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        border-left: 4px solid transparent;
-        background: #f8f9fa;
-    }
-    .suggestion-row.bank {
-        border-left-color: #0d6efd;
-        background: #f0f6ff;
-    }
-    .suggestion-row.receipt {
-        border-left-color: #198754;
-        background: #f0fbf4;
-    }
-    .suggestion-row.receipt.loan {
-        border-left-color: #ffc107;
-        background: #fff9e6;
-    }
-    .suggestion-row .row-label {
-        font-weight: 600;
-        min-width: 56px;
-        flex-shrink: 0;
-        font-size: 0.85rem;
-    }
-    .suggestion-row .field {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 3px;
-        font-size: 0.85rem;
-        white-space: nowrap;
-    }
-    .suggestion-row .field.wide {
-        white-space: normal;
-        word-break: break-word;
-        flex: 1 1 140px;
-        min-width: 0;
-    }
-    .suggestion-row .field .field-label {
-        color: #6c757d;
-        font-size: 0.8rem;
-    }
 
     /* 选中计数 */
     .selection-info {
@@ -1171,55 +1132,54 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        let html = '<div class="row g-2 suggestion-grid">';
+        let html = '';
         currentSuggestions.forEach((s, idx) => {
             const scoreClass = s.match_score >= 80 ? 'high' : (s.match_score >= 60 ? 'medium' : 'low');
             // 区分收款记录和股东借款
             const isLoan = s.match_type === 'loan_borrow';
             const matchLabel = isLoan ? '股东借款' : '收款记录';
-            const matchBadge = isLoan ? '<span class="badge bg-warning text-dark ms-1">借款</span>' : '';
+            const matchBadge = isLoan ? '<span class="badge bg-warning text-dark me-1" style="font-size:10px;">借款</span>' : '';
             const matchNumber = isLoan ? s.receipt_number : s.project_number;
-            const matchPerson = isLoan ? `出借人: ${escapeHtml(s.receipt_payer)}` : `${escapeHtml(s.receipt_payer)}`;
+            const matchPerson = s.receipt_payer ? escapeHtml(s.receipt_payer) : '';
+            const personLabel = isLoan ? '出借人' : '付款人';
 
-            const receiptRowClass = isLoan ? 'suggestion-row receipt loan' : 'suggestion-row receipt';
             html += `
-                <div class="col-12 col-lg-6">
-                <div class="suggestion-card h-100" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}">
-                    <div class="row align-items-center g-2 flex-nowrap">
-                        <div class="col-auto d-flex flex-column align-items-center justify-content-center" style="min-width: 56px;">
+                <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="text-center flex-shrink-0" style="width:40px;">
                             <div class="match-score ${scoreClass}">${s.match_score}</div>
-                            <small class="text-muted d-block text-center">${s.match_level}</small>
+                            <div class="text-muted" style="font-size:10px;">${s.match_level}</div>
                         </div>
-                        <div class="col" style="min-width: 0;">
-                            <div class="suggestion-pair">
-                                <div class="suggestion-row bank">
-                                    <span class="row-label"><i class="fas fa-university me-1"></i>银行</span>
-                                    <span class="field"><span class="field-label">日期</span><span>${s.transaction_date}</span></span>
-                                    <span class="field"><span class="field-label">金额</span><span class="text-success fw-bold">${formatAmount(s.transaction_amount)}</span></span>
-                                    <span class="field wide"><span class="field-label">对方</span><span>${escapeHtml(s.transaction_counterparty)}</span></span>
+                        <div class="flex-grow-1" style="min-width:0;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong style="font-size:12px;">银行收款</strong>
+                                <div class="flex-shrink-0 d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-success accept-suggestion-btn py-0 px-2" style="font-size:12px;" data-idx="${idx}"><i class="fas fa-check"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn py-0 px-2" style="font-size:12px;" data-idx="${idx}"><i class="fas fa-times"></i></button>
                                 </div>
-                                <div class="${receiptRowClass}">
-                                    <span class="row-label"><i class="fas fa-receipt me-1"></i>${matchLabel}${matchBadge}</span>
-                                    <span class="field"><span class="field-label">日期</span><span>${s.receipt_date}</span></span>
-                                    <span class="field"><span class="field-label">金额</span><span class="text-success fw-bold">${formatAmount(s.receipt_amount)}</span></span>
-                                    <span class="field wide"><span class="field-label">${isLoan ? '借款' : '编号'}</span><span><strong>${matchNumber}</strong> - ${matchPerson}</span></span>
+                            </div>
+                            <div class="my-1">
+                                <span class="text-muted">${s.transaction_date}</span>
+                                <span class="text-success fw-bold ms-1">${formatAmount(s.transaction_amount)}</span>
+                            </div>
+                            <div style="word-break:break-word;" class="text-secondary mb-2">${escapeHtml(s.transaction_counterparty)}</div>
+                            <div class="pt-2" style="border-top:1px dashed #dee2e6;">
+                                <div class="mb-1">
+                                    ${matchBadge}<strong style="font-size:12px;">${matchLabel}</strong>
+                                    <span class="text-muted ms-2">${s.receipt_date}</span>
+                                    <span class="text-success fw-bold ms-1">${formatAmount(s.receipt_amount)}</span>
+                                </div>
+                                <div>
+                                    <strong>${escapeHtml(matchNumber || '')}</strong>
+                                    ${matchPerson ? `<span class="text-muted ms-2">${personLabel}: ${matchPerson}</span>` : ''}
                                 </div>
                             </div>
                         </div>
-                        <div class="col-auto d-flex flex-column gap-1" style="min-width: 76px;">
-                            <button type="button" class="btn btn-sm btn-success accept-suggestion-btn" data-idx="${idx}">
-                                <i class="fas fa-check"></i> 接受
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary reject-suggestion-btn" data-idx="${idx}">
-                                <i class="fas fa-times"></i> 忽略
-                            </button>
-                        </div>
                     </div>
-                </div>
                 </div>
             `;
         });
-        html += '</div>';
+        html = '<div class="suggestions-grid">' + html + '</div>';
 
         container.innerHTML = html;
 
