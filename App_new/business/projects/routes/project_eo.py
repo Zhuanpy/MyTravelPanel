@@ -337,9 +337,10 @@ def batch_pay():
         
         # 批量获取乘客信息，避免 N+1 问题
         import json
+        from sqlalchemy import or_
         from App_new.business.projects.models.project_member import ProjectMember
         from App_new.business.flight.models.flight import ProjectFlightPassenger
-        
+
         ref_ids = [eo.ref_id for eo, *_ in results if eo.ref_id]
         passengers_by_ref = {}
         if ref_ids:
@@ -349,28 +350,99 @@ def batch_pay():
                     passengers_by_ref[p.ref_id] = []
                 if p.name:
                     passengers_by_ref[p.ref_id].append(p.name)
-        
+
+        # 预解析 extra_info，收集酒店/签证等 REF 引用的成员ID 与项目 header_id（用于姓名回退）
+        extra_info_cache = {}        # eo.id -> parsed extra_info dict
+        member_ids_needed = set()
+        header_ids_needed = set()
+        for eo, *_ in results:
+            if not eo.ref:
+                continue
+            parsed = None
+            if eo.ref.extra_info:
+                try:
+                    parsed = json.loads(eo.ref.extra_info)
+                except (json.JSONDecodeError, TypeError):
+                    parsed = None
+            extra_info_cache[eo.id] = parsed
+            if parsed:
+                for mid in (parsed.get('pax_names') or []):
+                    try:
+                        member_ids_needed.add(int(mid))
+                    except (TypeError, ValueError):
+                        pass
+                lid = parsed.get('leader_id')
+                if lid:
+                    try:
+                        member_ids_needed.add(int(lid))
+                    except (TypeError, ValueError):
+                        pass
+            if eo.ref.header_id:
+                header_ids_needed.add(eo.ref.header_id)
+
+        # 一次查询获取所需的 ProjectMember（按 ID 命中或按 header_id 兜底）
+        members_by_id = {}
+        members_by_header = {}
+        if member_ids_needed or header_ids_needed:
+            pm_filters = []
+            if member_ids_needed:
+                pm_filters.append(ProjectMember.id.in_(member_ids_needed))
+            if header_ids_needed:
+                pm_filters.append(ProjectMember.header_id.in_(header_ids_needed))
+            for m in ProjectMember.query.filter(or_(*pm_filters)).all():
+                members_by_id[m.id] = m
+                members_by_header.setdefault(m.header_id, []).append(m)
+
         # 处理数据
         eos = []
         for eo, supplier_name, ref_type_name, ref_number, project_id, project_hid, company_name, ref_supplier_id in results:
             # 获取乘客姓名 - 支持所有类型的REF
             pax_names = ''
             if eo.ref:
-                # 方法1: 优先从extra_info获取（机票REF可能已有pax_names_display）
-                if eo.ref.extra_info:
-                    try:
-                        extra_data = json.loads(eo.ref.extra_info)
-                        # 如果已有pax_names_display，直接使用
-                        if extra_data.get('pax_names_display'):
-                            pax_names = extra_data.get('pax_names_display')
-                        elif extra_data.get('pax_name'):
-                            pax_names = extra_data.get('pax_name', '')
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                extra_data = extra_info_cache.get(eo.id) or {}
 
-                # 方法2: 从批量查询结果获取乘客姓名
+                # 方法1: extra_info.pax_names_display（机票REF已预渲染）
+                if extra_data.get('pax_names_display'):
+                    pax_names = extra_data.get('pax_names_display')
+                # 方法2: extra_info.pax_name（老版字符串）
+                elif extra_data.get('pax_name'):
+                    pax_names = extra_data.get('pax_name', '')
+
+                # 方法3: 机票乘客表
                 if not pax_names and eo.ref_id in passengers_by_ref:
                     pax_names = ', '.join(passengers_by_ref[eo.ref_id])
+
+                # 方法4: 把 extra_info.pax_names(成员ID列表) / leader_id 解析为姓名（酒店/签证等）
+                if not pax_names and extra_data:
+                    leader_id = extra_data.get('leader_id')
+                    try:
+                        leader_id = int(leader_id) if leader_id else None
+                    except (TypeError, ValueError):
+                        leader_id = None
+
+                    ordered_ids = []
+                    if leader_id and leader_id in members_by_id:
+                        ordered_ids.append(leader_id)
+                    for mid in (extra_data.get('pax_names') or []):
+                        try:
+                            mid_int = int(mid)
+                        except (TypeError, ValueError):
+                            continue
+                        if mid_int != leader_id and mid_int in members_by_id:
+                            ordered_ids.append(mid_int)
+
+                    names = [members_by_id[mid].member_name for mid in ordered_ids if members_by_id[mid].member_name]
+                    if names:
+                        pax_names = ', '.join(names)
+
+                # 方法5: 项目成员表兜底（leader 优先），与 eo_list/export 逻辑对齐
+                if not pax_names and eo.ref.header_id in members_by_header:
+                    members = members_by_header[eo.ref.header_id]
+                    leaders = [m.member_name for m in members if m.is_leader and m.member_name]
+                    if leaders:
+                        pax_names = ', '.join(leaders)
+                    else:
+                        pax_names = ', '.join([m.member_name for m in members if m.member_name])
 
             eos.append({
                 'id': eo.id,
