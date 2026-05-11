@@ -41,6 +41,14 @@
     .qunar-header { background: #FF7E00 !important; color: #fff; }
     .qunar-btn { background: #FF7E00; border-color: #FF7E00; color: #fff; }
     .qunar-btn:hover { background: #e06e00; border-color: #e06e00; color: #fff; }
+    /* 东方航空配色 */
+    .mu-header { background: #B8002E !important; color: #fff; }
+    .mu-btn { background: #B8002E; border-color: #B8002E; color: #fff; }
+    .mu-btn:hover { background: #92002a; border-color: #92002a; color: #fff; }
+    .mu-title { color: #B8002E; font-weight: bold; }
+    .mu-pax-table th { background: #fbe6ec; }
+    .mu-pax-table th, .mu-pax-table td { padding: 3px 5px; font-size: 12px; vertical-align: middle; }
+    .mu-pax-table .form-control-sm, .mu-pax-table .form-select-sm { padding: 1px 4px; font-size: 12px; height: 26px; }
     /* 清理工具通用样式 */
     .clean-features { font-size: 12px; color: #666; margin: 0; padding-left: 18px; }
     .clean-features li { margin-bottom: 2px; }
@@ -74,6 +82,11 @@
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-qunar" type="button">
                 <i class="fas fa-broom me-1"></i>去哪儿 清理
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-mu" type="button">
+                <i class="fas fa-plane me-1"></i>东方航空 行程
             </button>
         </li>
     </ul>
@@ -304,6 +317,167 @@
             </div>
         </div>
     </div><!-- /tab-qunar -->
+
+    <!-- ==================== MU (China Eastern) Tab ==================== -->
+    <div class="tab-pane fade" id="tab-mu">
+
+        <!-- 上传解析 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header mu-header">
+                <i class="fas fa-upload me-1"></i>上传原始东方航空行程单 PDF（可选）
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>支持上传东方航空"出票成功"邮件 PDF，自动解析订单号、航班、乘客</li>
+                    <li>未上传 PDF 时可直接手动填写下方表单</li>
+                    <li>航站楼信息邮件 PDF 中通常没有，请手动补充</li>
+                </ul>
+                <div class="row align-items-center g-2">
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm" id="muPdfFile" accept=".pdf">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm mu-btn" onclick="muUploadAndParse()" id="btnMuParse">
+                            <i class="fas fa-cog me-1"></i>解析
+                        </button>
+                    </div>
+                </div>
+                <div id="muParseMsg" class="mt-2 small" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 航班信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header mu-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-plane me-1"></i>东方航空 - 航班信息</span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="muFillSample()" title="填入示例">
+                    <i class="fas fa-flask me-1"></i>示例
+                </button>
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>输入航班/乘客等基本信息，生成精简版东方航空 (MU) 行程单 PDF</li>
+                    <li>可只填部分信息，留空字段不显示在 PDF 上</li>
+                    <li>乘客信息支持多人，类型支持 Adult / Child / Infant</li>
+                </ul>
+
+                <!-- 订单号 / 航班号 / 舱位 -->
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <div class="ub-label">订单号 (Order No.)</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_order_no" placeholder="800426051127455782">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">航班号 (Flight No.)</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_flight_no" placeholder="MU882" style="text-transform:uppercase;">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">舱位 (Class)</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_cabin" placeholder="Economy (S)">
+                    </div>
+                </div>
+
+                <!-- From -->
+                <div class="row g-2 mb-2">
+                    <div class="col-md-2">
+                        <div class="ub-label">出发机场代码</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_from_code" placeholder="SIN" style="text-transform:uppercase;">
+                    </div>
+                    <div class="col-md-7">
+                        <div class="ub-label">出发机场名称</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_from_airport" placeholder="Singapore Changi Airport">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">出发航站楼</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_from_terminal" placeholder="3">
+                    </div>
+                </div>
+
+                <!-- To -->
+                <div class="row g-2 mb-2">
+                    <div class="col-md-2">
+                        <div class="ub-label">到达机场代码</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_to_code" placeholder="KHN" style="text-transform:uppercase;">
+                    </div>
+                    <div class="col-md-7">
+                        <div class="ub-label">到达机场名称</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_to_airport" placeholder="Nanchang Changbei International Airport">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">到达航站楼</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_to_terminal" placeholder="1">
+                    </div>
+                </div>
+
+                <!-- 出发 / 到达时间 -->
+                <div class="row g-2 mb-2">
+                    <div class="col-md-3">
+                        <div class="ub-label">出发日期</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_dep_date" placeholder="2026-05-27">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">出发时间</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_dep_time" placeholder="03:10">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">到达日期</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_arr_date" placeholder="2026-05-27">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="ub-label">到达时间</div>
+                        <input type="text" class="form-control form-control-sm" id="mu_arr_time" placeholder="08:30">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 乘客信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header mu-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-1"></i>乘客信息 <span class="badge bg-light text-dark ms-1" id="muPaxCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="muAddPassenger()">
+                    <i class="fas fa-plus me-1"></i>添加
+                </button>
+            </div>
+            <div class="card-body p-1">
+                <table class="table table-sm table-bordered mb-0 mu-pax-table" id="muPaxTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:5%;">#</th>
+                            <th style="width:30%;">姓名 (大写)</th>
+                            <th style="width:15%;">类型</th>
+                            <th style="width:22%;">证件号 (ID No.)</th>
+                            <th style="width:22%;">票号 (Ticket No.)</th>
+                            <th style="width:6%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="muPaxBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 行程提示 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header mu-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-info-circle me-1"></i>行程提示 (Notice) <span class="badge bg-light text-dark ms-1" id="muNoticeCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="muAddNotice()">
+                    <i class="fas fa-plus me-1"></i>添加
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="muNoticeContainer"></div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-sm" onclick="muResetAll()">
+                <i class="fas fa-redo me-1"></i>重置
+            </button>
+            <button class="btn btn-sm mu-btn" onclick="muGenerate()" id="btnMuGenerate">
+                <i class="fas fa-file-pdf me-1"></i>生成行程单
+            </button>
+        </div>
+    </div><!-- /tab-mu -->
 
     </div><!-- /tab-content -->
 </div>
@@ -702,6 +876,263 @@ function onQunarBaggageSelect() {
         input.value = sel.value;
     }
 }
+
+// ========== 东方航空 (MU) 行程单 ==========
+
+let muPaxIndex = 0;
+let muNoticeIndex = 0;
+
+const MU_DEFAULT_NOTICES = [
+    "Please arrive at the airport at least 2 hours before departure.",
+    "Present your passport at the check-in counter.",
+];
+
+function muAddPassenger(data) {
+    muPaxIndex++;
+    const d = data || {};
+    const row = `<tr id="mu-pax-${muPaxIndex}">
+        <td class="text-center mu-pax-num">${muPaxIndex}</td>
+        <td><input type="text" class="form-control form-control-sm mu-pax-name" value="${d.name||''}" style="text-transform:uppercase;" placeholder="ZHANG/SAN"></td>
+        <td><select class="form-select form-select-sm mu-pax-type">
+            <option value="Adult" ${d.pax_type==='Child'||d.pax_type==='Infant'?'':'selected'}>Adult</option>
+            <option value="Child" ${d.pax_type==='Child'?'selected':''}>Child</option>
+            <option value="Infant" ${d.pax_type==='Infant'?'selected':''}>Infant</option>
+        </select></td>
+        <td><input type="text" class="form-control form-control-sm mu-pax-id" value="${d.id_no||''}" placeholder="EG2565109" style="text-transform:uppercase;"></td>
+        <td><input type="text" class="form-control form-control-sm mu-pax-ticket" value="${d.ticket_no||''}" placeholder="781-2418522879"></td>
+        <td class="text-center"><button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:11px;" onclick="muRemovePassenger(${muPaxIndex})"><i class="fas fa-times"></i></button></td>
+    </tr>`;
+    document.getElementById('muPaxBody').insertAdjacentHTML('beforeend', row);
+    muUpdatePaxCount();
+}
+
+function muRemovePassenger(idx) {
+    document.getElementById('mu-pax-' + idx)?.remove();
+    document.querySelectorAll('#muPaxBody tr').forEach((tr, i) => { tr.querySelector('.mu-pax-num').textContent = i + 1; });
+    muUpdatePaxCount();
+}
+
+function muUpdatePaxCount() {
+    document.getElementById('muPaxCount').textContent = document.querySelectorAll('#muPaxBody tr').length;
+}
+
+function muCollectPassengers() {
+    const list = [];
+    document.querySelectorAll('#muPaxBody tr').forEach(tr => {
+        const name = tr.querySelector('.mu-pax-name').value.trim().toUpperCase();
+        if (!name) return;
+        list.push({
+            name,
+            pax_type: tr.querySelector('.mu-pax-type').value,
+            id_no: tr.querySelector('.mu-pax-id').value.trim().toUpperCase(),
+            ticket_no: tr.querySelector('.mu-pax-ticket').value.trim(),
+        });
+    });
+    return list;
+}
+
+function muAddNotice(text) {
+    muNoticeIndex++;
+    const value = text || '';
+    const row = `<div class="row g-1 mb-1" id="mu-notice-${muNoticeIndex}">
+        <div class="col"><input type="text" class="form-control form-control-sm mu-notice-input" value="${value.replace(/"/g, '&quot;')}" placeholder="e.g. Please arrive at the airport at least 2 hours before departure."></div>
+        <div class="col-auto"><button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:11px;" onclick="muRemoveNotice(${muNoticeIndex})"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    document.getElementById('muNoticeContainer').insertAdjacentHTML('beforeend', row);
+    muUpdateNoticeCount();
+}
+
+function muRemoveNotice(idx) {
+    document.getElementById('mu-notice-' + idx)?.remove();
+    muUpdateNoticeCount();
+}
+
+function muUpdateNoticeCount() {
+    document.getElementById('muNoticeCount').textContent = document.querySelectorAll('#muNoticeContainer .mu-notice-input').length;
+}
+
+function muCollectNotices() {
+    return Array.from(document.querySelectorAll('#muNoticeContainer .mu-notice-input'))
+        .map(el => el.value.trim()).filter(v => v);
+}
+
+function muFillSample() {
+    document.getElementById('mu_order_no').value = '800426051127455782';
+    document.getElementById('mu_flight_no').value = 'MU882';
+    document.getElementById('mu_cabin').value = 'Economy (S)';
+    document.getElementById('mu_from_code').value = 'SIN';
+    document.getElementById('mu_from_airport').value = 'Singapore Changi Airport';
+    document.getElementById('mu_from_terminal').value = '3';
+    document.getElementById('mu_to_code').value = 'KHN';
+    document.getElementById('mu_to_airport').value = 'Nanchang Changbei International Airport';
+    document.getElementById('mu_to_terminal').value = '1';
+    document.getElementById('mu_dep_date').value = '2026-05-27';
+    document.getElementById('mu_dep_time').value = '03:10';
+    document.getElementById('mu_arr_date').value = '2026-05-27';
+    document.getElementById('mu_arr_time').value = '08:30';
+    // 示例乘客
+    document.getElementById('muPaxBody').innerHTML = '';
+    muPaxIndex = 0;
+    [
+        {name:'HU/JIHUA', pax_type:'Adult', id_no:'EG2565109', ticket_no:'781-2418522879'},
+        {name:'LI/HUI', pax_type:'Adult', id_no:'EK1469771', ticket_no:'781-2418522880'},
+        {name:'ZHOU/JUNCHEN', pax_type:'Adult', id_no:'EJ5211983', ticket_no:'781-2418522882'},
+        {name:'ZHOU/KAIYUAN', pax_type:'Child', id_no:'EJ5843125', ticket_no:'781-2418522883'},
+        {name:'ZHOU/KAIYING', pax_type:'Infant', id_no:'EP4887899', ticket_no:'781-2418522881'},
+    ].forEach(p => muAddPassenger(p));
+    // 示例提示
+    document.getElementById('muNoticeContainer').innerHTML = '';
+    muNoticeIndex = 0;
+    [
+        "Please arrive at the airport at least 2 hours before departure (check-in at SIN Terminal 3).",
+        "Present your passport at the check-in counter.",
+        "Arrival at Nanchang Changbei Airport, Terminal 1.",
+    ].forEach(n => muAddNotice(n));
+}
+
+function muResetAll() {
+    ['mu_order_no','mu_flight_no','mu_cabin','mu_from_code','mu_from_airport','mu_from_terminal',
+     'mu_to_code','mu_to_airport','mu_to_terminal','mu_dep_date','mu_dep_time','mu_arr_date','mu_arr_time']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const fileInput = document.getElementById('muPdfFile');
+    if (fileInput) fileInput.value = '';
+    const msgEl = document.getElementById('muParseMsg');
+    if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+    document.getElementById('muPaxBody').innerHTML = '';
+    document.getElementById('muNoticeContainer').innerHTML = '';
+    muPaxIndex = 0;
+    muNoticeIndex = 0;
+    muUpdatePaxCount();
+    muUpdateNoticeCount();
+    // 重新填上默认提示
+    MU_DEFAULT_NOTICES.forEach(n => muAddNotice(n));
+}
+
+function muUploadAndParse() {
+    const fileInput = document.getElementById('muPdfFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnMuParse');
+    const msgEl = document.getElementById('muParseMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>解析中...';
+    msgEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.parse_mu_pdf_route") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            msgEl.className = 'mt-2 small text-danger';
+            msgEl.textContent = '解析失败：' + data.message;
+            msgEl.style.display = '';
+            return;
+        }
+        // 填充航班信息
+        document.getElementById('mu_order_no').value = data.order_no || '';
+        const f = data.flight || {};
+        document.getElementById('mu_flight_no').value = f.flight_no || '';
+        document.getElementById('mu_cabin').value = f.cabin || '';
+        document.getElementById('mu_from_code').value = f.from_code || '';
+        document.getElementById('mu_from_airport').value = f.from_airport || '';
+        document.getElementById('mu_to_code').value = f.to_code || '';
+        document.getElementById('mu_to_airport').value = f.to_airport || '';
+        document.getElementById('mu_dep_date').value = f.dep_date || '';
+        document.getElementById('mu_dep_time').value = f.dep_time || '';
+        document.getElementById('mu_arr_date').value = f.arr_date || '';
+        document.getElementById('mu_arr_time').value = f.arr_time || '';
+        // 航站楼邮件 PDF 通常没有，保留原值或清空
+        document.getElementById('mu_from_terminal').value = f.from_terminal || '';
+        document.getElementById('mu_to_terminal').value = f.to_terminal || '';
+        // 乘客
+        document.getElementById('muPaxBody').innerHTML = '';
+        muPaxIndex = 0;
+        (data.passengers || []).forEach(p => muAddPassenger(p));
+        if (!(data.passengers || []).length) muAddPassenger();
+
+        const n = (data.passengers || []).length;
+        msgEl.className = 'mt-2 small text-success';
+        msgEl.textContent = `解析成功：订单号 ${data.order_no || '(无)'}，航班 ${f.flight_no || '(无)'}，乘客 ${n} 人（请补充航站楼等信息后生成）`;
+        msgEl.style.display = '';
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 small text-danger';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>解析'; });
+}
+
+function muGenerate() {
+    const flight_no = document.getElementById('mu_flight_no').value.trim().toUpperCase();
+    if (!flight_no) { alert('请填写航班号'); return; }
+    const passengers = muCollectPassengers();
+    if (!passengers.length) { alert('请至少添加一位乘客'); return; }
+
+    const payload = {
+        order_no: document.getElementById('mu_order_no').value.trim(),
+        flight_no,
+        cabin: document.getElementById('mu_cabin').value.trim(),
+        from_code: document.getElementById('mu_from_code').value.trim().toUpperCase(),
+        from_airport: document.getElementById('mu_from_airport').value.trim(),
+        from_terminal: document.getElementById('mu_from_terminal').value.trim(),
+        to_code: document.getElementById('mu_to_code').value.trim().toUpperCase(),
+        to_airport: document.getElementById('mu_to_airport').value.trim(),
+        to_terminal: document.getElementById('mu_to_terminal').value.trim(),
+        dep_date: document.getElementById('mu_dep_date').value.trim(),
+        dep_time: document.getElementById('mu_dep_time').value.trim(),
+        arr_date: document.getElementById('mu_arr_date').value.trim(),
+        arr_time: document.getElementById('mu_arr_time').value.trim(),
+        passengers,
+        notices: muCollectNotices(),
+    };
+
+    const btn = document.getElementById('btnMuGenerate');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+
+    fetch('{{ url_for("flights_usbangla.generate_mu_itinerary_route") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: JSON.stringify(payload)
+    })
+    .then(resp => {
+        if (!resp.ok) {
+            const ct = resp.headers.get('Content-Type') || '';
+            if (ct.includes('application/json')) {
+                return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
+            }
+            throw new Error(`生成失败 (${resp.status})`);
+        }
+        return resp.blob().then(blob => ({ blob, resp }));
+    })
+    .then(({ blob, resp }) => {
+        const cd = resp.headers.get('Content-Disposition') || '';
+        let fn = `Itinerary_${flight_no}.pdf`;
+        const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+        if (m) fn = decodeURIComponent(m[1]);
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = fn;
+        a.click();
+        window.URL.revokeObjectURL(a.href);
+    })
+    .catch(err => alert('错误：' + err.message))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// 初始化默认提示行 + 一行空乘客
+document.addEventListener('DOMContentLoaded', () => {
+    MU_DEFAULT_NOTICES.forEach(n => muAddNotice(n));
+    muAddPassenger();
+});
 
 function cleanQunar() {
     const fileInput = document.getElementById('qunarFile');

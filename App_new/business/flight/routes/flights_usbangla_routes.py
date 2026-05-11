@@ -17,6 +17,12 @@ LOGO_PATH = os.path.join(
     'static', 'images', 'airlines', 'us_bangla_logo.png'
 )
 
+# 东方航空 logo
+MU_LOGO_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    'static', 'images', 'airlines', 'china_eastern_logo.png'
+)
+
 
 # ========== PDF 文本预处理 ==========
 
@@ -1669,3 +1675,374 @@ def clean_qunar():
         return send_file(output, download_name=clean_name, as_attachment=True, mimetype='application/pdf')
     except Exception as e:
         return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
+# ====================================================================
+#  东方航空 (China Eastern, MU) 行程单生成
+# ====================================================================
+
+
+def parse_mu_pdf(file_stream):
+    """解析东方航空 (MU) 邮件行程单 PDF，提取订单号、航班、乘客"""
+    import fitz
+
+    file_bytes = file_stream.read() if hasattr(file_stream, 'read') else file_stream
+    doc = fitz.open(stream=file_bytes, filetype='pdf')
+    text = ''
+    for page in doc:
+        t = page.get_text()
+        if t:
+            text += t + '\n'
+    doc.close()
+
+    return {
+        'order_no': _mu_extract_order_no(text),
+        'flight': _mu_extract_flight(text),
+        'passengers': _mu_extract_passengers(text),
+    }
+
+
+def _mu_extract_order_no(text):
+    """从 'order No. is800426051127455782!' 提取订单号"""
+    m = re.search(r'order\s*No\.?\s*is\s*(\d{10,})', text, re.IGNORECASE)
+    return m.group(1) if m else ''
+
+
+def _mu_extract_passengers(text):
+    """乘客块在 'Passenger travel details' 与 'Order Detail' 之间，每位 5 行
+    顺序：Ticket No / Passenger type / Passenger name / ID No / URL
+    """
+    m = re.search(r'Passenger travel details(.*?)Order Detail', text, re.DOTALL)
+    if not m:
+        return []
+    block = m.group(1)
+    lines = [ln.strip() for ln in block.split('\n') if ln.strip()]
+
+    passengers = []
+    i = 0
+    while i < len(lines):
+        # 票号锚点：781-xxxxxxxxxx
+        if re.match(r'^\d{3}-\d{8,12}$', lines[i]):
+            ticket = lines[i]
+            pax_type = lines[i + 1] if i + 1 < len(lines) else ''
+            name = lines[i + 2] if i + 2 < len(lines) else ''
+            id_no = lines[i + 3] if i + 3 < len(lines) else ''
+            if pax_type in ('Adult', 'Child', 'Infant') and '/' in name:
+                passengers.append({
+                    'name': name.upper(),
+                    'pax_type': pax_type,
+                    'id_no': id_no.upper(),
+                    'ticket_no': ticket,
+                })
+            i += 5
+        else:
+            i += 1
+    return passengers
+
+
+def _mu_extract_flight(text):
+    """提取航班、起降城市、起降时间、舱位"""
+    flight = {
+        'flight_no': '', 'from_code': '', 'from_airport': '',
+        'to_code': '', 'to_airport': '',
+        'dep_date': '', 'dep_time': '', 'arr_date': '', 'arr_time': '',
+        'cabin': '',
+    }
+
+    # 航班号
+    m = re.search(r'\b(MU\d{2,4})\b', text)
+    if m:
+        flight['flight_no'] = m.group(1)
+
+    # 航班号之后才是 Order Detail 区域，限定搜索范围
+    section = text
+    if flight['flight_no']:
+        idx = text.find(flight['flight_no'])
+        if idx > 0:
+            section = text[idx:]
+
+    # 出发/到达日期+时间（在邮件 PDF 中两者分行）
+    dt_pat = r'(\d{4}-\d{1,2}-\d{1,2})\s*\n?\s*(\d{1,2}:\d{2})'
+    dt = re.findall(dt_pat, section)
+    if len(dt) >= 2:
+        flight['dep_date'] = dt[0][0]
+        flight['dep_time'] = dt[0][1]
+        flight['arr_date'] = dt[1][0]
+        flight['arr_time'] = dt[1][1]
+
+    # 机场代码：在航班号后紧跟两个 3-letter 大写代码 + (...)
+    codes = re.findall(r'\b([A-Z]{3})\b\s*\n?\s*\(', section)
+    if len(codes) >= 2:
+        flight['from_code'] = codes[0]
+        flight['to_code'] = codes[1]
+
+    # 机场名（括号内，可能跨行）
+    parens = re.findall(r'\(([^)]+)\)', section, re.DOTALL)
+    if len(parens) >= 2:
+        flight['from_airport'] = re.sub(r'\s+', ' ', parens[0]).strip()
+        flight['to_airport'] = re.sub(r'\s+', ' ', parens[1]).strip()
+
+    # 舱位："Economy\nClass S" 或 "Economy Class S"
+    m = re.search(r'(Economy|Business|First|Premium\s*Economy)\s*\n?\s*Class\s+([A-Z])',
+                  section, re.IGNORECASE)
+    if m:
+        cabin_name = re.sub(r'\s+', ' ', m.group(1)).strip().title()
+        flight['cabin'] = f"{cabin_name} ({m.group(2)})"
+
+    return flight
+
+
+_MU_FONTS_REGISTERED = False
+
+
+def _register_mu_fonts():
+    """注册微软雅黑字体；失败则回退到 Helvetica"""
+    global _MU_FONTS_REGISTERED
+    if _MU_FONTS_REGISTERED:
+        return True
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        msyh = r"C:\Windows\Fonts\msyh.ttc"
+        msyhbd = r"C:\Windows\Fonts\msyhbd.ttc"
+        if os.path.exists(msyh) and os.path.exists(msyhbd):
+            pdfmetrics.registerFont(TTFont("MSYH", msyh))
+            pdfmetrics.registerFont(TTFont("MSYHBD", msyhbd))
+            _MU_FONTS_REGISTERED = True
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def generate_mu_itinerary(data, logo_path):
+    """生成东方航空行程单 PDF（参考 itinerary_MU.py），返回 bytes
+
+    data 结构：
+      order_no, flight_no, from_code, from_airport, from_terminal,
+      to_code, to_airport, to_terminal, dep_date, dep_time,
+      arr_date, arr_time, cabin,
+      passengers: [{name, pax_type, id_no, ticket_no}, ...],
+      notices: [str, ...]
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    )
+    from PIL import Image as PILImage
+
+    has_msyh = _register_mu_fonts()
+    font_regular = "MSYH" if has_msyh else "Helvetica"
+    font_bold = "MSYHBD" if has_msyh else "Helvetica-Bold"
+
+    output = BytesIO()
+    doc = SimpleDocTemplate(
+        output, pagesize=A4,
+        leftMargin=20 * mm, rightMargin=20 * mm,
+        topMargin=18 * mm, bottomMargin=18 * mm,
+        title=f"{data.get('flight_no', 'MU')} Itinerary",
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "title", parent=styles["Title"],
+        fontName=font_bold, fontSize=22, leading=28,
+        textColor=colors.HexColor("#B8002E"),
+        alignment=0, spaceAfter=2,
+    )
+    sub_style = ParagraphStyle(
+        "sub", parent=styles["Normal"],
+        fontName=font_regular, fontSize=10, leading=14,
+        textColor=colors.HexColor("#666666"), spaceAfter=14,
+    )
+    h2_style = ParagraphStyle(
+        "h2", parent=styles["Heading2"],
+        fontName=font_bold, fontSize=13, leading=18,
+        textColor=colors.HexColor("#222222"),
+        spaceBefore=12, spaceAfter=6,
+    )
+    note_style = ParagraphStyle(
+        "note", parent=styles["Normal"],
+        fontName=font_regular, fontSize=10, leading=16,
+        textColor=colors.HexColor("#333333"),
+    )
+
+    story = []
+
+    # 头部：logo + 标题
+    has_logo = logo_path and os.path.exists(logo_path)
+    if has_logo:
+        pil = PILImage.open(logo_path)
+        logo_h = 14 * mm
+        logo_w = logo_h * pil.width / pil.height
+        logo_img = Image(logo_path, width=logo_w, height=logo_h)
+    else:
+        logo_w = 0
+        logo_img = Paragraph("", note_style)
+
+    order_no = data.get('order_no', '')
+    sub_text = "China Eastern Airlines"
+    if order_no:
+        sub_text += f" &nbsp;|&nbsp; Order No. {order_no}"
+
+    header_text = [
+        [Paragraph("Flight Itinerary", title_style)],
+        [Paragraph(sub_text, sub_style)],
+    ]
+    header_text_tbl = Table(header_text, colWidths=[120 * mm])
+    header_text_tbl.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    if has_logo:
+        header = Table(
+            [[logo_img, header_text_tbl]],
+            colWidths=[logo_w + 6 * mm, 170 * mm - logo_w - 6 * mm],
+        )
+    else:
+        header = Table([[header_text_tbl]], colWidths=[170 * mm])
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    story.append(header)
+    story.append(Spacer(1, 4 * mm))
+
+    # === Flight Information ===
+    story.append(Paragraph("Flight Information", h2_style))
+
+    def _compose_endpoint(code, airport, terminal):
+        parts = [p for p in [code, airport] if p]
+        text = "  ·  ".join(parts)
+        if terminal:
+            text += f"  ·  Terminal {terminal}"
+        return text
+
+    def _compose_datetime(d, t):
+        return f"{d}  {t}".strip()
+
+    flight_rows = [
+        ["Flight No.", data.get('flight_no', '')],
+        ["From", _compose_endpoint(data.get('from_code', ''), data.get('from_airport', ''), data.get('from_terminal', ''))],
+        ["To", _compose_endpoint(data.get('to_code', ''), data.get('to_airport', ''), data.get('to_terminal', ''))],
+        ["Departure", _compose_datetime(data.get('dep_date', ''), data.get('dep_time', ''))],
+        ["Arrival", _compose_datetime(data.get('arr_date', ''), data.get('arr_time', ''))],
+        ["Class", data.get('cabin', '')],
+    ]
+    flight_tbl = Table(flight_rows, colWidths=[32 * mm, 138 * mm])
+    flight_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_regular),
+        ("FONTNAME", (0, 0), (0, -1), font_bold),
+        ("FONTSIZE", (0, 0), (-1, -1), 11),
+        ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#555555")),
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F5F5F7")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DDDDDD")),
+    ]))
+    story.append(flight_tbl)
+
+    # === Passenger Information ===
+    passengers = data.get('passengers', []) or []
+    story.append(Paragraph(f"Passenger Information ({len(passengers)} passenger{'s' if len(passengers) != 1 else ''})", h2_style))
+
+    pax_header = ["#", "Name", "Type", "ID No.", "Ticket No."]
+    pax_rows = [pax_header]
+    for i, p in enumerate(passengers, 1):
+        pax_rows.append([
+            str(i),
+            p.get('name', ''),
+            p.get('pax_type', 'Adult'),
+            p.get('id_no', ''),
+            p.get('ticket_no', ''),
+        ])
+    pax_tbl = Table(pax_rows, colWidths=[10 * mm, 42 * mm, 18 * mm, 42 * mm, 58 * mm])
+    pax_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_regular),
+        ("FONTNAME", (0, 0), (-1, 0), font_bold),
+        ("FONTSIZE", (0, 0), (-1, -1), 10.5),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#B8002E")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (2, 0), (2, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+            [colors.white, colors.HexColor("#FAFAFA")]),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DDDDDD")),
+    ]))
+    story.append(pax_tbl)
+
+    # === Notice ===
+    notices = [n for n in (data.get('notices') or []) if n and n.strip()]
+    if notices:
+        story.append(Paragraph("Notice", h2_style))
+        for t in notices:
+            story.append(Paragraph(f"• {t}", note_style))
+
+    doc.build(story)
+    return output.getvalue()
+
+
+@flights_usbangla.route('/parse_mu_pdf', methods=['POST'])
+@login_required
+@staff_only
+def parse_mu_pdf_route():
+    """上传东方航空邮件行程单 PDF，解析出订单号、航班、乘客"""
+    file = request.files.get('pdf_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+    try:
+        result = parse_mu_pdf(file.stream)
+        return jsonify({
+            'success': True,
+            'order_no': result['order_no'],
+            'flight': result['flight'],
+            'passengers': result['passengers'],
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'PDF解析失败：{str(e)}'}), 500
+
+
+@flights_usbangla.route('/generate_mu_itinerary', methods=['POST'])
+@login_required
+@staff_only
+def generate_mu_itinerary_route():
+    """根据表单数据生成东方航空行程单 PDF"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+    passengers = data.get('passengers', []) or []
+    if not passengers:
+        return jsonify({'success': False, 'message': '请至少添加一位乘客'}), 400
+    if not data.get('flight_no'):
+        return jsonify({'success': False, 'message': '请填写航班号'}), 400
+
+    try:
+        pdf_bytes = generate_mu_itinerary(data, MU_LOGO_PATH)
+        flight_no = (data.get('flight_no') or 'MU').upper().replace(' ', '')
+        order_no = (data.get('order_no') or '').strip()
+        filename = f"Itinerary_{flight_no}"
+        if order_no:
+            filename += f"_{order_no}"
+        filename += ".pdf"
+        return send_file(BytesIO(pdf_bytes), download_name=filename,
+                         as_attachment=True, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500
