@@ -1546,6 +1546,8 @@ function sendEmail() {
     fd.append('subject', subject);
     fd.append('body', body);
     if (selectedTemplateId) fd.append('template_id', selectedTemplateId);
+    // 传入 invoice_id，让服务端能对 {invoice_number} 等发票变量做兜底替换
+    fd.append('invoice_id', '{{ invoice.id }}');
     emailAttachments.forEach((a, i) => fd.append(`attachment_${i}`, a.file));
     fd.append('attachment_count', emailAttachments.length);
 

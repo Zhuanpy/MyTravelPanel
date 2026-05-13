@@ -2527,6 +2527,13 @@ function selectTemplate(template) {
     const leaderName = '{{ leader_member_name or header.contact or "客户" }}';
     // REF描述：取第一个REF的description，如果有多个用逗号分隔
     const refDescription = '{{ header.refs|map(attribute="description")|select|join(", ") if header.refs else "" }}';
+    // 发票变量：项目下可能有多张发票，取最新一张非取消发票（按id倒序）作为默认值
+    {% set _active_invoices = header.invoices|rejectattr('status', 'equalto', 'cancelled')|list if header.invoices else [] %}
+    {% set _latest_invoice = (_active_invoices|sort(attribute='id', reverse=true)|first) if _active_invoices else None %}
+    const invoiceNumber = '{{ _latest_invoice.invoice_number if _latest_invoice else "" }}';
+    const invoiceCurrency = '{{ _latest_invoice.currency if _latest_invoice else "" }}';
+    const invoiceAmountRaw = '{{ ("%.2f"|format(_latest_invoice.amount)) if _latest_invoice else "" }}';
+    const invoiceAmount = invoiceCurrency && invoiceAmountRaw ? (invoiceCurrency + ' ' + invoiceAmountRaw) : '';
 
     let subject = template.subject;
     subject = subject.replace(/{hid}/g, hid);
@@ -2534,6 +2541,10 @@ function selectTemplate(template) {
     subject = subject.replace(/{company}/g, company);
     subject = subject.replace(/{leader_name}/g, leaderName);
     subject = subject.replace(/{ref_description}/g, refDescription);
+    subject = subject.replace(/{invoice_number}/g, invoiceNumber);
+    subject = subject.replace(/{invoice_amount}/g, invoiceAmount);
+    subject = subject.replace(/{currency}/g, invoiceCurrency);
+    subject = subject.replace(/{amount}/g, invoiceAmountRaw);
 
     let body = template.body;
     body = body.replace(/{hid}/g, hid);
@@ -2541,6 +2552,10 @@ function selectTemplate(template) {
     body = body.replace(/{company}/g, company);
     body = body.replace(/{leader_name}/g, leaderName);
     body = body.replace(/{ref_description}/g, refDescription);
+    body = body.replace(/{invoice_number}/g, invoiceNumber);
+    body = body.replace(/{invoice_amount}/g, invoiceAmount);
+    body = body.replace(/{currency}/g, invoiceCurrency);
+    body = body.replace(/{amount}/g, invoiceAmountRaw);
     
     document.getElementById('emailSubject').value = subject;
     document.getElementById('emailBody').value = body;

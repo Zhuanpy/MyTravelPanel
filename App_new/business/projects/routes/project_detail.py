@@ -733,6 +733,71 @@ def get_email_contacts(project_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+def _replace_email_vars(text, header, invoice=None):
+    """邮件主题/正文变量兜底替换。
+
+    前端已经替换过的不影响（替换后已不含占位符）。
+    针对前端漏替换、用户手动改主题、或不同入口发邮件的场景做服务端兜底，
+    保证最终发出的邮件不会出现 `{invoice_number}` 等字面量。
+    """
+    if not text:
+        return text
+
+    from App_new.business.projects.models.project_member import ProjectMember
+
+    # 通用变量
+    hid = header.hid if header else ''
+    contact = (header.contact if header else '') or ''
+
+    # 公司显示名
+    company_display = ''
+    leader_name = ''
+    if header:
+        leader = ProjectMember.query.filter_by(header_id=header.id, is_leader=True).first()
+        if not leader:
+            leader = ProjectMember.query.filter_by(header_id=header.id).first()
+        if leader:
+            leader_name = f"{leader.title} {leader.member_name}" if leader.title else leader.member_name
+
+        if header.company:
+            cname = header.company.company_name or ''
+            if cname.lower() in ['个人', 'cash', '现金']:
+                company_display = contact or leader_name
+            else:
+                company_display = cname
+        else:
+            company_display = leader_name
+
+    # REF 描述：有 invoice 时取本发票关联的 refs，否则取项目下所有 refs
+    if invoice:
+        ref_objs = invoice.related_refs
+    else:
+        ref_objs = list(header.refs) if header and header.refs else []
+    ref_description = ", ".join(r.description for r in ref_objs if getattr(r, 'description', None))
+
+    # 发票变量
+    invoice_number = invoice.invoice_number if invoice else ''
+    currency = (invoice.currency if invoice else '') or ''
+    amount = f"{invoice.amount:.2f}" if invoice and invoice.amount is not None else ''
+    invoice_amount = f"{currency} {amount}".strip() if (currency or amount) else ''
+
+    replacements = {
+        '{hid}': hid,
+        '{contact}': contact,
+        '{company}': company_display,
+        '{leader_name}': leader_name,
+        '{ref_description}': ref_description,
+        '{invoice_number}': invoice_number,
+        '{invoice_amount}': invoice_amount,
+        '{currency}': currency,
+        '{amount}': amount,
+    }
+
+    for k, v in replacements.items():
+        text = text.replace(k, v or '')
+    return text
+
+
 @bp.route('/<int:project_id>/email/send', methods=['POST'])
 @login_required
 @staff_only
@@ -742,13 +807,14 @@ def send_project_email(project_id):
         from flask import current_app
         from flask_mail import Message
         from App_new.business.projects.models.project import ProjectHeader, ProjectEmail, EmailTemplate
+        from App_new.business.projects.models.invoice import ProjectInvoice
         from werkzeug.utils import secure_filename
         import json
         import os
         import tempfile
-        
+
         header = ProjectHeader.query.get_or_404(project_id)
-        
+
         # 处理FormData（支持文件上传）
         if request.content_type and 'multipart/form-data' in request.content_type:
             recipients = json.loads(request.form.get('recipients', '[]'))
@@ -756,6 +822,7 @@ def send_project_email(project_id):
             subject = request.form.get('subject', '')
             body = request.form.get('body', '')
             template_id = request.form.get('template_id')
+            invoice_id = request.form.get('invoice_id')
             attachment_count = int(request.form.get('attachment_count', 0))
         else:
             # 兼容JSON格式
@@ -765,8 +832,9 @@ def send_project_email(project_id):
             subject = data.get('subject', '')
             body = data.get('body', '')
             template_id = data.get('template_id')
+            invoice_id = data.get('invoice_id')
             attachment_count = 0
-        
+
         # 验证必填字段
         if not recipients:
             return jsonify({'success': False, 'message': '请选择收件人'}), 400
@@ -774,6 +842,26 @@ def send_project_email(project_id):
             return jsonify({'success': False, 'message': '请输入邮件主题'}), 400
         if not body:
             return jsonify({'success': False, 'message': '请输入邮件内容'}), 400
+
+        # 服务端变量兜底替换（防止前端漏替换或用户手动改导致 {invoice_number} 等占位符泄漏到收件人）
+        invoice = None
+        if invoice_id:
+            try:
+                invoice = ProjectInvoice.query.get(int(invoice_id))
+                # 安全检查：发票必须属于当前项目
+                if invoice and invoice.header_id != project_id:
+                    invoice = None
+            except (ValueError, TypeError):
+                invoice = None
+        # 项目详情页发邮件没传 invoice_id，则取该项目最新一张非取消发票兜底
+        if invoice is None:
+            invoice = (ProjectInvoice.query
+                       .filter_by(header_id=project_id)
+                       .filter(ProjectInvoice.status != 'cancelled')
+                       .order_by(ProjectInvoice.id.desc())
+                       .first())
+        subject = _replace_email_vars(subject, header, invoice)
+        body = _replace_email_vars(body, header, invoice)
         
         # 处理附件
         attachments_info = []
