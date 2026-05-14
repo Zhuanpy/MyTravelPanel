@@ -468,7 +468,7 @@
                             <input type="checkbox" class="form-check-input" id="teamSelectAll">
                         </th>
                         <th width="200">标题</th>
-                        <th>描述</th>
+                        <th width="220">描述</th>
                         <th width="100">分配给</th>
                         <th width="100">优先级</th>
                         <th width="130">截止日期</th>
@@ -1213,7 +1213,7 @@ function renderTeamTasks(todos) {
                         onchange="toggleTodoStatus(${todo.id}, this.checked)">
                 </td>
                 <td>${titleIcon}${linkifyProjectHid(todo.title, todo.source_id)}</td>
-                <td><div class="text-truncate" style="max-width: 200px;">${todo.description || ''}</div></td>
+                <td><div class="text-truncate" style="max-width: 200px;" title="${(todo.description || '').replace(/"/g, '&quot;')}">${todo.description || ''}</div></td>
                 <td>${todo.assignee_name ? `<span class="visa-badge visa-badge-info">${todo.assignee_name}</span>` : (isProjectReminder ? '<span class="visa-badge" style="background: #fef3c7; color: #92400e;">项目提醒</span>' : '<span class="text-muted">未分配</span>')}</td>
                 <td><span class="visa-badge visa-badge-${todo.priority === 1 ? 'danger' : (todo.priority === 2 ? 'warning' : 'info')}">${getPriorityText(todo.priority)}</span></td>
                 <td>${todo.due_date ? formatDate(todo.due_date) : ''}</td>
