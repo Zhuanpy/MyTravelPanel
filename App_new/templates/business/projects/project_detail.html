@@ -588,6 +588,11 @@ function initMembersManagement() {
     document.getElementById('memberModal')?.addEventListener('click', function(e) {
         if (e.target === this) closeMemberModal();
     });
+
+    // DD-MM-YYYY 输入时自动补 -
+    document.querySelectorAll('#memberModal .date-ddmmyyyy').forEach(el => {
+        el.addEventListener('input', () => autoFormatDdmmyyyy(el));
+    });
 }
 
 function loadMembers() {
@@ -623,35 +628,44 @@ function renderMembers(members) {
     // 根据结算状态决定是否显示操作列
     const showActions = !window.isSettled;
 
-    tbody.innerHTML = sortedMembers.map(m => `
+    tbody.innerHTML = sortedMembers.map(m => {
+        return `
         <tr data-member-id="${m.id}" style="cursor: ${showActions ? 'pointer' : 'default'};${m.is_leader ? ' background-color: #d4edda;' : ''}" ${showActions ? `onclick="editMember(${m.id})"` : ''}>
             <td style="padding: 4px 6px;">
-                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}">
-                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
+                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}${m.frequent_traveler_code ? ' (' + m.frequent_traveler_code + ')' : ''}">
+                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.frequent_traveler_code ? ' <small class="text-muted" style="font-size: 0.65rem;">#' + m.frequent_traveler_code + '</small>' : ''}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
                 </span>
             </td>
             ${showActions ? `
-            <td style="padding: 4px 6px; text-align: center; white-space: nowrap;">
-                <button type="button" class="btn btn-sm ${m.is_leader ? 'btn-primary' : 'btn-outline-secondary'} py-0 px-1"
-                        onclick="event.stopPropagation(); setLeader(${m.id})" title="设为Leader" style="font-size: 0.7rem;">
-                    <i class="fas fa-user"></i>
-                </button>
-                ${m.is_frequent
-                    ? `<span class="btn btn-sm btn-warning py-0 px-1" title="已是常用旅客" style="font-size: 0.7rem; cursor: default; pointer-events: none;">
-                        <i class="fas fa-star"></i>
+            <td style="padding: 4px 6px; text-align: right; white-space: nowrap;">
+                <div style="display: inline-flex; gap: 3px; align-items: center; flex-wrap: nowrap;">
+                ${m.is_leader
+                    ? `<span class="btn btn-sm btn-primary py-0 px-1" title="当前 Leader" style="font-size: 0.68rem; cursor: default; pointer-events: none;">
+                        <i class="fas fa-crown"></i> Leader
                     </span>`
-                    : `<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
-                            onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="保存为常用旅客" style="font-size: 0.7rem;">
-                        <i class="far fa-star"></i>
+                    : `<button type="button" class="btn btn-sm btn-outline-primary py-0 px-1"
+                            onclick="event.stopPropagation(); setLeader(${m.id})" title="一键设为本项目 Leader" style="font-size: 0.68rem;">
+                        <i class="fas fa-crown"></i> 设Leader
                     </button>`
                 }
-                ${m.is_leader ? '' : `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.7rem;">
+                ${m.is_frequent
+                    ? `<span class="btn btn-sm btn-warning py-0 px-1" title="已是常用乘客" style="font-size: 0.68rem; cursor: default; pointer-events: none;">
+                        <i class="fas fa-star"></i> 常用
+                    </span>`
+                    : `<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
+                            onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="点击转为常用乘客" style="font-size: 0.68rem;">
+                        <i class="far fa-star"></i> 普通
+                    </button>`
+                }
+                ${m.is_leader ? '' : `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.68rem;">
                     <i class="fas fa-trash"></i>
                 </button>`}
+                </div>
             </td>
             ` : ''}
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // 设置Leader
@@ -681,6 +695,15 @@ function setLeader(memberId) {
     });
 }
 
+// 切换模态框模式：'regular' 普通乘客 / 'frequent' 常用乘客
+function setMemberModalMode(mode) {
+    document.getElementById('memberMode').value = mode;
+    const isFreq = mode === 'frequent';
+    document.getElementById('memberFrequentDetails').style.display = isFreq ? '' : 'none';
+    document.getElementById('memberRegularHint').style.display = isFreq ? 'none' : '';
+    document.getElementById('memberFormSectionTitle').textContent = isFreq ? '常用乘客信息' : '普通乘客信息';
+}
+
 function openMemberModal(member = null) {
     if (window.isSettled) {
         alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
@@ -692,51 +715,240 @@ function openMemberModal(member = null) {
     // 编辑模式隐藏常用旅客选取，新增模式显示
     const ftPicker = document.getElementById('frequentTravelerPicker');
 
+    // 默认重置为普通模式
+    document.getElementById('memberForm').reset();
+    document.getElementById('memberMembershipList').innerHTML = '';
+    document.getElementById('memberFrequentId').value = '';
+    setMemberModalMode('regular');
+
     if (member) {
-        title.textContent = '编辑人员';
+        const isFrequent = !!member.is_frequent;
+        title.textContent = isFrequent ? '编辑常用乘客' : '编辑普通乘客';
         if (ftPicker) ftPicker.style.display = 'none';
         document.getElementById('ftSelectedInfo').style.display = 'none';
-        // 编辑模式：清空会员行，显示空提示
-        document.getElementById('memberMembershipList').innerHTML = '';
-        document.getElementById('memberMembershipEmpty').style.display = '';
+
         document.getElementById('memberId').value = member.id;
-        document.getElementById('memberTitle').value = member.title || '';
         document.getElementById('memberName').value = member.member_name || '';
-        document.getElementById('memberPhone').value = member.member_phone || '';
-        document.getElementById('memberEmail').value = member.member_email || '';
-        document.getElementById('memberIdNumber').value = member.id_number || '';
-        document.getElementById('memberPassportCountry').value = member.passport_issuing_country || '';
-        document.getElementById('memberPassportExpiry').value = member.passport_expiry_date || '';
-        document.getElementById('memberNationality').value = member.nationality || '';
-        document.getElementById('memberDob').value = member.date_of_birth || '';
         document.getElementById('memberGender').value = member.gender || '';
-        document.getElementById('memberIdType').value = member.id_type || '';
-        document.getElementById('memberIdTypeNumber').value = '';
-        document.getElementById('memberRemarks').value = member.remarks || '';
-        // 加载航空会员
-        document.getElementById('memberMembershipList').innerHTML = '';
-        if (member.airline_memberships && member.airline_memberships.length) {
-            member.airline_memberships.forEach(m => addMemberMembershipRow(m));
-        } else {
-            document.getElementById('memberMembershipEmpty').style.display = '';
+        document.getElementById('memberTitle').value = member.title || '';
+
+        if (isFrequent && member.frequent_traveler_id) {
+            // 常用乘客：先用 ProjectMember 快照填充，再异步覆盖为 FrequentTraveler 最新数据
+            setMemberModalMode('frequent');
+            document.getElementById('memberFrequentId').value = member.frequent_traveler_id;
+            memberLoadFiles(member.frequent_traveler_id);
+            fillFrequentDetails({
+                title: member.title,
+                phone: member.member_phone,
+                email: member.member_email,
+                passport_number: member.id_number,
+                passport_issuing_country: member.passport_issuing_country,
+                passport_expiry_date: member.passport_expiry_date,
+                nationality: member.nationality,
+                date_of_birth: member.date_of_birth,
+                id_card_number: '',
+                remarks: member.remarks,
+                airline_memberships: member.airline_memberships || [],
+            });
+            // 拉取常用旅客最新完整数据
+            fetch(`/projects/frequent_traveler/api/${member.frequent_traveler_id}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success && res.data) {
+                        fillFrequentDetails(res.data);
+                        // 姓名/性别/称谓也以常用旅客为准
+                        if (res.data.name) document.getElementById('memberName').value = res.data.name;
+                        if (res.data.gender !== undefined) document.getElementById('memberGender').value = res.data.gender || '';
+                        if (res.data.title !== undefined) document.getElementById('memberTitle').value = res.data.title || '';
+                    }
+                })
+                .catch(err => console.error('拉取常用旅客失败:', err));
         }
     } else {
-        title.textContent = '添加人员';
+        title.textContent = '添加普通乘客';
         if (ftPicker) ftPicker.style.display = '';
-        document.getElementById('memberForm').reset();
         document.getElementById('memberId').value = '';
         document.getElementById('ftSearchInput').value = '';
         document.getElementById('ftSearchResults').style.display = 'none';
         document.getElementById('ftSelectedInfo').style.display = 'none';
-        document.getElementById('memberMembershipList').innerHTML = '';
-        document.getElementById('memberMembershipEmpty').style.display = '';
     }
-    
+
     modal.style.display = 'block';
+}
+
+// 日期格式互转：DB/接口用 YYYY-MM-DD，UI 用 DD-MM-YYYY（东方习惯）
+function isoToDdmmyyyy(iso) {
+    if (!iso) return '';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+function ddmmyyyyToIso(s) {
+    if (!s) return null;
+    const m = String(s).trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (!m) return null;
+    const dd = m[1], mm = m[2], yyyy = m[3];
+    const d = new Date(`${yyyy}-${mm}-${dd}`);
+    if (isNaN(d.getTime())) return null;
+    return `${yyyy}-${mm}-${dd}`;
+}
+// 输入时自动补 - 分隔符：5 -> 05-、12 25 -> 12-25-、12252030 -> 12-25-2030
+function autoFormatDdmmyyyy(input) {
+    let v = input.value.replace(/\D/g, '').slice(0, 8);
+    let out = v;
+    if (v.length > 4) out = `${v.slice(0,2)}-${v.slice(2,4)}-${v.slice(4)}`;
+    else if (v.length > 2) out = `${v.slice(0,2)}-${v.slice(2)}`;
+    input.value = out;
+}
+
+// 把常用旅客字段填入扩展区
+function fillFrequentDetails(d) {
+    if (d.title !== undefined) document.getElementById('memberTitle').value = d.title || '';
+    document.getElementById('memberPhone').value = d.phone || '';
+    document.getElementById('memberEmail').value = d.email || '';
+    document.getElementById('memberIdNumber').value = d.passport_number || '';
+    document.getElementById('memberPassportCountry').value = d.passport_issuing_country || '';
+    document.getElementById('memberPassportExpiry').value = isoToDdmmyyyy(d.passport_expiry_date);
+    document.getElementById('memberNationality').value = d.nationality || '';
+    document.getElementById('memberDob').value = isoToDdmmyyyy(d.date_of_birth);
+    document.getElementById('memberIdCardNumber').value = d.id_card_number || '';
+    document.getElementById('memberRemarks').value = d.remarks || '';
+    document.getElementById('memberMembershipList').innerHTML = '';
+    if (d.airline_memberships && d.airline_memberships.length) {
+        d.airline_memberships.forEach(m => addMemberMembershipRow(m));
+    } else {
+        const empty = document.getElementById('memberMembershipEmpty');
+        if (empty) empty.style.display = '';
+    }
 }
 
 function closeMemberModal() {
     document.getElementById('memberModal').style.display = 'none';
+}
+
+// ---- 常用乘客文件管理 ----
+function memberLoadFiles(travelerId) {
+    const container = document.getElementById('memberFilesList');
+    const countLabel = document.getElementById('memberFilesCountLabel');
+    const dlAllBtn = document.getElementById('memberDownloadAllBtn');
+    if (!container) return;
+    fetch(`/projects/frequent_traveler/api/${travelerId}/files`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || !data.data.length) {
+                container.innerHTML = '<div class="text-muted text-center py-2" style="font-size:0.8rem;">暂无上传资料</div>';
+                countLabel.textContent = '';
+                dlAllBtn.style.display = 'none';
+                return;
+            }
+            countLabel.textContent = `共 ${data.data.length} 个文件`;
+            dlAllBtn.style.display = '';
+            container.innerHTML = `
+                <div class="list-group list-group-flush" style="font-size: 0.82rem;">
+                    ${data.data.map(f => `
+                        <div class="list-group-item d-flex align-items-center px-2 py-1">
+                            ${f.is_image
+                                ? `<img src="/projects/frequent_traveler/api/files/${f.id}/download"
+                                        style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; cursor: pointer; margin-right: 8px;"
+                                        onclick="event.stopPropagation(); memberPreviewImage('/projects/frequent_traveler/api/files/${f.id}/download', '${(f.filename||'').replace(/'/g, "\\'")}')">`
+                                : `<i class="fas fa-file-pdf text-danger me-2" style="font-size: 1.2rem;"></i>`
+                            }
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="text-truncate" title="${f.filename}">
+                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">${f.category_display}</span>
+                                    ${f.description || f.filename}
+                                </div>
+                                <small class="text-muted">${f.file_size_display}</small>
+                            </div>
+                            <div class="ms-2 text-nowrap">
+                                <a href="/projects/frequent_traveler/api/files/${f.id}/download" target="_blank"
+                                   class="btn btn-sm btn-outline-primary py-0 px-1" title="查看" style="font-size: 0.7rem;">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" title="删除" style="font-size: 0.7rem;"
+                                        onclick="memberDeleteFile(${f.id}, ${travelerId})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>`;
+        })
+        .catch(() => {
+            container.innerHTML = '<div class="text-danger text-center py-2" style="font-size:0.8rem;">加载文件失败</div>';
+        });
+}
+
+function memberUploadFile() {
+    const travelerId = document.getElementById('memberFrequentId').value;
+    if (!travelerId) {
+        alert('请先保存常用乘客后再上传文件');
+        return;
+    }
+    const fileInput = document.getElementById('memberUploadFileInput');
+    if (!fileInput.files.length) {
+        alert('请选择文件');
+        return;
+    }
+    const formData = new FormData();
+    for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('file', fileInput.files[i]);
+    }
+    formData.append('file_category', document.getElementById('memberUploadCategory').value);
+    formData.append('description', document.getElementById('memberUploadDescription').value.trim());
+
+    const btn = document.getElementById('memberUploadBtn');
+    const count = fileInput.files.length;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 上传中(${count})...`;
+
+    fetch(`/projects/frequent_traveler/api/${travelerId}/files/upload`, {
+        method: 'POST',
+        body: formData,
+    })
+    .then(r => r.json())
+    .then(result => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-upload"></i> 上传';
+        if (result.success) {
+            fileInput.value = '';
+            document.getElementById('memberUploadDescription').value = '';
+            memberLoadFiles(travelerId);
+        } else {
+            alert('上传失败: ' + result.message);
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-upload"></i> 上传';
+        alert('上传失败');
+    });
+}
+
+function memberDeleteFile(fileId, travelerId) {
+    if (!confirm('确定要删除此文件吗？')) return;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    fetch(`/projects/frequent_traveler/api/files/${fileId}/delete`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) memberLoadFiles(travelerId);
+        else alert('删除失败: ' + result.message);
+    })
+    .catch(() => alert('删除失败'));
+}
+
+function memberDownloadAllFiles() {
+    const travelerId = document.getElementById('memberFrequentId').value;
+    if (!travelerId) return;
+    window.open(`/projects/frequent_traveler/api/${travelerId}/files/download_all`, '_blank');
+}
+
+function memberPreviewImage(src, name) {
+    document.getElementById('memberPreviewTitle').textContent = name || '';
+    document.getElementById('memberPreviewImg').src = src;
+    document.getElementById('memberImagePreviewModal').style.display = 'block';
 }
 
 function saveMember() {
@@ -746,48 +958,103 @@ function saveMember() {
     }
     const memberId = document.getElementById('memberId').value;
     const memberName = document.getElementById('memberName').value.trim();
+    const mode = document.getElementById('memberMode').value;
+    const frequentId = document.getElementById('memberFrequentId').value;
 
     if (!memberName) {
         alert('请输入人员姓名');
         return;
     }
-    
+
+    // 将 DD-MM-YYYY 文本转为 ISO（YYYY-MM-DD）。空字符串 -> null；格式错误返回 false 阻止保存。
+    function pickDate(elemId, label) {
+        const raw = document.getElementById(elemId).value.trim();
+        if (!raw) return null;
+        const iso = ddmmyyyyToIso(raw);
+        if (!iso) {
+            alert(`${label} 格式不正确，请按 DD-MM-YYYY 输入，例如 25-12-2030`);
+            return false;
+        }
+        return iso;
+    }
+    const dobIso = pickDate('memberDob', '出生日期');
+    if (dobIso === false) return;
+    const expIso = pickDate('memberPassportExpiry', '护照有效期');
+    if (expIso === false) return;
+
+    // ProjectMember 提交数据：始终包含姓名+性别+称谓；常用模式下额外带护照/电话等快照
     const data = {
         title: document.getElementById('memberTitle').value,
         member_name: memberName,
+        gender: document.getElementById('memberGender').value,
         member_phone: document.getElementById('memberPhone').value.trim(),
         member_email: document.getElementById('memberEmail').value.trim(),
-        gender: document.getElementById('memberGender').value,
-        date_of_birth: document.getElementById('memberDob').value || null,
+        date_of_birth: dobIso,
         nationality: document.getElementById('memberNationality').value.trim(),
         id_type: document.getElementById('memberIdType').value,
         id_number: document.getElementById('memberIdNumber').value.trim(),
         passport_issuing_country: document.getElementById('memberPassportCountry').value.trim(),
-        passport_expiry_date: document.getElementById('memberPassportExpiry').value || null,
+        passport_expiry_date: expIso,
         remarks: document.getElementById('memberRemarks').value.trim(),
         airline_memberships: collectMemberMemberships()
     };
-    
-    const url = memberId 
+
+    const url = memberId
         ? `/projects/${window.headerId}/members/${memberId}`
         : `/projects/${window.headerId}/members`;
     const method = memberId ? 'PUT' : 'POST';
-    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || '';
+
     fetch(url, {
         method: method,
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || ''
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(result => {
-        if (result.success) {
+        if (!result.success) {
+            alert('操作失败: ' + result.message);
+            return;
+        }
+        // 编辑常用乘客时同步更新 FrequentTraveler 表
+        if (mode === 'frequent' && frequentId) {
+            const ftData = {
+                title: document.getElementById('memberTitle').value,
+                name: memberName,
+                gender: document.getElementById('memberGender').value,
+                phone: document.getElementById('memberPhone').value.trim(),
+                email: document.getElementById('memberEmail').value.trim(),
+                date_of_birth: dobIso,
+                nationality: document.getElementById('memberNationality').value.trim(),
+                passport_number: document.getElementById('memberIdNumber').value.trim(),
+                passport_issuing_country: document.getElementById('memberPassportCountry').value.trim(),
+                passport_expiry_date: expIso,
+                id_card_number: document.getElementById('memberIdCardNumber').value.trim(),
+                remarks: document.getElementById('memberRemarks').value.trim(),
+                airline_memberships: collectMemberMemberships()
+            };
+            fetch(`/projects/frequent_traveler/api/${frequentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(ftData)
+            })
+            .then(r => r.json())
+            .then(ftRes => {
+                if (!ftRes.success) {
+                    alert('项目人员已更新，但常用旅客同步失败: ' + ftRes.message);
+                }
+                closeMemberModal();
+                loadMembers();
+            })
+            .catch(err => {
+                console.error('同步常用旅客失败:', err);
+                alert('项目人员已更新，但常用旅客同步失败');
+                closeMemberModal();
+                loadMembers();
+            });
+        } else {
             closeMemberModal();
             loadMembers();
-        } else {
-            alert('操作失败: ' + result.message);
         }
     })
     .catch(error => {
@@ -842,6 +1109,7 @@ function searchFrequentTravelers(keyword) {
                          onclick='selectFrequentTraveler(${JSON.stringify(t).replace(/'/g, "&#39;")})'>
                         <div>
                             <strong>${t.title ? t.title + ' ' : ''}${t.name}</strong>
+                            ${t.traveler_code ? '<small class="text-muted ms-1" style="font-size:0.7rem;">#' + t.traveler_code + '</small>' : ''}
                         </div>
                         <div class="text-muted" style="font-size: 0.75rem;">
                             ${t.passport_number ? '<span class="me-2"><i class="fas fa-passport"></i> ' + t.passport_number + '</span>' : ''}
@@ -857,27 +1125,33 @@ function searchFrequentTravelers(keyword) {
 }
 
 function selectFrequentTraveler(t) {
-    // 用常用旅客信息填充表单
+    // 选取常用旅客 → 自动切换到"常用乘客"模式，显示完整字段；保存时同步回 FrequentTraveler
+    setMemberModalMode('frequent');
+    document.getElementById('memberFrequentId').value = t.id || '';
+    if (t.id) memberLoadFiles(t.id);
     document.getElementById('memberTitle').value = t.title || '';
     document.getElementById('memberName').value = t.name || '';
+    document.getElementById('memberGender').value = t.gender || '';
     document.getElementById('memberPhone').value = t.phone || '';
     document.getElementById('memberEmail').value = t.email || '';
-    document.getElementById('memberGender').value = t.gender || '';
-    document.getElementById('memberDob').value = t.date_of_birth || '';
+    document.getElementById('memberDob').value = isoToDdmmyyyy(t.date_of_birth);
     document.getElementById('memberNationality').value = t.nationality || '';
     document.getElementById('memberIdNumber').value = t.passport_number || '';
     document.getElementById('memberPassportCountry').value = t.passport_issuing_country || '';
-    document.getElementById('memberPassportExpiry').value = t.passport_expiry_date || '';
+    document.getElementById('memberPassportExpiry').value = isoToDdmmyyyy(t.passport_expiry_date);
+    document.getElementById('memberIdCardNumber').value = t.id_card_number || '';
     if (t.id_card_number) {
         document.getElementById('memberIdType').value = 'id_card';
         document.getElementById('memberIdTypeNumber').value = t.id_card_number;
     }
+    document.getElementById('memberRemarks').value = t.remarks || '';
 
     // 显示选中旅客摘要
     const infoDiv = document.getElementById('ftSelectedInfo');
     let infoHtml = `<div class="d-flex align-items-center gap-2" style="font-size:0.8rem;">
         <i class="fas fa-check-circle text-success"></i>
         <strong>${t.title ? t.title + ' ' : ''}${t.name}</strong>
+        ${t.traveler_code ? '<small class="text-muted">#' + t.traveler_code + '</small>' : ''}
         <span class="text-muted">已选中</span>
         <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto" onclick="clearSelectedTraveler()" style="font-size:0.75rem;">清除</button>
     </div>`;
@@ -907,6 +1181,27 @@ function clearSelectedTraveler() {
     document.getElementById('ftSelectedInfo').style.display = 'none';
     document.getElementById('memberMembershipList').innerHTML = '';
     document.getElementById('memberMembershipEmpty').style.display = '';
+    // 清除已加载的文件列表
+    const fl = document.getElementById('memberFilesList');
+    if (fl) fl.innerHTML = '';
+    const cnt = document.getElementById('memberFilesCountLabel');
+    if (cnt) cnt.textContent = '';
+    const dl = document.getElementById('memberDownloadAllBtn');
+    if (dl) dl.style.display = 'none';
+    // 清除常用旅客关联，回到普通乘客模式
+    document.getElementById('memberFrequentId').value = '';
+    document.getElementById('memberPhone').value = '';
+    document.getElementById('memberEmail').value = '';
+    document.getElementById('memberIdNumber').value = '';
+    document.getElementById('memberPassportCountry').value = '';
+    document.getElementById('memberPassportExpiry').value = '';
+    document.getElementById('memberNationality').value = '';
+    document.getElementById('memberDob').value = '';
+    document.getElementById('memberIdCardNumber').value = '';
+    document.getElementById('memberIdType').value = '';
+    document.getElementById('memberIdTypeNumber').value = '';
+    document.getElementById('memberRemarks').value = '';
+    setMemberModalMode('regular');
 }
 
 // ---- 人员航空会员管理 ----
@@ -1099,7 +1394,7 @@ function deleteMember(memberId, memberName) {
                         <i class="fas fa-user-friends"></i> 从常用旅客选取:
                     </label>
                     <input type="text" class="form-control form-control-sm" id="ftSearchInput"
-                           placeholder="输入姓名/电话/护照号搜索..." style="flex: 1;"
+                           placeholder="输入 编号(T0042) / 姓名 / 电话 / 护照号 搜索..." style="flex: 1;"
                            oninput="searchFrequentTravelers(this.value)">
                 </div>
                 <div id="ftSearchResults" style="display: none; max-height: 220px; overflow-y: auto; margin-top: 6px; border: 1px solid #e9ecef; border-radius: 6px; background: #fff;">
@@ -1111,118 +1406,173 @@ function deleteMember(memberId, memberName) {
 
             <form id="memberForm">
                 <input type="hidden" id="memberId">
+                <!-- 关联的常用旅客ID（编辑常用乘客时由后端返回；新增普通乘客为空） -->
+                <input type="hidden" id="memberFrequentId">
+                <!-- 当前模式：'regular' 普通乘客（仅名+性别）/ 'frequent' 常用乘客（含护照、会员等） -->
+                <input type="hidden" id="memberMode" value="regular">
 
-                <div class="row g-3">
-                    <!-- 左列：基本信息 + 证件 -->
-                    <div class="col-md-7">
-                        <div class="section-card">
-                            <div class="section-title"><i class="fas fa-user"></i> 基本信息</div>
-                            <div class="row g-2">
-                                <div class="col-4">
-                                    <label class="form-label">称谓</label>
-                                    <select class="form-select form-select-sm" id="memberTitle">
-                                        <option value="">-</option>
-                                        <option value="MR">MR</option>
-                                        <option value="MS">MS</option>
-                                        <option value="MISS">MISS</option>
-                                        <option value="MASTER">MASTER</option>
-                                    </select>
-                                </div>
-                                <div class="col-8">
-                                    <label class="form-label">姓名 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
-                                </div>
-                            </div>
-                            <div class="row g-2 mt-0">
-                                <div class="col-5">
-                                    <label class="form-label">联系电话</label>
-                                    <input type="text" class="form-control form-control-sm" id="memberPhone" placeholder="+65 ...">
-                                </div>
-                                <div class="col-7">
-                                    <label class="form-label">邮箱</label>
-                                    <input type="email" class="form-control form-control-sm" id="memberEmail" placeholder="email@example.com">
-                                </div>
-                            </div>
+                <div class="section-card">
+                    <div class="section-title">
+                        <i class="fas fa-user"></i>
+                        <span id="memberFormSectionTitle">普通乘客信息</span>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-3">
+                            <label class="form-label">称谓</label>
+                            <select class="form-select form-select-sm" id="memberTitle">
+                                <option value="">-</option>
+                                <option value="MR">MR</option>
+                                <option value="MS">MS</option>
+                                <option value="MISS">MISS</option>
+                                <option value="MASTER">MASTER</option>
+                            </select>
                         </div>
-
-                        <div class="section-card">
-                            <div class="section-title"><i class="fas fa-passport"></i> 护照 / 证件信息</div>
-                            <div class="row g-2">
-                                <div class="col-7">
-                                    <label class="form-label">护照号码</label>
-                                    <input type="text" class="form-control form-control-sm" id="memberIdNumber" placeholder="E12345678">
-                                </div>
-                                <div class="col-5">
-                                    <label class="form-label">签发国</label>
-                                    <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
-                                </div>
-                            </div>
-                            <div class="row g-2 mt-0">
-                                <div class="col-4">
-                                    <label class="form-label">护照有效期</label>
-                                    <input type="date" class="form-control form-control-sm" id="memberPassportExpiry">
-                                </div>
-                                <div class="col-4">
-                                    <label class="form-label">国籍</label>
-                                    <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
-                                </div>
-                                <div class="col-4">
-                                    <label class="form-label">出生日期</label>
-                                    <input type="date" class="form-control form-control-sm" id="memberDob">
-                                </div>
-                            </div>
-                            <div class="row g-2 mt-0">
-                                <div class="col-4">
-                                    <label class="form-label">性别</label>
-                                    <select class="form-select form-select-sm" id="memberGender">
-                                        <option value="">-</option>
-                                        <option value="male">男 Male</option>
-                                        <option value="female">女 Female</option>
-                                    </select>
-                                </div>
-                                <div class="col-8">
-                                    <label class="form-label">其他证件</label>
-                                    <div class="input-group input-group-sm">
-                                        <select class="form-select form-select-sm" id="memberIdType" style="max-width: 100px;">
-                                            <option value="">-</option>
-                                            <option value="passport">护照</option>
-                                            <option value="id_card">身份证</option>
-                                            <option value="other">其他</option>
-                                        </select>
-                                        <input type="text" class="form-control form-control-sm" id="memberIdTypeNumber" placeholder="证件号码">
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-6">
+                            <label class="form-label">姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label">性别</label>
+                            <select class="form-select form-select-sm" id="memberGender">
+                                <option value="">-</option>
+                                <option value="male">男 Male</option>
+                                <option value="female">女 Female</option>
+                            </select>
                         </div>
                     </div>
-
-                    <!-- 右列：航空会员 + 备注 -->
-                    <div class="col-md-5">
-                        <div class="section-card" id="memberMembershipCard">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <div class="section-title mb-0"><i class="fas fa-plane"></i> 航空会员</div>
-                                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="addMemberMembershipRow()" style="font-size: 0.75rem;">
-                                    <i class="fas fa-plus"></i> 添加
-                                </button>
-                            </div>
-                            <div id="memberMembershipList"></div>
-                            <div id="memberMembershipEmpty" class="text-center text-muted py-2" style="font-size: 0.78rem;">
-                                <i class="fas fa-info-circle"></i> 点击"添加"录入会员信息
-                            </div>
-                        </div>
-
-                        <div class="section-card">
-                            <div class="section-title"><i class="fas fa-comment-alt"></i> 备注</div>
-                            <textarea class="form-control form-control-sm" id="memberRemarks" rows="3" placeholder="备注信息"></textarea>
-                        </div>
+                    <div id="memberRegularHint" class="text-muted mt-2" style="font-size: 0.75rem;">
+                        <i class="fas fa-info-circle"></i> 普通乘客只需姓名和性别。如需保存护照、电话、会员等完整信息，请在保存后点击列表中的 <i class="far fa-star"></i> 转为常用乘客，或从上方"常用旅客"中搜索选取。
                     </div>
                 </div>
+
+                <!-- 常用乘客扩展信息：仅编辑常用乘客时显示 -->
+                <div id="memberFrequentDetails" style="display: none;">
+                    <div class="section-card">
+                        <div class="section-title"><i class="fas fa-passport"></i> 护照 / 联系方式</div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">护照号码</label>
+                                <input type="text" class="form-control form-control-sm" id="memberIdNumber" placeholder="E12345678">
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">签发国</label>
+                                <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">护照有效期</label>
+                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberPassportExpiry"
+                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
+                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 25-12-2030">
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-0">
+                            <div class="col-3">
+                                <label class="form-label">国籍</label>
+                                <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">出生日期</label>
+                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberDob"
+                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
+                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 15-01-1990">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">身份证号</label>
+                                <input type="text" class="form-control form-control-sm" id="memberIdCardNumber" placeholder="可留空">
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-0">
+                            <div class="col-5">
+                                <label class="form-label">联系电话</label>
+                                <input type="text" class="form-control form-control-sm" id="memberPhone" placeholder="+65 ...">
+                            </div>
+                            <div class="col-7">
+                                <label class="form-label">邮箱</label>
+                                <input type="email" class="form-control form-control-sm" id="memberEmail" placeholder="email@example.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div class="section-title mb-0"><i class="fas fa-plane"></i> 航空会员</div>
+                            <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="addMemberMembershipRow()" style="font-size: 0.75rem;">
+                                <i class="fas fa-plus"></i> 添加
+                            </button>
+                        </div>
+                        <div id="memberMembershipList"></div>
+                        <div id="memberMembershipEmpty" class="text-center text-muted py-2" style="font-size: 0.78rem;">
+                            <i class="fas fa-info-circle"></i> 点击"添加"录入航空公司会员账号
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-title"><i class="fas fa-comment-alt"></i> 备注</div>
+                        <textarea class="form-control form-control-sm" id="memberRemarks" rows="2" placeholder="备注信息"></textarea>
+                    </div>
+
+                    <!-- 资料上传：护照/IC/会员卡等 -->
+                    <div class="section-card">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="section-title mb-0"><i class="fas fa-folder-open"></i> 上传资料</div>
+                            <div>
+                                <small class="text-muted me-2" id="memberFilesCountLabel"></small>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="memberDownloadAllBtn"
+                                        style="font-size: 0.72rem; display: none;" onclick="memberDownloadAllFiles()">
+                                    <i class="fas fa-file-archive"></i> 打包下载
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-3">
+                                <label class="form-label">分类</label>
+                                <select class="form-select form-select-sm" id="memberUploadCategory">
+                                    <option value="passport">护照</option>
+                                    <option value="ic">IC/身份证</option>
+                                    <option value="membership_card">会员卡</option>
+                                    <option value="visa">签证页</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">说明</label>
+                                <input type="text" class="form-control form-control-sm" id="memberUploadDescription" placeholder="如：护照首页">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">选择文件 <small class="text-muted">(可多选)</small></label>
+                                <input type="file" class="form-control form-control-sm" id="memberUploadFileInput" multiple
+                                       accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx">
+                            </div>
+                            <div class="col-2">
+                                <button type="button" class="btn btn-sm btn-success w-100" onclick="memberUploadFile()" id="memberUploadBtn">
+                                    <i class="fas fa-upload"></i> 上传
+                                </button>
+                            </div>
+                        </div>
+                        <div id="memberFilesList" class="mt-2"></div>
+                    </div>
+                </div>
+                <!-- 隐藏占位：保留 selectFrequentTraveler 旧逻辑使用的字段（id_type/id_type_number），目前不在UI中 -->
+                <input type="hidden" id="memberIdType">
+                <input type="hidden" id="memberIdTypeNumber">
             </form>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary btn-sm" data-action="close-member-modal">取消</button>
             <button type="button" class="btn btn-primary btn-sm" data-action="save-member"><i class="fas fa-save me-1"></i>保存</button>
         </div>
+    </div>
+</div>
+
+<!-- 常用乘客资料图片预览 -->
+<div id="memberImagePreviewModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 1060; overflow-y: auto;"
+     onclick="if(event.target===this)this.style.display='none'">
+    <div style="max-width: 900px; margin: 30px auto; text-align: center;">
+        <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+            <span id="memberPreviewTitle" style="color: #fff; font-size: 0.9rem;"></span>
+            <span class="close" style="color: #fff; font-size: 28px; cursor: pointer;" onclick="document.getElementById('memberImagePreviewModal').style.display='none'">&times;</span>
+        </div>
+        <img id="memberPreviewImg" src="" style="max-width: 100%; max-height: 80vh; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
     </div>
 </div>
 

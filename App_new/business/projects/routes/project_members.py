@@ -18,19 +18,25 @@ def get_members(project_id):
         header = ProjectHeader.query.get_or_404(project_id)
         members = ProjectMember.query.filter_by(header_id=project_id).order_by(ProjectMember.id).all()
 
-        # 批量查询哪些姓名已在常用旅客中
+        # 批量查询哪些姓名已在常用旅客中（同时返回ID供前端拉取完整信息）
         names = [m.member_name for m in members if m.member_name]
-        frequent_names = set()
+        frequent_id_by_name = {}
         if names:
-            rows = FrequentTraveler.query.with_entities(FrequentTraveler.name).filter(
-                FrequentTraveler.name.in_(names)
-            ).all()
-            frequent_names = {r.name for r in rows}
+            rows = FrequentTraveler.query.with_entities(
+                FrequentTraveler.id, FrequentTraveler.name
+            ).filter(FrequentTraveler.name.in_(names)).all()
+            # 同名时取ID最小的（最早创建的）作为主匹配
+            for tid, tname in rows:
+                if tname not in frequent_id_by_name or tid < frequent_id_by_name[tname]:
+                    frequent_id_by_name[tname] = tid
 
         result = []
         for m in members:
             d = m.to_dict()
-            d['is_frequent'] = m.member_name in frequent_names
+            d['is_frequent'] = m.member_name in frequent_id_by_name
+            ft_id = frequent_id_by_name.get(m.member_name)
+            d['frequent_traveler_id'] = ft_id
+            d['frequent_traveler_code'] = f'T{ft_id:04d}' if ft_id else None
             result.append(d)
 
         return jsonify({

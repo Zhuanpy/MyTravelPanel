@@ -117,13 +117,22 @@ def api_list():
 
 @frequent_traveler_bp.route('/api/search', methods=['GET'])
 def api_search():
-    """搜索常用旅客（供项目人员选取用，轻量接口）"""
+    """搜索常用旅客（供项目人员选取用，轻量接口）。
+    支持按编号查询：输入 T0042 / t42 / 42 都会匹配 id=42。
+    """
+    import re
     keyword = request.args.get('q', '').strip()
     if not keyword:
         return jsonify({'success': True, 'data': []})
 
+    # 解析编号：T 前缀+数字 或 纯数字
+    code_match = re.match(r'^[Tt]?(\d{1,9})$', keyword)
+    by_id = None
+    if code_match:
+        by_id = FrequentTraveler.query.get(int(code_match.group(1)))
+
     like = f'%{keyword}%'
-    travelers = FrequentTraveler.query.filter(
+    text_results = FrequentTraveler.query.filter(
         db.or_(
             FrequentTraveler.name.ilike(like),
             FrequentTraveler.name_en.ilike(like),
@@ -131,6 +140,17 @@ def api_search():
             FrequentTraveler.passport_number.ilike(like),
         )
     ).order_by(FrequentTraveler.name).limit(20).all()
+
+    # 按编号命中的优先放最前，并去重
+    travelers = []
+    seen_ids = set()
+    if by_id:
+        travelers.append(by_id)
+        seen_ids.add(by_id.id)
+    for t in text_results:
+        if t.id not in seen_ids:
+            travelers.append(t)
+            seen_ids.add(t.id)
 
     return jsonify({
         'success': True,

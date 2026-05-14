@@ -54,6 +54,11 @@ class FrequentTraveler(db.Model):
     def __repr__(self):
         return f'<FrequentTraveler {self.name}>'
 
+    @property
+    def traveler_code(self):
+        """对外展示的旅客编号，由主键 id 派生（T0001、T0002…），用于区分同名客户。"""
+        return f'T{self.id:04d}' if self.id else ''
+
     def to_dict(self):
         import json
         memberships = []
@@ -65,6 +70,7 @@ class FrequentTraveler(db.Model):
 
         return {
             'id': self.id,
+            'traveler_code': self.traveler_code,
             'title': self.title,
             'name': self.name,
             'name_en': self.name_en,
