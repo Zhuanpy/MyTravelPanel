@@ -45,26 +45,32 @@
                     <span style="font-size: 1.1rem; font-weight: 700; color: #198754; white-space: nowrap;">{{ header.hid }}</span>
                     <span style="font-size: 0.8rem; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ header.display_desc }}">{{ header.display_desc }}</span>
                 </div>
-                <!-- 右侧：导航按钮 -->
-                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                <!-- 右侧：导航按钮（彩色，含目标订单号） -->
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
                     {% if prev_header %}
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}" 
-                       class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="{{ prev_header.hid }}">
-                        <i class="fas fa-chevron-left"></i>
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=prev_header.id) }}"
+                       class="btn btn-primary" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
+                       title="上一个订单 ← 快捷键">
+                        <i class="fas fa-chevron-left me-1"></i> 上一个
+                        <small style="opacity: 0.85; margin-left: 4px;">{{ prev_header.hid }}</small>
                     </a>
                     {% else %}
-                    <button class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" disabled>
-                        <i class="fas fa-chevron-left"></i>
+                    <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; opacity: 0.5;" disabled
+                            title="已是第一个订单">
+                        <i class="fas fa-chevron-left me-1"></i> 上一个
                     </button>
                     {% endif %}
                     {% if next_header %}
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}" 
-                       class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" title="{{ next_header.hid }}">
-                        <i class="fas fa-chevron-right"></i>
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=next_header.id) }}"
+                       class="btn btn-success" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
+                       title="下一个订单 → 快捷键">
+                        <small style="opacity: 0.85; margin-right: 4px;">{{ next_header.hid }}</small>
+                        下一个 <i class="fas fa-chevron-right ms-1"></i>
                     </a>
                     {% else %}
-                    <button class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" disabled>
-                        <i class="fas fa-chevron-right"></i>
+                    <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; opacity: 0.5;" disabled
+                            title="已是最后一个订单">
+                        下一个 <i class="fas fa-chevron-right ms-1"></i>
                     </button>
                     {% endif %}
                 </div>
@@ -141,9 +147,10 @@
                       <table class="table table-sm table-hover mb-0" id="members-table" style="font-size: 0.8rem;">
                           <thead style="position: sticky; top: 0; background: white;">
                               <tr>
-                                  <th style="padding: 4px 6px;">姓名</th>
+                                  <th style="padding: 4px 14px; text-align: left; white-space: nowrap;" title="常用旅客编号">编号</th>
+                                  <th style="padding: 4px 6px; width: 100%;">姓名</th>
                                   {% if not header.is_settled %}
-                                  <th style="padding: 4px 6px; text-align: center;" title="操作">操作</th>
+                                  <th style="padding: 4px 10px; text-align: left; white-space: nowrap;" title="操作">操作</th>
                                   {% endif %}
                               </tr>
                           </thead>
@@ -631,13 +638,16 @@ function renderMembers(members) {
     tbody.innerHTML = sortedMembers.map(m => {
         return `
         <tr data-member-id="${m.id}" style="cursor: ${showActions ? 'pointer' : 'default'};${m.is_leader ? ' background-color: #d4edda;' : ''}" ${showActions ? `onclick="editMember(${m.id})"` : ''}>
+            <td style="padding: 4px 14px; white-space: nowrap;">
+                ${m.frequent_traveler_code ? '<span class="text-muted" style="font-size: 0.7rem; font-family: monospace;">' + m.frequent_traveler_code + '</span>' : '<span class="text-muted" style="font-size: 0.7rem;">-</span>'}
+            </td>
             <td style="padding: 4px 6px;">
-                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}${m.frequent_traveler_code ? ' (' + m.frequent_traveler_code + ')' : ''}">
-                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.frequent_traveler_code ? ' <small class="text-muted" style="font-size: 0.65rem;">#' + m.frequent_traveler_code + '</small>' : ''}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
+                <span title="${m.title ? m.title + ' ' : ''}${m.member_name}">
+                    ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
                 </span>
             </td>
             ${showActions ? `
-            <td style="padding: 4px 6px; text-align: right; white-space: nowrap;">
+            <td style="padding: 4px 10px; text-align: left; white-space: nowrap;">
                 <div style="display: inline-flex; gap: 3px; align-items: center; flex-wrap: nowrap;">
                 ${m.is_leader
                     ? `<span class="btn btn-sm btn-primary py-0 px-1" title="当前 Leader" style="font-size: 0.68rem; cursor: default; pointer-events: none;">

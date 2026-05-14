@@ -107,27 +107,29 @@
                 <i class="fas fa-file-invoice text-primary"></i>
                 发票 <strong>{{ invoice.invoice_number }}</strong>
             </h4>
-            <div class="btn-group btn-group-sm" role="group" aria-label="发票导航">
+            <div class="d-flex align-items-center gap-2" aria-label="发票导航">
                 {% if prev_invoice %}
                 <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=prev_invoice.id) }}"
-                   class="btn btn-outline-primary"
+                   class="btn btn-primary" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
                    title="上一个发票：{{ prev_invoice.invoice_number }}">
-                    <i class="fas fa-chevron-left"></i> 上一个
+                    <i class="fas fa-chevron-left me-1"></i> 上一个
+                    <small style="opacity: 0.85; margin-left: 4px;">{{ prev_invoice.invoice_number }}</small>
                 </a>
                 {% else %}
-                <button class="btn btn-outline-secondary" disabled title="已是第一个发票">
-                    <i class="fas fa-chevron-left"></i> 上一个
+                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; opacity: 0.5;" disabled title="已是第一个发票">
+                    <i class="fas fa-chevron-left me-1"></i> 上一个
                 </button>
                 {% endif %}
                 {% if next_invoice %}
                 <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=next_invoice.id) }}"
-                   class="btn btn-outline-primary"
+                   class="btn btn-success" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"
                    title="下一个发票：{{ next_invoice.invoice_number }}">
-                    下一个 <i class="fas fa-chevron-right"></i>
+                    <small style="opacity: 0.85; margin-right: 4px;">{{ next_invoice.invoice_number }}</small>
+                    下一个 <i class="fas fa-chevron-right ms-1"></i>
                 </a>
                 {% else %}
-                <button class="btn btn-outline-secondary" disabled title="已是最后一个发票">
-                    下一个 <i class="fas fa-chevron-right"></i>
+                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.85rem; font-weight: 500; opacity: 0.5;" disabled title="已是最后一个发票">
+                    下一个 <i class="fas fa-chevron-right ms-1"></i>
                 </button>
                 {% endif %}
             </div>
