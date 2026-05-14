@@ -1342,8 +1342,14 @@ def _expedia_get_content_segments(page):
     redact_rects = []
     rewrite_items = []
 
-    # 找关键段落的 y 位置
-    section_starts = {}
+    # 找关键段落所有出现的 y 位置（多人订单同一 label 会出现多次）
+    LABEL_KEYS = ["Location", "Airline rules and restrictions",
+                  "Traveller info", "Ticket number",
+                  "Email address", "Phone number", "Preferences",
+                  "Payment details", "Your One Key rewards",
+                  "Expedia support"]
+    section_positions = {k: [] for k in LABEL_KEYS}
+    please_contact_ys = []  # "Please contact airline..." 行底部 Y，用作 Preferences 块结束界
     for b in blocks:
         if b["type"] != 0:
             continue
@@ -1351,13 +1357,33 @@ def _expedia_get_content_segments(page):
             for span in line["spans"]:
                 txt = span["text"].strip()
                 bbox = span["bbox"]
-                for key in ["Location", "Airline rules and restrictions",
-                            "Traveller info",
-                            "Email address", "Phone number", "Preferences",
-                            "Payment details", "Your One Key rewards",
-                            "Expedia support"]:
-                    if txt == key:
-                        section_starts[key] = bbox[1]
+                if txt in section_positions:
+                    section_positions[txt].append(bbox[1])
+                if "Please contact airline" in txt:
+                    please_contact_ys.append(bbox[3])
+    for k in section_positions:
+        section_positions[k].sort()
+    please_contact_ys.sort()
+
+    def _first_after(ys, after_y):
+        for y in ys:
+            if y > after_y:
+                return y
+        return None
+
+    def _first_label_y_after(after_y, exclude_keys=()):
+        """所有 label 中 > after_y 的最小 Y（用于确定 PII 段下边界）"""
+        best = None
+        for k, ys in section_positions.items():
+            if k in exclude_keys:
+                continue
+            y = _first_after(ys, after_y)
+            if y is not None and (best is None or y < best):
+                best = y
+        return best
+
+    # 兼容旧逻辑：单值 dict（取首次出现）
+    section_starts = {k: ys[0] for k, ys in section_positions.items() if ys}
 
     # Expedia header 图片
     first_text_y = 999
@@ -1431,47 +1457,76 @@ def _expedia_get_content_segments(page):
         redact_rects.append(fitz.Rect(0, loc_y, pw, ph))
         remove_regions.append((loc_y, ph))
 
-    # Airline rules and restrictions
-    if "Airline rules and restrictions" in section_starts:
-        y = section_starts["Airline rules and restrictions"] - 10
+    # Airline rules and restrictions（多页时只在该页有该 label 才处理；下边界用首次出现的 Traveller info）
+    for ar_y_raw in section_positions["Airline rules and restrictions"]:
+        y = ar_y_raw - 10
         next_y = ph
-        if "Traveller info" in section_starts and section_starts["Traveller info"] > y:
-            next_y = section_starts["Traveller info"] - 10
+        ti_y = _first_after(section_positions["Traveller info"], y)
+        if ti_y is not None:
+            next_y = ti_y - 10
         redact_rects.append(fitz.Rect(0, y, pw, next_y))
         remove_regions.append((y, next_y))
 
-    # Email address 段
-    if "Email address" in section_starts:
-        ea_y = section_starts["Email address"] - 4
-        next_y = ph
-        for key in ["Phone number", "Preferences", "Payment details"]:
-            if key in section_starts and section_starts[key] > ea_y:
-                next_y = min(next_y, section_starts[key] - 4)
-                break
-        redact_rects.append(fitz.Rect(0, ea_y, pw, next_y))
-        remove_regions.append((ea_y, next_y))
+    # 一次性收集所有非空 span bbox，给「上方溢出检测」复用
+    all_text_bboxes = []
+    for _b in blocks:
+        if _b["type"] != 0:
+            continue
+        for _ln in _b["lines"]:
+            for _sp in _ln["spans"]:
+                if _sp["text"].strip():
+                    all_text_bboxes.append(_sp["bbox"])
+
+    def _collect_block_spans(start_y, end_y):
+        """收集 top y 在 [start_y, end_y) 范围内的所有非空 span bbox。"""
+        return [bb for bb in all_text_bboxes if start_y <= bb[1] < end_y]
+
+    def _safe_redact_top(span_bbox):
+        """如果有上方 span 的 bbox 越界压到当前 span 的顶部（源 PDF 排版重叠），
+        把 redact rect 的顶部下移到上方 span 的底下，避免吃掉上面那行文本。"""
+        adjusted = span_bbox[1]
+        for ob in all_text_bboxes:
+            if ob[1] < span_bbox[1] and ob[3] > adjusted and not (ob[2] <= span_bbox[0] or ob[0] >= span_bbox[2]):
+                adjusted = ob[3] + 0.1
+        return adjusted
+
+    def _surgical_redact(start_y_raw, end_y, side_pad=1.0):
+        """逐 span 添加 redact 矩形（避免吃到上方溢出 bbox 的相邻文本，例如机票号尾巴压到下一段标题），并返回该块的 (top, bottom) 用于布局。"""
+        spans = _collect_block_spans(start_y_raw, end_y)
+        if not spans:
+            return None
+        for bb in spans:
+            top = _safe_redact_top(bb)
+            redact_rects.append(fitz.Rect(bb[0] - side_pad, top, bb[2] + side_pad, bb[3] + 0.5))
+        return (min(s[1] for s in spans), max(s[3] for s in spans))
+
+    # Email address 段：逐个处理每位旅客的邮箱（下边界 = 紧随其后的任意 label）
+    for ea_y_raw in section_positions["Email address"]:
+        end = _first_label_y_after(ea_y_raw + 1)
+        end = (end - 1) if end is not None else ph
+        rng = _surgical_redact(ea_y_raw, end)
+        if rng:
+            remove_regions.append(rng)
 
     # Phone number 段
-    if "Phone number" in section_starts:
-        pn_y = section_starts["Phone number"] - 4
-        next_y = ph
-        for key in ["Preferences", "Payment details"]:
-            if key in section_starts and section_starts[key] > pn_y:
-                next_y = min(next_y, section_starts[key] - 4)
-                break
-        redact_rects.append(fitz.Rect(0, pn_y, pw, next_y))
-        remove_regions.append((pn_y, next_y))
+    for pn_y_raw in section_positions["Phone number"]:
+        end = _first_label_y_after(pn_y_raw + 1)
+        end = (end - 1) if end is not None else ph
+        rng = _surgical_redact(pn_y_raw, end)
+        if rng:
+            remove_regions.append(rng)
 
-    # Preferences 段
-    if "Preferences" in section_starts:
-        pr_y = section_starts["Preferences"] - 4
-        next_y = ph
-        for key in ["Payment details"]:
-            if key in section_starts and section_starts[key] > pr_y:
-                next_y = min(next_y, section_starts[key] - 4)
-                break
-        redact_rects.append(fitz.Rect(0, pr_y, pw, next_y))
-        remove_regions.append((pr_y, next_y))
+    # Preferences 段：以最近一行 "Please contact airline..." 作为块结束界（无该行则降级用下一个 label）
+    for pr_y_raw in section_positions["Preferences"]:
+        pc_end = _first_after(please_contact_ys, pr_y_raw)
+        if pc_end is not None:
+            end = pc_end + 1
+        else:
+            label_end = _first_label_y_after(pr_y_raw + 1)
+            end = (label_end - 1) if label_end is not None else ph
+        rng = _surgical_redact(pr_y_raw, end)
+        if rng:
+            remove_regions.append(rng)
 
     # Payment details 及之后
     if "Payment details" in section_starts:
