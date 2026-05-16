@@ -76,14 +76,19 @@
 
     /* 头部信息条 */
     .header-info-bar {
-        background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-        color: white;
-        padding: 0.75rem 1.25rem;
-        border-radius: 6px;
+        background: #ffffff;
+        color: #1e293b;
+        padding: 0.85rem 1.25rem;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #10b981;
+        border-radius: 8px;
         margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    .header-info-bar .package-name { font-size: 1.1rem; font-weight: 600; }
-    .header-info-bar .badge { background: rgba(255,255,255,0.25); font-size: 0.7rem; }
+    .header-info-bar .package-name { font-size: 1.1rem; font-weight: 600; color: #0f172a; }
+    .header-info-bar .badge { background: #d1fae5; color: #065f46; font-size: 0.7rem; }
+    .header-info-bar a.text-white { color: #059669 !important; }
+    .header-info-bar .opacity-75 { color: #64748b; }
 
     /* 快速统计 */
     .quick-stats {
@@ -94,11 +99,11 @@
     .quick-stat {
         text-align: center;
         padding: 0 1rem;
-        border-right: 1px solid rgba(255,255,255,0.3);
+        border-right: 1px solid #e5e7eb;
     }
     .quick-stat:last-child { border-right: none; }
-    .quick-stat-value { font-size: 1.5rem; font-weight: 700; }
-    .quick-stat-label { font-size: 0.75rem; opacity: 0.9; }
+    .quick-stat-value { font-size: 1.5rem; font-weight: 700; color: #059669; }
+    .quick-stat-label { font-size: 0.75rem; color: #64748b; }
 
     /* 打印样式 */
     @media print {
@@ -157,16 +162,16 @@
                 {% endif %}
             </div>
             <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-light btn-sm">
+                <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-outline-success btn-sm">
                     <i class="fas fa-edit"></i> 编辑
                 </a>
-                <button onclick="window.print()" class="btn btn-light btn-sm">
+                <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-print"></i>
                 </button>
-                <a href="{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}" class="btn btn-light btn-sm">
+                <a href="{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-download"></i>
                 </a>
-                <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-light btn-sm">
+                <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-arrow-left"></i>
                 </a>
             </div>
@@ -336,7 +341,7 @@
                             {% if business_types %}
                             <select class="form-select form-select-sm" name="category" required>
                                 {% for bt in business_types %}
-                                <option value="{{ bt.name }}">{{ bt.name }}</option>
+                                <option value="{{ bt.name }}">{{ bt.name_en or bt.name }}{% if bt.name_en and bt.name_en != bt.name %} ({{ bt.name }}){% endif %}</option>
                                 {% endfor %}
                             </select>
                             {% else %}

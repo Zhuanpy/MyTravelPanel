@@ -826,6 +826,106 @@ def parse_format_manual(text, year=None):
     return flights
 
 
+def parse_format_sq_itinerary(text, year=None):
+    """解析新加坡航空 / Google 风格"展开详情"行程（支持转机多航段）
+
+    特征（每一程 leg，在 "More details" … "Less details" 详情区内）：
+        SIN 01:20            <- 出发：IATA + 时间
+        Singapore            <- 城市
+        31 Jul (Fri)         <- 日期 DD Mon (Day)
+        Changi               <- 机场名
+        Terminal 2           <- 航站楼（可选）
+        FUK 08:20            <- 到达：IATA + 时间
+        Fukuoka
+        31 Jul (Fri)
+        Fukuoka Intl
+        Terminal Intl
+        Singapore Airlines airline logo, flight detail   <- 可有可无
+        Singapore Airlines
+        •
+        SQ 656               <- 航班号（承运/市场号，取此行）
+        Boeing 787-10        <- 机型
+        Economy              <- 舱位
+
+    转机：详情区里连续多段 leg 依次出现，每段独立成航段。
+    "Operated by XXX" 代码共享时仍取 • 后那行的航班号（市场号）。
+    """
+    if year is None:
+        year = datetime.now().year
+
+    # 只解析"展开详情"区，避开摘要区（摘要区航班号是合并列出的，且只有总O/D）
+    detail_blocks = re.findall(r'More details(.*?)Less details', text, re.DOTALL)
+    if not detail_blocks:
+        return []
+
+    anchor_re = re.compile(r'^([A-Z]{3})\s+(\d{1,2}:\d{2})$')
+    date_re = re.compile(r'^(\d{1,2})\s+([A-Za-z]{3,9})\s+\([A-Za-z]{2,9}\)$')
+    code_re = re.compile(r'^([A-Z0-9]{2})\s*(\d{1,4})$')
+
+    flights = []
+
+    for block in detail_blocks:
+        lines = [l.strip() for l in block.split('\n') if l.strip()]
+
+        # 收集 IATA+时间 锚点（详情区里依次为 leg1出发, leg1到达, leg2出发, ...）
+        anchors = [(i, m.group(1), m.group(2))
+                   for i, l in enumerate(lines)
+                   for m in [anchor_re.match(l)] if m]
+
+        # 成对配对：(出发, 到达)
+        k = 0
+        while k + 1 < len(anchors):
+            dep_i, dep_code, dep_t = anchors[k]
+            arr_i, arr_code, arr_t = anchors[k + 1]
+            # 下一段出发锚点的位置，作为本段搜索航班号的右边界
+            next_dep_i = anchors[k + 2][0] if k + 2 < len(anchors) else len(lines)
+
+            def _find_date(start, end):
+                for j in range(start, min(end, len(lines))):
+                    dm = date_re.match(lines[j])
+                    if dm:
+                        try:
+                            return datetime.strptime(
+                                f"{dm.group(1)} {dm.group(2)[:3]} {year}", "%d %b %Y")
+                        except ValueError:
+                            return None
+                return None
+
+            dep_dt = _find_date(dep_i + 1, arr_i)
+            arr_dt = _find_date(arr_i + 1, next_dep_i)
+
+            # 航班号：到达块之后第一个 "•" 行的下一行
+            airline = number = None
+            for j in range(arr_i + 1, min(next_dep_i, len(lines))):
+                if lines[j] == '•' or lines[j].startswith('•'):
+                    if j + 1 < len(lines):
+                        cm = code_re.match(lines[j + 1].strip())
+                        if cm:
+                            airline, number = cm.group(1), cm.group(2)
+                    break
+
+            if not (airline and number and dep_dt):
+                k += 2
+                continue
+
+            next_day = bool(arr_dt and arr_dt.date() > dep_dt.date())
+
+            flights.append({
+                "airline": airline,
+                "number": number,
+                "dep_code": dep_code,
+                "arr_code": arr_code,
+                "dep_time": dep_t.replace(":", "").zfill(4),
+                "arr_time": arr_t.replace(":", "").zfill(4),
+                "dep_date": dep_dt.strftime("%d%b").upper(),
+                "dep_day": DAY_ABBR[dep_dt.weekday()],
+                "next_day": next_day,
+            })
+            k += 2
+
+    return flights
+
+
 def resolve_airport_codes(flights, lookup_fn):
     """将航班中的城市/机场名称解析为IATA代码
 
@@ -885,6 +985,7 @@ def parse_flights(text):
 
     # 依次尝试各种格式（手动格式放最后，因为匹配比较宽松）
     for parser, name in [
+        (parse_format_sq_itinerary, "新加坡航空/转机详情"),
         (parse_format_trip, "Trip.com"),
         (parse_format_ctrip, "Ctrip/携程"),
         (parse_format_ctrip_order, "Ctrip/携程(订单)"),

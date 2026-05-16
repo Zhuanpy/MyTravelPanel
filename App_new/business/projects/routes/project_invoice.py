@@ -1022,6 +1022,7 @@ def invoice_list():
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
         company_id = request.args.get('company_id', None, type=int)
+        contact = request.args.get('contact', '').strip()  # 项目联系人
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
@@ -1053,6 +1054,9 @@ def invoice_list():
         # 公司筛选
         if company_id:
             filters.append(ProjectHeader.company_id == company_id)
+        # 联系人筛选
+        if contact:
+            filters.append(ProjectHeader.contact == contact)
         if payment_status:
             filters.append(ProjectInvoice.payment_status == payment_status)
             # 兜底：unpaid 时排除零额壳子发票（amount=0 不应该出现在"待收款"清单里，
@@ -1230,6 +1234,13 @@ def invoice_list():
         # 获取公司列表（按名称排序）
         companies = CustomerCompany.query.order_by(func.lower(CustomerCompany.company_name)).all()
 
+        # 获取联系人列表（去重，按名称排序）
+        contact_rows = db.session.query(ProjectHeader.contact).filter(
+            ProjectHeader.contact.isnot(None),
+            ProjectHeader.contact != ''
+        ).distinct().order_by(ProjectHeader.contact).all()
+        contacts = [row[0] for row in contact_rows if row[0]]
+
         # 获取所有已使用的标签
         all_tags_rows = db.session.query(ProjectInvoice.tags).filter(
             ProjectInvoice.tags.isnot(None),
@@ -1253,6 +1264,7 @@ def invoice_list():
                              payment_statuses=payment_statuses,
                              invoice_types=invoice_types,
                              companies=companies,
+                             contacts=contacts,
                              all_tags=all_tags,
                              summary=summary,
                              current_filters={
@@ -1261,6 +1273,7 @@ def invoice_list():
                                  'invoice_type': invoice_type,
                                  'currency': currency,
                                  'company_id': company_id,
+                                 'contact': contact,
                                  'date_range': date_range,
                                  'start_date': start_date,
                                  'end_date': end_date,
@@ -1300,6 +1313,7 @@ def invoice_list_all_ids():
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
         company_id = request.args.get('company_id', None, type=int)
+        contact = request.args.get('contact', '').strip()
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
@@ -1323,6 +1337,8 @@ def invoice_list_all_ids():
             filters.append(ProjectInvoice.status == status)
         if company_id:
             filters.append(ProjectHeader.company_id == company_id)
+        if contact:
+            filters.append(ProjectHeader.contact == contact)
         if payment_status:
             filters.append(ProjectInvoice.payment_status == payment_status)
         if invoice_type:

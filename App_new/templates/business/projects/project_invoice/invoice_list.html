@@ -196,6 +196,15 @@
                     </select>
                 </div>
                 <div class="col-auto">
+                    <input list="contactOptions" name="contact" class="form-control form-control-sm" style="width: 150px;"
+                           value="{{ current_filters.contact or '' }}" placeholder="联系人" title="项目联系人（可输入或选择）" autocomplete="off">
+                    <datalist id="contactOptions">
+                        {% for c in contacts %}
+                        <option value="{{ c }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-auto">
                     <select name="payment_status" class="form-select form-select-sm" style="width: 110px;" title="付款状态">
                         {% for value, label in payment_statuses %}
                         <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
@@ -344,7 +353,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&month={{ current_filters.month or '' }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&tag={{ current_filters.tag or '' }}">
+                        <a class="page-link" href="?page={{ pagination.prev_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&month={{ current_filters.month or '' }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&contact={{ current_filters.contact or '' }}&tag={{ current_filters.tag or '' }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -355,7 +364,7 @@
                         <li class="page-item active"><span class="page-link">{{ p }}</span></li>
                         {% elif p == 1 or p == pagination.pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ p }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&month={{ current_filters.month or '' }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&tag={{ current_filters.tag or '' }}">{{ p }}</a>
+                            <a class="page-link" href="?page={{ p }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&month={{ current_filters.month or '' }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&contact={{ current_filters.contact or '' }}&tag={{ current_filters.tag or '' }}">{{ p }}</a>
                         </li>
                         {% elif p == 2 or p == pagination.pages - 1 %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -364,7 +373,7 @@
 
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&month={{ current_filters.month or '' }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&tag={{ current_filters.tag or '' }}">
+                        <a class="page-link" href="?page={{ pagination.next_num }}&status={{ current_filters.status }}&payment_status={{ current_filters.payment_status }}&keyword={{ current_filters.keyword }}&month={{ current_filters.month or '' }}&start_date={{ current_filters.start_date }}&end_date={{ current_filters.end_date }}&company_id={{ current_filters.company_id or '' }}&contact={{ current_filters.contact or '' }}&tag={{ current_filters.tag or '' }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

@@ -15,28 +15,36 @@
     /* 信息卡片样式 */
     .info-card {
         background: #f8fafc;
-        border-radius: 12px;
-        padding: 1rem 1.25rem;
+        border-radius: 6px;
+        padding: 0.4rem 0.65rem;
         border: 1px solid #e2e8f0;
         transition: all 0.2s ease;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        min-width: 0;
     }
     .info-card:hover {
         background: #f1f5f9;
         border-color: #cbd5e1;
     }
     .info-card h6 {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: #64748b;
-        margin: 0 0 0.25rem 0;
+        margin: 0;
         font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .info-card p {
-        font-size: 0.95rem;
+        font-size: 0.8rem;
         color: #1e293b;
         margin: 0;
         font-weight: 500;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     /* 团卡片样式 */
@@ -172,7 +180,7 @@
                     <i class="fas fa-edit"></i> 编辑项目
                 </button>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                     <div class="info-card">
                         <h6>项目名称</h6>
                         <p>{{ project.project_name }}</p>
@@ -190,27 +198,11 @@
                         </p>
                     </div>
                     <div class="info-card">
-                        <h6>项目状态</h6>
-                        <p>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
-                                {% if project.project_status == '进行中' or project.project_status == '处理中' %}bg-green-100 text-green-800
-                                {% elif project.project_status == '已完成' %}bg-blue-100 text-blue-800
-                                {% elif project.project_status == '已取消' or project.project_status == '忽略单' %}bg-red-100 text-red-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ project.project_status or '未设置' }}
-                            </span>
-                        </p>
-                    </div>
-                    <div class="info-card">
                         <h6>联系人</h6>
-                        <p style="{% if not project.contact_person %}color: #94a3b8; font-style: italic;{% endif %}">
-                            {{ project.contact_person or '未设置' }}
-                        </p>
-                    </div>
-                    <div class="info-card">
-                        <h6>联系方式</h6>
-                        <p style="{% if not project.contact_info %}color: #94a3b8; font-style: italic;{% endif %}">
-                            {{ project.contact_info or '未设置' }}
+                        <p style="{% if not project.contact_person and not project.contact_info %}color: #94a3b8; font-style: italic;{% endif %}">
+                            {% if project.contact_person or project.contact_info %}
+                                {{ project.contact_person or '' }}{% if project.contact_person and project.contact_info %} · {% endif %}{{ project.contact_info or '' }}
+                            {% else %}未设置{% endif %}
                         </p>
                     </div>
                     <div class="info-card">
@@ -222,10 +214,6 @@
                                 未设置
                             {% endif %}
                         </p>
-                    </div>
-                    <div class="info-card">
-                        <h6>创建时间</h6>
-                        <p>{{ project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else '未知' }}</p>
                     </div>
                 </div>
                 {% if project.remarks %}
@@ -249,22 +237,29 @@
                             <i class="fas fa-edit"></i> 编辑团队
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
+                        {% if group.title and group.title != project.project_name %}
                         <div class="info-card">
                             <h6>团队名称</h6>
-                            <p class="font-medium">{{ group.title or project.project_name }}</p>
+                            <p class="font-medium">{{ group.title }}</p>
                         </div>
+                        {% endif %}
                         <div class="info-card">
-                            <h6>出发日期</h6>
-                            <p class="text-blue-600 font-medium">{{ group.departure_date.strftime('%Y-%m-%d') }}</p>
-                        </div>
-                        <div class="info-card">
-                            <h6>返回日期</h6>
-                            <p class="text-blue-600 font-medium">{{ group.return_date.strftime('%Y-%m-%d') }}</p>
+                            <h6>行程日期</h6>
+                            <p class="text-blue-600 font-medium">
+                                {{ group.departure_date.strftime('%Y-%m-%d') }} ~ {{ group.return_date.strftime('%Y-%m-%d') }}
+                                <span class="text-gray-500 font-normal">（{{ (group.return_date - group.departure_date).days + 1 }}天）</span>
+                            </p>
                         </div>
                         <div class="info-card">
                             <h6>人数</h6>
-                            <p><i class="fas fa-user text-green-500 mr-1"></i> {{ group.pax }}人</p>
+                            <p><i class="fas fa-user text-green-500 mr-1"></i>
+                                {% if group.adult_count is not none or group.child_count is not none %}
+                                大人 {{ group.adult_count or 0 }} · 小孩 {{ group.child_count or 0 }} · 共 {{ group.pax }}人
+                                {% else %}
+                                {{ group.pax }}人 <span class="text-gray-400">(未拆分)</span>
+                                {% endif %}
+                            </p>
                         </div>
                         <div class="info-card">
                             <h6>团编号</h6>
@@ -287,7 +282,7 @@
                         <div class="info-card">
                             <h6>团状态</h6>
                             <p>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                                     {% if group.group_status == '进行中' %}bg-green-100 text-green-800
                                     {% elif group.group_status == '已确认' %}bg-blue-100 text-blue-800
                                     {% elif group.group_status == '已完成' %}bg-gray-100 text-gray-800
@@ -300,30 +295,9 @@
                         <div class="info-card">
                             <h6>人均预算</h6>
                             <p class="text-green-600 font-medium" style="{% if not group.budget_per_person %}color: #94a3b8; font-style: italic;{% endif %}">
-                                {% if group.budget_per_person %}S${{ "%.2f"|format(group.budget_per_person) }}{% else %}未设置{% endif %}
+                                {% if group.budget_per_person %}S${{ "%.2f"|format(group.budget_per_person) }}{% if group.pax %}<span class="text-gray-500 font-normal">（总≈S${{ "%.0f"|format(group.budget_per_person * group.pax) }}）</span>{% endif %}{% else %}未设置{% endif %}
                             </p>
                         </div>
-                    </div>
-                    <!-- 详细信息 -->
-                    <div class="grid grid-cols-1 gap-3">
-                        {% if group.included_items %}
-                        <div class="info-card">
-                            <h6><i class="fas fa-check-circle text-green-500 mr-1"></i> 包含项目</h6>
-                            <p style="white-space: pre-line;">{{ group.included_items }}</p>
-                        </div>
-                        {% endif %}
-                        {% if group.excluded_items %}
-                        <div class="info-card">
-                            <h6><i class="fas fa-times-circle text-red-500 mr-1"></i> 不包含项目</h6>
-                            <p style="white-space: pre-line;">{{ group.excluded_items }}</p>
-                        </div>
-                        {% endif %}
-                        {% if group.important_notes %}
-                        <div class="info-card">
-                            <h6><i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i> 注意事项</h6>
-                            <p style="white-space: pre-line;">{{ group.important_notes }}</p>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -345,9 +319,15 @@
                         <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs font-medium">
                             <i class="fas fa-route"></i> 行程单
                         </a>
-                        <a href="{{ url_for('package_budget.budgets_by_project', project_id=project.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                        {% if project_budget %}
+                        <a href="{{ url_for('package_budget.detail', budget_id=project_budget.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
                             <i class="fas fa-calculator"></i> 价格预算
                         </a>
+                        {% else %}
+                        <a href="{{ url_for('package_budget.quick_create_for_project', project_id=project.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium" title="该项目还没有预算单，点击一键创建">
+                            <i class="fas fa-plus-circle"></i> 创建价格预算
+                        </a>
+                        {% endif %}
                         <button type="button" onclick="addItinerary({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium">
                             <i class="fas fa-plus"></i> 添加行程
                         </button>
@@ -380,9 +360,7 @@
                                         </span>
                                     </td>
                                     <td class="!text-left font-medium">{{ itinerary.day_title }}</td>
-                                    <td class="!text-left text-slate-600" style="white-space: pre-line;">
-                                        {{ itinerary.content[:100]|trim }}{% if itinerary.content|length > 100 %}...{% endif %}
-                                    </td>
+                                    <td class="!text-left text-slate-600" style="white-space: pre-line;">{{ itinerary.content[:100]|trim }}{% if itinerary.content|length > 100 %}...{% endif %}</td>
                                     <td class="!text-left">
                                         <div class="flex gap-1 justify-start">
                                             <button type="button" onclick="editItinerary({{ itinerary.id }})" class="inline-flex items-center px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
@@ -415,6 +393,44 @@
             <i class="fas fa-exclamation-triangle text-5xl text-yellow-400 mb-4"></i>
             <h3 class="text-lg font-semibold text-gray-700 mb-2">团队信息缺失</h3>
             <p class="text-gray-500">请联系管理员检查数据</p>
+        </div>
+        {% endif %}
+
+        <!-- 套餐说明 / 包含与须知（独立编辑，置于每日行程之后）-->
+        {% if groups %}
+        {% set group = groups[0] %}
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden mt-6">
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+                <h4 class="text-base font-semibold text-gray-700 flex items-center gap-2 m-0">
+                    <i class="fas fa-clipboard-list text-amber-500"></i> 套餐说明 / 包含与须知
+                </h4>
+                <button type="button" id="savePackageInfoBtn" onclick="savePackageInfo({{ group.id }})"
+                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-xs font-medium">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                            <i class="fas fa-check-circle text-green-500"></i> 包含项目
+                        </label>
+                        <textarea id="pkgIncludedItems" rows="4" class="visa-form-control" placeholder="每行一项，如：往返机票、酒店住宿...">{{ group.included_items or '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                            <i class="fas fa-times-circle text-red-500"></i> 不包含项目
+                        </label>
+                        <textarea id="pkgExcludedItems" rows="4" class="visa-form-control" placeholder="每行一项，如：个人消费、小费...">{{ group.excluded_items or '' }}</textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                            <i class="fas fa-exclamation-triangle text-yellow-500"></i> 注意事项
+                        </label>
+                        <textarea id="pkgImportantNotes" rows="3" class="visa-form-control" placeholder="客人须知 / 温馨提示...">{{ group.important_notes or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
         </div>
         {% endif %}
 
@@ -497,8 +513,16 @@
                         <input type="date" name="return_date" id="editGroupReturnDate" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
-                        <label class="visa-form-label">人数 <span style="color: red;">*</span></label>
-                        <input type="number" name="pax" id="editGroupPax" class="visa-form-control" required min="1">
+                        <label class="visa-form-label">大人 <span style="color: red;">*</span></label>
+                        <input type="number" name="adult_count" id="editGroupAdult" class="visa-form-control" min="0" placeholder="0" oninput="recalcGroupPax()">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">小孩</label>
+                        <input type="number" name="child_count" id="editGroupChild" class="visa-form-control" min="0" placeholder="0" oninput="recalcGroupPax()">
+                    </div>
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">总人数</label>
+                        <input type="number" id="editGroupPax" class="visa-form-control" readonly tabindex="-1" style="background:#eef2f7;">
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">旅行社</label>
@@ -527,20 +551,6 @@
                         <label class="visa-form-label">人均预算 (SGD)</label>
                         <input type="number" name="budget_per_person" id="editGroupBudgetPerPerson" class="visa-form-control" step="0.01" min="0" placeholder="请输入人均预算">
                     </div>
-                </div>
-                <div class="visa-grid-2">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">包含项目</label>
-                        <textarea name="included_items" id="editGroupIncludedItems" rows="3" class="visa-form-control"></textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">不包含项目</label>
-                        <textarea name="excluded_items" id="editGroupExcludedItems" rows="3" class="visa-form-control"></textarea>
-                    </div>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">注意事项</label>
-                    <textarea name="important_notes" id="editGroupImportantNotes" rows="3" class="visa-form-control"></textarea>
                 </div>
             </form>
         </div>
@@ -719,17 +729,23 @@
         <div class="visa-modal-body">
             <form id="editProjectInfoForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-grid-2">
+                <div class="visa-grid-3">
                     <div class="visa-form-group">
                         <label class="visa-form-label">项目名称 <span style="color: red;">*</span></label>
                         <input type="text" name="project_name" id="editProjectName" class="visa-form-control" required>
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">项目HID</label>
-                        <input type="text" name="project_hid" id="editProjectHid" class="visa-form-control" placeholder="项目编号">
+                        <div style="display: flex; gap: 6px; align-items: stretch;">
+                            <input type="text" name="project_hid" id="editProjectHid" class="visa-form-control" placeholder="项目编号" style="flex: 1; min-width: 0;">
+                            <button type="button" id="autoCreateHidBtn" onclick="autoCreateLinkedProject()"
+                                    class="visa-btn visa-btn-primary" style="white-space: nowrap; padding: 0 12px;"
+                                    title="在主项目系统自动创建并关联">
+                                <i class="fas fa-magic"></i> 自动创建
+                            </button>
+                        </div>
+                        <small id="hidLinkHint" class="text-gray-500" style="display:none; margin-top:4px;"></small>
                     </div>
-                </div>
-                <div class="visa-grid-2">
                     <div class="visa-form-group">
                         <label class="visa-form-label">项目类型</label>
                         <input type="text" name="project_type" id="editProjectType" class="visa-form-control" placeholder="例如：定制游、跟团游">
@@ -745,8 +761,6 @@
                             <option value="忽略单">忽略单</option>
                         </select>
                     </div>
-                </div>
-                <div class="visa-grid-2">
                     <div class="visa-form-group">
                         <label class="visa-form-label">联系人</label>
                         <input type="text" name="contact_person" id="editContactPerson" class="visa-form-control" placeholder="客户姓名">
@@ -755,14 +769,14 @@
                         <label class="visa-form-label">联系方式</label>
                         <input type="text" name="contact_info" id="editContactInfo" class="visa-form-control" placeholder="电话/微信/邮箱">
                     </div>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">项目预算 (SGD)</label>
-                    <input type="number" name="budget" id="editProjectBudget" class="visa-form-control" step="0.01" min="0" placeholder="0.00">
+                    <div class="visa-form-group">
+                        <label class="visa-form-label">项目预算 (SGD)</label>
+                        <input type="number" name="budget" id="editProjectBudget" class="visa-form-control" step="0.01" min="0" placeholder="0.00">
+                    </div>
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">备注</label>
-                    <textarea name="remarks" id="editProjectRemarks" rows="3" class="visa-form-control" placeholder="项目备注信息..."></textarea>
+                    <textarea name="remarks" id="editProjectRemarks" rows="2" class="visa-form-control" placeholder="项目备注信息..."></textarea>
                 </div>
             </form>
         </div>
@@ -863,7 +877,48 @@ function editProjectInfo() {
     var budgetValue = {% if project.budget %}{{ project.budget }}{% else %}null{% endif %};
     document.getElementById('editProjectBudget').value = budgetValue !== null ? budgetValue : '';
     document.getElementById('editProjectRemarks').value = `{{ project.remarks|replace('\n', '\\n')|replace('\r', '') if project.remarks else "" }}`;
+    const hint = document.getElementById('hidLinkHint');
+    if (hint) { hint.style.display = 'none'; hint.innerHTML = ''; }
     showModal('editProjectInfoModal');
+}
+
+// 自动在主项目系统创建并关联 HID 项目
+function autoCreateLinkedProject() {
+    const btn = document.getElementById('autoCreateHidBtn');
+    const hint = document.getElementById('hidLinkHint');
+    const hidInput = document.getElementById('editProjectHid');
+
+    if (hidInput.value.trim() && !confirm('当前已填写项目HID。若该编号在主系统已存在将直接关联，否则会新建项目，是否继续？')) {
+        return;
+    }
+
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中';
+
+    fetch('{{ url_for("tour_projects.create_linked_header", project_id=project.id) }}', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            hidInput.value = data.hid;
+            hint.style.display = 'block';
+            hint.innerHTML = `${data.message} · <a href="${data.detail_url}" target="_blank" class="text-blue-600 underline">打开主项目 ${data.hid}</a>`;
+            showAlert(data.message, 'success');
+        } else {
+            showAlert(data.message || '创建失败', 'danger');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showAlert('创建主项目时发生错误', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = original;
+    });
 }
 
 function updateProjectInfo() {
@@ -902,6 +957,18 @@ function updateProjectInfo() {
 }
 
 // 编辑团队
+// 总人数 = 大人 + 小孩；大人小孩都为空时，用 fallback（历史 pax）兜底显示
+function recalcGroupPax(fallback) {
+    const a = document.getElementById('editGroupAdult').value.trim();
+    const c = document.getElementById('editGroupChild').value.trim();
+    const paxEl = document.getElementById('editGroupPax');
+    if (a === '' && c === '') {
+        paxEl.value = (fallback != null ? fallback : '');
+        return;
+    }
+    paxEl.value = (parseInt(a) || 0) + (parseInt(c) || 0);
+}
+
 function editGroup(groupId) {
     fetch(`{{ url_for("tour_projects.edit_tour_group", group_id=0) }}`.replace('0', groupId), {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -914,15 +981,15 @@ function editGroup(groupId) {
             document.getElementById('editGroupTitle').value = group.title;
             document.getElementById('editGroupDepartureDate').value = group.departure_date;
             document.getElementById('editGroupReturnDate').value = group.return_date;
-            document.getElementById('editGroupPax').value = group.pax;
+            document.getElementById('editGroupAdult').value = (group.adult_count != null ? group.adult_count : '');
+            document.getElementById('editGroupChild').value = (group.child_count != null ? group.child_count : '');
+            // 未拆分的历史团：大人/小孩为空时，总人数兜底显示原 pax
+            recalcGroupPax(group.pax);
             document.getElementById('editGroupAgency').value = group.agency || '';
             document.getElementById('editGroupOperator').value = group.operator || '';
             document.getElementById('editGroupCode').value = group.group_code || '';
             document.getElementById('editGroupStatus').value = group.group_status || '计划中';
             document.getElementById('editGroupBudgetPerPerson').value = group.budget_per_person || '';
-            document.getElementById('editGroupIncludedItems').value = group.included_items || '';
-            document.getElementById('editGroupExcludedItems').value = group.excluded_items || '';
-            document.getElementById('editGroupImportantNotes').value = group.important_notes || '';
             showModal('editGroupModal');
         } else {
             alert('获取团队信息失败: ' + data.message);
@@ -931,6 +998,42 @@ function editGroup(groupId) {
     .catch(error => {
         console.error('Error:', error);
         alert('获取团队信息时发生错误');
+    });
+}
+
+// 保存套餐说明（包含/不包含/注意事项）—— 独立于编辑团队弹窗
+function savePackageInfo(groupId) {
+    const btn = document.getElementById('savePackageInfoBtn');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中';
+
+    const payload = {
+        included_items: document.getElementById('pkgIncludedItems').value,
+        excluded_items: document.getElementById('pkgExcludedItems').value,
+        important_notes: document.getElementById('pkgImportantNotes').value
+    };
+
+    fetch(`{{ url_for("tour_projects.edit_group_package_info", group_id=0) }}`.replace('0', groupId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('套餐说明已保存', 'success');
+        } else {
+            showAlert('保存失败: ' + (data.message || ''), 'danger');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        showAlert('保存套餐说明时发生错误', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = original;
     });
 }
 

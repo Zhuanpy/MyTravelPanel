@@ -126,8 +126,17 @@ def create():
             )
             
             db.session.add(budget)
+
+            # 双向同步：新建预算若关联项目，人数回写到该项目团队
+            if project_id:
+                from App_new.business.tour.models.TourProject import TourGroup
+                TourGroup.query.filter_by(project_id=project_id).update(
+                    {'adult_count': adult_count, 'child_count': child_count,
+                     'pax': adult_count + child_count},
+                    synchronize_session=False)
+
             db.session.commit()
-            
+
             flash('预算单创建成功！', 'success')
             return redirect(url_for('package_budget.detail', budget_id=budget.id))
             
@@ -170,6 +179,62 @@ def create():
         return render_template('business/tour/package/TourBudget/create.html', form=prefill, project=project)
 
     return render_template('business/tour/package/TourBudget/create.html')
+
+
+@package_budget.route('/quick_create/<int:project_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def quick_create_for_project(project_id):
+    """为旅游项目一键快速创建预算单（无需手填表单）
+
+    - 幂等：项目已有预算 → 直接进最新那个，不重复创建
+    - 否则按项目信息自动建单（套餐名=项目名、人数取首个团、币种取项目），
+      建好直接跳到预算详情页让用户加明细
+    """
+    project = TourProject.query.get_or_404(project_id)
+
+    existing = BudgetHeader.query.filter_by(project_id=project_id)\
+        .order_by(BudgetHeader.created_at.desc()).first()
+    if existing:
+        return redirect(url_for('package_budget.detail', budget_id=existing.id))
+
+    # 人数：优先团队的大人/小孩，回退总人数 pax，再兜底 1
+    adult_count, child_count = 1, 0
+    first_group = project.groups.first() if hasattr(project, 'groups') else None
+    if first_group:
+        adult_count = first_group.adult_count or first_group.pax or 1
+        child_count = first_group.child_count or 0
+
+    if current_user.is_authenticated and current_user.profile:
+        created_by_name = f"{current_user.profile.first_name or ''} {current_user.profile.last_name or ''}".strip() \
+            or current_user.email
+    elif current_user.is_authenticated:
+        created_by_name = current_user.email
+    else:
+        created_by_name = 'admin'
+
+    try:
+        budget = BudgetHeader(
+            package_name=project.project_name or f"项目{project_id}预算",
+            adult_count=adult_count,
+            child_count=child_count,
+            currency=project.currency or 'SGD',
+            status='active',
+            is_template=False,
+            created_by=created_by_name,
+            created_at=datetime.utcnow(),
+            project_id=project_id,
+        )
+        db.session.add(budget)
+        db.session.commit()
+        flash('已为该项目快速创建预算单，请继续添加预算明细', 'success')
+        return redirect(url_for('package_budget.detail', budget_id=budget.id))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"quick_create_for_project failed: {e}")
+        flash('快速创建预算单失败', 'error')
+        return redirect(url_for('package_budget.budgets_by_project', project_id=project_id))
 
 
 @package_budget.route('/<int:budget_id>')
@@ -261,9 +326,17 @@ def edit(budget_id):
             budget.remarks = remarks
             budget.project_id = project_id
             budget.updated_at = datetime.utcnow()
-            
+
+            # 双向同步：预算人数回写到关联项目的团队（pax 自动汇总）
+            if project_id:
+                from App_new.business.tour.models.TourProject import TourGroup
+                TourGroup.query.filter_by(project_id=project_id).update(
+                    {'adult_count': adult_count, 'child_count': child_count,
+                     'pax': adult_count + child_count},
+                    synchronize_session=False)
+
             db.session.commit()
-            
+
             flash('预算单更新成功！', 'success')
             return redirect(url_for('package_budget.detail', budget_id=budget.id))
         

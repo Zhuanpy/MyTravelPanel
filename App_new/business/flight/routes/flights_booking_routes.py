@@ -882,7 +882,13 @@ def order_list():
         
         # 获取乘客信息
         passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
-        
+
+        # 主查询同时 join 了乘客表和航段表（两个一对多），SUM/COUNT 会被
+        # 航段数翻倍（笛卡尔扇出）。用 per-ref 乘客列表重算，得到正确值。
+        passenger_count = len(passengers)
+        total_selling = sum(float(p.selling_price or 0) for p in passengers)
+        total_cost = sum(float(p.cost_price or 0) for p in passengers)
+
         # 获取航段信息
         flight_segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
         

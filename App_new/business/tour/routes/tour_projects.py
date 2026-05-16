@@ -689,7 +689,24 @@ def edit_tour_group(group_id):
             if return_date_str:
                 group.return_date = datetime.strptime(return_date_str, '%Y-%m-%d').date()
                 
-            group.pax = request.form.get('pax')
+            # 大人/小孩 → 自动汇总总人数 pax
+            # 两者皆空：保护历史数据，adult/child/pax 全不动
+            adult_raw = (request.form.get('adult_count') or '').strip()
+            child_raw = (request.form.get('child_count') or '').strip()
+            if adult_raw == '' and child_raw == '':
+                pass
+            else:
+                adult_n = int(adult_raw) if adult_raw else 0
+                child_n = int(child_raw) if child_raw else 0
+                group.adult_count = adult_n
+                group.child_count = child_n
+                group.pax = adult_n + child_n
+                # 双向同步：人数变更推送到该项目的所有预算单（成人需≥1）
+                if group.project_id and adult_n >= 1:
+                    from App_new.business.tour.models.PackageBudget import BudgetHeader
+                    BudgetHeader.query.filter_by(project_id=group.project_id).update(
+                        {'adult_count': adult_n, 'child_count': child_n},
+                        synchronize_session=False)
             group.agency = request.form.get('agency')
             group.operator = request.form.get('operator')
             group.project_type = request.form.get('project_type')
@@ -699,9 +716,14 @@ def edit_tour_group(group_id):
             # 处理人均预算
             budget_per_person_str = request.form.get('budget_per_person', '').strip()
             group.budget_per_person = float(budget_per_person_str) if budget_per_person_str else None
-            group.included_items = request.form.get('included_items')
-            group.excluded_items = request.form.get('excluded_items')
-            group.important_notes = request.form.get('important_notes')
+            # 套餐说明已迁出本弹窗、改由独立区块保存；
+            # 仅当表单确实带了这些字段时才更新，避免编辑团队时被清空
+            if 'included_items' in request.form:
+                group.included_items = request.form.get('included_items')
+            if 'excluded_items' in request.form:
+                group.excluded_items = request.form.get('excluded_items')
+            if 'important_notes' in request.form:
+                group.important_notes = request.form.get('important_notes')
             
             # 保存团信息
             db.session.commit()
@@ -761,6 +783,8 @@ def edit_tour_group(group_id):
             'departure_date': group.departure_date.strftime('%Y-%m-%d') if group.departure_date else '',
             'return_date': group.return_date.strftime('%Y-%m-%d') if group.return_date else '',
             'pax': group.pax,
+            'adult_count': group.adult_count,
+            'child_count': group.child_count,
             'agency': group.agency,
             'operator': group.operator,
             'group_code': group.group_code,
@@ -774,6 +798,36 @@ def edit_tour_group(group_id):
     else:
         # 非AJAX请求重定向到项目编辑页面
         return redirect(url_for('tour_projects.edit_tour_project', project_id=group.project_id))
+
+@tour_projects.route('/groups/<int:group_id>/package-info', methods=['POST'])
+@csrf.exempt
+def edit_group_package_info(group_id):
+    """只更新团组的套餐说明三字段（包含/不包含/注意事项）
+
+    独立于"编辑团队"弹窗，由每日行程之后的独立区块调用。
+    接收 JSON，空字符串存为 None（与原弹窗逻辑一致：空即清除）。
+    """
+    from App_new.business.tour.models.TourProject import TourGroup
+
+    group = TourGroup.query.get_or_404(group_id)
+    data = request.get_json(silent=True) or {}
+
+    try:
+        def norm(v):
+            v = (v or '').strip()
+            return v if v else None
+
+        group.included_items = norm(data.get('included_items'))
+        group.excluded_items = norm(data.get('excluded_items'))
+        group.important_notes = norm(data.get('important_notes'))
+        db.session.commit()
+        return jsonify({'success': True, 'message': '套餐说明已保存'})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @tour_projects.route('/group/<int:group_id>/delete', methods=['POST'])
 @csrf.exempt
@@ -1048,13 +1102,17 @@ def edit_tour_project(project_id):
                 group.itineraries = []
 
         # 配套价格预算：获取最近的预算单用于页面快速查看
+        # project_budget：本项目最新预算单，用于"价格预算"按钮直达详情页
         try:
             from App_new.business.tour.models.PackageBudget import BudgetHeader
             recent_budgets = BudgetHeader.query.order_by(BudgetHeader.created_at.desc()).limit(10).all()
-            print(f"✅ 找到 {len(recent_budgets)} 个预算单")
+            project_budget = BudgetHeader.query.filter_by(project_id=project_id)\
+                .order_by(BudgetHeader.created_at.desc()).first()
+            print(f"✅ 找到 {len(recent_budgets)} 个预算单，本项目预算: {project_budget.id if project_budget else '无'}")
         except Exception as e:
             print(f"⚠️ 获取预算单失败: {str(e)}")
             recent_budgets = []
+            project_budget = None
         
         # 获取项目附件
         try:
@@ -1068,6 +1126,7 @@ def edit_tour_project(project_id):
                              project=project, 
                              groups=groups,
                              recent_budgets=recent_budgets,
+                             project_budget=project_budget,
                              attachments=attachments)
     except Exception as e:
         import traceback
@@ -1089,6 +1148,101 @@ def edit_tour_project(project_id):
             </body>
             </html>
             ''', error=str(e)), 500
+
+@tour_projects.route('/<int:project_id>/create-linked-header', methods=['POST'])
+@csrf.exempt
+def create_linked_header(project_id):
+    """为旅游项目自动创建主系统 HID 项目（ProjectHeader），并回写 project_hid
+
+    - 已关联（project_hid 对应到已存在的 ProjectHeader）则幂等返回该项目，不重复创建
+    - 否则按旅游项目信息生成新的 ProjectHeader，自动生成 HID
+    """
+    from App_new.business.projects.models.project import ProjectHeader
+    from flask_login import current_user
+    from sqlalchemy.exc import IntegrityError
+
+    tour = TourProject.query.get_or_404(project_id)
+
+    try:
+        # 幂等：已有 project_hid 且能在主系统找到对应 header，直接返回
+        # 注意：只有 header 真实存在才算已关联，避免脏的 project_hid 返回 404 链接
+        if tour.project_hid:
+            existing = ProjectHeader.query.filter_by(hid=tour.project_hid.strip()).first()
+            if existing:
+                return jsonify({
+                    'success': True,
+                    'already_linked': True,
+                    'hid': existing.hid,
+                    'header_id': existing.id,
+                    'detail_url': url_for('business_projects.detail.project_detail', project_id=existing.id),
+                    'message': f'该旅游项目已关联主项目 {existing.hid}，未重复创建'
+                })
+            # project_hid 有值但 header 不存在 → 视为脏数据，继续走新建覆盖
+
+        staff_id = current_user.id if getattr(current_user, 'is_authenticated', False) else None
+
+        # generate_hid 是"读 max 再 +1"，并发/双击会撞 hid UNIQUE 约束。
+        # 用重试 + IntegrityError 兜底，保证一次请求最终拿到唯一 hid 且原子提交。
+        last_err = None
+        for _attempt in range(5):
+            header = ProjectHeader(
+                hid=ProjectHeader.generate_hid(),
+                desc=tour.project_name,
+                company_id=None,                       # 旅游项目默认个人客户
+                contact=tour.contact_person,
+                staff_id=staff_id,
+                currency=tour.currency or 'SGD',
+                type=tour.project_type or 'Tour',
+                status='active',
+                remarks=tour.remarks
+            )
+            # staff_name 由模型事件自动同步，用它兜底 leader/operator/salesperson
+            header.leader_name = tour.contact_person or header.staff_name
+            header.operator_ids = str(staff_id) if staff_id else None
+            header.operator_names = header.staff_name
+            header.salesperson_ids = str(staff_id) if staff_id else None
+            header.salesperson_names = header.staff_name
+
+            db.session.add(header)
+            try:
+                db.session.flush()          # 触发 hid UNIQUE 检查，拿到 id
+                tour.project_hid = header.hid
+                db.session.commit()         # header 与 tour 关联在同一事务里原子提交
+                return jsonify({
+                    'success': True,
+                    'already_linked': False,
+                    'hid': header.hid,
+                    'header_id': header.id,
+                    'detail_url': url_for('business_projects.detail.project_detail', project_id=header.id),
+                    'message': f'已创建主项目 {header.hid} 并关联'
+                })
+            except IntegrityError as ie:
+                # hid 撞车（并发），回滚后重新生成重试
+                db.session.rollback()
+                last_err = ie
+                tour = TourProject.query.get_or_404(project_id)
+                # 重试前再查一次：可能并发的另一请求已建好并回写
+                if tour.project_hid:
+                    ex = ProjectHeader.query.filter_by(hid=tour.project_hid.strip()).first()
+                    if ex:
+                        return jsonify({
+                            'success': True,
+                            'already_linked': True,
+                            'hid': ex.hid,
+                            'header_id': ex.id,
+                            'detail_url': url_for('business_projects.detail.project_detail', project_id=ex.id),
+                            'message': f'该旅游项目已关联主项目 {ex.hid}，未重复创建'
+                        })
+                continue
+
+        raise last_err or RuntimeError('生成 HID 多次重试仍失败')
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'创建失败：{str(e)}'}), 500
+
 
 @tour_projects.route('/detail/<int:project_id>', methods=['GET'])
 def project_details(project_id):

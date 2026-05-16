@@ -10,14 +10,17 @@
 
     /* 头部信息条 */
     .header-info-bar {
-        background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-        color: white;
-        padding: 0.75rem 1.25rem;
-        border-radius: 6px;
+        background: #ffffff;
+        color: #1e293b;
+        padding: 0.85rem 1.25rem;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #10b981;
+        border-radius: 8px;
         margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    .header-info-bar .title { font-size: 1.1rem; font-weight: 600; }
-    .header-info-bar .subtitle { font-size: 0.85rem; opacity: 0.9; }
+    .header-info-bar .title { font-size: 1.1rem; font-weight: 600; color: #0f172a; }
+    .header-info-bar .subtitle { font-size: 0.85rem; color: #64748b; }
 
     /* 优化输入框宽度 */
     .form-control-narrow { max-width: 200px; }
@@ -55,6 +58,34 @@
         margin-bottom: 0.25rem;
         color: #555;
     }
+
+    /* 区块小标题 */
+    .section-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    /* 计价区容器 */
+    .pricing-box {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    /* 计算式分隔符 × = */
+    .calc-sep {
+        font-weight: 700;
+        color: #94a3b8;
+        text-align: center;
+        padding-bottom: 0.45rem;
+        align-self: flex-end;
+    }
+    /* 只读结果框浅灰 */
+    .calc-readonly { background: #eef2f7 !important; font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -72,7 +103,7 @@
                 </div>
             </div>
             <div>
-                <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-light btn-sm">
+                <a href="{{ url_for('package_budget.detail', budget_id=budget.id) }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-arrow-left"></i> 返回详情
                 </a>
             </div>
@@ -84,117 +115,124 @@
             <form method="post" id="editItemForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-                <!-- 基本信息：类别、名称 -->
-                <div class="row mb-3">
-                    <div class="col-md-3 col-sm-4">
+                <!-- 基本信息 -->
+                <div class="section-label"><i class="fas fa-circle-info text-secondary"></i> 基本信息</div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
                         <label for="category" class="form-label">类别 <span class="text-danger">*</span></label>
                         <select class="form-select form-select-sm" id="category" name="category" required>
                             <option value="">请选择</option>
                             {% if item.category and item.category not in ['住宿', '交通', '餐饮', '门票', '导游', '保险', '签证', '购物', '其他'] %}
                             <option value="{{ item.category }}" selected>{{ item.category }}</option>
                             {% endif %}
-                            <option value="住宿" {% if item.category == '住宿' %}selected{% endif %}>住宿</option>
-                            <option value="交通" {% if item.category == '交通' %}selected{% endif %}>交通</option>
-                            <option value="餐饮" {% if item.category == '餐饮' %}selected{% endif %}>餐饮</option>
-                            <option value="门票" {% if item.category == '门票' %}selected{% endif %}>门票</option>
-                            <option value="导游" {% if item.category == '导游' %}selected{% endif %}>导游</option>
-                            <option value="保险" {% if item.category == '保险' %}selected{% endif %}>保险</option>
-                            <option value="签证" {% if item.category == '签证' %}selected{% endif %}>签证</option>
-                            <option value="购物" {% if item.category == '购物' %}selected{% endif %}>购物</option>
-                            <option value="其他" {% if item.category == '其他' %}selected{% endif %}>其他</option>
+                            <option value="住宿" {% if item.category == '住宿' %}selected{% endif %}>Accommodation (住宿)</option>
+                            <option value="交通" {% if item.category == '交通' %}selected{% endif %}>Transport (交通)</option>
+                            <option value="餐饮" {% if item.category == '餐饮' %}selected{% endif %}>Meals (餐饮)</option>
+                            <option value="门票" {% if item.category == '门票' %}selected{% endif %}>Admission (门票)</option>
+                            <option value="导游" {% if item.category == '导游' %}selected{% endif %}>Guide (导游)</option>
+                            <option value="保险" {% if item.category == '保险' %}selected{% endif %}>Insurance (保险)</option>
+                            <option value="签证" {% if item.category == '签证' %}selected{% endif %}>Visa (签证)</option>
+                            <option value="购物" {% if item.category == '购物' %}selected{% endif %}>Shopping (购物)</option>
+                            <option value="其他" {% if item.category == '其他' %}selected{% endif %}>Others (其他)</option>
                         </select>
                     </div>
-                    <div class="col-md-5 col-sm-8">
+                    <div class="col-md-8">
                         <label for="item_name" class="form-label">项目名称 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" id="item_name" name="item_name"
                                value="{{ item.item_name or '' }}" required placeholder="如：新加坡圣淘沙酒店">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12">
                         <label class="form-label">计价方式</label>
-                        <div class="btn-group btn-group-sm pricing-method-group" role="group">
+                        <div class="btn-group btn-group-sm pricing-method-group d-flex" role="group">
                             <input type="radio" class="btn-check" name="pricing_method" id="person_based" value="person_based"
                                    {% if item.pricing_method == 'person_based' %}checked{% endif %}>
                             <label class="btn btn-outline-success" for="person_based">
-                                <i class="fas fa-users"></i> 人均
+                                <i class="fas fa-users"></i> 人均计价
                             </label>
 
                             <input type="radio" class="btn-check" name="pricing_method" id="item_based" value="item_based"
                                    {% if item.pricing_method == 'item_based' %}checked{% endif %}>
                             <label class="btn btn-outline-primary" for="item_based">
-                                <i class="fas fa-box"></i> 物品
+                                <i class="fas fa-box"></i> 物品计价
                             </label>
                         </div>
                     </div>
+                    <div class="col-12">
+                        <label for="item_details" class="form-label">项目详细</label>
+                        <textarea class="form-control form-control-sm" id="item_details" name="item_details" rows="3"
+                                  placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息">{{ item.item_details or '' }}</textarea>
+                    </div>
                 </div>
 
-                <!-- 项目详细 -->
-                <div class="mb-3">
-                    <label for="item_details" class="form-label">项目详细</label>
-                    <textarea class="form-control form-control-sm" id="item_details" name="item_details" rows="4"
-                              placeholder="例如：酒店入住日期、退房日期、酒店房型、是否含早等信息">{{ item.item_details or '' }}</textarea>
-                </div>
-                
                 <!-- 物品计价方式 -->
-                <div class="mb-3 p-3 border rounded bg-light" id="itemBasedPricing" style="display: {% if item.pricing_method == 'item_based' %}block{% else %}none{% endif %};">
-                    <div class="row align-items-end">
-                        <div class="col-auto">
-                            <label class="form-label small text-primary fw-bold"><i class="fas fa-box"></i> 物品单价</label>
-                            <input type="number" name="item_unit_price" class="form-control form-control-sm price-input" step="0.01"
+                <div class="mb-3 pricing-box" id="itemBasedPricing" style="display: {% if item.pricing_method == 'item_based' %}block{% else %}none{% endif %};">
+                    <div class="section-label text-primary"><i class="fas fa-box"></i> 物品计价</div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">物品单价</label>
+                            <input type="number" name="item_unit_price" class="form-control form-control-sm" step="0.01"
                                    value="{{ item.item_unit_price or '' }}" placeholder="0.00">
                         </div>
-                        <div class="col-auto">
-                            <label class="form-label small">× 件数</label>
-                            <input type="number" name="item_quantity" class="form-control form-control-sm quantity-input" min="1"
+                        <div class="col-auto calc-sep">×</div>
+                        <div class="col-4 col-md-2">
+                            <label class="form-label">件数</label>
+                            <input type="number" name="item_quantity" class="form-control form-control-sm" min="1"
                                    value="{{ item.item_quantity or 1 }}" placeholder="1">
                         </div>
-                        <div class="col-auto">
-                            <label class="form-label small">= 总价</label>
-                            <input type="text" id="itemTotalCost" class="form-control form-control-sm price-input bg-white" readonly
+                        <div class="col-auto calc-sep">=</div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">总价</label>
+                            <input type="text" id="itemTotalCost" class="form-control form-control-sm calc-readonly" readonly
                                    value="{{ "%.2f"|format(item.total_item_cost) if item.total_item_cost else '0.00' }}">
                         </div>
-                        <div class="col-auto text-muted small pt-2">
-                            <span class="me-3">大人人均: <strong id="itemAdultUnitPrice">{{ "%.2f"|format(item.adult_unit_price) if item.adult_unit_price else '0.00' }}</strong></span>
-                            <span>小孩人均: <strong id="itemChildUnitPrice">{{ "%.2f"|format(item.child_unit_price) if item.child_unit_price else '0.00' }}</strong></span>
+                        <div class="col-12 col-md mt-2 mt-md-0">
+                            <div class="text-muted small">
+                                大人人均 <strong id="itemAdultUnitPrice">{{ "%.2f"|format(item.adult_unit_price) if item.adult_unit_price else '0.00' }}</strong>
+                                ｜ 小孩人均 <strong id="itemChildUnitPrice">{{ "%.2f"|format(item.child_unit_price) if item.child_unit_price else '0.00' }}</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 人均计价方式 -->
-                <div class="mb-3 p-3 border rounded bg-light" id="personBasedPricing" style="display: {% if item.pricing_method == 'person_based' %}block{% else %}none{% endif %};">
-                    <div class="row align-items-end">
-                        <div class="col-auto">
-                            <label class="form-label small text-success fw-bold"><i class="fas fa-users"></i> 成人单价</label>
-                            <input type="number" name="adult_price" class="form-control form-control-sm price-input" step="0.01"
+                <div class="mb-3 pricing-box" id="personBasedPricing" style="display: {% if item.pricing_method == 'person_based' %}block{% else %}none{% endif %};">
+                    <div class="section-label text-success"><i class="fas fa-users"></i> 人均计价</div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">成人单价</label>
+                            <input type="number" name="adult_price" class="form-control form-control-sm" step="0.01"
                                    value="{{ item.adult_price or '' }}" placeholder="0.00">
                         </div>
-                        <div class="col-auto">
-                            <label class="form-label small">× {{ budget.adult_count }} 人</label>
-                            <input type="text" class="form-control form-control-sm price-input bg-white" readonly
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">成人小计 <span class="text-muted">×{{ budget.adult_count }}</span></label>
+                            <input type="text" class="form-control form-control-sm calc-readonly" readonly
                                    id="adultSubtotal" value="{{ "%.2f"|format((item.adult_price or 0) * budget.adult_count) }}">
                         </div>
-                        <div class="col-auto">
-                            <label class="form-label small">儿童单价</label>
-                            <input type="number" name="child_price" class="form-control form-control-sm price-input" step="0.01"
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">儿童单价</label>
+                            <input type="number" name="child_price" class="form-control form-control-sm" step="0.01"
                                    value="{{ item.child_price or '' }}" placeholder="0.00">
                         </div>
-                        <div class="col-auto">
-                            <label class="form-label small">× {{ budget.child_count }} 人</label>
-                            <input type="text" class="form-control form-control-sm price-input bg-white" readonly
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">儿童小计 <span class="text-muted">×{{ budget.child_count }}</span></label>
+                            <input type="text" class="form-control form-control-sm calc-readonly" readonly
                                    id="childSubtotal" value="{{ "%.2f"|format((item.child_price or 0) * budget.child_count) }}">
                         </div>
-                        <div class="col-auto">
-                            <label class="form-label small fw-bold">= 总价</label>
-                            <input type="text" id="personTotalCost" class="form-control form-control-sm price-input bg-white fw-bold" readonly
+                        <div class="col-auto calc-sep">=</div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">总价</label>
+                            <input type="text" id="personTotalCost" class="form-control form-control-sm calc-readonly fw-bold" readonly
                                    value="{{ "%.2f"|format(item.subtotal) if item.subtotal else '0.00' }}">
                         </div>
                     </div>
                 </div>
 
                 <!-- 选项和备注 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">费用计算选项</label>
-                        <div class="checkbox-group">
+                <div class="section-label"><i class="fas fa-sliders text-secondary"></i> 选项与备注</div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label">费用计算选项</label>
+                        <div class="checkbox-group" style="min-height: 31px;">
                             <div class="form-check">
                                 <input type="checkbox" name="count_adult_apply" class="form-check-input" id="count_adult_apply" value="1"
                                        {{ 'checked' if item.count_adult_apply else '' }}>
@@ -212,8 +250,8 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">备注</label>
+                    <div class="col-md-7">
+                        <label class="form-label">备注</label>
                         <input type="text" name="remarks" class="form-control form-control-sm"
                                value="{{ item.remarks or '' }}" placeholder="项目备注信息（可选）">
                     </div>
