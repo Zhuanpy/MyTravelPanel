@@ -184,10 +184,66 @@ def ocr():
             pass
 
 
+class DuplicateNeedsResolution(Exception):
+    """同名但无护照号的疑似重复旅客，需用户确认合并/新建"""
+    def __init__(self, candidates):
+        self.candidates = candidates
+        super().__init__('duplicate needs resolution')
+
+
+def _apply_passport_fields(rec, *, name_en, gender, title, dob, nationality,
+                           issuing_country, expiry, cn_name, group_name,
+                           passport_number=None):
+    """把护照字段写入旅客记录（passport_match 更新 与 合并 共用）"""
+    rec.name_en = name_en
+    if gender:
+        rec.gender = gender
+    # 称谓为空才补，避免覆盖人工已设的称谓
+    if title and not (rec.title or '').strip():
+        rec.title = title
+    if dob:
+        rec.date_of_birth = dob
+    if nationality:
+        rec.nationality = nationality
+    if issuing_country:
+        rec.passport_issuing_country = issuing_country
+    if expiry:
+        rec.passport_expiry_date = expiry
+    if cn_name:
+        rec.name = cn_name
+    if group_name:
+        rec.group_name = group_name
+    if passport_number:
+        rec.passport_number = passport_number
+    rec.updated_at = datetime.utcnow()
+
+
+def _find_name_dup_candidates(name_en, cn_name):
+    """无护照号、姓名疑似相同的常用旅客（可能是同一人但未存护照）"""
+    from sqlalchemy import func
+    no_passport = db.or_(FrequentTraveler.passport_number.is_(None),
+                          FrequentTraveler.passport_number == '')
+    name_conds = [
+        func.upper(func.trim(FrequentTraveler.name_en)) == name_en,
+        func.upper(func.trim(FrequentTraveler.name)) == name_en,
+    ]
+    if cn_name:
+        name_conds.append(FrequentTraveler.name == cn_name)
+    return (FrequentTraveler.query
+            .filter(no_passport, db.or_(*name_conds))
+            .limit(5).all())
+
+
 def _upsert_traveler_from_passport(data):
     """根据前端传来的护照字段 find-or-create FrequentTraveler
 
-    返回 (record, action)：action 为 'created' / 'updated'
+    去重策略：
+      1. 护照号已存在 → 更新该条 (action='updated')
+      2. data.merge_into_id → 合并护照信息到指定旅客 (action='merged')
+      3. 未 force_create 且发现同名无护照的疑似重复 → 抛
+         DuplicateNeedsResolution，交前端让用户选合并/新建
+      4. 否则新建 (action='created')
+
     失败时抛 ValueError（调用方负责转成 400 响应）
     """
     surname = (data.get('surname') or '').strip().upper()
@@ -209,29 +265,40 @@ def _upsert_traveler_from_passport(data):
     cn_name = (data.get('name') or '').strip()
     group_name = (data.get('group_name') or '').strip() or None
 
+    fields = dict(name_en=name_en, gender=gender, title=title, dob=dob,
+                  nationality=nationality, issuing_country=issuing_country,
+                  expiry=expiry, cn_name=cn_name, group_name=group_name)
+
+    # 1) 护照号已存在 → 更新该条
     existing = FrequentTraveler.query.filter_by(passport_number=passport_number).first()
     if existing:
-        existing.name_en = name_en
-        if gender:
-            existing.gender = gender
-        # 称谓为空才补，避免覆盖人工已设的称谓
-        if title and not (existing.title or '').strip():
-            existing.title = title
-        if dob:
-            existing.date_of_birth = dob
-        if nationality:
-            existing.nationality = nationality
-        if issuing_country:
-            existing.passport_issuing_country = issuing_country
-        if expiry:
-            existing.passport_expiry_date = expiry
-        if cn_name:
-            existing.name = cn_name
-        if group_name:
-            existing.group_name = group_name
-        existing.updated_at = datetime.utcnow()
+        _apply_passport_fields(existing, **fields)
         return existing, 'updated'
 
+    # 2) 用户已确认合并到某条
+    merge_id = data.get('merge_into_id')
+    if merge_id:
+        rec = FrequentTraveler.query.get(int(merge_id))
+        if not rec:
+            raise ValueError('要合并的旅客不存在')
+        _apply_passport_fields(rec, passport_number=passport_number, **fields)
+        return rec, 'merged'
+
+    # 3) 未强制新建 → 检测同名无护照疑似重复，交用户决定
+    if not data.get('force_create'):
+        candidates = _find_name_dup_candidates(name_en, cn_name)
+        if candidates:
+            raise DuplicateNeedsResolution([{
+                'id': t.id,
+                'traveler_code': t.traveler_code,
+                'title': t.title,
+                'name': t.name,
+                'name_en': t.name_en,
+                'phone': t.phone,
+                'company_name': t.company.company_name if t.company else None,
+            } for t in candidates])
+
+    # 4) 新建
     record = FrequentTraveler(
         name=cn_name or name_en,
         name_en=name_en,
@@ -268,6 +335,13 @@ def save():
             'success': True,
             'action': action,
             'data': _traveler_to_passport_dict(record),
+        })
+    except DuplicateNeedsResolution as d:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'need_resolution': True,
+            'candidates': d.candidates,
         })
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400

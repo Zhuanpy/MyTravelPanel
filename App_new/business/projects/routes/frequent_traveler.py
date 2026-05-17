@@ -65,16 +65,20 @@ def api_list():
     query = FrequentTraveler.query
 
     if keyword:
+        import re
         like = f'%{keyword}%'
-        query = query.filter(
-            db.or_(
-                FrequentTraveler.name.ilike(like),
-                FrequentTraveler.name_en.ilike(like),
-                FrequentTraveler.phone.ilike(like),
-                FrequentTraveler.passport_number.ilike(like),
-                FrequentTraveler.email.ilike(like),
-            )
-        )
+        conds = [
+            FrequentTraveler.name.ilike(like),
+            FrequentTraveler.name_en.ilike(like),
+            FrequentTraveler.phone.ilike(like),
+            FrequentTraveler.passport_number.ilike(like),
+            FrequentTraveler.email.ilike(like),
+        ]
+        # 编号搜索：T0042 / t42 / 42 → id=42
+        code_match = re.match(r'^[Tt]?(\d{1,9})$', keyword)
+        if code_match:
+            conds.append(FrequentTraveler.id == int(code_match.group(1)))
+        query = query.filter(db.or_(*conds))
 
     if company_id:
         query = query.filter_by(company_id=int(company_id))

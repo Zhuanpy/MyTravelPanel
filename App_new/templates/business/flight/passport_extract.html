@@ -266,8 +266,14 @@
     <div class="pp-recent-card">
         <div class="pp-recent-header">
             <span><i class="fas fa-history me-1"></i>近期保存</span>
-            <div class="pp-recent-search">
-                <input type="search" id="ppSearchInput" placeholder="搜索 姓名 / 护照号">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div class="pp-recent-search">
+                    <input type="search" id="ppSearchInput" placeholder="搜索 姓名 / 护照号">
+                </div>
+                <a href="{{ url_for('business_projects.frequent_traveler.list_page') }}"
+                   class="btn btn-sm btn-outline-primary" title="打开常用旅客管理页面">
+                    <i class="fas fa-users me-1"></i>常用旅客
+                </a>
             </div>
         </div>
         <div id="ppRecentList">
@@ -507,15 +513,9 @@
     resetFormBtn.addEventListener('click', clearForm);
 
     // 保存
-    saveBtn.addEventListener('click', function () {
-        var payload = {};
-        new FormData(form).forEach(function (v, k) { payload[k] = v; });
-        if (!payload.surname || !payload.given_name || !payload.passport_number) {
-            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 姓 / 名 / 护照号 必填', 'error');
-            return;
-        }
+    function doSave(payload) {
         saveBtn.disabled = true;
-        fetch("{{ url_for('flights_passport.save') }}", {
+        return fetch("{{ url_for('flights_passport.save') }}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify(payload)
@@ -524,16 +524,52 @@
         .then(function (j) {
             saveBtn.disabled = false;
             if (j.success) {
-                setStatus('<i class="fas fa-check-circle me-1"></i> 已' + (j.action === 'updated' ? '更新' : '保存'), 'success');
+                var act = j.action === 'updated' ? '更新' : (j.action === 'merged' ? '合并到已有旅客' : '保存');
+                setStatus('<i class="fas fa-check-circle me-1"></i> 已' + act, 'success');
                 refreshRecent();
-            } else {
-                setStatus('<i class="fas fa-exclamation-circle me-1"></i> ' + (j.error || '保存失败'), 'error');
+                return;
             }
+            if (j.need_resolution && j.candidates && j.candidates.length) {
+                resolveDuplicate(payload, j.candidates);
+                return;
+            }
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> ' + (j.error || '保存失败'), 'error');
         })
         .catch(function (err) {
             saveBtn.disabled = false;
             setStatus('<i class="fas fa-exclamation-circle me-1"></i> 网络错误: ' + err, 'error');
         });
+    }
+
+    // 发现同名无护照的疑似旅客 → 让用户选合并/新建，避免重复
+    function resolveDuplicate(payload, candidates) {
+        var lines = candidates.map(function (c) {
+            var extra = [c.phone, c.company_name].filter(Boolean).join(' / ');
+            return '  ' + (c.traveler_code || '') + ' ' + (c.title ? c.title + ' ' : '')
+                 + (c.name || '') + (c.name_en && c.name_en !== c.name ? ' (' + c.name_en + ')' : '')
+                 + (extra ? '  — ' + extra : '');
+        }).join('\n');
+        var target = candidates[0];
+        var mergeMsg = '系统里已有同名旅客（无护照号），可能是同一人：\n\n' + lines
+            + '\n\n【确定】= 把这次的护照信息合并到「' + (target.traveler_code || '') + ' '
+            + (target.name || '') + '」（推荐，避免重复）\n【取消】= 另作处理';
+        if (window.confirm(mergeMsg)) {
+            doSave(Object.assign({}, payload, { merge_into_id: target.id }));
+        } else if (window.confirm('确定要新建一条新的常用旅客吗？\n（确认后将不再提示，直接新增）')) {
+            doSave(Object.assign({}, payload, { force_create: true }));
+        } else {
+            setStatus('<i class="fas fa-info-circle me-1"></i> 已取消保存，请人工核对', 'warning');
+        }
+    }
+
+    saveBtn.addEventListener('click', function () {
+        var payload = {};
+        new FormData(form).forEach(function (v, k) { payload[k] = v; });
+        if (!payload.surname || !payload.given_name || !payload.passport_number) {
+            setStatus('<i class="fas fa-exclamation-circle me-1"></i> 姓 / 名 / 护照号 必填', 'error');
+            return;
+        }
+        doSave(payload);
     });
 
     // 保存图片：把当前预览的图片连同表单护照字段一起 POST 到 /save_image

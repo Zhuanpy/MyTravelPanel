@@ -30,9 +30,10 @@
     <div class="card mb-3">
         <div class="card-body py-2">
             <div class="row g-2 align-items-center">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <input type="text" class="form-control form-control-sm" id="searchKeyword"
-                           placeholder="搜索姓名/英文名/电话/护照号/邮箱..." onkeyup="if(event.key==='Enter') loadTravelers()">
+                           placeholder="编号/姓名/电话/护照号..." title="支持 编号(如 T0042)、姓名、英文名、电话、护照号、邮箱"
+                           onkeyup="if(event.key==='Enter') loadTravelers()">
                 </div>
                 <div class="col-md-3">
                     <select class="form-select form-select-sm" id="searchCompany">
@@ -50,7 +51,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <button class="btn btn-sm btn-outline-primary" onclick="loadTravelers()">
                         <i class="fas fa-search"></i> 搜索
                     </button>
@@ -711,6 +712,11 @@ function viewTraveler(id) {
                 ? ' <span class="badge bg-danger">已过期</span>' : '';
 
             document.getElementById('travelerDetailBody').innerHTML = `
+                <div class="row mb-2">
+                    <div class="col-12"><strong>编号:</strong>
+                        <span class="badge bg-light text-dark" style="font-size:0.8rem; font-family:monospace;">${t.traveler_code || '-'}</span>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-6"><strong>称谓:</strong> ${t.title || '-'}</div>
                     <div class="col-6"><strong>性别:</strong> ${t.gender === 'male' ? '男' : t.gender === 'female' ? '女' : '-'}</div>
