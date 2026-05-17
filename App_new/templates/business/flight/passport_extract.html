@@ -309,6 +309,21 @@
     </div>
 </div>
 
+<!-- 旅客详情弹窗（点击近期保存的行查看） -->
+<div id="ppDetailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1060; overflow-y:auto;">
+    <div style="max-width:640px; margin:40px auto; background:#fff; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.8rem 1rem; border-bottom:1px solid #eee;">
+            <strong><i class="fas fa-id-card me-1"></i>旅客详情</strong>
+            <span style="cursor:pointer; font-size:1.3rem; line-height:1;" onclick="document.getElementById('ppDetailModal').style.display='none'">&times;</span>
+        </div>
+        <div id="ppDetailBody" style="padding:1rem; max-height:72vh; overflow-y:auto; font-size:0.9rem;"></div>
+        <div style="padding:0.6rem 1rem; border-top:1px solid #eee; text-align:right;">
+            <button type="button" class="btn btn-sm btn-secondary"
+                    onclick="document.getElementById('ppDetailModal').style.display='none'">关闭</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     var csrfToken = document.querySelector('meta[name="csrf-token"]');
@@ -607,7 +622,72 @@
     });
 
     // 近期列表 - 填回 / 删除
+    // 点击近期保存的行 → 弹窗显示该常用旅客完整详情
+    function openTravelerDetail(id) {
+        if (!id) return;
+        var body = document.getElementById('ppDetailBody');
+        body.innerHTML = '<div class="text-muted">加载中...</div>';
+        document.getElementById('ppDetailModal').style.display = 'block';
+        fetch('/projects/frequent_traveler/api/' + id)
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                if (!j.success || !j.data) {
+                    body.innerHTML = '<div class="text-danger">加载失败</div>';
+                    return;
+                }
+                var t = j.data;
+                var sex = t.gender === 'male' ? '男' : (t.gender === 'female' ? '女' : '-');
+                var expired = t.passport_expiry_date && new Date(t.passport_expiry_date) < new Date()
+                    ? ' <span class="badge bg-danger">已过期</span>' : '';
+                var mem = '';
+                if (t.airline_memberships && t.airline_memberships.length) {
+                    mem = '<hr class="my-2"><strong><i class="fas fa-plane me-1"></i>航空会员</strong>'
+                        + '<table class="table table-sm table-bordered mt-1" style="font-size:0.82rem;">'
+                        + '<thead><tr><th>航空公司</th><th>会员号</th></tr></thead><tbody>'
+                        + t.airline_memberships.map(function (m) {
+                            return '<tr><td>' + escapeHtml(m.airline || '') + '</td><td>'
+                                 + escapeHtml(m.number || '') + '</td></tr>'; }).join('')
+                        + '</tbody></table>';
+                }
+                function row(cells) {
+                    return '<div class="row mt-1">' + cells.map(function (c) {
+                        return '<div class="col-6"><strong>' + c[0] + ':</strong> ' + c[1] + '</div>';
+                    }).join('') + '</div>';
+                }
+                body.innerHTML =
+                    '<div class="row mb-2"><div class="col-12"><strong>编号:</strong> '
+                  + '<span class="badge bg-light text-dark" style="font-size:0.8rem;font-family:monospace;">'
+                  + escapeHtml(t.traveler_code || '-') + '</span></div></div>'
+                  + row([['称谓', escapeHtml(t.title || '-')], ['性别', sex]])
+                  + '<div class="row mt-1"><div class="col-12"><strong>姓名:</strong> '
+                  + escapeHtml(t.name || '') + (t.name_en ? ' <span class="text-muted">('
+                  + escapeHtml(t.name_en) + ')</span>' : '') + '</div></div>'
+                  + row([['出生日期', escapeHtml(t.date_of_birth || '-')], ['国籍', escapeHtml(t.nationality || '-')]])
+                  + '<hr class="my-2">'
+                  + row([['电话', escapeHtml(t.phone || '-')], ['邮箱', escapeHtml(t.email || '-')]])
+                  + '<hr class="my-2">'
+                  + row([['护照号', escapeHtml(t.passport_number || '-')], ['签发国', escapeHtml(t.passport_issuing_country || '-')]])
+                  + row([['护照有效期', escapeHtml(t.passport_expiry_date || '-') + expired], ['身份证', escapeHtml(t.id_card_number || '-')]])
+                  + mem
+                  + row([['关联公司', escapeHtml(t.company_name || '-')], ['集团', escapeHtml(t.group_name || '-')]])
+                  + (t.remarks ? '<div class="row mt-1"><div class="col-12"><strong>备注:</strong> '
+                      + escapeHtml(t.remarks) + '</div></div>' : '');
+            })
+            .catch(function () {
+                body.innerHTML = '<div class="text-danger">网络错误</div>';
+            });
+    }
+
     function bindRowActions(scope) {
+        scope.querySelectorAll('.pp-recent-row').forEach(function (rowEl) {
+            rowEl.style.cursor = 'pointer';
+            rowEl.title = '点击查看详情';
+            rowEl.addEventListener('click', function (e) {
+                // 点到操作按钮（填回/删除）时不弹详情
+                if (e.target.closest('.pp-r-actions')) return;
+                openTravelerDetail(rowEl.getAttribute('data-id'));
+            });
+        });
         scope.querySelectorAll('.pp-r-fill').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var rec;
