@@ -1437,21 +1437,13 @@ function deleteMember(memberId, memberName) {
                                 <option value="MASTER">MASTER</option>
                             </select>
                         </div>
-                        <div class="col-6">
+                        <div class="col-9">
                             <label class="form-label">姓名 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
                         </div>
-                        <div class="col-3">
-                            <label class="form-label">性别</label>
-                            <select class="form-select form-select-sm" id="memberGender">
-                                <option value="">-</option>
-                                <option value="male">男 Male</option>
-                                <option value="female">女 Female</option>
-                            </select>
-                        </div>
                     </div>
                     <div id="memberRegularHint" class="text-muted mt-2" style="font-size: 0.75rem;">
-                        <i class="fas fa-info-circle"></i> 普通乘客只需姓名和性别。如需保存护照、电话、会员等完整信息，请在保存后点击列表中的 <i class="far fa-star"></i> 转为常用乘客，或从上方"常用旅客"中搜索选取。
+                        <i class="fas fa-info-circle"></i> 普通乘客只需称谓和姓名。如需保存性别、护照、电话、会员等完整信息，请在保存后点击列表中的 <i class="far fa-star"></i> 转为常用乘客，或从上方"常用旅客"中搜索选取。
                     </div>
                 </div>
 
@@ -1459,6 +1451,16 @@ function deleteMember(memberId, memberName) {
                 <div id="memberFrequentDetails" style="display: none;">
                     <div class="section-card">
                         <div class="section-title"><i class="fas fa-passport"></i> 护照 / 联系方式</div>
+                        <div class="row g-2 mb-1">
+                            <div class="col-3">
+                                <label class="form-label">性别</label>
+                                <select class="form-select form-select-sm" id="memberGender">
+                                    <option value="">-</option>
+                                    <option value="male">男 Male</option>
+                                    <option value="female">女 Female</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="row g-2">
                             <div class="col-6">
                                 <label class="form-label">护照号码</label>

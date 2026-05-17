@@ -140,6 +140,13 @@
     .pp-recent-row:hover { background: #fafafa; }
     .pp-r-name { font-weight: 600; color: #1f2937; min-width: 200px; }
     .pp-r-no { color: #4b5563; font-family: 'Segoe UI Mono', Consolas, monospace; min-width: 130px; }
+    .pp-r-freq { min-width: 96px; }
+    .pp-r-freq .pp-freq-badge {
+        display: inline-flex; align-items: center; gap: 3px;
+        font-size: 0.72rem; font-weight: 600;
+        color: #92400e; background: #fef3c7; border: 1px solid #fcd34d;
+        padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    }
     .pp-r-meta { color: #6b7280; font-size: 0.8rem; flex: 1; }
     .pp-r-time { color: #9ca3af; font-size: 0.78rem; }
     .pp-r-actions { display: flex; gap: 0.35rem; }
@@ -269,6 +276,11 @@
             <div class="pp-recent-row" data-id="{{ p.id }}">
                 <span class="pp-r-name">{{ p.surname }} {{ p.given_name }}</span>
                 <span class="pp-r-no">{{ p.passport_number }}</span>
+                <span class="pp-r-freq">
+                    <span class="pp-freq-badge" title="已是常用旅客">
+                        <i class="fas fa-star"></i> 常用 · {{ p.traveler_code }}
+                    </span>
+                </span>
                 <span class="pp-r-meta">
                     {{ p.nationality }} · {{ p.sex }} · 生日 {{ p.date_of_birth }} · 有效至 {{ p.expiration_date }}
                 </span>
@@ -598,6 +610,8 @@
             return '<div class="pp-recent-row" data-id="' + p.id + '">'
                 + '<span class="pp-r-name">' + escapeHtml(p.surname) + ' ' + escapeHtml(p.given_name) + '</span>'
                 + '<span class="pp-r-no">' + escapeHtml(p.passport_number) + '</span>'
+                + '<span class="pp-r-freq"><span class="pp-freq-badge" title="已是常用旅客">'
+                +     '<i class="fas fa-star"></i> 常用 · ' + escapeHtml(p.traveler_code || '') + '</span></span>'
                 + '<span class="pp-r-meta">' + escapeHtml(p.nationality || '') + ' · ' + escapeHtml(p.sex || '')
                 +     ' · 生日 ' + escapeHtml(p.date_of_birth || '') + ' · 有效至 ' + escapeHtml(p.expiration_date || '') + '</span>'
                 + '<span class="pp-r-time">' + escapeHtml(p.updated_at || '') + '</span>'

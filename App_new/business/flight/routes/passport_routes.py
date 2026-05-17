@@ -36,6 +36,28 @@ _MONTH_MAP = {
 _SEX_MAP = {'M': 'male', 'F': 'female'}
 
 
+def _infer_title(gender, dob):
+    """按性别(+出生日期判成人/儿童)推断称谓 MR/MS/MISS/MASTER
+
+    航旅惯例：12 岁以下为儿童 → 男 MASTER / 女 MISS；成人 → 男 MR / 女 MS。
+    无法判断性别时返回 None。
+    """
+    if gender not in ('male', 'female'):
+        return None
+    is_child = False
+    if dob:
+        try:
+            today = datetime.utcnow().date()
+            age = today.year - dob.year - (
+                (today.month, today.day) < (dob.month, dob.day))
+            is_child = age < 12
+        except (AttributeError, TypeError):
+            is_child = False
+    if gender == 'female':
+        return 'MISS' if is_child else 'MS'
+    return 'MASTER' if is_child else 'MR'
+
+
 def _allowed(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
@@ -88,6 +110,8 @@ def _traveler_to_passport_dict(t: FrequentTraveler) -> dict:
         sex_short = 'F'
     return {
         'id': t.id,
+        'traveler_code': t.traveler_code,
+        'is_frequent': True,
         'surname': surname,
         'given_name': given_name,
         'name': t.name or '',
@@ -178,6 +202,8 @@ def _upsert_traveler_from_passport(data):
     sex_raw = (data.get('sex') or '').strip().upper()[:1]
     gender = _SEX_MAP.get(sex_raw)
     dob = _parse_date(data.get('date_of_birth') or '')
+    # 称谓：优先前端显式传入，否则按性别(+生日)推断
+    title = (data.get('title') or '').strip().upper() or _infer_title(gender, dob)
     expiry = _parse_date(data.get('expiration_date') or '')
     issuing_country = (data.get('country_code') or '').strip().upper()
     cn_name = (data.get('name') or '').strip()
@@ -188,6 +214,9 @@ def _upsert_traveler_from_passport(data):
         existing.name_en = name_en
         if gender:
             existing.gender = gender
+        # 称谓为空才补，避免覆盖人工已设的称谓
+        if title and not (existing.title or '').strip():
+            existing.title = title
         if dob:
             existing.date_of_birth = dob
         if nationality:
@@ -206,6 +235,7 @@ def _upsert_traveler_from_passport(data):
     record = FrequentTraveler(
         name=cn_name or name_en,
         name_en=name_en,
+        title=title,
         gender=gender,
         date_of_birth=dob,
         nationality=nationality or None,
