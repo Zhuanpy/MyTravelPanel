@@ -1144,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const personLabel = isLoan ? '出借人' : '付款人';
 
             html += `
-                <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}">
+                <div class="suggestion-card" id="suggestion-${idx}" data-tx-id="${s.transaction_id}" data-receipt-id="${s.receipt_id}" data-match-type="${s.match_type || 'receipt'}">
                     <div class="d-flex align-items-center gap-2">
                         <div class="text-center flex-shrink-0" style="width:40px;">
                             <div class="match-score ${scoreClass}">${s.match_score}</div>
@@ -1183,30 +1183,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
         container.innerHTML = html;
 
-        // 绑定接受/拒绝按钮
-        container.querySelectorAll('.accept-suggestion-btn').forEach(btn => {
-            btn.addEventListener('click', async function() {
-                const idx = parseInt(this.dataset.idx);
-                await acceptSuggestion(idx);
+        // 绑定接受/拒绝按钮：用卡片上的稳定标识解析建议对象，
+        // 不依赖数组下标（accept 后会 filter 重排，下标会失效）
+        container.querySelectorAll('.suggestion-card').forEach(cardEl => {
+            const s = suggestionFromCard(cardEl);
+            const acc = cardEl.querySelector('.accept-suggestion-btn');
+            const rej = cardEl.querySelector('.reject-suggestion-btn');
+            if (acc) acc.addEventListener('click', function() {
+                acceptSuggestion(s, cardEl);
             });
-        });
-
-        container.querySelectorAll('.reject-suggestion-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const idx = parseInt(this.dataset.idx);
-                document.getElementById(`suggestion-${idx}`).remove();
-                currentSuggestions.splice(idx, 1);
+            if (rej) rej.addEventListener('click', function() {
+                currentSuggestions = currentSuggestions.filter(x => x !== s);
+                cardEl.remove();
+                if (currentSuggestions.length === 0) {
+                    document.getElementById('suggestionsBody').innerHTML =
+                        '<p class="text-center text-muted py-4">没有找到匹配建议</p>';
+                }
             });
         });
     }
 
-    // 接受单个建议
-    async function acceptSuggestion(idx) {
-        const suggestion = currentSuggestions[idx];
-        if (!suggestion) return;
+    // 按卡片 data 属性在 currentSuggestions 里定位对应建议对象
+    function suggestionFromCard(cardEl) {
+        const txId = cardEl.dataset.txId;
+        const rcId = cardEl.dataset.receiptId;
+        const mt = cardEl.dataset.matchType || 'receipt';
+        return currentSuggestions.find(x =>
+            String(x.transaction_id) === txId &&
+            String(x.receipt_id) === rcId &&
+            String(x.match_type || 'receipt') === mt
+        );
+    }
 
-        const card = document.getElementById(`suggestion-${idx}`);
+    // 接受单个建议（按对象+卡片元素，不依赖数组下标）
+    async function acceptSuggestion(suggestion, card) {
+        if (!suggestion || !card) return;
         const acceptBtn = card.querySelector('.accept-suggestion-btn');
+        if (!acceptBtn || acceptBtn.disabled) return;
 
         // 禁用按钮防止重复点击
         acceptBtn.disabled = true;
@@ -1252,10 +1265,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderReceipts();
 
                 // 同步移除其他建议中已被这条匹配占用的相同 tx 或 receipt（避免重复匹配）
-                currentSuggestions = currentSuggestions.filter(s =>
+                const dupFilter = s =>
                     !(s.transaction_id === suggestion.transaction_id ||
-                      (s.receipt_id === suggestion.receipt_id && (s.match_type || 'receipt') === matchType))
-                );
+                      (s.receipt_id === suggestion.receipt_id && (s.match_type || 'receipt') === matchType));
+                currentSuggestions = currentSuggestions.filter(dupFilter);
+
+                // 同步移除 DOM 中已失效的其他卡片（其建议对象已被上面过滤掉，
+                // 否则点它们会因找不到对象而"点了没反应"）
+                document.querySelectorAll('.suggestion-card').forEach(c => {
+                    if (c === card) return;
+                    if (c.dataset.txId === String(suggestion.transaction_id) ||
+                        (c.dataset.receiptId === String(suggestion.receipt_id) &&
+                         (c.dataset.matchType || 'receipt') === matchType)) {
+                        c.remove();
+                    }
+                });
 
                 // 平滑移除当前卡片
                 card.style.transition = 'all 0.2s ease';

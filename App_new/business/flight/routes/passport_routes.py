@@ -132,12 +132,13 @@ def _traveler_to_passport_dict(t: FrequentTraveler) -> dict:
 @staff_only
 def extract_page():
     """护照识别页面"""
-    recent = (FrequentTraveler.query
-              .filter(FrequentTraveler.passport_number.isnot(None),
-                      FrequentTraveler.passport_number != '')
-              .order_by(desc(FrequentTraveler.updated_at))
-              .limit(20)
-              .all())
+    _per_page = 20
+    _pag = (FrequentTraveler.query
+            .filter(FrequentTraveler.passport_number.isnot(None),
+                    FrequentTraveler.passport_number != '')
+            .order_by(desc(FrequentTraveler.updated_at))
+            .paginate(page=1, per_page=_per_page, error_out=False))
+    recent = _pag.items
 
     # 集团下拉：CustomerCompany.group_name + FrequentTraveler.group_name 的去重并集
     company_groups = {g[0] for g in db.session.query(CustomerCompany.group_name)
@@ -150,6 +151,9 @@ def extract_page():
 
     return render_template('business/flight/passport_extract.html',
                            recent_list=[_traveler_to_passport_dict(t) for t in recent],
+                           recent_total=_pag.total,
+                           recent_pages=_pag.pages,
+                           recent_per_page=_per_page,
                            groups=groups)
 
 
@@ -420,8 +424,9 @@ def save_image():
 @login_required
 @staff_only
 def recent():
-    """近期保存列表（仅含护照号的旅客）"""
-    limit = min(int(request.args.get('limit', 20)), 100)
+    """近期保存列表（仅含护照号的旅客），支持搜索 + 分页"""
+    per_page = min(int(request.args.get('limit', 20)), 100)
+    page = max(int(request.args.get('page', 1)), 1)
     keyword = (request.args.get('q') or '').strip()
 
     query = FrequentTraveler.query.filter(
@@ -435,8 +440,16 @@ def recent():
             FrequentTraveler.name_en.ilike(like),
             FrequentTraveler.passport_number.ilike(like),
         ))
-    items = query.order_by(desc(FrequentTraveler.updated_at)).limit(limit).all()
-    return jsonify({'success': True, 'data': [_traveler_to_passport_dict(t) for t in items]})
+    pag = query.order_by(desc(FrequentTraveler.updated_at)).paginate(
+        page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        'success': True,
+        'data': [_traveler_to_passport_dict(t) for t in pag.items],
+        'total': pag.total,
+        'page': pag.page,
+        'pages': pag.pages,
+        'per_page': per_page,
+    })
 
 
 @flights_passport.route('/<int:tid>', methods=['DELETE'])

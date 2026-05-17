@@ -152,6 +152,18 @@
     .pp-r-actions { display: flex; gap: 0.35rem; }
     .pp-r-actions .btn { font-size: 0.78rem; padding: 0.2rem 0.55rem; }
     .pp-empty { padding: 2.5rem 1rem; text-align: center; color: #9ca3af; font-size: 0.9rem; }
+    .pp-pager {
+        display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem;
+        padding: 0.5rem 1rem; border-top: 1px solid #f0f0f0;
+        font-size: 0.82rem; color: #6b7280;
+    }
+    .pp-pager:empty { display: none; }
+    .pp-pager button {
+        border: 1px solid #d1d5db; background: #fff; color: #374151;
+        border-radius: 4px; padding: 0.15rem 0.6rem; font-size: 0.8rem; cursor: pointer;
+    }
+    .pp-pager button:disabled { color: #c0c4cc; cursor: not-allowed; background: #f8f8f8; }
+    .pp-pager button:not(:disabled):hover { background: #f3f4f6; }
 </style>
 
 <div class="pp-wrap">
@@ -306,6 +318,7 @@
             <div class="pp-empty">暂无保存记录，提取后点"保存"即可。</div>
             {% endif %}
         </div>
+        <div id="ppPager" class="pp-pager"></div>
     </div>
 </div>
 
@@ -747,20 +760,61 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    function refreshRecent(q) {
-        var url = "{{ url_for('flights_passport.recent') }}";
-        if (q) url += '?q=' + encodeURIComponent(q);
+    // ---- 分页状态 ----
+    var recentQuery = '';
+    var recentPage = 1;
+    var RECENT_PER_PAGE = {{ recent_per_page|default(20) }};
+    var pagerEl = document.getElementById('ppPager');
+
+    function renderPager(meta) {
+        if (!pagerEl) return;
+        var total = meta.total || 0;
+        var pages = meta.pages || 1;
+        var page = meta.page || 1;
+        if (total <= 0) { pagerEl.innerHTML = ''; return; }
+        pagerEl.innerHTML =
+            '<span>共 ' + total + ' 条 · 第 ' + page + ' / ' + pages + ' 页</span>'
+          + '<button type="button" id="ppPrev"' + (page <= 1 ? ' disabled' : '') + '>上一页</button>'
+          + '<button type="button" id="ppNext"' + (page >= pages ? ' disabled' : '') + '>下一页</button>';
+        var prev = document.getElementById('ppPrev');
+        var next = document.getElementById('ppNext');
+        if (prev) prev.addEventListener('click', function () { gotoRecentPage(page - 1); });
+        if (next) next.addEventListener('click', function () { gotoRecentPage(page + 1); });
+    }
+
+    function refreshRecent(q, page) {
+        recentQuery = (q == null) ? recentQuery : q;
+        recentPage = page || 1;
+        var url = "{{ url_for('flights_passport.recent') }}"
+                + '?page=' + recentPage + '&limit=' + RECENT_PER_PAGE;
+        if (recentQuery) url += '&q=' + encodeURIComponent(recentQuery);
         fetch(url).then(function (r) { return r.json(); }).then(function (j) {
-            if (j.success) renderRecent(j.data);
+            if (j.success) {
+                renderRecent(j.data);
+                renderPager(j);
+            }
         });
     }
 
-    // 搜索
+    function gotoRecentPage(n) {
+        if (n < 1) n = 1;
+        refreshRecent(recentQuery, n);
+        if (pagerEl) pagerEl.scrollIntoView({ block: 'nearest' });
+    }
+
+    // 首屏分页（行已由服务端渲染，仅渲染翻页条）
+    renderPager({
+        total: {{ recent_total|default(0) }},
+        pages: {{ recent_pages|default(1) }},
+        page: 1
+    });
+
+    // 搜索（重置到第 1 页）
     var searchTimer = null;
     searchInput.addEventListener('input', function () {
         clearTimeout(searchTimer);
         var v = searchInput.value.trim();
-        searchTimer = setTimeout(function () { refreshRecent(v); }, 300);
+        searchTimer = setTimeout(function () { refreshRecent(v, 1); }, 300);
     });
 })();
 </script>
