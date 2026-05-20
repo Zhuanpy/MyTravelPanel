@@ -147,8 +147,11 @@
                       <table class="table table-sm table-hover mb-0" id="members-table" style="font-size: 0.8rem;">
                           <thead style="position: sticky; top: 0; background: white;">
                               <tr>
-                                  <th style="padding: 4px 14px; text-align: left; white-space: nowrap;" title="常用旅客编号">编号</th>
                                   <th style="padding: 4px 6px; width: 100%;">姓名</th>
+                                  {% if not header.is_settled %}
+                                  <th style="padding: 4px 6px; text-align: left; white-space: nowrap;" title="普通/常用">类型</th>
+                                  {% endif %}
+                                  <th style="padding: 4px 14px; text-align: left; white-space: nowrap;" title="常用旅客编号">编号</th>
                                   {% if not header.is_settled %}
                                   <th style="padding: 4px 10px; text-align: left; white-space: nowrap;" title="操作">操作</th>
                                   {% endif %}
@@ -638,13 +641,26 @@ function renderMembers(members) {
     tbody.innerHTML = sortedMembers.map(m => {
         return `
         <tr data-member-id="${m.id}" style="cursor: ${showActions ? 'pointer' : 'default'};${m.is_leader ? ' background-color: #d4edda;' : ''}" ${showActions ? `onclick="editMember(${m.id})"` : ''}>
-            <td style="padding: 4px 14px; white-space: nowrap;">
-                ${m.frequent_traveler_code ? '<span class="text-muted" style="font-size: 0.7rem; font-family: monospace;">' + m.frequent_traveler_code + '</span>' : '<span class="text-muted" style="font-size: 0.7rem;">-</span>'}
-            </td>
             <td style="padding: 4px 6px;">
                 <span title="${m.title ? m.title + ' ' : ''}${m.member_name}">
                     ${m.title ? '<small class="text-muted">' + m.title + '</small> ' : ''}${m.member_name || '-'}${m.is_leader ? ' <span class="badge bg-success" style="font-size: 0.6rem;">*</span>' : ''}
                 </span>
+            </td>
+            ${showActions ? `
+            <td style="padding: 4px 6px; text-align: left; white-space: nowrap;">
+                ${m.is_frequent
+                    ? `<span class="btn btn-sm btn-warning py-0 px-1" title="已是常用乘客" style="font-size: 0.68rem; cursor: default; pointer-events: none;">
+                        <i class="fas fa-star"></i> 常用
+                    </span>`
+                    : `<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
+                            onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="点击转为常用乘客" style="font-size: 0.68rem;">
+                        <i class="far fa-star"></i> 普通
+                    </button>`
+                }
+            </td>
+            ` : ''}
+            <td style="padding: 4px 14px; white-space: nowrap;">
+                ${m.frequent_traveler_code ? '<span class="text-muted" style="font-size: 0.7rem; font-family: monospace;">' + m.frequent_traveler_code + '</span>' : '<span class="text-muted" style="font-size: 0.7rem;">-</span>'}
             </td>
             ${showActions ? `
             <td style="padding: 4px 10px; text-align: left; white-space: nowrap;">
@@ -656,15 +672,6 @@ function renderMembers(members) {
                     : `<button type="button" class="btn btn-sm btn-outline-primary py-0 px-1"
                             onclick="event.stopPropagation(); setLeader(${m.id})" title="一键设为本项目 Leader" style="font-size: 0.68rem;">
                         <i class="fas fa-crown"></i> 设Leader
-                    </button>`
-                }
-                ${m.is_frequent
-                    ? `<span class="btn btn-sm btn-warning py-0 px-1" title="已是常用乘客" style="font-size: 0.68rem; cursor: default; pointer-events: none;">
-                        <i class="fas fa-star"></i> 常用
-                    </span>`
-                    : `<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
-                            onclick="event.stopPropagation(); saveAsFrequentTraveler(${m.id})" title="点击转为常用乘客" style="font-size: 0.68rem;">
-                        <i class="far fa-star"></i> 普通
                     </button>`
                 }
                 ${m.is_leader ? '' : `<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteMember(${m.id}, '${m.member_name}')" title="删除" style="font-size: 0.68rem;">
