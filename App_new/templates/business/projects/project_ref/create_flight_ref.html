@@ -205,7 +205,7 @@
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
                     <label class="form-label small mb-1">粘贴航段信息</label>
-                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="粘贴航段信息，例如：&#10;CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
+                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="支持以下格式（自动识别）：&#10;1) Athina/GDS 格式: CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1&#10;2) 中文行程: 1.新加坡（樟宜机场） - 海口美兰国际机场, 航班号：HU 748，05月25号，出发：12:05 - 抵达：15:40&#10;3) Trip.com / 携程 / Google Flights / 酷航 网页直接复制" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearModalParser()">
@@ -1459,21 +1459,75 @@ function closeFlightParserModal() {
     document.getElementById('flightParserModal').style.display = 'none';
 }
 
-function parseFlightSegmentsFromModal() {
+// 探测文本能被现有 GDS 正则匹配到的航段数（不修改 DOM）
+function probeGdsSegmentCount(text) {
+    const lines = text.split(/[\n\r>]+/).filter(line => {
+        const trimmed = line.trim();
+        return trimmed && !trimmed.startsWith('>');
+    });
+    const re = /(\w{2})\s*(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{2}:?\d{2})\s+(#?\d{2}:?\d{2})/;
+    let count = 0;
+    lines.forEach(line => {
+        const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
+        if (cleanLine && re.test(cleanLine)) count++;
+    });
+    return count;
+}
+
+async function parseFlightSegmentsFromModal() {
     const parserText = document.getElementById('modalFlightParser').value;
     if (!parserText.trim()) {
         alert('请先粘贴航段信息');
         return;
     }
-    
-    // 将模态框的文本设置到隐藏的解析器中
-    document.getElementById('flightParser').value = parserText;
-    
-    // 调用原有的解析函数
+
+    // 1) 优先尝试现有 GDS / Athina 格式直接解析
+    if (probeGdsSegmentCount(parserText) > 0) {
+        document.getElementById('flightParser').value = parserText;
+        parseFlightSegments();
+        closeFlightParserModal();
+        return;
+    }
+
+    // 2) 直接解析失败，调用后端 parse_flights API
+    //    支持: Trip.com / 携程 / Google Flights / 酷航 / 航空公司官网 / 中英文手动行程
+    const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content
+        || $('input[name="csrf_token"]').val() || '';
+    let result;
+    try {
+        const response = await fetch("{{ url_for('flights_athina.parse_flights_api') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ text: parserText })
+        });
+        result = await response.json();
+    } catch (error) {
+        alert('解析失败：网络错误 - ' + error.message);
+        return;
+    }
+
+    if (result.error) {
+        alert('解析失败：' + result.error);
+        return;
+    }
+    if (!result.segments || probeGdsSegmentCount(result.segments) === 0) {
+        alert('未能识别航班信息，请检查输入格式');
+        return;
+    }
+
+    // 3) 用后端返回的 GDS 段落喂给现有解析器
+    document.getElementById('flightParser').value = result.segments;
     parseFlightSegments();
-    
-    // 关闭模态框
     closeFlightParserModal();
+
+    let msg = `已解析 ${result.flight_count} 个航段（格式: ${result.format_detected}）`;
+    if (result.warning) {
+        msg += '\n\n⚠️ ' + result.warning;
+    }
+    alert(msg);
 }
 
 function clearModalParser() {
