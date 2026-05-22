@@ -64,7 +64,14 @@
                         </div>
                     </div>
 
-                    <!-- 第一行：公司名称*、公司代码、行业、公司规模 -->
+                    <!-- 隐藏字段：币种默认SGD，创建时间默认现在（由后端补），联系人改由公司联系人列表统一管理 -->
+                    <div style="display: none;">
+                        {{ form.currency() }}
+                        {{ form.created_at(type="hidden") }}
+                        {{ form.contact_person(type="hidden") }}
+                    </div>
+
+                    <!-- 第一行（必填优先）：公司名称*、状态*、联系电话*、公司地址* -->
                     <div class="visa-grid-4">
                         <div class="visa-form-group">
                             <label class="visa-form-label">
@@ -81,43 +88,6 @@
                         </div>
 
                         <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.company_code.label.text }}</label>
-                            {{ form.company_code(class="visa-form-control") }}
-                            {% if form.company_code.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.company_code.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.industry.label.text }}</label>
-                            {{ form.industry(class="visa-form-select") }}
-                            {% if form.industry.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.industry.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.company_size.label.text }}</label>
-                            {{ form.company_size(class="visa-form-select") }}
-                            {% if form.company_size.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.company_size.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- 第二行：状态、信用额度、币种、创建时间 -->
-                        <div class="visa-form-group">
                             <label class="visa-form-label">
                                 {{ form.status.label.text }} <span style="color: #ef4444;">*</span>
                             </label>
@@ -132,66 +102,40 @@
                         </div>
 
                         <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.credit_limit.label.text }}</label>
-                            {{ form.credit_limit(class="visa-form-control") }}
-                            {% if form.credit_limit.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.credit_limit.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="visa-form-group">
                             <label class="visa-form-label">
-                                {{ form.currency.label.text }} <span style="color: #ef4444;">*</span>
+                                {{ form.contact_phone.label.text }} <span style="color: #ef4444;">*</span>
                             </label>
-                            {{ form.currency(class="visa-form-select") }}
-                            {% if form.currency.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.currency.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">
-                                {{ form.created_at.label.text }} <small style="color: #94a3b8;">(可选)</small>
-                            </label>
-                            {{ form.created_at(class="visa-form-control") }}
-                            {% if form.created_at.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.created_at.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <!-- 第三行：联系人信息 -->
-                    <div class="visa-grid-4">
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.contact_person.label.text }}</label>
-                            {{ form.contact_person(class="visa-form-control", placeholder="主要联系人姓名") }}
-                            {% if form.contact_person.errors %}
-                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                    {% for error in form.contact_person.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">{{ form.contact_phone.label.text }}</label>
                             {{ form.contact_phone(class="visa-form-control", placeholder="联系电话") }}
                             {% if form.contact_phone.errors %}
                                 <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
                                     {% for error in form.contact_phone.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">
+                                {{ form.address.label.text }} <span style="color: #ef4444;">*</span>
+                            </label>
+                            {{ form.address(class="visa-form-control", placeholder="公司地址") }}
+                            {% if form.address.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.address.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 第二行：公司代码、联系邮箱、集团/关联 -->
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.company_code.label.text }}</label>
+                            {{ form.company_code(class="visa-form-control") }}
+                            {% if form.company_code.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.company_code.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>
@@ -224,6 +168,43 @@
                             {% if form.group_name.errors %}
                                 <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
                                     {% for error in form.group_name.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 第三行：行业、公司规模、信用额度 -->
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.industry.label.text }}</label>
+                            {{ form.industry(class="visa-form-select") }}
+                            {% if form.industry.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.industry.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.company_size.label.text }}</label>
+                            {{ form.company_size(class="visa-form-select") }}
+                            {% if form.company_size.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.company_size.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">{{ form.credit_limit.label.text }}</label>
+                            {{ form.credit_limit(class="visa-form-control") }}
+                            {% if form.credit_limit.errors %}
+                                <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
+                                    {% for error in form.credit_limit.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>
@@ -276,19 +257,6 @@
                         </div>
                     </div>
 
-                    <!-- 公司地址 -->
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">{{ form.address.label.text }}</label>
-                        {{ form.address(class="visa-form-control", rows=1, style="min-height: auto; height: 40px; resize: none;") }}
-                        {% if form.address.errors %}
-                            <div style="color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem;">
-                                {% for error in form.address.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
                     <!-- 备注 -->
                     <div class="visa-form-group">
                         <label class="visa-form-label">

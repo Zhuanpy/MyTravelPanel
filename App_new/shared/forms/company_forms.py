@@ -38,15 +38,17 @@ class CustomerCompanyForm(FlaskForm):
     ])
     
     contact_phone = StringField('联系电话', [
+        DataRequired(message='联系电话不能为空'),
         Length(max=20, message='联系电话不能超过20个字符')
     ])
-    
+
     contact_email = StringField('联系邮箱', [
         validate_email_with_special_values,
         Length(max=100, message='邮箱不能超过100个字符')
     ])
-    
-    address = TextAreaField('公司地址', [
+
+    address = StringField('公司地址', [
+        DataRequired(message='公司地址不能为空'),
         Length(max=500, message='地址不能超过500个字符')
     ])
     
@@ -84,7 +86,7 @@ class CustomerCompanyForm(FlaskForm):
     
     currency = SelectField('币种', [
         DataRequired(message='请选择币种')
-    ], choices=[
+    ], default='SGD', choices=[
         ('SGD', '新加坡元'),
         ('CNY', '人民币'),
         ('USD', '美元'),
