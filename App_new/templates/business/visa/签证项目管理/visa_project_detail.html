@@ -1,6 +1,12 @@
 {% extends "staff_base.html" %}
 
-{% block page_title %}签证项目详情{% endblock %}
+{% block page_title %}{{ project.applicant_name or '申请人未设置' }} - {{ project.visa_type|default('未知类型', true) }}申请{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-btn visa-btn-sm visa-btn-secondary">
+    <i class="fas fa-arrow-left"></i> 返回列表
+</a>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -18,155 +24,90 @@
      data-visa-status="{{ project.visa_status or '' }}"
      data-visa-type="{{ types_info.visa_type if types_info else (project.visa_type or '') }}"
      data-applicant-name="{{ project.applicant_name or '' }}">
-    <!-- 页面标题和操作栏 -->
-    <div class="visa-flex-between visa-mb-3">
-        <h1 class="visa-project-title">
-            {% if project.applicant_name %}
-                {{ project.applicant_name }}
-            {% else %}
-                <span style="color: var(--visa-text-muted); font-style: italic;">申请人未设置</span>
-            {% endif %}
-            {{ project.visa_type|default('未知类型', true) }}申请
-        </h1>
-    </div>
-
-    <!-- 快速操作工具栏 -->
+    <!-- 基本信息 -->
     <div class="visa-card visa-mb-3">
+        <div class="visa-card-header">
+            <h2><i class="fas fa-info-circle"></i> 基本信息</h2>
+            <div class="visa-flex visa-gap-2" style="flex-wrap: wrap;">
+                {% if not (has_header and project.header and has_ref and project.ref) %}
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="create-project-links" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">
+                    <i class="fas fa-plus"></i> 创建HID
+                </button>
+                {% endif %}
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="open-project-folder" data-folder-name="{{ project.project_folder_name }}" data-visa-type="{{ project.visa_type }}" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">
+                    <i class="fas fa-folder-open"></i> 项目文件夹
+                </button>
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="open-visa-type-folder" data-visa-type="{{ project.visa_type }}" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">
+                    <i class="fas fa-folder"></i> 资源文件夹
+                </button>
+                <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-primary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">
+                    <i class="fas fa-edit"></i> 编辑项目
+                </a>
+            </div>
+        </div>
         <div class="visa-card-body">
-            <div class="visa-flex visa-gap-2" style="flex-wrap: wrap; align-items: center;">
-                <div class="visa-form-group" style="margin-bottom: 0; min-width: 150px;">
-                    <label class="visa-form-label" style="margin-bottom: 0.25rem;">签证状态</label>
-                    <select class="visa-form-select" id="statusSelect" data-project-id="{{ project.id }}">
+            <div class="visa-project-info-grid" style="display: flex; flex-wrap: wrap; gap: 0.6rem 1.75rem; align-items: center; padding: 0.5rem 0;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">签证状态：</span>
+                    <select class="visa-form-select" id="statusSelect" data-project-id="{{ project.id }}" style="width: auto; min-width: 100px; height: 32px; padding: 0.1rem 0.5rem;">
                         <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
                         <option value="待出签" {% if project.visa_status == '待出签' %}selected{% endif %}>待出签</option>
                         <option value="已出签" {% if project.visa_status == '已出签' %}selected{% endif %}>已出签</option>
                         <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
                     </select>
                 </div>
-                
-                <div class="visa-form-group" style="margin-bottom: 0; min-width: 150px;">
-                    <label class="visa-form-label" style="margin-bottom: 0.25rem;">预估出签日期</label>
-                    <input type="date" id="estimatedDateInput" class="visa-form-control" value="{{ project.estimated_date }}" data-project-id="{{ project.id }}">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">预估出签日期：</span>
+                    <input type="date" id="estimatedDateInput" class="visa-form-control" value="{{ project.estimated_date }}" data-project-id="{{ project.id }}" style="width: auto; height: 32px; padding: 0.1rem 0.5rem;">
                 </div>
-
-                <div style="margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <a href="{{ url_for('visa_project.edit_project', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-primary" style="width: 100px; flex-shrink: 0;">
-                        <i class="fas fa-edit"></i> 编辑项目
-                    </a>
-                    <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="open-project-folder" data-folder-name="{{ project.project_folder_name }}" data-visa-type="{{ project.visa_type }}" style="width: 120px; flex-shrink: 0;">
-                        <i class="fas fa-folder-open"></i> 项目文件夹
-                    </button>
-                    <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" data-action="open-visa-type-folder" data-visa-type="{{ project.visa_type }}" style="width: 120px; flex-shrink: 0;">
-                        <i class="fas fa-folder"></i> 资源文件夹
-                    </button>
-                    <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=project.visa_type) }}" class="visa-btn visa-btn-sm visa-btn-warning" style="width: 120px; flex-shrink: 0;">
-                        <i class="fas fa-cogs"></i> 文档管理器
-                    </a>
-                    <a href="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-btn visa-btn-sm visa-btn-secondary" style="width: 100px; flex-shrink: 0;">
-                        <i class="fas fa-arrow-left"></i> 返回列表
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 相关链接 & HID/Ref -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
-            <h2><i class="fas fa-link"></i> 相关链接</h2>
-            <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
-                <!-- HID/Ref 信息 -->
-                {% if has_header and project.header and has_ref and project.ref %}
-                <span style="font-size: 0.8rem; background: #e3f2fd; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                    <strong>HID:</strong> 
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="text-primary" target="_blank">{{ project.header.hid }}</a>
-                </span>
-                <span style="font-size: 0.8rem; background: #e8f5e9; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                    <strong>Ref:</strong> 
-                    <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="text-primary" target="_blank">{{ project.ref.ref_number }}</a>
-                </span>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="copy-hid-ref" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="复制编号">
-                    <i class="fas fa-copy"></i>
-                </button>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" data-action="unlink-hid-ref" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="解除关联">
-                    <i class="fas fa-unlink"></i>
-                </button>
-                {% else %}
-                <span style="font-size: 0.75rem; color: #999; background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                    HID/Ref: 未关联
-                    {% if project.hid_or_serial %}<span style="color: #ff9800;"> (临时: {{ project.hid_or_serial }})</span>{% endif %}
-                </span>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="create-project-links" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
-                    <i class="fas fa-plus"></i> 创建HID
-                </button>
-                {% endif %}
-                <span style="border-left: 1px solid #ddd; height: 20px;"></span>
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
-                    <i class="fas fa-plus"></i> 添加链接
-                </button>
-                <a href="{{ url_for('visa_links.visa_link_page') }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="进入相关链接列表">
-                    <i class="fas fa-list"></i> 链接列表
-                </a>
-            </div>
-        </div>
-        {% if links %}
-        <div class="visa-links-grid">
-            {% for link in links %}
-            <div class="visa-link-item visa-link-{{ loop.index % 6 + 1 }}">
-                <a href="{{ link.link }}" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="visa-card-body visa-text-center" style="color: var(--visa-text-muted); padding: 0.75rem;">
-            暂无相关链接
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- 基本信息 -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header">
-            <h2><i class="fas fa-info-circle"></i> 基本信息</h2>
-        </div>
-        <div class="visa-card-body">
-            <div class="visa-project-info-grid">
-                <div>
-                    <div class="visa-info-label">HID或序列号</div>
-                    <div class="visa-info-value">
-                        {% if has_header and project.header %}
-                            {{ project.header.hid }}
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">HID / Ref：</span>
+                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                        {% if has_header and project.header and has_ref and project.ref %}
+                        <span style="font-size: 0.8rem; background: #e3f2fd; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                            <strong>HID:</strong>
+                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="text-primary" target="_blank">{{ project.header.hid }}</a>
+                        </span>
+                        <span style="font-size: 0.8rem; background: #e8f5e9; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                            <strong>Ref:</strong>
+                            <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="text-primary" target="_blank">{{ project.ref.ref_number }}</a>
+                        </span>
+                        <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="copy-hid-ref" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="复制编号">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" data-action="unlink-hid-ref" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="解除关联">
+                            <i class="fas fa-unlink"></i>
+                        </button>
                         {% else %}
-                            {{ project.hid_or_serial or '未设置' }}
+                        <span style="font-size: 0.8rem; color: #999; background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                            未关联
+                            {% if project.hid_or_serial %}<span style="color: #ff9800;"> (临时: {{ project.hid_or_serial }})</span>{% endif %}
+                        </span>
                         {% endif %}
                     </div>
                 </div>
-                <div>
-                    <div class="visa-info-label">签证类型</div>
-                    <div class="visa-info-value">{{ project.visa_type or '未设置' }}</div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">签证类型：</span>
+                    <span class="visa-info-value">{{ project.visa_type or '未设置' }}</span>
                 </div>
-                <div>
-                    <div class="visa-info-label">申请人名字</div>
-                    <div class="visa-info-value">{{ project.applicant_name or '未设置' }}</div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">联系人：</span>
+                    <span class="visa-info-value">{{ project.contact_name or '未设置' }}</span>
                 </div>
-                <div>
-                    <div class="visa-info-label">联系人名字</div>
-                    <div class="visa-info-value">{{ project.contact_name or '未设置' }}</div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">新加坡身份：</span>
+                    <span class="visa-info-value">{{ project.singapore_status or '未设置' }}</span>
                 </div>
-                <div>
-                    <div class="visa-info-label">新加坡身份</div>
-                    <div class="visa-info-value">{{ project.singapore_status or '未设置' }}</div>
-                </div>
-                <div>
-                    <div class="visa-info-label">创建时间</div>
-                    <div class="visa-info-value">{{ project.created_date.strftime('%Y-%m-%d') }}</div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">创建时间：</span>
+                    <span class="visa-info-value">{{ project.created_date.strftime('%Y-%m-%d') }}</span>
                 </div>
                 {% if '韩国' in project.visa_type %}
-                <div>
-                    <div class="visa-info-label">生成表格</div>
-                    <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">生成表格：</span>
+                    <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" style="margin: 0;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="visa-btn visa-btn-sm visa-btn-success" id="generateFormBtn">
+                        <button type="submit" class="visa-btn visa-btn-sm visa-btn-success" id="generateFormBtn" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">
                             <i class="fas fa-file-excel"></i> 生成表格
                         </button>
                     </form>
@@ -191,11 +132,42 @@
         </div>
     </div>
 
+    <!-- 相关链接 & HID/Ref -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
+            <h2><i class="fas fa-link"></i> 相关链接</h2>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
+                    <i class="fas fa-plus"></i> 添加链接
+                </button>
+                <a href="{{ url_for('visa_links.visa_link_page') }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="进入相关链接列表">
+                    <i class="fas fa-list"></i> 链接列表
+                </a>
+            </div>
+        </div>
+        {% if links %}
+        <div class="visa-links-grid">
+            {% for link in links %}
+            <div class="visa-link-item visa-link-{{ loop.index % 6 + 1 }}">
+                <a href="{{ link.link }}" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="visa-card-body visa-text-center" style="color: var(--visa-text-muted); padding: 0.75rem;">
+            暂无相关链接
+        </div>
+        {% endif %}
+    </div>
+
     <!-- 所需文件资料 -->
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-file-alt"></i> 所需文件资料</h2>
             <div class="visa-flex visa-gap-2">
+                <a href="{{ url_for('visa_basic.visa_type_document_manager', visa_type=project.visa_type) }}" class="visa-btn visa-btn-sm visa-btn-warning" style="width: 120px; flex-shrink: 0;">
+                    <i class="fas fa-cogs"></i> 文档管理器
+                </a>
                 <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="sync-documents" data-project-id="{{ project.id }}" style="width: 140px; flex-shrink: 0;">
                     <i class="fas fa-sync"></i> 同步资料清单
                 </button>
@@ -206,35 +178,23 @@
         </div>
         <div class="visa-card-body">
             {% if document_statuses %}
-            <div class="visa-document-grid">
+            <div class="visa-document-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; padding: 0.75rem 0;">
                 {% for document_name, status in document_statuses.items() %}
-                <div class="visa-document-item">
-                    <div class="visa-document-name">{{ document_name }}</div>
-                    <div class="visa-document-actions">
-                        <span class="visa-status-badge {% if status.is_ready %}ready{% else %}not-ready{% endif %}" 
-                              data-action="toggle-document-status"
-                              data-document-id="{{ status.id }}" 
-                              data-current-status="{{ 'true' if status.is_ready else 'false' }}">
-                            {% if status.is_ready %}已准备{% else %}未准备{% endif %}
-                        </span>
-                        <div class="visa-flex visa-gap-1">
-                            <button class="visa-icon-btn edit" 
-                                    data-action="edit-document-notes"
-                                    data-document-id="{{ status.id }}" 
-                                    data-document-name="{{ document_name }}"
-                                    data-document-notes="{{ status.notes or '' }}"
-                                    title="编辑备注">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="visa-icon-btn delete" 
-                                    data-action="delete-document"
-                                    data-document-id="{{ status.id }}" 
-                                    data-document-name="{{ document_name }}"
-                                    title="删除">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
+                <div class="visa-document-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;">
+                    <div class="visa-document-name" style="margin-bottom: 0; font-size: 0.9rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ document_name }}">{{ document_name }}</div>
+                    <span class="visa-status-badge {% if status.is_ready %}ready{% else %}not-ready{% endif %}"
+                          data-action="toggle-document-status"
+                          data-document-id="{{ status.id }}"
+                          data-current-status="{{ 'true' if status.is_ready else 'false' }}">
+                        {% if status.is_ready %}已准备{% else %}未准备{% endif %}
+                    </span>
+                    <button class="visa-icon-btn delete"
+                            data-action="delete-document"
+                            data-document-id="{{ status.id }}"
+                            data-document-name="{{ document_name }}"
+                            title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
                 {% endfor %}
             </div>
