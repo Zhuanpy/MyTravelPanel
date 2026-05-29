@@ -93,7 +93,7 @@
                      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
                          <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
                             <span style="color: #6c757d; min-width: 60px; font-weight: 500;">公司</span>
-                            <span id="company-name-span" style="flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '个人' }}">{{ company.company_name if company else '个人' }}</span>
+                            <span id="company-name-span" style="flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.company_name if company else '个人' }}">{% if company %}<a href="{{ url_for('corporate.company_detail', company_id=company.id) }}" style="color: #0d6efd; text-decoration: none;" title="查看公司详情">{{ company.company_name }}</a>{% else %}个人{% endif %}</span>
                          </div>
                          <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
                              <span style="color: #6c757d; min-width: 60px; font-weight: 500;">联系人</span>
