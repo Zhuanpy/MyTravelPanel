@@ -1205,6 +1205,35 @@ def update_estimated_date(project_id):
         }), 500
 
 
+@visa_project.route('/update_remarks/<int:project_id>', methods=['POST'])
+@csrf.exempt
+def update_remarks(project_id):
+    """通过AJAX单独更新项目备注信息"""
+    try:
+        project = VisaProject.query.get_or_404(project_id)
+
+        # 获取备注数据（允许为空，表示清空备注）
+        remarks = request.form.get('remarks', '')
+        project.remarks = remarks if remarks.strip() else None
+
+        # 保存到数据库
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': '备注信息更新成功',
+            'remarks': project.remarks or ''
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f"更新备注信息失败: {str(e)}"
+        return jsonify({
+            'success': False,
+            'message': error_msg
+        }), 500
+
+
 @visa_project.route('/open_folder', methods=['GET'])
 def open_folder():
     """

@@ -2,16 +2,14 @@
 
 {% block title %}Visa Documents List - MyTravelPanel{% endblock %}
 
-{% block page_title %}Visa Documents List{% endblock %}
+{% block page_title %}签证文档管理{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="visa-container-sm">
-    <h1 class="visa-page-title">签证文档管理</h1>
-
+<div class="visa-container">
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
         <div class="visa-flex visa-gap-2" style="align-items: flex-end;">
@@ -35,7 +33,7 @@
                 <i class="fas fa-redo"></i> 重置
             </button>
         </div>
-        <button class="visa-btn visa-btn-success" onclick="openAddModal()">
+        <button class="visa-btn visa-btn-success" onclick="openAddModal()" style="margin-left: auto;">
             <i class="fas fa-plus"></i> 添加新文档
         </button>
     </div>
@@ -59,7 +57,7 @@
                     <td>{{ document.name }}</td>
                     <td>{{ document.description or '无描述' }}</td>
                     <td>{{ document.category or '未分类' }}</td>
-                    <td>
+                    <td style="white-space: nowrap;">
                         <button class="visa-btn-link visa-btn-link-primary" onclick="openEditModal({{ document.id }})">
                             <i class="fas fa-edit"></i> 编辑
                         </button>

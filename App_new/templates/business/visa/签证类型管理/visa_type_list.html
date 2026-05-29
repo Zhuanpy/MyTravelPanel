@@ -23,9 +23,10 @@
                     <label class="visa-form-label">国家/地区</label>
                     <select name="country" class="visa-form-select" style="min-width: 120px;">
                         <option value="">全部</option>
-                        {% for country in countries %}
+                        {# 按英文名排序并显示英文，方便键盘输入快速定位 #}
+                        {% for country in countries|sort(attribute='country_name_EN') %}
                         <option value="{{ country.id }}" {% if request.args.get('country')|int == country.id %}selected{% endif %}>
-                            {{ country.country_name_CN }}
+                            {{ country.country_name_EN }}
                         </option>
                         {% endfor %}
                     </select>

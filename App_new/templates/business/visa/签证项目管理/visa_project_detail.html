@@ -104,6 +104,9 @@
                 <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
                     <i class="fas fa-plus"></i> 添加链接
                 </button>
+                <a href="{{ url_for('visa_links.visa_link_page') }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="进入相关链接列表">
+                    <i class="fas fa-list"></i> 链接列表
+                </a>
             </div>
         </div>
         {% if links %}
@@ -177,9 +180,12 @@
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-comment"></i> 备注信息</h2>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="show-edit-remarks-modal" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" title="编辑备注">
+                <i class="fas fa-edit"></i> 编辑
+            </button>
         </div>
         <div class="visa-card-body" style="padding: 0.75rem 1rem;">
-            <div style="white-space: pre-line; color: var(--visa-text-secondary); font-size: 0.875rem;">
+            <div id="remarksDisplay" style="white-space: pre-line; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">
                 {{ project.remarks or '暂无备注信息' }}
             </div>
         </div>
@@ -394,6 +400,28 @@
             </div>
             <div class="visa-modal-footer">
                 <button type="button" class="visa-btn visa-btn-secondary" data-action="close-modal" data-modal-id="editNotesModal">取消</button>
+                <button type="submit" class="visa-btn visa-btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑备注信息模态框 -->
+<div id="editRemarksModal" class="visa-modal">
+    <div class="visa-modal-dialog visa-modal-dialog-lg">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">编辑备注信息</h3>
+            <button type="button" class="visa-modal-close" data-action="close-modal" data-modal-id="editRemarksModal">&times;</button>
+        </div>
+        <form id="editRemarksForm">
+            <div class="visa-modal-body">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">备注</label>
+                    <textarea class="visa-form-textarea" id="editRemarksText" name="remarks" rows="12" style="min-height: 280px;" placeholder="请输入备注信息">{{ project.remarks or '' }}</textarea>
+                </div>
+            </div>
+            <div class="visa-modal-footer">
+                <button type="button" class="visa-btn visa-btn-secondary" data-action="close-modal" data-modal-id="editRemarksModal">取消</button>
                 <button type="submit" class="visa-btn visa-btn-primary">保存</button>
             </div>
         </form>
@@ -955,6 +983,54 @@ function initFormHandlers() {
         });
     }
 
+    // 编辑备注信息表单
+    const editRemarksForm = document.getElementById('editRemarksForm');
+    if (editRemarksForm) {
+        editRemarksForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const remarks = document.getElementById('editRemarksText').value;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '保存中...';
+
+            const formData = new FormData();
+            formData.append('remarks', remarks);
+
+            fetch(`/visa/project/update_remarks/${PROJECT_ID}`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('备注信息更新成功', 'success');
+                    // 更新页面显示，无需刷新
+                    const display = document.getElementById('remarksDisplay');
+                    if (display) {
+                        display.textContent = data.remarks ? data.remarks : '暂无备注信息';
+                    }
+                    closeModal('editRemarksModal');
+                } else {
+                    throw new Error(data.message || '更新失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage(error.message || '更新失败，请重试', 'error');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+        });
+    }
+
     // 添加链接表单
     const addLinkForm = document.getElementById('addLinkForm');
     if (addLinkForm) {
@@ -1119,6 +1195,9 @@ document.addEventListener('click', function(e) {
             break;
         case 'show-add-link-modal':
             openModal('addLinkModal');
+            break;
+        case 'show-edit-remarks-modal':
+            openModal('editRemarksModal');
             break;
         case 'close-modal':
             closeModal(target.dataset.modalId);
@@ -1430,8 +1509,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 点击模态框外部关闭
+    // 点击模态框外部关闭（备注编辑弹窗除外，避免误触关闭丢失输入）
+    const noOutsideClose = ['editRemarksModal'];
     document.querySelectorAll('.visa-modal').forEach(modal => {
+        if (noOutsideClose.includes(modal.id)) return;
         modal.addEventListener('click', function(e) {
             if (e.target === this) {
                 this.style.display = 'none';

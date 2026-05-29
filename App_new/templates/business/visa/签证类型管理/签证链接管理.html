@@ -10,26 +10,25 @@
 
 {% block content %}
 <div class="visa-container">
-    <h1 class="visa-page-title">签证链接管理</h1>
-
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
         <form method="GET" action="{{ url_for('visa_links.visa_link_page') }}" class="visa-flex visa-gap-2" style="align-items: flex-end; flex: 1;">
             <div class="visa-filter-item">
-                <label class="visa-form-label">签证类型：</label>
-                <select name="filter_visa_type" class="visa-form-select" onchange="this.form.submit()">
-                    <option value="">全部签证类型</option>
-                    {% for visa_type in visa_types %}
-                    <option value="{{ visa_type.id }}" {% if filter_visa_type|string == visa_type.id|string %}selected{% endif %}>{{ visa_type.visa_type }}</option>
+                <label class="visa-form-label">国家：</label>
+                <select name="filter_country" id="filterCountry" class="visa-form-select" onchange="onCountryFilterChange()">
+                    <option value="">全部国家</option>
+                    {# 按英文名排序并显示英文，方便键盘输入快速定位 #}
+                    {% for country in countries|sort(attribute='country_name_EN') %}
+                    <option value="{{ country.id }}" {% if filter_country|string == country.id|string %}selected{% endif %}>{{ country.country_name_EN }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="visa-filter-item">
-                <label class="visa-form-label">国家：</label>
-                <select name="filter_country" class="visa-form-select" onchange="this.form.submit()">
-                    <option value="">全部国家</option>
-                    {% for country in countries %}
-                    <option value="{{ country.id }}" {% if filter_country|string == country.id|string %}selected{% endif %}>{{ country.country_name_CN }}</option>
+                <label class="visa-form-label">签证类型：</label>
+                <select name="filter_visa_type" id="filterVisaType" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="">全部签证类型</option>
+                    {% for visa_type in visa_types %}
+                    <option value="{{ visa_type.id }}" data-country-id="{{ visa_type.country_id }}" {% if filter_visa_type|string == visa_type.id|string %}selected{% endif %}>{{ visa_type.visa_type }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -61,9 +60,15 @@
                     <td>{{ country.country_name_CN if country else '-' }}</td>
                     <td>{{ link.name }}</td>
                     <td><a href="{{ link.link }}" target="_blank" class="visa-btn-link visa-btn-link-primary">{{ link.link }}</a></td>
-                    <td class="visa-text-center">
+                    <td class="visa-text-center" style="white-space: nowrap;">
                         <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn-link visa-btn-link-primary">编辑</a>
-                        <a href="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" class="visa-btn-link visa-btn-link-danger" 
+                        <button type="button" class="visa-btn-link visa-btn-link-info"
+                                data-visa-type-id="{{ visa_type.id }}"
+                                data-country-id="{{ country.id if country else '' }}"
+                                data-name="{{ link.name }}"
+                                data-link="{{ link.link }}"
+                                onclick="copyLinkToAdd(this)">复制</button>
+                        <a href="{{ url_for('visa_links.delete_visa_link', link_id=link.id) }}" class="visa-btn-link visa-btn-link-danger"
                            onclick="return confirm('确定要删除链接 \'{{ link.name }}\' 吗？')">删除</a>
                     </td>
                 </tr>
@@ -121,20 +126,20 @@
                         </div>
                         <div class="visa-grid-2">
                             <div class="visa-form-group">
-                                <label class="visa-form-label">签证类型 *</label>
-                                <select name="visa_type[]" class="visa-form-select" required>
-                                    <option value="">请选择签证类型</option>
-                                    {% for visa_type in visa_types %}
-                                    <option value="{{ visa_type.id }}">{{ visa_type.visa_type }}</option>
+                                <label class="visa-form-label">国家 *</label>
+                                <select name="visa_countries_id[]" class="visa-form-select" required onchange="filterEntryVisaTypes(this)">
+                                    <option value="">请选择国家</option>
+                                    {% for country in countries|sort(attribute='country_name_EN') %}
+                                    <option value="{{ country.id }}">{{ country.country_name_EN }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="visa-form-group">
-                                <label class="visa-form-label">国家 *</label>
-                                <select name="visa_countries_id[]" class="visa-form-select" required>
-                                    <option value="">请选择国家</option>
-                                    {% for country in countries %}
-                                    <option value="{{ country.id }}">{{ country.country_name_CN }}</option>
+                                <label class="visa-form-label">签证类型 *</label>
+                                <select name="visa_type[]" class="visa-form-select" required>
+                                    <option value="">请选择签证类型</option>
+                                    {% for visa_type in visa_types %}
+                                    <option value="{{ visa_type.id }}" data-country-id="{{ visa_type.country_id }}">{{ visa_type.visa_type }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -190,8 +195,8 @@
                         <label class="visa-form-label">国家 *</label>
                         <select name="visa_countries_id" class="visa-form-select" required>
                             <option value="">请选择国家</option>
-                            {% for country in countries %}
-                            <option value="{{ country.id }}" {% if link.visa_countries_id == country.id %}selected{% endif %}>{{ country.country_name_CN }}</option>
+                            {% for country in countries|sort(attribute='country_name_EN') %}
+                            <option value="{{ country.id }}" {% if link.visa_countries_id == country.id %}selected{% endif %}>{{ country.country_name_EN }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -215,9 +220,81 @@
 {% endif %}
 
 <script>
+// 根据所选国家联动过滤签证类型下拉选项
+function applyVisaTypeCountryFilter(resetSelection) {
+    const countrySel = document.getElementById('filterCountry');
+    const typeSel = document.getElementById('filterVisaType');
+    if (!countrySel || !typeSel) return;
+
+    const countryId = countrySel.value;
+    let selectedStillValid = false;
+
+    Array.from(typeSel.options).forEach(function(opt) {
+        if (!opt.value) { opt.hidden = false; return; }  // "全部签证类型" 始终可见
+        const match = !countryId || opt.getAttribute('data-country-id') === countryId;
+        opt.hidden = !match;
+        if (match && opt.value === typeSel.value) selectedStillValid = true;
+    });
+
+    // 当前选中的签证类型不属于所选国家时，重置为"全部"
+    if (resetSelection && !selectedStillValid) {
+        typeSel.value = '';
+    }
+}
+
+// 切换国家：重置不匹配的签证类型并提交筛选
+function onCountryFilterChange() {
+    applyVisaTypeCountryFilter(true);
+    document.getElementById('filterCountry').form.submit();
+}
+
 // 弹窗控制函数
 function showAddModal() {
     document.getElementById('addModal').style.display = 'flex';
+}
+
+// 弹窗内：根据某条目所选国家，联动过滤该条目的签证类型选项
+function filterEntryVisaTypes(countrySelect, resetSelection) {
+    const entry = countrySelect.closest('.link-entry');
+    if (!entry) return;
+    const typeSel = entry.querySelector('select[name="visa_type[]"]');
+    if (!typeSel) return;
+
+    const countryId = countrySelect.value;
+    let selectedStillValid = false;
+
+    Array.from(typeSel.options).forEach(function(opt) {
+        if (!opt.value) { opt.hidden = false; return; }  // "请选择签证类型" 始终可见
+        const match = !countryId || opt.getAttribute('data-country-id') === countryId;
+        opt.hidden = !match;
+        if (match && opt.value === typeSel.value) selectedStillValid = true;
+    });
+
+    // 已选签证类型不属于所选国家时重置（resetSelection 默认 true）
+    if (resetSelection !== false && !selectedStillValid) {
+        typeSel.value = '';
+    }
+}
+
+// 复制某条链接到"添加"弹窗，预填数据方便快速新建相似链接
+function copyLinkToAdd(btn) {
+    const container = document.getElementById('linkEntriesContainer');
+    // 移除多余条目，恢复到单条目状态
+    const entries = container.querySelectorAll('.link-entry');
+    for (let i = 1; i < entries.length; i++) entries[i].remove();
+    document.getElementById('addLinkForm').reset();
+
+    // 预填第一条目数据（先国家，再按国家过滤后选签证类型）
+    const firstEntry = container.querySelector('.link-entry');
+    const countrySel = firstEntry.querySelector('select[name="visa_countries_id[]"]');
+    countrySel.value = btn.dataset.countryId || '';
+    firstEntry.querySelector('select[name="visa_type[]"]').value = btn.dataset.visaTypeId || '';
+    filterEntryVisaTypes(countrySel, false);
+    firstEntry.querySelector('input[name="name[]"]').value = btn.dataset.name || '';
+    firstEntry.querySelector('input[name="link[]"]').value = btn.dataset.link || '';
+
+    document.getElementById('addModalAlert').style.display = 'none';
+    showAddModal();
 }
 
 function closeAddModal() {
@@ -238,6 +315,9 @@ function closeEditModal() {
 
 // 点击模态框外部关闭
 document.addEventListener('DOMContentLoaded', function() {
+    // 页面加载时根据当前所选国家过滤签证类型选项
+    applyVisaTypeCountryFilter(false);
+
     const addModal = document.getElementById('addModal');
     if (addModal) {
         addModal.addEventListener('click', function(e) {
@@ -392,7 +472,11 @@ function addLinkRow() {
     // 清空输入值
     newEntry.querySelectorAll('input').forEach(input => input.value = '');
     newEntry.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
-    
+
+    // 重置新条目的签证类型联动（国家已清空，显示全部签证类型）
+    const newCountrySel = newEntry.querySelector('select[name="visa_countries_id[]"]');
+    if (newCountrySel) filterEntryVisaTypes(newCountrySel, false);
+
     // 添加删除按钮
     if (entryCount > 1) {
         const headerDiv = newEntry.querySelector('div:first-child');
