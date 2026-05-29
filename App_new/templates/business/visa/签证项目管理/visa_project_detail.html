@@ -11,6 +11,20 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+/* 备注富文本编辑器 */
+.rte-toolbar { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--visa-border, #d1d5db); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--visa-bg-light, #f9fafb); }
+.rte-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: #fff; cursor: pointer; color: var(--visa-text-secondary, #374151); font-size: 0.85rem; position: relative; }
+.rte-btn:hover { background: var(--visa-bg-light, #eef2ff); border-color: var(--visa-border, #d1d5db); }
+.rte-color-group { position: relative; }
+.rte-palette { display: none; position: absolute; top: 100%; left: 0; z-index: 1000; margin-top: 2px; padding: 6px; background: #fff; border: 1px solid var(--visa-border, #d1d5db); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: max-content; }
+.rte-color-group.open .rte-palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.rte-swatch { width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); cursor: pointer; padding: 0; }
+.rte-swatch:hover { transform: scale(1.15); }
+.rte-editor { border-radius: 0 0 6px 6px; overflow-y: auto; outline: none; }
+.rte-editor:focus { border-color: var(--visa-primary, #6366f1); }
+.rte-editor:empty:before { content: attr(data-placeholder); color: var(--visa-text-muted, #9ca3af); }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -126,8 +140,8 @@
             </button>
         </div>
         <div class="visa-card-body" style="padding: 0.75rem 1rem;">
-            <div id="remarksDisplay" style="white-space: pre-line; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">
-                {{ project.remarks or '暂无备注信息' }}
+            <div id="remarksDisplay" style="white-space: pre-wrap; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">
+                {% if project.remarks %}{{ project.remarks | safe }}{% else %}暂无备注信息{% endif %}
             </div>
         </div>
     </div>
@@ -377,7 +391,22 @@
             <div class="visa-modal-body">
                 <div class="visa-form-group">
                     <label class="visa-form-label">备注</label>
-                    <textarea class="visa-form-textarea" id="editRemarksText" name="remarks" rows="12" style="min-height: 280px;" placeholder="请输入备注信息">{{ project.remarks or '' }}</textarea>
+                    <div class="rte-toolbar" id="remarksToolbar">
+                        <button type="button" class="rte-btn" data-cmd="bold" title="加粗"><b>B</b></button>
+                        <button type="button" class="rte-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+                        <button type="button" class="rte-btn" data-cmd="underline" title="下划线"><u>U</u></button>
+                        <span class="rte-color-group">
+                            <button type="button" class="rte-btn rte-color-toggle" data-cmd="foreColor" title="字体颜色"><i class="fas fa-font"></i></button>
+                            <span class="rte-palette"></span>
+                        </span>
+                        <span class="rte-color-group">
+                            <button type="button" class="rte-btn rte-color-toggle" data-cmd="hiliteColor" title="背景高亮"><i class="fas fa-highlighter"></i></button>
+                            <span class="rte-palette"></span>
+                        </span>
+                        <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="项目符号"><i class="fas fa-list-ul"></i></button>
+                        <button type="button" class="rte-btn" data-cmd="removeFormat" title="清除格式"><i class="fas fa-eraser"></i></button>
+                    </div>
+                    <div class="rte-editor visa-form-textarea" id="editRemarksEditor" contenteditable="true" data-placeholder="请输入备注信息" style="min-height: 280px;">{{ project.remarks | safe if project.remarks else '' }}</div>
                 </div>
             </div>
             <div class="visa-modal-footer">
@@ -867,6 +896,56 @@ function unlinkHIDRef() {
     });
 }
 
+// ==================== 备注富文本：颜色调色板 ====================
+// 预设颜色（点击即生效，无需弹出系统调色盘）
+const RTE_PRESET_COLORS = [
+    '#000000', '#374151', '#6b7280', '#9ca3af', '#ef4444', '#f97316', '#f59e0b', '#eab308',
+    '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#ffffff'
+];
+function initRtePalettes(toolbar, editor, saveRange, restoreRange) {
+    toolbar.querySelectorAll('.rte-color-group').forEach(function(group) {
+        const toggle = group.querySelector('.rte-color-toggle');
+        const palette = group.querySelector('.rte-palette');
+        const cmd = toggle.dataset.cmd;
+
+        // 生成色块
+        RTE_PRESET_COLORS.forEach(function(color) {
+            const sw = document.createElement('button');
+            sw.type = 'button';
+            sw.className = 'rte-swatch';
+            sw.style.backgroundColor = color;
+            sw.title = color;
+            // mousedown+preventDefault 保持编辑区选区，点击立即上色
+            sw.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                editor.focus();
+                restoreRange();
+                document.execCommand('styleWithCSS', false, true);
+                document.execCommand(cmd, false, color);
+                saveRange();
+                group.classList.remove('open');
+            });
+            palette.appendChild(sw);
+        });
+
+        // 点击图标：先锁定选区再展开/收起调色板（同时关闭其它已打开的）
+        toggle.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            saveRange();
+            const isOpen = group.classList.contains('open');
+            toolbar.querySelectorAll('.rte-color-group.open').forEach(function(g) { g.classList.remove('open'); });
+            if (!isOpen) group.classList.add('open');
+        });
+    });
+
+    // 点击调色板以外区域关闭
+    document.addEventListener('mousedown', function(e) {
+        if (!e.target.closest('.rte-color-group')) {
+            toolbar.querySelectorAll('.rte-color-group.open').forEach(function(g) { g.classList.remove('open'); });
+        }
+    });
+}
+
 // ==================== 表单提交处理（在DOMContentLoaded中初始化） ====================
 function initFormHandlers() {
     // 添加资料表单
@@ -943,13 +1022,47 @@ function initFormHandlers() {
         });
     }
 
+    // 备注富文本编辑器工具栏
+    const remarksToolbar = document.getElementById('remarksToolbar');
+    const remarksEditor = document.getElementById('editRemarksEditor');
+    if (remarksToolbar && remarksEditor) {
+        // 保存/恢复选区：颜色选择器会弹窗使编辑区失焦，需手动保存选区
+        let savedRange = null;
+        const saveRange = function() {
+            const sel = window.getSelection();
+            if (sel.rangeCount && remarksEditor.contains(sel.anchorNode)) {
+                savedRange = sel.getRangeAt(0);
+            }
+        };
+        const restoreRange = function() {
+            if (savedRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+        };
+        remarksEditor.addEventListener('keyup', saveRange);
+        remarksEditor.addEventListener('mouseup', saveRange);
+
+        // 加粗/斜体/下划线等命令按钮：用 mousedown+preventDefault 防止按钮抢焦点导致选区丢失
+        remarksToolbar.querySelectorAll('.rte-btn[data-cmd]:not(.rte-color-toggle)').forEach(function(btn) {
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                document.execCommand(btn.dataset.cmd, false, null);
+            });
+        });
+        initRtePalettes(remarksToolbar, remarksEditor, saveRange, restoreRange);
+    }
+
     // 编辑备注信息表单
     const editRemarksForm = document.getElementById('editRemarksForm');
     if (editRemarksForm) {
         editRemarksForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const remarks = document.getElementById('editRemarksText').value;
+            const editorEl = document.getElementById('editRemarksEditor');
+            // 内容为空（仅空白）时提交空字符串，便于后端清空备注
+            const remarks = editorEl.textContent.trim() ? editorEl.innerHTML : '';
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
@@ -973,7 +1086,7 @@ function initFormHandlers() {
                     // 更新页面显示，无需刷新
                     const display = document.getElementById('remarksDisplay');
                     if (display) {
-                        display.textContent = data.remarks ? data.remarks : '暂无备注信息';
+                        display.innerHTML = data.remarks ? data.remarks : '暂无备注信息';
                     }
                     closeModal('editRemarksModal');
                 } else {
