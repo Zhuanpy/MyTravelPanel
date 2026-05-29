@@ -6,6 +6,18 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+/* 链接地址列：固定宽高，内容过长省略号隐藏 */
+.visa-table th.col-link,
+.visa-table td.col-link { width: 320px; max-width: 320px; }
+.visa-table td.col-link .link-cell {
+    display: block;
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -49,7 +61,7 @@
                     <th>签证类型</th>
                     <th>国家</th>
                     <th>链接名称</th>
-                    <th>链接地址</th>
+                    <th class="col-link">链接地址</th>
                     <th class="visa-text-center">操作</th>
                 </tr>
             </thead>
@@ -59,7 +71,7 @@
                     <td>{{ visa_type.visa_type }}</td>
                     <td>{{ country.country_name_CN if country else '-' }}</td>
                     <td>{{ link.name }}</td>
-                    <td><a href="{{ link.link }}" target="_blank" class="visa-btn-link visa-btn-link-primary">{{ link.link }}</a></td>
+                    <td class="col-link"><a href="{{ link.link }}" target="_blank" title="{{ link.link }}" class="visa-btn-link visa-btn-link-primary link-cell">{{ link.link }}</a></td>
                     <td class="visa-text-center" style="white-space: nowrap;">
                         <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn-link visa-btn-link-primary">编辑</a>
                         <button type="button" class="visa-btn-link visa-btn-link-info"
