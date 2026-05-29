@@ -923,33 +923,42 @@ def edit_itinerary(itinerary_id):
 
             # 处理图片上传
             upload_folder = os.path.join('App_new', 'static', 'itinerary_images')
-            
-            # 处理图片1
-            if 'image1' in request.files:
+
+            # 处理图片1：图库路径优先于文件上传
+            image1_lib = (request.form.get('image1_library_path') or '').strip()
+            if image1_lib:
+                itinerary.image1 = image1_lib
+            elif 'image1' in request.files:
                 image1_file = request.files['image1']
                 if image1_file and image1_file.filename:
                     image1_path = save_uploaded_image(image1_file, upload_folder)
                     if image1_path:
                         itinerary.image1 = image1_path
-            
+
             # 处理图片2
-            if 'image2' in request.files:
+            image2_lib = (request.form.get('image2_library_path') or '').strip()
+            if image2_lib:
+                itinerary.image2 = image2_lib
+            elif 'image2' in request.files:
                 image2_file = request.files['image2']
                 if image2_file and image2_file.filename:
                     image2_path = save_uploaded_image(image2_file, upload_folder)
                     if image2_path:
                         itinerary.image2 = image2_path
-            
+
             # 处理图片3
-            if 'image3' in request.files:
+            image3_lib = (request.form.get('image3_library_path') or '').strip()
+            if image3_lib:
+                itinerary.image3 = image3_lib
+            elif 'image3' in request.files:
                 image3_file = request.files['image3']
                 if image3_file and image3_file.filename:
                     image3_path = save_uploaded_image(image3_file, upload_folder)
                     if image3_path:
                         itinerary.image3 = image3_path
-            
+
             db.session.commit()
-            
+
             # 检查是否是AJAX请求
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': True, 'message': '行程安排更新成功'})
@@ -1030,6 +1039,22 @@ def delete_itinerary(itinerary_id):
         else:
             flash(f'删除失败：{str(e)}', 'error')
             return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
+
+@tour_projects.route('/itinerary/clear/<int:group_id>', methods=['POST'])
+@csrf.exempt
+def clear_group_itineraries(group_id):
+    """清空指定团队的所有行程安排（用于自动生成前的覆盖操作）"""
+    group = TourGroup.query.get(group_id)
+    if not group:
+        return jsonify({'success': False, 'message': f'团队不存在 (id={group_id})'}), 404
+    try:
+        deleted_count = TourItinerary.query.filter_by(tour_id=group_id).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'success': True, 'deleted_count': deleted_count, 'group_id': group_id})
+    except Exception as e:
+        db.session.rollback()
+        print(f"清空团队行程时发生错误: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @tour_projects.route('/edit/<int:project_id>', methods=['GET', 'POST'])
 @csrf.exempt
@@ -1289,25 +1314,34 @@ def create_itinerary(group_id):
             
             # 处理图片上传
             upload_folder = os.path.join('App_new', 'static', 'itinerary_images')
-            
-            # 处理图片1
-            if 'image1' in request.files:
+
+            # 处理图片1：图库路径优先于文件上传
+            image1_lib = (request.form.get('image1_library_path') or '').strip()
+            if image1_lib:
+                new_itinerary.image1 = image1_lib
+            elif 'image1' in request.files:
                 image1_file = request.files['image1']
                 if image1_file and image1_file.filename:
                     image1_path = save_uploaded_image(image1_file, upload_folder)
                     if image1_path:
                         new_itinerary.image1 = image1_path
-            
+
             # 处理图片2
-            if 'image2' in request.files:
+            image2_lib = (request.form.get('image2_library_path') or '').strip()
+            if image2_lib:
+                new_itinerary.image2 = image2_lib
+            elif 'image2' in request.files:
                 image2_file = request.files['image2']
                 if image2_file and image2_file.filename:
                     image2_path = save_uploaded_image(image2_file, upload_folder)
                     if image2_path:
                         new_itinerary.image2 = image2_path
-            
+
             # 处理图片3
-            if 'image3' in request.files:
+            image3_lib = (request.form.get('image3_library_path') or '').strip()
+            if image3_lib:
+                new_itinerary.image3 = image3_lib
+            elif 'image3' in request.files:
                 image3_file = request.files['image3']
                 if image3_file and image3_file.filename:
                     image3_path = save_uploaded_image(image3_file, upload_folder)

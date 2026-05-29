@@ -343,7 +343,7 @@
                         <table class="itinerary-table w-full text-left">
                             <thead class="text-left">
                                 <tr class="text-left">
-                                    <th class="!text-left" style="width: 100px;">日期</th>
+                                    <th class="!text-left" style="width: 130px; white-space: nowrap;">日期</th>
                                     <th class="!text-left" style="width: 80px;">天数</th>
                                     <th class="!text-left" style="width: 150px;">日期标题</th>
                                     <th class="!text-left">行程内容</th>
@@ -353,7 +353,7 @@
                             <tbody class="text-left">
                                 {% for itinerary in group.itineraries %}
                                 <tr class="text-left">
-                                    <td class="!text-left">{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
+                                    <td class="!text-left" style="white-space: nowrap;">{{ itinerary.date.strftime('%Y-%m-%d') }}</td>
                                     <td class="!text-left">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-medium">
                                             第{{ loop.index }}天
@@ -594,17 +594,50 @@
                         <div class="image-upload-item">
                             <i class="fas fa-image text-2xl text-gray-400 mb-2"></i>
                             <label class="visa-form-label text-xs">图片1</label>
-                            <input type="file" name="image1" accept="image/*" class="visa-form-control text-sm">
+                            <input type="file" name="image1" accept="image/*" class="visa-form-control text-sm" onchange="onAddItineraryFileChange(1)">
+                            <input type="hidden" name="image1_library_path" id="addImage1LibraryPath" value="">
+                            <button type="button" class="visa-btn visa-btn-sm mt-2" style="background:#6366f1;color:white;width:100%;"
+                                    onclick="openItineraryImageLibrary('add', 1)">
+                                <i class="fas fa-images mr-1"></i>从图库选择
+                            </button>
+                            <div id="addImage1LibraryPreview" class="current-image mt-2 flex items-center gap-2" style="display:none;">
+                                <img id="addImage1LibraryImg" src="" alt="已选图片1">
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="clearAddItineraryLibrary(1)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="image-upload-item">
                             <i class="fas fa-image text-2xl text-gray-400 mb-2"></i>
                             <label class="visa-form-label text-xs">图片2</label>
-                            <input type="file" name="image2" accept="image/*" class="visa-form-control text-sm">
+                            <input type="file" name="image2" accept="image/*" class="visa-form-control text-sm" onchange="onAddItineraryFileChange(2)">
+                            <input type="hidden" name="image2_library_path" id="addImage2LibraryPath" value="">
+                            <button type="button" class="visa-btn visa-btn-sm mt-2" style="background:#6366f1;color:white;width:100%;"
+                                    onclick="openItineraryImageLibrary('add', 2)">
+                                <i class="fas fa-images mr-1"></i>从图库选择
+                            </button>
+                            <div id="addImage2LibraryPreview" class="current-image mt-2 flex items-center gap-2" style="display:none;">
+                                <img id="addImage2LibraryImg" src="" alt="已选图片2">
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="clearAddItineraryLibrary(2)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="image-upload-item">
                             <i class="fas fa-image text-2xl text-gray-400 mb-2"></i>
                             <label class="visa-form-label text-xs">图片3</label>
-                            <input type="file" name="image3" accept="image/*" class="visa-form-control text-sm">
+                            <input type="file" name="image3" accept="image/*" class="visa-form-control text-sm" onchange="onAddItineraryFileChange(3)">
+                            <input type="hidden" name="image3_library_path" id="addImage3LibraryPath" value="">
+                            <button type="button" class="visa-btn visa-btn-sm mt-2" style="background:#6366f1;color:white;width:100%;"
+                                    onclick="openItineraryImageLibrary('add', 3)">
+                                <i class="fas fa-images mr-1"></i>从图库选择
+                            </button>
+                            <div id="addImage3LibraryPreview" class="current-image mt-2 flex items-center gap-2" style="display:none;">
+                                <img id="addImage3LibraryImg" src="" alt="已选图片3">
+                                <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="clearAddItineraryLibrary(3)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -652,7 +685,12 @@
                     <div class="image-upload-container">
                         <div class="image-upload-item">
                             <label class="visa-form-label text-xs">图片1</label>
-                            <input type="file" name="image1" accept="image/*" class="visa-form-control text-sm">
+                            <input type="file" name="image1" accept="image/*" class="visa-form-control text-sm" onchange="onEditItineraryFileChange(1)">
+                            <input type="hidden" name="image1_library_path" id="editImage1LibraryPath" value="">
+                            <button type="button" class="visa-btn visa-btn-sm mt-2" style="background:#6366f1;color:white;width:100%;"
+                                    onclick="openItineraryImageLibrary('edit', 1)">
+                                <i class="fas fa-images mr-1"></i>从图库选择
+                            </button>
                             <div id="editCurrentImage1" class="current-image mt-2 flex items-center gap-2" style="display: none;">
                                 <img id="editImage1Preview" src="" alt="当前图片1">
                                 <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image1')">
@@ -662,7 +700,12 @@
                         </div>
                         <div class="image-upload-item">
                             <label class="visa-form-label text-xs">图片2</label>
-                            <input type="file" name="image2" accept="image/*" class="visa-form-control text-sm">
+                            <input type="file" name="image2" accept="image/*" class="visa-form-control text-sm" onchange="onEditItineraryFileChange(2)">
+                            <input type="hidden" name="image2_library_path" id="editImage2LibraryPath" value="">
+                            <button type="button" class="visa-btn visa-btn-sm mt-2" style="background:#6366f1;color:white;width:100%;"
+                                    onclick="openItineraryImageLibrary('edit', 2)">
+                                <i class="fas fa-images mr-1"></i>从图库选择
+                            </button>
                             <div id="editCurrentImage2" class="current-image mt-2 flex items-center gap-2" style="display: none;">
                                 <img id="editImage2Preview" src="" alt="当前图片2">
                                 <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image2')">
@@ -672,7 +715,12 @@
                         </div>
                         <div class="image-upload-item">
                             <label class="visa-form-label text-xs">图片3</label>
-                            <input type="file" name="image3" accept="image/*" class="visa-form-control text-sm">
+                            <input type="file" name="image3" accept="image/*" class="visa-form-control text-sm" onchange="onEditItineraryFileChange(3)">
+                            <input type="hidden" name="image3_library_path" id="editImage3LibraryPath" value="">
+                            <button type="button" class="visa-btn visa-btn-sm mt-2" style="background:#6366f1;color:white;width:100%;"
+                                    onclick="openItineraryImageLibrary('edit', 3)">
+                                <i class="fas fa-images mr-1"></i>从图库选择
+                            </button>
                             <div id="editCurrentImage3" class="current-image mt-2 flex items-center gap-2" style="display: none;">
                                 <img id="editImage3Preview" src="" alt="当前图片3">
                                 <button type="button" class="visa-btn visa-btn-danger visa-btn-sm" onclick="markRemoveImage('image3')">
@@ -864,6 +912,81 @@ function markRemoveImage(field) {
     document.getElementById(map.flag).value = '1';
     const c = document.getElementById(map.container);
     if (c) c.style.display = 'none';
+    // 编辑模式下：若已有图库选择，一并清掉（避免删除按钮"无效"）
+    const libPath = document.getElementById(`editImage${field.slice(-1)}LibraryPath`);
+    if (libPath) libPath.value = '';
+    const libPrev = document.getElementById(`editImage${field.slice(-1)}LibraryPreview`);
+    if (libPrev) libPrev.style.display = 'none';
+}
+
+// ========== 从图库选择行程图片 ==========
+// 记录当前打开图库的 槽位（add/edit + 1/2/3）
+let _itineraryImageLibContext = null;
+
+function openItineraryImageLibrary(mode, slot) {
+    _itineraryImageLibContext = { mode: mode, slot: slot };
+    const baseUrl = '{{ url_for("staff.image_library") }}';
+    const url = `${baseUrl}?type=itinerary`;
+    window.open(url, 'ItineraryImageLibrary', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+}
+
+// 接收图库窗口的 postMessage
+window.addEventListener('message', function(event) {
+    if (!event.data || event.data.type !== 'image_selected') return;
+    if (!_itineraryImageLibContext) return;
+    const { mode, slot } = _itineraryImageLibContext;
+    const imagePath = event.data.image_path;
+    if (!imagePath) return;
+
+    const prefix = mode === 'edit' ? 'edit' : 'add';
+    const hidden = document.getElementById(`${prefix}Image${slot}LibraryPath`);
+    if (hidden) hidden.value = imagePath;
+
+    // 清空对应的文件输入（图库优先，避免冲突）
+    const fileInput = document.querySelector(`#${mode === 'edit' ? 'editItineraryForm' : 'addItineraryForm'} input[name="image${slot}"]`);
+    if (fileInput) fileInput.value = '';
+
+    if (mode === 'edit') {
+        // 编辑模式：复用现有的"当前图片"预览块，并清掉删除标记
+        document.getElementById(`removeImage${slot}Flag`).value = '';
+        const img = document.getElementById(`editImage${slot}Preview`);
+        const container = document.getElementById(`editCurrentImage${slot}`);
+        if (img) img.src = `/static/${imagePath}`;
+        if (container) container.style.display = 'flex';
+    } else {
+        // 添加模式：使用独立的预览块
+        const img = document.getElementById(`addImage${slot}LibraryImg`);
+        const prev = document.getElementById(`addImage${slot}LibraryPreview`);
+        if (img) img.src = `/static/${imagePath}`;
+        if (prev) prev.style.display = 'flex';
+    }
+
+    _itineraryImageLibContext = null;
+});
+
+// 添加模式：清掉已选图库图片
+function clearAddItineraryLibrary(slot) {
+    const hidden = document.getElementById(`addImage${slot}LibraryPath`);
+    if (hidden) hidden.value = '';
+    const prev = document.getElementById(`addImage${slot}LibraryPreview`);
+    if (prev) prev.style.display = 'none';
+}
+
+// 选了本地文件后，自动清掉同槽位的图库选择（互斥）
+function onAddItineraryFileChange(slot) {
+    const fileInput = document.querySelector(`#addItineraryForm input[name="image${slot}"]`);
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        clearAddItineraryLibrary(slot);
+    }
+}
+
+function onEditItineraryFileChange(slot) {
+    const fileInput = document.querySelector(`#editItineraryForm input[name="image${slot}"]`);
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        // 用户改选本地文件 → 清掉图库路径，但保留预览（提交后端会用新文件覆盖）
+        const hidden = document.getElementById(`editImage${slot}LibraryPath`);
+        if (hidden) hidden.value = '';
+    }
 }
 
 // 编辑项目信息
@@ -1104,7 +1227,10 @@ function addItinerary(groupId) {
     document.getElementById('addItineraryGroupId').value = groupId;
     const form = document.getElementById('addItineraryForm');
     if (form) form.reset();
-    
+
+    // form.reset() 不会清隐藏字段/预览块，需手动清掉上次的图库选择
+    [1, 2, 3].forEach(slot => clearAddItineraryLibrary(slot));
+
     const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
     if (groupCard) {
         const existingItineraries = groupCard.querySelectorAll('.itinerary-table tbody tr');
@@ -1146,28 +1272,29 @@ function addItinerary(groupId) {
 
 // 自动生成行程
 function autoGenerateItineraries(groupId) {
-    // 从整个页面的团队信息区域查找日期（不是从 data-group-id 区域）
+    // 从顶部「团队信息」区域查找「行程日期」卡片
+    // 该卡片渲染格式：YYYY-MM-DD ~ YYYY-MM-DD（N天）
     const allInfoCards = document.querySelectorAll('.info-card');
     let departureDateText = '';
     let returnDateText = '';
-    
+
     allInfoCards.forEach(card => {
         const label = card.querySelector('h6');
         const value = card.querySelector('p');
-        if (label && value) {
-            const labelText = label.textContent.trim();
-            const valueText = value.textContent.trim();
-            if (labelText === '出发日期') {
-                departureDateText = valueText;
-            }
-            if (labelText === '返回日期') {
-                returnDateText = valueText;
-            }
+        if (!label || !value) return;
+        const labelText = label.textContent.trim();
+        if (labelText !== '行程日期') return;
+
+        const valueText = value.textContent.trim();
+        const m = valueText.match(/(\d{4}-\d{2}-\d{2})\s*[~～\-至]\s*(\d{4}-\d{2}-\d{2})/);
+        if (m) {
+            departureDateText = m[1];
+            returnDateText = m[2];
         }
     });
-    
+
     if (!departureDateText || !returnDateText) {
-        showAlert('请先设置团队的出发日期和返回日期', 'warning');
+        showAlert('请先在「团队信息 → 行程日期」中设置出发日期和返回日期', 'warning');
         return;
     }
     
@@ -1206,48 +1333,77 @@ function autoGenerateItineraries(groupId) {
         return;
     }
     
-    if (confirm(`将自动生成 ${daysDiff} 天的行程安排（从 ${departureDateText} 到 ${returnDateText}），确定继续吗？`)) {
+    // 统计该团队已有行程数量（用于提示用户即将覆盖）
+    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+    const existingCount = groupCard
+        ? groupCard.querySelectorAll('.itinerary-table tbody tr').length
+        : 0;
+
+    const confirmMsg = existingCount > 0
+        ? `该团队已有 ${existingCount} 条行程，将被全部清空并按 ${departureDateText} 至 ${returnDateText} 重新生成 ${daysDiff} 天行程，确定继续吗？`
+        : `将自动生成 ${daysDiff} 天的行程安排（从 ${departureDateText} 到 ${returnDateText}），确定继续吗？`;
+
+    if (confirm(confirmMsg)) {
         showAlert('正在生成行程安排...', 'info');
-        
-        const promises = [];
-        for (let i = 0; i < daysDiff; i++) {
-            const currentDate = new Date(departureDate);
-            currentDate.setDate(departureDate.getDate() + i);
-            
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const day = String(currentDate.getDate()).padStart(2, '0');
-            const formattedDate = `${year}-${month}-${day}`;
-            
-            const formData = new FormData();
-            formData.append('csrf_token', '{{ csrf_token() }}');
-            formData.append('day_title', `Day ${i + 1}：`);
-            formData.append('date', formattedDate);
-            formData.append('content', `第${i + 1}天行程安排`);
-            
-            const promise = fetch(`{{ url_for("tour_projects.create_itinerary", group_id=0) }}`.replace('0', groupId), {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            }).then(response => response.json());
-            
-            promises.push(promise);
-        }
-        
-        Promise.all(promises)
-            .then(results => {
-                const successCount = results.filter(result => result.success).length;
-                if (successCount === daysDiff) {
-                    showAlert(`成功生成 ${daysDiff} 天的行程安排！`, 'success');
-                } else {
-                    showAlert(`部分行程生成失败，成功生成 ${successCount}/${daysDiff} 天`, 'warning');
-                }
-                setTimeout(() => location.reload(), 1500);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('生成行程时发生错误', 'danger');
-            });
+
+        // Step 1: 先清空该团队已有行程（即使为 0 也调用一次，保证服务端状态一致）
+        const clearUrl = `{{ url_for("tour_projects.clear_group_itineraries", group_id=0) }}`.replace('/0', '/' + groupId);
+        fetch(clearUrl, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(clearResult => {
+            if (!clearResult.success) {
+                throw new Error(clearResult.message || '清空已有行程失败');
+            }
+
+            // Step 2: 按顺序创建新行程（用 reduce 串行化，避免并发导致顺序错乱）
+            let chain = Promise.resolve([]);
+            for (let i = 0; i < daysDiff; i++) {
+                const currentDate = new Date(departureDate);
+                currentDate.setDate(departureDate.getDate() + i);
+
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
+                const formattedDate = `${year}-${month}-${day}`;
+
+                const dayIndex = i + 1;
+                chain = chain.then(acc => {
+                    const formData = new FormData();
+                    formData.append('csrf_token', '{{ csrf_token() }}');
+                    formData.append('day_title', `Day ${dayIndex}：`);
+                    formData.append('date', formattedDate);
+                    formData.append('content', `第${dayIndex}天行程安排`);
+
+                    return fetch(`{{ url_for("tour_projects.create_itinerary", group_id=0) }}`.replace('0', groupId), {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(r => r.json())
+                    .then(result => { acc.push(result); return acc; });
+                });
+            }
+            return chain;
+        })
+        .then(results => {
+            const successCount = results.filter(result => result.success).length;
+            if (successCount === daysDiff) {
+                showAlert(`成功重新生成 ${daysDiff} 天的行程安排！`, 'success');
+            } else {
+                showAlert(`部分行程生成失败，成功生成 ${successCount}/${daysDiff} 天`, 'warning');
+            }
+            setTimeout(() => location.reload(), 1500);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert(`生成行程时发生错误：${error.message || error}`, 'danger');
+        });
     }
 }
 
@@ -1304,6 +1460,14 @@ function editItinerary(itineraryId) {
             document.getElementById('removeImage1Flag').value = '';
             document.getElementById('removeImage2Flag').value = '';
             document.getElementById('removeImage3Flag').value = '';
+
+            // 重置图库路径（上次编辑可能残留）和本地文件输入
+            [1, 2, 3].forEach(slot => {
+                const lib = document.getElementById(`editImage${slot}LibraryPath`);
+                if (lib) lib.value = '';
+                const fi = document.querySelector(`#editItineraryForm input[name="image${slot}"]`);
+                if (fi) fi.value = '';
+            });
             
             // 处理图片显示
             ['image1', 'image2', 'image3'].forEach((img, idx) => {

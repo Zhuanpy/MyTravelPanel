@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 /* 备注富文本编辑器 */
-.rte-toolbar { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--visa-border, #d1d5db); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--visa-bg-light, #f9fafb); }
+.rte-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--visa-border, #d1d5db); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--visa-bg-light, #f9fafb); position: sticky; top: 0; z-index: 20; }
 .rte-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: #fff; cursor: pointer; color: var(--visa-text-secondary, #374151); font-size: 0.85rem; position: relative; }
 .rte-btn:hover { background: var(--visa-bg-light, #eef2ff); border-color: var(--visa-border, #d1d5db); }
 .rte-color-group { position: relative; }
@@ -21,7 +21,7 @@
 .rte-color-group.open .rte-palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
 .rte-swatch { width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); cursor: pointer; padding: 0; }
 .rte-swatch:hover { transform: scale(1.15); }
-.rte-editor { border-radius: 0 0 6px 6px; overflow-y: auto; outline: none; }
+.rte-editor { border-radius: 0 0 6px 6px; max-height: 45vh; overflow-y: auto; outline: none; }
 .rte-editor:focus { border-color: var(--visa-primary, #6366f1); }
 .rte-editor:empty:before { content: attr(data-placeholder); color: var(--visa-text-muted, #9ca3af); }
 </style>
