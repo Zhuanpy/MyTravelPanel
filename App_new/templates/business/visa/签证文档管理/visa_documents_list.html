@@ -45,6 +45,7 @@
                 <tr>
                     <th>ID</th>
                     <th>文档名称</th>
+                    <th>英文名称</th>
                     <th>描述</th>
                     <th>分类</th>
                     <th>操作</th>
@@ -55,6 +56,7 @@
                 <tr data-id="{{ document.id }}">
                     <td>{{ document.id }}</td>
                     <td>{{ document.name }}</td>
+                    <td>{{ document.name_en or '-' }}</td>
                     <td>{{ document.description or '无描述' }}</td>
                     <td>{{ document.category or '未分类' }}</td>
                     <td style="white-space: nowrap;">
@@ -128,7 +130,12 @@
                     <label class="visa-form-label">文档名称 *</label>
                     <input class="visa-form-control" type="text" id="documentName" name="name" required placeholder="请输入文档名称">
                 </div>
-                
+
+                <div class="visa-form-group">
+                    <label class="visa-form-label">英文名称</label>
+                    <input class="visa-form-control" type="text" id="documentNameEn" name="name_en" placeholder="Please enter English name">
+                </div>
+
                 <div class="visa-form-group">
                     <label class="visa-form-label">描述</label>
                     <textarea class="visa-form-control" id="documentDescription" name="description" rows="3" placeholder="请输入文档描述"></textarea>
@@ -200,6 +207,7 @@ function openEditModal(documentId) {
                 const doc = data.document;
                 document.getElementById('documentId').value = doc.id;
                 document.getElementById('documentName').value = doc.name;
+                document.getElementById('documentNameEn').value = doc.name_en || '';
                 document.getElementById('documentDescription').value = doc.description || '';
                 document.getElementById('documentCategory').value = doc.category || '';
                 

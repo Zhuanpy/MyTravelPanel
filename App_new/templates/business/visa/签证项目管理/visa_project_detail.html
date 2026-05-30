@@ -195,7 +195,16 @@
             <div class="visa-document-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; padding: 0.75rem 0;">
                 {% for document_name, status in document_statuses.items() %}
                 <div class="visa-document-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;">
-                    <div class="visa-document-name" style="margin-bottom: 0; font-size: 0.9rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ document_name }}">{{ document_name }}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="visa-document-name" style="margin-bottom: 0; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ document_name }}">{{ document_name }}</div>
+                        {% if status.name_en %}
+                        <div class="visa-document-name-en" style="font-size: 0.75rem; color: var(--visa-text-muted, #9ca3af); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;"
+                             title="点击复制：{{ status.name_en }}"
+                             onclick="copyDocName(this, '{{ status.name_en|e }}')">
+                            <i class="far fa-copy" style="margin-right: 3px; opacity: 0.6;"></i>{{ status.name_en }}
+                        </div>
+                        {% endif %}
+                    </div>
                     <span class="visa-status-badge {% if status.is_ready %}ready{% else %}not-ready{% endif %}"
                           data-action="toggle-document-status"
                           data-document-id="{{ status.id }}"
@@ -217,6 +226,41 @@
                 暂无资料清单。请点击"同步资料清单"从模板获取资料，或手动添加资料。
             </div>
             {% endif %}
+
+            {# 补充信息：从文档资料中汇总去重的旅行社/申请人补充信息 #}
+            {% set ns = namespace(agency=[], applicant=[]) %}
+            {% for identity, data in document_data.items() %}
+                {% set ai = data.additional_info %}
+                {% if ai and ai != '暂无补充信息' and ai not in ns.agency %}
+                    {% set ns.agency = ns.agency + [ai] %}
+                {% endif %}
+                {% set pi = data.applicant_additional_info %}
+                {% if pi and pi != '暂无申请人补充信息' and pi not in ns.applicant %}
+                    {% set ns.applicant = ns.applicant + [pi] %}
+                {% endif %}
+            {% endfor %}
+            <div class="visa-supplement-info" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed var(--visa-border, #e5e7eb); display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+                <div class="visa-supplement-block" style="padding: 0.75rem; background: #f0f9ff; border-radius: 6px; border-left: 3px solid #0ea5e9;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #0369a1; margin-bottom: 0.5rem;">
+                        <i class="fas fa-building"></i> 旅行社补充信息
+                    </div>
+                    {% if ns.agency %}
+                    <div style="font-size: 0.85rem; color: var(--visa-text-secondary, #374151); white-space: pre-line; line-height: 1.6;">{{ ns.agency | join('\n') }}</div>
+                    {% else %}
+                    <div style="font-size: 0.85rem; color: var(--visa-text-muted, #9ca3af);">暂无补充信息</div>
+                    {% endif %}
+                </div>
+                <div class="visa-supplement-block" style="padding: 0.75rem; background: #f0fdf4; border-radius: 6px; border-left: 3px solid #22c55e;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #15803d; margin-bottom: 0.5rem;">
+                        <i class="fas fa-user"></i> 申请人补充信息
+                    </div>
+                    {% if ns.applicant %}
+                    <div style="font-size: 0.85rem; color: var(--visa-text-secondary, #374151); white-space: pre-line; line-height: 1.6;">{{ ns.applicant | join('\n') }}</div>
+                    {% else %}
+                    <div style="font-size: 0.85rem; color: var(--visa-text-muted, #9ca3af);">暂无补充信息</div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -838,6 +882,29 @@ function createProjectLinks(button) {
         button.disabled = false;
         button.innerHTML = originalText;
     });
+}
+
+// 复制资料英文名称到剪贴板
+function copyDocName(el, text) {
+    if (event) event.stopPropagation();
+    const done = () => {
+        showMessage('已复制：' + text, 'success');
+        // 短暂高亮反馈
+        const original = el.style.color;
+        el.style.color = 'var(--visa-primary, #6366f1)';
+        setTimeout(() => { el.style.color = original; }, 600);
+    };
+    navigator.clipboard.writeText(text)
+        .then(done)
+        .catch(() => {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            done();
+        });
 }
 
 function copyHIDRef() {

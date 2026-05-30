@@ -477,17 +477,19 @@ class VisaDocumentsList(db.Model):
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
+    name_en = db.Column(db.String(150), nullable=True)  # 文档名称英文
     description = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(50), nullable=True)
-    
+
     def __repr__(self):
         return f'<VisaDocumentList {self.name}>'
-    
+
     def to_dict(self):
         """转换为字典格式"""
         return {
             'id': self.id,
             'name': self.name,
+            'name_en': self.name_en,
             'description': self.description,
             'category': self.category
         }

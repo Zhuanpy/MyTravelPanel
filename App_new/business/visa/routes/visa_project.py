@@ -559,23 +559,32 @@ def visa_detail(project_name=None, project_id=None):
             # 保存处理后的数据
             document_data[doc.singapore_identity.identity_zh] = {
                 'document_info': doc_info['document_info'],
-                'additional_info': doc_info['additional_info']
+                'additional_info': doc_info['additional_info'],
+                'applicant_additional_info': doc_info['applicant_additional_info']
             }
-        
+
         # 单独处理SHARE共用资料显示
         if share_identity_id:
             share_doc_info = VisaDocuments.get_document_info(types_info.id, share_identity_id)
             document_data['SHARE'] = {
                 'document_info': share_doc_info['document_info'],
-                'additional_info': share_doc_info['additional_info']
+                'additional_info': share_doc_info['additional_info'],
+                'applicant_additional_info': share_doc_info['applicant_additional_info']
             }
         
         # 获取项目的资料准备状态
-        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
+        from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus, VisaDocumentsList
         project_document_statuses = VisaProjectDocumentStatus.query.filter_by(
             project_id=project.id
         ).all()
-        
+
+        # 构建 中文名->英文名 对照表（用于资料卡片显示英文名称）
+        name_en_map = {
+            d.name: d.name_en
+            for d in VisaDocumentsList.query.filter(VisaDocumentsList.name_en.isnot(None)).all()
+            if d.name_en
+        }
+
         # 将资料状态转换为字典格式，方便模板使用
         document_statuses = {}
         for status in project_document_statuses:
@@ -583,7 +592,8 @@ def visa_detail(project_name=None, project_id=None):
                 'id': status.id,
                 'is_ready': status.is_ready,
                 'notes': status.notes,
-                'document_type': status.document_type
+                'document_type': status.document_type,
+                'name_en': name_en_map.get(status.document_name, '')
             }
         
         print(f"DEBUG: Rendering template with project={project.id}, document_data keys={list(document_data.keys())}")
@@ -1849,24 +1859,30 @@ def sync_project_documents(project_id):
                         'category': 'SHARE'
                     })
         
-        # 获取特定身份资料
+        # 获取特定身份资料（按项目实际身份查找，而非SHARE）
         if project.singapore_status and project.singapore_status != 'SHARE':
-            specific_doc = VisaDocuments.query.filter_by(
-                visa_type_id=types_info.id,
-                singapore_identity_id=share_identity_id
+            specific_identity = VisaSingaporeIdentity.query.filter_by(
+                identity_zh=project.singapore_status
             ).first()
-            if specific_doc and specific_doc.selected_documents:
-                for doc in specific_doc.selected_documents:
-                    template_documents.append({
-                        'name': doc.name,
-                        'type': 'document',
-                        'category': project.singapore_status
-                    })
-        
-        # 创建新的资料状态记录
+            if specific_identity:
+                specific_doc = VisaDocuments.query.filter_by(
+                    visa_type_id=types_info.id,
+                    singapore_identity_id=specific_identity.id
+                ).first()
+                if specific_doc and specific_doc.selected_documents:
+                    for doc in specific_doc.selected_documents:
+                        template_documents.append({
+                            'name': doc.name,
+                            'type': 'document',
+                            'category': project.singapore_status
+                        })
+
+        # 创建新的资料状态记录（已存在的 + 本次已添加的，统一去重，避免重复加载）
         new_statuses = []
+        seen_names = set(existing_document_names)
         for doc in template_documents:
-            if doc['name'] not in existing_document_names:
+            if doc['name'] not in seen_names:
+                seen_names.add(doc['name'])
                 new_status = VisaProjectDocumentStatus(
                     project_id=project_id,
                     document_name=doc['name'],

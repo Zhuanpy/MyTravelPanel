@@ -21,9 +21,12 @@ def documents_list():
         # 构建查询
         query = VisaDocumentsList.query
         
-        # 应用搜索过滤
+        # 应用搜索过滤（中英文名称均可匹配）
         if search:
-            query = query.filter(VisaDocumentsList.name.like(f'%{search}%'))
+            query = query.filter(db.or_(
+                VisaDocumentsList.name.like(f'%{search}%'),
+                VisaDocumentsList.name_en.like(f'%{search}%')
+            ))
         
         # 应用分类过滤
         if category:
@@ -60,16 +63,17 @@ def add_document():
     try:
         # 获取表单数据
         name = request.form.get('name')
+        name_en = request.form.get('name_en', '')
         description = request.form.get('description', '')
         category = request.form.get('category', '')
-        
+
         # 验证必填字段
         if not name:
             return jsonify({
                 'success': False,
                 'message': '文档名称不能为空'
             }), 400
-        
+
         # 检查名称是否已存在
         existing_doc = VisaDocumentsList.query.filter_by(name=name).first()
         if existing_doc:
@@ -77,10 +81,11 @@ def add_document():
                 'success': False,
                 'message': '文档名称已存在'
             }), 400
-        
+
         # 创建新文档
         new_document = VisaDocumentsList(
             name=name,
+            name_en=name_en,
             description=description,
             category=category
         )
@@ -140,16 +145,17 @@ def update_document(document_id):
         
         # 获取表单数据
         name = request.form.get('name')
+        name_en = request.form.get('name_en', '')
         description = request.form.get('description', '')
         category = request.form.get('category', '')
-        
+
         # 验证必填字段
         if not name:
             return jsonify({
                 'success': False,
                 'message': '文档名称不能为空'
             }), 400
-        
+
         # 检查名称是否已存在（排除当前文档）
         existing_doc = VisaDocumentsList.query.filter(
             VisaDocumentsList.name == name,
@@ -160,9 +166,10 @@ def update_document(document_id):
                 'success': False,
                 'message': '文档名称已存在'
             }), 400
-        
+
         # 更新文档信息
         document.name = name
+        document.name_en = name_en
         document.description = description
         document.category = category
         
@@ -308,6 +315,7 @@ def export_documents():
             export_data.append({
                 'ID': doc.id,
                 '文档名称': doc.name,
+                '英文名称': doc.name_en or '',
                 '描述': doc.description or '',
                 '分类': doc.category or ''
             })
