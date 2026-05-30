@@ -1,0 +1,151 @@
+{% extends "staff_base.html" %}
+
+{% block title %}编辑备注信息{% endblock %}
+
+{% block page_title %}编辑备注信息{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+/* 备注富文本编辑器 */
+.rte-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--visa-border, #d1d5db); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--visa-bg-light, #f9fafb); position: sticky; top: 0; z-index: 20; }
+.rte-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: #fff; cursor: pointer; color: var(--visa-text-secondary, #374151); font-size: 0.85rem; position: relative; }
+.rte-btn:hover { background: var(--visa-bg-light, #eef2ff); border-color: var(--visa-border, #d1d5db); }
+.rte-color-group { position: relative; }
+.rte-palette { display: none; position: absolute; top: 100%; left: 0; z-index: 1000; margin-top: 2px; padding: 6px; background: #fff; border: 1px solid var(--visa-border, #d1d5db); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: max-content; }
+.rte-color-group.open .rte-palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.rte-swatch { width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); cursor: pointer; padding: 0; }
+.rte-swatch:hover { transform: scale(1.15); }
+.rte-editor { border-radius: 0 0 6px 6px; min-height: 55vh; max-height: 70vh; overflow-y: auto; outline: none; }
+.rte-editor:focus { border-color: var(--visa-primary, #6366f1); }
+.rte-editor:empty:before { content: attr(data-placeholder); color: var(--visa-text-muted, #9ca3af); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-container">
+    <div class="visa-card">
+        <div class="visa-card-header">
+            <h2><i class="fas fa-comment"></i> 编辑备注信息</h2>
+            <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回详情
+            </a>
+        </div>
+        <div class="visa-card-body">
+            <div style="margin-bottom: 0.75rem; color: var(--visa-text-secondary); font-size: 0.875rem;">
+                项目：<strong>{{ project.project_folder_name or project.visa_type }}</strong>
+            </div>
+            <form id="editRemarksForm" method="POST" action="{{ url_for('visa_project.edit_remarks_page', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="remarks" id="remarksHidden">
+                <div class="visa-form-group">
+                    <div class="rte-toolbar" id="remarksToolbar">
+                        <button type="button" class="rte-btn" data-cmd="bold" title="加粗"><b>B</b></button>
+                        <button type="button" class="rte-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+                        <button type="button" class="rte-btn" data-cmd="underline" title="下划线"><u>U</u></button>
+                        <span class="rte-color-group">
+                            <button type="button" class="rte-btn rte-color-toggle" data-cmd="foreColor" title="字体颜色"><i class="fas fa-font"></i></button>
+                            <span class="rte-palette"></span>
+                        </span>
+                        <span class="rte-color-group">
+                            <button type="button" class="rte-btn rte-color-toggle" data-cmd="hiliteColor" title="背景高亮"><i class="fas fa-highlighter"></i></button>
+                            <span class="rte-palette"></span>
+                        </span>
+                        <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="项目符号"><i class="fas fa-list-ul"></i></button>
+                        <button type="button" class="rte-btn" data-cmd="removeFormat" title="清除格式"><i class="fas fa-eraser"></i></button>
+                    </div>
+                    <div class="rte-editor visa-form-textarea" id="editRemarksEditor" contenteditable="true" data-placeholder="请输入备注信息">{{ project.remarks | safe if project.remarks else '' }}</div>
+                </div>
+                <div class="visa-flex visa-gap-2" style="justify-content: flex-end; margin-top: 1rem;">
+                    <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}" class="visa-btn visa-btn-secondary">取消</a>
+                    <button type="submit" class="visa-btn visa-btn-primary"><i class="fas fa-save"></i> 保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== 备注富文本：颜色调色板 ====================
+const RTE_PRESET_COLORS = [
+    '#000000', '#374151', '#6b7280', '#9ca3af', '#ef4444', '#f97316', '#f59e0b', '#eab308',
+    '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#ffffff'
+];
+function initRtePalettes(toolbar, editor, saveRange, restoreRange) {
+    toolbar.querySelectorAll('.rte-color-group').forEach(function(group) {
+        const toggle = group.querySelector('.rte-color-toggle');
+        const palette = group.querySelector('.rte-palette');
+        const cmd = toggle.dataset.cmd;
+        RTE_PRESET_COLORS.forEach(function(color) {
+            const sw = document.createElement('button');
+            sw.type = 'button';
+            sw.className = 'rte-swatch';
+            sw.style.backgroundColor = color;
+            sw.title = color;
+            sw.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                editor.focus();
+                restoreRange();
+                document.execCommand('styleWithCSS', false, true);
+                document.execCommand(cmd, false, color);
+                saveRange();
+                group.classList.remove('open');
+            });
+            palette.appendChild(sw);
+        });
+        toggle.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            saveRange();
+            const isOpen = group.classList.contains('open');
+            toolbar.querySelectorAll('.rte-color-group.open').forEach(function(g) { g.classList.remove('open'); });
+            if (!isOpen) group.classList.add('open');
+        });
+    });
+    document.addEventListener('mousedown', function(e) {
+        if (!e.target.closest('.rte-color-group')) {
+            toolbar.querySelectorAll('.rte-color-group.open').forEach(function(g) { g.classList.remove('open'); });
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const toolbar = document.getElementById('remarksToolbar');
+    const editor = document.getElementById('editRemarksEditor');
+
+    let savedRange = null;
+    const saveRange = function() {
+        const sel = window.getSelection();
+        if (sel.rangeCount && editor.contains(sel.anchorNode)) {
+            savedRange = sel.getRangeAt(0);
+        }
+    };
+    const restoreRange = function() {
+        if (savedRange) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(savedRange);
+        }
+    };
+    editor.addEventListener('keyup', saveRange);
+    editor.addEventListener('mouseup', saveRange);
+
+    toolbar.querySelectorAll('.rte-btn[data-cmd]:not(.rte-color-toggle)').forEach(function(btn) {
+        btn.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            document.execCommand(btn.dataset.cmd, false, null);
+        });
+    });
+    initRtePalettes(toolbar, editor, saveRange, restoreRange);
+
+    // 提交前把编辑器内容写入隐藏字段（仅空白则提交空，便于清空备注）
+    document.getElementById('editRemarksForm').addEventListener('submit', function() {
+        document.getElementById('remarksHidden').value =
+            editor.textContent.trim() ? editor.innerHTML : '';
+    });
+
+    editor.focus();
+});
+</script>
+{% endblock %}

@@ -1244,6 +1244,28 @@ def update_remarks(project_id):
         }), 500
 
 
+@visa_project.route('/edit_remarks/<int:project_id>', methods=['GET', 'POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def edit_remarks_page(project_id):
+    """备注信息独立编辑页面：GET 显示编辑页，POST 保存后返回项目详情"""
+    project = VisaProject.query.get_or_404(project_id)
+
+    if request.method == 'POST':
+        try:
+            remarks = request.form.get('remarks', '')
+            project.remarks = remarks if remarks.strip() else None
+            db.session.commit()
+            flash('备注信息更新成功', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新备注信息失败: {str(e)}', 'error')
+        return redirect(url_for('visa_project.visa_detail', project_id=project_id))
+
+    return render_template('business/visa/签证项目管理/visa_remarks_edit.html', project=project)
+
+
 @visa_project.route('/open_folder', methods=['GET'])
 def open_folder():
     """

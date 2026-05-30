@@ -1,4 +1,4 @@
-﻿{% extends "staff_base.html" %}
+{% extends "staff_base.html" %}
 
 {% block title %}签证模板文件管理{% endblock %}
 
@@ -6,96 +6,152 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
-/* 最小化自定义样式 - 仅保留无法用通用类实现的 */
-.template-manager-grid {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 1.5rem;
-}
-
-.visa-type-item {
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.visa-type-item:hover {
-    transform: translateX(5px);
-}
-
-.identity-button:hover {
-    transform: translateY(-2px);
-}
-
-.template-item:hover {
-    transform: translateY(-2px);
-}
-
 .file-input {
     position: absolute;
     opacity: 0;
     width: 0.1px;
     height: 0.1px;
 }
-
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
-
-@media (max-width: 1024px) {
-    .template-manager-grid { grid-template-columns: 1fr; }
-}
+.tpl-name { font-weight: 600; color: var(--visa-text-primary); }
+.tpl-desc { font-size: 0.75rem; color: var(--visa-text-muted); margin-top: 0.15rem; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container" data-selected-visa-type="{{ selected_visa_type or '' }}" data-identities='{{ identities_json|tojson }}'>
-    <h1 class="visa-page-title">签证模板文件管理</h1>
-    <p class="visa-text-center" style="color: var(--visa-text-secondary); margin-bottom: 2rem;">上传和管理签证申请所需的模板文件</p>
-
-    <div class="template-manager-grid">
-        <!-- 左侧签证类型列表 -->
-        <div class="visa-sidebar">
-            <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--visa-text-primary); margin-bottom: 1rem;">
-                <i class="fas fa-passport"></i> 
-                {% if selected_visa_type %}
-                    当前签证类型
-                    <small style="font-size: 0.75rem; color: var(--visa-primary); display: block; margin-top: 0.25rem; font-weight: 500;">
-                        <i class="fas fa-lock"></i> 已锁定
-                    </small>
-                {% else %}
-                    选择签证类型
-                {% endif %}
-            </h3>
-            <div>
-                {% if selected_visa_type %}
-                    {% for visa_type in visa_types %}
-                        {% if visa_type.visa_type == selected_visa_type %}
-                            <div class="visa-selectable-item visa-type-item active locked" data-visa-type="{{ visa_type.visa_type }}">
-                                {{ visa_type.visa_type }}
-                            </div>
-                        {% endif %}
+<div class="visa-container visa-container-lg">
+    <!-- 筛选栏 -->
+    <div class="visa-filter-bar">
+        <form method="GET" action="{{ url_for('visa_basic.visa_template_manager') }}" class="visa-flex visa-gap-2" style="align-items: flex-end; flex-wrap: wrap; flex: 1;">
+            <div class="visa-filter-item">
+                <label class="visa-form-label"><i class="fas fa-globe"></i> 国家</label>
+                <select name="country" id="filterCountry" class="visa-form-select" onchange="document.getElementById('filterVisaType').value=''; this.form.submit()">
+                    <option value="">全部国家</option>
+                    {% for country in countries %}
+                    <option value="{{ country.id }}" {% if filter_country|string == country.id|string %}selected{% endif %}>{{ country.country_name_EN }}</option>
                     {% endfor %}
-                {% else %}
-                    {% for visa_type in visa_types %}
-                        <div class="visa-selectable-item visa-type-item" data-visa-type="{{ visa_type.visa_type }}" data-action="select-visa-type">
-                            {{ visa_type.visa_type }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
+                </select>
             </div>
+            <div class="visa-filter-item">
+                <label class="visa-form-label"><i class="fas fa-passport"></i> 签证类型</label>
+                <select name="visa_type" id="filterVisaType" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="">全部签证类型</option>
+                    {% for vt in visa_types %}
+                    <option value="{{ vt.visa_type }}" data-country-id="{{ vt.country_id }}" {% if filter_visa_type == vt.visa_type %}selected{% endif %}>{{ vt.visa_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-filter-item">
+                <label class="visa-form-label"><i class="fas fa-user"></i> 适用身份</label>
+                <select name="identity" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="">全部身份</option>
+                    <option value="share" {% if filter_identity == 'share' %}selected{% endif %}>共用模板</option>
+                    {% for identity in identities %}
+                    {% if identity.identity_zh != 'SHARE' %}
+                    <option value="{{ identity.id }}" {% if filter_identity|string == identity.id|string %}selected{% endif %}>{{ identity.identity_zh }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-filter-item">
+                <label class="visa-form-label"><i class="fas fa-folder"></i> 模板类型</label>
+                <select name="template_type" class="visa-form-select" onchange="this.form.submit()">
+                    <option value="">全部类型</option>
+                    {% for tt in template_types %}
+                    <option value="{{ tt }}" {% if filter_type == tt %}selected{% endif %}>{{ tt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="visa-filter-item">
+                <label class="visa-form-label">搜索模板名称</label>
+                <input type="text" name="search" class="visa-form-control" placeholder="输入模板名称..." value="{{ search or '' }}">
+            </div>
+            <button type="submit" class="visa-btn visa-btn-primary"><i class="fas fa-search"></i> 搜索</button>
+            <a href="{{ url_for('visa_basic.visa_template_manager') }}" class="visa-btn visa-btn-secondary"><i class="fas fa-redo"></i> 重置</a>
+            <button type="button" class="visa-btn visa-btn-success" data-action="open-upload-modal" style="margin-left: auto;">
+                <i class="fas fa-plus"></i> 上传模板
+            </button>
+        </form>
+    </div>
+
+    <!-- 模板列表表格 -->
+    <div class="visa-card">
+        <table class="visa-table">
+            <thead>
+                <tr>
+                    <th>国家</th>
+                    <th>签证类型</th>
+                    <th>模板名称</th>
+                    <th>模板类型</th>
+                    <th>适用身份</th>
+                    <th>文件</th>
+                    <th>大小</th>
+                    <th>上传时间</th>
+                    <th class="visa-text-center">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in templates %}
+                <tr>
+                    <td>{{ t.visa_type.country.country_name_EN if t.visa_type and t.visa_type.country else '-' }}</td>
+                    <td>{{ t.visa_type.visa_type if t.visa_type else '-' }}</td>
+                    <td>
+                        <div class="tpl-name">{{ t.template_name }}</div>
+                        {% if t.description %}<div class="tpl-desc">{{ t.description }}</div>{% endif %}
+                    </td>
+                    <td>{{ t.template_type }}</td>
+                    <td>{{ t.singapore_identity.identity_zh if t.singapore_identity else '共用' }}</td>
+                    <td>{{ t.file_type|upper if t.file_type else '-' }}</td>
+                    <td>{% if t.file_size %}{{ (t.file_size / 1024)|round(1) }} KB{% else %}-{% endif %}</td>
+                    <td>{{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '-' }}</td>
+                    <td class="visa-text-center" style="white-space: nowrap;">
+                        <button class="visa-btn-link visa-btn-link-primary" data-action="download-template" data-template-id="{{ t.id }}">
+                            <i class="fas fa-download"></i> 下载
+                        </button>
+                        <button class="visa-btn-link visa-btn-link-danger" data-action="delete-template" data-template-id="{{ t.id }}">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="visa-text-center" style="color: var(--visa-text-muted); padding: 2.5rem;">
+                        <i class="fas fa-inbox fa-2x" style="display: block; margin-bottom: 0.75rem;"></i>
+                        暂无模板文件。点击右上角"上传模板"添加，或调整筛选条件。
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页控件 -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="visa-pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('visa_basic.visa_template_manager', page=pagination.prev_num, country=filter_country, visa_type=filter_visa_type, identity=filter_identity, template_type=filter_type, search=search) }}" class="visa-pagination-btn">上一页</a>
+            {% endif %}
+            {% for p in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if p %}
+                    {% if p == pagination.page %}
+                        <span class="visa-pagination-btn visa-pagination-btn-active">{{ p }}</span>
+                    {% else %}
+                        <a href="{{ url_for('visa_basic.visa_template_manager', page=p, country=filter_country, visa_type=filter_visa_type, identity=filter_identity, template_type=filter_type, search=search) }}" class="visa-pagination-btn">{{ p }}</a>
+                    {% endif %}
+                {% else %}
+                    <span class="visa-pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+                <a href="{{ url_for('visa_basic.visa_template_manager', page=pagination.next_num, country=filter_country, visa_type=filter_visa_type, identity=filter_identity, template_type=filter_type, search=search) }}" class="visa-pagination-btn">下一页</a>
+            {% endif %}
         </div>
-
-        <!-- 右侧配置区域 -->
-        <div>
-            <div id="configContent">
-                <div class="visa-loading">
-                    <i class="fas fa-spinner"></i>
-                    请选择一个签证类型开始管理模板文件
-                </div>
-            </div>
+        {% endif %}
+        <div style="text-align: center; margin: 1rem 0; color: var(--visa-text-muted); font-size: 0.875rem;">
+            共 {{ pagination.total }} 个模板文件
         </div>
     </div>
 </div>
@@ -109,6 +165,35 @@
         </div>
         <form id="uploadForm">
             <div class="visa-modal-body">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">国家 / Country *</label>
+                    <select id="uploadCountry" class="visa-form-select">
+                        <option value="">请先选择国家</option>
+                        {% for country in countries %}
+                        <option value="{{ country.id }}">{{ country.country_name_EN }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">签证类型 *</label>
+                    <select name="visa_type_id" id="uploadVisaType" class="visa-form-select" required>
+                        <option value="">请先选择国家</option>
+                        {% for vt in visa_types %}
+                        <option value="{{ vt.id }}" data-country-id="{{ vt.country_id }}">{{ vt.visa_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">适用身份</label>
+                    <select name="identity_id" class="visa-form-select">
+                        <option value="">共用模板</option>
+                        {% for identity in identities %}
+                        {% if identity.identity_zh != 'SHARE' %}
+                        <option value="{{ identity.id }}">{{ identity.identity_zh }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">模板名称 *</label>
                     <input type="text" name="template_name" class="visa-form-control" required>
@@ -124,15 +209,6 @@
                         <option value="酒店预订">酒店预订</option>
                         <option value="机票预订">机票预订</option>
                         <option value="其他">其他</option>
-                    </select>
-                </div>
-                <div class="visa-form-group">
-                    <label class="visa-form-label">适用身份</label>
-                    <select name="identity_id" class="visa-form-select">
-                        <option value="">共用模板</option>
-                        {% for identity in identities %}
-                            <option value="{{ identity.id }}">{{ identity.identity_zh }}</option>
-                        {% endfor %}
                     </select>
                 </div>
                 <div class="visa-form-group">
@@ -165,182 +241,27 @@
 
 {% block extra_js %}
 <script>
-// ==================== 全局变量 ====================
-const mainContainer = document.querySelector('.visa-container');
-const IS_FIXED_VISA_TYPE = mainContainer.dataset.selectedVisaType !== '';
-let currentVisaType = mainContainer.dataset.selectedVisaType || null;
-let currentIdentityId = null;
-let currentVisaTypeId = null;
-
-// ==================== 签证类型选择 ====================
-function selectVisaType(visaType) {
-    if (IS_FIXED_VISA_TYPE) return;
-    
-    // 更新UI状态
-    document.querySelectorAll('.visa-type-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.dataset.visaType === visaType) {
-            item.classList.add('active');
-        }
-    });
-
-    currentVisaType = visaType;
-    currentIdentityId = null;
-    loadTemplates();
-}
-
-// ==================== 身份选择 ====================
-function selectIdentity(identityId) {
-    currentIdentityId = identityId;
-    
-    // 更新UI状态
-    document.querySelectorAll('.identity-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    const targetBtn = document.querySelector(`[data-identity-id="${identityId || ''}"]`);
-    if (targetBtn) targetBtn.classList.add('active');
-    
-    loadTemplates();
-}
-
-// ==================== 加载模板 ====================
-function loadTemplates() {
-    if (!currentVisaType) return;
-
-    const configContent = document.getElementById('configContent');
-    configContent.innerHTML = '<div class="visa-loading"><i class="fas fa-spinner"></i> 加载中...</div>';
-
-    const params = new URLSearchParams({ visa_type: currentVisaType });
-    if (currentIdentityId) {
-        params.append('identity_id', currentIdentityId);
-    }
-
-    fetch(`/visa/basic/api/visa_templates/get_templates?${params}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                currentVisaTypeId = data.visa_type_id;
-                renderTemplates(data.templates);
-            } else {
-                configContent.innerHTML = `<div class="visa-loading">错误: ${data.message}</div>`;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading templates:', error);
-            configContent.innerHTML = '<div class="visa-loading">加载失败，请重试</div>';
-        });
-}
-
-// ==================== 渲染模板 ====================
-function renderTemplates(templates) {
-    const configContent = document.getElementById('configContent');
-    const identities = JSON.parse(mainContainer.dataset.identities || '[]');
-    
-    let identityButtonsHtml = `
-        <button class="visa-tag-btn identity-button ${!currentIdentityId ? 'active' : ''}" data-identity-id="" data-action="select-identity">共用模板</button>
-    `;
-    
-    identities.forEach(identity => {
-        const isActive = currentIdentityId == identity.id ? 'active' : '';
-        identityButtonsHtml += `
-            <button class="visa-tag-btn identity-button ${isActive}" data-identity-id="${identity.id}" data-action="select-identity">${identity.identity_zh}</button>
-        `;
-    });
-    
-    if (Object.keys(templates).length === 0) {
-        configContent.innerHTML = `
-            <div class="visa-card">
-                <div class="visa-card-header">
-                    <h2>${currentVisaType} - 模板文件</h2>
-                    <button class="visa-btn visa-btn-sm visa-btn-success" data-action="open-upload-modal">
-                        <i class="fas fa-plus"></i> 上传模板
-                    </button>
-                </div>
-                <div class="visa-card-body">
-                    <div class="visa-mb-3">
-                        <h4 style="color: var(--visa-text-primary); margin-bottom: 0.75rem;">选择身份</h4>
-                        <div class="visa-flex visa-gap-2" style="flex-wrap: wrap;">
-                            ${identityButtonsHtml}
-                        </div>
-                    </div>
-                    <div class="visa-text-center" style="padding: 3rem;">
-                        <i class="fas fa-inbox fa-3x" style="color: var(--visa-text-muted); margin-bottom: 1rem; display: block;"></i>
-                        <h4 style="color: var(--visa-text-secondary); margin-bottom: 0.5rem;">暂无模板文件</h4>
-                        <p style="color: var(--visa-text-muted);">点击"上传模板"按钮开始添加模板文件</p>
-                    </div>
-                </div>
-            </div>
-        `;
-        return;
-    }
-
-    let templatesHtml = `
-        <div class="visa-card">
-            <div class="visa-card-header">
-                <h2>${currentVisaType} - 模板文件</h2>
-                <button class="visa-btn visa-btn-sm visa-btn-success" data-action="open-upload-modal">
-                    <i class="fas fa-plus"></i> 上传模板
-                </button>
-            </div>
-            <div class="visa-card-body">
-                <div class="visa-mb-3">
-                    <h4 style="color: var(--visa-text-primary); margin-bottom: 0.75rem;">选择身份</h4>
-                    <div class="visa-flex visa-gap-2" style="flex-wrap: wrap;">
-                        ${identityButtonsHtml}
-                    </div>
-                </div>
-    `;
-
-    for (const [templateType, templateList] of Object.entries(templates)) {
-        templatesHtml += `
-            <div class="visa-mb-3 template-group">
-                <h4 class="visa-block-title">
-                    <i class="fas fa-folder"></i> ${templateType}
-                </h4>
-                <div class="template-list">
-        `;
-
-        templateList.forEach(template => {
-            const fileSize = template.file_size ? formatFileSize(template.file_size) : '未知';
-            templatesHtml += `
-                <div class="visa-list-item template-item">
-                    <div class="visa-flex-between template-header" style="margin-bottom: 0.75rem;">
-                        <div style="font-weight: 600; color: var(--visa-text-primary); font-size: 0.9375rem;">${template.template_name}</div>
-                        <div class="visa-flex visa-gap-1">
-                            <button class="visa-icon-action-btn info template-action download" data-action="download-template" data-template-id="${template.id}">
-                                <i class="fas fa-download"></i>
-                            </button>
-                            <button class="visa-icon-action-btn danger template-action delete" data-action="delete-template" data-template-id="${template.id}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="visa-grid-2 template-info" style="font-size: 0.8125rem; color: var(--visa-text-secondary); margin-bottom: 0.5rem;">
-                        <div><strong>文件类型:</strong> ${template.file_type.toUpperCase()}</div>
-                        <div><strong>文件大小:</strong> ${fileSize}</div>
-                        <div><strong>适用身份:</strong> ${template.identity_name}</div>
-                        <div><strong>上传时间:</strong> ${formatDate(template.created_at)}</div>
-                    </div>
-                    ${template.description ? `<div style="font-size: 0.8125rem; color: var(--visa-text-secondary); font-style: italic; padding-top: 0.5rem; border-top: 1px solid var(--visa-border);">${template.description}</div>` : ''}
-                </div>
-            `;
-        });
-
-        templatesHtml += `
-                </div>
-            </div>
-        `;
-    }
-
-    templatesHtml += '</div></div>';
-    configContent.innerHTML = templatesHtml;
-}
-
 // ==================== 上传模板 ====================
+// 根据所选国家筛选上传弹窗中的签证类型选项
+function filterUploadVisaTypes(countryId) {
+    const vtSelect = document.getElementById('uploadVisaType');
+    if (!vtSelect) return;
+    Array.from(vtSelect.options).forEach(opt => {
+        if (!opt.value) {  // 占位项
+            opt.textContent = countryId ? '请选择签证类型' : '请先选择国家';
+            return;
+        }
+        opt.hidden = (opt.dataset.countryId !== countryId);
+    });
+    // 重置当前选择，避免残留其他国家的签证类型
+    vtSelect.value = '';
+}
+
 function openUploadModal() {
-    document.getElementById('uploadModal').classList.add('active');
     document.getElementById('uploadForm').reset();
     document.getElementById('fileLabel').textContent = '点击选择文件';
+    filterUploadVisaTypes('');  // 重置为"请先选择国家"
+    document.getElementById('uploadModal').classList.add('active');
 }
 
 function closeUploadModal() {
@@ -349,12 +270,7 @@ function closeUploadModal() {
 
 function uploadTemplate() {
     const form = document.getElementById('uploadForm');
-    const formData = new FormData(form);
-    
-    formData.append('visa_type_id', currentVisaTypeId);
-    if (currentIdentityId) {
-        formData.append('identity_id', currentIdentityId);
-    }
+    const formData = new FormData(form);  // 已含 visa_type_id / identity_id
 
     const submitBtn = document.getElementById('uploadSubmitBtn');
     const originalText = submitBtn.innerHTML;
@@ -368,18 +284,17 @@ function uploadTemplate() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            closeUploadModal();
-            loadTemplates();
             showAlert('模板文件上传成功！', 'success');
+            setTimeout(() => window.location.reload(), 800);
         } else {
             showAlert(data.message || '上传失败', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     })
     .catch(error => {
         console.error('Upload error:', error);
         showAlert('上传失败，请重试', 'error');
-    })
-    .finally(() => {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
     });
@@ -400,8 +315,8 @@ function deleteTemplate(templateId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            loadTemplates();
             showAlert('模板文件删除成功！', 'success');
+            setTimeout(() => window.location.reload(), 600);
         } else {
             showAlert(data.message || '删除失败', 'error');
         }
@@ -413,20 +328,6 @@ function deleteTemplate(templateId) {
 }
 
 // ==================== 工具函数 ====================
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function formatDate(dateString) {
-    if (!dateString) return '未知';
-    const date = new Date(dateString);
-    return date.toLocaleString('zh-CN');
-}
-
 function showAlert(message, type) {
     const alert = document.createElement('div');
     alert.className = 'visa-flash visa-flash-' + type;
@@ -435,9 +336,7 @@ function showAlert(message, type) {
     alert.style.right = '20px';
     alert.style.zIndex = '10000';
     alert.textContent = message;
-    
     document.body.appendChild(alert);
-    
     setTimeout(() => {
         alert.style.opacity = '0';
         setTimeout(() => alert.remove(), 300);
@@ -448,61 +347,52 @@ function showAlert(message, type) {
 document.addEventListener('click', function(e) {
     const target = e.target.closest('[data-action]');
     if (!target) return;
-    
-    const action = target.dataset.action;
-    
-    switch(action) {
-        case 'select-visa-type':
-            selectVisaType(target.dataset.visaType);
-            break;
-        case 'select-identity':
-            selectIdentity(target.dataset.identityId || null);
-            break;
-        case 'open-upload-modal':
-            openUploadModal();
-            break;
-        case 'close-upload-modal':
-            closeUploadModal();
-            break;
-        case 'download-template':
-            downloadTemplate(parseInt(target.dataset.templateId));
-            break;
-        case 'delete-template':
-            deleteTemplate(parseInt(target.dataset.templateId));
-            break;
+    switch(target.dataset.action) {
+        case 'open-upload-modal': openUploadModal(); break;
+        case 'close-upload-modal': closeUploadModal(); break;
+        case 'download-template': downloadTemplate(parseInt(target.dataset.templateId)); break;
+        case 'delete-template': deleteTemplate(parseInt(target.dataset.templateId)); break;
     }
 });
 
 // 模态框外部点击关闭
 document.addEventListener('click', function(e) {
-    const modal = document.getElementById('uploadModal');
-    if (e.target === modal) {
-        closeUploadModal();
-    }
+    if (e.target === document.getElementById('uploadModal')) closeUploadModal();
 });
 
 // ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
-    // 文件选择
-    document.querySelector('input[name="template_file"]').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        document.getElementById('fileLabel').textContent = file ? file.name : '点击选择文件';
-    });
+    const fileInput = document.querySelector('input[name="template_file"]');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            document.getElementById('fileLabel').textContent = file ? file.name : '点击选择文件';
+        });
+    }
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadTemplate();
+        });
+    }
+    // 上传弹窗：国家联动签证类型
+    const uploadCountry = document.getElementById('uploadCountry');
+    if (uploadCountry) {
+        uploadCountry.addEventListener('change', function() {
+            filterUploadVisaTypes(this.value);
+        });
+    }
 
-    // 表单提交
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        uploadTemplate();
-    });
-    
-    // 自动选择签证类型
-    if (currentVisaType) {
-        selectVisaType(currentVisaType);
-    } else {
-        const firstVisaTypeItem = document.querySelector('.visa-type-item');
-        if (firstVisaTypeItem) {
-            selectVisaType(firstVisaTypeItem.dataset.visaType);
-        }
+    // 顶部筛选：已选国家时，签证类型下拉只显示该国家的选项
+    const filterCountry = document.getElementById('filterCountry');
+    const filterVisaType = document.getElementById('filterVisaType');
+    if (filterCountry && filterVisaType) {
+        const cid = filterCountry.value;
+        Array.from(filterVisaType.options).forEach(opt => {
+            if (!opt.value) return;  // 跳过"全部签证类型"
+            opt.hidden = cid && opt.dataset.countryId !== cid;
+        });
     }
 });
 </script>

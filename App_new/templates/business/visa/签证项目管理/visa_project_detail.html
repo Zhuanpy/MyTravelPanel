@@ -12,6 +12,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
+/* 基本信息：字段等宽铺满一行，不换行 */
+.visa-project-info-grid > div { flex: 1 1 0; min-width: 0; }
+.visa-project-info-grid .visa-info-value,
+.visa-project-info-grid .visa-info-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
 /* 备注富文本编辑器 */
 .rte-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--visa-border, #d1d5db); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--visa-bg-light, #f9fafb); position: sticky; top: 0; z-index: 20; }
 .rte-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: #fff; cursor: pointer; color: var(--visa-text-secondary, #374151); font-size: 0.85rem; position: relative; }
@@ -60,8 +65,8 @@
             </div>
         </div>
         <div class="visa-card-body">
-            <div class="visa-project-info-grid" style="display: flex; flex-wrap: wrap; gap: 0.6rem 1.75rem; align-items: center; padding: 0.5rem 0;">
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <div class="visa-project-info-grid" style="display: flex; flex-wrap: nowrap; gap: 1.5rem; align-items: flex-start; padding: 0.5rem 0;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">签证状态：</span>
                     <select class="visa-form-select" id="statusSelect" data-project-id="{{ project.id }}" style="width: auto; min-width: 100px; height: 32px; padding: 0.1rem 0.5rem;">
                         <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
@@ -70,54 +75,51 @@
                         <option value="忽略单" {% if project.visa_status == '忽略单' %}selected{% endif %}>忽略单</option>
                     </select>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">预估出签日期：</span>
                     <input type="date" id="estimatedDateInput" class="visa-form-control" value="{{ project.estimated_date }}" data-project-id="{{ project.id }}" style="width: auto; height: 32px; padding: 0.1rem 0.5rem;">
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span class="visa-info-label" style="margin-bottom: 0;">HID / Ref：</span>
-                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                        {% if has_header and project.header and has_ref and project.ref %}
-                        <span style="font-size: 0.8rem; background: #e3f2fd; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                            <strong>HID:</strong>
-                            <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="text-primary" target="_blank">{{ project.header.hid }}</a>
-                        </span>
-                        <span style="font-size: 0.8rem; background: #e8f5e9; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                            <strong>Ref:</strong>
-                            <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="text-primary" target="_blank">{{ project.ref.ref_number }}</a>
-                        </span>
-                        <button type="button" class="visa-btn visa-btn-sm visa-btn-info" data-action="copy-hid-ref" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="复制编号">
-                            <i class="fas fa-copy"></i>
-                        </button>
+                {% if has_header and project.header and has_ref and project.ref %}
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">HID：</span>
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header.id) }}" class="visa-info-value text-primary" target="_blank">{{ project.header.hid }}</a>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">Ref：</span>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=project.ref.id) }}" class="visa-info-value text-primary" target="_blank">{{ project.ref.ref_number }}</a>
                         <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" data-action="unlink-hid-ref" data-project-id="{{ project.id }}" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="解除关联">
                             <i class="fas fa-unlink"></i>
                         </button>
-                        {% else %}
-                        <span style="font-size: 0.8rem; color: #999; background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                            未关联
-                            {% if project.hid_or_serial %}<span style="color: #ff9800;"> (临时: {{ project.hid_or_serial }})</span>{% endif %}
-                        </span>
-                        {% endif %}
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                {% else %}
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
+                    <span class="visa-info-label" style="margin-bottom: 0;">HID / Ref：</span>
+                    <span style="font-size: 0.8rem; color: #999; background: #f5f5f5; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                        未关联
+                        {% if project.hid_or_serial %}<span style="color: #ff9800;"> (临时: {{ project.hid_or_serial }})</span>{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">签证类型：</span>
                     <span class="visa-info-value">{{ project.visa_type or '未设置' }}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">联系人：</span>
                     <span class="visa-info-value">{{ project.contact_name or '未设置' }}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">新加坡身份：</span>
                     <span class="visa-info-value">{{ project.singapore_status or '未设置' }}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">创建时间：</span>
                     <span class="visa-info-value">{{ project.created_date.strftime('%Y-%m-%d') }}</span>
                 </div>
                 {% if '韩国' in project.visa_type %}
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
                     <span class="visa-info-label" style="margin-bottom: 0;">生成表格：</span>
                     <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" style="margin: 0;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -135,14 +137,12 @@
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-comment"></i> 备注信息</h2>
-            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" data-action="show-edit-remarks-modal" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" title="编辑备注">
+            <a href="{{ url_for('visa_project.edit_remarks_page', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-primary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;" title="编辑备注">
                 <i class="fas fa-edit"></i> 编辑
-            </button>
+            </a>
         </div>
         <div class="visa-card-body" style="padding: 0.75rem 1rem;">
-            <div id="remarksDisplay" style="white-space: pre-wrap; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">
-                {% if project.remarks %}{{ project.remarks | safe }}{% else %}暂无备注信息{% endif %}
-            </div>
+            <div id="remarksDisplay" style="white-space: pre-wrap; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">{% if project.remarks %}{{ project.remarks | safe }}{% else %}暂无备注信息{% endif %}</div>
         </div>
     </div>
 
@@ -418,43 +418,6 @@
             </div>
             <div class="visa-modal-footer">
                 <button type="button" class="visa-btn visa-btn-secondary" data-action="close-modal" data-modal-id="editNotesModal">取消</button>
-                <button type="submit" class="visa-btn visa-btn-primary">保存</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- 编辑备注信息模态框 -->
-<div id="editRemarksModal" class="visa-modal">
-    <div class="visa-modal-dialog visa-modal-dialog-lg">
-        <div class="visa-modal-header">
-            <h3 class="visa-modal-title">编辑备注信息</h3>
-            <button type="button" class="visa-modal-close" data-action="close-modal" data-modal-id="editRemarksModal">&times;</button>
-        </div>
-        <form id="editRemarksForm">
-            <div class="visa-modal-body">
-                <div class="visa-form-group">
-                    <label class="visa-form-label">备注</label>
-                    <div class="rte-toolbar" id="remarksToolbar">
-                        <button type="button" class="rte-btn" data-cmd="bold" title="加粗"><b>B</b></button>
-                        <button type="button" class="rte-btn" data-cmd="italic" title="斜体"><i>I</i></button>
-                        <button type="button" class="rte-btn" data-cmd="underline" title="下划线"><u>U</u></button>
-                        <span class="rte-color-group">
-                            <button type="button" class="rte-btn rte-color-toggle" data-cmd="foreColor" title="字体颜色"><i class="fas fa-font"></i></button>
-                            <span class="rte-palette"></span>
-                        </span>
-                        <span class="rte-color-group">
-                            <button type="button" class="rte-btn rte-color-toggle" data-cmd="hiliteColor" title="背景高亮"><i class="fas fa-highlighter"></i></button>
-                            <span class="rte-palette"></span>
-                        </span>
-                        <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="项目符号"><i class="fas fa-list-ul"></i></button>
-                        <button type="button" class="rte-btn" data-cmd="removeFormat" title="清除格式"><i class="fas fa-eraser"></i></button>
-                    </div>
-                    <div class="rte-editor visa-form-textarea" id="editRemarksEditor" contenteditable="true" data-placeholder="请输入备注信息" style="min-height: 280px;">{{ project.remarks | safe if project.remarks else '' }}</div>
-                </div>
-            </div>
-            <div class="visa-modal-footer">
-                <button type="button" class="visa-btn visa-btn-secondary" data-action="close-modal" data-modal-id="editRemarksModal">取消</button>
                 <button type="submit" class="visa-btn visa-btn-primary">保存</button>
             </div>
         </form>
@@ -1089,88 +1052,6 @@ function initFormHandlers() {
         });
     }
 
-    // 备注富文本编辑器工具栏
-    const remarksToolbar = document.getElementById('remarksToolbar');
-    const remarksEditor = document.getElementById('editRemarksEditor');
-    if (remarksToolbar && remarksEditor) {
-        // 保存/恢复选区：颜色选择器会弹窗使编辑区失焦，需手动保存选区
-        let savedRange = null;
-        const saveRange = function() {
-            const sel = window.getSelection();
-            if (sel.rangeCount && remarksEditor.contains(sel.anchorNode)) {
-                savedRange = sel.getRangeAt(0);
-            }
-        };
-        const restoreRange = function() {
-            if (savedRange) {
-                const sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(savedRange);
-            }
-        };
-        remarksEditor.addEventListener('keyup', saveRange);
-        remarksEditor.addEventListener('mouseup', saveRange);
-
-        // 加粗/斜体/下划线等命令按钮：用 mousedown+preventDefault 防止按钮抢焦点导致选区丢失
-        remarksToolbar.querySelectorAll('.rte-btn[data-cmd]:not(.rte-color-toggle)').forEach(function(btn) {
-            btn.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                document.execCommand(btn.dataset.cmd, false, null);
-            });
-        });
-        initRtePalettes(remarksToolbar, remarksEditor, saveRange, restoreRange);
-    }
-
-    // 编辑备注信息表单
-    const editRemarksForm = document.getElementById('editRemarksForm');
-    if (editRemarksForm) {
-        editRemarksForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const editorEl = document.getElementById('editRemarksEditor');
-            // 内容为空（仅空白）时提交空字符串，便于后端清空备注
-            const remarks = editorEl.textContent.trim() ? editorEl.innerHTML : '';
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.disabled = true;
-            submitBtn.textContent = '保存中...';
-
-            const formData = new FormData();
-            formData.append('remarks', remarks);
-
-            fetch(`/visa/project/update_remarks/${PROJECT_ID}`, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': CSRF_TOKEN
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showMessage('备注信息更新成功', 'success');
-                    // 更新页面显示，无需刷新
-                    const display = document.getElementById('remarksDisplay');
-                    if (display) {
-                        display.innerHTML = data.remarks ? data.remarks : '暂无备注信息';
-                    }
-                    closeModal('editRemarksModal');
-                } else {
-                    throw new Error(data.message || '更新失败');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showMessage(error.message || '更新失败，请重试', 'error');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-            });
-        });
-    }
-
     // 添加链接表单
     const addLinkForm = document.getElementById('addLinkForm');
     if (addLinkForm) {
@@ -1335,9 +1216,6 @@ document.addEventListener('click', function(e) {
             break;
         case 'show-add-link-modal':
             openModal('addLinkModal');
-            break;
-        case 'show-edit-remarks-modal':
-            openModal('editRemarksModal');
             break;
         case 'close-modal':
             closeModal(target.dataset.modalId);
@@ -1649,10 +1527,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 点击模态框外部关闭（备注编辑弹窗除外，避免误触关闭丢失输入）
-    const noOutsideClose = ['editRemarksModal'];
+    // 点击模态框外部关闭
     document.querySelectorAll('.visa-modal').forEach(modal => {
-        if (noOutsideClose.includes(modal.id)) return;
         modal.addEventListener('click', function(e) {
             if (e.target === this) {
                 this.style.display = 'none';

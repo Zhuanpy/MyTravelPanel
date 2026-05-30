@@ -2732,45 +2732,75 @@ def visa_type_management():
 # 模板文件管理相关路由
 @visa_basic.route('/visa_template_manager')
 def visa_template_manager():
-    """签证模板文件管理器主页面"""
+    """签证模板文件管理器主页面（列表式，支持筛选+分页）"""
     try:
-        visa_type_param = request.args.get('visa_type')
-        # 获取所有签证类型
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
+
+        # 筛选参数
+        filter_country = request.args.get('country', '')        # 国家ID
+        filter_visa_type = request.args.get('visa_type', '')    # 签证类型名称
+        filter_identity = request.args.get('identity', '')      # 身份ID 或 'share'
+        filter_type = request.args.get('template_type', '')     # 模板类型
+        search = request.args.get('search', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
+
+        # 构建查询（join 国家/签证类型）
+        query = VisaTemplateFiles.query.filter(VisaTemplateFiles.is_active == True) \
+            .join(VisaTypes, VisaTemplateFiles.visa_type_id == VisaTypes.id) \
+            .join(VisaCountries, VisaTypes.country_id == VisaCountries.id)
+
+        if filter_country:
+            query = query.filter(VisaTypes.country_id == filter_country)
+        if filter_visa_type:
+            query = query.filter(VisaTypes.visa_type == filter_visa_type)
+        if filter_identity:
+            if filter_identity == 'share':
+                query = query.filter(VisaTemplateFiles.singapore_identity_id.is_(None))
+            else:
+                query = query.filter(VisaTemplateFiles.singapore_identity_id == filter_identity)
+        if filter_type:
+            query = query.filter(VisaTemplateFiles.template_type == filter_type)
+        if search:
+            query = query.filter(VisaTemplateFiles.template_name.like(f'%{search}%'))
+
+        pagination = query.order_by(
+            VisaCountries.country_name_EN, VisaTypes.visa_type,
+            VisaTemplateFiles.template_type, VisaTemplateFiles.template_name
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        templates = pagination.items
+
+        # 筛选下拉选项
         visa_types = VisaTypes.query.order_by(VisaTypes.visa_type).all()
+        countries = VisaCountries.query.order_by(VisaCountries.country_name_EN).all()
+        template_types = [t[0] for t in VisaTemplateFiles.get_template_types() if t[0]]
+        template_types.sort()
+
         # 获取所有身份（SHARE排在第一位，其他按字母顺序）
         all_identities = VisaSingaporeIdentity.query.all()
-        
-        # 手动排序：SHARE排在第一位，其他按identity_zh排序
         identities = []
         share_identity = None
-        
         for identity in all_identities:
             if identity.identity_zh == 'SHARE':
                 share_identity = identity
             else:
                 identities.append(identity)
-        
-        # 其他身份按字母顺序排序
         identities.sort(key=lambda x: x.identity_zh)
-        
-        # SHARE放在第一位
         if share_identity:
             identities.insert(0, share_identity)
-        
-        # 将identities转换为可序列化的格式
-        identities_json = []
-        for identity in identities:
-            identities_json.append({
-                'id': identity.id,
-                'identity_zh': identity.identity_zh,
-                'identity_en': identity.identity_en
-            })
-        
+
         return render_template('business/visa/签证类型管理/visa_template_manager.html',
+                             templates=templates,
+                             pagination=pagination,
                              visa_types=visa_types,
+                             countries=countries,
                              identities=identities,
-                             identities_json=identities_json,
-                             selected_visa_type=visa_type_param)
+                             template_types=template_types,
+                             filter_country=filter_country,
+                             filter_visa_type=filter_visa_type,
+                             filter_identity=filter_identity,
+                             filter_type=filter_type,
+                             search=search)
     except Exception as e:
         flash(f'加载签证模板管理器时出错: {str(e)}', 'error')
         return redirect(url_for('visa_basic.visa_type_list'))
