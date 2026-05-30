@@ -126,6 +126,19 @@ class ProjectReceipt(db.Model):
         return method_map.get(self.payment_method, self.payment_method)
 
     @property
+    def payment_method_display_en(self):
+        """付款方式英文显示（用于面向客户的收据）"""
+        method_map = {
+            'cash': 'Cash',
+            'bank_transfer': 'Bank Transfer',
+            'credit_card': 'Credit Card',
+            'cheque': 'Cheque',
+            'wechat': 'WeChat',
+            'other': 'Other'
+        }
+        return method_map.get(self.payment_method, self.payment_method)
+
+    @property
     def status_display(self):
         """状态显示文本"""
         status_map = {

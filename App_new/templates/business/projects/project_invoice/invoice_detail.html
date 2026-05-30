@@ -4,20 +4,20 @@
 
 {% block extra_css %}
 <style>
+/* 页面内 Ctrl+P 兜底：隔离打印区域（打印按钮走独立弹窗，不依赖这段） */
 @media print {
     body * { visibility: hidden; }
     #printInvoice, #printInvoice * { visibility: visible !important; }
-    #printInvoice { 
-        position: absolute; 
-        left: 0; 
-        top: 0; 
+    #printInvoice {
+        position: absolute;
+        left: 0;
+        top: 0;
         width: 100%;
         padding: 0;
     }
     .no-print, .container.mt-4 { display: none !important; height: 0 !important; overflow: hidden !important; }
-    @page { 
+    @page {
         margin: 10mm 15mm;
-        /* 移除页眉页脚 */
         @top-left { content: none; }
         @top-center { content: none; }
         @top-right { content: none; }
@@ -25,6 +25,18 @@
         @bottom-center { content: none; }
         @bottom-right { content: none; }
     }
+}
+</style>
+<!-- 发票视觉样式：独立打印弹窗复用此段（不含隔离/绝对定位，跨浏览器稳定，规避 Edge 打印渲染异常） -->
+<style id="invoicePrintCss">
+@page {
+    margin: 10mm 15mm;
+    @top-left { content: none; }
+    @top-center { content: none; }
+    @top-right { content: none; }
+    @bottom-left { content: none; }
+    @bottom-center { content: none; }
+    @bottom-right { content: none; }
 }
 .print-invoice {
     background: white;
@@ -63,37 +75,20 @@
 }
 .print-invoice .detail-table tbody tr:last-child td { border-bottom: 1px solid #333; }
 .print-invoice .detail-table .text-right { text-align: right; }
-.print-invoice .total-section { margin: 5px 0; }
+.print-invoice .total-section { margin: 5px 0; page-break-inside: avoid; }
 .print-invoice .total-section table { width: 100%; }
 .print-invoice .total-section td { padding: 3px 5px; }
-.print-invoice .total-section .label { text-align: right; width: 85%; }
-.print-invoice .total-section .value { text-align: right; width: 15%; }
 .print-invoice .amount-words { font-weight: bold; margin: 8px 0; }
 .print-invoice .bank-details { margin: 10px 0; font-size: 11px; }
-.print-invoice .footer-note { 
-    text-align: center; 
-    margin-top: 50px; 
+.print-invoice .footer-note {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 20px;
     margin-bottom: 20px;
-    font-size: 11px; 
-    color: #333; 
+    font-size: 11px;
+    color: #000;
     position: relative;
-}
-@media print {
-    .print-invoice .footer-note { 
-        color: #000 !important; 
-        margin-top: 80px;
-        page-break-inside: avoid;
-    }
-    /* 确保底部文字在页面底部 */
-    .print-invoice {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-    }
-    .print-invoice .footer-note {
-        margin-top: auto;
-        padding-top: 40px;
-    }
+    page-break-inside: avoid;
 }
 </style>
 {% endblock %}
@@ -398,6 +393,7 @@
             <div class="company-name-en">{{ company.company_name }}</div>
             <div>TA License No.: {{ company.ta_license or '' }}</div>
             <div>Email: {{ company.email or '' }}</div>
+            {% if company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
         </div>
     </div>
 
@@ -1005,17 +1001,17 @@
             <!-- 本地开发环境：使用默认静态文件 -->
             <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" 
                  alt="Company Stamp" 
-                 style="max-width: 80px; height: auto; opacity: 0.9;">
+                 style="max-width: 80px; height: auto;">
             {% elif company and company.stamp_path %}
             <!-- 服务器环境：使用数据库中的电子章 -->
             <img src="{{ url_for('static', filename=company.stamp_path) }}" 
                  alt="Company Stamp" 
-                 style="max-width: 80px; height: auto; opacity: 0.9;"
+                 style="max-width: 80px; height: auto;"
                  onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/company digital stamp.png') }}';">
             {% else %}
             <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" 
                  alt="Company Stamp" 
-                 style="max-width: 80px; height: auto; opacity: 0.9;">
+                 style="max-width: 80px; height: auto;">
             {% endif %}
             <p style="margin: -15px 0 0 0; font-size: 10px; white-space: nowrap;">For and on behalf of<br><strong>{{ company.company_name if company and company.company_name else 'JOYFUL ESCAPES PTE. LTD' }}</strong></p>
         </div>
@@ -1083,22 +1079,50 @@ function copyFileName(inputId) {
 document.addEventListener('DOMContentLoaded', initFileNameInputs);
 
 function printInvoice() {
-    // 保存原标题
-    var originalTitle = document.title;
-    // 设置空标题避免显示在页眉
-    document.title = ' ';
-    
-    // 显示打印区域
-    document.getElementById('printInvoice').style.display = 'block';
-    
-    // 打印
-    window.print();
-    
-    // 打印后恢复
-    setTimeout(function() {
-        document.getElementById('printInvoice').style.display = 'none';
-        document.title = originalTitle;
-    }, 100);
+    // 独立打印：新开一个干净的窗口，只放发票内容 + 视觉样式
+    // 规避 Edge 在主页面打印预览中的渲染异常（白块遮挡金额）
+    var content = document.getElementById('printInvoice').innerHTML;
+    var css = document.getElementById('invoicePrintCss').innerHTML;
+
+    var win = window.open('', '_blank', 'width=900,height=1200');
+    if (!win) {
+        alert('打印窗口被浏览器拦截，请允许本站弹出窗口后重试。');
+        return;
+    }
+    win.document.open();
+    win.document.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>' +
+        '<base href="' + window.location.origin + '/">' +
+        '<style>' + css + ' body{margin:0;}</style>' +
+        '</head><body><div class="print-invoice">' + content + '</div></body></html>'
+    );
+    win.document.close();
+    win.focus();
+
+    // 等待图片（Logo/电子章）加载完成再打印，避免空白
+    function doPrint() {
+        win.focus();
+        win.print();
+        // 打印对话框关闭后关闭窗口
+        win.onafterprint = function() { win.close(); };
+        setTimeout(function() { try { win.close(); } catch (e) {} }, 60000);
+    }
+    var imgs = win.document.images;
+    if (imgs.length === 0) {
+        setTimeout(doPrint, 200);
+        return;
+    }
+    var loaded = 0, total = imgs.length, done = false;
+    function check() {
+        loaded++;
+        if (!done && loaded >= total) { done = true; setTimeout(doPrint, 150); }
+    }
+    for (var i = 0; i < total; i++) {
+        if (imgs[i].complete) { check(); }
+        else { imgs[i].onload = check; imgs[i].onerror = check; }
+    }
+    // 兜底：最多等 2 秒
+    setTimeout(function() { if (!done) { done = true; doPrint(); } }, 2000);
 }
 
 // 检测URL参数，如果有print=1则自动打印

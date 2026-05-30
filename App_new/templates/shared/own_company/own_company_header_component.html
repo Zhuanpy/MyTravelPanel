@@ -49,6 +49,7 @@
             {% if company %}
                 {% if company.phone %}<p>TEL: {{ company.phone }}</p>{% endif %}
                 {% if company.email %}<p>Email: {{ company.email }}</p>{% endif %}
+                {% if company.website %}<p>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</p>{% endif %}
             {% else %}
                 <p>TA License No.: TA03652</p>
                 <p>TEL: 9106 8716 / 9627 5316</p>

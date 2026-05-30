@@ -262,6 +262,7 @@
                 <div class="company-name-en">{{ company.company_name if company else 'Company Name' }}</div>
                 <div>TA License No.: {{ company.ta_license if company else '' }}</div>
                 <div>Email: {{ company.email if company else '' }}</div>
+                {% if company and company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
             </div>
         </div>
 

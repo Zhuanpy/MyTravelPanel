@@ -82,6 +82,7 @@
             {% if company %}<div class="en">{{ company.company_name }}</div>{% endif %}
             {% if company and company.ta_license %}TA License No.: {{ company.ta_license }}<br>{% endif %}
             {% if company and company.email %}Email: {{ company.email }}{% endif %}
+            {% if company and company.website %}<br>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}{% endif %}
         </div>
     </div>
 

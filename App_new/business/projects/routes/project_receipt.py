@@ -445,7 +445,37 @@ def header_receipts(header_id):
                 receipt.distributed_refs = []
         else:
             receipt.distributed_refs = []
-    
+
+    # 附加每条收款对应的发票号（用于打印收据显示）
+    for receipt in all_receipts:
+        inv_numbers = []
+        for alloc in (receipt.invoice_allocations or []):
+            if alloc.invoice and alloc.invoice.invoice_number:
+                inv_numbers.append(alloc.invoice.invoice_number)
+        # 兼容旧数据的直接关联
+        if not inv_numbers and receipt.invoice and receipt.invoice.invoice_number:
+            inv_numbers.append(receipt.invoice.invoice_number)
+        # 去重保序
+        seen = set()
+        receipt.invoice_no_str = ', '.join(x for x in inv_numbers if not (x in seen or seen.add(x)))
+
+    # 付款历史（用于打印收据的台账：逐笔显示日期、扣款金额、余额），按付款日期升序
+    payment_history = [
+        {
+            'id': r.id,
+            'date': r.payment_date.strftime('%d/%m/%Y') if r.payment_date else '',
+            'amount': float(r.amount or 0),
+            'currency': r.currency or 'SGD',
+            'payer': (r.payer_company or r.payer_name or '').strip(),
+            'method': r.payment_method_display_en,
+            'number': r.receipt_number or ''
+        }
+        for r in sorted(
+            [x for x in all_receipts if x.status != 'cancelled'],
+            key=lambda x: (x.payment_date or x.created_at)
+        )
+    ]
+
     # 统计所有REF的实际已收款金额（包括项目级别分配）
     total_received = 0
     for ref in header.refs:
@@ -484,6 +514,7 @@ def header_receipts(header_id):
     return render_template('business/projects/project_receipt/header_receipts.html',
                          header=header,
                          all_receipts=all_receipts,
+                         payment_history=payment_history,
                          total_received=total_received,
                          unpaid_amount=unpaid_amount,
                          form=form,

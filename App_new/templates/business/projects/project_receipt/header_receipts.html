@@ -84,7 +84,7 @@
     .print-receipt .receipt-meta { width: 40%; }
     .print-receipt .receipt-meta table { width: 100%; }
     .print-receipt .receipt-meta td { padding: 2px 5px; }
-    .print-receipt .receipt-meta td:first-child { width: 100px; }
+    .print-receipt .receipt-meta td:first-child { width: 100px; white-space: nowrap; }
     .print-receipt .detail-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
     .print-receipt .detail-table th {
         border-top: 2px solid #333; border-bottom: 1px solid #333;
@@ -293,7 +293,7 @@
                                                         receiptNumber: '{{ receipt.receipt_number }}',
                                                         currency: '{{ receipt.currency }}',
                                                         amount: {{ receipt.amount }},
-                                                        paymentMethod: '{{ receipt.payment_method_display }}',
+                                                        paymentMethod: '{{ receipt.payment_method_display_en }}',
                                                         paymentDate: '{{ receipt.payment_date.strftime('%d/%m/%Y') if receipt.payment_date else '' }}',
                                                         payerName: '{{ receipt.payer_name|default('', true)|replace("'", "\\'") }}',
                                                         payerCompany: '{{ receipt.payer_company|default('', true)|replace("'", "\\'") }}',
@@ -301,6 +301,7 @@
                                                         bankName: '{{ receipt.bank_name|default('', true)|replace("'", "\\'") }}',
                                                         accountNumber: '{{ receipt.account_number|default('', true)|replace("'", "\\'") }}',
                                                         transactionId: '{{ receipt.transaction_id|default('', true)|replace("'", "\\'") }}',
+                                                        invoiceNumbers: '{{ receipt.invoice_no_str|default('', true)|replace("'", "\\'") }}',
                                                         remarks: '{{ receipt.remarks|default('', true)|replace('\n', ' ')|replace("'", "\\'") }}',
                                                         totalSelling: {{ header.total_selling_amount|default(0) }},
                                                         totalReceived: {{ total_received|default(0) }}
@@ -502,6 +503,7 @@
             <div class="company-name-en">{{ company.company_name }}</div>
             <div>TA License No.: {{ company.ta_license or '' }}</div>
             <div>Email: {{ company.email or '' }}</div>
+            {% if company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
         </div>
     </div>
 
@@ -515,7 +517,7 @@
         <div class="payer-info">
             <table>
                 <tr>
-                    <td style="width: 90px; vertical-align: top;"><strong>Received From</strong></td>
+                    <td style="width: 90px; vertical-align: top; white-space: nowrap;"><strong>Received From</strong></td>
                     <td style="vertical-align: top;">:</td>
                     <td>
                         <strong id="print-payer-company"></strong>
@@ -524,11 +526,6 @@
                     </td>
                 </tr>
                 <tr><td colspan="3" style="height: 8px;"></td></tr>
-                <tr>
-                    <td><strong>Project</strong></td>
-                    <td>:</td>
-                    <td>{{ header.hid }} - {{ header.display_desc }}</td>
-                </tr>
                 <tr>
                     <td><strong>Customer</strong></td>
                     <td>:</td>
@@ -539,10 +536,11 @@
         <div class="receipt-meta">
             <table>
                 <tr><td>Receipt No</td><td>:</td><td><strong id="print-receipt-number"></strong></td></tr>
+                <tr><td>Invoice No</td><td>:</td><td id="print-invoice-no"></td></tr>
                 <tr><td>Payment Date</td><td>:</td><td><strong id="print-payment-date"></strong></td></tr>
                 <tr><td>Payment Method</td><td>:</td><td id="print-payment-method"></td></tr>
                 <tr><td>Bank/Account</td><td>:</td><td id="print-bank-account"></td></tr>
-                <tr><td>Transaction Ref</td><td>:</td><td id="print-transaction-id"></td></tr>
+                <tr id="print-transaction-row"><td style="white-space: nowrap;">Transaction Ref</td><td>:</td><td id="print-transaction-id"></td></tr>
             </table>
         </div>
     </div>
@@ -557,38 +555,34 @@
         </thead>
         <tbody>
             <tr>
-                <td id="print-description">Payment received for services</td>
+                <td id="print-description" style="vertical-align: top;">{{ header.hid }} - {{ header.display_desc }}</td>
                 <td class="text-right" id="print-amount"></td>
             </tr>
         </tbody>
     </table>
 
-    <!-- 金额汇总 -->
+    <!-- 金额汇总（台账：发票总额 → 逐笔付款扣减 → 余额） -->
     <div class="total-section">
         <table style="width: 100%; margin-top: 0;">
-            <tr>
-                <td style="width: 70%;"></td>
-                <td style="text-align: right; padding: 5px;">Total Invoice Amount :</td>
-                <td style="text-align: right; width: 120px; padding: 5px;" id="print-invoice-amount"></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td style="text-align: right; padding: 5px;">Previous Payment :</td>
-                <td style="text-align: right; padding: 5px;" id="print-previous-payment"></td>
-            </tr>
-            <tr>
-                <td><strong id="print-currency"></strong></td>
-                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>This Payment :</strong></td>
-                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong id="print-total"></strong></td>
-            </tr>
-            <tr>
-                <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td style="text-align: right; padding: 5px;"><strong>Balance Due :</strong></td>
-                <td style="text-align: right; padding: 5px;"><strong id="print-balance"></strong></td>
-            </tr>
+            <tbody>
+                <tr>
+                    <td style="width: 90px;"></td>
+                    <td style="text-align: right; padding: 5px;">Total Invoice Amount :</td>
+                    <td style="text-align: right; width: 140px; padding: 5px;" id="print-invoice-amount"></td>
+                </tr>
+            </tbody>
+            <!-- 逐笔付款行由 JS 动态插入 -->
+            <tbody id="print-payment-rows"></tbody>
+            <tbody>
+                <tr>
+                    <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
+                </tr>
+                <tr>
+                    <td><strong id="print-currency"></strong></td>
+                    <td style="text-align: right; padding: 5px;"><strong>Balance Due :</strong></td>
+                    <td style="text-align: right; padding: 5px;"><strong id="print-balance"></strong></td>
+                </tr>
+            </tbody>
         </table>
         <div style="border-bottom: 2px solid #333; margin-bottom: 5px;"></div>
     </div>
@@ -602,11 +596,11 @@
         <p id="print-remarks"></p>
     </div>
 
-    <!-- 电子章 -->
+    <!-- 电子章（稍向右偏移，靠近右边缘） -->
     <div style="text-align: right; margin: 20px 0;">
         {% if company and company.stamp_path %}
             <img src="{{ url_for('static', filename=company.stamp_path) }}"
-                 alt="Company Stamp" style="height: 80px;"
+                 alt="Company Stamp" style="height: 80px; transform: translateX(20px);"
                  onerror="this.style.display='none';">
         {% endif %}
     </div>
@@ -713,17 +707,29 @@ function numberToWords(num, currency) {
     return result + ' Only';
 }
 
+// 付款历史（用于台账逐笔显示）
+const PAYMENT_HISTORY = {{ payment_history|tojson }};
+
 function printReceipt(data) {
     const {
-        receiptNumber, currency, amount, paymentMethod, paymentDate,
+        id, receiptNumber, currency, amount, paymentMethod, paymentDate,
         payerName, payerCompany, payerContact, bankName, accountNumber,
-        transactionId, remarks, totalSelling, totalReceived
+        transactionId, invoiceNumbers, remarks, totalSelling, totalReceived
     } = data;
 
     // 填充打印模板
     document.getElementById('print-receipt-number').textContent = receiptNumber;
-    document.getElementById('print-payer-company').textContent = payerCompany || '-';
-    document.getElementById('print-payer-name').textContent = payerName ? 'Attn: ' + payerName : '';
+    document.getElementById('print-invoice-no').textContent = invoiceNumbers || '-';
+    // 付款方：有公司则公司为主体、姓名作 Attn 副行；无公司则直接用姓名作主体，避免出现 "-"
+    const _payerCompany = (payerCompany || '').trim();
+    const _payerName = (payerName || '').trim();
+    if (_payerCompany) {
+        document.getElementById('print-payer-company').textContent = _payerCompany;
+        document.getElementById('print-payer-name').textContent = _payerName ? 'Attn: ' + _payerName : '';
+    } else {
+        document.getElementById('print-payer-company').textContent = _payerName || '-';
+        document.getElementById('print-payer-name').textContent = '';
+    }
     document.getElementById('print-payer-contact').textContent = payerContact ? 'Tel: ' + payerContact : '';
     document.getElementById('print-payment-date').textContent = paymentDate || '-';
     document.getElementById('print-payment-method').textContent = paymentMethod || '-';
@@ -738,20 +744,48 @@ function printReceipt(data) {
         bankAccountText = accountNumber;
     }
     document.getElementById('print-bank-account').textContent = bankAccountText;
-    document.getElementById('print-transaction-id').textContent = transactionId || '-';
+    // 无交易流水号时隐藏该行
+    if (transactionId && transactionId.trim()) {
+        document.getElementById('print-transaction-id').textContent = transactionId;
+        document.getElementById('print-transaction-row').style.display = '';
+    } else {
+        document.getElementById('print-transaction-row').style.display = 'none';
+    }
 
     // 金额信息
     document.getElementById('print-currency').textContent = currency;
     document.getElementById('print-amount').textContent = currency + ' ' + amount.toFixed(2);
-    document.getElementById('print-total').textContent = amount.toFixed(2);
     document.getElementById('print-amount-words').textContent = numberToWords(amount, currency);
-    document.getElementById('print-description').textContent = 'Payment received for Project {{ header.hid }}';
+    // print-description 由服务端渲染为项目信息（HID + 描述），此处不覆盖
 
-    // 发票金额和余额
-    const previousPayment = totalReceived - amount;
-    const balance = totalSelling - totalReceived;
+    // 发票总额
     document.getElementById('print-invoice-amount').textContent = currency + ' ' + totalSelling.toFixed(2);
-    document.getElementById('print-previous-payment').textContent = previousPayment > 0 ? currency + ' ' + previousPayment.toFixed(2) : '-';
+
+    // 逐笔付款台账：每笔显示 日期 + -金额；当前打印的这笔加粗标注 This Payment
+    const rowsEl = document.getElementById('print-payment-rows');
+    rowsEl.innerHTML = '';
+    let paidSum = 0;
+    (PAYMENT_HISTORY || []).forEach(function(p) {
+        paidSum += p.amount;
+        const isCurrent = (p.id === id);
+        // 描述：转账人 · 转账方式 · 付款号码（当前这笔标注 This Payment）
+        const parts = [];
+        if (p.payer) parts.push(p.payer);
+        if (p.method) parts.push(p.method);
+        if (p.number) parts.push(p.number);
+        if (isCurrent) parts.push('This Payment');
+        const desc = parts.join(' · ');
+        const amountText = '-' + p.currency + ' ' + p.amount.toFixed(2);
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td style="text-align: left; padding: 5px; white-space: nowrap;">' + (p.date || '') + '</td>' +
+            '<td style="text-align: left; padding: 5px;">' + desc + '</td>' +
+            '<td style="text-align: right; padding: 5px; white-space: nowrap;">' + amountText + '</td>';
+        rowsEl.appendChild(tr);
+    });
+
+    // 余额 = 发票总额 - 已付总和
+    const balance = totalSelling - paidSum;
     document.getElementById('print-balance').textContent = currency + ' ' + balance.toFixed(2);
 
     // 备注

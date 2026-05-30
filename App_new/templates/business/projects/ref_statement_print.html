@@ -137,6 +137,7 @@
                 <div class="company-name-en">{{ company.company_name }}</div>
                 <div>TA License No.: {{ company.ta_license or '' }}</div>
                 <div>Email: {{ company.email or '' }}</div>
+                {% if company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
             </div>
         </div>
 
