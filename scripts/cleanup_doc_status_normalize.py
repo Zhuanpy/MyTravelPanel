@@ -21,6 +21,12 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 确保标准输出为 UTF-8，避免打印 • 等字符时在某些控制台编码下报错
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 from App_new import create_app
 from App_new.exts import db
 
