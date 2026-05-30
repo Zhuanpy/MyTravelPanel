@@ -602,13 +602,30 @@ def visa_detail(project_name=None, project_id=None):
         # 检查项目是否已关联HID和REF
         has_header = project.header_id is not None
         has_ref = project.ref_id is not None
-        
+
+        # 模板文件：共用模板 + 项目身份对应的模板，方便下载
+        from App_new.business.visa.models.Visamodels import VisaTemplateFiles
+        specific_identity = None
+        if project.singapore_status and project.singapore_status != 'SHARE':
+            specific_identity = VisaSingaporeIdentity.query.filter_by(
+                identity_zh=project.singapore_status
+            ).first()
+        identity_filter = [VisaTemplateFiles.singapore_identity_id.is_(None)]
+        if specific_identity:
+            identity_filter.append(VisaTemplateFiles.singapore_identity_id == specific_identity.id)
+        template_files = VisaTemplateFiles.query.filter(
+            VisaTemplateFiles.visa_type_id == types_info.id,
+            VisaTemplateFiles.is_active == True,
+            db.or_(*identity_filter)
+        ).order_by(VisaTemplateFiles.template_type, VisaTemplateFiles.template_name).all()
+
         return render_template('business/visa/签证项目管理/visa_project_detail.html',
                              project=project,
                              types_info=types_info,
                              links=links,
                              document_data=document_data,
                              document_statuses=document_statuses,
+                             template_files=template_files,
                              has_header=has_header,
                              has_ref=has_ref)
                              

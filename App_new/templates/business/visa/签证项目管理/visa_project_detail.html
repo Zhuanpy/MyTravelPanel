@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
+/* 模板文件下载卡片悬停 */
+.visa-template-dl:hover { border-color: var(--visa-primary, #6366f1) !important; background: var(--visa-bg-light, #f5f7ff); box-shadow: 0 2px 6px rgba(99,102,241,0.15); }
+
 /* 基本信息：字段等宽铺满一行，不换行 */
 .visa-project-info-grid > div { flex: 1 1 0; min-width: 0; }
 .visa-project-info-grid .visa-info-value,
@@ -144,34 +147,6 @@
         <div class="visa-card-body" style="padding: 0.75rem 1rem;">
             <div id="remarksDisplay" style="white-space: pre-wrap; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">{% if project.remarks %}{{ project.remarks | safe }}{% else %}暂无备注信息{% endif %}</div>
         </div>
-    </div>
-
-    <!-- 相关链接 & HID/Ref -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
-            <h2><i class="fas fa-link"></i> 相关链接</h2>
-            <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
-                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
-                    <i class="fas fa-plus"></i> 添加链接
-                </button>
-                <a href="{{ url_for('visa_links.visa_link_page') }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="进入相关链接列表">
-                    <i class="fas fa-list"></i> 链接列表
-                </a>
-            </div>
-        </div>
-        {% if links %}
-        <div class="visa-links-grid">
-            {% for link in links %}
-            <div class="visa-link-item visa-link-{{ loop.index % 6 + 1 }}">
-                <a href="{{ link.link }}" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="visa-card-body visa-text-center" style="color: var(--visa-text-muted); padding: 0.75rem;">
-            暂无相关链接
-        </div>
-        {% endif %}
     </div>
 
     <!-- 所需文件资料 -->
@@ -313,6 +288,70 @@
                     <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- 相关链接 & HID/Ref -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
+            <h2><i class="fas fa-link"></i> 相关链接</h2>
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
+                <button type="button" class="visa-btn visa-btn-sm visa-btn-success" data-action="show-add-link-modal" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">
+                    <i class="fas fa-plus"></i> 添加链接
+                </button>
+                <a href="{{ url_for('visa_links.visa_link_page') }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="进入相关链接列表">
+                    <i class="fas fa-list"></i> 链接列表
+                </a>
+            </div>
+        </div>
+        {% if links %}
+        <div class="visa-links-grid">
+            {% for link in links %}
+            <div class="visa-link-item visa-link-{{ loop.index % 6 + 1 }}">
+                <a href="{{ link.link }}" target="_blank" rel="noopener noreferrer">{{ link.name }}</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="visa-card-body visa-text-center" style="color: var(--visa-text-muted); padding: 0.75rem;">
+            暂无相关链接
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 模板文件下载 -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
+            <h2><i class="fas fa-file-download"></i> 模板文件</h2>
+            <a href="{{ url_for('visa_basic.visa_template_manager', visa_type=project.visa_type) }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-left: auto;" title="进入模板管理">
+                <i class="fas fa-cog"></i> 模板管理
+            </a>
+        </div>
+        <div class="visa-card-body" style="padding: 0.75rem 1rem;">
+            {% if template_files %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.6rem;">
+                {% for tpl in template_files %}
+                <a href="{{ url_for('visa_basic.download_visa_template', template_id=tpl.id) }}" target="_blank"
+                   class="visa-template-dl"
+                   style="display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border: 1px solid var(--visa-border, #e5e7eb); border-radius: 6px; text-decoration: none; color: inherit; transition: all 0.15s;"
+                   title="下载 {{ tpl.template_name }}">
+                    <i class="fas fa-download" style="color: var(--visa-primary, #6366f1);"></i>
+                    <span style="flex: 1; min-width: 0;">
+                        <span style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--visa-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ tpl.template_name }}</span>
+                        <span style="display: block; font-size: 0.72rem; color: var(--visa-text-muted);">
+                            {{ tpl.template_type }} ·
+                            {{ tpl.singapore_identity.identity_zh if tpl.singapore_identity else '共用' }} ·
+                            {{ tpl.file_type|upper if tpl.file_type else '' }}
+                        </span>
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="visa-text-center" style="color: var(--visa-text-muted); padding: 1rem;">
+                暂无可用模板文件。可在"模板管理"中上传。
+            </div>
+            {% endif %}
         </div>
     </div>
 
