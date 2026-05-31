@@ -74,14 +74,15 @@
                         <th style="width: 10%;">电话</th>
                         <th style="width: 11%;">护照号</th>
                         <th style="width: 8%;">护照有效期</th>
-                        <th style="width: 10%;">公司</th>
-                        <th style="width: 8%;">集团</th>
-                        <th style="width: 10%;">资料</th>
-                        <th style="width: 15%;">操作</th>
+                        <th style="width: 9%;">公司</th>
+                        <th style="width: 7%;">集团</th>
+                        <th style="width: 7%;">所属</th>
+                        <th style="width: 9%;">资料</th>
+                        <th style="width: 13%;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="travelersTbody">
-                    <tr><td colspan="11" class="text-center text-muted py-4">加载中...</td></tr>
+                    <tr><td colspan="12" class="text-center text-muted py-4">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -211,7 +212,7 @@
                         </div>
                     </div>
                     <div class="row g-2 mt-0">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label">关联公司</label>
                             <select class="form-select form-select-sm" id="travelerCompany" onchange="autofillGroupFromCompany()">
                                 <option value="">无</option>
@@ -220,7 +221,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label">集团 <small class="text-muted">(可从公司带出，或手动输入)</small></label>
                             <input type="text" class="form-control form-control-sm" id="travelerGroup"
                                    list="groupList" placeholder="如 ALIBABA / BAONENG">
@@ -229,6 +230,15 @@
                                 <option value="{{ g }}"></option>
                                 {% endfor %}
                             </datalist>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">所属员工 <small class="text-muted">(归属后仅本人/2级可见)</small></label>
+                            <select class="form-select form-select-sm" id="travelerStaff">
+                                <option value="">公共（所有员工可见）</option>
+                                {% for s in staff_list %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -441,7 +451,7 @@ function renderTravelers(travelers, total, page, pages) {
     document.getElementById('travelerCount').textContent = `共 ${total} 条记录`;
 
     if (!travelers.length) {
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
         document.getElementById('travelerPagination').innerHTML = '';
         return;
     }
@@ -460,6 +470,7 @@ function renderTravelers(travelers, total, page, pages) {
             <td class="${expiryClass}">${t.passport_expiry_date || ''}</td>
             <td><small>${t.company_name || ''}</small></td>
             <td><small class="text-muted">${t.group_name || ''}</small></td>
+            <td><small>${t.staff_name ? `<span class="badge" style="background:#e0e7ff;color:#4338ca;">${t.staff_name}</span>` : '<span class="text-muted">公共</span>'}</small></td>
             <td style="white-space: nowrap;">
                 <button class="btn btn-sm btn-outline-success py-0 px-1" onclick="event.stopPropagation(); quickUpload(${t.id})" title="上传资料" style="font-size: 0.75rem;">
                     <i class="fas fa-upload"></i>
@@ -542,6 +553,7 @@ function openTravelerModal(traveler) {
         document.getElementById('travelerIdCard').value = traveler.id_card_number || '';
         document.getElementById('travelerCompany').value = traveler.company_id || '';
         document.getElementById('travelerGroup').value = traveler.group_name || '';
+        document.getElementById('travelerStaff').value = traveler.staff_id || '';
         document.getElementById('travelerRemarks').value = traveler.remarks || '';
 
         // 航空会员
@@ -621,6 +633,7 @@ function saveTraveler() {
         company_id: document.getElementById('travelerCompany').value || null,
         group_name: document.getElementById('travelerGroup').value.trim(),
         remarks: document.getElementById('travelerRemarks').value.trim(),
+        staff_id: document.getElementById('travelerStaff').value || null,
     };
 
     // 新增时检查重复

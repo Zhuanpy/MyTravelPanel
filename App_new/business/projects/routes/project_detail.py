@@ -62,8 +62,19 @@ def project_detail(project_id):
         company = header.company
         print(f"DEBUG: 公司信息: {company.company_name if company else 'None'}")
 
-        # 获取所有活跃的公司列表供选择
-        companies = CustomerCompany.query.filter_by(status='active').order_by(CustomerCompany.company_name).all()
+        # 获取活跃的公司列表供选择（按客户归属过滤：1级员工只看自己归属 + 公共客户）
+        companies_query = CustomerCompany.query.filter_by(status='active')
+        _role = current_user.role.name if (current_user.is_authenticated and current_user.role) else None
+        if _role == 'staff':
+            _lvl = (current_user.profile.staff_level if current_user.profile else 1) or 1
+            if _lvl < 2:
+                companies_query = companies_query.filter(
+                    db.or_(
+                        CustomerCompany.staff_id.is_(None),
+                        CustomerCompany.staff_id == current_user.id
+                    )
+                )
+        companies = companies_query.order_by(CustomerCompany.company_name).all()
         print(f"DEBUG: 加载了 {len(companies)} 个活跃公司")
 
         # 获取项目的 leader 成员名称

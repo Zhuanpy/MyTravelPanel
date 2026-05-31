@@ -32,6 +32,44 @@ def get_traveler_files_path(traveler_id):
 
 frequent_traveler_bp = Blueprint('frequent_traveler', __name__, url_prefix='/frequent_traveler')
 
+from App_new.auth.models.auth import AuthUser, Role, UserProfile
+
+
+def _get_staff_list():
+    """员工列表（staff + admin 角色，启用中），用于旅客归属选择。"""
+    role_ids = [r.id for r in Role.query.filter(Role.name.in_(['staff', 'admin'])).all()]
+    if not role_ids:
+        return []
+    rows = db.session.query(
+        AuthUser.id, AuthUser.username, UserProfile.first_name, UserProfile.last_name
+    ).outerjoin(UserProfile, AuthUser.id == UserProfile.user_id).filter(
+        AuthUser.role_id.in_(role_ids), AuthUser.is_active == True
+    ).all()
+    result = []
+    for r in rows:
+        name = f"{r.first_name or ''}{r.last_name or ''}".strip() or r.username
+        result.append({'id': r.id, 'name': name})
+    result.sort(key=lambda x: x['name'])
+    return result
+
+
+def _current_staff_level():
+    """当前用户员工等级；非 staff 角色（管理员等）视为最高级，可见全部。"""
+    if not (current_user.is_authenticated and current_user.role and current_user.role.name == 'staff'):
+        return 99
+    if current_user.profile:
+        return current_user.profile.staff_level or 1
+    return 1
+
+
+def _can_access_traveler(traveler):
+    """是否有权访问/编辑该旅客：无归属(共享) / 归属本人 / 2级及以上。"""
+    if traveler.staff_id is None:
+        return True
+    if _current_staff_level() >= 2:
+        return True
+    return current_user.is_authenticated and traveler.staff_id == current_user.id
+
 
 @frequent_traveler_bp.route('/')
 @login_required
@@ -50,7 +88,8 @@ def list_page():
     groups = sorted(company_groups | traveler_groups)
 
     return render_template('business/projects/frequent_traveler.html',
-                           companies=companies, groups=groups)
+                           companies=companies, groups=groups,
+                           staff_list=_get_staff_list())
 
 
 @frequent_traveler_bp.route('/api/list', methods=['GET'])
@@ -63,6 +102,15 @@ def api_list():
     per_page = request.args.get('per_page', 20, type=int)
 
     query = FrequentTraveler.query
+
+    # 归属过滤：1级员工只能看到自己归属 + 无归属(共享)；2级/管理员看全部
+    if current_user.is_authenticated and _current_staff_level() < 2:
+        query = query.filter(
+            db.or_(
+                FrequentTraveler.staff_id.is_(None),
+                FrequentTraveler.staff_id == current_user.id
+            )
+        )
 
     if keyword:
         import re
@@ -220,6 +268,7 @@ def api_create():
         company_id=data.get('company_id') or None,
         group_name=(data.get('group_name') or '').strip() or None,
         remarks=data.get('remarks'),
+        staff_id=data.get('staff_id') or None,
     )
     db.session.add(traveler)
     db.session.commit()
@@ -238,6 +287,8 @@ def api_get(traveler_id):
 def api_update(traveler_id):
     """更新常用旅客"""
     traveler = FrequentTraveler.query.get_or_404(traveler_id)
+    if not _can_access_traveler(traveler):
+        return jsonify({'success': False, 'message': '无权编辑该旅客（归属其他员工）'}), 403
     data = request.get_json()
 
     if 'name' in data and not data['name']:
@@ -257,6 +308,8 @@ def api_update(traveler_id):
         traveler.company_id = data['company_id'] or None
     if 'group_name' in data:
         traveler.group_name = (data['group_name'] or '').strip() or None
+    if 'staff_id' in data:
+        traveler.staff_id = data['staff_id'] or None
     if 'airline_memberships' in data:
         traveler.airline_memberships = json.dumps(data['airline_memberships'], ensure_ascii=False) if data['airline_memberships'] else None
 
@@ -268,6 +321,8 @@ def api_update(traveler_id):
 def api_delete(traveler_id):
     """删除常用旅客"""
     traveler = FrequentTraveler.query.get_or_404(traveler_id)
+    if not _can_access_traveler(traveler):
+        return jsonify({'success': False, 'message': '无权删除该旅客（归属其他员工）'}), 403
     name = traveler.name
     # 删除关联文件（磁盘 + 数据库）
     for f in traveler.files.all():

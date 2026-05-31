@@ -210,6 +210,17 @@
                                 </div>
                             {% endif %}
                         </div>
+
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">所属员工</label>
+                            <select name="staff_id" class="visa-form-select">
+                                <option value="">公共（所有员工可见）</option>
+                                {% for s in staff_list %}
+                                <option value="{{ s.id }}" {% if company and company.staff_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small style="color: #6b7280;">设为某员工后，仅该员工本人 + 2级员工/管理员可见、可编辑</small>
+                        </div>
                     </div>
 
                     <!-- 供应商专属字段 -->

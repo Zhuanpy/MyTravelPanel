@@ -30,6 +30,10 @@ class CustomerCompany(db.Model):
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
     legal_person = db.Column(db.String(100))
 
+    # 所属员工（归属）：设置后仅该员工本人 + 2级员工/管理员 可见、可编辑、可访问；为空则所有员工共享
+    staff_id = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='所属员工ID')
+    staff = db.relationship('AuthUser', foreign_keys=[staff_id])
+
     # 集团/关联标签（用于标识同一集团下的多个公司，如 BAONENG, ALIBABA 等）
     group_name = db.Column(db.String(100), nullable=True, comment='集团/关联标签')
 
@@ -63,6 +67,18 @@ class CustomerCompany(db.Model):
         if self.supplier_type:
             return self.supplier_type.name
         return None
+
+    @property
+    def staff_display_name(self):
+        """所属员工显示名（无则返回 None）"""
+        if not self.staff:
+            return None
+        prof = getattr(self.staff, 'profile', None)
+        if prof and hasattr(prof, 'get_full_name'):
+            name = prof.get_full_name()
+            if name:
+                return name
+        return self.staff.username
 
     @property
     def role_display(self):

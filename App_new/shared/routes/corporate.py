@@ -14,6 +14,45 @@ from datetime import datetime
 
 corporate = Blueprint('corporate', __name__)
 
+from App_new.auth.models.auth import AuthUser, Role, UserProfile
+
+
+def _get_staff_list():
+    """员工列表（staff + admin 角色，启用中），用于客户归属选择。"""
+    role_ids = [r.id for r in Role.query.filter(Role.name.in_(['staff', 'admin'])).all()]
+    if not role_ids:
+        return []
+    rows = db.session.query(
+        AuthUser.id, AuthUser.username, UserProfile.first_name, UserProfile.last_name
+    ).outerjoin(UserProfile, AuthUser.id == UserProfile.user_id).filter(
+        AuthUser.role_id.in_(role_ids), AuthUser.is_active == True
+    ).all()
+    result = []
+    for r in rows:
+        name = f"{r.first_name or ''}{r.last_name or ''}".strip() or r.username
+        result.append({'id': r.id, 'name': name})
+    result.sort(key=lambda x: x['name'])
+    return result
+
+
+def _current_staff_level():
+    """当前用户员工等级；非 staff 角色（管理员等）视为最高级，可见全部。"""
+    if not (current_user.is_authenticated and current_user.role and current_user.role.name == 'staff'):
+        return 99
+    if current_user.profile:
+        return current_user.profile.staff_level or 1
+    return 1
+
+
+def _can_access_company(company):
+    """是否有权访问/编辑该客户：无归属(共享) / 归属本人 / 2级及以上。"""
+    if company.staff_id is None:
+        return True
+    if _current_staff_level() >= 2:
+        return True
+    return company.staff_id == current_user.id
+
+
 @corporate.route('/')
 @login_required
 @staff_only
@@ -26,6 +65,15 @@ def list_companies():
     role = request.args.get('role', '')  # customer, supplier, all
 
     query = CustomerCompany.query
+
+    # 归属过滤：1级员工只能看到自己归属 + 无归属(共享)的客户；2级/管理员看全部
+    if _current_staff_level() < 2:
+        query = query.filter(
+            or_(
+                CustomerCompany.staff_id.is_(None),
+                CustomerCompany.staff_id == current_user.id
+            )
+        )
 
     # 角色筛选
     if role == 'customer':
@@ -81,6 +129,12 @@ def list_companies():
                            group_names=group_names,
                            supplier_types=supplier_types,
                            current_role=role)
+
+
+# 客户归属：无权访问时的统一处理
+def _deny_company_access():
+    flash('无权访问该客户（该客户归属其他员工）', 'error')
+    return redirect(url_for('corporate.list_companies'))
 
 @corporate.route('/api/click/<int:company_id>', methods=['POST'])
 @csrf.exempt
@@ -162,7 +216,9 @@ def create_company():
                 supplier_type_id=request.form.get('supplier_type_id', type=int) or None,
                 country=request.form.get('country', '').strip() or None,
                 city=request.form.get('city', '').strip() or None,
-                region=request.form.get('region', '').strip() or None
+                region=request.form.get('region', '').strip() or None,
+                # 所属员工（归属）
+                staff_id=request.form.get('staff_id', type=int) or None
             )
             db.session.add(company)
             db.session.commit()
@@ -187,7 +243,8 @@ def create_company():
                            form=form,
                            company=None,
                            existing_group_names=get_existing_group_names(),
-                           supplier_types=supplier_types)
+                           supplier_types=supplier_types,
+                           staff_list=_get_staff_list())
 
 @corporate.route('/<int:company_id>')
 @login_required
@@ -195,6 +252,8 @@ def create_company():
 def company_detail(company_id):
     """客户公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
+    if not _can_access_company(company):
+        return _deny_company_access()
 
     # 查询预付账款信息（只要有数据就显示）
     prepayment_stats = None
@@ -245,6 +304,8 @@ def create_initial_balance(company_id):
     """创建初始余额预付记录"""
     try:
         company = CustomerCompany.query.get_or_404(company_id)
+        if not _can_access_company(company):
+            return jsonify({'success': False, 'message': '无权操作该客户'}), 403
 
         data = request.get_json()
         amount = data.get('amount')
@@ -298,6 +359,8 @@ def get_company_prepayments(company_id):
 
         # 获取公司信息
         company = CustomerCompany.query.get(company_id)
+        if company and not _can_access_company(company):
+            return jsonify({'success': False, 'message': '无权访问该客户'}), 403
         supplier_name = company.company_name if company else ''
 
         # 查询该公司的有效预付记录（按时间升序，用于 FIFO）
@@ -357,6 +420,8 @@ def get_company_prepayments(company_id):
 def edit_company(company_id):
     """编辑公司（客户/供应商）"""
     company = CustomerCompany.query.get_or_404(company_id)
+    if not _can_access_company(company):
+        return _deny_company_access()
     form = CustomerCompanyForm(obj=company)
 
     # 获取供应商类型列表
@@ -391,6 +456,8 @@ def edit_company(company_id):
             company.country = request.form.get('country', '').strip() or None
             company.city = request.form.get('city', '').strip() or None
             company.region = request.form.get('region', '').strip() or None
+            # 所属员工（归属）
+            company.staff_id = request.form.get('staff_id', type=int) or None
 
             db.session.commit()
             return redirect(url_for('corporate.list_companies'))
@@ -406,7 +473,8 @@ def edit_company(company_id):
                            form=form,
                            company=company,
                            existing_group_names=get_existing_group_names(),
-                           supplier_types=supplier_types)
+                           supplier_types=supplier_types,
+                           staff_list=_get_staff_list())
 
 @corporate.route('/<int:company_id>/delete', methods=['POST'])
 @login_required
@@ -414,6 +482,8 @@ def edit_company(company_id):
 def delete_company(company_id):
     """删除客户公司"""
     company = CustomerCompany.query.get_or_404(company_id)
+    if not _can_access_company(company):
+        return _deny_company_access()
     try:
         db.session.delete(company)
         db.session.commit()

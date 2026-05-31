@@ -44,15 +44,31 @@ class FrequentTraveler(db.Model):
     # 备注
     remarks = db.Column(db.Text, nullable=True, comment='备注')
 
+    # 所属员工（归属）：设置后仅该员工本人 + 2级员工/管理员 可见、可编辑；为空则所有员工共享
+    staff_id = db.Column(db.Integer, db.ForeignKey('auth_users.id'), nullable=True, comment='所属员工ID')
+
     # 时间戳
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联
     company = db.relationship('CustomerCompany', backref='frequent_travelers', lazy=True)
+    staff = db.relationship('AuthUser', foreign_keys=[staff_id])
 
     def __repr__(self):
         return f'<FrequentTraveler {self.name}>'
+
+    @property
+    def staff_display_name(self):
+        """所属员工显示名（无则返回 None）"""
+        if not self.staff:
+            return None
+        prof = getattr(self.staff, 'profile', None)
+        if prof and hasattr(prof, 'get_full_name'):
+            name = prof.get_full_name()
+            if name:
+                return name
+        return self.staff.username
 
     @property
     def traveler_code(self):
@@ -88,6 +104,8 @@ class FrequentTraveler(db.Model):
             'company_name': self.company.company_name if self.company else None,
             'group_name': self.group_name or (self.company.group_name if self.company else None),
             'remarks': self.remarks,
+            'staff_id': self.staff_id,
+            'staff_name': self.staff_display_name,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
