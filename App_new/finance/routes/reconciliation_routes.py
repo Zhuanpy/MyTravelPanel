@@ -2014,6 +2014,7 @@ def eo_auto_match_suggestions():
         query_payment = record_type in ('', 'payment')
         query_prepayment = record_type in ('', 'prepayment')
         query_loan_repay = record_type in ('', 'loan_repay')
+        query_operating_expense = record_type in ('', 'operating_expense')
 
         # 查询未匹配的EO记录
         matched_eo_ids = db.session.query(BankTransaction.eo_id).filter(
@@ -2087,6 +2088,22 @@ def eo_auto_match_suggestions():
             prepay_query = prepay_query.filter(SupplierPrepayment.payment_date <= end_date)
         unmatched_prepayments = prepay_query.all() if query_prepayment else []
 
+        # 查询未匹配的运营费用记录
+        from App_new.finance.models.operating_expense import OperatingExpense
+        matched_oe_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'operating_expense'
+        ).subquery()
+        oe_query = OperatingExpense.query.filter(
+            OperatingExpense.status.in_(['confirmed', 'paid']),
+            OperatingExpense.payment_method == 'bank_transfer',
+            ~OperatingExpense.id.in_(matched_oe_ids)
+        )
+        if start_date:
+            oe_query = oe_query.filter(OperatingExpense.expense_date >= start_date - timedelta(days=14))
+        if end_date:
+            oe_query = oe_query.filter(OperatingExpense.expense_date <= end_date)
+        unmatched_operating_expenses = oe_query.all() if query_operating_expense else []
+
         # 构建编号索引，用于REF优先匹配
         eo_by_number = {}
         for e in eos:
@@ -2102,6 +2119,11 @@ def eo_auto_match_suggestions():
         for p in unmatched_prepayments:
             if p.prepayment_number:
                 prepay_by_number[p.prepayment_number.strip()] = p
+
+        oe_by_number = {}
+        for o in unmatched_operating_expenses:
+            if o.expense_number:
+                oe_by_number[o.expense_number.strip()] = o
 
         # 计算匹配建议
         suggestions = []
@@ -2159,6 +2181,14 @@ def eo_auto_match_suggestions():
                                     best_score = 200
                                     best_match_type = 'eo'
                                     break
+                        if not best_match:
+                            # 在文本中搜索运营费用编号（OE-开头）
+                            for on, oe_rec in oe_by_number.items():
+                                if on in text:
+                                    best_match = oe_rec
+                                    best_score = 200
+                                    best_match_type = 'operating_expense'
+                                    break
 
             if not best_match:
                 # 回退：金额+日期匹配，优先匹配预付款
@@ -2178,13 +2208,21 @@ def eo_auto_match_suggestions():
                         best_match = pay
                         best_match_type = 'payment'
 
-                # 最后匹配EO
+                # 匹配EO
                 for eo in eos:
                     score = calculate_eo_match_score(tx, eo)
                     if score > best_score and score >= 40:
                         best_score = score
                         best_match = eo
                         best_match_type = 'eo'
+
+                # 最后匹配运营费用
+                for oe in unmatched_operating_expenses:
+                    score = calculate_operating_expense_match_score(tx, oe)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = oe
+                        best_match_type = 'operating_expense'
 
             if best_match:
                 suggestion = {
@@ -2247,6 +2285,14 @@ def eo_auto_match_suggestions():
                         'record_date': best_match.payment_date.isoformat() if best_match.payment_date else '',
                         'record_amount': float(best_match.amount) if best_match.amount else 0,
                         'supplier_name': best_match.supplier.company_name if best_match.supplier else ''
+                    })
+                elif best_match_type == 'operating_expense':
+                    suggestion.update({
+                        'match_id': best_match.id,
+                        'record_number': best_match.expense_number,
+                        'record_date': best_match.expense_date.isoformat() if best_match.expense_date else '',
+                        'record_amount': float(best_match.amount) if best_match.amount else 0,
+                        'supplier_name': best_match.payee_name or (best_match.expense_account.name if best_match.expense_account else '运营费用')
                     })
 
                 suggestions.append(suggestion)
@@ -2419,6 +2465,47 @@ def calculate_prepayment_match_score(transaction, prepayment):
     bank_text = counterparty + ' ' + description
     supplier_name = (prepayment.supplier.company_name or '').lower() if prepayment.supplier else ''
     if supplier_name and len(supplier_name) >= 2 and supplier_name in bank_text:
+        score = min(100, score + 15)
+
+    return score
+
+
+def calculate_operating_expense_match_score(transaction, expense):
+    """计算银行支出与运营费用记录的匹配分数（金额+日期，收款方名称加分）"""
+    tx_amount = float(transaction.amount or 0)
+    oe_amount = float(expense.amount or 0)
+
+    if tx_amount == 0 or oe_amount == 0:
+        return 0
+
+    # 金额匹配（允许0.01误差）
+    if abs(tx_amount - oe_amount) >= 0.01:
+        diff_ratio = abs(tx_amount - oe_amount) / oe_amount
+        if diff_ratio > 0.01:
+            return 0
+
+    # 日期匹配
+    tx_date = transaction.transaction_date
+    oe_date = expense.expense_date
+
+    score = 40
+    if tx_date and oe_date:
+        date_diff = abs((tx_date - oe_date).days)
+        if date_diff == 0:
+            score = 100
+        elif date_diff <= 3:
+            score = 90
+        elif date_diff <= 7:
+            score = 70
+        elif date_diff <= 14:
+            score = 50
+
+    # 收款方名称匹配加分
+    counterparty = (transaction.counterparty_name or '').lower()
+    description = (transaction.description or '').lower()
+    bank_text = counterparty + ' ' + description
+    payee = (expense.payee_name or '').lower()
+    if payee and len(payee) >= 2 and payee in bank_text:
         score = min(100, score + 15)
 
     return score

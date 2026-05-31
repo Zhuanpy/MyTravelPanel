@@ -1083,6 +1083,9 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (matchType === 'loan_repay') {
                 typeLabel = '股东还款';
                 typeBadge = '<span class="badge bg-secondary me-1" style="font-size:10px;">还款</span>';
+            } else if (matchType === 'operating_expense') {
+                typeLabel = '运营费用';
+                typeBadge = '<span class="badge me-1" style="font-size:10px; background-color:#0d9488;">运营</span>';
             }
 
             html += `
