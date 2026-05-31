@@ -252,6 +252,7 @@
                     <option value="payment" {% if filters.record_type == 'payment' %}selected{% endif %}>付款 (PAY)</option>
                     <option value="prepayment" {% if filters.record_type == 'prepayment' %}selected{% endif %}>预付款 (PRE)</option>
                     <option value="loan_repay" {% if filters.record_type == 'loan_repay' %}selected{% endif %}>股东还款</option>
+                    <option value="operating_expense" {% if filters.record_type == 'operating_expense' %}selected{% endif %}>运营费用 (OE)</option>
                 </select>
             </div>
             <div class="col-auto">
@@ -672,6 +673,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
 
+                // 合并运营费用
+                (result.operating_expenses || []).forEach(o => {
+                    projectRecords.push({
+                        ...o,
+                        record_type: 'operating_expense',
+                        record_id: o.id,
+                        record_number: o.number || '',
+                        record_date: o.date || '',
+                        record_amount: o.amount || 0,
+                        record_supplier: o.supplier_name || '运营费用',
+                        supplier_name: o.supplier_name || '运营费用'
+                    });
+                });
+
                 renderTransactions();
                 updateSupplierOptions();
                 renderRecords();
@@ -841,6 +856,7 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'payment': return '<span class="badge bg-danger" style="font-size:10px;">PAY</span>';
             case 'prepayment': return '<span class="badge bg-warning text-dark" style="font-size:10px;">PRE</span>';
             case 'loan_repay': return '<span class="badge bg-secondary" style="font-size:10px;">还款</span>';
+            case 'operating_expense': return '<span class="badge" style="font-size:10px; background-color:#0d9488;">运营</span>';
             default: return '';
         }
     }
@@ -924,6 +940,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 recordNumberLink = `<a href="/projects/prepayment/${recordId}" target="_blank" title="查看预付款详情">${escapeHtml(truncate(recordNumber, 12))}</a>`;
             } else if (record.record_type === 'loan_repay') {
                 recordNumberLink = `<a href="/ledger/shareholder-loan" target="_blank" title="查看股东借款">${escapeHtml(truncate(recordNumber, 12))}</a>`;
+            } else if (record.record_type === 'operating_expense' && recordId) {
+                recordNumberLink = `<a href="/ledger/operating-expenses/${recordId}" target="_blank" title="查看运营费用详情">${escapeHtml(truncate(recordNumber, 12))}</a>`;
             }
 
             html += `

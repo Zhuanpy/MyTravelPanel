@@ -1542,7 +1542,7 @@ def get_eo_compare_data():
 
         # 获取通过BankTransactionMatch表已匹配的银行交易ID
         matched_tx_ids_via_btm = db.session.query(BankTransactionMatch.transaction_id).filter(
-            BankTransactionMatch.match_type.in_(['payment', 'prepayment', 'eo'])
+            BankTransactionMatch.match_type.in_(['payment', 'prepayment', 'eo', 'operating_expense'])
         ).subquery()
 
         # 根据状态筛选
@@ -1890,13 +1890,57 @@ def get_eo_compare_data():
                 'status': repay.status
             })
 
+        # 查询运营费用记录（银行转账方式的已确认/已付款记录，用于支出匹配）
+        from App_new.finance.models.operating_expense import OperatingExpense
+        oe_query = OperatingExpense.query.filter(
+            OperatingExpense.status.in_(['confirmed', 'paid']),
+            OperatingExpense.payment_method == 'bank_transfer'
+        )
+        if start_date:
+            oe_query = oe_query.filter(OperatingExpense.expense_date >= start_date - timedelta(days=7))
+        if end_date:
+            oe_query = oe_query.filter(OperatingExpense.expense_date <= end_date)
+
+        matched_oe_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'operating_expense'
+        ).subquery()
+        if status in ('all', 'unmatched'):
+            oe_query = oe_query.filter(~OperatingExpense.id.in_(matched_oe_ids))
+        elif status == 'matched':
+            oe_query = oe_query.filter(OperatingExpense.id.in_(matched_oe_ids))
+        elif status == 'reconciled':
+            # 运营费用暂无独立核对状态字段，已核对等同于已匹配
+            oe_query = oe_query.filter(OperatingExpense.id.in_(matched_oe_ids))
+        operating_expenses = oe_query.order_by(desc(OperatingExpense.expense_date)).limit(100).all()
+
+        operating_expense_data = []
+        for oe in operating_expenses:
+            is_matched = BankTransactionMatch.query.filter_by(
+                match_type='operating_expense', match_id=oe.id
+            ).first() is not None
+            operating_expense_data.append({
+                'id': oe.id,
+                'record_type': 'operating_expense',
+                'number': oe.expense_number,
+                'date': oe.expense_date.isoformat() if oe.expense_date else '',
+                'amount': float(oe.amount) if oe.amount else 0,
+                'currency': oe.currency or 'SGD',
+                'supplier_name': oe.payee_name or (oe.expense_account.name if oe.expense_account else '运营费用'),
+                'description': oe.description or '',
+                'remarks': oe.remarks or '',
+                'is_matched': is_matched,
+                'is_reconciled': is_matched,
+                'status': oe.status
+            })
+
         return jsonify({
             'success': True,
             'bank_transactions': tx_data,
             'project_eos': eo_data,
             'payments': payment_data,
             'prepayments': prepayment_data,
-            'loan_repayments': loan_repay_data
+            'loan_repayments': loan_repay_data,
+            'operating_expenses': operating_expense_data
         })
 
     except Exception as e:
@@ -2503,6 +2547,35 @@ def eo_manual_match():
             db.session.add(new_match)
 
             transaction.accounting_ref = repayment.repayment_number
+            transaction.reconciliation_status = 'matched'
+            transaction.is_confirmed = True
+            transaction.confirmed_at = datetime.utcnow()
+            transaction.confirmed_by = current_user_name
+            transaction.updated_at = datetime.utcnow()
+
+        elif match_type == 'operating_expense':
+            # 运营费用匹配
+            from App_new.finance.models.operating_expense import OperatingExpense
+            expense = OperatingExpense.query.get(match_id)
+            if not expense:
+                return jsonify({'success': False, 'message': '运营费用记录不存在'})
+
+            existing = BankTransactionMatch.query.filter_by(
+                match_type='operating_expense', match_id=match_id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': '该运营费用已被其他银行交易匹配'})
+
+            new_match = BankTransactionMatch(
+                transaction_id=transaction_id,
+                match_type='operating_expense',
+                match_id=match_id,
+                allocated_amount=expense.amount,
+                created_by=current_user_name
+            )
+            db.session.add(new_match)
+
+            transaction.accounting_ref = expense.expense_number
             transaction.reconciliation_status = 'matched'
             transaction.is_confirmed = True
             transaction.confirmed_at = datetime.utcnow()
