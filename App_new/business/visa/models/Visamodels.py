@@ -775,14 +775,15 @@ class VisaProjectFile(db.Model):
     file_type = db.Column(db.String(50), nullable=True)  # 文件类型（扩展名）
     description = db.Column(db.String(500), nullable=True)  # 文件描述
     uploaded_by = db.Column(db.String(100), nullable=True)  # 上传人
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 上传时间
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # 更新时间
+
     # 关系定义
     project = db.relationship('VisaProject', backref=db.backref('files', lazy='dynamic', cascade='all, delete-orphan'))
-    
+
     def __repr__(self):
         return f'<VisaProjectFile(id={self.id}, file_name="{self.file_name}", project_id={self.project_id})>'
-    
+
     def to_dict(self):
         """转换为字典格式"""
         return {
@@ -794,7 +795,8 @@ class VisaProjectFile(db.Model):
             'file_type': self.file_type,
             'description': self.description,
             'uploaded_by': self.uploaded_by,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
     def get_file_size_display(self):

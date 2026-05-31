@@ -1767,6 +1767,9 @@ function displayProjectFiles(files) {
                         <div style="font-size: 0.65rem; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             ${file.file_size} | ${file.uploaded_by || '未知'}
                         </div>
+                        <div style="font-size: 0.65rem; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <i class="fas fa-upload" style="font-size: 0.6rem;"></i> ${file.created_at || '-'}${file.updated_at && file.updated_at !== file.created_at ? ` &middot; <i class="fas fa-pen" style="font-size: 0.6rem;"></i> ${file.updated_at}` : ''}
+                        </div>
                     </div>
                     <div style="display: flex; gap: 0.2rem; flex-shrink: 0;">
                         <a href="/visa/project/api/files/${file.id}/download" class="visa-btn visa-btn-sm visa-btn-info" style="padding: 0.15rem 0.3rem; font-size: 0.65rem;" title="下载">

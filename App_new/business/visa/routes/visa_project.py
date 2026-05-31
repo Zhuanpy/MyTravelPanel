@@ -2385,7 +2385,8 @@ def get_project_files(project_id):
                 'file_size': f.get_file_size_display(),
                 'description': f.description,
                 'uploaded_by': f.uploaded_by,
-                'created_at': f.created_at.strftime('%Y-%m-%d %H:%M') if f.created_at else ''
+                'created_at': f.created_at.strftime('%Y-%m-%d %H:%M') if f.created_at else '',
+                'updated_at': f.updated_at.strftime('%Y-%m-%d %H:%M') if f.updated_at else ''
             } for f in files]
         })
     except Exception as e:
