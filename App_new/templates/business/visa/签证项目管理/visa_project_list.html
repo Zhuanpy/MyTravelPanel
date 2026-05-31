@@ -6,6 +6,11 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+/* 项目列表：紧凑表格，减少行列间距 */
+.visa-table th, .visa-table td { padding: 0.4rem 0.6rem; font-size: 0.875rem; }
+.visa-table .visa-status-select { font-size: 0.8rem; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -72,15 +77,13 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>HID/序列号</th>
                 <th>申请人</th>
                 <th>签证类型</th>
                 <th>创建时间</th>
                 <th>签证状态</th>
                 <th>预估日期</th>
-                <th>签证详细</th>
-                <th>复制项目</th>
-                <th>删除项目</th>
+                <th>HID/序列号</th>
+                <th class="visa-text-center">操作</th>
             </tr>
         </thead>
         <tbody>
@@ -88,23 +91,14 @@
             <tr>
                 <td>{{ project.id }}</td>
                 <td>
-                    {% if project.header_id and project.header %}
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header_id) }}" 
-                       class="text-primary" target="_blank" title="查看HID项目详情">
-                        {{ project.header.hid }}
-                    </a>
-                    {% elif project.hid_or_serial %}
-                    <span style="color: #999;">{{ project.hid_or_serial }}</span>
-                    {% else %}
-                    <span style="color: #ccc;">-</span>
-                    {% endif %}
+                    <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}"
+                       class="text-primary" style="font-weight: 500;" title="查看签证详情">{{ project.applicant_name }}</a>
                 </td>
-                <td>{{ project.applicant_name }}</td>
                 <td>{{ project.visa_type }}</td>
                 <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
-                    <select name="visa_status" class="visa-form-select visa-status-select" style="width: 100px; padding: 0.25rem;" 
-                            data-project-id="{{ project.id }}" 
+                    <select name="visa_status" class="visa-form-select visa-status-select" style="width: 100px; padding: 0.25rem;"
+                            data-project-id="{{ project.id }}"
                             data-current-status="{{ project.visa_status }}"
                             onchange="updateVisaStatus(this)">
                         <option value="待递交" {% if project.visa_status == '待递交' %}selected{% endif %}>待递交</option>
@@ -115,16 +109,24 @@
                 </td>
                 <td>{{ project.estimated_date.strftime('%Y-%m-%d') if project.estimated_date else '' }}</td>
                 <td>
-                    <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}"
-                       class="visa-btn-link visa-btn-link-info">查看详情</a>
+                    {% if project.header_id and project.header %}
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.header_id) }}"
+                       class="text-primary" target="_blank" title="查看HID项目详情">
+                        {{ project.header.hid }}
+                    </a>
+                    {% elif project.hid_or_serial %}
+                    <span style="color: #999;">{{ project.hid_or_serial }}</span>
+                    {% else %}
+                    <span style="color: #ccc;">-</span>
+                    {% endif %}
                 </td>
                 <td>
-                    <a href="#" onclick="copyProject({{ project.id }})"
-                       class="visa-btn-link visa-btn-link-warning" title="复制此项目（不含HID和REF）">复制</a>
-                </td>
-                <td>
-                    <a href="#" onclick="deleteProject({{ project.id }})"
-                       class="visa-btn-link visa-btn-link-danger">删除</a>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 0.75rem; white-space: nowrap;">
+                        <a href="#" onclick="copyProject({{ project.id }}); return false;"
+                           class="visa-btn-link visa-btn-link-warning" title="复制此项目（不含HID和REF）">复制</a>
+                        <a href="#" onclick="deleteProject({{ project.id }}); return false;"
+                           class="visa-btn-link visa-btn-link-danger" title="删除项目">删除</a>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
