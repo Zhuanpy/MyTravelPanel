@@ -221,6 +221,19 @@
 </style>
 {% endblock %}
 
+{% block page_actions %}
+    {% if filters.bank_name == 'UOB' %}
+    <a href="{{ url_for('uob_routes.uob_bank', account_name=filters.account_name or '') }}" class="btn btn-outline-dark btn-sm"><i class="fas fa-list"></i> 账单列表</a>
+    {% elif filters.bank_name == 'OCBC' %}
+    <a href="{{ url_for('ocbc_routes.ocbc_bank', account_name=filters.account_name or '') }}" class="btn btn-outline-dark btn-sm"><i class="fas fa-list"></i> 账单列表</a>
+    {% elif filters.bank_name == 'CMB' %}
+    <a href="{{ url_for('cmb_routes.cmb_bank', account_name=filters.account_name or '') }}" class="btn btn-outline-dark btn-sm"><i class="fas fa-list"></i> 账单列表</a>
+    {% endif %}
+    <a href="{{ url_for('reconciliation.bank_receipt_compare', bank_name=filters.bank_name or '', account_name=filters.account_name or '') }}" class="btn btn-outline-info btn-sm">
+        <i class="fas fa-balance-scale"></i> 收入列表
+    </a>
+{% endblock %}
+
 {% block content %}
 <div class="compare-container">
     <!-- 筛选区域 -->

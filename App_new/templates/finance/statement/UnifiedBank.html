@@ -194,11 +194,7 @@
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <h5 class="mb-0">最近对账单</h5>
-                {% if statements and statements|length > 10 %}
-                <button type="button" id="toggleStatementsBtn" class="btn btn-link btn-sm p-0" onclick="toggleStatementsTable()">
-                    展开全部 ({{ statements|length }})
-                </button>
-                {% endif %}
+                {% if statements %}<span class="text-muted small">共 {{ statements|length }} 期</span>{% endif %}
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <span class="toolbar-label">对比：</span>
@@ -213,7 +209,7 @@
         <div class="card-body">
             {% if statements %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover" id="statementsTable" data-collapsed="1">
+                    <table class="table table-striped table-hover" id="statementsTable">
                         <thead class="table-dark">
                             <tr>
                                 <th>对账单号</th>
@@ -227,7 +223,7 @@
                         </thead>
                         <tbody>
                             {% for s in statements %}
-                            <tr {% if loop.index > 10 %}class="statement-extra" style="display: none;"{% endif %}>
+                            <tr class="statement-row">
                                 <td>{{ s.statement_number }}</td>
                                 <td>
                                     <span class="account-name-display" data-statement-id="{{ s.id }}">{{ s.account_name }}</span>
@@ -270,6 +266,11 @@
                         </tbody>
                     </table>
                 </div>
+                <div id="statementsPager" class="d-flex justify-content-end align-items-center gap-2 mt-2" style="display:none;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="stmtPrevBtn" onclick="changeStatementsPage(-1)">上一页</button>
+                    <span class="small text-muted" id="stmtPageInfo"></span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="stmtNextBtn" onclick="changeStatementsPage(1)">下一页</button>
+                </div>
             {% else %}
                 <p class="text-muted">暂无对账单数据</p>
             {% endif %}
@@ -277,9 +278,18 @@
     </div>
 
     <!-- 筛选表单 -->
-    <div class="card mb-4">
+    <style>
+        .filter-compact .form-label { font-size: 11px; margin-bottom: 1px; color: #666; white-space: nowrap; }
+        .filter-compact .form-control, .filter-compact .form-select { font-size: 12px; padding: 2px 6px; }
+        .filter-compact .fi { width: 104px; flex: 0 0 auto; }
+        .filter-compact .fi-date { width: 132px; flex: 0 0 auto; }
+        .filter-compact .fi-wide { width: 158px; flex: 0 0 auto; }
+        #filterCard .card-header { padding: 0.4rem 0.75rem; }
+        #filterCard .card-body { padding: 0.6rem 0.75rem; }
+    </style>
+    <div class="card mb-4" id="filterCard">
         <div class="card-header">
-            <h5 class="mb-0">交易记录筛选</h5>
+            <h6 class="mb-0">交易记录筛选</h6>
         </div>
         <div class="card-body">
             {% if bank_name == 'UOB' %}
@@ -289,32 +299,43 @@
             {% elif bank_name == 'CMB' %}
             <form method="get" action="{{ url_for('cmb_routes.cmb_bank') }}" class="mb-3">
             {% endif %}
-                <div class="row g-3 align-items-end">
-                    <!-- 隐藏字段传递当前选择的账户 -->
-                    <input type="hidden" name="account_name" value="{{ filters.account_name or '' }}">
-                    <div class="col-auto">
+                <input type="hidden" name="account_name" value="{{ filters.account_name or '' }}">
+                <div class="d-flex flex-wrap align-items-end gap-2 filter-compact">
+                    <div class="fi-date">
                         <label class="form-label">月份</label>
-                        <input type="month" class="form-control" name="month" value="{{ filters.month or '' }}">
+                        <input type="month" class="form-control form-control-sm" name="month" value="{{ filters.month or '' }}">
                     </div>
-                    <div class="col-auto">
-                        <label class="form-label">开始日期</label>
-                        <input type="date" class="form-control" name="start_date" value="{{ filters.start_date or '' }}">
+                    <div class="fi-date">
+                        <label class="form-label">开始</label>
+                        <input type="date" class="form-control form-control-sm" name="start_date" value="{{ filters.start_date or '' }}">
                     </div>
-                    <div class="col-auto">
-                        <label class="form-label">结束日期</label>
-                        <input type="date" class="form-control" name="end_date" value="{{ filters.end_date or '' }}">
+                    <div class="fi-date">
+                        <label class="form-label">结束</label>
+                        <input type="date" class="form-control form-control-sm" name="end_date" value="{{ filters.end_date or '' }}">
                     </div>
-                    <div class="col-auto">
+                    <div class="fi-wide">
+                        <label class="form-label">金额范围</label>
+                        <div class="d-flex gap-1 align-items-center">
+                            <input type="number" class="form-control form-control-sm" name="amount_min" value="{{ filters.amount_min or '' }}" placeholder="最小" step="0.01">
+                            <span>-</span>
+                            <input type="number" class="form-control form-control-sm" name="amount_max" value="{{ filters.amount_max or '' }}" placeholder="最大" step="0.01">
+                        </div>
+                    </div>
+                    <div class="fi">
+                        <label class="form-label">REF/EO</label>
+                        <input type="text" class="form-control form-control-sm" name="ref" value="{{ filters.ref or '' }}" placeholder="编号">
+                    </div>
+                    <div class="fi">
                         <label class="form-label">类型</label>
-                        <select class="form-select" name="type">
+                        <select class="form-select form-select-sm" name="type">
                             <option value="">全部</option>
                             <option value="debit" {% if filters.type=='debit' %}selected{% endif %}>支出</option>
                             <option value="credit" {% if filters.type=='credit' %}selected{% endif %}>收入</option>
                         </select>
                     </div>
-                    <div class="col-auto">
+                    <div class="fi">
                         <label class="form-label">归属</label>
-                        <select class="form-select" name="owner">
+                        <select class="form-select form-select-sm" name="owner">
                             <option value="">全部</option>
                             <option value="__blank__" {% if filters.owner=='__blank__' %}selected{% endif %}>空白/未设置</option>
                             <option value="Business" {% if filters.owner=='Business' %}selected{% endif %}>Business</option>
@@ -323,21 +344,9 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-auto">
-                        <label class="form-label">金额范围</label>
-                        <div class="d-flex gap-1 align-items-center">
-                            <input type="number" class="form-control" name="amount_min" value="{{ filters.amount_min or '' }}" placeholder="最小" step="0.01" style="width:85px; font-size:12px; padding:4px 6px;">
-                            <span style="font-size:12px;">-</span>
-                            <input type="number" class="form-control" name="amount_max" value="{{ filters.amount_max or '' }}" placeholder="最大" step="0.01" style="width:85px; font-size:12px; padding:4px 6px;">
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <label class="form-label">REF/EO</label>
-                        <input type="text" class="form-control" name="ref" value="{{ filters.ref or '' }}" placeholder="输入REF或EO编号">
-                    </div>
-                    <div class="col-auto">
+                    <div class="fi">
                         <label class="form-label">匹配状态</label>
-                        <select class="form-select" name="match_status">
+                        <select class="form-select form-select-sm" name="match_status">
                             <option value="">全部</option>
                             <option value="reconciled" {% if filters.match_status=='reconciled' %}selected{% endif %}>已核对</option>
                             <option value="matched" {% if filters.match_status=='matched' %}selected{% endif %}>已匹配</option>
@@ -345,9 +354,9 @@
                             <option value="diff_nonzero" {% if filters.match_status=='diff_nonzero' %}selected{% endif %}>差额非0</option>
                         </select>
                     </div>
-                    <div class="col-auto">
+                    <div class="fi">
                         <label class="form-label">匹配分类</label>
-                        <select class="form-select" name="match_category" style="width: 90px;">
+                        <select class="form-select form-select-sm" name="match_category">
                             <option value="">全部</option>
                             <option value="receipt" {% if filters.match_category=='receipt' %}selected{% endif %}>收据</option>
                             <option value="eo" {% if filters.match_category=='eo' %}selected{% endif %}>EO</option>
@@ -357,17 +366,17 @@
                             <option value="loan_repay" {% if filters.match_category=='loan_repay' %}selected{% endif %}>还款</option>
                         </select>
                     </div>
-                    <div class="col-auto">
+                    <div class="fi">
                         <label class="form-label">操作状态</label>
-                        <select class="form-select" name="operation_status">
+                        <select class="form-select form-select-sm" name="operation_status">
                             <option value="">全部</option>
                             <option value="confirmed" {% if filters.operation_status=='confirmed' %}selected{% endif %}>已确认</option>
                             <option value="unconfirmed" {% if filters.operation_status=='unconfirmed' %}selected{% endif %}>未确认</option>
                         </select>
                     </div>
-                    <div class="col-auto">
+                    <div class="fi-wide">
                         <label class="form-label">排序</label>
-                        <select class="form-select" name="sort">
+                        <select class="form-select form-select-sm" name="sort">
                             <option value="date_desc" {% if filters.sort=='date_desc' %}selected{% endif %}>日期降序（最新在前）</option>
                             <option value="date_asc" {% if filters.sort=='date_asc' %}selected{% endif %}>日期升序（最早在前）</option>
                             <option value="amount_desc" {% if filters.sort=='amount_desc' %}selected{% endif %}>金额降序（大额在前）</option>
@@ -376,16 +385,14 @@
                             <option value="ref_asc" {% if filters.sort=='ref_asc' %}selected{% endif %}>匹配单号升序</option>
                         </select>
                     </div>
-                    <div class="col-auto">
-                        <button type="button" id="{{ bank_name.lower() }}-filter-submit" class="btn btn-primary">筛选</button>
-                    </div>
-                    <div class="col-auto">
+                    <div class="d-flex gap-2 align-items-end">
+                        <button type="button" id="{{ bank_name.lower() }}-filter-submit" class="btn btn-primary btn-sm">筛选</button>
                         {% if bank_name == 'UOB' %}
-                        <a href="{{ url_for('uob_routes.uob_bank') }}" class="btn btn-secondary">重置</a>
+                        <a href="{{ url_for('uob_routes.uob_bank') }}" class="btn btn-secondary btn-sm">重置</a>
                         {% elif bank_name == 'OCBC' %}
-                        <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="btn btn-secondary">重置</a>
+                        <a href="{{ url_for('ocbc_routes.ocbc_bank') }}" class="btn btn-secondary btn-sm">重置</a>
                         {% elif bank_name == 'CMB' %}
-                        <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="btn btn-secondary">重置</a>
+                        <a href="{{ url_for('cmb_routes.cmb_bank') }}" class="btn btn-secondary btn-sm">重置</a>
                         {% endif %}
                     </div>
                 </div>
@@ -475,17 +482,34 @@
 
 <!-- JavaScript -->
 <script>
-// 切换"最近对账单"展开/收起
-function toggleStatementsTable() {
-    const table = document.getElementById('statementsTable');
-    const btn = document.getElementById('toggleStatementsBtn');
-    if (!table || !btn) return;
-    const collapsed = table.dataset.collapsed === '1';
-    const extras = table.querySelectorAll('.statement-extra');
-    extras.forEach(tr => { tr.style.display = collapsed ? '' : 'none'; });
-    table.dataset.collapsed = collapsed ? '0' : '1';
-    btn.textContent = collapsed ? '收起' : `展开全部 (${extras.length + 10})`;
+// 最近对账单：分页（每页5条）
+const STMT_PAGE_SIZE = 5;
+let stmtCurrentPage = 1;
+function renderStatementsPage() {
+    const rows = Array.from(document.querySelectorAll('#statementsTable tbody tr.statement-row'));
+    const pager = document.getElementById('statementsPager');
+    if (!rows.length) { if (pager) pager.style.display = 'none'; return; }
+    const totalPages = Math.ceil(rows.length / STMT_PAGE_SIZE);
+    if (stmtCurrentPage > totalPages) stmtCurrentPage = totalPages;
+    if (stmtCurrentPage < 1) stmtCurrentPage = 1;
+    const start = (stmtCurrentPage - 1) * STMT_PAGE_SIZE;
+    const end = start + STMT_PAGE_SIZE;
+    rows.forEach((tr, i) => { tr.style.display = (i >= start && i < end) ? '' : 'none'; });
+    if (pager) {
+        pager.style.display = totalPages > 1 ? 'flex' : 'none';
+        const info = document.getElementById('stmtPageInfo');
+        if (info) info.textContent = `第 ${stmtCurrentPage} / ${totalPages} 页（共 ${rows.length} 期）`;
+        const prev = document.getElementById('stmtPrevBtn');
+        const next = document.getElementById('stmtNextBtn');
+        if (prev) prev.disabled = stmtCurrentPage <= 1;
+        if (next) next.disabled = stmtCurrentPage >= totalPages;
+    }
 }
+function changeStatementsPage(delta) {
+    stmtCurrentPage += delta;
+    renderStatementsPage();
+}
+document.addEventListener('DOMContentLoaded', renderStatementsPage);
 
 // 全局账户切换函数
 function switchAccount(accountName) {
