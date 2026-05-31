@@ -10,11 +10,15 @@
 /* 项目列表：紧凑表格，减少行列间距 */
 .visa-table th, .visa-table td { padding: 0.4rem 0.6rem; font-size: 0.875rem; }
 .visa-table .visa-status-select { font-size: 0.8rem; }
+/* 筛选/搜索控件紧凑：固定窄宽度，避免拉伸过宽 */
+.visa-filter-bar form { flex: 0 1 auto !important; }
+.visa-filter-item .visa-form-select { width: 140px; }
+.visa-filter-item .visa-form-control { width: 160px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container-lg">
+<div class="visa-container" style="max-width: 1200px;">
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
         <form method="get" action="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-flex visa-gap-2" style="align-items: flex-end; flex-wrap: wrap; flex: 1;">
@@ -83,7 +87,7 @@
                 <th>签证状态</th>
                 <th>预估日期</th>
                 <th>HID/序列号</th>
-                <th class="visa-text-center">操作</th>
+                <th class="visa-text-center" style="text-align: center;">操作</th>
             </tr>
         </thead>
         <tbody>
