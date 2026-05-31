@@ -202,16 +202,30 @@
             </div>
             {% endif %}
 
-            {# 补充信息：从文档资料中汇总去重的旅行社/申请人补充信息 #}
+            {# 补充信息：从文档资料中按"行"汇总去重，避免共用资料在各身份下重复显示 #}
             {% set ns = namespace(agency=[], applicant=[]) %}
             {% for identity, data in document_data.items() %}
                 {% set ai = data.additional_info %}
-                {% if ai and ai != '暂无补充信息' and ai not in ns.agency %}
-                    {% set ns.agency = ns.agency + [ai] %}
+                {% if ai and ai != '暂无补充信息' %}
+                    {% for raw in ai.split('\n') %}
+                        {% set line = raw.rstrip() %}
+                        {% if line|trim == '' %}
+                            {% if ns.agency and (ns.agency[-1]|trim) != '' %}{% set ns.agency = ns.agency + [''] %}{% endif %}
+                        {% elif line not in ns.agency %}
+                            {% set ns.agency = ns.agency + [line] %}
+                        {% endif %}
+                    {% endfor %}
                 {% endif %}
                 {% set pi = data.applicant_additional_info %}
-                {% if pi and pi != '暂无申请人补充信息' and pi not in ns.applicant %}
-                    {% set ns.applicant = ns.applicant + [pi] %}
+                {% if pi and pi != '暂无申请人补充信息' %}
+                    {% for raw in pi.split('\n') %}
+                        {% set line = raw.rstrip() %}
+                        {% if line|trim == '' %}
+                            {% if ns.applicant and (ns.applicant[-1]|trim) != '' %}{% set ns.applicant = ns.applicant + [''] %}{% endif %}
+                        {% elif line not in ns.applicant %}
+                            {% set ns.applicant = ns.applicant + [line] %}
+                        {% endif %}
+                    {% endfor %}
                 {% endif %}
             {% endfor %}
             <div class="visa-supplement-info" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed var(--visa-border, #e5e7eb); display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
