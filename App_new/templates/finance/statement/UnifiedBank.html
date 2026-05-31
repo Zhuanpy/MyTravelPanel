@@ -400,6 +400,26 @@
         </div>
     </div>
 
+    <!-- 一键确认：统一备注弹窗 -->
+    <div class="modal fade" id="batchConfirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>一键确认 — 统一备注</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-2">将确认选中的 <strong id="batchConfirmCount">0</strong> 条交易，并把下面的备注追加到每条记录的备注后面（留空则只确认、不加备注）。</p>
+                    <textarea id="batchConfirmRemark" class="form-control" rows="3" placeholder="输入统一备注（可留空）"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="batchConfirmOkBtn"><i class="fas fa-check"></i> 确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 交易记录表格 -->
     {% if bank_name == 'UOB' %}
     <div id="{{ bank_name.lower() }}-tx-table" data-partial-url="{{ url_for('uob_routes.uob_bank', partial='table') }}">
@@ -850,52 +870,66 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 updateSelection();
             }
-            // 一键确认按钮
+            // 一键确认按钮 —— 弹出统一备注输入框
             else if (e.target && e.target.id === 'batchConfirmBtn') {
                 const checkedBoxes = document.querySelectorAll('.transaction-checkbox:checked');
                 const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.txId));
-                
+
                 if (transactionIds.length === 0) {
                     alert('请先选择要确认的交易记录');
                     return;
                 }
-                
+
+                window._batchConfirmTxIds = transactionIds;
+                const remarkInput = document.getElementById('batchConfirmRemark');
+                if (remarkInput) remarkInput.value = '';
+                const cntEl = document.getElementById('batchConfirmCount');
+                if (cntEl) cntEl.textContent = transactionIds.length;
+                const modal = new bootstrap.Modal(document.getElementById('batchConfirmModal'));
+                modal.show();
+                setTimeout(() => { if (remarkInput) remarkInput.focus(); }, 300);
+            }
+
+            // 统一备注弹窗 —— 确认按钮：执行批量确认并附加备注
+            else if (e.target && (e.target.id === 'batchConfirmOkBtn' || (e.target.closest && e.target.closest('#batchConfirmOkBtn')))) {
+                const okBtn = document.getElementById('batchConfirmOkBtn');
+                const transactionIds = window._batchConfirmTxIds || [];
+                if (transactionIds.length === 0) { return; }
+                const remark = (document.getElementById('batchConfirmRemark').value || '').trim();
+
                 (async () => {
-                    const originalText = e.target.innerHTML;
+                    const originalText = okBtn.innerHTML;
                     try {
-                        e.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
-                        e.target.disabled = true;
-                        
+                        okBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
+                        okBtn.disabled = true;
+
                         const url = {% if bank_name == 'UOB' %}"{{ url_for('uob_routes.uob_batch_confirm') }}"{% elif bank_name == 'OCBC' %}"{{ url_for('ocbc_routes.ocbc_batch_confirm') }}"{% elif bank_name == 'CMB' %}"{{ url_for('cmb_routes.cmb_batch_confirm') }}"{% endif %};
-                        
+
                         const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ transaction_ids: transactionIds })
+                            body: JSON.stringify({ transaction_ids: transactionIds, remark: remark })
                         });
-                        
+
                         const result = await response.json();
-                        
+
                         if (result.success) {
-                            // 直接刷新表格，不显示成功提示
-                            console.log('批量确认成功，准备刷新表格');
-                            console.log('当前页面URL:', window.location.href);
+                            const modalEl = document.getElementById('batchConfirmModal');
+                            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                            modal.hide();
+                            window._batchConfirmTxIds = [];
                             if (window.refreshTableOnly) {
                                 window.refreshTableOnly();
-                            } else {
-                                console.error('refreshTableOnly函数不存在');
                             }
                         } else {
-                            // 只在失败时显示错误提示
                             alert(`批量确认失败: ${result.message}`);
                         }
-                        
                     } catch (error) {
                         console.error('批量确认错误:', error);
                         alert('批量确认失败，请重试');
                     } finally {
-                        e.target.innerHTML = originalText;
-                        e.target.disabled = false;
+                        okBtn.innerHTML = originalText;
+                        okBtn.disabled = false;
                     }
                 })();
             }

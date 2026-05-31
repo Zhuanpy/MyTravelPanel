@@ -405,6 +405,9 @@ def cmb_batch_confirm():
         if not transactions:
             return jsonify({'success': False, 'message': '没有找到需要确认的交易记录'})
         
+        # 统一备注（可选）：追加到每条记录的备注后面
+        remark = (data.get('remark') or '').strip()
+
         # 批量确认交易记录
         confirmed_count = 0
         for transaction in transactions:
@@ -412,13 +415,18 @@ def cmb_batch_confirm():
             transaction.confirmed_at = datetime.utcnow()
             transaction.confirmed_by = 'staff'
             transaction.is_reconciled = True
+            if remark:
+                if transaction.remarks and transaction.remarks.strip():
+                    transaction.remarks = transaction.remarks.rstrip() + ' ' + remark
+                else:
+                    transaction.remarks = remark
             confirmed_count += 1
-        
+
         # 保存更改
         db.session.commit()
-        
+
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'成功确认 {confirmed_count} 个交易记录',
             'confirmed_count': confirmed_count
         })
