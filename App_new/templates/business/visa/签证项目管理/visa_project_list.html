@@ -80,7 +80,6 @@
         <table class="visa-table">
         <thead>
             <tr>
-                <th>ID</th>
                 <th>申请人</th>
                 <th>签证类型</th>
                 <th>创建时间</th>
@@ -93,7 +92,6 @@
         <tbody>
             {% for project in projects %}
             <tr>
-                <td>{{ project.id }}</td>
                 <td>
                     <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}"
                        class="text-primary" style="font-weight: 500;" title="查看签证详情">{{ project.applicant_name }}</a>

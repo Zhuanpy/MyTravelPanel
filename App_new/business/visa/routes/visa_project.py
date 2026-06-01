@@ -771,9 +771,10 @@ def create_project_links(project_id):
             }
             visa_type_for_ref = visa_type_map.get(project.visa_type, 'TOURIST') if project.visa_type else 'TOURIST'
 
-            # 生成中文和英文版的签证名称
+            # 生成签证名称（用真实国家英文名 + 签证类型，避免出现 "OTHER TOURIST VISA"）
             visa_name = f"{country_name} {project.visa_type}"  # 中文版保留兼容
-            visa_name_en = f"{country_for_ref} {visa_type_for_ref} VISA"  # 英文版用于 description
+            visa_type_en = (getattr(types_info, 'visa_type_en', None) or '') if types_info else ''
+            visa_name_en = f"{(country_name_en or country_name or '').strip()} {(visa_type_en or project.visa_type or '').strip()}".strip()
             
             # 解析申请费用，提取数字部分
             selling_price = 0
@@ -802,15 +803,27 @@ def create_project_links(project_id):
                 leader_member = next((m for m in existing_members if m.is_leader), existing_members[0] if existing_members else None)
                 member_id = leader_member.id if leader_member else None
             
+            # 与签证REF编辑页字段对齐：
+            # - 国家下拉 value = 国家英文名大写（不是固定代码集）
+            # - 签证类型下拉 value = 实际签证类型字符串（project.visa_type）
+            # - 出发日期 = 项目预估日期
+            country_for_ref = (country_name_en or country_name or '').strip().upper()
+            visa_type_for_ref = project.visa_type or ''
+            departure_for_ref = project.estimated_date.isoformat() if project.estimated_date else ''
+
+            # 把国家持久化到 VisaProject（REF编辑页从 VisaProject 读取国家/签证类型）
+            if not (project.country or '').strip() and country_for_ref:
+                project.country = country_for_ref
+
             visa_extra_info = {
-                # 新版签证REF页面字段（使用转换后的英文代码）
+                # 新版签证REF页面字段
                 'visa_name': visa_name,
-                'country': country_for_ref,  # 使用英文代码: CHINA, INDIA 等
-                'visa_type': visa_type_for_ref,  # 使用英文代码: TOURIST, BUSINESS 等
+                'country': country_for_ref,        # 国家英文名大写，与下拉 value 对齐
+                'visa_type': visa_type_for_ref,    # 实际签证类型，与下拉 value 对齐
                 'processing_type': 'NORMAL',  # 默认普通处理
                 'pax_names': pax_names_list,
                 'leader_id': member_id,
-                'departure_date': '',
+                'departure_date': departure_for_ref,
                 'pax_names_display': project.applicant_name,
                 # Pricing 信息（默认1个成人，使用提取的费用）
                 'adult_qty': 1,
@@ -848,7 +861,7 @@ def create_project_links(project_id):
                 selling_price=selling_price,  # 使用申请费用作为售价
                 cost_price=0,
                 currency='SGD',
-                remarks=project.remarks,
+                remarks='',  # 不把签证项目的备注带到自动创建的REF
                 status='confirmed',
                 payment_status='unpaid',
                 extra_info=json.dumps(visa_extra_info, ensure_ascii=False)

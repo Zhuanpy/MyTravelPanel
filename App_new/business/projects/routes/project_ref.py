@@ -1951,6 +1951,16 @@ def edit_visa_ref(ref_id):
         visa_info.setdefault('country', visa_project.country or '')
         visa_info.setdefault('visa_type', visa_project.visa_type or '')
         visa_info.setdefault('pax_names_display', visa_project.applicant_name or '')
+        # 出发日期缺失时回填预估日期
+        if not (visa_info.get('departure_date') or '').strip() and visa_project.estimated_date:
+            visa_info['departure_date'] = visa_project.estimated_date.isoformat()
+
+    # 国家缺失时，按签证类型反查对应国家（自动创建的签证REF常缺国家）
+    if not (visa_info.get('country') or '').strip() and (visa_info.get('visa_type') or '').strip():
+        from App_new.business.visa.models.Visamodels import VisaTypes as _VisaTypes
+        vt_rec = _VisaTypes.query.filter_by(visa_type=visa_info.get('visa_type').strip()).first()
+        if vt_rec and vt_rec.country and vt_rec.country.country_name_EN:
+            visa_info['country'] = vt_rec.country.country_name_EN
 
     # 归一化 country 字段（历史混合格式 -> country_name_EN.upper()，与下拉 value 对齐）
     visa_info['country'] = _normalize_country_for_display(visa_info.get('country'), countries)
