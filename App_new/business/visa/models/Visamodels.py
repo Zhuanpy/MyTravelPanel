@@ -187,27 +187,18 @@ class VisaDocuments(db.Model):
     @classmethod
     def get_document_info(cls, visa_type_id, singapore_identity_id):
         """获取指定国家和身份的文档信息，包括共用资料"""
-        print(f"DEBUG: 查询文档信息 - visa_type_id: {visa_type_id}, singapore_identity_id: {singapore_identity_id}")
-        
         # 获取SHARE身份记录
         share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
-        if not share_identity:
-            print("DEBUG: 没有找到SHARE身份记录")
-            share_identity_id = None
-        else:
-            share_identity_id = share_identity.id
-            print(f"DEBUG: SHARE身份ID: {share_identity_id}")
-        
+        share_identity_id = share_identity.id if share_identity else None
+
         # 获取SHARE共用资料（使用SHARE身份ID）
         share_doc = cls.query.filter_by(
             visa_type_id=visa_type_id,
             singapore_identity_id=share_identity_id
         ).first()
-        print(f"DEBUG: SHARE共用资料查询结果: {share_doc}")
-        
+
         # 如果SHARE记录不存在，自动创建一个
         if not share_doc and share_identity_id:
-            print(f"DEBUG: 未找到SHARE共用资料记录，正在创建...")
             share_doc = cls(
                 visa_type_id=visa_type_id,
                 singapore_identity_id=share_identity_id,  # 使用SHARE身份ID
@@ -215,12 +206,7 @@ class VisaDocuments(db.Model):
             )
             db.session.add(share_doc)
             db.session.commit()
-            print(f"DEBUG: SHARE共用资料记录创建成功，ID: {share_doc.id}")
-        
-        if share_doc:
-            print(f"DEBUG: SHARE共用资料文档数量: {len(share_doc.selected_documents) if share_doc.selected_documents else 0}")
-            print(f"DEBUG: SHARE共用资料文档列表: {[d.name for d in share_doc.selected_documents] if share_doc.selected_documents else []}")
-        
+
         # 获取特定身份资料
         specific_doc = None
         if singapore_identity_id and singapore_identity_id != share_identity_id:  # 排除SHARE
@@ -228,13 +214,7 @@ class VisaDocuments(db.Model):
                 visa_type_id=visa_type_id,
                 singapore_identity_id=singapore_identity_id
             ).first()
-            print(f"DEBUG: 特定身份资料查询结果: {specific_doc}")
-            if specific_doc:
-                print(f"DEBUG: 特定身份资料文档数量: {len(specific_doc.selected_documents) if specific_doc.selected_documents else 0}")
-                print(f"DEBUG: 特定身份资料文档列表: {[d.name for d in specific_doc.selected_documents] if specific_doc.selected_documents else []}")
-            else:
-                print(f"DEBUG: 未找到特定身份资料记录")
-        
+
         # 合并文档信息
         document_info = []
         
@@ -288,14 +268,11 @@ class VisaDocuments(db.Model):
             'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息",
             'applicant_additional_info': "\n".join(applicant_additional_info) if applicant_additional_info else "暂无申请人补充信息"
         }
-        print(f"DEBUG: 返回结果: {result}")
         return result
 
     @classmethod
     def get_applicant_documents(cls, visa_type_id, singapore_identity_id):
         """获取申请人准备的文档资料（responsible_party='FOR_APPLICATION'）"""
-        print(f"DEBUG: 查询申请人资料 - visa_type_id: {visa_type_id}, singapore_identity_id: {singapore_identity_id}")
-        
         # 获取SHARE身份记录
         share_identity = VisaSingaporeIdentity.query.filter_by(identity_zh='SHARE').first()
         share_identity_id = share_identity.id if share_identity else None
@@ -437,7 +414,6 @@ class VisaDocuments(db.Model):
             'additional_info': "\n".join(additional_info) if additional_info else "暂无补充信息",
             'applicant_additional_info': "\n".join(applicant_additional_info) if applicant_additional_info else "暂无申请人补充信息"
         }
-        print(f"DEBUG: 申请人资料返回结果: {result}")
         return result
 
     @classmethod

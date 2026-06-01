@@ -162,7 +162,7 @@
         <div class="visa-card-header">
             <h2>备注信息</h2>
             <div class="visa-flex visa-gap-2">
-                <button type="button" class="visa-btn visa-btn-info visa-btn-sm" onclick="loadAdditionalInfo()">
+                <button type="button" class="visa-btn visa-btn-info visa-btn-sm visa-project-load-remarks-btn" onclick="loadAdditionalInfo(this)">
                     <i class="fas fa-download"></i> 加载补充信息
                 </button>
                 <button type="button" class="visa-btn visa-btn-secondary visa-btn-sm" onclick="clearRemarks()">
@@ -254,7 +254,7 @@
     }, 3000);
 
     // 加载补充信息到备注
-    window.loadAdditionalInfo = function() {
+    window.loadAdditionalInfo = function(btn) {
         const visaType = document.getElementById('visa_type').value;
         const singaporeStatus = document.getElementById('singapore_status').value;
         
@@ -268,11 +268,13 @@
             return;
         }
         
-        // 显示加载状态
-        const loadBtn = document.querySelector('.visa-project-load-remarks-btn');
-        const originalText = loadBtn.innerHTML;
-        loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
-        loadBtn.disabled = true;
+        // 显示加载状态（优先用传入的按钮，兜底用选择器）
+        const loadBtn = btn || document.querySelector('.visa-project-load-remarks-btn');
+        const originalText = loadBtn ? loadBtn.innerHTML : '';
+        if (loadBtn) {
+            loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载中...';
+            loadBtn.disabled = true;
+        }
         
         // 获取补充信息
         fetch(`/visa/project/get_additional_info?visa_type=${encodeURIComponent(visaType)}&identity=${encodeURIComponent(singaporeStatus)}`)
@@ -284,7 +286,7 @@
                     
                     // 组合补充信息
                     if (data.share_additional_info && data.share_additional_info !== '暂无补充信息') {
-                        additionalInfo += `【共用资料补充信息】\n\n{% block title %}{{ visa_type }} 处理{% endblock %}\n${data.share_additional_info}\n\n`;
+                        additionalInfo += `【共用资料补充信息】\n${data.share_additional_info}\n\n`;
                     }
                     
                     if (data.identity_additional_info && data.identity_additional_info !== '暂无补充信息') {
@@ -307,8 +309,10 @@
             })
             .finally(() => {
                 // 恢复按钮状态
-                loadBtn.innerHTML = originalText;
-                loadBtn.disabled = false;
+                if (loadBtn) {
+                    loadBtn.innerHTML = originalText;
+                    loadBtn.disabled = false;
+                }
             });
     };
 
@@ -524,12 +528,19 @@ window.loadIdentityDocuments = function(visaType, singaporeStatus) {
                     console.log('DEBUG: lines after filter:', lines);
                     
                     // 生成资料清单HTML
+                    const nameEnMap = data.name_en_map || {};
                     let checklistHTML = '';
                     lines.forEach((line, index) => {
+                        // 去掉行首项目符号(• 等)，得到干净的资料名 —— 既匹配英文名，也避免存成带前缀的重复数据
+                        const cleanName = line.trim().replace(/^[•·‣◦∙●○*]+\s*/, '');
+                        const en = nameEnMap[cleanName] || '';
+                        const enHtml = en
+                            ? ` <small class="text-muted doc-en-copy" style="cursor:pointer;" title="点击复制英文名" data-en="${en.replace(/"/g, '&quot;')}">(${en})</small>`
+                            : '';
                         checklistHTML += `
-                            <div class="checklist-item" data-document-name="${line.trim()}" data-document-type="required">
-                                <input type="checkbox" id="doc_${index}" name="documents[]" value="${line.trim()}">
-                                <label class="checklist-item-name" for="doc_${index}">${line.trim()}</label>
+                            <div class="checklist-item" data-document-name="${cleanName}" data-document-type="required">
+                                <input type="checkbox" id="doc_${index}" name="documents[]" value="${cleanName}">
+                                <label class="checklist-item-name" for="doc_${index}">${cleanName}${enHtml}</label>
                             </div>
                         `;
                     });
@@ -634,6 +645,26 @@ window.loadIdentityOptions = function(visaType) {
     const visaType = document.getElementById('visa_type').value;
         if (visaType) {
         window.loadIdentityOptions(visaType);
+    }
+});
+
+// 资料清单：点击英文名复制（事件委托，避免点击时勾选复选框）
+document.addEventListener('click', function(e) {
+    const el = e.target.closest('.doc-en-copy');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const text = el.getAttribute('data-en') || '';
+    if (!text) return;
+    const done = () => { if (window.showToast) showToast('已复制：' + text, 'success'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => {
+            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+            ta.select(); try { document.execCommand('copy'); } catch (err) {} document.body.removeChild(ta); done();
+        });
+    } else {
+        const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+        ta.select(); try { document.execCommand('copy'); } catch (err) {} document.body.removeChild(ta); done();
     }
 });
 

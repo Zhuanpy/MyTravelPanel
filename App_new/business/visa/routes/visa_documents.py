@@ -299,10 +299,7 @@ def display_document_request(visa_type, singapore_status):
         decoded_visa_type = html.unescape(decoded_visa_type)
         decoded_singapore_status = unquote(singapore_status)
         decoded_singapore_status = html.unescape(decoded_singapore_status)
-        
-        print(f"DEBUG: 原始参数 - visa_type: '{visa_type}', singapore_status: '{singapore_status}'")
-        print(f"DEBUG: 解码后 - visa_type: '{decoded_visa_type}', singapore_status: '{decoded_singapore_status}'")
-        
+
         # 根据签证类型名称获取ID
         visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
         if not visa_type_record:
@@ -310,39 +307,36 @@ def display_document_request(visa_type, singapore_status):
                 'document_info': '签证类型不存在',
                 'additional_info': '签证类型不存在'
             }), 404
-        
+
         # 根据身份名称获取ID
         identity_record = None
         if decoded_singapore_status != 'SHARE':
             # 去除可能的前后空格
             clean_status = decoded_singapore_status.strip()
-            print(f"DEBUG: 查询身份 - clean_status: '{clean_status}'")
-            
-            # 查询所有身份记录用于调试
-            all_identities = VisaSingaporeIdentity.query.all()
-            print(f"DEBUG: 数据库中所有身份: {[(i.id, i.identity_zh) for i in all_identities]}")
-            
             identity_record = VisaSingaporeIdentity.query.filter_by(identity_zh=clean_status).first()
             if not identity_record:
-                print(f"DEBUG: 未找到身份记录 - clean_status: '{clean_status}'")
                 return jsonify({
                     'document_info': f'身份类型不存在: {clean_status}',
                     'additional_info': f'身份类型不存在: {clean_status}'
                 }), 404
-        
-        print(f"DEBUG: visa_type_record.id: {visa_type_record.id}, identity_record.id: {identity_record.id if identity_record else None}")
-        
-        # 查询该签证类型下的所有文档记录用于调试
-        all_docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
-        print(f"DEBUG: 该签证类型下的所有文档记录: {[(d.id, d.singapore_identity_id) for d in all_docs]}")
-        
+
         # 获取文档信息
         document_info = VisaDocuments.get_document_info(
-            visa_type_record.id, 
+            visa_type_record.id,
             identity_record.id if identity_record else None  # SHARE使用None
         )
 
-        return jsonify(document_info)
+        # 附加 中文名->英文名 对照表，供前端资料清单显示英文名（可复制）
+        from App_new.business.visa.models.Visamodels import VisaDocumentsList
+        name_en_map = {
+            d.name: d.name_en
+            for d in VisaDocumentsList.query.filter(VisaDocumentsList.name_en.isnot(None)).all()
+            if d.name_en
+        }
+        result = dict(document_info)
+        result['name_en_map'] = name_en_map
+
+        return jsonify(result)
     except Exception as e:
         logging.error(f"获取签证文档时发生错误: {str(e)}")
         return jsonify({
@@ -636,12 +630,9 @@ def test_documents_data(visa_type):
         if not visa_type_record:
             return jsonify({'error': '签证类型不存在'})
         
-        print(f"DEBUG: 签证类型ID: {visa_type_record.id}")
-        
         # 查询所有相关的文档记录
         docs = VisaDocuments.query.filter_by(visa_type_id=visa_type_record.id).all()
-        print(f"DEBUG: 找到 {len(docs)} 个文档记录")
-        
+
         result = {
             'visa_type': visa_type_record.visa_type,
             'visa_type_id': visa_type_record.id,
@@ -660,21 +651,9 @@ def test_documents_data(visa_type):
                 'additional_info': doc.additional_info
             }
             result['documents'].append(doc_info)
-            print(f"DEBUG: 文档记录 - ID: {doc.id}, 身份: {doc_info['identity_name']}, 文档数量: {doc_info['selected_documents_count']}")
-            
-            # 特别关注SHARE记录
-            if doc.singapore_identity_id is None:
-                print(f"DEBUG: SHARE记录详情 - ID: {doc.id}")
-                print(f"DEBUG: SHARE记录 - selected_documents: {doc.selected_documents}")
-                print(f"DEBUG: SHARE记录 - additional_info: {doc.additional_info}")
-                if doc.selected_documents:
-                    print(f"DEBUG: SHARE记录 - 文档列表: {[d.name for d in doc.selected_documents]}")
-                else:
-                    print(f"DEBUG: SHARE记录 - 没有关联的文档")
-        
+
         return jsonify(result)
     except Exception as e:
-        print(f"DEBUG: 测试数据时出错: {str(e)}")
         return jsonify({'error': str(e)})
 
 @visa_documents.route('/check_share_documents/<visa_type>')

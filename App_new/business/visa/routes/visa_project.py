@@ -174,12 +174,18 @@ def show_current_all_projects():
         return redirect(url_for('visa_project.show_current_all_projects'))
 
 
-@visa_project.route('/visa_processing/<visa_type>', methods=['GET', 'POST'])
+@visa_project.route('/visa_processing', methods=['GET', 'POST'])
 @login_required
 @staff_only
-def visa_processing(visa_type):
-    """签证处理页面路由"""
+def visa_processing():
+    """签证处理页面路由（签证类型通过查询参数 visa_type 传入）"""
     try:
+        # 签证类型改为查询参数传入：/visa_processing?visa_type=xxx
+        visa_type = request.args.get('visa_type', '').strip()
+        if not visa_type:
+            flash('缺少签证类型参数', 'error')
+            return redirect(url_for('visa_project.show_current_all_projects'))
+
         # 获取并解析form_data
         form_data_str = request.args.get('form_data', '{}')
         form_data = json.loads(form_data_str) if form_data_str else {}
