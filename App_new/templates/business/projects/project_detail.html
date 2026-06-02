@@ -5,7 +5,16 @@
 {% block page_title %}项目详情{% endblock %}
 
 {% block page_actions %}
-<div class="d-flex gap-2">
+<div class="d-flex gap-2 align-items-center">
+    <!-- HID 搜索跳转 -->
+    <form action="{{ url_for('business_projects.detail.goto_project') }}" method="get"
+          class="d-flex align-items-center gap-1 m-0" title="输入 HID 号码跳转到其它项目">
+        <input type="text" name="hid" placeholder="HID 跳转…" autocomplete="off"
+               style="width: 120px; padding: 4px 8px; font-size: 0.85rem; border: 1px solid #ced4da; border-radius: 4px;">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-search"></i>
+        </button>
+    </form>
     <button type="button" class="btn btn-info btn-sm" onclick="showEmailModal()">
         <i class="fas fa-envelope"></i> 发送邮件
     </button>
@@ -184,7 +193,7 @@
                   <!-- 显示已有备注 -->
                   <div id="existing-remarks">
                       {% if header.remarks %}
-                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; font-size: 0.8rem; line-height: 1.5; color: #495057; max-height: 260px; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word;" id="remarks-display">
+                          <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; font-size: 0.8rem; line-height: 1.5; color: #495057; overflow-y: auto; white-space: pre-wrap; text-align: left; word-wrap: break-word;" id="remarks-display">
                               {{ header.remarks | trim }}
                           </div>
                       {% else %}

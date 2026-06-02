@@ -141,6 +141,19 @@
     min-height: 0;
 }
 
+/* 备注灰色内容区填满卡片剩余高度，底部与外卡片对齐 */
+#existing-remarks {
+    display: flex;
+    flex-direction: column;
+}
+
+#existing-remarks > #remarks-display,
+#existing-remarks > div {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
 #new-remarks-section {
     transition: opacity 0.3s ease, transform 0.3s ease;
 }

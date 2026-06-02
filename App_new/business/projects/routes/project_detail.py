@@ -179,6 +179,46 @@ def project_detail(project_id):
         flash(f'加载项目详情失败：{error_msg}', 'error')
         return redirect(url_for('business_projects.list.list_projects'))
 
+@bp.route('/goto')
+@login_required
+@staff_only
+def goto_project():
+    """根据 HID 号码跳转到对应项目详情页面
+
+    支持输入完整 HID（如 H1016）或纯数字（如 1016），
+    优先精确匹配，其次模糊匹配。
+    """
+    from App_new.business.projects.models.project import ProjectHeader
+
+    hid = (request.args.get('hid') or '').strip()
+    if not hid:
+        flash('请输入 HID 号码', 'warning')
+        return redirect(url_for('business_projects.list.list_projects'))
+
+    # 1) 精确匹配 HID
+    header = ProjectHeader.query.filter_by(hid=hid).first()
+
+    # 2) 用户可能只输入了数字，补全前缀 H 再精确匹配
+    if not header and hid.isdigit():
+        header = ProjectHeader.query.filter_by(hid=f'H{hid}').first()
+
+    # 3) 模糊匹配（取最新一个）
+    if not header:
+        header = ProjectHeader.query.filter(
+            ProjectHeader.hid.ilike(f'%{hid}%')
+        ).order_by(ProjectHeader.id.desc()).first()
+
+    if not header:
+        flash(f'未找到 HID 为 "{hid}" 的项目', 'warning')
+        return redirect(url_for('business_projects.list.list_projects'))
+
+    # 权限检查
+    if not can_access_project(header, current_user):
+        flash('您没有权限访问此项目', 'error')
+        return redirect(url_for('business_projects.list.list_projects'))
+
+    return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
+
 @bp.route('/<int:project_id>/refs')
 @login_required
 @staff_only
