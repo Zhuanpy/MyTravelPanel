@@ -495,52 +495,38 @@ def generate_form_for_project(project_id):
 def visa_detail(project_name=None, project_id=None):
     """签证详情页面路由"""
     try:
-        print(f"DEBUG: visa_detail called with project_id={project_id}, project_name={project_name}")
-        
         # 获取项目信息
         project = None
         if project_id:
             try:
                 project = VisaProject.query.get_or_404(project_id)
-                print(f"DEBUG: Found project with ID {project_id}: {project.project_folder_name}, visa_type={project.visa_type}")
             except Exception as e:
-                print(f"DEBUG: Error getting project with ID {project_id}: {str(e)}")
                 flash(f'项目不存在或已被删除', 'error')
                 return redirect(url_for('visa_project.show_current_all_projects'))
         else:
             project = VisaProject.query.filter_by(project_folder_name=project_name).first()
-            print(f"DEBUG: Found project with name {project_name}: {project.id if project else 'None'}")
             if not project:
                 flash(f'项目不存在或已被删除', 'error')
                 return redirect(url_for('visa_project.show_current_all_projects'))
-        
+
         # 检查项目是否有签证类型
         if not project.visa_type:
-            print(f"DEBUG: Project {project.id} has no visa_type")
             flash(f'项目缺少签证类型信息', 'error')
             return redirect(url_for('visa_project.show_current_all_projects'))
-        
+
         # 获取签证类型信息
-        print(f"DEBUG: Looking for visa type: {project.visa_type}")
         types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
         if not types_info:
-            print(f"DEBUG: Visa type '{project.visa_type}' not found in database")
             flash(f'签证类型 "{project.visa_type}" 不存在', 'error')
             return redirect(url_for('visa_project.show_current_all_projects'))
-        
-        print(f"DEBUG: Found visa type info: {types_info.visa_type}")
-        
+
         # 获取相关链接 - 优先通过visa_type_id查找，没有数据时再通过visa_countries_id查找
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
-        
+
         # 如果通过visa_type_id没有找到链接，则通过visa_countries_id查找
         if not links and types_info.country_id:
-            print(f"DEBUG: No links found by visa_type_id, trying visa_countries_id: {types_info.country_id}")
             links = VisaLinks.query.filter_by(visa_countries_id=types_info.country_id).order_by(VisaLinks.name.asc()).all()
-            print(f"DEBUG: Found {len(links)} links by visa_countries_id")
-        
-        print(f"DEBUG: Total links found: {len(links)}")
-        
+
         # 获取签证文档数据 - 使用新的表结构
         documents = VisaDocuments.query.join(VisaTypes).filter(VisaTypes.visa_type == project.visa_type).all()
         document_data = {}
@@ -602,9 +588,6 @@ def visa_detail(project_name=None, project_id=None):
                 'name_en': name_en_map.get(status.document_name, '')
             }
         
-        print(f"DEBUG: Rendering template with project={project.id}, document_data keys={list(document_data.keys())}")
-        print(f"DEBUG: Project document statuses count: {len(project_document_statuses)}")
-        
         # 检查项目是否已关联HID和REF
         has_header = project.header_id is not None
         has_ref = project.ref_id is not None
@@ -636,8 +619,6 @@ def visa_detail(project_name=None, project_id=None):
                              has_ref=has_ref)
                              
     except Exception as e:
-        print(f"DEBUG: Exception in visa_detail: {str(e)}")
-        print(f"DEBUG: Exception traceback: {traceback.format_exc()}")
         flash(f'获取签证详情时出错: {str(e)}', 'error')
         return redirect(url_for('visa_project.show_current_all_projects'))
 
@@ -711,8 +692,7 @@ def create_project_links(project_id):
             # 更新签证项目的header_id和hid_or_serial
             project.header_id = header.id
             project.hid_or_serial = hid  # 自动填充HID到hid_or_serial字段
-            print(f"DEBUG: Created header with ID {header.id}, HID: {hid}")
-            
+
             # 自动添加申请人到人员名单
             from App_new.business.projects.models.project_member import ProjectMember
             member = ProjectMember(
@@ -728,8 +708,7 @@ def create_project_links(project_id):
             )
             db.session.add(member)
             db.session.flush()
-            print(f"DEBUG: Created member with ID {member.id}, name: {project.applicant_name}")
-        
+
         # 创建REF明细
         ref = None
         if not project.ref_id:
@@ -785,10 +764,9 @@ def create_project_links(project_id):
                     fee_match = re.search(r'(\d+(?:\.\d+)?)', types_info.fee)
                     if fee_match:
                         selling_price = float(fee_match.group(1))
-                        print(f"DEBUG: Extracted selling price: {selling_price} from fee: {types_info.fee}")
                 except (ValueError, AttributeError) as e:
-                    print(f"DEBUG: Failed to extract selling price from fee '{types_info.fee}': {str(e)}")
-            
+                    pass
+
             # 获取人员信息
             from App_new.business.projects.models.project_member import ProjectMember
             member_id = None
@@ -871,8 +849,7 @@ def create_project_links(project_id):
             
             # 更新签证项目的ref_id
             project.ref_id = ref.id
-            print(f"DEBUG: Created ref with ID {ref.id}, REF: {ref_number}")
-        
+
         # 提交事务
         db.session.commit()
         
@@ -887,7 +864,6 @@ def create_project_links(project_id):
         
     except Exception as e:
         db.session.rollback()
-        print(f"DEBUG: Error creating project links: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'创建HID和REF时出错：{str(e)}'
@@ -969,10 +945,8 @@ def visa_create_project(visa_type):
         document_statuses_json = request.form.get('document_statuses', '[]')
         try:
             document_statuses = json.loads(document_statuses_json)
-            print(f"DEBUG: Received document_statuses: {document_statuses}")
         except json.JSONDecodeError:
             document_statuses = []
-            print("DEBUG: Failed to parse document_statuses JSON")
 
         # 验证必填字段（hid_or_serial为可选，可后续通过创建HID自动填充）
         if not applicant_name or not visa_type_input or not singapore_status or not visa_status or not estimated_date:
@@ -1084,10 +1058,8 @@ def visa_create_project(visa_type):
         # 保存资料状态数据
         if document_statuses:
             from App_new.business.visa.models.Visamodels import VisaProjectDocumentStatus
-            print(f"DEBUG: Saving {len(document_statuses)} document statuses")
             for status_data in document_statuses:
                 is_ready = status_data['is_ready']
-                print(f"DEBUG: Saving document {status_data['document_name']} with is_ready={is_ready} (type: {type(is_ready)})")
                 # 确保is_ready是布尔值
                 if isinstance(is_ready, str):
                     is_ready = is_ready.lower() in ('true', '1', 'yes', 'on')
@@ -1095,9 +1067,7 @@ def visa_create_project(visa_type):
                     is_ready = bool(is_ready)
                 elif not isinstance(is_ready, bool):
                     is_ready = False
-                
-                print(f"DEBUG: Final is_ready value: {is_ready} (type: {type(is_ready)})")
-                
+
                 new_status = VisaProjectDocumentStatus(
                     project_id=new_project.id,
                     document_name=status_data['document_name'],
@@ -1106,9 +1076,7 @@ def visa_create_project(visa_type):
                     notes=status_data.get('notes', '')
                 )
                 db.session.add(new_status)
-        else:
-            print("DEBUG: No document statuses to save")
-        
+
         db.session.commit()
 
         # 如果是 AJAX 请求，返回 JSON 响应
@@ -1318,8 +1286,6 @@ def open_folder():
         project_folder = unquote(request.args.get('project_folder', ''))
         visa_type = unquote(request.args.get('visa_type', ''))
 
-        print(f"DEBUG: folder_type={folder_type}, project_folder='{project_folder}', visa_type='{visa_type}'")
-
         # 获取项目根目录
         from App_new.config import Config
 
@@ -1332,15 +1298,12 @@ def open_folder():
                 # 如果不存在，尝试在根目录中查找
                 folder_path = base_folder / project_folder
 
-            print(f"DEBUG: 尝试路径1: {folder_path}")
-
             if not folder_path.exists():
                 # 文件夹不存在时自动创建
                 try:
                     # 优先在签证类型子文件夹中创建
                     folder_path = base_folder / visa_type / project_folder
                     folder_path.mkdir(parents=True, exist_ok=True)
-                    print(f"DEBUG: 自动创建文件夹: {folder_path}")
                 except Exception as e:
                     return jsonify({
                         "success": False,
@@ -1356,8 +1319,6 @@ def open_folder():
                     "message": f"找不到签证类型文件夹：{visa_type}"
                 }), 404
 
-            print(f"DEBUG: 尝试路径2: {folder_path}")
-
         elif folder_type == 'visa_root':
             # 修改为正确的签证根目录路径
             folder_path = Config.VISA_RESOURCES_PATH
@@ -1367,15 +1328,11 @@ def open_folder():
                     "message": "找不到签证根目录"
                 }), 404
 
-            print(f"DEBUG: visa_root 路径: {folder_path}")
-
         else:
             return jsonify({
                 "success": False, 
                 "message": "无效的文件夹类型或参数缺失"
             }), 400
-
-        print(f"DEBUG: 最终打开路径: {folder_path}")
 
         # 打开文件夹
         if platform.system() == 'Windows':
@@ -1515,9 +1472,7 @@ def get_project_documents(visa_type, identity):
         decoded_visa_type = html.unescape(decoded_visa_type)
         decoded_identity = unquote(identity)
         decoded_identity = html.unescape(decoded_identity)
-        
-        print(f"DEBUG: 获取项目资料 - 签证类型: {decoded_visa_type}, 身份: {decoded_identity}")
-        
+
         # 获取签证类型
         visa_type_record = VisaTypes.query.filter_by(visa_type=decoded_visa_type).first()
         if not visa_type_record:
@@ -1625,12 +1580,7 @@ def get_project_documents(visa_type, identity):
                 'type': 'additional',
                 'category': '特定身份补充信息'
             })
-        
-        print(f"DEBUG: 解析后的文档数量: {len(documents)}")
-        print(f"DEBUG: 解析后的补充信息数量: {len(additional_info)}")
-        print(f"DEBUG: 共用资料数量: {len([d for d in documents if d['is_shared']])}")
-        print(f"DEBUG: 特定身份资料数量: {len([d for d in documents if not d['is_shared']])}")
-        
+
         return jsonify({
             'success': True,
             'documents': documents,
@@ -2067,15 +2017,11 @@ def get_documents_list():
 def test_visa_detail(project_id):
     """测试签证详情页面路由"""
     try:
-        print(f"DEBUG: test_visa_detail called with project_id={project_id}")
-        
         # 获取项目信息
         project = VisaProject.query.get(project_id)
         if not project:
             return jsonify({'error': '项目不存在'}), 404
-        
-        print(f"DEBUG: Found project: {project.project_folder_name}, visa_type={project.visa_type}")
-        
+
         # 获取签证类型信息
         types_info = VisaTypes.query.filter_by(visa_type=project.visa_type).first()
         if not types_info:
@@ -2096,7 +2042,6 @@ def test_visa_detail(project_id):
         })
         
     except Exception as e:
-        print(f"DEBUG: Exception in test_visa_detail: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
