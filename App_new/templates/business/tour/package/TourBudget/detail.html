@@ -41,25 +41,33 @@
         white-space: nowrap;
     }
 
-    /* 项目名称 */
+    /* 项目名称：填满列宽，超出省略号 */
     .item-name {
+        display: block;
         font-weight: 500;
-        max-width: 200px;
+        max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    /* 项目详情 */
+    /* 项目详情：默认两行省略，点击展开全部 */
     .item-details {
-        max-width: 280px;
         font-size: 0.8rem;
         color: #666;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        cursor: pointer;
+        word-break: break-word;
     }
+    .item-details.expanded {
+        -webkit-line-clamp: unset;
+        display: block;
+    }
+    /* 鼠标悬停提示可点击 */
+    .item-details:hover { color: #0d6efd; }
 
     /* 价格显示 */
     .price-display { text-align: right; white-space: nowrap; }
@@ -107,7 +115,7 @@
 
     /* 打印样式 */
     @media print {
-        .navbar, .sidebar, #sidebar, .btn, .btn-group, .collapse, #addItemForm, footer { display: none !important; }
+        .navbar, .sidebar, #sidebar, .btn, .btn-group, .collapse, #addItemModal, footer { display: none !important; }
         body { font-size: 11px; }
         .header-info-bar { background: #f8f9fa !important; color: #000 !important; -webkit-print-color-adjust: exact; }
         .card { border: 1px solid #000 !important; margin-bottom: 10px; }
@@ -151,7 +159,7 @@
                 </div>
                 <div class="quick-stat">
                     <div class="quick-stat-value">{{ "%.0f"|format(adult_total + child_total) }}</div>
-                    <div class="quick-stat-label">总价 {{ budget.currency }}</div>
+                    <div class="quick-stat-label">总价 <span class="currency-unit">{{ budget.currency }}</span></div>
                 </div>
                 {% set total_persons = (budget.adult_count or 0) + (budget.child_count or 0) %}
                 {% if total_persons > 0 %}
@@ -161,19 +169,26 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-outline-success btn-sm">
-                    <i class="fas fa-edit"></i> 编辑
-                </a>
-                <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-print"></i>
-                </button>
-                <a href="{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-download"></i>
-                </a>
-                <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
+            <div class="d-flex align-items-center gap-2">
+                <!-- 下载货币选择（人民币/新币） -->
+                <select id="downloadCurrency" class="form-select form-select-sm" style="width:auto;" title="选择货币（自动保存并切换页面货币）" onchange="saveCurrency()">
+                    <option value="SGD" {% if budget.currency == 'SGD' %}selected{% endif %}>新币 SGD</option>
+                    <option value="CNY" {% if budget.currency == 'CNY' %}selected{% endif %}>人民币 CNY</option>
+                </select>
+                <div class="btn-group btn-group-sm">
+                    <a href="{{ url_for('package_budget.edit', budget_id=budget.id) }}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-edit"></i> 编辑
+                    </a>
+                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-print"></i>
+                    </button>
+                    <button type="button" onclick="downloadBudget()" class="btn btn-outline-secondary btn-sm" title="下载费用详细">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <a href="{{ url_for('package_budget.list_budgets') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -198,7 +213,7 @@
                         </div>
                         <div class="text-center px-3 py-1 bg-light rounded">
                             <div class="text-muted small">总价</div>
-                            <div class="fw-bold text-success fs-5">{{ "%.2f"|format(adult_total + child_total) }} {{ budget.currency }}</div>
+                            <div class="fw-bold text-success fs-5">{{ "%.2f"|format(adult_total + child_total) }} <span class="currency-unit">{{ budget.currency }}</span></div>
                         </div>
                         {% if budget.remarks %}
                         <div class="flex-grow-1 border-start ps-3">
@@ -215,7 +230,7 @@
         <div class="col-md-6">
             <div class="card card-compact h-100">
                 <div class="card-header py-2">
-                    <span class="card-title"><i class="fas fa-chart-pie text-info"></i> 分类统计</span>
+                    <span class="card-title"><i class="fas fa-chart-pie text-info"></i> 分类统计 (<span class="currency-unit">{{ budget.currency }}</span>)</span>
                 </div>
                 <div class="card-body py-2">
                     <div class="d-flex flex-wrap gap-3">
@@ -234,30 +249,52 @@
     <!-- 明细项目表格 -->
     <div class="card card-compact">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <span class="card-title"><i class="fas fa-list text-primary"></i> 明细项目 ({{ budget.items|length }})</span>
-            <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('addItemForm').style.display = document.getElementById('addItemForm').style.display === 'none' ? 'block' : 'none'">
-                <i class="fas fa-plus"></i> 添加
-            </button>
+            <span class="card-title"><i class="fas fa-list text-primary"></i> 明细项目 (<span id="itemVisibleCount">{{ budget.items|length }}</span>)</span>
+            <div class="d-flex align-items-center gap-2">
+                {% set categories = budget.items | map(attribute='category') | unique | list %}
+                <select id="categoryFilter" class="form-select form-select-sm" style="width:auto;" onchange="filterByCategory()" title="按分类筛选">
+                    <option value="">全部分类</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat or '未分类' }}">{{ cat or '未分类' }}</option>
+                    {% endfor %}
+                </select>
+                <!-- 下载 / 上传 Excel -->
+                <a href="{{ url_for('package_budget.export_items', budget_id=budget.id) }}" class="btn btn-outline-success btn-sm" title="下载明细Excel">
+                    <i class="fas fa-file-excel"></i> 下载
+                </a>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('importItemsFile').click()" title="上传Excel导入明细（有ID更新，无ID新增）">
+                    <i class="fas fa-upload"></i> 上传
+                </button>
+                <input type="file" id="importItemsFile" accept=".xlsx,.xls" style="display:none" onchange="importItems(this)">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetAddItemModal()">
+                    <i class="fas fa-plus"></i> 添加
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             {% if budget.items %}
             <div class="table-responsive">
-                <table class="table table-compact table-hover table-striped mb-0">
+                <table class="table table-compact table-hover table-striped mb-0" style="table-layout: fixed;">
                     <thead>
                         <tr>
-                            <th style="width:70px">类别</th>
-                            <th>项目名称</th>
-                            <th>详情</th>
-                            <th style="width:100px">计价</th>
-                            <th style="width:90px">人数</th>
-                            <th style="width:100px" class="text-end">人均价格</th>
-                            <th style="width:100px">操作</th>
+                            <th style="width:7%">类别</th>
+                            <th style="width:18%">项目名称</th>
+                            <th style="width:22%">详情</th>
+                            <th style="width:12%">计价</th>
+                            <th style="width:10%">人数</th>
+                            <th style="width:14%" class="text-end">人均价格 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
+                            <th style="width:17%">操作</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="itemsTbody">
                         {% set ns = namespace(total=0.0) %}
                         {% for item in budget.items %}
-                        <tr>
+                        {% set adult_cnt = item.adult_count_override if item.adult_count_override is not none else budget.adult_count %}
+                        {% set child_cnt = item.child_count_override if item.child_count_override is not none else budget.child_count %}
+                        {% set persons = (adult_cnt if item.count_adult_apply else 0) + (child_cnt if item.count_child_apply else 0) %}
+                        {% set per_person_total = (item.subtotal / persons) if persons > 0 else 0 %}
+                        {% set ns.total = ns.total + per_person_total %}
+                        <tr data-category="{{ item.category or '未分类' }}" data-total="{{ '%.6f'|format(per_person_total) }}">
                             <td><span class="badge bg-secondary">{{ item.category or '未分类' }}</span></td>
                             <td>
                                 <span class="item-name" title="{{ item.item_name }}">{{ item.item_name }}</span>
@@ -265,7 +302,7 @@
                             </td>
                             <td>
                                 {% if item.item_details %}
-                                <span class="item-details" title="{{ item.item_details }}">{{ item.item_details }}</span>
+                                <span class="item-details" title="点击查看全部" onclick="this.classList.toggle('expanded')">{{ item.item_details }}</span>
                                 {% else %}<span class="text-muted">-</span>{% endif %}
                             </td>
                             <td>
@@ -285,11 +322,6 @@
                                 {% if item.count_child_apply and child_up and child_up > 0 and child_up != item.adult_unit_price %}
                                 <br><span class="price-child">{{ "%.2f"|format(child_up) }}</span>
                                 {% endif %}
-                                {% set adult_cnt = item.adult_count_override if item.adult_count_override is not none else budget.adult_count %}
-                                {% set child_cnt = item.child_count_override if item.child_count_override is not none else budget.child_count %}
-                                {% set persons = (adult_cnt if item.count_adult_apply else 0) + (child_cnt if item.count_child_apply else 0) %}
-                                {% set per_person_total = (item.subtotal / persons) if persons > 0 else 0 %}
-                                {% set ns.total = ns.total + per_person_total %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
@@ -310,7 +342,7 @@
                     <tfoot>
                         <tr class="table-light">
                             <td colspan="5" class="text-end fw-bold">人均价格合计:</td>
-                            <td class="text-end fw-bold text-primary">{{ "%.2f"|format(ns.total) }}</td>
+                            <td class="text-end fw-bold text-primary"><span id="totalDisplay">{{ "%.2f"|format(ns.total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -325,16 +357,21 @@
         </div>
     </div>
 
-    <!-- 添加项目表单 -->
-    <div class="mt-2" id="addItemForm" style="display: none;">
-        <div class="card card-compact">
-            <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
-                <span class="card-title"><i class="fas fa-plus text-success"></i> 添加项目</span>
-                <button type="button" class="btn-close btn-sm" onclick="document.getElementById('addItemForm').style.display = 'none'"></button>
+    <!-- 添加项目弹窗 -->
+    <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light py-2">
+                <span class="modal-title card-title" id="addItemModalLabel"><i class="fas fa-plus text-success"></i> 添加项目</span>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
-            <div class="card-body add-form-compact py-2">
+            <div class="modal-body add-form-compact py-3">
                 <form method="post" action="{{ url_for('package_budget.add_item', budget_id=budget.id) }}" id="itemForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <!-- 隐藏字段：复制时保留人数覆盖/备注 -->
+                    <input type="hidden" name="adult_count_override" id="add_adult_count_override">
+                    <input type="hidden" name="child_count_override" id="add_child_count_override">
+                    <input type="hidden" name="remarks" id="add_remarks">
                     <div class="row g-2 align-items-end">
                         <div class="col-md-1">
                             <label class="form-label small">类别 *</label>
@@ -414,10 +451,125 @@
                 </form>
             </div>
         </div>
+      </div>
     </div>
 </div>
 
 <script>
+// 明细项目数据（用于复制时回填弹窗）
+const BUDGET_ITEMS = {
+{% for item in budget.items %}
+    {{ item.id }}: {
+        category: {{ (item.category or '')|tojson }},
+        item_name: {{ (item.item_name or '')|tojson }},
+        item_details: {{ (item.item_details or '')|tojson }},
+        pricing_method: {{ (item.pricing_method or 'person_based')|tojson }},
+        item_unit_price: {{ (item.item_unit_price or '')|tojson }},
+        item_quantity: {{ (item.item_quantity or 1)|tojson }},
+        adult_price: {{ (item.adult_price or '')|tojson }},
+        child_price: {{ (item.child_price or '')|tojson }},
+        count_adult_apply: {{ item.count_adult_apply|tojson }},
+        count_child_apply: {{ item.count_child_apply|tojson }},
+        is_optional: {{ item.is_optional|tojson }},
+        adult_count_override: {{ (item.adult_count_override if item.adult_count_override is not none else '')|tojson }},
+        child_count_override: {{ (item.child_count_override if item.child_count_override is not none else '')|tojson }},
+        remarks: {{ (item.remarks or '')|tojson }}
+    }{{ "," if not loop.last else "" }}
+{% endfor %}
+};
+
+// 重置弹窗为“添加项目”初始状态
+function resetAddItemModal() {
+    const form = document.getElementById('itemForm');
+    if (!form) return;
+    form.reset();
+    const personBased = document.getElementById('add_person_based');
+    if (personBased) personBased.checked = true;
+    const personDiv = document.getElementById('personBasedPricing');
+    const itemDiv = document.getElementById('itemBasedPricing');
+    if (personDiv) personDiv.style.display = 'block';
+    if (itemDiv) itemDiv.style.display = 'none';
+    document.getElementById('add_adult_count_override').value = '';
+    document.getElementById('add_child_count_override').value = '';
+    document.getElementById('add_remarks').value = '';
+    const label = document.getElementById('addItemModalLabel');
+    if (label) label.innerHTML = '<i class="fas fa-plus text-success"></i> 添加项目';
+}
+
+// 上传Excel导入明细项目（有ID更新，无ID新增）
+function importItems(input) {
+    if (!input.files || !input.files.length) return;
+    const file = input.files[0];
+    const fd = new FormData();
+    fd.append('file', file);
+    const csrfEl = document.querySelector('input[name="csrf_token"]');
+    if (csrfEl) fd.append('csrf_token', csrfEl.value);
+    fetch("{{ url_for('package_budget.import_items', budget_id=budget.id) }}", {
+        method: 'POST',
+        headers: csrfEl ? { 'X-CSRFToken': csrfEl.value } : {},
+        body: fd
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.message || (data.success ? '导入成功' : '导入失败'));
+        if (data.success) location.reload();
+    })
+    .catch(() => alert('导入失败，请检查文件格式'))
+    .finally(() => { input.value = ''; });
+}
+
+// 选择货币：自动保存到预算单，并同步页面上所有货币单位（仅换标签，不换算）
+function saveCurrency() {
+    const sel = document.getElementById('downloadCurrency');
+    if (!sel) return;
+    const cur = sel.value;
+    const csrfEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfEl ? csrfEl.value : '';
+    fetch("{{ url_for('package_budget.update_currency', budget_id=budget.id) }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
+        body: 'currency=' + encodeURIComponent(cur)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('.currency-unit').forEach(el => el.textContent = data.currency);
+        } else {
+            alert(data.error || '货币保存失败');
+        }
+    })
+    .catch(() => alert('货币保存失败'));
+}
+
+// 下载费用详细（带上所选货币）
+function downloadBudget() {
+    const sel = document.getElementById('downloadCurrency');
+    const cur = sel ? sel.value : '';
+    const base = "{{ url_for('package_budget.download_budget_txt', budget_id=budget.id) }}";
+    window.location.href = base + (cur ? ('?currency=' + encodeURIComponent(cur)) : '');
+}
+
+// 按分类筛选明细项目（同时更新计数与人均价格合计）
+function filterByCategory() {
+    const sel = document.getElementById('categoryFilter');
+    const val = sel ? sel.value : '';
+    const rows = document.querySelectorAll('#itemsTbody tr');
+    let total = 0, visible = 0;
+    rows.forEach(tr => {
+        const cat = tr.getAttribute('data-category');
+        const show = !val || cat === val;
+        tr.style.display = show ? '' : 'none';
+        if (show) {
+            visible++;
+            total += parseFloat(tr.getAttribute('data-total')) || 0;
+        }
+    });
+    const totalEl = document.getElementById('totalDisplay');
+    if (totalEl) totalEl.textContent = total.toFixed(2);
+    const cntEl = document.getElementById('itemVisibleCount');
+    if (cntEl) cntEl.textContent = visible;
+}
+
 function deleteItem(itemId) {
     if (confirm('确定要删除这个项目吗？')) {
         const csrfToken = document.querySelector('input[name="csrf_token"]').value;
@@ -433,13 +585,55 @@ function editItem(itemId) {
     window.location.href = `/package_budget/{{ budget.id }}/item/${itemId}/edit`;
 }
 
+// 复制：把原项目数据回填到弹窗，允许编辑后再保存（提交即创建副本）
 function copyItem(itemId) {
-    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-    fetch(`/package_budget/{{ budget.id }}/item/${itemId}/copy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ csrf_token: csrfToken })
-    }).then(r => r.ok ? location.reload() : alert('复制失败'));
+    const data = BUDGET_ITEMS[itemId];
+    if (!data) { alert('无法获取项目数据'); return; }
+    const form = document.getElementById('itemForm');
+    const get = (name) => form.querySelector(`[name="${name}"]`);
+
+    // 类别 / 名称（加副本后缀）/ 详情
+    if (get('category')) get('category').value = data.category || '';
+    get('item_name').value = (data.item_name || '') + '（副本）';
+    get('item_details').value = data.item_details || '';
+
+    // 计价方式 + 对应价格
+    const personDiv = document.getElementById('personBasedPricing');
+    const itemDiv = document.getElementById('itemBasedPricing');
+    if (data.pricing_method === 'item_based') {
+        document.getElementById('add_item_based').checked = true;
+        if (personDiv) personDiv.style.display = 'none';
+        if (itemDiv) itemDiv.style.display = 'block';
+        get('item_unit_price').value = data.item_unit_price || '';
+        get('item_quantity').value = data.item_quantity || 1;
+        get('adult_price').value = '';
+        get('child_price').value = '';
+    } else {
+        document.getElementById('add_person_based').checked = true;
+        if (personDiv) personDiv.style.display = 'block';
+        if (itemDiv) itemDiv.style.display = 'none';
+        get('adult_price').value = data.adult_price || '';
+        get('child_price').value = data.child_price || '';
+        get('item_unit_price').value = '';
+        get('item_quantity').value = 1;
+    }
+
+    // 复选框
+    get('count_adult_apply').checked = !!data.count_adult_apply;
+    get('count_child_apply').checked = !!data.count_child_apply;
+    get('is_optional').checked = !!data.is_optional;
+
+    // 隐藏字段：保留人数覆盖 / 备注
+    document.getElementById('add_adult_count_override').value = data.adult_count_override ?? '';
+    document.getElementById('add_child_count_override').value = data.child_count_override ?? '';
+    document.getElementById('add_remarks').value = data.remarks || '';
+
+    // 标题改为复制提示
+    const label = document.getElementById('addItemModalLabel');
+    if (label) label.innerHTML = '<i class="fas fa-copy text-warning"></i> 复制项目（可编辑后保存）';
+
+    // 打开弹窗
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('addItemModal')).show();
 }
 
 document.addEventListener('DOMContentLoaded', function() {

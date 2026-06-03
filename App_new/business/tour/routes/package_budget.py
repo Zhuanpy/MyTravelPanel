@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify, current_app, Response
+from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify, current_app, Response, send_file
 from flask_login import login_required, current_user
 from App_new.utils.decorators import staff_only
 from sqlalchemy import or_, and_
@@ -879,7 +879,11 @@ def download_budget_txt(budget_id):
     """下载预算项目为txt文件（顾客版本）"""
     try:
         budget = BudgetHeader.query.get_or_404(budget_id)
-        
+
+        # 下载货币：优先用 URL 参数选择的货币（人民币/新币），否则用预算单默认货币
+        # 注意：仅切换货币标签，不做汇率换算
+        currency = (request.args.get('currency') or budget.currency or 'SGD').strip()
+
         # 检查预算单是否存在项目
         if not budget.items:
             flash('预算单中没有项目，无法生成下载文件', 'warning')
@@ -907,37 +911,63 @@ def download_budget_txt(budget_id):
         content.append("")
         
         total_price = 0
-        
+        price_lines = []  # 每项详细价格，单独成段放到文件后面
+
         for i, item in enumerate(budget.items, 1):
             # 项目标题
             content.append(f"{i:2d}. {item.item_name}")
-            
+
             # 项目详情
             if item.item_details:
                 details_lines = item.item_details.split('\n')
                 for line in details_lines:
                     if line.strip():
                         content.append(f"    {line.strip()}")
-            
-            # 计算项目总价（用于内部计算，不显示给顾客）
-            item_total = item.subtotal or 0
-            total_price += item_total
-            
+
             # 可选项目标记
             if item.is_optional:
                 content.append("    [可选项目]")
-            
+
             # 备注（如果有重要信息）
             if item.remarks:
                 content.append(f"    备注：{item.remarks}")
-            
+
             content.append("")
-        
+
+            # 计算项目总价
+            item_total = item.subtotal or 0
+            total_price += item_total
+
+            # 组装该项价格明细（单价构成 + 小计），放到后面的【费用明细】段
+            adult_cnt = item.adult_count_override if item.adult_count_override is not None else budget.adult_count
+            child_cnt = item.child_count_override if item.child_count_override is not None else budget.child_count
+            if item.pricing_method == 'item_based':
+                breakdown = f"单价 {float(item.item_unit_price or 0):.2f} × {item.item_quantity or 1}件"
+            else:
+                parts = []
+                if item.count_adult_apply and (item.adult_price or 0):
+                    parts.append(f"成人 {float(item.adult_price or 0):.2f} × {adult_cnt}人")
+                if item.count_child_apply and (item.child_price or 0):
+                    parts.append(f"儿童 {float(item.child_price or 0):.2f} × {child_cnt}人")
+                breakdown = " + ".join(parts) if parts else "-"
+            optional_tag = "（可选）" if item.is_optional else ""
+            price_lines.append(f"{i:2d}. {item.item_name}{optional_tag}")
+            price_lines.append(f"    {breakdown}")
+            price_lines.append(f"    小计：{item_total:.2f} {currency}")
+            price_lines.append("")
+
+        # 费用明细（每项详细价格，放在后面）
+        content.append("=" * 60)
+        content.append("【费用明细】")
+        content.append("-" * 40)
+        content.append("")
+        content.extend(price_lines)
+
         # 总价
         content.append("=" * 60)
         content.append("【总价】")
         content.append("-" * 40)
-        content.append(f"总价：{total_price:.2f} {budget.currency}")
+        content.append(f"总价：{total_price:.2f} {currency}")
         content.append("=" * 60)
         content.append("")
         
@@ -952,7 +982,7 @@ def download_budget_txt(budget_id):
         safe_package_name = "".join(c for c in budget.package_name if c.isalnum() or c in (' ', '-', '_')).strip()
         if not safe_package_name:
             safe_package_name = "package"
-        filename = f"{safe_package_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        filename = f"{safe_package_name}_{currency}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         
         # 使用RFC 5987标准编码文件名，支持中文
         import urllib.parse
@@ -967,6 +997,237 @@ def download_budget_txt(budget_id):
         current_app.logger.error(f"Error in download_budget_txt for budget {budget_id}: {e}")
         flash(f'下载失败: {str(e)}', 'error')
         return redirect(url_for('package_budget.detail', budget_id=budget_id))
+
+
+@package_budget.route('/<int:budget_id>/update_currency', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def update_currency(budget_id):
+    """更新预算单货币（仅切换货币标签，不做汇率换算），用于报价页自动保存货币选择"""
+    try:
+        budget = BudgetHeader.query.get_or_404(budget_id)
+        currency = (request.form.get('currency') or '').strip().upper()
+        if currency not in ('SGD', 'CNY'):
+            return jsonify({'success': False, 'error': '不支持的货币'}), 400
+        budget.currency = currency
+        db.session.commit()
+        return jsonify({'success': True, 'currency': currency})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"update_currency failed for budget {budget_id}: {e}")
+        return jsonify({'success': False, 'error': '保存失败'}), 500
+
+
+# 明细项目 Excel 导入/导出的列定义：(模型字段, 表头, 列宽)
+EXCEL_ITEM_COLUMNS = [
+    ('id', 'ID', 8),
+    ('category', '类别', 14),
+    ('item_name', '项目名称', 22),
+    ('item_details', '详情', 30),
+    ('pricing_method', '计价方式(人均/物品)', 18),
+    ('adult_price', '成人单价', 10),
+    ('child_price', '儿童单价', 10),
+    ('item_unit_price', '物品单价', 10),
+    ('item_quantity', '物品件数', 10),
+    ('count_adult_apply', '计成人(是/否)', 12),
+    ('count_child_apply', '计儿童(是/否)', 12),
+    ('adult_count_override', '成人人数(可空)', 14),
+    ('child_count_override', '儿童人数(可空)', 14),
+    ('is_optional', '可选(是/否)', 12),
+    ('remarks', '备注', 20),
+]
+
+
+@package_budget.route('/<int:budget_id>/items/export', methods=['GET'])
+@login_required
+@staff_only
+def export_items(budget_id):
+    """导出明细项目为Excel（含ID，可改后重新上传更新；小计为只读列）"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    import io
+
+    budget = BudgetHeader.query.get_or_404(budget_id)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '明细项目'
+
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    # 表头（末尾追加只读“小计”列，导入时忽略）
+    headers = [h for (_, h, _) in EXCEL_ITEM_COLUMNS] + [f'小计({budget.currency})']
+    widths = [w for (_, _, w) in EXCEL_ITEM_COLUMNS] + [12]
+    for col_idx, (header, width) in enumerate(zip(headers, widths), 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+        ws.column_dimensions[cell.column_letter].width = width
+
+    def b2s(v):
+        return '是' if v else '否'
+
+    for row_idx, item in enumerate(sorted(budget.items, key=lambda x: x.sort_order or 0), 2):
+        pricing = '物品' if item.pricing_method == 'item_based' else '人均'
+        row = [
+            item.id,
+            item.category or '',
+            item.item_name or '',
+            item.item_details or '',
+            pricing,
+            float(item.adult_price) if item.adult_price is not None else '',
+            float(item.child_price) if item.child_price is not None else '',
+            float(item.item_unit_price) if item.item_unit_price is not None else '',
+            item.item_quantity if item.item_quantity is not None else '',
+            b2s(item.count_adult_apply),
+            b2s(item.count_child_apply),
+            item.adult_count_override if item.adult_count_override is not None else '',
+            item.child_count_override if item.child_count_override is not None else '',
+            b2s(item.is_optional),
+            item.remarks or '',
+            round(item.subtotal or 0, 2),
+        ]
+        for col_idx, value in enumerate(row, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = thin_border
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    safe_name = "".join(c for c in (budget.package_name or '') if c.isalnum() or c in (' ', '-', '_')).strip() or 'budget'
+    download_name = f"{safe_name}_明细_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=download_name,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+
+
+@package_budget.route('/<int:budget_id>/items/import', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def import_items(budget_id):
+    """从Excel导入明细项目（有ID则更新，无ID则新增）"""
+    from openpyxl import load_workbook
+
+    budget = BudgetHeader.query.get_or_404(budget_id)
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '没有选择文件'}), 400
+    file = request.files['file']
+    if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
+        return jsonify({'success': False, 'message': '请上传 .xlsx 格式的Excel文件'}), 400
+
+    try:
+        wb = load_workbook(file, data_only=True)
+        ws = wb.active
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'无法读取Excel文件: {e}'}), 400
+
+    # 表头 -> 列索引（按表头前缀匹配，忽略括号说明）
+    headers = [cell.value for cell in ws[1]]
+    col_map = {}
+    for field, header, _ in EXCEL_ITEM_COLUMNS:
+        prefix = header.split('(')[0]
+        for h_idx, h_val in enumerate(headers):
+            if h_val and str(h_val).strip().startswith(prefix):
+                col_map[field] = h_idx
+                break
+
+    if 'item_name' not in col_map:
+        return jsonify({'success': False, 'message': '未找到"项目名称"列，请使用导出的Excel作为模板'}), 400
+
+    def cell_val(row, field):
+        idx = col_map.get(field)
+        if idx is None or idx >= len(row):
+            return None
+        return row[idx]
+
+    def to_bool(v, default):
+        if v is None or v == '':
+            return default
+        return str(v).strip().lower() in ('是', 'true', '1', 'yes', 'y', 't')
+
+    def to_float(v):
+        if v is None or v == '':
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    def to_int(v):
+        if v is None or v == '':
+            return None
+        try:
+            return int(float(v))
+        except (ValueError, TypeError):
+            return None
+
+    created, updated, skipped = 0, 0, 0
+    try:
+        max_order = db.session.query(db.func.max(BudgetItem.sort_order)).filter_by(header_id=budget_id).scalar() or 0
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row is None:
+                continue
+            name = cell_val(row, 'item_name')
+            if name is None or str(name).strip() == '':
+                skipped += 1
+                continue
+
+            row_id = to_int(cell_val(row, 'id'))
+            pricing_raw = str(cell_val(row, 'pricing_method') or '').strip()
+            pricing = 'item_based' if pricing_raw in ('物品', 'item_based', 'item') else 'person_based'
+
+            item = None
+            if row_id:
+                item = BudgetItem.query.filter_by(id=row_id, header_id=budget_id).first()
+            if item is None:
+                max_order += 1
+                item = BudgetItem(header_id=budget_id, sort_order=max_order)
+                db.session.add(item)
+                created += 1
+            else:
+                updated += 1
+
+            item.category = (str(cell_val(row, 'category') or '').strip()) or None
+            item.item_name = str(name).strip()
+            item.item_details = (str(cell_val(row, 'item_details') or '').strip()) or None
+            item.pricing_method = pricing
+            item.adult_price = to_float(cell_val(row, 'adult_price'))
+            item.child_price = to_float(cell_val(row, 'child_price'))
+            item.item_unit_price = to_float(cell_val(row, 'item_unit_price'))
+            qty = to_int(cell_val(row, 'item_quantity'))
+            item.item_quantity = qty if qty is not None else 1
+            item.count_adult_apply = to_bool(cell_val(row, 'count_adult_apply'), True)
+            item.count_child_apply = to_bool(cell_val(row, 'count_child_apply'), True)
+            item.adult_count_override = to_int(cell_val(row, 'adult_count_override'))
+            item.child_count_override = to_int(cell_val(row, 'child_count_override'))
+            item.is_optional = to_bool(cell_val(row, 'is_optional'), False)
+            item.remarks = (str(cell_val(row, 'remarks') or '').strip()) or None
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"import_items failed for budget {budget_id}: {e}")
+        return jsonify({'success': False, 'message': f'导入失败: {e}'}), 500
+
+    return jsonify({
+        'success': True,
+        'message': f'导入完成：新增 {created} 项，更新 {updated} 项，跳过 {skipped} 项',
+        'created': created, 'updated': updated, 'skipped': skipped,
+    })
 
 
 @package_budget.route('/project/<int:project_id>')

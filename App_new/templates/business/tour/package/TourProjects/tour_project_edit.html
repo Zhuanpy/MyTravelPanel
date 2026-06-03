@@ -991,15 +991,15 @@ function onEditItineraryFileChange(slot) {
 
 // 编辑项目信息
 function editProjectInfo() {
-    document.getElementById('editProjectName').value = '{{ project.project_name }}';
-    document.getElementById('editProjectHid').value = '{{ project.project_hid or "" }}';
-    document.getElementById('editProjectType').value = '{{ project.project_type or "" }}';
-    document.getElementById('editProjectStatus').value = '{{ project.project_status or "计划中" }}';
-    document.getElementById('editContactPerson').value = '{{ project.contact_person or "" }}';
-    document.getElementById('editContactInfo').value = '{{ project.contact_info or "" }}';
+    document.getElementById('editProjectName').value = {{ project.project_name | tojson }};
+    document.getElementById('editProjectHid').value = {{ (project.project_hid or "") | tojson }};
+    document.getElementById('editProjectType').value = {{ (project.project_type or "") | tojson }};
+    document.getElementById('editProjectStatus').value = {{ (project.project_status or "计划中") | tojson }};
+    document.getElementById('editContactPerson').value = {{ (project.contact_person or "") | tojson }};
+    document.getElementById('editContactInfo').value = {{ (project.contact_info or "") | tojson }};
     var budgetValue = {% if project.budget %}{{ project.budget }}{% else %}null{% endif %};
     document.getElementById('editProjectBudget').value = budgetValue !== null ? budgetValue : '';
-    document.getElementById('editProjectRemarks').value = `{{ project.remarks|replace('\n', '\\n')|replace('\r', '') if project.remarks else "" }}`;
+    document.getElementById('editProjectRemarks').value = {{ (project.remarks or "") | tojson }};
     const hint = document.getElementById('hidLinkHint');
     if (hint) { hint.style.display = 'none'; hint.innerHTML = ''; }
     showModal('editProjectInfoModal');
