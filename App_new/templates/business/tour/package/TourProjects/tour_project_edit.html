@@ -163,6 +163,37 @@
     .section-body {
         padding: 1.5rem;
     }
+
+    /* 套餐说明：点击式编辑预览框 */
+    .pkg-preview {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 10px 12px;
+        min-height: 96px;
+        max-height: 180px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        cursor: pointer;
+        background: #fff;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #374151;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .pkg-preview:hover {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    }
+    .pkg-preview-empty {
+        color: #9ca3af;
+        font-style: italic;
+    }
+    .pkg-edit-hint {
+        font-size: 11px;
+        color: #9ca3af;
+        font-weight: normal;
+    }
 </style>
 {% endblock %}
 
@@ -399,35 +430,39 @@
         <!-- 套餐说明 / 包含与须知（独立编辑，置于每日行程之后）-->
         {% if groups %}
         {% set group = groups[0] %}
+        <script>window.PKG_GROUP_ID = {{ group.id }};</script>
         <div class="bg-white rounded-2xl shadow-md overflow-hidden mt-6">
             <div class="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
                 <h4 class="text-base font-semibold text-gray-700 flex items-center gap-2 m-0">
                     <i class="fas fa-clipboard-list text-amber-500"></i> 套餐说明 / 包含与须知
                 </h4>
-                <button type="button" id="savePackageInfoBtn" onclick="savePackageInfo({{ group.id }})"
-                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-xs font-medium">
-                    <i class="fas fa-save"></i> 保存
-                </button>
+                <span class="text-xs text-gray-400">点击下方内容编辑，弹窗内保存即生效</span>
             </div>
             <div class="p-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
                             <i class="fas fa-check-circle text-green-500"></i> 包含项目
+                            <span class="pkg-edit-hint">（点击展开编辑）</span>
                         </label>
-                        <textarea id="pkgIncludedItems" rows="4" class="visa-form-control" placeholder="每行一项，如：往返机票、酒店住宿...">{{ group.included_items or '' }}</textarea>
+                        <div class="pkg-preview" id="pkgIncludedPreview" onclick="openPkgEditor('included')" title="点击编辑">{{ group.included_items or '' }}</div>
+                        <textarea id="pkgIncludedItems" style="display:none;">{{ group.included_items or '' }}</textarea>
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
                             <i class="fas fa-times-circle text-red-500"></i> 不包含项目
+                            <span class="pkg-edit-hint">（点击展开编辑）</span>
                         </label>
-                        <textarea id="pkgExcludedItems" rows="4" class="visa-form-control" placeholder="每行一项，如：个人消费、小费...">{{ group.excluded_items or '' }}</textarea>
+                        <div class="pkg-preview" id="pkgExcludedPreview" onclick="openPkgEditor('excluded')" title="点击编辑">{{ group.excluded_items or '' }}</div>
+                        <textarea id="pkgExcludedItems" style="display:none;">{{ group.excluded_items or '' }}</textarea>
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
                             <i class="fas fa-exclamation-triangle text-yellow-500"></i> 注意事项
+                            <span class="pkg-edit-hint">（点击展开编辑）</span>
                         </label>
-                        <textarea id="pkgImportantNotes" rows="3" class="visa-form-control" placeholder="客人须知 / 温馨提示...">{{ group.important_notes or '' }}</textarea>
+                        <div class="pkg-preview" id="pkgImportantNotesPreview" onclick="openPkgEditor('notes')" title="点击编辑">{{ group.important_notes or '' }}</div>
+                        <textarea id="pkgImportantNotes" style="display:none;">{{ group.important_notes or '' }}</textarea>
                     </div>
                 </div>
             </div>
@@ -485,6 +520,25 @@
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- 套餐说明编辑弹窗（包含项目/不包含项目/注意事项 共用） -->
+<div id="pkgEditorModal" class="visa-modal" data-backdrop-close="false">
+    <div class="visa-modal-dialog visa-modal-dialog-lg">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+            <h3 class="visa-modal-title" id="pkgEditorTitle" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑</h3>
+            <button class="visa-modal-close" onclick="closeModal('pkgEditorModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <textarea id="pkgEditorTextarea" class="visa-form-control"
+                      style="width:100%; min-height:55vh; resize:vertical; line-height:1.7;"
+                      placeholder="每行一项..."></textarea>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('pkgEditorModal')">取消</button>
+            <button type="button" id="pkgEditorSaveBtn" class="visa-btn visa-btn-primary" onclick="applyPkgEditor()">保存</button>
+        </div>
     </div>
 </div>
 
@@ -1125,8 +1179,9 @@ function editGroup(groupId) {
 }
 
 // 保存套餐说明（包含/不包含/注意事项）—— 独立于编辑团队弹窗
-function savePackageInfo(groupId) {
-    const btn = document.getElementById('savePackageInfoBtn');
+// btn: 可选，触发保存的按钮（用于 loading 态）；onDone: 可选回调，参数为是否成功
+function savePackageInfo(groupId, btn, onDone) {
+    btn = btn || document.getElementById('savePackageInfoBtn');
     const original = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中';
@@ -1146,19 +1201,74 @@ function savePackageInfo(groupId) {
     .then(data => {
         if (data.success) {
             showAlert('套餐说明已保存', 'success');
+            if (onDone) onDone(true);
         } else {
             showAlert('保存失败: ' + (data.message || ''), 'danger');
+            if (onDone) onDone(false);
         }
     })
     .catch(err => {
         console.error(err);
         showAlert('保存套餐说明时发生错误', 'danger');
+        if (onDone) onDone(false);
     })
     .finally(() => {
         btn.disabled = false;
         btn.innerHTML = original;
     });
 }
+
+// ===== 套餐说明：点击式弹窗编辑 =====
+const PKG_FIELDS = {
+    included: { hidden: 'pkgIncludedItems', preview: 'pkgIncludedPreview', title: '包含项目', placeholder: '每行一项，如：往返机票、酒店住宿...' },
+    excluded: { hidden: 'pkgExcludedItems', preview: 'pkgExcludedPreview', title: '不包含项目', placeholder: '每行一项，如：个人消费、小费...' },
+    notes:    { hidden: 'pkgImportantNotes', preview: 'pkgImportantNotesPreview', title: '注意事项', placeholder: '客人须知 / 温馨提示...' }
+};
+let currentPkgField = null;
+
+// 打开弹窗：把隐藏 textarea 的当前值载入大编辑框
+function openPkgEditor(key) {
+    const f = PKG_FIELDS[key];
+    if (!f) return;
+    currentPkgField = key;
+    document.getElementById('pkgEditorTitle').innerHTML = '<i class="fas fa-edit mr-2"></i>编辑 - ' + f.title;
+    const ta = document.getElementById('pkgEditorTextarea');
+    ta.value = document.getElementById(f.hidden).value;
+    ta.placeholder = f.placeholder;
+    showModal('pkgEditorModal');
+    setTimeout(() => ta.focus(), 50);
+}
+
+// 保存：写回隐藏 textarea、刷新预览，并直接提交到后端入库，成功后关闭弹窗
+function applyPkgEditor() {
+    if (!currentPkgField) return;
+    const f = PKG_FIELDS[currentPkgField];
+    document.getElementById(f.hidden).value = document.getElementById('pkgEditorTextarea').value;
+    refreshPkgPreview(currentPkgField);
+    savePackageInfo(window.PKG_GROUP_ID, document.getElementById('pkgEditorSaveBtn'), function(ok) {
+        if (ok) closeModal('pkgEditorModal');
+    });
+}
+
+// 刷新预览框：有内容显示原文，空时显示灰色占位提示
+function refreshPkgPreview(key) {
+    const f = PKG_FIELDS[key];
+    const preview = document.getElementById(f.preview);
+    const hidden = document.getElementById(f.hidden);
+    if (!preview || !hidden) return;
+    if (hidden.value.trim()) {
+        preview.textContent = hidden.value;
+        preview.classList.remove('pkg-preview-empty');
+    } else {
+        preview.textContent = '点击此处添加' + f.title + '...';
+        preview.classList.add('pkg-preview-empty');
+    }
+}
+
+// 页面加载时初始化三个预览框（确保空值也显示占位）
+document.addEventListener('DOMContentLoaded', function() {
+    Object.keys(PKG_FIELDS).forEach(refreshPkgPreview);
+});
 
 function updateGroup() {
     const form = document.getElementById('editGroupForm');

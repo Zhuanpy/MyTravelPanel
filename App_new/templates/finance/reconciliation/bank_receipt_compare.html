@@ -1092,12 +1092,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const checkboxes = receiptTableBody.querySelectorAll('.receipt-checkbox:not(:disabled)');
         checkboxes.forEach(cb => {
             cb.checked = this.checked;
-            const id = parseInt(cb.dataset.id);
+            // 必须使用组合键 "type_id"（与单条勾选保持一致），
+            // 否则 selectedReceiptIds 里混入纯数字ID，匹配弹窗解析键时
+            // 调用 number.lastIndexOf 会抛错导致弹窗打不开
+            const key = cb.dataset.key;
             if (this.checked) {
-                selectedReceiptIds.add(id);
+                selectedReceiptIds.add(key);
                 cb.closest('tr').classList.add('selected');
             } else {
-                selectedReceiptIds.delete(id);
+                selectedReceiptIds.delete(key);
                 cb.closest('tr').classList.remove('selected');
             }
         });

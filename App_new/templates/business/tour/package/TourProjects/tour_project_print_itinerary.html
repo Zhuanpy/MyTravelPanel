@@ -161,8 +161,53 @@
             background: #555;
         }
 
+        /* 打印内容选项面板 */
+        .print-options {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .print-options .opt-title {
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .print-options label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        /* 隐藏内容开关（屏幕预览同样生效，便于打印前确认效果） */
+        body.hide-proposal .proposal-text { display: none !important; }
+        body.hide-pax .meta-pax,
+        body.hide-pax .meta-sep { display: none !important; }
+        /* 价格：仅隐藏顶部人均预算/费用金额 */
+        body.hide-price .meta-price,
+        body.hide-price .meta-sep { display: none !important; }
+        /* 包含/不含内容：隐藏"价格与包含项目"整块 */
+        body.hide-inclusions .price-block-title,
+        body.hide-inclusions .price-section { display: none !important; }
+
         @media print {
-            .print-actions {
+            .print-actions,
+            .print-options {
                 display: none !important;
             }
         }
@@ -416,6 +461,11 @@
                 align-items: center !important;
                 justify-content: center !important;
             }
+
+            /* 勾选"隐藏 Proposal"时优先隐藏（选择器更具体，覆盖上面的 flex） */
+            body.hide-proposal .proposal-text {
+                display: none !important;
+            }
             
             /* 标题优化 */
             .bilingual-text {
@@ -638,6 +688,15 @@
     </button>
 </div>
 
+<!-- 打印内容选项：可勾选隐藏对应内容 -->
+<div class="print-options">
+    <div class="opt-title">打印隐藏内容</div>
+    <label><input type="checkbox" id="optHidePrice"> 价格</label>
+    <label><input type="checkbox" id="optHideInclusions"> 包含/不含内容</label>
+    <label><input type="checkbox" id="optHideProposal"> Proposal</label>
+    <label><input type="checkbox" id="optHidePax"> 人数</label>
+</div>
+
 <div class="print-container">
 <header>
     {% include 'shared/own_company/own_company_header_component.html' %}
@@ -652,11 +711,11 @@
 {% if tour %}
 <div class="tour-title">{{ tour.title }}</div>
 <div class="tour-meta">
-    人数：{{ tour.pax }} 人
+    <span class="meta-pax">人数：{{ tour.pax }} 人</span>
     {% if tour.budget_per_person %}
-        &nbsp;|&nbsp; 人均预算：SGD {{ "%.2f"|format(tour.budget_per_person) }}
+        <span class="meta-sep">&nbsp;|&nbsp;</span><span class="meta-price">人均预算：SGD {{ "%.2f"|format(tour.budget_per_person) }}</span>
     {% elif tour.project and tour.project.budget and tour.pax and tour.pax > 0 %}
-        &nbsp;|&nbsp; 人均费用：SGD {{ ((tour.project.budget / tour.pax) | int) }} 
+        <span class="meta-sep">&nbsp;|&nbsp;</span><span class="meta-price">人均费用：SGD {{ ((tour.project.budget / tour.pax) | int) }}</span>
     {% endif %}
 </div>
 {% endif %}
@@ -692,7 +751,7 @@
     <div class="no-data">暂无行程安排 / No Itinerary Available</div>
 {% endif %}
 
-<div class="section-title-bilingual">
+<div class="section-title-bilingual price-block-title">
     <span class="section-title-chinese">价格与包含项目</span>
     <span class="section-title-english">Price & Inclusions</span>
 </div>
@@ -736,6 +795,23 @@
 </div>
 
 <script>
+// 打印隐藏内容开关：勾选后给 body 加对应 class，CSS 控制显隐
+document.addEventListener('DOMContentLoaded', function() {
+    const optionMap = {
+        'optHidePrice': 'hide-price',
+        'optHideInclusions': 'hide-inclusions',
+        'optHideProposal': 'hide-proposal',
+        'optHidePax': 'hide-pax'
+    };
+    Object.keys(optionMap).forEach(function(id) {
+        const checkbox = document.getElementById(id);
+        if (!checkbox) return;
+        checkbox.addEventListener('change', function() {
+            document.body.classList.toggle(optionMap[id], this.checked);
+        });
+    });
+});
+
 // 图片加载状态管理
 document.addEventListener('DOMContentLoaded', function() {
     const images = document.querySelectorAll('.itinerary-image');
