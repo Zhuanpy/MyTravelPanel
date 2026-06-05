@@ -1,11 +1,176 @@
 """
 银行对账单处理共享辅助函数
 """
+import re
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 from App_new.exts import db
 from App_new.finance.models.statement import BankTransaction
 from App_new.finance.models.bank_keywords import BankStatementKeyword
+
+
+# 月份英文缩写 -> 月份数字
+_MONTH_ABBR = {m: i for i, m in enumerate(
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], 1)}
+
+# 金额格式: 1,234.56 或 123.45 或带尾部负号 123.45-
+_AMOUNT_RE = re.compile(r'^-?[\d,]+\.\d{2}-?$')
+
+# 账单页脚 / 结束标记，遇到则停止追加描述
+_FOOTER_RE = re.compile(
+    r'(End of Transaction|End of Summary|BALANCE\s*C/F|^Total\b)', re.IGNORECASE)
+
+
+def _parse_amount(token):
+    """将金额字符串转为 float，支持千分位逗号与尾部负号"""
+    neg = token.startswith('-') or token.endswith('-')
+    value = float(token.strip('-').replace(',', '') or 0)
+    return -value if neg else value
+
+
+def parse_uob_pdf(file_content):
+    """
+    解析 UOB 银行 PDF 月账单（电子结单 eStatement）。
+
+    UOB 账单交易明细为「定位排版」的多行表格：每笔交易首行包含日期、
+    部分描述以及金额/余额，描述可能跨多行延续。本函数依据列的 x 坐标
+    （右对齐金额列）将数字归类到 Withdrawals / Deposits / Balance。
+
+    返回 (df, account_number):
+      - df 列: ['T-Date', 'Description', 'Withdrawal', 'Deposit', 'Balance']
+        与 Excel 上传流程下游所需列保持一致，可直接复用后续处理逻辑。
+      - account_number: 从账单中提取的账户号（如 340-305-831-7），无则为 'UPLOAD'
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=file_content, filetype='pdf')
+
+    # 1. 读取全文，用于提取账单周期（确定年份）与账户号
+    full_text = ''.join(page.get_text() for page in doc)
+
+    # 账单周期: "Period: 01 Jan 2026 to 31 Jan 2026"，用于给「DD Mon」补全年份
+    start_month = end_month = None
+    start_year = end_year = datetime.now().year
+    period_match = re.search(
+        r'Period:\s*(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+to\s+'
+        r'(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})', full_text)
+    if period_match:
+        start_month, start_year = period_match.group(2), int(period_match.group(3))
+        end_month, end_year = period_match.group(5), int(period_match.group(6))
+
+    def year_for(month_abbr):
+        # 账单可能跨年（如 12 月到次年 1 月），按月份缩写匹配对应年份
+        if month_abbr == end_month:
+            return end_year
+        if month_abbr == start_month:
+            return start_year
+        return start_year
+
+    # 账户号: "One Account   340-305-831-7"
+    account_number = 'UPLOAD'
+    acct_match = re.search(r'(\d{3}-\d{3}-\d{3}-\d)', full_text)
+    if acct_match:
+        account_number = acct_match.group(1)
+
+    # 2. 逐页解析交易明细
+    records = []
+    current = None  # 当前正在拼接的交易记录
+
+    for page in doc:
+        # 过滤页眉法律声明（y<150）与页脚（y>=740）
+        words = [w for w in page.get_text('words') if 150 <= w[1] < 740]
+        words.sort(key=lambda w: (w[1], w[0]))
+
+        # 按 y 坐标聚类成行（容差 4px，兼容同一逻辑行被拆成相邻像素的情况）
+        lines = []
+        for w in words:
+            if lines and abs(w[1] - lines[-1][0]) <= 4:
+                lines[-1][1].append(w)
+            else:
+                lines.append([w[1], [w]])
+
+        for _y, tokens in lines:
+            tokens.sort(key=lambda t: t[0])  # 行内按 x 从左到右
+
+            # 识别日期 token（最左侧的「日」数字 + 月份缩写）
+            day = month = None
+            used = set()
+            for idx, t in enumerate(tokens):
+                x0, word = t[0], t[4]
+                if day is None and x0 < 70 and word.isdigit() and 1 <= int(word) <= 31:
+                    day = int(word)
+                    used.add(idx)
+                elif day is not None and month is None and x0 < 95 and word in _MONTH_ABBR:
+                    month = word
+                    used.add(idx)
+
+            # 解析金额/余额（按右边缘 x1 归类到对应列）与描述
+            withdrawal = deposit = balance = None
+            desc_parts = []
+            for idx, t in enumerate(tokens):
+                if idx in used:
+                    continue
+                x0, x1, word = t[0], t[2], t[4]
+                if _AMOUNT_RE.match(word):
+                    if 343 < x1 <= 405:        # Withdrawals 列（右对齐约 387）
+                        withdrawal = _parse_amount(word)
+                    elif 405 < x1 <= 495:      # Deposits 列（右对齐约 466）
+                        deposit = _parse_amount(word)
+                    elif 495 < x1 <= 565:      # Balance 列（右对齐约 546）
+                        balance = _parse_amount(word)
+                    elif x0 >= 110:            # 描述区内的数字（如外币 TWD 1000.00）
+                        desc_parts.append(word)
+                elif x0 >= 110:
+                    desc_parts.append(word)
+
+            desc_text = ' '.join(desc_parts).strip()
+
+            if day is not None and month is not None:
+                # 新交易行
+                if current:
+                    records.append(current)
+                current = {
+                    'day': day, 'month': month,
+                    'desc': desc_parts,
+                    'withdrawal': withdrawal,
+                    'deposit': deposit,
+                    'balance': balance,
+                }
+            else:
+                # 描述延续行：遇到页脚/汇总标记则结束当前交易
+                if current is None:
+                    continue
+                if desc_text and _FOOTER_RE.search(desc_text):
+                    records.append(current)
+                    current = None
+                    continue
+                if desc_parts:
+                    current['desc'].extend(desc_parts)
+
+        if current:
+            records.append(current)
+            current = None
+
+    # 3. 组装为 DataFrame（跳过 BALANCE B/F / C/F 等无收支的余额行）
+    rows = []
+    for r in records:
+        if r['withdrawal'] is None and r['deposit'] is None:
+            continue
+        try:
+            t_date = date(year_for(r['month']), _MONTH_ABBR[r['month']], r['day'])
+        except (ValueError, KeyError):
+            continue
+        rows.append({
+            'T-Date': t_date,
+            'Description': ' '.join(r['desc']).strip(),
+            'Withdrawal': r['withdrawal'],
+            'Deposit': r['deposit'],
+            'Balance': r['balance'],
+        })
+
+    df = pd.DataFrame(rows, columns=['T-Date', 'Description', 'Withdrawal', 'Deposit', 'Balance'])
+    return df, account_number
 
 
 def analyze_excel_structure(df):

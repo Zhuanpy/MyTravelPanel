@@ -171,9 +171,9 @@
                 <span class="toolbar-divider"></span>
 
                 <span class="toolbar-label">导入：</span>
-                <input type="file" id="{{ bank_name.lower() }}-file-input" accept=".xls,.xlsx,.csv" style="display: none;">
+                <input type="file" id="{{ bank_name.lower() }}-file-input" accept="{{ '.xls,.xlsx,.csv,.pdf' if bank_name == 'UOB' else '.xls,.xlsx,.csv' }}" style="display: none;">
                 <button type="button" id="{{ bank_name.lower() }}-select-file-btn" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-file-excel"></i> 选择文件
+                    <i class="fas fa-file-excel"></i> 选择文件{% if bank_name == 'UOB' %} <span class="text-muted small">(Excel/PDF)</span>{% endif %}
                 </button>
                 <span id="{{ bank_name.lower() }}-file-info" class="text-muted small" style="max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
                 <button type="button" id="{{ bank_name.lower() }}-upload-btn" class="btn btn-success btn-sm" disabled>
@@ -580,9 +580,13 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
                 const file = this.files[0];
-                const isValidType = file.name.toLowerCase().endsWith('.xls') ||
-                                  file.name.toLowerCase().endsWith('.xlsx') ||
-                                  file.name.toLowerCase().endsWith('.csv');
+                const name = file.name.toLowerCase();
+                // UOB 支持 PDF 月账单导入，其它银行仅支持 Excel/CSV
+                const allowPdf = ('{{ bank_name }}' === 'UOB');
+                const isValidType = name.endsWith('.xls') ||
+                                  name.endsWith('.xlsx') ||
+                                  name.endsWith('.csv') ||
+                                  (allowPdf && name.endsWith('.pdf'));
 
                 if (isValidType) {
                     if (fileInfo) fileInfo.textContent = file.name;

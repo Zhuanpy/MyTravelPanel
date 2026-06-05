@@ -22,7 +22,7 @@ from App_new.utils.report_utils import (
     compare_profit_columns,
     add_comparison_column
 )
-from .statement_utils import process_monthly_transactions
+from .statement_utils import process_monthly_transactions, parse_uob_pdf
 # safe_json 已从 Config 类中移除，不再需要
 
 # 配置日志
@@ -217,8 +217,13 @@ def upload_file(bank_name):
         if file.filename == '':
             return jsonify({'success': False, 'message': '没有选择文件'})
         
-        if not file.filename.lower().endswith(('.xls', '.xlsx', '.csv')):
-            return jsonify({'success': False, 'message': '只支持XLS/XLSX/CSV格式的文件'})
+        if not file.filename.lower().endswith(('.xls', '.xlsx', '.csv', '.pdf')):
+            return jsonify({'success': False, 'message': '只支持XLS/XLSX/CSV/PDF格式的文件'})
+
+        is_pdf = file.filename.lower().endswith('.pdf')
+        # PDF 月账单目前仅支持 UOB（定位排版解析）
+        if is_pdf and bank_name != 'UOB':
+            return jsonify({'success': False, 'message': f'PDF账单导入目前仅支持UOB银行，不支持 {bank_name}'})
         
         # 获取用户选择的账户名称
         selected_account_name = request.form.get('account_name', '').strip()
@@ -229,9 +234,26 @@ def upload_file(bank_name):
         import io
         file_content = file.read()
         
+        # PDF 月账单单独解析（仅 UOB），解析后直接得到标准列，跳过 Excel 列识别
+        pdf_account_number = None
+        if is_pdf:
+            try:
+                df, pdf_account_number = parse_uob_pdf(file_content)
+            except Exception as e:
+                logger.error(f"PDF账单解析失败: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'success': False, 'message': f'PDF账单解析失败：{str(e)}'})
+
+            if df is None or df.empty:
+                return jsonify({'success': False, 'message': '未能从PDF中解析出任何交易记录，请确认是UOB电子月结单'})
+
         # 根据文件扩展名选择读取方式
         try:
-            if file.filename.lower().endswith('.csv'):
+            if is_pdf:
+                # PDF 已解析为标准 DataFrame，无需 Excel 列识别
+                pass
+            elif file.filename.lower().endswith('.csv'):
                 # 读取CSV文件 - 自动检测分隔符（逗号或Tab）
                 print(f"读取CSV文件: {file.filename}")
 
@@ -453,8 +475,13 @@ def upload_file(bank_name):
                     account_name = account_number
                     print(f"CMB银行使用Account No.作为账户名称: {account_name}")
             
+            # PDF 解析已从账单中提取到真实账户号，优先使用
+            if is_pdf and pdf_account_number and pdf_account_number != 'UPLOAD':
+                account_number = pdf_account_number
+                print(f"PDF账单提取到账户号: {account_number}")
+
             print(f"最终使用的账户名称: {account_name}")
-            
+
             # 重命名列 - 根据银行类型处理
             column_mapping = {}
             if date_col:
