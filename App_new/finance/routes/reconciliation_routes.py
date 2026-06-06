@@ -1770,6 +1770,7 @@ def get_eo_compare_data():
             # 添加REF和项目信息
             if eo.ref:
                 eo_dict['ref_number'] = eo.ref.ref_number if eo.ref.ref_number else ''
+                eo_dict['ref_description'] = eo.ref.description or ''  # REF描述（项目描述）
                 eo_dict['cost_price'] = float(eo.ref.cost_price) if eo.ref.cost_price else 0
                 eo_dict['currency'] = eo.ref.currency or 'SGD'
                 if eo.ref.header:
@@ -1789,6 +1790,7 @@ def get_eo_compare_data():
                     eo_dict['supplier_name'] = ''
             else:
                 eo_dict['ref_number'] = ''
+                eo_dict['ref_description'] = ''
                 eo_dict['cost_price'] = 0
                 eo_dict['currency'] = 'SGD'
                 eo_dict['project_number'] = ''

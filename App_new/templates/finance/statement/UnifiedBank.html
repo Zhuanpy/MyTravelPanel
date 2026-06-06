@@ -17,6 +17,13 @@
     #txTable th { font-size: 11px; white-space: nowrap; }
     #txTable tbody tr { height: auto; }
 
+    /* 鼠标滑过行高亮：使用淡蓝色，与斑马纹灰色区分明显 */
+    #txTable.table-hover tbody tr:hover > *,
+    #statementsTable.table-hover tbody tr:hover > * {
+        background-color: #cfe2ff !important; /* 浅蓝色高亮 */
+        --bs-table-accent-bg: transparent; /* 覆盖 Bootstrap 默认 hover 灰色 */
+    }
+
     /* 列宽度调整 */
     #txTable th:nth-child(1), #txTable td:nth-child(1) { width: 75px; } /* 日期 */
     #txTable th:nth-child(2), #txTable td:nth-child(2) { width: 75px; } /* 记账日期 */

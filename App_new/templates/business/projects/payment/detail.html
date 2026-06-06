@@ -122,6 +122,7 @@
                     <tr>
                         <th>EO编号</th>
                         <th>REF编号</th>
+                        <th>描述</th>
                         <th>HID</th>
                         <th>类型</th>
                         <th>供应商</th>
@@ -143,6 +144,11 @@
                             <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref.id) }}">
                                 {{ eo.ref.ref_number }}
                             </a>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>
+                            {% if eo.ref and eo.ref.description %}
+                            {{ eo.ref.description }}
                             {% else %}-{% endif %}
                         </td>
                         <td>
@@ -180,7 +186,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                        <td colspan="9" class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
                             <p class="mb-0">暂无关联EO</p>
                         </td>
@@ -190,7 +196,7 @@
                 {% if eos %}
                 <tfoot class="table-light">
                     <tr class="fw-bold">
-                        <td colspan="5" class="text-end">合计：</td>
+                        <td colspan="6" class="text-end">合计：</td>
                         <td class="text-end">
                             {{ "%.2f"|format(eos|map(attribute='ref.cost_price')|map('default', 0)|sum) }}
                         </td>

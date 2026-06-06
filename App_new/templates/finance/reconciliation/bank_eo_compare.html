@@ -78,6 +78,18 @@
         font-size: 12px;
         color: #555;
     }
+    #eoTable .eo-desc {
+        font-size: 12px;
+        color: #666;
+        white-space: nowrap;
+    }
+    #eoTable .eo-hid {
+        font-family: 'Consolas', monospace;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    #eoTable .eo-hid a { color: #0d6efd; text-decoration: none; }
+    #eoTable .eo-hid a:hover { text-decoration: underline; }
     .compare-table tbody tr:hover {
         background: #f3e5f5;
     }
@@ -389,16 +401,18 @@
                     <thead>
                         <tr>
                             <th style="width:26px;"><input type="checkbox" id="eoSelectAll"></th>
-                            <th style="width:38px;">类型</th>
-                            <th style="width:85px;">编号</th>
-                            <th style="width:72px; text-align:center;">日期</th>
-                            <th style="width:70px; text-align:right; padding-right:6px;">金额</th>
+                            <th style="width:34px;">类型</th>
+                            <th style="width:68px;">编号</th>
+                            <th style="width:64px;">HID</th>
+                            <th style="width:62px; text-align:center;">日期</th>
+                            <th style="width:58px; text-align:right; padding-right:6px;">金额</th>
                             <th style="width:90px;">供应商</th>
+                            <th style="width:160px;">描述项目</th>
                             <th style="width:46px; text-align:center;">状态</th>
                         </tr>
                     </thead>
                     <tbody id="eoTableBody">
-                        <tr><td colspan="7" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-4">点击"查询"加载数据</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -625,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         txTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
-        eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+        eoTableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
 
         try {
             const response = await fetch(`/reconciliation/api/eo-compare-data?${params}`);
@@ -714,7 +728,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) {
             console.error('加载数据失败:', e);
             txTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">加载失败</td></tr>';
-            eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">加载失败</td></tr>';
+            eoTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">加载失败</td></tr>';
         }
     }
 
@@ -904,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasFilter = eoSearchKeyword || recordTypeValue;
 
         if (filtered.length === 0) {
-            eoTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>';
+            eoTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">暂无数据</td></tr>';
             eoTotalCount.textContent = hasFilter ? `0/${projectRecords.length} 条` : '0 条';
             return;
         }
@@ -939,6 +953,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const recordNumber = record.record_number || '-';
             const supplierName = record.supplier_name || record.record_supplier || '-';
+            // 描述项目：仅EO记录有REF描述，其它类型回退到自身description
+            const refDescription = record.ref_description || record.description || '-';
+
+            // HID项目编号：仅EO记录有，点击跳转项目详情
+            let hidHtml = '-';
+            if (record.project_number && record.header_id) {
+                hidHtml = `<a href="/projects/detail/${record.header_id}" target="_blank" title="查看项目 ${escapeHtml(record.project_number)}">${escapeHtml(record.project_number)}</a>`;
+            } else if (record.project_number) {
+                hidHtml = escapeHtml(record.project_number);
+            }
             const amount = record.record_amount || 0;
             const recordDate = record.record_date || '-';
             const recordId = record.record_id || record.id;
@@ -962,9 +986,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td><input type="checkbox" class="record-checkbox" data-key="${recordKey}" ${selectedRecordKeys.has(recordKey) ? 'checked' : ''} ${isMatched ? 'disabled' : ''}></td>
                     <td>${getRecordTypeBadge(record.record_type)}</td>
                     <td class="eo-num" title="${escapeHtml(recordNumber)}">${recordNumberLink}</td>
+                    <td class="eo-hid">${hidHtml}</td>
                     <td class="date-cell" style="text-align:center;">${recordDate}</td>
                     <td class="amount-cell amount-debit" style="padding-right:6px;">${formatAmount(amount)}</td>
                     <td title="${escapeHtml(supplierName)}">${escapeHtml(truncate(supplierName, 8))}</td>
+                    <td class="eo-desc" title="${escapeHtml(refDescription)}">${escapeHtml(truncate(refDescription, 24))}</td>
                     <td style="text-align:center;">${statusHtml}</td>
                 </tr>
             `;
