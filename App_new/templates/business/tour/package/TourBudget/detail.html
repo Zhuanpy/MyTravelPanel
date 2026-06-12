@@ -359,7 +359,7 @@
 
     <!-- 添加项目弹窗 -->
     <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 620px;">
         <div class="modal-content">
             <div class="modal-header bg-light py-2">
                 <span class="modal-title card-title" id="addItemModalLabel"><i class="fas fa-plus text-success"></i> 添加项目</span>
@@ -372,8 +372,9 @@
                     <input type="hidden" name="adult_count_override" id="add_adult_count_override">
                     <input type="hidden" name="child_count_override" id="add_child_count_override">
                     <input type="hidden" name="remarks" id="add_remarks">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-1">
+                    <!-- 第一行：类别 + 项目名称 -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
                             <label class="form-label small">类别 *</label>
                             {% if business_types %}
                             <select class="form-select form-select-sm" name="category" required>
@@ -385,11 +386,15 @@
                             <input type="text" class="form-control form-control-sm" name="category" required>
                             {% endif %}
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-8">
                             <label class="form-label small">项目名称 *</label>
                             <input type="text" class="form-control form-control-sm" name="item_name" required placeholder="如：圣淘沙酒店2晚">
                         </div>
-                        <div class="col-md-2">
+                    </div>
+
+                    <!-- 第二行：计价方式 + 成人价/儿童价（或 单价/件数） -->
+                    <div class="row g-3 mb-3 align-items-end">
+                        <div class="col-md-4">
                             <label class="form-label small">计价方式</label>
                             <div class="btn-group btn-group-sm w-100">
                                 <input type="radio" class="btn-check" name="pricing_method" id="add_person_based" value="person_based" checked>
@@ -399,8 +404,8 @@
                             </div>
                         </div>
                         <!-- 人均计价 -->
-                        <div class="col-md-2" id="personBasedPricing">
-                            <div class="row g-1">
+                        <div class="col-md-8" id="personBasedPricing">
+                            <div class="row g-3">
                                 <div class="col-6">
                                     <label class="form-label small text-success">成人价</label>
                                     <input type="number" class="form-control form-control-sm" name="adult_price" step="0.01" placeholder="0">
@@ -412,8 +417,8 @@
                             </div>
                         </div>
                         <!-- 物品计价 -->
-                        <div class="col-md-2" id="itemBasedPricing" style="display:none;">
-                            <div class="row g-1">
+                        <div class="col-md-8" id="itemBasedPricing" style="display:none;">
+                            <div class="row g-3">
                                 <div class="col-7">
                                     <label class="form-label small text-primary">单价</label>
                                     <input type="number" class="form-control form-control-sm" name="item_unit_price" step="0.01" placeholder="0">
@@ -424,11 +429,20 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
+                    </div>
+
+                    <!-- 第三行：详情（单独一行） -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
                             <label class="form-label small">详情</label>
-                            <input type="text" class="form-control form-control-sm" name="item_details" placeholder="入住日期、房型等">
+                            <textarea class="form-control form-control-sm" name="item_details" rows="3" placeholder="入住日期、房型等"></textarea>
                         </div>
-                        <div class="col-auto">
+                    </div>
+
+                    <!-- 第三行：应用对象 + 提交 -->
+                    <div class="row g-3 align-items-center pt-2 border-top">
+                        <div class="col">
+                            <span class="text-muted small me-2">应用对象：</span>
                             <div class="form-check form-check-inline">
                                 <input type="checkbox" class="form-check-input" name="count_adult_apply" value="1" checked id="add_adult">
                                 <label class="form-check-label small" for="add_adult">成人</label>
@@ -443,7 +457,7 @@
                             </div>
                         </div>
                         <div class="col-auto">
-                            <button type="submit" class="btn btn-success btn-sm">
+                            <button type="submit" class="btn btn-success btn-sm px-4">
                                 <i class="fas fa-plus"></i> 添加
                             </button>
                         </div>
