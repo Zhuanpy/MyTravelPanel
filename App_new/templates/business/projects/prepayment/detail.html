@@ -1,6 +1,9 @@
 {% extends 'staff_base.html' %}
 {% block title %}预付账款详情 - {{ prepayment.prepayment_number }}{% endblock %}
 {% block page_title %}预付账款详情{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+{% endblock %}
 {% block page_actions %}
 <div class="d-flex gap-2">
     <a href="{{ url_for('business_projects.project_prepayment.list_prepayments') }}" class="btn btn-outline-secondary btn-sm">
@@ -242,7 +245,8 @@
                     <!-- 右栏：邮件正文 -->
                     <div class="col-md-7">
                         <label class="form-label small mb-1">正文 <span class="text-danger">*</span></label>
-                        <textarea id="emailBody" class="form-control form-control-sm" rows="20">Dear {{ prepayment.supplier.company_name if prepayment.supplier else 'Sir/Madam' }},
+                        <div id="emailBodyQuill"></div>
+                        <textarea id="emailBody" class="d-none">Dear {{ prepayment.supplier.company_name if prepayment.supplier else 'Sir/Madam' }},
 
 We would like to confirm the following prepayment top-up to your account:
 
@@ -273,9 +277,12 @@ Joyeful Escapes</textarea>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/email_rich_editor.js') }}"></script>
 <script>
 const prepaymentId = {{ prepayment.id }};
 const supplierId = {{ prepayment.supplier_id or 'null' }};
+var emailQuill = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.querySelector('input[name="usage_date"]');
@@ -283,12 +290,15 @@ document.addEventListener('DOMContentLoaded', function() {
         dateInput.value = new Date().toISOString().split('T')[0];
     }
 
-    // 打开邮件弹窗时加载供应商联系人和邮件模板
+    // 打开邮件弹窗时加载供应商联系人和邮件模板，并初始化富文本编辑器
     var emailModal = document.getElementById('emailModal');
     if (emailModal) {
         emailModal.addEventListener('show.bs.modal', function() {
             loadContacts();
             if (emailTemplates.length === 0) loadTemplates();
+        });
+        emailModal.addEventListener('shown.bs.modal', function() {
+            if (!emailQuill) emailQuill = initEmailEditor('#emailBodyQuill', 'emailBody');
         });
     }
 });
@@ -350,7 +360,8 @@ function applyTemplate() {
         body = body.split(key).join(vars[key]);
     }
     document.getElementById('emailSubject').value = subject;
-    document.getElementById('emailBody').value = body;
+    if (emailQuill) emailQuill.setEmailBody(body);
+    else document.getElementById('emailBody').value = body;
 }
 
 // 加载供应商联系人，生成可勾选的收件人列表

@@ -20,6 +20,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 {% endblock %}
 
 {% block content %}
@@ -824,8 +825,8 @@ document.getElementById('contactModal')?.addEventListener('click', function(e) {
                     <!-- 右栏：邮件正文 -->
                     <div class="col-md-7">
                         <label class="form-label small mb-1">正文 <span class="text-danger">*</span></label>
-                        <textarea id="emailBody" class="form-control form-control-sm" rows="14"
-                                  placeholder="请输入邮件内容">Dear {{ company.company_name }},
+                        <div id="emailBodyQuill"></div>
+                        <textarea id="emailBody" class="d-none">Dear {{ company.company_name }},
 
 
 
@@ -844,16 +845,23 @@ Joyeful Escapes</textarea>
     </div>
 </div>
 
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/email_rich_editor.js') }}"></script>
 <script>
 // 模板数据缓存
 var emailTemplates = [];
 var companyName = {{ company.company_name | tojson }};
 var contactPerson = {{ (company.contact_person or company.company_name) | tojson }};
+var emailQuill = null;
 
 // 模态框打开时加载模板和联系人
 document.getElementById('emailModal').addEventListener('show.bs.modal', function() {
     if (emailTemplates.length === 0) loadTemplates();
     loadContacts();
+});
+// 完全显示后初始化富文本编辑器（确保布局正确）
+document.getElementById('emailModal').addEventListener('shown.bs.modal', function() {
+    if (!emailQuill) emailQuill = initEmailEditor('#emailBodyQuill', 'emailBody');
 });
 
 // 加载邮件模板
@@ -945,7 +953,8 @@ function applyTemplate() {
     }
 
     document.getElementById('emailSubject').value = subject;
-    document.getElementById('emailBody').value = body;
+    if (emailQuill) emailQuill.setEmailBody(body);
+    else document.getElementById('emailBody').value = body;
 }
 
 // 显示已选文件列表

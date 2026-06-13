@@ -1076,11 +1076,17 @@ def send_company_email(company_id):
         mail = Mail(current_app)
         sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or mail_username
 
-        # 将换行转为HTML
-        import html as html_module
-        escaped_body = html_module.escape(body)
-        html_body = escaped_body.replace('\n', '<br>')
-        html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
+        # 正文：富文本编辑器已是 HTML 则直接用，纯文本则转义并换行
+        has_html_tags = '<' in body and '>' in body and any(
+            tag in body.lower() for tag in ['<br', '<p', '<div', '<span', '<h', '<strong', '<em', '<u', '<ol', '<ul', '<a', '<b>', '<i>']
+        )
+        if has_html_tags:
+            html_body = body
+        else:
+            import html as html_module
+            escaped_body = html_module.escape(body)
+            html_body = escaped_body.replace('\n', '<br>')
+            html_body = f'<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">{html_body}</div>'
 
         msg = Message(
             subject=subject,

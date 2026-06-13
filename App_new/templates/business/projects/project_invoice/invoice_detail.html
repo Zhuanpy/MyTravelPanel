@@ -3,6 +3,7 @@
 {% block page_title %}Invoice Detail{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 <style>
 /* 页面内 Ctrl+P 兜底：隔离打印区域（打印按钮走独立弹窗，不依赖这段） */
 @media print {
@@ -1271,7 +1272,8 @@ function syncRefPrices() {
             <!-- 正文 -->
             <div class="mb-3">
                 <label class="form-label"><i class="fas fa-align-left"></i> 正文 <span class="text-danger">*</span></label>
-                <textarea id="emailBody" class="form-control" rows="8" placeholder="邮件内容...">Dear {{ project_contact or 'customer' }},
+                <div id="emailBodyQuill"></div>
+                <textarea id="emailBody" class="d-none">Dear {{ project_contact or 'customer' }},
 
 Please find invoice {{ invoice.invoice_number }} attached for your reference.
 
@@ -1306,6 +1308,8 @@ Best regards,
     </div>
 </div>
 
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/email_rich_editor.js') }}"></script>
 <script>
 // ==================== 邮件功能 ====================
 let emailRecipients = [];
@@ -1317,8 +1321,10 @@ let availableContacts = [];
 const EMAIL_HEADER_ID = {{ invoice.header_id }};
 const EMAIL_DEFAULT_SUBJECT = '[{{ invoice.invoice_number }}] Invoice from {{ company.company_name if company else "" }}';
 
+var emailQuill = null;
 function showEmailModal() {
     document.getElementById('emailModal').style.display = 'block';
+    if (!emailQuill) emailQuill = initEmailEditor('#emailBodyQuill', 'emailBody');
     emailRecipients = [];
     updateRecipientsDisplay();
     loadEmailContacts();
@@ -1441,7 +1447,8 @@ function selectTemplate(template) {
     });
 
     document.getElementById('emailSubject').value = subject;
-    document.getElementById('emailBody').value = body;
+    if (emailQuill) emailQuill.setEmailBody(body);
+    else document.getElementById('emailBody').value = body;
 }
 
 function addCustomRecipient() {

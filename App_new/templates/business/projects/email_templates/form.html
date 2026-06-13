@@ -6,6 +6,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 <style>
 .variable-hint {
     background: #f0f9ff;
@@ -37,7 +38,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="POST">
+            <form method="POST" id="templateForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div class="mb-3">
@@ -78,9 +79,9 @@
 
                 <div class="mb-3">
                     <label class="form-label">邮件正文 <span class="text-danger">*</span></label>
-                    <textarea name="body" class="form-control" rows="12"
-                              placeholder="邮件内容..." required>{{ template.body if template else '' }}</textarea>
-                    <small class="text-muted">支持HTML格式，可使用下方列出的变量</small>
+                    <div id="emailBodyQuill"></div>
+                    <textarea name="body" id="emailBody" class="form-control d-none">{{ template.body if template else '' }}</textarea>
+                    <small class="text-muted">支持字体样式（加粗 / 颜色 / 字号 / 对齐等），可使用下方列出的变量</small>
                 </div>
 
                 <div class="variable-hint">
@@ -132,5 +133,22 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/email_rich_editor.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var quill = initEmailEditor('#emailBodyQuill', 'emailBody');
+    // 提交前校验正文非空
+    document.getElementById('templateForm').addEventListener('submit', function (e) {
+        if (quill && !quill.getText().trim()) {
+            e.preventDefault();
+            alert('请输入邮件正文');
+        }
+    });
+});
+</script>
 {% endblock %}
 

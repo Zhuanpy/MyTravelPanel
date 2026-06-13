@@ -35,6 +35,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <link href="{{ url_for('static', filename='css/project_detail.css') }}" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 {% endblock %}
 
 {% block content %}
@@ -540,6 +541,8 @@
 {% endblock %} 
 {% block extra_js %}
 {{ super() }}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/email_rich_editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/project_detail.js') }}"></script>
 <script>
 // 设置全局变量供JavaScript模块使用
@@ -2724,7 +2727,8 @@ document.getElementById('voidInvoiceModalDetail')?.addEventListener('click', fun
             <!-- 邮件正文 -->
             <div class="mb-3">
                 <label class="form-label"><i class="fas fa-align-left"></i> 正文 <span class="text-danger">*</span></label>
-                <textarea id="emailBody" class="form-control" rows="8" placeholder="邮件内容...">尊敬的客户，
+                <div id="emailBodyQuill"></div>
+                <textarea id="emailBody" class="d-none">尊敬的客户，
 
 您好！
 
@@ -2768,8 +2772,11 @@ let selectedTemplateId = null;
 let emailAttachments = []; // 存储附件信息 {name, file, size}
 
 // 显示邮件模态框
+var emailQuill = null;
 function showEmailModal() {
     document.getElementById('emailModal').style.display = 'block';
+    // 富文本编辑器（首次打开时初始化，确保已可见、布局正确）
+    if (!emailQuill) emailQuill = initEmailEditor('#emailBodyQuill', 'emailBody');
     // 重置收件人列表
     emailRecipients = [];
     updateRecipientsDisplay();
@@ -2946,7 +2953,8 @@ function selectTemplate(template) {
     body = body.replace(/{today}/g, today);
     
     document.getElementById('emailSubject').value = subject;
-    document.getElementById('emailBody').value = body;
+    if (emailQuill) emailQuill.setEmailBody(body);
+    else document.getElementById('emailBody').value = body;
 }
 
 
@@ -3169,7 +3177,7 @@ function sendEmail() {
             updateAttachmentsDisplay();
             selectedTemplateId = null;
             document.getElementById('emailSubject').value = '[{{ header.hid }}] ';
-            document.getElementById('emailBody').value = '';
+            if (emailQuill) emailQuill.setEmailBody(''); else document.getElementById('emailBody').value = '';
             document.getElementById('emailCc').value = '';
         } else {
             alert('发送失败：' + result.message);
