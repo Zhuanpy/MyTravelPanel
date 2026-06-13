@@ -2140,6 +2140,9 @@ def member_login():
 
             # 登录用户
             login_user(user, remember=remember)
+            # 写入会话版本号（load_user 校验需要，缺失会被强制登出）
+            from flask import session
+            session['session_version'] = user.session_version or 1
 
             # 跳转到目标页面
             next_url = request.args.get('next')
