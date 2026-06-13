@@ -1041,6 +1041,7 @@ def attractions():
 
     keyword = request.args.get('keyword', '').strip()
     country = request.args.get('country', '').strip()
+    city = request.args.get('city', '').strip()
 
     query = ProductsUnified.query.outerjoin(
         ProductsTicketExt, ProductsTicketExt.product_id == ProductsUnified.id
@@ -1060,6 +1061,8 @@ def attractions():
         )
     if country:
         query = query.filter(ProductsUnified.country == country)
+    if city:
+        query = query.filter(ProductsUnified.city == city)
 
     products = query.order_by(
         ProductsUnified.is_featured.desc(), ProductsUnified.view_count.desc(), ProductsUnified.sort_order
@@ -1067,11 +1070,18 @@ def attractions():
 
     attractions_data = []
     for p in products:
-        min_price = db.session.query(func.min(ProductsTicketVariant.adult_selling_price)).filter(
+        # 取代表性票种（大门票）：按排序权重取第一个有价格的激活票种
+        main_variant = ProductsTicketVariant.query.filter(
             ProductsTicketVariant.product_id == p.id,
             ProductsTicketVariant.is_active == True,
             ProductsTicketVariant.adult_selling_price > 0
-        ).scalar()
+        ).order_by(
+            ProductsTicketVariant.sort_order, ProductsTicketVariant.id
+        ).first()
+
+        adult_price = float(main_variant.adult_selling_price) if main_variant and main_variant.adult_selling_price else None
+        child_price = float(main_variant.child_selling_price) if main_variant and main_variant.child_selling_price else None
+        currency = (main_variant.currency if main_variant else None) or 'SGD'
 
         location = ''
         if p.country:
@@ -1084,26 +1094,41 @@ def attractions():
             'name': p.product_name,
             'name_en': p.product_name_en or '',
             'location': location,
-            'price': f"SGD {float(min_price):,.0f}" if min_price else "价格面议",
+            'currency': currency,
+            'adult_price': adult_price,
+            'child_price': child_price,
             'image': p.cover_image,
             'is_featured': p.is_featured,
         })
 
-    # 国家列表
-    countries = [c[0] for c in db.session.query(ProductsUnified.country).filter(
+    # 国家 + 区域(城市)列表，按国家分组，供前端联动筛选
+    country_city_rows = db.session.query(
+        ProductsUnified.country, ProductsUnified.city
+    ).filter(
         ProductsUnified.product_category == 'ticket',
         ProductsUnified.product_status == 'active',
         ProductsUnified.parent_id.is_(None),
         ProductsUnified.country.isnot(None),
         ProductsUnified.country != ''
-    ).distinct().order_by(ProductsUnified.country).all()]
+    ).distinct().order_by(ProductsUnified.country, ProductsUnified.city).all()
+
+    countries = []
+    city_map = {}
+    for c, ct in country_city_rows:
+        if c not in city_map:
+            city_map[c] = []
+            countries.append(c)
+        if ct and ct not in city_map[c]:
+            city_map[c].append(ct)
 
     company_info = CompanyInfo.query.first()
     return render_template('mobile/attractions.html',
                          attractions=attractions_data,
                          countries=countries,
+                         city_map=city_map,
                          keyword=keyword,
                          country=country,
+                         city=city,
                          company=company_info)
 
 
