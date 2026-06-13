@@ -1125,7 +1125,7 @@ def create_email_template():
             db.session.rollback()
             flash(f'创建失败：{str(e)}', 'error')
     
-    categories = ['flight', 'hotel', 'visa', 'invoice', 'general']
+    categories = ['flight', 'hotel', 'visa', 'invoice', 'prepayment', 'general']
     return render_template('business/projects/email_templates/form.html', 
                          template=None, 
                          categories=categories)
@@ -1154,7 +1154,7 @@ def edit_email_template(template_id):
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
     
-    categories = ['flight', 'hotel', 'visa', 'invoice', 'general']
+    categories = ['flight', 'hotel', 'visa', 'invoice', 'prepayment', 'general']
     return render_template('business/projects/email_templates/form.html', 
                          template=template, 
                          categories=categories)

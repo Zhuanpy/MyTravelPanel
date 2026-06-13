@@ -293,9 +293,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 邮件模板缓存 + 变量替换用的供应商名
+// 邮件模板缓存 + 变量替换用的供应商名 / 预付款字段
 var emailTemplates = [];
 var supplierName = {{ (prepayment.supplier.company_name if prepayment.supplier else '') | tojson }};
+var prepaymentVars = {
+    number: {{ (prepayment.prepayment_number or '') | tojson }},
+    amount: {{ ("%.2f"|format(prepayment.amount)) | tojson }},
+    currency: {{ (prepayment.currency or '') | tojson }},
+    balance: {{ ("%.2f"|format(prepayment.balance_amount)) | tojson }},
+    paymentDate: {{ (prepayment.payment_date.strftime('%Y-%m-%d') if prepayment.payment_date else '') | tojson }}
+};
 
 // 加载邮件模板列表
 function loadTemplates() {
@@ -329,6 +336,11 @@ function applyTemplate() {
         '{company}': supplierName,
         '{contact}': supplierName,
         '{supplier}': supplierName,
+        '{prepayment_number}': prepaymentVars.number,
+        '{amount}': prepaymentVars.amount,
+        '{currency}': prepaymentVars.currency,
+        '{balance}': prepaymentVars.balance,
+        '{payment_date}': prepaymentVars.paymentDate,
         '{today}': (function(){var d=new Date(),m=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return ('0'+d.getDate()).slice(-2)+m[d.getMonth()]+d.getFullYear();})()
     };
     var subject = tpl.subject || '';

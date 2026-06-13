@@ -73,7 +73,7 @@
                     <input type="text" name="subject" class="form-control"
                            value="{{ template.subject if template else '' }}"
                            placeholder="如：[{hid}] 机票确认 或 [{invoice_number}] Invoice" required>
-                    <small class="text-muted">可使用变量：{hid}、{contact}、{company}、{leader_name}、{ref_description}、{invoice_number}、{invoice_amount}、{today}</small>
+                    <small class="text-muted">变量按「发送页面」生效，详见下方说明。请让分类与发送页面对应。</small>
                 </div>
 
                 <div class="mb-3">
@@ -84,24 +84,38 @@
                 </div>
 
                 <div class="variable-hint">
-                    <strong><i class="fas fa-info-circle"></i> 可用变量：</strong>
+                    <strong><i class="fas fa-info-circle"></i> 可用变量（按发送页面分组）：</strong>
+                    <div class="text-muted small mb-2">变量只在对应页面打开「发送邮件」时才会被替换。请按模板用途选择分类，并使用该页面支持的变量。</div>
                     <div class="mt-2">
                         <div class="mb-2">
-                            <em class="text-muted">通用（项目页 + 发票页都会被替换）</em><br>
-                            <code>{hid}</code> - 项目编号<br>
+                            <em class="text-muted">① 全部页面通用</em><br>
+                            <code>{company}</code> - 公司/供应商名称<br>
                             <code>{contact}</code> - 联系人姓名<br>
-                            <code>{company}</code> - 公司名称<br>
-                            <code>{leader_name}</code> - 客户姓名（Leader）<br>
-                            <code>{ref_description}</code> - REF服务描述<br>
                             <code>{today}</code> - 今日日期（如 13JUN2026）
-                            <small class="text-muted d-block mt-1">注：在发票页打开时，{ref_description} 仅取本发票关联的 REF</small>
                         </div>
-                        <div>
-                            <em class="text-muted">仅发票页发送邮件时可用</em><br>
+                        <div class="mb-2">
+                            <em class="text-muted">② 项目页（分类 flight / hotel / visa / general）</em><br>
+                            <code>{hid}</code> - 项目编号<br>
+                            <code>{leader_name}</code> - 客户姓名（Leader）<br>
+                            <code>{ref_description}</code> - REF服务描述
+                        </div>
+                        <div class="mb-2">
+                            <em class="text-muted">③ 发票页（分类 invoice）</em><br>
                             <code>{invoice_number}</code> - 发票号码<br>
                             <code>{invoice_amount}</code> - 发票金额（含币种，如 SGD 3,500.00）<br>
                             <code>{currency}</code> - 币种<br>
-                            <code>{amount}</code> - 金额（不含币种）
+                            <code>{amount}</code> - 金额（不含币种）<br>
+                            <code>{hid}</code> <code>{leader_name}</code> <code>{ref_description}</code> - 同上
+                            <small class="text-muted d-block mt-1">注：发票页打开时 {ref_description} 仅取本发票关联的 REF</small>
+                        </div>
+                        <div>
+                            <em class="text-muted">④ 预付款页（分类 prepayment）</em><br>
+                            <code>{supplier}</code> - 供应商名称<br>
+                            <code>{prepayment_number}</code> - 预付款编号<br>
+                            <code>{amount}</code> - 充值金额（不含币种）<br>
+                            <code>{currency}</code> - 币种<br>
+                            <code>{balance}</code> - 当前余额<br>
+                            <code>{payment_date}</code> - 付款日期（如 2026-06-13）
                         </div>
                     </div>
                 </div>
