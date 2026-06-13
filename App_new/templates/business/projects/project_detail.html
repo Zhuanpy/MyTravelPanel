@@ -2889,10 +2889,17 @@ function loadEmailTemplates() {
         });
 }
 
+// 今日日期格式化为 13JUN2026
+function formatTodayDDMONYYYY() {
+    var d = new Date();
+    var m = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    return ('0' + d.getDate()).slice(-2) + m[d.getMonth()] + d.getFullYear();
+}
+
 // 选择模板
 function selectTemplate(template) {
     selectedTemplateId = template.id;
-    
+
     // 更新UI
     document.querySelectorAll('.template-card').forEach(card => {
         card.classList.toggle('selected', card.dataset.id == template.id);
@@ -2912,6 +2919,7 @@ function selectTemplate(template) {
     const invoiceCurrency = '{{ _latest_invoice.currency if _latest_invoice else "" }}';
     const invoiceAmountRaw = '{{ ("%.2f"|format(_latest_invoice.amount)) if _latest_invoice else "" }}';
     const invoiceAmount = invoiceCurrency && invoiceAmountRaw ? (invoiceCurrency + ' ' + invoiceAmountRaw) : '';
+    const today = formatTodayDDMONYYYY();
 
     let subject = template.subject;
     subject = subject.replace(/{hid}/g, hid);
@@ -2923,6 +2931,7 @@ function selectTemplate(template) {
     subject = subject.replace(/{invoice_amount}/g, invoiceAmount);
     subject = subject.replace(/{currency}/g, invoiceCurrency);
     subject = subject.replace(/{amount}/g, invoiceAmountRaw);
+    subject = subject.replace(/{today}/g, today);
 
     let body = template.body;
     body = body.replace(/{hid}/g, hid);
@@ -2934,6 +2943,7 @@ function selectTemplate(template) {
     body = body.replace(/{invoice_amount}/g, invoiceAmount);
     body = body.replace(/{currency}/g, invoiceCurrency);
     body = body.replace(/{amount}/g, invoiceAmountRaw);
+    body = body.replace(/{today}/g, today);
     
     document.getElementById('emailSubject').value = subject;
     document.getElementById('emailBody').value = body;

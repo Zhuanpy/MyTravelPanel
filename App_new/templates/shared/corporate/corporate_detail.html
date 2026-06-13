@@ -933,7 +933,8 @@ function applyTemplate() {
     // 变量替换
     var vars = {
         '{company}': companyName,
-        '{contact}': contactPerson
+        '{contact}': contactPerson,
+        '{today}': (function(){var d=new Date(),m=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return ('0'+d.getDate()).slice(-2)+m[d.getMonth()]+d.getFullYear();})()
     };
 
     var subject = tpl.subject;

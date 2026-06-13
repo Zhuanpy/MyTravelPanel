@@ -1429,7 +1429,8 @@ function selectTemplate(template) {
         '{contact}': '{{ project_contact or "" }}',
         '{company}': '{{ customer_company_display or "" }}',
         '{leader_name}': '{{ project_leader_name or "" }}',
-        '{ref_description}': '{{ related_refs|map(attribute="description")|select|join(", ") if related_refs else "" }}'
+        '{ref_description}': '{{ related_refs|map(attribute="description")|select|join(", ") if related_refs else "" }}',
+        '{today}': (function(){var d=new Date(),m=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return ('0'+d.getDate()).slice(-2)+m[d.getMonth()]+d.getFullYear();})()
     };
 
     let subject = template.subject;

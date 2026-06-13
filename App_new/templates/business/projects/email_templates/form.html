@@ -73,7 +73,7 @@
                     <input type="text" name="subject" class="form-control"
                            value="{{ template.subject if template else '' }}"
                            placeholder="如：[{hid}] 机票确认 或 [{invoice_number}] Invoice" required>
-                    <small class="text-muted">可使用变量：{hid}、{contact}、{company}、{leader_name}、{ref_description}、{invoice_number}、{invoice_amount}</small>
+                    <small class="text-muted">可使用变量：{hid}、{contact}、{company}、{leader_name}、{ref_description}、{invoice_number}、{invoice_amount}、{today}</small>
                 </div>
 
                 <div class="mb-3">
@@ -92,7 +92,8 @@
                             <code>{contact}</code> - 联系人姓名<br>
                             <code>{company}</code> - 公司名称<br>
                             <code>{leader_name}</code> - 客户姓名（Leader）<br>
-                            <code>{ref_description}</code> - REF服务描述
+                            <code>{ref_description}</code> - REF服务描述<br>
+                            <code>{today}</code> - 今日日期（如 13JUN2026）
                             <small class="text-muted d-block mt-1">注：在发票页打开时，{ref_description} 仅取本发票关联的 REF</small>
                         </div>
                         <div>
