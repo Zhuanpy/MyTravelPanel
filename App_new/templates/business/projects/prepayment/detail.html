@@ -194,33 +194,55 @@
 </div>
 <!-- 发送邮件模态框 -->
 <div class="modal fade" id="emailModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header py-2">
                 <h6 class="modal-title"><i class="fas fa-envelope me-1"></i>发送邮件通知</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label small">收件人 <span class="text-danger">*</span></label>
-                    <input type="text" id="emailRecipient" class="form-control form-control-sm"
-                           value="{{ supplier_email }}"
-                           placeholder="supplier@example.com">
-                    <small class="text-muted">多个邮箱用逗号分隔</small>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small">CC</label>
-                    <input type="text" id="emailCc" class="form-control form-control-sm"
-                           placeholder="可选，多个邮箱用逗号分隔">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small">主题 <span class="text-danger">*</span></label>
-                    <input type="text" id="emailSubject" class="form-control form-control-sm"
-                           value="Prepayment Top-up Confirmation - {{ prepayment.prepayment_number }}">
-                </div>
-                <div class="mb-0">
-                    <label class="form-label small">正文 <span class="text-danger">*</span></label>
-                    <textarea id="emailBody" class="form-control form-control-sm" rows="10">Dear {{ prepayment.supplier.company_name if prepayment.supplier else 'Sir/Madam' }},
+                <div class="row g-3">
+                    <!-- 左栏：收件信息 -->
+                    <div class="col-md-5">
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">邮件模板</label>
+                            <div class="d-flex gap-1">
+                                <select id="emailTemplate" class="form-select form-select-sm" onchange="applyTemplate()">
+                                    <option value="">-- 不使用模板 --</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" onclick="loadTemplates()" title="刷新模板">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <a href="{{ url_for('business_projects.detail.email_templates_list') }}" target="_blank"
+                                   class="btn btn-outline-secondary btn-sm flex-shrink-0" title="管理模板">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">收件人 <span class="text-danger">*</span></label>
+                            <div id="contactCheckboxes" class="mb-1" style="max-height: 90px; overflow-y: auto;"></div>
+                            <input type="text" id="emailRecipient" class="form-control form-control-sm"
+                                   value="{{ supplier_email }}"
+                                   placeholder="supplier@example.com">
+                            <small class="text-muted">多个邮箱用逗号分隔，可勾选上方供应商联系人</small>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">CC</label>
+                            <input type="text" id="emailCc" class="form-control form-control-sm"
+                                   value="zhangzhuan@joyesc.com"
+                                   placeholder="可选，多个邮箱用逗号分隔">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label small mb-1">主题 <span class="text-danger">*</span></label>
+                            <input type="text" id="emailSubject" class="form-control form-control-sm"
+                                   value="Prepayment Top-up Confirmation - {{ prepayment.prepayment_number }}">
+                        </div>
+                    </div>
+                    <!-- 右栏：邮件正文 -->
+                    <div class="col-md-7">
+                        <label class="form-label small mb-1">正文 <span class="text-danger">*</span></label>
+                        <textarea id="emailBody" class="form-control form-control-sm" rows="16">Dear {{ prepayment.supplier.company_name if prepayment.supplier else 'Sir/Madam' }},
 
 We would like to confirm the following prepayment top-up to your account:
 
@@ -236,6 +258,7 @@ Please verify and confirm. If you have any questions, feel free to contact us.
 
 Best regards,
 Joyeful Escapes</textarea>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer py-2">
@@ -252,13 +275,123 @@ Joyeful Escapes</textarea>
 {% block extra_js %}
 <script>
 const prepaymentId = {{ prepayment.id }};
+const supplierId = {{ prepayment.supplier_id or 'null' }};
 
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.querySelector('input[name="usage_date"]');
     if (dateInput && !dateInput.value) {
         dateInput.value = new Date().toISOString().split('T')[0];
     }
+
+    // 打开邮件弹窗时加载供应商联系人和邮件模板
+    var emailModal = document.getElementById('emailModal');
+    if (emailModal) {
+        emailModal.addEventListener('show.bs.modal', function() {
+            loadContacts();
+            if (emailTemplates.length === 0) loadTemplates();
+        });
+    }
 });
+
+// 邮件模板缓存 + 变量替换用的供应商名
+var emailTemplates = [];
+var supplierName = {{ (prepayment.supplier.company_name if prepayment.supplier else '') | tojson }};
+
+// 加载邮件模板列表
+function loadTemplates() {
+    fetch('/projects/prepayment/email/templates')
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) return;
+        emailTemplates = data.templates;
+        var select = document.getElementById('emailTemplate');
+        select.innerHTML = '<option value="">-- 不使用模板 --</option>';
+        data.templates.forEach(function(t) {
+            var label = t.name;
+            if (t.category) label = '[' + t.category + '] ' + label;
+            var opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+    })
+    .catch(function() {});
+}
+
+// 应用所选模板：替换变量后填入主题和正文
+function applyTemplate() {
+    var templateId = document.getElementById('emailTemplate').value;
+    if (!templateId) return;
+    var tpl = emailTemplates.find(function(t) { return t.id == templateId; });
+    if (!tpl) return;
+
+    var vars = {
+        '{company}': supplierName,
+        '{contact}': supplierName,
+        '{supplier}': supplierName
+    };
+    var subject = tpl.subject || '';
+    var body = tpl.body || '';
+    for (var key in vars) {
+        subject = subject.split(key).join(vars[key]);
+        body = body.split(key).join(vars[key]);
+    }
+    document.getElementById('emailSubject').value = subject;
+    document.getElementById('emailBody').value = body;
+}
+
+// 加载供应商联系人，生成可勾选的收件人列表
+function loadContacts() {
+    var container = document.getElementById('contactCheckboxes');
+    if (!supplierId) { container.innerHTML = ''; return; }
+
+    fetch('/company/' + supplierId + '/contacts')
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success || !data.contacts.length) { container.innerHTML = ''; return; }
+        // 只显示有有效邮箱的联系人
+        var invalid = ['n/a', 'none', '无', 'na', 'null'];
+        var withEmail = data.contacts.filter(function(c) {
+            return c.email && c.email.trim() && invalid.indexOf(c.email.trim().toLowerCase()) === -1;
+        });
+        if (!withEmail.length) { container.innerHTML = ''; return; }
+
+        // 默认全部勾选：合并已有收件人 + 所有联系人邮箱（去重）
+        var emails = document.getElementById('emailRecipient').value
+            .split(/[,;，；]/).map(function(e) { return e.trim(); }).filter(Boolean);
+        var lower = emails.map(function(e) { return e.toLowerCase(); });
+        var html = '';
+        withEmail.forEach(function(c) {
+            if (lower.indexOf(c.email.toLowerCase()) === -1) {
+                emails.push(c.email);
+                lower.push(c.email.toLowerCase());
+            }
+            var label = c.name || c.email;
+            if (c.position) label += ' <span class="text-muted">(' + c.position + ')</span>';
+            if (c.is_primary) label += ' <span class="badge bg-success" style="font-size:0.6rem;">主要</span>';
+            html += '<div class="form-check form-check-inline small">' +
+                '<input class="form-check-input" type="checkbox" id="ct_' + c.id + '" value="' + c.email + '" checked' +
+                ' onchange="toggleContactEmail(this)">' +
+                '<label class="form-check-label" for="ct_' + c.id + '">' + label +
+                ' <code class="small">' + c.email + '</code></label></div> ';
+        });
+        container.innerHTML = html;
+        document.getElementById('emailRecipient').value = emails.join(', ');
+    })
+    .catch(function() {});
+}
+
+// 勾选/取消联系人时同步收件人输入框
+function toggleContactEmail(cb) {
+    var input = document.getElementById('emailRecipient');
+    var emails = input.value.split(/[,;，；]/).map(function(e) { return e.trim(); }).filter(Boolean);
+    if (cb.checked) {
+        if (emails.map(function(e){return e.toLowerCase();}).indexOf(cb.value.toLowerCase()) === -1) emails.push(cb.value);
+    } else {
+        emails = emails.filter(function(e) { return e.toLowerCase() !== cb.value.toLowerCase(); });
+    }
+    input.value = emails.join(', ');
+}
 
 function confirmPrepayment() {
     if (!confirm('确认此预付账款？确认后将生成会计分录。')) return;

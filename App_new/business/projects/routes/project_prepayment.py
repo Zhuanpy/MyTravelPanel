@@ -603,6 +603,24 @@ def get_prepayment_summary():
 
 # ========== 邮件通知 ==========
 
+@project_prepayment.route('/email/templates')
+@login_required
+@staff_only
+def get_prepayment_email_templates():
+    """获取可用的邮件模板列表（供发送邮件弹窗选择）"""
+    try:
+        from App_new.business.projects.models.project import EmailTemplate
+        templates = EmailTemplate.query.filter_by(is_active=True).order_by(
+            EmailTemplate.category, EmailTemplate.name
+        ).all()
+        return jsonify({
+            'success': True,
+            'templates': [t.to_dict() for t in templates]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @project_prepayment.route('/<int:prepayment_id>/email/send', methods=['POST'])
 @login_required
 @staff_only
