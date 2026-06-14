@@ -619,6 +619,10 @@ def visa_detail(project_name=None, project_id=None):
                              has_ref=has_ref)
                              
     except Exception as e:
+        # 打印完整堆栈，方便定位真实错误
+        import traceback
+        current_app.logger.error(f"获取签证详情失败 (project_id={project_id}, project_name={project_name}): {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         flash(f'获取签证详情时出错: {str(e)}', 'error')
         return redirect(url_for('visa_project.show_current_all_projects'))
 
