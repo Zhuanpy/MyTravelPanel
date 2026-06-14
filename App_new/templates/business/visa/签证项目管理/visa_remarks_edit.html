@@ -131,6 +131,24 @@ document.addEventListener('DOMContentLoaded', function() {
     editor.addEventListener('keyup', saveRange);
     editor.addEventListener('mouseup', saveRange);
 
+    // 粘贴时只插入纯文本：避免从邮件/网页带入大量隐藏 HTML(含 base64 图片)导致内容超长保存失败
+    editor.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        // 优先用 execCommand 保持光标位置与撤销栈
+        if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+            document.execCommand('insertText', false, text);
+        } else {
+            const sel = window.getSelection();
+            if (sel.rangeCount) {
+                const range = sel.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(document.createTextNode(text));
+                range.collapse(false);
+            }
+        }
+    });
+
     toolbar.querySelectorAll('.rte-btn[data-cmd]:not(.rte-color-toggle)').forEach(function(btn) {
         btn.addEventListener('mousedown', function(e) {
             e.preventDefault();
