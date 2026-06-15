@@ -492,7 +492,7 @@
                                                     <span class="font-medium text-gray-800">{{ itinerary.day_title }}</span>
                                                 </td>
                                                 <td style="white-space: pre-wrap; color: #475569;">
-                                                    {{ itinerary.content[:200] }}{% if itinerary.content|length > 200 %}...{% endif %}
+                                                    {{ itinerary.content|striptags|truncate(200, True) }}
                                                 </td>
                                             </tr>
                                             {% endfor %}

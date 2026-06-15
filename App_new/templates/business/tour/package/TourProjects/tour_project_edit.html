@@ -194,7 +194,10 @@
         color: #9ca3af;
         font-weight: normal;
     }
+    /* 行程内容富文本编辑器 */
+    .itinerary-quill .ql-editor { min-height: 160px; }
 </style>
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 {% endblock %}
 
 {% block content %}
@@ -391,7 +394,7 @@
                                         </span>
                                     </td>
                                     <td class="!text-left font-medium">{{ itinerary.day_title }}</td>
-                                    <td class="!text-left text-slate-600" style="white-space: pre-line;">{{ itinerary.content[:100]|trim }}{% if itinerary.content|length > 100 %}...{% endif %}</td>
+                                    <td class="!text-left text-slate-600" style="white-space: pre-line;">{{ itinerary.content|striptags|truncate(100, True) }}</td>
                                     <td class="!text-left">
                                         <div class="flex gap-1 justify-start">
                                             <button type="button" onclick="editItinerary({{ itinerary.id }})" class="inline-flex items-center px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
@@ -638,7 +641,9 @@
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">行程内容 <span style="color: red;">*</span></label>
-                    <textarea name="content" rows="8" class="visa-form-control" required placeholder="请输入详细的行程安排..."></textarea>
+                    <div id="addItineraryQuill" class="itinerary-quill"></div>
+                    <textarea name="content" id="addItineraryContent" class="visa-form-control" style="display:none;"></textarea>
+                    <small style="color:#64748b;">支持字体样式（加粗 / 斜体 / 颜色 / 字号 / 对齐等），方便打印精美 PDF</small>
                 </div>
                 
                 <!-- 图片上传区域 -->
@@ -730,7 +735,9 @@
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">行程内容 <span style="color: red;">*</span></label>
-                    <textarea name="content" id="editItineraryContent" rows="8" class="visa-form-control" required></textarea>
+                    <div id="editItineraryQuill" class="itinerary-quill"></div>
+                    <textarea name="content" id="editItineraryContent" class="visa-form-control" style="display:none;"></textarea>
+                    <small style="color:#64748b;">支持字体样式（加粗 / 斜体 / 颜色 / 字号 / 对齐等），方便打印精美 PDF</small>
                 </div>
                 
                 <!-- 图片上传区域 -->
@@ -891,7 +898,13 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/email_rich_editor.js') }}"></script>
 <script>
+// 行程内容富文本编辑器（添加 / 编辑），实时同步到隐藏的 textarea[name=content]
+var addItineraryEditor = initEmailEditor('#addItineraryQuill', 'addItineraryContent', { placeholder: '请输入详细的行程安排...' });
+var editItineraryEditor = initEmailEditor('#editItineraryQuill', 'editItineraryContent', { placeholder: '请输入详细的行程安排...' });
+
 // 显示提示信息
 function showAlert(message, type = 'info') {
     const alertDiv = document.createElement('div');
@@ -1341,6 +1354,9 @@ function addItinerary(groupId) {
     // form.reset() 不会清隐藏字段/预览块，需手动清掉上次的图库选择
     [1, 2, 3].forEach(slot => clearAddItineraryLibrary(slot));
 
+    // 富文本编辑器内容需手动清空（form.reset 不会重置 Quill）
+    if (addItineraryEditor) addItineraryEditor.setEmailBody('');
+
     const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
     if (groupCard) {
         const existingItineraries = groupCard.querySelectorAll('.itinerary-table tbody tr');
@@ -1564,7 +1580,12 @@ function editItinerary(itineraryId) {
             document.getElementById('editItineraryId').value = itinerary.id;
             document.getElementById('editItineraryDayTitle').value = itinerary.day_title;
             document.getElementById('editItineraryDate').value = itinerary.date;
-            document.getElementById('editItineraryContent').value = itinerary.content;
+            // 旧数据为纯文本会自动转为 HTML，新数据为 HTML 直接载入富文本编辑器
+            if (editItineraryEditor) {
+                editItineraryEditor.setEmailBody(itinerary.content || '');
+            } else {
+                document.getElementById('editItineraryContent').value = itinerary.content || '';
+            }
             
             // 重置删除标记
             document.getElementById('removeImage1Flag').value = '';

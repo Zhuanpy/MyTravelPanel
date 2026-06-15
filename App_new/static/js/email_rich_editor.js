@@ -40,7 +40,9 @@
         return hasHtml(s) ? s : String(s).replace(/\n/g, '<br>');
     }
 
-    global.initEmailEditor = function (editorSelector, textareaId) {
+    global.initEmailEditor = function (editorSelector, textareaId, options) {
+        options = options || {};
+        var placeholder = options.placeholder || '请输入邮件内容...';
         if (typeof Quill === 'undefined') {
             // CDN 未加载：回退为可见的纯文本框，保证仍能编辑
             console.error('Quill 未加载，邮件正文回退为纯文本框');
@@ -61,7 +63,7 @@
 
         var quill = new Quill(editorSelector, {
             theme: 'snow',
-            placeholder: '请输入邮件内容...',
+            placeholder: placeholder,
             modules: {
                 toolbar: [
                     [{ 'size': ['12px', '14px', false, '18px', '24px', '32px'] }],
