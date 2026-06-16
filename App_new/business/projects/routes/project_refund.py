@@ -136,8 +136,9 @@ def create_refund(header_id):
                     amount = float(amount_str) if amount_str else 0.0
                 except ValueError:
                     amount = 0.0
-                if amount <= 0:
-                    continue
+                # 允许 0（表示该发票不可退款，仍需在凭证中列示）；不接受负数
+                if amount < 0:
+                    amount = 0.0
                 total += amount
                 item = ProjectRefundItem(
                     refund_id=refund.id,
@@ -148,7 +149,7 @@ def create_refund(header_id):
 
             if not refund.items:
                 db.session.rollback()
-                flash('请为勾选的发票填写大于 0 的退款金额', 'warning')
+                flash('未能识别任何有效的发票明细', 'warning')
                 return redirect(url_for('business_projects.project_refund.create_refund', header_id=header_id))
 
             refund.amount = total
@@ -217,8 +218,9 @@ def edit_refund(refund_id):
                     amount = float(amount_str) if amount_str else 0.0
                 except ValueError:
                     amount = 0.0
-                if amount <= 0:
-                    continue
+                # 允许 0（表示该发票不可退款，仍需在凭证中列示）；不接受负数
+                if amount < 0:
+                    amount = 0.0
                 total += amount
                 db.session.add(ProjectRefundItem(
                     refund_id=refund.id,
@@ -229,7 +231,7 @@ def edit_refund(refund_id):
             db.session.flush()
             if not refund.items:
                 db.session.rollback()
-                flash('请为勾选的发票填写大于 0 的退款金额', 'warning')
+                flash('未能识别任何有效的发票明细', 'warning')
                 return redirect(url_for('business_projects.project_refund.edit_refund', refund_id=refund_id))
 
             refund.amount = total
