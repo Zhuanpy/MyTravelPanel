@@ -1,0 +1,100 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}退款管理 - MyTravelPanel{% endblock %}
+
+{% block page_title %}退款管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-11 col-md-12">
+            <!-- 页面头部 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-rotate-left text-danger"></i>
+                        退款管理
+                    </h2>
+                    <p class="text-muted mb-0">
+                        项目: <strong>{{ header.hid }}</strong> | {{ header.desc or '' }}
+                        | 已退款合计: <strong class="text-danger">{{ "%.2f"|format(total_refund) }}</strong>
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('business_projects.project_refund.create_refund', header_id=header.id) }}" class="btn btn-danger">
+                        <i class="fas fa-plus"></i> 退款处理
+                    </a>
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回项目详情
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    {% if refunds %}
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>退款单号</th>
+                                <th>退款日期</th>
+                                <th>方式</th>
+                                <th>收款人</th>
+                                <th>明细 (REF)</th>
+                                <th class="text-end">金额</th>
+                                <th>状态</th>
+                                <th class="text-center" style="width:140px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in refunds %}
+                            <tr>
+                                <td><strong>{{ r.refund_number }}</strong></td>
+                                <td>{{ r.refund_date.strftime('%Y-%m-%d') if r.refund_date else '-' }}</td>
+                                <td>{{ r.refund_method_display }}</td>
+                                <td>{{ r.payee_name or '-' }}</td>
+                                <td>
+                                    {% for it in r.items %}
+                                        <span class="badge bg-light text-dark border">{{ it.ref.ref_number if it.ref else '-' }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-end">{{ r.currency }} {{ "%.2f"|format(r.amount) }}</td>
+                                <td>
+                                    <span class="badge {% if r.status == 'confirmed' %}bg-success{% else %}bg-secondary{% endif %}">{{ r.status_display }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="打印凭证"><i class="fas fa-print"></i></a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="删除" onclick="deleteRefund({{ r.id }})"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                        暂无退款记录，点击右上角「退款处理」创建。
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteRefund(id) {
+    if (!confirm('确定删除该退款记录及其明细吗？')) return;
+    fetch(`/projects/refund/${id}/delete`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { window.location.reload(); }
+        else { alert('删除失败: ' + d.message); }
+    })
+    .catch(e => alert('删除出错: ' + e.message));
+}
+</script>
+{% endblock %}

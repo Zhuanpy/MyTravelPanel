@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refund Confirmation - {{ refund.refund_number }}</title>
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #printVoucher, #printVoucher * { visibility: visible !important; }
+            #printVoucher {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 0;
+            }
+            .no-print { display: none !important; }
+            @page {
+                margin: 10mm 15mm;
+                @top-left { content: none; }
+                @top-center { content: none; }
+                @top-right { content: none; }
+                @bottom-left { content: none; }
+                @bottom-center { content: none; }
+                @bottom-right { content: none; }
+            }
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #333;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .print-voucher {
+            background: white;
+            padding: 20px 25px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #333;
+            font-weight: bold;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .print-voucher .voucher-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .print-voucher .company-logo { text-align: center; }
+        .print-voucher .company-logo img { height: 60px; display: block; margin: 0 auto; }
+        .print-voucher .company-info { text-align: right; font-size: 11px; }
+        .print-voucher .company-name-cn { font-size: 18px; font-weight: bold; }
+        .print-voucher .company-name-en { font-size: 16px; font-weight: bold; }
+
+        .print-voucher .voucher-title { text-align: center; margin: 20px 0; }
+        .print-voucher .voucher-title span {
+            display: inline-block;
+            padding: 5px 0;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .print-voucher .voucher-info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .print-voucher .payee-info { width: 55%; }
+        .print-voucher .voucher-meta { width: 40%; }
+        .print-voucher .voucher-meta table { width: 100%; }
+        .print-voucher .voucher-meta td { padding: 2px 5px; }
+        .print-voucher .voucher-meta td:first-child { width: 100px; }
+
+        .print-voucher .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        .print-voucher .detail-table th {
+            border-top: 2px solid #333;
+            border-bottom: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+            background: transparent;
+        }
+        .print-voucher .detail-table td {
+            border: none;
+            border-bottom: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .print-voucher .detail-table tbody tr:last-child td { border-bottom: 1px solid #333; }
+        .print-voucher .detail-table .text-right { text-align: right; }
+        .print-voucher .detail-table .text-center { text-align: center; }
+
+        .print-voucher .total-section { margin: 5px 0; }
+        .print-voucher .total-section table { width: 100%; }
+        .print-voucher .total-section td { padding: 3px 5px; }
+        .print-voucher .amount-words { font-weight: bold; margin: 8px 0; }
+
+        .print-voucher .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 20px;
+        }
+        .print-voucher .signature-block { width: 28%; text-align: center; }
+        .print-voucher .signature-line {
+            border-top: 1px solid #333;
+            margin-top: 50px;
+            padding-top: 8px;
+        }
+
+        .print-voucher .footer-note {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 11px;
+            color: #333;
+        }
+
+        .no-print {
+            max-width: 800px;
+            margin: 0 auto 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .no-print button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        .btn-print { background: #1a5276; color: white; }
+        .btn-back { background: #95a5a6; color: white; }
+
+        @media print {
+            body { background: none; padding: 0; }
+            .print-voucher { box-shadow: none; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">
+            <i class="fas fa-print"></i> Print
+        </button>
+        <button class="btn-back" onclick="history.back()">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+    </div>
+
+    {% set company = get_company_info() %}
+    <div class="print-voucher" id="printVoucher">
+        <!-- 头部 -->
+        <div class="voucher-header">
+            <div class="company-logo">
+                {% if company and company.logo_path %}
+                <img src="{{ url_for('static', filename=company.logo_path) }}"
+                     alt="{{ company.company_name }}"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
+                {% else %}
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+                {% endif %}
+                <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name if company else '' }}</div>
+            </div>
+            <div class="company-info">
+                <div class="company-name-cn">{{ company.company_name_cn if company else '' }}</div>
+                <div class="company-name-en">{{ company.company_name if company else 'Company Name' }}</div>
+                <div>TA License No.: {{ company.ta_license if company else '' }}</div>
+                <div>Email: {{ company.email if company else '' }}</div>
+                {% if company and company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
+            </div>
+        </div>
+
+        <!-- 标题 -->
+        <div class="voucher-title">
+            <span>Refund Confirmation</span>
+        </div>
+
+        <!-- 退款信息 -->
+        <div class="voucher-info-section">
+            <div class="payee-info">
+                <table>
+                    <tr>
+                        <td style="width: 80px; vertical-align: top;"><strong>Refund To</strong></td>
+                        <td style="width: 10px; vertical-align: top;">:</td>
+                        <td>
+                            <strong>{{ refund.payee_name or (header.contact if header else '-') or '-' }}</strong>
+                        </td>
+                    </tr>
+                    <tr><td colspan="3" style="height: 8px;"></td></tr>
+                    <tr>
+                        <td><strong>Method</strong></td>
+                        <td>:</td>
+                        <td>{{ refund.refund_method_display_en }}</td>
+                    </tr>
+                    {% if refund.reason %}
+                    <tr>
+                        <td style="vertical-align: top;"><strong>Reason</strong></td>
+                        <td style="vertical-align: top;">:</td>
+                        <td>{{ refund.reason }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if refund.remarks %}
+                    <tr>
+                        <td style="vertical-align: top;"><strong>Remarks</strong></td>
+                        <td style="vertical-align: top;">:</td>
+                        <td>{{ refund.remarks }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+            <div class="voucher-meta">
+                <table>
+                    <tr>
+                        <td>Refund No</td>
+                        <td>:</td>
+                        <td><strong>{{ refund.refund_number }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Date</td>
+                        <td>:</td>
+                        <td>{{ refund.refund_date.strftime('%d/%m/%Y') if refund.refund_date else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>HID</td>
+                        <td>:</td>
+                        <td>{{ header.hid if header else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>Currency</td>
+                        <td>:</td>
+                        <td>{{ refund.currency }}</td>
+                    </tr>
+                    <tr>
+                        <td>Prepared By</td>
+                        <td>:</td>
+                        <td>{{ refund.created_by or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- 明细表 -->
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;" class="text-center">No.</th>
+                    <th style="width: 12%;">REF</th>
+                    <th style="width: 28%;">Description</th>
+                    <th style="width: 20%;">Ticket No.</th>
+                    <th style="width: 20%;">Flight / Itinerary</th>
+                    <th style="width: 15%;" class="text-right">Refund Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in refund.items %}
+                <tr>
+                    <td class="text-center">{{ loop.index }}</td>
+                    <td>{{ item.ref.ref_number if item.ref else '-' }}</td>
+                    <td>{{ (item.ref.detailed_description or item.ref.description) if item.ref else '-' }}</td>
+                    <td>{{ item.original_ticket_no or '-' }}</td>
+                    <td>{{ item.flight_info or '-' }}</td>
+                    <td class="text-right">{{ "%.2f"|format(item.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 金额汇总 -->
+        <div class="total-section">
+            <table style="width: 100%; margin-top: 0;">
+                <tr>
+                    <td><strong>{{ refund.currency }}</strong></td>
+                    <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>Total Refund :</strong></td>
+                    <td style="text-align: right; padding: 5px; width: 100px; white-space: nowrap;"><strong>{{ "%.2f"|format(refund.amount) }}</strong></td>
+                </tr>
+            </table>
+            <div style="border-bottom: 2px solid #333; margin-bottom: 5px;"></div>
+        </div>
+
+        <!-- 金额大写 -->
+        <div class="amount-words">
+            {{ refund.amount|amount_in_words(refund.currency) }}
+        </div>
+
+        <!-- 签名区域 -->
+        <div class="signatures">
+            <div class="signature-block">
+                <div class="signature-line">Prepared By</div>
+            </div>
+            <div class="signature-block">
+                <div class="signature-line">Checked By</div>
+            </div>
+            <div class="signature-block">
+                <div class="signature-line">Approved By</div>
+            </div>
+        </div>
+
+        <!-- 底部说明 -->
+        <div class="footer-note">
+            <p>THIS IS A COMPUTER-GENERATED DOCUMENT. NO SIGNATURE IS REQUIRED.</p>
+            <p style="margin-top: 10px;"><strong>E. & O.E</strong></p>
+        </div>
+    </div>
+</body>
+</html>

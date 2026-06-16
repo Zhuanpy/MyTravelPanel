@@ -247,6 +247,9 @@
                 <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
+                <a href="{{ url_for('business_projects.project_refund.header_refunds', header_id=header.id) }}" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-rotate-left"></i> 退款管理
+                </a>
                 {% if not header.is_settled %}
                 <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
                 <button type="button" class="btn btn-warning btn-sm" onclick="copyRefFromOther()" title="按REF编号从其他订单复制一条REF到当前项目">
