@@ -1,12 +1,12 @@
 """
-创建/重建项目退款表（项目级退款凭证，含多条 REF 明细）
+创建/重建项目退款表（项目级退款凭证，按发票退款，含多条发票明细）
 - project_refunds        退款主表（项目级）
-- project_refund_items   退款明细表（一条退款下多个 REF）
+- project_refund_items   退款明细表（一条退款下多张发票，含 invoice_id 与本次退款金额）
 
 运行方式: python scripts/20260616_add_project_refunds.py
 
-说明: 旧版 project_refunds 为 REF 级单条结构（ref_id NOT NULL），与新结构不兼容。
-本脚本会先删除旧表（退款功能刚上线、无业务数据），再按新模型重建。
+说明: 退款功能仍在迭代，明细结构从"按 REF"改为"按发票"，与旧表不兼容。
+本脚本会先删除旧表（无正式业务数据），再按新模型重建。
 """
 
 import sys

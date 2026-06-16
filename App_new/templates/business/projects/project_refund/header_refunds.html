@@ -40,7 +40,7 @@
                                 <th>退款日期</th>
                                 <th>方式</th>
                                 <th>收款人</th>
-                                <th>明细 (REF)</th>
+                                <th>明细 (发票)</th>
                                 <th class="text-end">金额</th>
                                 <th>状态</th>
                                 <th class="text-center" style="width:140px;">操作</th>
@@ -55,7 +55,7 @@
                                 <td>{{ r.payee_name or '-' }}</td>
                                 <td>
                                     {% for it in r.items %}
-                                        <span class="badge bg-light text-dark border">{{ it.ref.ref_number if it.ref else '-' }}</span>
+                                        <span class="badge bg-light text-dark border">{{ it.invoice.invoice_number if it.invoice else '-' }}</span>
                                     {% endfor %}
                                 </td>
                                 <td class="text-end">{{ r.currency }} {{ "%.2f"|format(r.amount) }}</td>
@@ -63,6 +63,7 @@
                                     <span class="badge {% if r.status == 'confirmed' %}bg-success{% else %}bg-secondary{% endif %}">{{ r.status_display }}</span>
                                 </td>
                                 <td class="text-center">
+                                    <a href="{{ url_for('business_projects.project_refund.edit_refund', refund_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="编辑"><i class="fas fa-edit"></i></a>
                                     <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="打印凭证"><i class="fas fa-print"></i></a>
                                     <button type="button" class="btn btn-sm btn-outline-danger" title="删除" onclick="deleteRefund({{ r.id }})"><i class="fas fa-trash"></i></button>
                                 </td>

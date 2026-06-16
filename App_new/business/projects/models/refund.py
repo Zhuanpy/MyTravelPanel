@@ -124,33 +124,45 @@ class ProjectRefund(db.Model):
 
 
 class ProjectRefundItem(db.Model):
-    """退款明细表（一条退款下的多个 REF 明细）"""
+    """退款明细表（一条退款下的多张发票明细）"""
     __tablename__ = 'project_refund_items'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     refund_id = db.Column(db.Integer, db.ForeignKey('project_refunds.id', ondelete='CASCADE'),
                           nullable=False, comment='退款记录ID')
-    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=False, comment='REF明细ID')
+    invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id'), nullable=False, comment='发票ID')
 
-    amount = db.Column(db.Numeric(10, 2), nullable=False, default=0, comment='该REF退款金额')
-    original_ticket_no = db.Column(db.String(100), nullable=True, comment='原票号')
-    flight_info = db.Column(db.String(255), nullable=True, comment='航班/行程信息')
+    amount = db.Column(db.Numeric(10, 2), nullable=False, default=0, comment='该发票本次退款金额')
+    remarks = db.Column(db.String(255), nullable=True, comment='明细备注')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # 关联关系
     refund = db.relationship('ProjectRefund', back_populates='items')
-    ref = db.relationship('ProjectRef')
+    invoice = db.relationship('ProjectInvoice')
 
     def __repr__(self):
-        return f'<ProjectRefundItem refund={self.refund_id} ref={self.ref_id}: {self.amount}>'
+        return f'<ProjectRefundItem refund={self.refund_id} invoice={self.invoice_id}: {self.amount}>'
 
     def to_dict(self):
         return {
             'id': self.id,
             'refund_id': self.refund_id,
-            'ref_id': self.ref_id,
+            'invoice_id': self.invoice_id,
             'amount': float(self.amount) if self.amount else 0,
-            'original_ticket_no': self.original_ticket_no,
-            'flight_info': self.flight_info,
+            'remarks': self.remarks,
         }
+
+    @classmethod
+    def get_invoice_refunded(cls, invoice_id, exclude_refund_id=None):
+        """获取某发票已退款总额（仅统计已确认的退款，可排除指定退款用于编辑场景）"""
+        from sqlalchemy import func
+        q = db.session.query(func.sum(cls.amount)).join(
+            ProjectRefund, cls.refund_id == ProjectRefund.id
+        ).filter(
+            cls.invoice_id == invoice_id,
+            ProjectRefund.status == 'confirmed'
+        )
+        if exclude_refund_id:
+            q = q.filter(ProjectRefund.id != exclude_refund_id)
+        return float(q.scalar() or 0)

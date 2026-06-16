@@ -197,7 +197,7 @@
                         <td style="width: 80px; vertical-align: top;"><strong>Refund To</strong></td>
                         <td style="width: 10px; vertical-align: top;">:</td>
                         <td>
-                            <strong>{{ refund.payee_name or (header.contact if header else '-') or '-' }}</strong>
+                            <strong>{{ payee_display or '-' }}</strong>
                         </td>
                     </tr>
                     <tr><td colspan="3" style="height: 8px;"></td></tr>
@@ -258,21 +258,19 @@
             <thead>
                 <tr>
                     <th style="width: 5%;" class="text-center">No.</th>
-                    <th style="width: 12%;">REF</th>
-                    <th style="width: 28%;">Description</th>
-                    <th style="width: 20%;">Ticket No.</th>
-                    <th style="width: 20%;">Flight / Itinerary</th>
-                    <th style="width: 15%;" class="text-right">Refund Amount</th>
+                    <th style="width: 22%;">Invoice No.</th>
+                    <th style="width: 20%;">Invoice Date</th>
+                    <th style="width: 28%;" class="text-right">Invoice Amount</th>
+                    <th style="width: 25%;" class="text-right">Refund Amount</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in refund.items %}
                 <tr>
                     <td class="text-center">{{ loop.index }}</td>
-                    <td>{{ item.ref.ref_number if item.ref else '-' }}</td>
-                    <td>{{ (item.ref.detailed_description or item.ref.description) if item.ref else '-' }}</td>
-                    <td>{{ item.original_ticket_no or '-' }}</td>
-                    <td>{{ item.flight_info or '-' }}</td>
+                    <td>{{ item.invoice.invoice_number if item.invoice else '-' }}</td>
+                    <td>{{ item.invoice.invoice_date.strftime('%d/%m/%Y') if (item.invoice and item.invoice.invoice_date) else '-' }}</td>
+                    <td class="text-right">{{ "%.2f"|format(item.invoice.amount) if item.invoice else '-' }}</td>
                     <td class="text-right">{{ "%.2f"|format(item.amount) }}</td>
                 </tr>
                 {% endfor %}

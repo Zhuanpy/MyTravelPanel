@@ -1,8 +1,8 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}退款处理 - MyTravelPanel{% endblock %}
+{% block title %}{{ '编辑退款' if refund else '退款处理' }} - MyTravelPanel{% endblock %}
 
-{% block page_title %}退款处理{% endblock %}
+{% block page_title %}{{ '编辑退款' if refund else '退款处理' }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -13,10 +13,11 @@
                 <div>
                     <h2 class="mb-1">
                         <i class="fas fa-rotate-left text-danger"></i>
-                        退款处理
+                        {{ '编辑退款' if refund else '退款处理' }}
                     </h2>
                     <p class="text-muted mb-0">
                         项目: <strong>{{ header.hid }}</strong> | {{ header.desc or '' }}
+                        {% if refund %} | 退款单号: <strong>{{ refund.refund_number }}</strong>{% endif %}
                     </p>
                 </div>
                 <div>
@@ -29,71 +30,70 @@
 
             <div class="alert alert-info py-2">
                 <i class="fas fa-info-circle"></i>
-                勾选需要退款的 REF，填写各自退款金额，一次生成一张包含多条明细的英文退款凭证。该凭证仅作客户退款证明，不会自动冲减收款或修改结算状态。
+                勾选需要退款的发票，填写各自退款金额（默认=可退余额），一次生成一张包含多条明细的英文退款凭证。该凭证仅作客户退款证明，不会自动冲减收款或修改结算状态。
             </div>
 
-            <form method="POST" action="{{ url_for('business_projects.project_refund.create_refund', header_id=header.id) }}">
+            <form method="POST" action="{{ form_action }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <!-- REF 明细选择 -->
+                <!-- 发票选择 -->
                 <div class="card mb-3">
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-list"></i> 选择退款 REF</h5>
+                        <h5 class="mb-0"><i class="fas fa-file-invoice"></i> 选择退款发票</h5>
                         <div class="form-check mb-0">
                             <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleAll(this)">
                             <label class="form-check-label" for="checkAll">全选</label>
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        {% if ref_rows %}
+                        {% if invoice_rows %}
                         <table class="table table-sm table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width:40px;" class="text-center">选</th>
-                                    <th style="width:90px;">REF</th>
-                                    <th>描述</th>
-                                    <th style="width:130px;" class="text-end">售价</th>
-                                    <th style="width:140px;">退款金额</th>
-                                    <th style="width:170px;">原票号</th>
-                                    <th style="width:180px;">航班/行程</th>
+                                    <th style="width:110px;">发票号</th>
+                                    <th style="width:110px;">发票日期</th>
+                                    <th style="width:130px;" class="text-end">发票金额</th>
+                                    <th style="width:120px;" class="text-end">已退款</th>
+                                    <th style="width:120px;" class="text-end">可退余额</th>
+                                    <th style="width:150px;">本次退款</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for r in ref_rows %}
-                                <tr>
+                                {% for v in invoice_rows %}
+                                {% set disabled = (v.remaining <= 0 and not v.selected) %}
+                                <tr {% if disabled %}class="text-muted"{% endif %}>
                                     <td class="text-center">
-                                        <input class="form-check-input ref-check" type="checkbox" name="ref_ids" value="{{ r.id }}"
-                                               data-rid="{{ r.id }}" onchange="onRefToggle(this)">
+                                        <input class="form-check-input inv-check" type="checkbox" name="invoice_ids" value="{{ v.id }}"
+                                               data-iid="{{ v.id }}" data-remaining="{{ '%.2f'|format(v.remaining) }}"
+                                               onchange="onInvToggle(this)"
+                                               {% if v.selected %}checked{% endif %}
+                                               {% if disabled %}disabled title="已无可退余额"{% endif %}>
                                     </td>
-                                    <td><strong>{{ r.ref_number }}</strong><br><small class="text-muted">{{ r.type_name }}</small></td>
-                                    <td>{{ r.description }}</td>
-                                    <td class="text-end">{{ r.currency }} {{ "%.2f"|format(r.selling_price) }}</td>
+                                    <td><strong>{{ v.invoice_number }}</strong></td>
+                                    <td>{{ v.invoice_date }}</td>
+                                    <td class="text-end">{{ v.currency }} {{ "%.2f"|format(v.amount) }}</td>
+                                    <td class="text-end">{{ "%.2f"|format(v.refunded) }}</td>
+                                    <td class="text-end fw-bold {% if v.remaining > 0 %}text-danger{% endif %}">{{ "%.2f"|format(v.remaining) }}</td>
                                     <td>
-                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm"
-                                               name="amount_{{ r.id }}" value="{{ '%.2f'|format(r.selling_price) if r.selling_price else '' }}"
-                                               disabled>
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control form-control-sm" name="ticket_{{ r.id }}"
-                                               value="{{ r.ticket_no }}" placeholder="机票退票时填写" disabled>
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control form-control-sm" name="flight_{{ r.id }}"
-                                               value="{{ r.flight_info }}" placeholder="如 MU566 SIN-PVG" disabled>
+                                        <input type="number" step="0.01" min="0" max="{{ '%.2f'|format(v.remaining) }}"
+                                               class="form-control form-control-sm inv-amount"
+                                               name="amount_{{ v.id }}"
+                                               value="{% if v.selected %}{{ '%.2f'|format(v.selected_amount) }}{% elif v.remaining > 0 %}{{ '%.2f'|format(v.remaining) }}{% endif %}"
+                                               {% if not v.selected %}disabled{% endif %}>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                             <tfoot class="table-light">
                                 <tr>
-                                    <td colspan="4" class="text-end fw-bold">退款合计</td>
+                                    <td colspan="6" class="text-end fw-bold">退款合计</td>
                                     <td class="fw-bold" id="totalCell">0.00</td>
-                                    <td colspan="2"></td>
                                 </tr>
                             </tfoot>
                         </table>
                         {% else %}
-                        <div class="p-3 text-muted">该项目暂无 REF。</div>
+                        <div class="p-3 text-muted">该项目暂无可退款发票（需先生成发票）。</div>
                         {% endif %}
                     </div>
                 </div>
@@ -116,13 +116,14 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">退款方式</label>
+                                {% set m = refund.refund_method if refund else 'bank_transfer' %}
                                 <select name="refund_method" class="form-select">
-                                    <option value="bank_transfer" selected>银行转账 Bank Transfer</option>
-                                    <option value="credit_card">信用卡 Credit Card</option>
-                                    <option value="cash">现金 Cash</option>
-                                    <option value="cheque">支票 Cheque</option>
-                                    <option value="wechat">WeChat</option>
-                                    <option value="other">其他 Other</option>
+                                    <option value="bank_transfer" {{ 'selected' if m == 'bank_transfer' }}>银行转账 Bank Transfer</option>
+                                    <option value="credit_card" {{ 'selected' if m == 'credit_card' }}>信用卡 Credit Card</option>
+                                    <option value="cash" {{ 'selected' if m == 'cash' }}>现金 Cash</option>
+                                    <option value="cheque" {{ 'selected' if m == 'cheque' }}>支票 Cheque</option>
+                                    <option value="wechat" {{ 'selected' if m == 'wechat' }}>WeChat</option>
+                                    <option value="other" {{ 'selected' if m == 'other' }}>其他 Other</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -132,20 +133,22 @@
 
                             <div class="col-md-6">
                                 <label class="form-label">退款收款人 / 客户</label>
-                                <input type="text" name="payee_name" class="form-control" value="{{ defaults.payee_name }}" placeholder="客户姓名">
+                                <input type="text" name="payee_name" class="form-control" value="{{ refund.payee_name if refund else '' }}"
+                                       placeholder="{{ defaults.payee_auto }}">
+                                <small class="text-muted">留空则自动按规则：公司客户→公司名，个人/现金→联系人（当前：<strong>{{ defaults.payee_auto }}</strong>）</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">联系方式</label>
-                                <input type="text" name="payee_contact" class="form-control" placeholder="电话 / 邮箱（可选）">
+                                <input type="text" name="payee_contact" class="form-control" value="{{ refund.payee_contact if refund else '' }}" placeholder="电话 / 邮箱（可选）">
                             </div>
 
                             <div class="col-md-12">
                                 <label class="form-label">退款原因 (Reason)</label>
-                                <input type="text" name="reason" class="form-control" placeholder="如 客户取消行程 / 航班取消等">
+                                <input type="text" name="reason" class="form-control" value="{{ refund.reason if refund else '' }}" placeholder="如 客户取消行程 / 航班取消等">
                             </div>
                             <div class="col-md-12">
                                 <label class="form-label">备注 (Remarks)</label>
-                                <textarea name="remarks" class="form-control" rows="2" placeholder="可选"></textarea>
+                                <textarea name="remarks" class="form-control" rows="2" placeholder="可选">{{ refund.remarks if refund else '' }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -163,28 +166,26 @@
 </div>
 
 <script>
-// 勾选某 REF 时启用/禁用该行输入，并重算合计
-function onRefToggle(cb) {
-    const rid = cb.dataset.rid;
-    const enabled = cb.checked;
-    ['amount_', 'ticket_', 'flight_'].forEach(prefix => {
-        const el = document.querySelector(`[name="${prefix}${rid}"]`);
-        if (el) el.disabled = !enabled;
-    });
+// 勾选某发票时启用/禁用该行金额输入，并重算合计
+function onInvToggle(cb) {
+    const iid = cb.dataset.iid;
+    const el = document.querySelector(`[name="amount_${iid}"]`);
+    if (el) el.disabled = !cb.checked;
     recalcTotal();
 }
 
 function toggleAll(master) {
-    document.querySelectorAll('.ref-check').forEach(cb => {
+    document.querySelectorAll('.inv-check').forEach(cb => {
+        if (cb.disabled) return;  // 跳过无可退余额的发票
         cb.checked = master.checked;
-        onRefToggle(cb);
+        onInvToggle(cb);
     });
 }
 
 function recalcTotal() {
     let total = 0;
-    document.querySelectorAll('.ref-check:checked').forEach(cb => {
-        const el = document.querySelector(`[name="amount_${cb.dataset.rid}"]`);
+    document.querySelectorAll('.inv-check:checked').forEach(cb => {
+        const el = document.querySelector(`[name="amount_${cb.dataset.iid}"]`);
         const v = parseFloat(el && el.value);
         if (!isNaN(v)) total += v;
     });
@@ -196,5 +197,8 @@ function recalcTotal() {
 document.addEventListener('input', function(e) {
     if (e.target && e.target.name && e.target.name.startsWith('amount_')) recalcTotal();
 });
+
+// 编辑时已有勾选，载入即算一次合计
+document.addEventListener('DOMContentLoaded', recalcTotal);
 </script>
 {% endblock %}

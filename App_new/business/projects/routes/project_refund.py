@@ -11,31 +11,70 @@ from flask_login import login_required, current_user
 from datetime import datetime
 
 from App_new.business.projects.models.project import ProjectHeader
-from App_new.business.projects.models.ref import ProjectRef
+from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.business.projects.models.refund import ProjectRefund, ProjectRefundItem
 from App_new.exts import db, csrf
 from App_new.utils.decorators import staff_only
 
 project_refund = Blueprint('project_refund', __name__)
 
+# 个人/现金类客户的公司名（这类客户退款退给个人，而非公司）
+_INDIVIDUAL_COMPANY_NAMES = ('个人', 'cash', '现金', 'cash sales')
 
-def _prefill_flight_info(ref):
-    """机票 REF 时，尝试预填原票号和航班信息"""
-    ticket_no = ''
-    flight_info = ''
-    try:
-        passengers = ref.flight_passengers
-        if passengers:
-            tickets = [p.ticket_number for p in passengers if getattr(p, 'ticket_number', None)]
-            ticket_no = ', '.join(tickets)
-        segments = ref.flight_segments
-        if segments:
-            seg = segments[0]
-            parts = [seg.flight_number, seg.departure_airport, seg.arrival_airport]
-            flight_info = ' '.join(p for p in parts if p)
-    except Exception:
-        pass
-    return ticket_no, flight_info
+
+def customer_display_name(header):
+    """退款收款方显示名：
+    - 公司客户 → 退给公司名
+    - 个人 / CASH / cash sales → 退给个人（项目联系人，其次领队）
+    """
+    if header and header.company:
+        cname = (header.company.company_name or '').strip()
+        if cname and cname.lower() not in _INDIVIDUAL_COMPANY_NAMES:
+            return cname
+    if header:
+        return (header.contact or getattr(header, 'leader_name', None) or '个人')
+    return ''
+
+
+def _build_invoice_rows(header, current_refund=None):
+    """构建退款表单的发票行：原金额、已退（可排除当前退款）、可退余额，以及当前退款已选信息。
+
+    编辑场景传入 current_refund：
+    - 已退款统计排除本笔退款，避免重复计算
+    - 标记该发票是否被本笔退款选中及其金额
+    """
+    exclude_id = current_refund.id if current_refund else None
+    # 本笔退款各发票已选金额
+    selected_map = {}
+    if current_refund:
+        for it in current_refund.items:
+            selected_map[it.invoice_id] = float(it.amount or 0)
+
+    invoices = ProjectInvoice.query.filter_by(header_id=header.id).filter(
+        ProjectInvoice.status != 'cancelled'
+    ).order_by(ProjectInvoice.invoice_date.asc()).all()
+
+    rows = []
+    for inv in invoices:
+        amount = float(inv.amount or 0)
+        refunded = ProjectRefundItem.get_invoice_refunded(inv.id, exclude_refund_id=exclude_id)
+        remaining = round(amount - refunded, 2)
+        is_selected = inv.id in selected_map
+        selected_amount = selected_map.get(inv.id, 0.0)
+        rows.append({
+            'id': inv.id,
+            'invoice_number': inv.invoice_number,
+            'invoice_date': inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '',
+            'currency': inv.currency or header.currency or 'SGD',
+            'amount': amount,
+            'paid_amount': float(inv.paid_amount or 0),
+            'refunded': refunded,
+            # 编辑时该发票可退余额需把本笔已选金额加回（本笔金额不算"已退占用"）
+            'remaining': max(0.0, round(remaining, 2)),
+            'selected': is_selected,
+            'selected_amount': selected_amount,
+        })
+    return rows
 
 
 @project_refund.route('/header/<int:header_id>')
@@ -54,15 +93,15 @@ def header_refunds(header_id):
 @login_required
 @staff_only
 def create_refund(header_id):
-    """创建项目级退款记录（勾选多个 REF），提交后跳转到打印页"""
+    """创建项目级退款记录（勾选多张发票退款），提交后跳转到打印页"""
     header = ProjectHeader.query.get_or_404(header_id)
 
     if request.method == 'POST':
         try:
-            # 被勾选的 REF id 列表
-            selected_ref_ids = request.form.getlist('ref_ids')
-            if not selected_ref_ids:
-                flash('请至少勾选一个需要退款的 REF', 'warning')
+            # 被勾选的发票 id 列表
+            selected_invoice_ids = request.form.getlist('invoice_ids')
+            if not selected_invoice_ids:
+                flash('请至少勾选一张需要退款的发票', 'warning')
                 return redirect(url_for('business_projects.project_refund.create_refund', header_id=header_id))
 
             refund_date_str = (request.form.get('refund_date') or '').strip()
@@ -87,29 +126,29 @@ def create_refund(header_id):
             db.session.flush()  # 获取 refund.id
 
             total = 0.0
-            for rid in selected_ref_ids:
-                ref = ProjectRef.query.get(int(rid))
-                # 安全检查：REF 必须属于本项目
-                if not ref or ref.header_id != header.id:
+            for iid in selected_invoice_ids:
+                invoice = ProjectInvoice.query.get(int(iid))
+                # 安全检查：发票必须属于本项目
+                if not invoice or invoice.header_id != header.id:
                     continue
-                amount_str = (request.form.get(f'amount_{rid}') or '').strip()
+                amount_str = (request.form.get(f'amount_{iid}') or '').strip()
                 try:
                     amount = float(amount_str) if amount_str else 0.0
                 except ValueError:
                     amount = 0.0
+                if amount <= 0:
+                    continue
                 total += amount
                 item = ProjectRefundItem(
                     refund_id=refund.id,
-                    ref_id=ref.id,
+                    invoice_id=invoice.id,
                     amount=amount,
-                    original_ticket_no=(request.form.get(f'ticket_{rid}') or '').strip() or None,
-                    flight_info=(request.form.get(f'flight_{rid}') or '').strip() or None,
                 )
                 db.session.add(item)
 
             if not refund.items:
                 db.session.rollback()
-                flash('未能识别任何有效的 REF 明细', 'warning')
+                flash('请为勾选的发票填写大于 0 的退款金额', 'warning')
                 return redirect(url_for('business_projects.project_refund.create_refund', header_id=header_id))
 
             refund.amount = total
@@ -121,31 +160,100 @@ def create_refund(header_id):
             db.session.rollback()
             flash(f'创建退款记录失败：{str(e)}', 'error')
 
-    # GET：构建可选 REF 列表并预填默认值
-    refs = ProjectRef.query.filter_by(header_id=header_id).all()
-    ref_rows = []
-    for ref in refs:
-        ticket_no, flight_info = _prefill_flight_info(ref)
-        ref_rows.append({
-            'id': ref.id,
-            'ref_number': ref.ref_number,
-            'description': ref.description or ref.detailed_description or '',
-            'type_name': ref.ref_type.name if ref.ref_type else '',
-            'selling_price': float(ref.selling_price) if ref.selling_price else 0,
-            'currency': ref.currency or header.currency or 'SGD',
-            'ticket_no': ticket_no,
-            'flight_info': flight_info,
-        })
-
+    # GET：构建可选发票列表（含原金额、已退、可退余额）
+    invoice_rows = _build_invoice_rows(header)
     defaults = {
         'refund_number': ProjectRefund.generate_refund_number(),
         'currency': header.currency or 'SGD',
         'refund_date': datetime.now().date().strftime('%Y-%m-%d'),
-        'payee_name': header.contact or '',
+        # 收款方按规则自动取值（公司→公司名；个人/现金→联系人），留空即用此默认值
+        'payee_auto': customer_display_name(header),
     }
 
     return render_template('business/projects/project_refund/create_refund.html',
-                           header=header, ref_rows=ref_rows, defaults=defaults)
+                           header=header, invoice_rows=invoice_rows, defaults=defaults,
+                           refund=None,
+                           form_action=url_for('business_projects.project_refund.create_refund', header_id=header.id))
+
+
+@project_refund.route('/<int:refund_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
+def edit_refund(refund_id):
+    """编辑退款记录（项目级，按发票）"""
+    refund = ProjectRefund.query.get_or_404(refund_id)
+    header = refund.header
+
+    if request.method == 'POST':
+        try:
+            selected_invoice_ids = request.form.getlist('invoice_ids')
+            if not selected_invoice_ids:
+                flash('请至少勾选一张需要退款的发票', 'warning')
+                return redirect(url_for('business_projects.project_refund.edit_refund', refund_id=refund_id))
+
+            refund_date_str = (request.form.get('refund_date') or '').strip()
+            if refund_date_str:
+                refund.refund_date = datetime.strptime(refund_date_str, '%Y-%m-%d').date()
+
+            refund.currency = (request.form.get('currency') or header.currency or 'SGD').strip()
+            refund.refund_method = request.form.get('refund_method') or 'bank_transfer'
+            refund.payee_name = (request.form.get('payee_name') or '').strip() or None
+            refund.payee_contact = (request.form.get('payee_contact') or '').strip() or None
+            refund.reason = (request.form.get('reason') or '').strip() or None
+            refund.remarks = (request.form.get('remarks') or '').strip() or None
+
+            # 重建明细：先删后增
+            for it in list(refund.items):
+                db.session.delete(it)
+            db.session.flush()
+
+            total = 0.0
+            for iid in selected_invoice_ids:
+                invoice = ProjectInvoice.query.get(int(iid))
+                if not invoice or invoice.header_id != header.id:
+                    continue
+                amount_str = (request.form.get(f'amount_{iid}') or '').strip()
+                try:
+                    amount = float(amount_str) if amount_str else 0.0
+                except ValueError:
+                    amount = 0.0
+                if amount <= 0:
+                    continue
+                total += amount
+                db.session.add(ProjectRefundItem(
+                    refund_id=refund.id,
+                    invoice_id=invoice.id,
+                    amount=amount,
+                ))
+
+            db.session.flush()
+            if not refund.items:
+                db.session.rollback()
+                flash('请为勾选的发票填写大于 0 的退款金额', 'warning')
+                return redirect(url_for('business_projects.project_refund.edit_refund', refund_id=refund_id))
+
+            refund.amount = total
+            db.session.commit()
+
+            return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新退款记录失败：{str(e)}', 'error')
+
+    # GET：回填
+    invoice_rows = _build_invoice_rows(header, current_refund=refund)
+    defaults = {
+        'refund_number': refund.refund_number,
+        'currency': refund.currency or header.currency or 'SGD',
+        'refund_date': refund.refund_date.strftime('%Y-%m-%d') if refund.refund_date else '',
+        'payee_auto': customer_display_name(header),
+    }
+
+    return render_template('business/projects/project_refund/create_refund.html',
+                           header=header, invoice_rows=invoice_rows, defaults=defaults,
+                           refund=refund,
+                           form_action=url_for('business_projects.project_refund.edit_refund', refund_id=refund.id))
 
 
 @project_refund.route('/<int:refund_id>/print')
@@ -155,8 +263,14 @@ def print_refund(refund_id):
     """打印英文退款确认单（Refund Confirmation），含多条明细"""
     refund = ProjectRefund.query.get_or_404(refund_id)
     header = refund.header
+    # 收款方按规则自动取值：公司客户→公司名；个人/现金/cash sales→联系人。
+    # 仅当人工显式填写了与联系人不同的收款人时才用人工值（覆盖）。
+    auto_name = customer_display_name(header)
+    contact = (header.contact if header else '') or ''
+    payee = (refund.payee_name or '').strip()
+    payee_display = payee if (payee and payee != contact) else auto_name
     return render_template('business/projects/project_refund/print_refund.html',
-                           refund=refund, header=header)
+                           refund=refund, header=header, payee_display=payee_display)
 
 
 @project_refund.route('/<int:refund_id>/delete', methods=['POST'])
