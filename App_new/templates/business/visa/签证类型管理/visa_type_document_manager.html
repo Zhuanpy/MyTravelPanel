@@ -636,7 +636,7 @@
                 <i class="fas fa-plus"></i> 添加文档
             </button>
             <button class="btn btn-secondary" onclick="showCopyDialog()" id="copyBtn" {% if not selected_visa_type %}disabled{% endif %}>
-                <i class="fas fa-copy"></i> 复制
+                <i class="fas fa-copy"></i> 从其它签证复制资料
             </button>
             <span id="autoSaveStatus" style="display: inline-flex; align-items: center; font-size: 0.85rem; color: var(--text-gray); padding: 0 0.5rem;"></span>
             <a href="{{ url_for('visa_basic.visa_type_detail', visa_type=selected_visa_type) if selected_visa_type else url_for('visa_basic.visa_type_list') }}"
@@ -675,11 +675,11 @@
 <div id="copyDialog" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 12px; width: 90%; max-width: 500px; overflow: hidden;">
         <div style="padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; font-size: 1.125rem;"><i class="fas fa-copy"></i> 复制签证配置</h3>
+            <h3 style="margin: 0; font-size: 1.125rem;"><i class="fas fa-copy"></i> 从其它签证复制资料</h3>
             <button onclick="hideCopyDialog()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-gray);">&times;</button>
         </div>
         <div style="padding: 1.25rem;">
-            <p style="color: var(--text-gray); margin-bottom: 1rem;">选择源签证类型，将其配置复制到当前签证。</p>
+            <p style="color: var(--text-gray); margin-bottom: 1rem;">选择一个已配置好的签证，把它的文档资料复制到当前签证（将覆盖当前已有配置）。</p>
             <select id="sourceVisaType" style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9375rem;">
                 <option value="">请选择...</option>
             </select>

@@ -2378,7 +2378,8 @@ def copy_visa_documents(visa_type):
             new_config = VisaDocuments(
                 visa_type_id=target_visa_type_record.id,
                 singapore_identity_id=source_config.singapore_identity_id,
-                additional_info=source_config.additional_info
+                additional_info=source_config.additional_info,
+                applicant_additional_info=source_config.applicant_additional_info  # 同步复制申请人补充信息
             )
             db.session.add(new_config)
             db.session.flush()  # 获取新记录的ID
