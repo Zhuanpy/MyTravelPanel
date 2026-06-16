@@ -258,6 +258,36 @@ def edit_refund(refund_id):
                            form_action=url_for('business_projects.project_refund.edit_refund', refund_id=refund.id))
 
 
+def _invoice_description(invoice):
+    """构建发票描述：优先关联 REF 描述，其次 JSON 明细，再次发票明细表，最后备注"""
+    if not invoice:
+        return ''
+    # 1) 关联 REF 的描述
+    try:
+        descs = [(r.description or r.detailed_description) for r in invoice.related_refs
+                 if (r.description or r.detailed_description)]
+        if descs:
+            return ', '.join(descs)
+    except Exception:
+        pass
+    # 2) JSON 明细 items_list（CSV 导入等）
+    try:
+        descs = [it.get('description') for it in invoice.items_list if it.get('description')]
+        if descs:
+            return ', '.join(descs)
+    except Exception:
+        pass
+    # 3) 发票明细表 InvoiceItem
+    try:
+        descs = [((it.ref.description if it.ref else None) or it.description) for it in invoice.items]
+        descs = [d for d in descs if d]
+        if descs:
+            return ', '.join(descs)
+    except Exception:
+        pass
+    return invoice.remarks or ''
+
+
 @project_refund.route('/<int:refund_id>/print')
 @login_required
 @staff_only
@@ -271,8 +301,11 @@ def print_refund(refund_id):
     contact = (header.contact if header else '') or ''
     payee = (refund.payee_name or '').strip()
     payee_display = payee if (payee and payee != contact) else auto_name
+    # 每条明细对应发票的描述
+    descriptions = {item.id: _invoice_description(item.invoice) for item in refund.items}
     return render_template('business/projects/project_refund/print_refund.html',
-                           refund=refund, header=header, payee_display=payee_display)
+                           refund=refund, header=header, payee_display=payee_display,
+                           descriptions=descriptions)
 
 
 @project_refund.route('/<int:refund_id>/delete', methods=['POST'])
