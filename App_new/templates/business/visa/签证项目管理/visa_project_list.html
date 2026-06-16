@@ -11,14 +11,16 @@
 .visa-table th, .visa-table td { padding: 0.4rem 0.6rem; font-size: 0.875rem; }
 .visa-table .visa-status-select { font-size: 0.8rem; }
 /* 筛选/搜索控件紧凑：固定窄宽度，避免拉伸过宽 */
-.visa-filter-bar form { flex: 0 1 auto !important; }
-.visa-filter-item .visa-form-select { width: 140px; }
-.visa-filter-item .visa-form-control { width: 160px; }
+.visa-filter-bar form { flex: 1 1 auto !important; flex-wrap: nowrap !important; }
+.visa-filter-item .visa-form-select { width: 120px; }
+.visa-filter-item .visa-form-control { width: 130px; }
+/* 搜索/重置按钮不被压缩，保持与筛选项同一行 */
+.visa-filter-bar form .visa-btn { white-space: nowrap; flex-shrink: 0; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="visa-container" style="max-width: 1200px;">
+<div class="visa-container" style="max-width: 1500px;">
     <!-- 筛选栏 -->
     <div class="visa-filter-bar">
         <form method="get" action="{{ url_for('visa_project.show_current_all_projects') }}" class="visa-flex visa-gap-2" style="align-items: flex-end; flex-wrap: wrap; flex: 1;">
@@ -62,7 +64,12 @@
                 <label for="search_name" class="visa-form-label">申请人：</label>
                 <input type="text" name="search_name" id="search_name" class="visa-form-control" value="{{ search_name }}" placeholder="输入申请人姓名">
             </div>
-            
+
+            <div class="visa-filter-item">
+                <label for="search_contact" class="visa-form-label">联系人：</label>
+                <input type="text" name="search_contact" id="search_contact" class="visa-form-control" value="{{ search_contact }}" placeholder="输入联系人姓名">
+            </div>
+
             <button type="submit" class="visa-btn visa-btn-primary">
                 <i class="fas fa-search"></i> 搜索
             </button>
@@ -81,6 +88,7 @@
         <thead>
             <tr>
                 <th>申请人</th>
+                <th>联系人</th>
                 <th>签证类型</th>
                 <th>创建时间</th>
                 <th>签证状态</th>
@@ -96,6 +104,7 @@
                     <a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}"
                        class="text-primary" style="font-weight: 500;" title="查看签证详情">{{ project.applicant_name }}</a>
                 </td>
+                <td>{{ project.contact_name or '-' }}</td>
                 <td>{{ project.visa_type }}</td>
                 <td>{{ project.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
@@ -145,7 +154,8 @@
                     sort_by=sort_by,
                     filter_visa_type=filter_visa_type,
                     filter_country=filter_country,
-                    search_name=search_name) }}" 
+                    search_name=search_name,
+                    search_contact=search_contact) }}" 
                    class="visa-pagination-btn">上一页</a>
             {% endif %}
             
@@ -175,7 +185,8 @@
                     sort_by=sort_by,
                     filter_visa_type=filter_visa_type,
                     filter_country=filter_country,
-                    search_name=search_name) }}" 
+                    search_name=search_name,
+                    search_contact=search_contact) }}" 
                    class="visa-pagination-btn">下一页</a>
             {% endif %}
         </div>
@@ -324,9 +335,10 @@
                 const filterVisaType = urlParams.get('filter_visa_type') || 'all';
                 const filterCountry = urlParams.get('filter_country') || 'all';
                 const searchName = urlParams.get('search_name') || '';
-                
+                const searchContact = urlParams.get('search_contact') || '';
+
                 // 构建新的URL
-                const newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${encodeURIComponent(visaStatus)}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}&filter_country=${filterCountry}&search_name=${encodeURIComponent(searchName)}`;
+                const newUrl = `${window.location.pathname}?page=${currentPage}&visa_status=${encodeURIComponent(visaStatus)}&sort_by=${sortBy}&filter_visa_type=${filterVisaType}&filter_country=${filterCountry}&search_name=${encodeURIComponent(searchName)}&search_contact=${encodeURIComponent(searchContact)}`;
                 
                 // 延迟一小段时间后刷新页面，让用户看到成功提示
                 setTimeout(() => {
@@ -364,7 +376,8 @@
         document.getElementById('filter_country').value = 'all';
         document.getElementById('filter_visa_type').value = 'all';
         document.getElementById('search_name').value = '';
-        
+        document.getElementById('search_contact').value = '';
+
         // 提交表单
         document.querySelector('form').submit();
     }

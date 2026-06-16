@@ -92,6 +92,7 @@ def show_current_all_projects():
         filter_visa_type = request.args.get('filter_visa_type', 'all')
         filter_country = request.args.get('filter_country', 'all')
         search_name = request.args.get('search_name', '')
+        search_contact = request.args.get('search_contact', '')
         page = request.args.get('page', 1, type=int)
         per_page = 20  # 每页显示20条数据
 
@@ -119,6 +120,10 @@ def show_current_all_projects():
         # 应用申请人姓名搜索
         if search_name:
             query = query.filter(VisaProject.applicant_name.like(f'%{search_name}%'))
+
+        # 应用联系人搜索
+        if search_contact:
+            query = query.filter(VisaProject.contact_name.like(f'%{search_contact}%'))
 
         # 应用排序
         if sort_by == 'name':
@@ -164,6 +169,7 @@ def show_current_all_projects():
                            filter_visa_type=filter_visa_type,
                              filter_country=filter_country,
                              search_name=search_name,
+                             search_contact=search_contact,
                              visa_types=visa_types,
                              countries=countries,
                              visa_categories=visa_categories,
