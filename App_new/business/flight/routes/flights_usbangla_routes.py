@@ -1750,9 +1750,12 @@ def parse_mu_pdf(file_stream):
             text += t + '\n'
     doc.close()
 
+    flights = _mu_extract_flights(text)
     return {
         'order_no': _mu_extract_order_no(text),
-        'flight': _mu_extract_flight(text),
+        'flights': flights,
+        # 向后兼容：保留单航段字段（取第一段）
+        'flight': flights[0] if flights else _mu_empty_flight(),
         'passengers': _mu_extract_passengers(text),
     }
 
@@ -1795,51 +1798,65 @@ def _mu_extract_passengers(text):
     return passengers
 
 
-def _mu_extract_flight(text):
-    """提取航班、起降城市、起降时间、舱位"""
-    flight = {
+def _mu_empty_flight():
+    return {
         'flight_no': '', 'from_code': '', 'from_airport': '',
         'to_code': '', 'to_airport': '',
         'dep_date': '', 'dep_time': '', 'arr_date': '', 'arr_time': '',
         'cabin': '',
     }
 
-    # 航班号
-    m = re.search(r'\b(MU\d{2,4})\b', text)
-    if m:
-        flight['flight_no'] = m.group(1)
 
-    # 航班号之后才是 Order Detail 区域，限定搜索范围
+def _mu_extract_flights(text):
+    """提取所有航段（支持多段行程）
+
+    订单明细区域内每个航段以航班号(MUxxxx)开头，按航班号将文本切块后逐段解析。
+    """
+    # 限定到订单明细区域：Order Detail ~ Total Amount，避免误匹配正文里的其它内容
     section = text
-    if flight['flight_no']:
-        idx = text.find(flight['flight_no'])
-        if idx > 0:
-            section = text[idx:]
+    m_start = re.search(r'Order Detail', section, re.IGNORECASE)
+    if m_start:
+        section = section[m_start.end():]
+    m_end = re.search(r'Total\s*Amount', section, re.IGNORECASE)
+    if m_end:
+        section = section[:m_end.start()]
+
+    # 找到所有航班号位置，相邻航班号之间即为一个航段块
+    matches = list(re.finditer(r'\b(MU\d{2,4})\b', section))
+    flights = []
+    for idx, mt in enumerate(matches):
+        start = mt.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(section)
+        flights.append(_mu_parse_flight_block(section[start:end], mt.group(1)))
+    return flights
+
+
+def _mu_parse_flight_block(block, flight_no):
+    """解析单个航段块：起降城市、起降时间、舱位"""
+    flight = _mu_empty_flight()
+    flight['flight_no'] = flight_no
 
     # 出发/到达日期+时间（在邮件 PDF 中两者分行）
-    dt_pat = r'(\d{4}-\d{1,2}-\d{1,2})\s*\n?\s*(\d{1,2}:\d{2})'
-    dt = re.findall(dt_pat, section)
+    dt = re.findall(r'(\d{4}-\d{1,2}-\d{1,2})\s*\n?\s*(\d{1,2}:\d{2})', block)
     if len(dt) >= 2:
-        flight['dep_date'] = dt[0][0]
-        flight['dep_time'] = dt[0][1]
-        flight['arr_date'] = dt[1][0]
-        flight['arr_time'] = dt[1][1]
+        flight['dep_date'], flight['dep_time'] = dt[0]
+        flight['arr_date'], flight['arr_time'] = dt[1]
 
-    # 机场代码：在航班号后紧跟两个 3-letter 大写代码 + (...)
-    codes = re.findall(r'\b([A-Z]{3})\b\s*\n?\s*\(', section)
+    # 机场代码：紧跟两个 3-letter 大写代码 + (...)
+    codes = re.findall(r'\b([A-Z]{3})\b\s*\n?\s*\(', block)
     if len(codes) >= 2:
         flight['from_code'] = codes[0]
         flight['to_code'] = codes[1]
 
     # 机场名（括号内，可能跨行）
-    parens = re.findall(r'\(([^)]+)\)', section, re.DOTALL)
+    parens = re.findall(r'\(([^)]+)\)', block, re.DOTALL)
     if len(parens) >= 2:
         flight['from_airport'] = re.sub(r'\s+', ' ', parens[0]).strip()
         flight['to_airport'] = re.sub(r'\s+', ' ', parens[1]).strip()
 
     # 舱位："Economy\nClass S" 或 "Economy Class S"
     m = re.search(r'(Economy|Business|First|Premium\s*Economy)\s*\n?\s*Class\s+([A-Z])',
-                  section, re.IGNORECASE)
+                  block, re.IGNORECASE)
     if m:
         cabin_name = re.sub(r'\s+', ' ', m.group(1)).strip().title()
         flight['cabin'] = f"{cabin_name} ({m.group(2)})"
@@ -1874,11 +1891,13 @@ def generate_mu_itinerary(data, logo_path):
     """生成东方航空行程单 PDF（参考 itinerary_MU.py），返回 bytes
 
     data 结构：
-      order_no, flight_no, from_code, from_airport, from_terminal,
-      to_code, to_airport, to_terminal, dep_date, dep_time,
-      arr_date, arr_time, cabin,
+      order_no,
+      flights: [{flight_no, from_code, from_airport, from_terminal,
+                 to_code, to_airport, to_terminal, dep_date, dep_time,
+                 arr_date, arr_time, cabin}, ...],  # 支持多航段
       passengers: [{name, pax_type, id_no, ticket_no}, ...],
       notices: [str, ...]
+    兼容旧格式：缺少 flights 时回退到顶层单航段字段。
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
@@ -1985,29 +2004,48 @@ def generate_mu_itinerary(data, logo_path):
     def _compose_datetime(d, t):
         return f"{d}  {t}".strip()
 
-    flight_rows = [
-        ["Flight No.", data.get('flight_no', '')],
-        ["From", _compose_endpoint(data.get('from_code', ''), data.get('from_airport', ''), data.get('from_terminal', ''))],
-        ["To", _compose_endpoint(data.get('to_code', ''), data.get('to_airport', ''), data.get('to_terminal', ''))],
-        ["Departure", _compose_datetime(data.get('dep_date', ''), data.get('dep_time', ''))],
-        ["Arrival", _compose_datetime(data.get('arr_date', ''), data.get('arr_time', ''))],
-        ["Class", data.get('cabin', '')],
-    ]
-    flight_tbl = Table(flight_rows, colWidths=[32 * mm, 138 * mm])
-    flight_tbl.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), font_regular),
-        ("FONTNAME", (0, 0), (0, -1), font_bold),
-        ("FONTSIZE", (0, 0), (-1, -1), 11),
-        ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#555555")),
-        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F5F5F7")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DDDDDD")),
-    ]))
-    story.append(flight_tbl)
+    def _build_flight_table(seg):
+        """根据单个航段数据构建航班信息表格"""
+        flight_rows = [
+            ["Flight No.", seg.get('flight_no', '')],
+            ["From", _compose_endpoint(seg.get('from_code', ''), seg.get('from_airport', ''), seg.get('from_terminal', ''))],
+            ["To", _compose_endpoint(seg.get('to_code', ''), seg.get('to_airport', ''), seg.get('to_terminal', ''))],
+            ["Departure", _compose_datetime(seg.get('dep_date', ''), seg.get('dep_time', ''))],
+            ["Arrival", _compose_datetime(seg.get('arr_date', ''), seg.get('arr_time', ''))],
+            ["Class", seg.get('cabin', '')],
+        ]
+        tbl = Table(flight_rows, colWidths=[32 * mm, 138 * mm])
+        tbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), font_regular),
+            ("FONTNAME", (0, 0), (0, -1), font_bold),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#555555")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F5F5F7")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DDDDDD")),
+        ]))
+        return tbl
+
+    # 多航段：优先使用 flights 列表；为兼容旧数据，缺省时回退到顶层单航段字段
+    flights = data.get('flights') or []
+    if not flights:
+        flights = [data]
+
+    seg_label_style = ParagraphStyle(
+        "seglabel", parent=styles["Normal"],
+        fontName=font_bold, fontSize=11, leading=15,
+        textColor=colors.HexColor("#B8002E"),
+        spaceBefore=8, spaceAfter=4,
+    )
+    multi = len(flights) > 1
+    for i, seg in enumerate(flights, 1):
+        if multi:
+            story.append(Paragraph(f"Flight {i}", seg_label_style))
+        story.append(_build_flight_table(seg))
 
     # === Passenger Information ===
     passengers = data.get('passengers', []) or []
@@ -2068,7 +2106,8 @@ def parse_mu_pdf_route():
         return jsonify({
             'success': True,
             'order_no': result['order_no'],
-            'flight': result['flight'],
+            'flights': result['flights'],
+            'flight': result['flight'],  # 向后兼容
             'passengers': result['passengers'],
         })
     except Exception as e:
@@ -2086,12 +2125,15 @@ def generate_mu_itinerary_route():
     passengers = data.get('passengers', []) or []
     if not passengers:
         return jsonify({'success': False, 'message': '请至少添加一位乘客'}), 400
-    if not data.get('flight_no'):
+    # 多航段：flights 列表至少有一段含航班号；兼容旧的顶层 flight_no
+    flights = data.get('flights') or []
+    first_flight_no = (flights[0].get('flight_no') if flights else '') or data.get('flight_no')
+    if not first_flight_no:
         return jsonify({'success': False, 'message': '请填写航班号'}), 400
 
     try:
         pdf_bytes = generate_mu_itinerary(data, MU_LOGO_PATH)
-        flight_no = (data.get('flight_no') or 'MU').upper().replace(' ', '')
+        flight_no = (first_flight_no or 'MU').upper().replace(' ', '')
         order_no = (data.get('order_no') or '').strip()
         filename = f"Itinerary_{flight_no}"
         if order_no:

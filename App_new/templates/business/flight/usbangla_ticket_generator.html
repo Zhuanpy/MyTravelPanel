@@ -349,85 +349,33 @@
         <!-- 航班信息 -->
         <div class="card ub-card mb-3">
             <div class="card-header mu-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-plane me-1"></i>东方航空 - 航班信息</span>
-                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="muFillSample()" title="填入示例">
-                    <i class="fas fa-flask me-1"></i>示例
-                </button>
+                <span><i class="fas fa-plane me-1"></i>东方航空 - 航班信息 <span class="badge bg-light text-dark ms-1" id="muFlightCount">0</span></span>
+                <span>
+                    <button class="btn btn-light btn-sm py-0 px-2 me-1" style="font-size:12px;" onclick="muAddFlight()" title="添加航段">
+                        <i class="fas fa-plus me-1"></i>添加航段
+                    </button>
+                    <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="muFillSample()" title="填入示例">
+                        <i class="fas fa-flask me-1"></i>示例
+                    </button>
+                </span>
             </div>
             <div class="card-body">
                 <ul class="clean-features mb-2">
                     <li>输入航班/乘客等基本信息，生成精简版东方航空 (MU) 行程单 PDF</li>
+                    <li>支持多段行程，点击「添加航段」可增加航段（如中转/联程）</li>
                     <li>可只填部分信息，留空字段不显示在 PDF 上</li>
-                    <li>乘客信息支持多人，类型支持 Adult / Child / Infant</li>
                 </ul>
 
-                <!-- 订单号 / 航班号 / 舱位 -->
+                <!-- 订单号（订单级，所有航段共用） -->
                 <div class="row g-2 mb-2">
                     <div class="col-md-4">
                         <div class="ub-label">订单号 (Order No.)</div>
                         <input type="text" class="form-control form-control-sm" id="mu_order_no" placeholder="800426051127455782">
                     </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">航班号 (Flight No.)</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_flight_no" placeholder="MU882" style="text-transform:uppercase;">
-                    </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">舱位 (Class)</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_cabin" placeholder="Economy (S)">
-                    </div>
                 </div>
 
-                <!-- From -->
-                <div class="row g-2 mb-2">
-                    <div class="col-md-2">
-                        <div class="ub-label">出发机场代码</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_from_code" placeholder="SIN" style="text-transform:uppercase;">
-                    </div>
-                    <div class="col-md-7">
-                        <div class="ub-label">出发机场名称</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_from_airport" placeholder="Singapore Changi Airport">
-                    </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">出发航站楼</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_from_terminal" placeholder="3">
-                    </div>
-                </div>
-
-                <!-- To -->
-                <div class="row g-2 mb-2">
-                    <div class="col-md-2">
-                        <div class="ub-label">到达机场代码</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_to_code" placeholder="KHN" style="text-transform:uppercase;">
-                    </div>
-                    <div class="col-md-7">
-                        <div class="ub-label">到达机场名称</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_to_airport" placeholder="Nanchang Changbei International Airport">
-                    </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">到达航站楼</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_to_terminal" placeholder="1">
-                    </div>
-                </div>
-
-                <!-- 出发 / 到达时间 -->
-                <div class="row g-2 mb-2">
-                    <div class="col-md-3">
-                        <div class="ub-label">出发日期</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_dep_date" placeholder="2026-05-27">
-                    </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">出发时间</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_dep_time" placeholder="03:10">
-                    </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">到达日期</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_arr_date" placeholder="2026-05-27">
-                    </div>
-                    <div class="col-md-3">
-                        <div class="ub-label">到达时间</div>
-                        <input type="text" class="form-control form-control-sm" id="mu_arr_time" placeholder="08:30">
-                    </div>
-                </div>
+                <!-- 航段列表（由 JS 动态渲染） -->
+                <div id="muFlightsContainer"></div>
             </div>
         </div>
 
@@ -881,6 +829,112 @@ function onQunarBaggageSelect() {
 
 let muPaxIndex = 0;
 let muNoticeIndex = 0;
+let muFlightIndex = 0;
+
+// ---- 航段（多段行程）----
+function muAddFlight(data) {
+    muFlightIndex++;
+    const d = data || {};
+    const esc = v => (v == null ? '' : String(v)).replace(/"/g, '&quot;');
+    const block = `<div class="card border mb-2 mu-flight-block" id="mu-flight-${muFlightIndex}">
+        <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="mu-title" style="font-size:13px;">航段 <span class="mu-flight-num">${muFlightIndex}</span></span>
+                <button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:11px;" onclick="muRemoveFlight(${muFlightIndex})"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <div class="ub-label">航班号 (Flight No.)</div>
+                    <input type="text" class="form-control form-control-sm mu-f-flightno" value="${esc(d.flight_no)}" placeholder="MU566" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-4">
+                    <div class="ub-label">舱位 (Class)</div>
+                    <input type="text" class="form-control form-control-sm mu-f-cabin" value="${esc(d.cabin)}" placeholder="Economy (Z)">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <div class="ub-label">出发代码</div>
+                    <input type="text" class="form-control form-control-sm mu-f-fromcode" value="${esc(d.from_code)}" placeholder="SIN" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-7">
+                    <div class="ub-label">出发机场名称</div>
+                    <input type="text" class="form-control form-control-sm mu-f-fromairport" value="${esc(d.from_airport)}" placeholder="Singapore Changi Airport">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">出发航站楼</div>
+                    <input type="text" class="form-control form-control-sm mu-f-fromterminal" value="${esc(d.from_terminal)}" placeholder="3">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <div class="ub-label">到达代码</div>
+                    <input type="text" class="form-control form-control-sm mu-f-tocode" value="${esc(d.to_code)}" placeholder="PVG" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-7">
+                    <div class="ub-label">到达机场名称</div>
+                    <input type="text" class="form-control form-control-sm mu-f-toairport" value="${esc(d.to_airport)}" placeholder="Pudong International Airport">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达航站楼</div>
+                    <input type="text" class="form-control form-control-sm mu-f-toterminal" value="${esc(d.to_terminal)}" placeholder="1">
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <div class="ub-label">出发日期</div>
+                    <input type="text" class="form-control form-control-sm mu-f-depdate" value="${esc(d.dep_date)}" placeholder="2026-06-17">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">出发时间</div>
+                    <input type="text" class="form-control form-control-sm mu-f-deptime" value="${esc(d.dep_time)}" placeholder="23:10">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达日期</div>
+                    <input type="text" class="form-control form-control-sm mu-f-arrdate" value="${esc(d.arr_date)}" placeholder="2026-06-18">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达时间</div>
+                    <input type="text" class="form-control form-control-sm mu-f-arrtime" value="${esc(d.arr_time)}" placeholder="04:40">
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.getElementById('muFlightsContainer').insertAdjacentHTML('beforeend', block);
+    muUpdateFlightCount();
+}
+
+function muRemoveFlight(idx) {
+    document.getElementById('mu-flight-' + idx)?.remove();
+    document.querySelectorAll('#muFlightsContainer .mu-flight-num').forEach((el, i) => { el.textContent = i + 1; });
+    muUpdateFlightCount();
+}
+
+function muUpdateFlightCount() {
+    document.getElementById('muFlightCount').textContent = document.querySelectorAll('#muFlightsContainer .mu-flight-block').length;
+}
+
+function muCollectFlights() {
+    const list = [];
+    document.querySelectorAll('#muFlightsContainer .mu-flight-block').forEach(b => {
+        const flight_no = b.querySelector('.mu-f-flightno').value.trim().toUpperCase();
+        list.push({
+            flight_no,
+            cabin: b.querySelector('.mu-f-cabin').value.trim(),
+            from_code: b.querySelector('.mu-f-fromcode').value.trim().toUpperCase(),
+            from_airport: b.querySelector('.mu-f-fromairport').value.trim(),
+            from_terminal: b.querySelector('.mu-f-fromterminal').value.trim(),
+            to_code: b.querySelector('.mu-f-tocode').value.trim().toUpperCase(),
+            to_airport: b.querySelector('.mu-f-toairport').value.trim(),
+            to_terminal: b.querySelector('.mu-f-toterminal').value.trim(),
+            dep_date: b.querySelector('.mu-f-depdate').value.trim(),
+            dep_time: b.querySelector('.mu-f-deptime').value.trim(),
+            arr_date: b.querySelector('.mu-f-arrdate').value.trim(),
+            arr_time: b.querySelector('.mu-f-arrtime').value.trim(),
+        });
+    });
+    return list;
+}
 
 const MU_DEFAULT_NOTICES = [
     "Please arrive at the airport at least 2 hours before departure.",
@@ -957,43 +1011,38 @@ function muCollectNotices() {
 }
 
 function muFillSample() {
-    document.getElementById('mu_order_no').value = '800426051127455782';
-    document.getElementById('mu_flight_no').value = 'MU882';
-    document.getElementById('mu_cabin').value = 'Economy (S)';
-    document.getElementById('mu_from_code').value = 'SIN';
-    document.getElementById('mu_from_airport').value = 'Singapore Changi Airport';
-    document.getElementById('mu_from_terminal').value = '3';
-    document.getElementById('mu_to_code').value = 'KHN';
-    document.getElementById('mu_to_airport').value = 'Nanchang Changbei International Airport';
-    document.getElementById('mu_to_terminal').value = '1';
-    document.getElementById('mu_dep_date').value = '2026-05-27';
-    document.getElementById('mu_dep_time').value = '03:10';
-    document.getElementById('mu_arr_date').value = '2026-05-27';
-    document.getElementById('mu_arr_time').value = '08:30';
+    document.getElementById('mu_order_no').value = '800426061644743321';
+    // 示例两段行程（中转）
+    document.getElementById('muFlightsContainer').innerHTML = '';
+    muFlightIndex = 0;
+    [
+        {flight_no:'MU566', cabin:'Economy (Z)', from_code:'SIN', from_airport:'Singapore Changi Airport', from_terminal:'',
+         to_code:'PVG', to_airport:'Pudong International Airport', to_terminal:'',
+         dep_date:'2026-06-17', dep_time:'23:10', arr_date:'2026-06-18', arr_time:'04:40'},
+        {flight_no:'MU5129', cabin:'Economy (B)', from_code:'PVG', from_airport:'Pudong International Airport', from_terminal:'',
+         to_code:'PKX', to_airport:'Daxing International Airport', to_terminal:'',
+         dep_date:'2026-06-18', dep_time:'08:55', arr_date:'2026-06-18', arr_time:'11:20'},
+    ].forEach(f => muAddFlight(f));
     // 示例乘客
     document.getElementById('muPaxBody').innerHTML = '';
     muPaxIndex = 0;
     [
-        {name:'HU/JIHUA', pax_type:'Adult', id_no:'EG2565109', ticket_no:'781-2418522879'},
-        {name:'LI/HUI', pax_type:'Adult', id_no:'EK1469771', ticket_no:'781-2418522880'},
-        {name:'ZHOU/JUNCHEN', pax_type:'Adult', id_no:'EJ5211983', ticket_no:'781-2418522882'},
-        {name:'ZHOU/KAIYUAN', pax_type:'Child', id_no:'EJ5843125', ticket_no:'781-2418522883'},
-        {name:'ZHOU/KAIYING', pax_type:'Infant', id_no:'EP4887899', ticket_no:'781-2418522881'},
+        {name:'LU/KANG', pax_type:'Adult', id_no:'EJ6107966', ticket_no:'781-2418737197'},
     ].forEach(p => muAddPassenger(p));
     // 示例提示
     document.getElementById('muNoticeContainer').innerHTML = '';
     muNoticeIndex = 0;
     [
-        "Please arrive at the airport at least 2 hours before departure (check-in at SIN Terminal 3).",
+        "Please arrive at the airport at least 2 hours before departure.",
         "Present your passport at the check-in counter.",
-        "Arrival at Nanchang Changbei Airport, Terminal 1.",
+        "Passenger tickets shall be used in sequence.",
     ].forEach(n => muAddNotice(n));
 }
 
 function muResetAll() {
-    ['mu_order_no','mu_flight_no','mu_cabin','mu_from_code','mu_from_airport','mu_from_terminal',
-     'mu_to_code','mu_to_airport','mu_to_terminal','mu_dep_date','mu_dep_time','mu_arr_date','mu_arr_time']
-        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const orderEl = document.getElementById('mu_order_no');
+    if (orderEl) orderEl.value = '';
+    document.getElementById('muFlightsContainer').innerHTML = '';
     const fileInput = document.getElementById('muPdfFile');
     if (fileInput) fileInput.value = '';
     const msgEl = document.getElementById('muParseMsg');
@@ -1002,10 +1051,13 @@ function muResetAll() {
     document.getElementById('muNoticeContainer').innerHTML = '';
     muPaxIndex = 0;
     muNoticeIndex = 0;
+    muFlightIndex = 0;
     muUpdatePaxCount();
     muUpdateNoticeCount();
-    // 重新填上默认提示
+    muUpdateFlightCount();
+    // 重新填上默认提示 + 一个空航段
     MU_DEFAULT_NOTICES.forEach(n => muAddNotice(n));
+    muAddFlight();
 }
 
 function muUploadAndParse() {
@@ -1034,22 +1086,17 @@ function muUploadAndParse() {
             msgEl.style.display = '';
             return;
         }
-        // 填充航班信息
+        // 填充订单号
         document.getElementById('mu_order_no').value = data.order_no || '';
-        const f = data.flight || {};
-        document.getElementById('mu_flight_no').value = f.flight_no || '';
-        document.getElementById('mu_cabin').value = f.cabin || '';
-        document.getElementById('mu_from_code').value = f.from_code || '';
-        document.getElementById('mu_from_airport').value = f.from_airport || '';
-        document.getElementById('mu_to_code').value = f.to_code || '';
-        document.getElementById('mu_to_airport').value = f.to_airport || '';
-        document.getElementById('mu_dep_date').value = f.dep_date || '';
-        document.getElementById('mu_dep_time').value = f.dep_time || '';
-        document.getElementById('mu_arr_date').value = f.arr_date || '';
-        document.getElementById('mu_arr_time').value = f.arr_time || '';
-        // 航站楼邮件 PDF 通常没有，保留原值或清空
-        document.getElementById('mu_from_terminal').value = f.from_terminal || '';
-        document.getElementById('mu_to_terminal').value = f.to_terminal || '';
+
+        // 填充航段（支持多段）；兼容旧返回的单 flight 字段
+        let flights = data.flights || [];
+        if (!flights.length && data.flight && data.flight.flight_no) flights = [data.flight];
+        document.getElementById('muFlightsContainer').innerHTML = '';
+        muFlightIndex = 0;
+        flights.forEach(f => muAddFlight(f));
+        if (!flights.length) muAddFlight();
+
         // 乘客
         document.getElementById('muPaxBody').innerHTML = '';
         muPaxIndex = 0;
@@ -1057,8 +1104,9 @@ function muUploadAndParse() {
         if (!(data.passengers || []).length) muAddPassenger();
 
         const n = (data.passengers || []).length;
+        const flightNos = flights.map(f => f.flight_no).filter(Boolean).join(', ') || '(无)';
         msgEl.className = 'mt-2 small text-success';
-        msgEl.textContent = `解析成功：订单号 ${data.order_no || '(无)'}，航班 ${f.flight_no || '(无)'}，乘客 ${n} 人（请补充航站楼等信息后生成）`;
+        msgEl.textContent = `解析成功：订单号 ${data.order_no || '(无)'}，航段 ${flights.length} 段（${flightNos}），乘客 ${n} 人（请补充航站楼等信息后生成）`;
         msgEl.style.display = '';
     })
     .catch(err => {
@@ -1070,25 +1118,16 @@ function muUploadAndParse() {
 }
 
 function muGenerate() {
-    const flight_no = document.getElementById('mu_flight_no').value.trim().toUpperCase();
-    if (!flight_no) { alert('请填写航班号'); return; }
+    const flights = muCollectFlights();
+    const flight_no = (flights[0] && flights[0].flight_no) || '';
+    if (!flight_no) { alert('请至少填写一个航段的航班号'); return; }
     const passengers = muCollectPassengers();
     if (!passengers.length) { alert('请至少添加一位乘客'); return; }
 
     const payload = {
         order_no: document.getElementById('mu_order_no').value.trim(),
-        flight_no,
-        cabin: document.getElementById('mu_cabin').value.trim(),
-        from_code: document.getElementById('mu_from_code').value.trim().toUpperCase(),
-        from_airport: document.getElementById('mu_from_airport').value.trim(),
-        from_terminal: document.getElementById('mu_from_terminal').value.trim(),
-        to_code: document.getElementById('mu_to_code').value.trim().toUpperCase(),
-        to_airport: document.getElementById('mu_to_airport').value.trim(),
-        to_terminal: document.getElementById('mu_to_terminal').value.trim(),
-        dep_date: document.getElementById('mu_dep_date').value.trim(),
-        dep_time: document.getElementById('mu_dep_time').value.trim(),
-        arr_date: document.getElementById('mu_arr_date').value.trim(),
-        arr_time: document.getElementById('mu_arr_time').value.trim(),
+        flight_no,  // 顶层航班号用于文件名（向后兼容）
+        flights,
         passengers,
         notices: muCollectNotices(),
     };
@@ -1128,10 +1167,11 @@ function muGenerate() {
     .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 }
 
-// 初始化默认提示行 + 一行空乘客
+// 初始化默认提示行 + 一行空乘客 + 一个空航段
 document.addEventListener('DOMContentLoaded', () => {
     MU_DEFAULT_NOTICES.forEach(n => muAddNotice(n));
     muAddPassenger();
+    muAddFlight();
 });
 
 function cleanQunar() {
