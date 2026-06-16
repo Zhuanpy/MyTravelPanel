@@ -204,6 +204,8 @@
         /* 包含/不含内容：隐藏"价格与包含项目"整块 */
         body.hide-inclusions .price-block-title,
         body.hide-inclusions .price-section { display: none !important; }
+        /* 日期：隐藏每日行程的具体日期 */
+        body.hide-date .day-date { display: none !important; }
 
         @media print {
             .print-actions,
@@ -698,6 +700,7 @@
     <label><input type="checkbox" id="optHideInclusions"> 包含/不含内容</label>
     <label><input type="checkbox" id="optHideProposal"> Proposal</label>
     <label><input type="checkbox" id="optHidePax"> 人数</label>
+    <label><input type="checkbox" id="optHideDate"> 日期</label>
 </div>
 
 <div class="print-container">
@@ -804,7 +807,8 @@ document.addEventListener('DOMContentLoaded', function() {
         'optHidePrice': 'hide-price',
         'optHideInclusions': 'hide-inclusions',
         'optHideProposal': 'hide-proposal',
-        'optHidePax': 'hide-pax'
+        'optHidePax': 'hide-pax',
+        'optHideDate': 'hide-date'
     };
     Object.keys(optionMap).forEach(function(id) {
         const checkbox = document.getElementById(id);
