@@ -236,10 +236,15 @@
                                    value="zhangzhuan@joyesc.com"
                                    placeholder="可选，多个邮箱用逗号分隔">
                         </div>
-                        <div class="mb-0">
+                        <div class="mb-2">
                             <label class="form-label small mb-1">主题 <span class="text-danger">*</span></label>
                             <input type="text" id="emailSubject" class="form-control form-control-sm"
                                    value="Prepayment Top-up Confirmation - {{ prepayment.prepayment_number }}">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label small mb-1">附件</label>
+                            <input type="file" id="emailAttachments" class="form-control form-control-sm" multiple>
+                            <small class="text-muted">可选，支持多个文件（如付款水单、凭证）</small>
                         </div>
                     </div>
                     <!-- 右栏：邮件正文 -->
@@ -477,15 +482,22 @@ function sendEmail() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>发送中...';
 
+    // 使用 FormData 以支持附件上传
+    var formData = new FormData();
+    formData.append('recipient', recipient);
+    formData.append('cc', cc);
+    formData.append('subject', subject);
+    formData.append('body', body);
+    var fileInput = document.getElementById('emailAttachments');
+    if (fileInput && fileInput.files) {
+        for (var i = 0; i < fileInput.files.length; i++) {
+            formData.append('attachments', fileInput.files[i]);
+        }
+    }
+
     fetch('/projects/prepayment/' + prepaymentId + '/email/send', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            recipient: recipient,
-            cc: cc,
-            subject: subject,
-            body: body
-        })
+        body: formData
     })
     .then(res => res.json())
     .then(data => {

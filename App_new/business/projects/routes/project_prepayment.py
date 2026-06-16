@@ -635,11 +635,20 @@ def send_prepayment_email(prepayment_id):
         logger = logging.getLogger(__name__)
         prepayment = SupplierPrepayment.query.get_or_404(prepayment_id)
 
-        data = request.get_json()
-        recipients_str = data.get('recipient', '').strip()
-        cc_str = data.get('cc', '').strip()
-        subject = data.get('subject', '').strip()
-        body = data.get('body', '').strip()
+        # 支持 multipart/form-data（带附件）与 JSON（无附件）两种提交
+        attachments = []
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            recipients_str = (request.form.get('recipient') or '').strip()
+            cc_str = (request.form.get('cc') or '').strip()
+            subject = (request.form.get('subject') or '').strip()
+            body = (request.form.get('body') or '').strip()
+            attachments = [f for f in request.files.getlist('attachments') if f and f.filename]
+        else:
+            data = request.get_json() or {}
+            recipients_str = data.get('recipient', '').strip()
+            cc_str = data.get('cc', '').strip()
+            subject = data.get('subject', '').strip()
+            body = data.get('body', '').strip()
 
         if not recipients_str:
             return jsonify({'success': False, 'message': '请填写收件人邮箱'}), 400
@@ -685,13 +694,20 @@ def send_prepayment_email(prepayment_id):
             html=html_body
         )
 
-        logger.info(f"预付款邮件发送 - 编号: {prepayment.prepayment_number}, 收件人: {recipients}")
+        # 添加附件
+        import mimetypes
+        for f in attachments:
+            mime_type, _ = mimetypes.guess_type(f.filename)
+            msg.attach(f.filename, mime_type or 'application/octet-stream', f.read())
+
+        logger.info(f"预付款邮件发送 - 编号: {prepayment.prepayment_number}, 收件人: {recipients}, 附件: {len(attachments)}")
         mail.send(msg)
         logger.info("预付款邮件发送成功")
 
         return jsonify({
             'success': True,
             'message': f'邮件已发送至 {", ".join(recipients)}'
+                       + (f'（含 {len(attachments)} 个附件）' if attachments else '')
         })
 
     except Exception as e:
