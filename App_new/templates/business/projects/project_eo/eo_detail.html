@@ -167,6 +167,9 @@
             {% endif %}
         </h1>
         <div class="d-flex gap-2">
+            <a href="{{ url_for('business_projects.project_eo.print_eo', eo_id=eo.id) }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-print"></i> 打印
+            </a>
             {% if eo.status != 'void' and eo.status != 'cancelled' and eo.pay_amount is none %}
             <a href="{{ url_for('business_projects.project_eo.batch_pay', supplier=eo.ref.supplier_id if eo.ref and eo.ref.supplier_id else '') }}" class="btn btn-success btn-sm">
                 <i class="fas fa-money-check-alt"></i> 去付款

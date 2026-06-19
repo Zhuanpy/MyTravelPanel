@@ -90,6 +90,62 @@ def eo_detail(eo_id):
     return render_template('business/projects/project_eo/eo_detail.html', eo=eo)
 
 
+@project_eo.route('/<int:eo_id>/print')
+@login_required
+@staff_only
+def print_eo(eo_id):
+    """打印EO页面（发给供应商的执行单/订单）"""
+    eo = ProjectEO.query.get_or_404(eo_id)
+
+    # 员工等级权限检查
+    from App_new.business.projects.models.project import ProjectHeader
+    header = ProjectHeader.query.get(eo.ref.header_id)
+    if header and not can_access_project(header, current_user):
+        flash('您没有权限访问此项目', 'error')
+        return redirect(url_for('business_projects.project_eo.eo_list'))
+
+    # 为REF构建extra_data（与发票详情逻辑一致），用于在描述中显示出行人(Pax)
+    if eo.ref:
+        eo.ref.extra_data = _build_ref_extra_data(eo.ref)
+
+    return render_template('business/projects/project_eo/print_eo.html', eo=eo)
+
+
+def _build_ref_extra_data(ref):
+    """为REF构建extra_data，机票类型始终从源表获取乘客信息
+
+    复用发票详情(project_invoice.invoice_detail)的逻辑，保证出行人(Pax)显示一致。
+    """
+    from App_new.business.projects.models.project_member import ProjectMember
+
+    extra_data = {}
+    if ref.extra_info:
+        try:
+            extra_data = json.loads(ref.extra_info)
+        except (json.JSONDecodeError, TypeError):
+            extra_data = {}
+
+    # 机票类型：始终从flight_passengers表获取最新乘客信息
+    if hasattr(ref, 'flight_passengers') and ref.flight_passengers:
+        pax_names = [p.name for p in ref.flight_passengers if p.name]
+        extra_data['pax_names_display'] = ', '.join(pax_names)
+        if hasattr(ref, 'flight_segments') and ref.flight_segments:
+            seg = ref.flight_segments[0]
+            if seg.departure_time:
+                extra_data['departure_date'] = seg.departure_time.strftime('%Y-%m-%d')
+    elif not extra_data.get('pax_names_display'):
+        # 非机票类型：从项目成员表获取乘客信息
+        pax_names_ids = extra_data.get('pax_names', [])
+        if pax_names_ids:
+            members = ProjectMember.query.filter(ProjectMember.id.in_(pax_names_ids)).all()
+            pax_names_list = [f"{m.title} {m.member_name}" if m.title else m.member_name for m in members]
+            extra_data['pax_names_display'] = ', '.join(pax_names_list)
+        else:
+            extra_data['pax_names_display'] = extra_data.get('pax_name', '')
+
+    return extra_data
+
+
 @project_eo.route('/<int:eo_id>/update', methods=['POST'])
 @login_required
 @staff_only
