@@ -609,10 +609,7 @@ function initMembersManagement() {
     // 保存人员
     document.querySelector('[data-action="save-member"]')?.addEventListener('click', saveMember);
     
-    // 点击模态框外部关闭
-    document.getElementById('memberModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeMemberModal();
-    });
+    // 注意：不在点击遮罩层时关闭，避免误触关闭窗口，仅通过「关闭/取消」按钮关闭
 
     // DD-MM-YYYY 输入时自动补 -
     document.querySelectorAll('#memberModal .date-ddmmyyyy').forEach(el => {
@@ -734,6 +731,29 @@ function setMemberModalMode(mode) {
     document.getElementById('memberFrequentDetails').style.display = isFreq ? '' : 'none';
     document.getElementById('memberRegularHint').style.display = isFreq ? 'none' : '';
     document.getElementById('memberFormSectionTitle').textContent = isFreq ? '常用乘客信息' : '普通乘客信息';
+    // 常用乘客：性别与姓名同一行（姓名占 6 列）；普通乘客：仅称谓+姓名（姓名占 9 列）
+    document.getElementById('memberGenderWrap').style.display = isFreq ? '' : 'none';
+    const nameWrap = document.getElementById('memberNameWrap');
+    nameWrap.classList.toggle('col-6', isFreq);
+    nameWrap.classList.toggle('col-9', !isFreq);
+}
+
+// 设置模态框只读：常用旅客仅在「常用旅客管理」页编辑，项目详情这里只展示信息
+function setMemberReadonly(readonly) {
+    const form = document.getElementById('memberForm');
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.type !== 'hidden') el.disabled = readonly;
+    });
+    form.classList.toggle('member-readonly', readonly);
+    document.getElementById('memberSaveBtn').style.display = readonly ? 'none' : '';
+    document.getElementById('memberEditFrequentBtn').style.display = readonly ? '' : 'none';
+}
+
+// 跳转到「常用旅客管理」页编辑当前常用旅客
+function openFrequentTravelerEdit() {
+    const id = document.getElementById('memberFrequentId').value;
+    if (!id) return;
+    window.open('/projects/frequent_traveler/?edit=' + id, '_blank');
 }
 
 function openMemberModal(member = null) {
@@ -747,15 +767,16 @@ function openMemberModal(member = null) {
     // 编辑模式隐藏常用旅客选取，新增模式显示
     const ftPicker = document.getElementById('frequentTravelerPicker');
 
-    // 默认重置为普通模式
+    // 默认重置为普通模式（可编辑）
     document.getElementById('memberForm').reset();
     document.getElementById('memberMembershipList').innerHTML = '';
     document.getElementById('memberFrequentId').value = '';
     setMemberModalMode('regular');
+    setMemberReadonly(false);
 
     if (member) {
         const isFrequent = !!member.is_frequent;
-        title.textContent = isFrequent ? '编辑常用乘客' : '编辑普通乘客';
+        title.textContent = '编辑普通乘客';
         if (ftPicker) ftPicker.style.display = 'none';
         document.getElementById('ftSelectedInfo').style.display = 'none';
 
@@ -765,8 +786,10 @@ function openMemberModal(member = null) {
         document.getElementById('memberTitle').value = member.title || '';
 
         if (isFrequent && member.frequent_traveler_id) {
-            // 常用乘客：先用 ProjectMember 快照填充，再异步覆盖为 FrequentTraveler 最新数据
+            // 常用乘客：仅展示信息（只读），编辑请到「常用旅客管理」页
+            title.innerHTML = '<i class="fas fa-id-card me-2"></i>常用乘客信息';
             setMemberModalMode('frequent');
+            setMemberReadonly(true);
             document.getElementById('memberFrequentId').value = member.frequent_traveler_id;
             memberLoadFiles(member.frequent_traveler_id);
             fillFrequentDetails({
@@ -1240,11 +1263,13 @@ function clearSelectedTraveler() {
 function addMemberMembershipRow(data) {
     const container = document.getElementById('memberMembershipList');
     document.getElementById('memberMembershipEmpty').style.display = 'none';
+    // 只读模式（常用乘客查看）下，会员行输入框禁用、删除按钮由 CSS 隐藏
+    const readonly = document.getElementById('memberForm').classList.contains('member-readonly');
     const row = document.createElement('div');
     row.className = 'mm-row';
     row.innerHTML = `
-        <input type="text" class="form-control form-control-sm mm-airline" placeholder="航空公司" value="${data ? (data.airline || '') : ''}" style="flex:2;">
-        <input type="text" class="form-control form-control-sm mm-number" placeholder="会员号码" value="${data ? (data.number || '') : ''}" style="flex:3;">
+        <input type="text" class="form-control form-control-sm mm-airline" placeholder="航空公司" value="${data ? (data.airline || '') : ''}" style="flex:2;" ${readonly ? 'disabled' : ''}>
+        <input type="text" class="form-control form-control-sm mm-number" placeholder="会员号码" value="${data ? (data.number || '') : ''}" style="flex:3;" ${readonly ? 'disabled' : ''}>
         <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" onclick="this.closest('.mm-row').remove(); updateMemberMembershipEmpty()" style="font-size:0.75rem;">
             <i class="fas fa-times"></i>
         </button>`;
@@ -1411,6 +1436,18 @@ function deleteMember(memberId, memberName) {
         display: flex; gap: 6px; align-items: center; margin-bottom: 5px;
     }
     #memberModal .mm-row input { font-size: 0.82rem; border-radius: 5px; }
+    /* 只读模式（常用乘客查看）：隐藏所有编辑/删除/上传等操作控件 */
+    #memberModal .member-readonly #addMemberMembershipBtn,
+    #memberModal .member-readonly #memberMembershipEmpty,
+    #memberModal .member-readonly #memberUploadRow,
+    #memberModal .member-readonly .mm-row .btn-outline-danger,
+    #memberModal .member-readonly #memberFilesList .btn-outline-danger { display: none !important; }
+    /* 只读输入框保持清晰可读 */
+    #memberModal .member-readonly input:disabled,
+    #memberModal .member-readonly select:disabled,
+    #memberModal .member-readonly textarea:disabled {
+        background-color: #f8f9fa; color: #212529; opacity: 1; cursor: default;
+    }
 </style>
 <div id="memberModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.45); z-index: 1050; overflow-y: auto;">
     <div class="modal-content" style="max-width: 780px; margin: 24px auto; border-radius: 8px; border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.18);">
@@ -1459,9 +1496,17 @@ function deleteMember(memberId, memberName) {
                                 <option value="MASTER">MASTER</option>
                             </select>
                         </div>
-                        <div class="col-9">
+                        <div class="col-6" id="memberNameWrap">
                             <label class="form-label">姓名 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
+                        </div>
+                        <div class="col-3" id="memberGenderWrap" style="display: none;">
+                            <label class="form-label">性别</label>
+                            <select class="form-select form-select-sm" id="memberGender">
+                                <option value="">-</option>
+                                <option value="male">男 Male</option>
+                                <option value="female">女 Female</option>
+                            </select>
                         </div>
                     </div>
                     <div id="memberRegularHint" class="text-muted mt-2" style="font-size: 0.75rem;">
@@ -1472,35 +1517,14 @@ function deleteMember(memberId, memberName) {
                 <!-- 常用乘客扩展信息：仅编辑常用乘客时显示 -->
                 <div id="memberFrequentDetails" style="display: none;">
                     <div class="section-card">
-                        <div class="section-title"><i class="fas fa-passport"></i> 护照 / 联系方式</div>
-                        <div class="row g-2 mb-1">
-                            <div class="col-3">
-                                <label class="form-label">性别</label>
-                                <select class="form-select form-select-sm" id="memberGender">
-                                    <option value="">-</option>
-                                    <option value="male">男 Male</option>
-                                    <option value="female">女 Female</option>
-                                </select>
-                            </div>
-                        </div>
+                        <div class="section-title"><i class="fas fa-passport"></i> 护照 / 证件 / 联系方式</div>
+                        <!-- 护照信息：护照号码、国籍、出生日期、护照有效期、签发国 一行 -->
                         <div class="row g-2">
-                            <div class="col-6">
+                            <div class="col-3">
                                 <label class="form-label">护照号码</label>
                                 <input type="text" class="form-control form-control-sm" id="memberIdNumber" placeholder="E12345678">
                             </div>
-                            <div class="col-3">
-                                <label class="form-label">签发国</label>
-                                <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
-                            </div>
-                            <div class="col-3">
-                                <label class="form-label">护照有效期</label>
-                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberPassportExpiry"
-                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
-                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 25-12-2030">
-                            </div>
-                        </div>
-                        <div class="row g-2 mt-0">
-                            <div class="col-3">
+                            <div class="col-2">
                                 <label class="form-label">国籍</label>
                                 <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
                             </div>
@@ -1510,11 +1534,25 @@ function deleteMember(memberId, memberName) {
                                        placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
                                        pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 15-01-1990">
                             </div>
+                            <div class="col-2">
+                                <label class="form-label">护照有效期</label>
+                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberPassportExpiry"
+                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
+                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 25-12-2030">
+                            </div>
+                            <div class="col-2">
+                                <label class="form-label">签发国</label>
+                                <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
+                            </div>
+                        </div>
+                        <!-- 身份证号 一行 -->
+                        <div class="row g-2 mt-0">
                             <div class="col-6">
                                 <label class="form-label">身份证号</label>
                                 <input type="text" class="form-control form-control-sm" id="memberIdCardNumber" placeholder="可留空">
                             </div>
                         </div>
+                        <!-- 联系方式 一行 -->
                         <div class="row g-2 mt-0">
                             <div class="col-5">
                                 <label class="form-label">联系电话</label>
@@ -1530,7 +1568,7 @@ function deleteMember(memberId, memberName) {
                     <div class="section-card">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <div class="section-title mb-0"><i class="fas fa-plane"></i> 航空会员</div>
-                            <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="addMemberMembershipRow()" style="font-size: 0.75rem;">
+                            <button type="button" id="addMemberMembershipBtn" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="addMemberMembershipRow()" style="font-size: 0.75rem;">
                                 <i class="fas fa-plus"></i> 添加
                             </button>
                         </div>
@@ -1557,7 +1595,7 @@ function deleteMember(memberId, memberName) {
                                 </button>
                             </div>
                         </div>
-                        <div class="row g-2 align-items-end">
+                        <div class="row g-2 align-items-end" id="memberUploadRow">
                             <div class="col-3">
                                 <label class="form-label">分类</label>
                                 <select class="form-select form-select-sm" id="memberUploadCategory">
@@ -1592,8 +1630,9 @@ function deleteMember(memberId, memberName) {
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary btn-sm" data-action="close-member-modal">取消</button>
-            <button type="button" class="btn btn-primary btn-sm" data-action="save-member"><i class="fas fa-save me-1"></i>保存</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="close-member-modal">关闭</button>
+            <button type="button" id="memberEditFrequentBtn" class="btn btn-warning btn-sm" style="display: none;" onclick="openFrequentTravelerEdit()"><i class="fas fa-edit me-1"></i>编辑常用旅客</button>
+            <button type="button" id="memberSaveBtn" class="btn btn-primary btn-sm" data-action="save-member"><i class="fas fa-save me-1"></i>保存</button>
         </div>
     </div>
 </div>

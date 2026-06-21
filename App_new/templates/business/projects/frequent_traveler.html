@@ -64,25 +64,23 @@
     <!-- 旅客列表 -->
     <div class="card">
         <div class="table-responsive">
-            <table class="table table-hover table-sm mb-0" style="font-size: 0.85rem;">
+            <table class="table table-hover table-sm mb-0 ft-list-table" style="font-size: 0.85rem;">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 4%;">#</th>
-                        <th style="width: 6%;" title="系统自动生成的旅客编号">编号</th>
-                        <th style="width: 6%;">称谓</th>
-                        <th style="width: 12%;">姓名</th>
-                        <th style="width: 10%;">电话</th>
-                        <th style="width: 11%;">护照号</th>
-                        <th style="width: 8%;">护照有效期</th>
-                        <th style="width: 9%;">公司</th>
-                        <th style="width: 7%;">集团</th>
-                        <th style="width: 7%;">所属</th>
-                        <th style="width: 9%;">资料</th>
-                        <th style="width: 13%;">操作</th>
+                        <th style="width: 8%;" title="系统自动生成的旅客编号">编号</th>
+                        <th style="width: 17%;">姓名</th>
+                        <th style="width: 12%;">电话</th>
+                        <th style="width: 12%;">护照号</th>
+                        <th style="width: 9%;" class="text-center">护照有效期</th>
+                        <th style="width: 15%;">公司</th>
+                        <th style="width: 9%;">集团</th>
+                        <th style="width: 8%;" class="text-center">所属</th>
+                        <th style="width: 8%;" class="text-center">资料</th>
+                        <th style="width: 5%;" class="text-center">操作</th>
                     </tr>
                 </thead>
                 <tbody id="travelersTbody">
-                    <tr><td colspan="12" class="text-center text-muted py-4">加载中...</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-4">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -98,6 +96,11 @@
 
 <!-- 常用旅客编辑模态框 -->
 <style>
+    /* 列表：固定列宽 + 垂直居中，长文本省略号，避免换行导致行高参差 */
+    .ft-list-table { table-layout: fixed; min-width: 1080px; }
+    .ft-list-table td, .ft-list-table th { vertical-align: middle; }
+    .ft-list-table td.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ft-list-table td.nowrap { white-space: nowrap; }
     #travelerModal .section-card {
         background: #f8f9fc;
         border: 1px solid #e9ecf1;
@@ -157,7 +160,7 @@
     }
 </style>
 <div id="travelerModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.45); z-index: 1050; overflow-y: auto;">
-    <div class="modal-content" style="max-width: 720px; margin: 28px auto; border-radius: 8px; border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.18);">
+    <div class="modal-content" style="max-width: 820px; margin: 28px auto; border-radius: 8px; border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.18);">
         <div class="modal-header">
             <h5 class="modal-title" id="travelerModalTitle"><i class="fas fa-user-plus me-2"></i>添加常用旅客</h5>
             <span class="close" onclick="closeTravelerModal()">&times;</span>
@@ -169,8 +172,9 @@
                 <!-- 基本信息 -->
                 <div class="section-card">
                     <div class="section-title"><i class="fas fa-user"></i> 基本信息</div>
+                    <!-- 称谓、姓名、性别 一行 -->
                     <div class="row g-2">
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">称谓</label>
                             <select class="form-select form-select-sm" id="travelerTitle">
                                 <option value="">-</option>
@@ -184,7 +188,7 @@
                             <label class="form-label">姓名 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm" id="travelerName" placeholder="请输入姓名" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">性别</label>
                             <select class="form-select form-select-sm" id="travelerGender">
                                 <option value="">-</option>
@@ -192,25 +196,8 @@
                                 <option value="female">女</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">国籍</label>
-                            <input type="text" class="form-control form-control-sm" id="travelerNationality" placeholder="如 CHINA">
-                        </div>
                     </div>
-                    <div class="row g-2 mt-0">
-                        <div class="col-md-4">
-                            <label class="form-label">出生日期</label>
-                            <input type="date" class="form-control form-control-sm" id="travelerDob">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">联系电话</label>
-                            <input type="text" class="form-control form-control-sm" id="travelerPhone" placeholder="+65 ...">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">邮箱</label>
-                            <input type="email" class="form-control form-control-sm" id="travelerEmail" placeholder="email@example.com">
-                        </div>
-                    </div>
+                    <!-- 关联公司、集团、所属员工 一行 -->
                     <div class="row g-2 mt-0">
                         <div class="col-md-4">
                             <label class="form-label">关联公司</label>
@@ -243,27 +230,48 @@
                     </div>
                 </div>
 
-                <!-- 证件信息 -->
+                <!-- 护照 / 证件 / 联系方式 -->
                 <div class="section-card">
-                    <div class="section-title"><i class="fas fa-id-card"></i> 证件信息</div>
+                    <div class="section-title"><i class="fas fa-passport"></i> 护照 / 证件 / 联系方式</div>
+                    <!-- 护照号码、国籍、出生日期、护照有效期、签发国 一行 -->
                     <div class="row g-2">
-                        <div class="col-md-4">
+                        <div class="col-md-2">
                             <label class="form-label">护照号码</label>
                             <input type="text" class="form-control form-control-sm" id="travelerPassport" placeholder="E12345678">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">签发国</label>
-                            <input type="text" class="form-control form-control-sm" id="travelerPassportCountry" placeholder="如 CHINA">
+                        <div class="col-md-2">
+                            <label class="form-label">国籍</label>
+                            <input type="text" class="form-control form-control-sm" id="travelerNationality" placeholder="如 CHINA">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label">出生日期</label>
+                            <input type="date" class="form-control form-control-sm" id="travelerDob">
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label">护照有效期</label>
                             <input type="date" class="form-control form-control-sm" id="travelerPassportExpiry">
                         </div>
+                        <div class="col-md-2">
+                            <label class="form-label">签发国</label>
+                            <input type="text" class="form-control form-control-sm" id="travelerPassportCountry" placeholder="如 CHINA">
+                        </div>
                     </div>
+                    <!-- 身份证号 一行 -->
                     <div class="row g-2 mt-0">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label">身份证号码</label>
                             <input type="text" class="form-control form-control-sm" id="travelerIdCard">
+                        </div>
+                    </div>
+                    <!-- 联系方式 一行 -->
+                    <div class="row g-2 mt-0">
+                        <div class="col-md-5">
+                            <label class="form-label">联系电话</label>
+                            <input type="text" class="form-control form-control-sm" id="travelerPhone" placeholder="+65 ...">
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label">邮箱</label>
+                            <input type="email" class="form-control form-control-sm" id="travelerEmail" placeholder="email@example.com">
                         </div>
                     </div>
                 </div>
@@ -343,21 +351,6 @@
     </div>
 </div>
 
-<!-- 旅客详情模态框 -->
-<div id="travelerDetailModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1050; overflow-y: auto;">
-    <div class="modal-content" style="max-width: 650px; margin: 30px auto;">
-        <div class="modal-header">
-            <h5 class="modal-title">旅客详情</h5>
-            <span class="close" onclick="document.getElementById('travelerDetailModal').style.display='none'">&times;</span>
-        </div>
-        <div class="modal-body" id="travelerDetailBody" style="max-height: 70vh; overflow-y: auto;">
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('travelerDetailModal').style.display='none'">关闭</button>
-        </div>
-    </div>
-</div>
-
 <!-- 图片预览模态框 -->
 <div id="imagePreviewModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 1060; overflow-y: auto;">
     <div style="max-width: 900px; margin: 30px auto; text-align: center;">
@@ -374,6 +367,9 @@ let currentPage = 1;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadTravelers();
+    // 支持从项目详情等页面携带 ?edit=<id> 直接打开编辑弹窗
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    if (editId) editTraveler(editId);
 });
 
 // ---- Excel 导入导出 ----
@@ -451,39 +447,26 @@ function renderTravelers(travelers, total, page, pages) {
     document.getElementById('travelerCount').textContent = `共 ${total} 条记录`;
 
     if (!travelers.length) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
         document.getElementById('travelerPagination').innerHTML = '';
         return;
     }
 
-    tbody.innerHTML = travelers.map((t, idx) => {
+    tbody.innerHTML = travelers.map((t) => {
         const expiryClass = t.passport_expiry_date && new Date(t.passport_expiry_date) < new Date() ? 'text-danger' : '';
         const fc = t.file_count || 0;
         return `
-        <tr style="cursor: pointer;" onclick="viewTraveler(${t.id})">
-            <td>${(page - 1) * 20 + idx + 1}</td>
+        <tr style="cursor: pointer;" onclick="editTraveler(${t.id})" title="点击编辑">
             <td><span class="badge bg-light text-dark" style="font-size: 0.72rem; font-family: monospace;">${t.traveler_code || ''}</span></td>
-            <td>${t.title || ''}</td>
-            <td><strong>${t.name}</strong></td>
-            <td>${t.phone || ''}</td>
-            <td>${t.passport_number || ''}</td>
-            <td class="${expiryClass}">${t.passport_expiry_date || ''}</td>
-            <td><small>${t.company_name || ''}</small></td>
-            <td><small class="text-muted">${t.group_name || ''}</small></td>
-            <td><small>${t.staff_name ? `<span class="badge" style="background:#e0e7ff;color:#4338ca;">${t.staff_name}</span>` : '<span class="text-muted">公共</span>'}</small></td>
-            <td style="white-space: nowrap;">
-                <button class="btn btn-sm btn-outline-success py-0 px-1" onclick="event.stopPropagation(); quickUpload(${t.id})" title="上传资料" style="font-size: 0.75rem;">
-                    <i class="fas fa-upload"></i>
-                </button>
-                ${fc > 0 ? `<a href="/projects/frequent_traveler/api/${t.id}/files/download_all" class="btn btn-sm btn-outline-info py-0 px-1" onclick="event.stopPropagation();" title="打包下载全部资料" style="font-size: 0.75rem;">
-                    <i class="fas fa-download"></i>
-                </a>
-                <span class="badge bg-info" style="font-size: 0.65rem;">${fc}</span>` : '<small class="text-muted">0</small>'}
-            </td>
-            <td style="white-space: nowrap;">
-                <button class="btn btn-sm btn-outline-primary py-0 px-1" onclick="event.stopPropagation(); editTraveler(${t.id})" title="编辑" style="font-size: 0.75rem;">
-                    <i class="fas fa-edit"></i>
-                </button>
+            <td class="trunc" title="${t.name || ''}"><strong>${t.name || ''}</strong></td>
+            <td class="trunc" title="${t.phone || ''}">${t.phone || '<span class="text-muted">-</span>'}</td>
+            <td class="trunc" title="${t.passport_number || ''}">${t.passport_number || '<span class="text-muted">-</span>'}</td>
+            <td class="text-center ${expiryClass}">${t.passport_expiry_date || '<span class="text-muted">-</span>'}</td>
+            <td class="trunc" title="${t.company_name || ''}"><small>${t.company_name || '<span class="text-muted">-</span>'}</small></td>
+            <td class="trunc" title="${t.group_name || ''}"><small class="text-muted">${t.group_name || '-'}</small></td>
+            <td class="text-center">${t.staff_name ? `<span class="badge" style="background:#e0e7ff;color:#4338ca;">${t.staff_name}</span>` : '<span class="text-muted" style="font-size:0.75rem;">公共</span>'}</td>
+            <td class="text-center">${fc > 0 ? `<span class="badge bg-info" style="font-size: 0.7rem;">${fc}</span>` : '<span class="text-muted">0</span>'}</td>
+            <td class="text-center nowrap">
                 <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteTraveler(${t.id}, '${t.name}')" title="删除" style="font-size: 0.75rem;">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -705,70 +688,6 @@ function editTraveler(id) {
         });
 }
 
-function viewTraveler(id) {
-    fetch(`/projects/frequent_traveler/api/${id}`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) return;
-            const t = data.data;
-            let membershipsHtml = '';
-            if (t.airline_memberships && t.airline_memberships.length) {
-                membershipsHtml = t.airline_memberships.map(m =>
-                    `<tr><td>${m.airline || ''}</td><td>${m.number || ''}</td></tr>`
-                ).join('');
-                membershipsHtml = `<h6 class="mt-3"><i class="fas fa-plane"></i> 航空会员</h6>
-                    <table class="table table-sm table-bordered" style="font-size:0.85rem;">
-                    <thead><tr><th>航空公司</th><th>会员号</th></tr></thead>
-                    <tbody>${membershipsHtml}</tbody></table>`;
-            }
-            const expiryWarning = t.passport_expiry_date && new Date(t.passport_expiry_date) < new Date()
-                ? ' <span class="badge bg-danger">已过期</span>' : '';
-
-            document.getElementById('travelerDetailBody').innerHTML = `
-                <div class="row mb-2">
-                    <div class="col-12"><strong>编号:</strong>
-                        <span class="badge bg-light text-dark" style="font-size:0.8rem; font-family:monospace;">${t.traveler_code || '-'}</span>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-6"><strong>称谓:</strong> ${t.title || '-'}</div>
-                    <div class="col-6"><strong>性别:</strong> ${t.gender === 'male' ? '男' : t.gender === 'female' ? '女' : '-'}</div>
-                </div>
-                <div class="row mt-1">
-                    <div class="col-12"><strong>姓名:</strong> ${t.name}</div>
-                </div>
-                <div class="row mt-1">
-                    <div class="col-6"><strong>出生日期:</strong> ${t.date_of_birth || '-'}</div>
-                    <div class="col-6"><strong>国籍:</strong> ${t.nationality || '-'}</div>
-                </div>
-                <hr class="my-2">
-                <div class="row">
-                    <div class="col-6"><strong>电话:</strong> ${t.phone || '-'}</div>
-                    <div class="col-6"><strong>邮箱:</strong> ${t.email || '-'}</div>
-                </div>
-                <hr class="my-2">
-                <div class="row">
-                    <div class="col-6"><strong>护照号:</strong> ${t.passport_number || '-'}</div>
-                    <div class="col-6"><strong>签发国:</strong> ${t.passport_issuing_country || '-'}</div>
-                </div>
-                <div class="row mt-1">
-                    <div class="col-6"><strong>护照有效期:</strong> ${t.passport_expiry_date || '-'}${expiryWarning}</div>
-                    <div class="col-6"><strong>身份证:</strong> ${t.id_card_number || '-'}</div>
-                </div>
-                ${membershipsHtml}
-                <div class="row mt-2">
-                    <div class="col-6"><strong>关联公司:</strong> ${t.company_name || '-'}</div>
-                    <div class="col-6"><strong>集团:</strong> ${t.group_name || '-'}</div>
-                </div>
-                ${t.remarks ? `<div class="row mt-1"><div class="col-12"><strong>备注:</strong> ${t.remarks}</div></div>` : ''}
-                <div id="detailFilesArea" class="mt-3"></div>
-            `;
-            document.getElementById('travelerDetailModal').style.display = 'block';
-            // 加载文件列表到详情弹窗
-            loadDetailFiles(id);
-        });
-}
-
 function deleteTraveler(id, name) {
     if (!confirm(`确定要删除常用旅客 "${name}" 吗？`)) return;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -781,55 +700,6 @@ function deleteTraveler(id, name) {
         if (result.success) loadTravelers(currentPage);
         else alert('删除失败: ' + result.message);
     });
-}
-
-// ---- 详情弹窗文件展示 ----
-function loadDetailFiles(travelerId) {
-    const area = document.getElementById('detailFilesArea');
-    fetch(`/projects/frequent_traveler/api/${travelerId}/files`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success || !data.data.length) {
-                area.innerHTML = '';
-                return;
-            }
-            const images = data.data.filter(f => f.is_image);
-            const docs = data.data.filter(f => !f.is_image);
-            let html = `<div class="d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="fas fa-folder-open"></i> 上传资料 <small class="text-muted">(${data.data.length})</small></h6>
-                <a href="/projects/frequent_traveler/api/${travelerId}/files/download_all" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:0.75rem;">
-                    <i class="fas fa-file-archive"></i> 打包下载
-                </a>
-            </div><div class="mt-2"></div>`;
-            if (images.length) {
-                html += '<div class="d-flex flex-wrap gap-2 mb-2">';
-                images.forEach(f => {
-                    html += `
-                        <div style="text-align:center; width: 100px;">
-                            <img src="/projects/frequent_traveler/api/files/${f.id}/download"
-                                 style="width:100px; height:75px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid #dee2e6;"
-                                 onclick="previewImage('/projects/frequent_traveler/api/files/${f.id}/download', '${f.filename.replace(/'/g, "\\'")}')"
-                                 title="${f.filename}">
-                            <div style="font-size:0.7rem;" class="text-muted text-truncate" title="${f.description || f.filename}">
-                                <span class="badge bg-secondary" style="font-size:0.6rem;">${f.category_display}</span>
-                                ${f.description || ''}
-                            </div>
-                        </div>`;
-                });
-                html += '</div>';
-            }
-            if (docs.length) {
-                docs.forEach(f => {
-                    html += `<div style="font-size:0.85rem;" class="mb-1">
-                        <i class="fas fa-file text-muted me-1"></i>
-                        <span class="badge bg-secondary" style="font-size:0.65rem;">${f.category_display}</span>
-                        <a href="/projects/frequent_traveler/api/files/${f.id}/download" target="_blank">${f.description || f.filename}</a>
-                        <small class="text-muted">(${f.file_size_display})</small>
-                    </div>`;
-                });
-            }
-            area.innerHTML = html;
-        });
 }
 
 // ---- 文件上传管理 ----
@@ -933,57 +803,6 @@ function uploadTravelerFile() {
 }
 
 // ---- 列表页快速上传 ----
-function quickUpload(travelerId) {
-    // 创建一个临时的隐藏文件选择器
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.accept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx';
-    input.onchange = function() {
-        if (!input.files.length) return;
-
-        // 弹出分类选择
-        const categories = {'passport': '护照', 'ic': 'IC/身份证', 'membership_card': '会员卡', 'visa': '签证页', 'other': '其他'};
-        const catKeys = Object.keys(categories);
-        const catLabels = catKeys.map((k, i) => `${i + 1}. ${categories[k]}`).join('\n');
-        const choice = prompt(`已选择 ${input.files.length} 个文件\n请选择分类（输入数字）:\n${catLabels}`, '1');
-        if (choice === null) return;
-        const catIdx = parseInt(choice) - 1;
-        const category = catKeys[catIdx] || 'other';
-
-        const formData = new FormData();
-        for (let i = 0; i < input.files.length; i++) {
-            formData.append('file', input.files[i]);
-        }
-        formData.append('file_category', category);
-
-        // 显示上传中提示
-        const row = document.querySelector(`tr[onclick*="viewTraveler(${travelerId})"]`);
-        const uploadCell = row?.querySelectorAll('td')[7];
-        const originalHtml = uploadCell?.innerHTML;
-        if (uploadCell) uploadCell.innerHTML = '<i class="fas fa-spinner fa-spin text-success"></i> 上传中...';
-
-        fetch(`/projects/frequent_traveler/api/${travelerId}/files/upload`, {
-            method: 'POST',
-            body: formData,
-        })
-        .then(r => r.json())
-        .then(result => {
-            if (result.success) {
-                loadTravelers(currentPage);  // 刷新列表以更新文件计数
-            } else {
-                if (uploadCell) uploadCell.innerHTML = originalHtml;
-                alert('上传失败: ' + result.message);
-            }
-        })
-        .catch(err => {
-            if (uploadCell) uploadCell.innerHTML = originalHtml;
-            alert('上传失败');
-        });
-    };
-    input.click();
-}
-
 function downloadAllFiles() {
     const travelerId = document.getElementById('travelerId').value;
     if (!travelerId) return;
@@ -1013,9 +832,6 @@ function previewImage(url, filename) {
 // 点击模态框外部关闭
 document.getElementById('travelerModal')?.addEventListener('click', function(e) {
     if (e.target === this) closeTravelerModal();
-});
-document.getElementById('travelerDetailModal')?.addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
 });
 document.getElementById('imagePreviewModal')?.addEventListener('click', function(e) {
     if (e.target === this) this.style.display = 'none';
