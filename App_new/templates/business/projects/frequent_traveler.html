@@ -3,7 +3,7 @@
 {% block title %}常用旅客管理{% endblock %}
 
 {% block content %}
-<div class="container py-3">
+<div class="container py-3" style="max-width: 1040px;">
     <!-- 页面标题 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="fas fa-user-friends"></i> 常用旅客管理</h5>
@@ -69,9 +69,9 @@
                     <tr>
                         <th style="width: 8%;" title="系统自动生成的旅客编号">编号</th>
                         <th style="width: 17%;">姓名</th>
-                        <th style="width: 12%;">电话</th>
                         <th style="width: 12%;">护照号</th>
                         <th style="width: 9%;" class="text-center">护照有效期</th>
+                        <th style="width: 12%;">电话</th>
                         <th style="width: 15%;">公司</th>
                         <th style="width: 9%;">集团</th>
                         <th style="width: 8%;" class="text-center">所属</th>
@@ -97,7 +97,7 @@
 <!-- 常用旅客编辑模态框 -->
 <style>
     /* 列表：固定列宽 + 垂直居中，长文本省略号，避免换行导致行高参差 */
-    .ft-list-table { table-layout: fixed; min-width: 1080px; }
+    .ft-list-table { table-layout: fixed; min-width: 960px; }
     .ft-list-table td, .ft-list-table th { vertical-align: middle; }
     .ft-list-table td.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ft-list-table td.nowrap { white-space: nowrap; }
@@ -459,9 +459,9 @@ function renderTravelers(travelers, total, page, pages) {
         <tr style="cursor: pointer;" onclick="editTraveler(${t.id})" title="点击编辑">
             <td><span class="badge bg-light text-dark" style="font-size: 0.72rem; font-family: monospace;">${t.traveler_code || ''}</span></td>
             <td class="trunc" title="${t.name || ''}"><strong>${t.name || ''}</strong></td>
-            <td class="trunc" title="${t.phone || ''}">${t.phone || '<span class="text-muted">-</span>'}</td>
             <td class="trunc" title="${t.passport_number || ''}">${t.passport_number || '<span class="text-muted">-</span>'}</td>
             <td class="text-center ${expiryClass}">${t.passport_expiry_date || '<span class="text-muted">-</span>'}</td>
+            <td class="trunc" title="${t.phone || ''}">${t.phone || '<span class="text-muted">-</span>'}</td>
             <td class="trunc" title="${t.company_name || ''}"><small>${t.company_name || '<span class="text-muted">-</span>'}</small></td>
             <td class="trunc" title="${t.group_name || ''}"><small class="text-muted">${t.group_name || '-'}</small></td>
             <td class="text-center">${t.staff_name ? `<span class="badge" style="background:#e0e7ff;color:#4338ca;">${t.staff_name}</span>` : '<span class="text-muted" style="font-size:0.75rem;">公共</span>'}</td>
