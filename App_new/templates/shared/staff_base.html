@@ -459,17 +459,10 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('business_projects.') and not request.endpoint.startswith('business_projects.project_refund.') %}active{% endif %}"
+                            <a class="nav-link {% if request.endpoint.startswith('business_projects.') %}active{% endif %}"
                                href="{{ url_for('business_projects.list.list_projects') }}">
                                 <i class="fas fa-project-diagram me-2"></i>
                                 项目管理
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('business_projects.project_refund.') %}active{% endif %}"
-                               href="{{ url_for('business_projects.project_refund.refund_list') }}">
-                                <i class="fas fa-rotate-left me-2"></i>
-                                退款列表
                             </a>
                         </li>
 
@@ -701,6 +694,13 @@
                                href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
                                 <i class="fas fa-receipt me-2"></i>
                                 收据列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('business_projects.project_refund.') %}active{% endif %}"
+                               href="{{ url_for('business_projects.project_refund.refund_list') }}">
+                                <i class="fas fa-rotate-left me-2"></i>
+                                退款列表
                             </a>
                         </li>
                         <li class="nav-item">
