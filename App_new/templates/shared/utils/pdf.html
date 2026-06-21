@@ -28,7 +28,13 @@
                     <div id="imageDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-green-500 tw-transition-colors"
                          onclick="document.getElementById('imageFilesInput').click()">
                         <i class="fas fa-cloud-upload-alt tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
-                        <p class="tw-text-gray-600 tw-mb-1">点击选择或拖拽图片到此处</p>
+                        <div class="tw-mb-2">
+                            <button type="button" class="visa-btn visa-btn-success visa-btn-lg"
+                                    onclick="event.stopPropagation(); document.getElementById('imageFilesInput').click()">
+                                <i class="fas fa-folder-open"></i> 点击选择图片
+                            </button>
+                        </div>
+                        <p class="tw-text-gray-600 tw-mb-1">或将图片拖拽到此处</p>
                         <p class="tw-text-xs tw-text-gray-400">支持 JPG、PNG、WEBP、BMP 格式，可多选</p>
                     </div>
                     <input type="file" id="imageFilesInput" name="imageFiles" multiple accept=".jpg,.jpeg,.png,.webp,.bmp" style="display:none"
@@ -55,7 +61,13 @@
                     <div id="pdfDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-blue-500 tw-transition-colors"
                          onclick="document.getElementById('pdfFilesInput').click()">
                         <i class="fas fa-file-pdf tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
-                        <p class="tw-text-gray-600 tw-mb-1">点击选择或拖拽PDF到此处</p>
+                        <div class="tw-mb-2">
+                            <button type="button" class="visa-btn visa-btn-info visa-btn-lg"
+                                    onclick="event.stopPropagation(); document.getElementById('pdfFilesInput').click()">
+                                <i class="fas fa-folder-open"></i> 点击选择PDF
+                            </button>
+                        </div>
+                        <p class="tw-text-gray-600 tw-mb-1">或将PDF拖拽到此处</p>
                         <p class="tw-text-xs tw-text-gray-400">支持多个PDF文件，按文件名顺序合并</p>
                     </div>
                     <input type="file" id="pdfFilesInput" name="pdfFiles" multiple accept=".pdf" style="display:none"
