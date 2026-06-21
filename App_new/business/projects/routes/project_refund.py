@@ -89,6 +89,95 @@ def header_refunds(header_id):
                            header=header, refunds=refunds, total_refund=total_refund)
 
 
+@project_refund.route('/list')
+@login_required
+@staff_only
+def refund_list():
+    """全部退款列表（跨项目）：支持关键词搜索、状态/货币/日期筛选与分页。"""
+    from sqlalchemy import and_, or_, desc as sa_desc, func
+    from App_new.business.projects.models.project import CustomerCompany
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+    status = (request.args.get('status') or '').strip()
+    currency = (request.args.get('currency') or '').strip()
+    start_date = (request.args.get('start_date') or '').strip()
+    end_date = (request.args.get('end_date') or '').strip()
+    keyword = (request.args.get('keyword') or '').strip()
+
+    base = db.session.query(
+        ProjectRefund,
+        ProjectHeader.hid.label('project_hid'),
+        ProjectHeader.desc.label('project_name'),
+        CustomerCompany.company_name.label('company_name'),
+    ).join(
+        ProjectHeader, ProjectRefund.header_id == ProjectHeader.id, isouter=True
+    ).join(
+        CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
+    )
+
+    filters = []
+    if status:
+        filters.append(ProjectRefund.status == status)
+    if currency:
+        filters.append(ProjectRefund.currency == currency)
+    if start_date:
+        try:
+            filters.append(ProjectRefund.refund_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            filters.append(ProjectRefund.refund_date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if keyword:
+        kw = f'%{keyword}%'
+        filters.append(or_(
+            ProjectRefund.refund_number.ilike(kw),
+            ProjectRefund.payee_name.ilike(kw),
+            ProjectRefund.reason.ilike(kw),
+            ProjectHeader.hid.ilike(kw),
+            ProjectHeader.desc.ilike(kw),
+            CustomerCompany.company_name.ilike(kw),
+        ))
+
+    if filters:
+        base = base.filter(and_(*filters))
+
+    base = base.order_by(sa_desc(ProjectRefund.refund_date), sa_desc(ProjectRefund.id))
+    pagination = base.paginate(page=page, per_page=per_page, error_out=False)
+
+    refunds = [{
+        'refund': r,
+        'project_hid': project_hid,
+        'project_name': project_name,
+        'company_name': comp_name,
+    } for r, project_hid, project_name, comp_name in pagination.items]
+
+    # 当前筛选条件下「已确认」退款按货币汇总
+    totals_q = db.session.query(
+        ProjectRefund.currency, func.sum(ProjectRefund.amount)
+    ).join(
+        ProjectHeader, ProjectRefund.header_id == ProjectHeader.id, isouter=True
+    ).join(
+        CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
+    ).filter(and_(*(filters + [ProjectRefund.status == 'confirmed']))).group_by(ProjectRefund.currency)
+    totals = [(cur or 'SGD', float(amt or 0)) for cur, amt in totals_q.all() if (amt or 0)]
+
+    # 货币下拉选项（去重）
+    currencies = [c[0] for c in db.session.query(ProjectRefund.currency)
+                  .filter(ProjectRefund.currency.isnot(None))
+                  .distinct().order_by(ProjectRefund.currency).all()]
+
+    return render_template('business/projects/project_refund/refund_list.html',
+                           refunds=refunds, pagination=pagination, totals=totals,
+                           currencies=currencies,
+                           filters={'status': status, 'currency': currency,
+                                    'start_date': start_date, 'end_date': end_date,
+                                    'keyword': keyword})
+
+
 @project_refund.route('/create/<int:header_id>', methods=['GET', 'POST'])
 @login_required
 @staff_only

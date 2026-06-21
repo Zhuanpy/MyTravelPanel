@@ -1,0 +1,174 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}退款列表 - MyTravelPanel{% endblock %}
+
+{% block page_title %}退款列表{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-11 col-md-12">
+            <!-- 页面头部 -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-rotate-left text-danger"></i>
+                        退款列表
+                    </h2>
+                    <p class="text-muted mb-0">
+                        全部项目的退款记录
+                        {% if totals %}
+                        | 已确认合计:
+                        {% for cur, amt in totals %}
+                            <strong class="text-danger">{{ cur }} {{ "%.2f"|format(amt) }}</strong>{% if not loop.last %}、{% endif %}
+                        {% endfor %}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- 筛选栏 -->
+            <div class="card mb-3">
+                <div class="card-body py-2">
+                    <form method="get" class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label mb-1 small text-muted">关键词</label>
+                            <input type="text" name="keyword" class="form-control form-control-sm"
+                                   value="{{ filters.keyword }}" placeholder="退款单号 / 项目HID / 项目名 / 公司 / 收款人">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1 small text-muted">状态</label>
+                            <select name="status" class="form-select form-select-sm">
+                                <option value="">全部</option>
+                                <option value="confirmed" {% if filters.status == 'confirmed' %}selected{% endif %}>已确认</option>
+                                <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1 small text-muted">货币</label>
+                            <select name="currency" class="form-select form-select-sm">
+                                <option value="">全部</option>
+                                {% for c in currencies %}
+                                <option value="{{ c }}" {% if filters.currency == c %}selected{% endif %}>{{ c }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1 small text-muted">退款日期(起)</label>
+                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ filters.start_date }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label mb-1 small text-muted">退款日期(止)</label>
+                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ filters.end_date }}">
+                        </div>
+                        <div class="col-12 d-flex gap-2 mt-2">
+                            <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> 搜索</button>
+                            <a href="{{ url_for('business_projects.project_refund.refund_list') }}" class="btn btn-sm btn-outline-secondary">重置</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    {% if refunds %}
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>退款单号</th>
+                                <th>退款日期</th>
+                                <th>项目</th>
+                                <th>客户 / 公司</th>
+                                <th>方式</th>
+                                <th>收款人</th>
+                                <th>明细 (发票)</th>
+                                <th class="text-end">金额</th>
+                                <th>状态</th>
+                                <th class="text-center" style="width:140px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in refunds %}
+                            {% set r = row.refund %}
+                            <tr>
+                                <td><strong>{{ r.refund_number }}</strong></td>
+                                <td>{{ r.refund_date.strftime('%Y-%m-%d') if r.refund_date else '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('business_projects.project_refund.header_refunds', header_id=r.header_id) }}"
+                                       title="查看该项目退款">{{ row.project_hid or ('#' ~ r.header_id) }}</a>
+                                    {% if row.project_name %}<div class="small text-muted text-truncate" style="max-width:220px;" title="{{ row.project_name }}">{{ row.project_name }}</div>{% endif %}
+                                </td>
+                                <td class="small">{{ row.company_name or '-' }}</td>
+                                <td>{{ r.refund_method_display }}</td>
+                                <td>{{ r.payee_name or '-' }}</td>
+                                <td>
+                                    {% for it in r.items %}
+                                        <span class="badge bg-light text-dark border">{{ it.invoice.invoice_number if it.invoice else '-' }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-end">{{ r.currency }} {{ "%.2f"|format(r.amount) }}</td>
+                                <td>
+                                    <span class="badge {% if r.status == 'confirmed' %}bg-success{% else %}bg-secondary{% endif %}">{{ r.status_display }}</span>
+                                </td>
+                                <td class="text-center text-nowrap">
+                                    <a href="{{ url_for('business_projects.project_refund.edit_refund', refund_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="编辑"><i class="fas fa-edit"></i></a>
+                                    <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="打印凭证"><i class="fas fa-print"></i></a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="删除" onclick="deleteRefund({{ r.id }})"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                        没有符合条件的退款记录。
+                    </div>
+                    {% endif %}
+                </div>
+                {% if pagination and pagination.pages > 1 %}
+                <div class="card-footer d-flex justify-content-between align-items-center py-2">
+                    <small class="text-muted">共 {{ pagination.total }} 条，第 {{ pagination.page }} / {{ pagination.pages }} 页</small>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            {% set args = {'keyword': filters.keyword, 'status': filters.status, 'currency': filters.currency, 'start_date': filters.start_date, 'end_date': filters.end_date} %}
+                            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('business_projects.project_refund.refund_list', page=pagination.prev_num, **args) }}">&laquo;</a>
+                            </li>
+                            {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+                                {% if p %}
+                                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('business_projects.project_refund.refund_list', page=p, **args) }}">{{ p }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('business_projects.project_refund.refund_list', page=pagination.next_num, **args) }}">&raquo;</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteRefund(id) {
+    if (!confirm('确定删除该退款记录及其明细吗？')) return;
+    fetch(`/projects/refund/${id}/delete`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { window.location.reload(); }
+        else { alert('删除失败: ' + d.message); }
+    })
+    .catch(e => alert('删除出错: ' + e.message));
+}
+</script>
+{% endblock %}
