@@ -436,6 +436,78 @@ class InvitationCode(db.Model):
         db.session.commit()
         return True, "邀请码使用成功"
 
+
+class ApiToken(db.Model):
+    """API 访问令牌
+
+    用于非浏览器客户端（如 AI agent、脚本）以无状态方式访问受 @login_required 保护的接口，
+    避免依赖浏览器 session cookie 导致频繁掉线、反复登录。
+
+    令牌以明文形式仅在创建时返回一次，数据库只保存其 SHA256 哈希。
+    请求时通过请求头携带：
+        X-API-Key: <token>
+        或 Authorization: Bearer <token>
+    """
+    __tablename__ = 'api_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('auth_users.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(80), nullable=False, default='api-agent', comment='令牌用途标签')
+    token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True, comment='令牌SHA256哈希')
+    prefix = db.Column(db.String(16), nullable=True, comment='令牌前缀（用于识别，非机密）')
+    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime, nullable=True, comment='最后使用时间')
+
+    # 关系
+    user = db.relationship('AuthUser', backref=db.backref('api_tokens', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<ApiToken #{self.id} {self.name} ({self.prefix}...)>'
+
+    @staticmethod
+    def _hash(raw_token):
+        """计算令牌的 SHA256 哈希"""
+        import hashlib
+        return hashlib.sha256(raw_token.encode()).hexdigest()
+
+    @classmethod
+    def generate(cls, user_id, name='api-agent'):
+        """生成一个新令牌，返回 (ApiToken 实例, 明文令牌)
+
+        明文令牌只在此处返回一次，请妥善保存。
+        """
+        import secrets
+        raw_token = 'mtp_' + secrets.token_urlsafe(32)
+        token = cls(
+            user_id=user_id,
+            name=name or 'api-agent',
+            token_hash=cls._hash(raw_token),
+            prefix=raw_token[:12],
+            is_active=True,
+        )
+        return token, raw_token
+
+    @classmethod
+    def verify(cls, raw_token):
+        """校验明文令牌，有效则返回对应的 AuthUser，否则返回 None"""
+        if not raw_token:
+            return None
+        token = cls.query.filter_by(token_hash=cls._hash(raw_token), is_active=True).first()
+        if not token:
+            return None
+        user = token.user
+        if not user or not user.is_active:
+            return None
+        # 尽力更新最后使用时间（失败不影响鉴权）
+        try:
+            token.last_used_at = datetime.utcnow()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return user
+
+
 # 初始化角色数据
 def init_roles():
     """初始化角色数据"""

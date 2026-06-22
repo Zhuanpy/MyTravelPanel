@@ -12,10 +12,28 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from flask import current_app
 
+class _ApiTokenCSRFProtect(CSRFProtect):
+    """携带有效 API Token 的请求跳过 CSRF 校验。
+
+    Token 通过请求头鉴权，天然不受 CSRF（跨站 cookie）攻击影响；
+    且 AI agent / 脚本无法获取页面里的 CSRF token，否则所有 POST 都会被拦。
+    """
+
+    def protect(self):
+        from flask import request
+        try:
+            from .auth.token_auth import authenticate_request_token
+            if authenticate_request_token(request) is not None:
+                return  # 有效 token，放行
+        except Exception:
+            pass
+        return super().protect()
+
+
 db = SQLAlchemy()
 migrate = Migrate()
 cache = Cache()
-csrf = CSRFProtect()
+csrf = _ApiTokenCSRFProtect()
 login_manager = LoginManager()
 mail = Mail()
 scheduler = BackgroundScheduler()
@@ -173,6 +191,15 @@ def init_exts(app):
                 session.clear()
                 return None
         return user
+
+    # 从请求头加载用户（API Token 鉴权）
+    # 当没有有效 session 时，Flask-Login 会调用此函数；
+    # 让 AI agent / 脚本可凭 X-API-Key 或 Authorization: Bearer 无状态访问，
+    # 不再依赖会频繁掉线的浏览器 session。
+    @login_manager.request_loader
+    def load_user_from_request(request):
+        from .auth.token_auth import authenticate_request_token
+        return authenticate_request_token(request)
 
     # 未授权处理器
     @login_manager.unauthorized_handler
