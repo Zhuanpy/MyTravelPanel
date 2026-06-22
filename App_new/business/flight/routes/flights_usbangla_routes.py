@@ -2143,3 +2143,365 @@ def generate_mu_itinerary_route():
                          as_attachment=True, mimetype='application/pdf')
     except Exception as e:
         return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500
+
+
+# ====================================================================
+#  同城旅游 (Tongcheng) 行程单解析与生成
+#  原始 PDF 为英文 ITINERARY 格式（含 FARE/TAX/TOTAL 价格），
+#  解析后重新生成不含价格的标准英文行程单。
+# ====================================================================
+
+
+def parse_tongcheng_pdf(file_stream):
+    """解析同城旅游英文 ITINERARY PDF，提取预订信息、航段、乘客、提示"""
+    import fitz
+
+    file_bytes = file_stream.read() if hasattr(file_stream, 'read') else file_stream
+    doc = fitz.open(stream=file_bytes, filetype='pdf')
+    text = ''
+    for page in doc:
+        t = page.get_text()
+        if t:
+            text += t + '\n'
+    doc.close()
+
+    return {
+        'booking_ref': _tc_extract_field(text, 'AIRLINE BOOKING REFERENCE') or _tc_extract_field(text, 'PNR'),
+        'issuing_airline': _tc_extract_field(text, 'ISSUING AIRLINE'),
+        'date_of_issue': _tc_extract_field(text, 'DATE OF ISSUE'),
+        'segments': _tc_extract_segments(text),
+        'passengers': _tc_extract_passengers(text),
+        'notices': _tc_extract_notices(text),
+    }
+
+
+def _tc_extract_field(text, label):
+    """提取 'LABEL :VALUE' 形式的单行字段"""
+    m = re.search(re.escape(label) + r'\s*:\s*([^\n]+)', text)
+    return m.group(1).strip() if m else ''
+
+
+def _tc_split_airport(part):
+    """拆分 '机场名-代码' 为 (机场名, 代码)，如 'Changi Airport-SIN'"""
+    part = part.strip()
+    m = re.search(r'^(.*)-([A-Z]{3})$', part)
+    if m:
+        return m.group(1).strip(), m.group(2)
+    return part, ''
+
+
+def _tc_extract_segments(text):
+    """提取航段信息（支持多航段）
+
+    表格为列式排版，数据行位于表头 'ARRIVAL TERMINAL' 之后、'FARE/NOTICE' 之前。
+    将该区域的软换行合并为单行后，用行正则逐段匹配。
+    """
+    m = re.search(
+        r'ARRIVAL\s*\n?\s*TERMINAL\s*\n(.*?)(?:\nFARE|\nTAX|\nTOTAL|\nNOTICE)',
+        text, re.DOTALL)
+    region = m.group(1) if m else ''
+    joined = re.sub(r'\s*\n\s*', ' ', region).strip()
+
+    # 一行 = 机场块 + 航班号 + 舱位 + 出发日期 + 出发时间 + 到达时间 + 状态 [+ 出发航站楼 + 到达航站楼]
+    row_re = re.compile(
+        r'(.+?)\s+'                                             # 机场块（含起降两端）
+        r'([A-Z0-9]{2}\d{2,4}[A-Z]?)\s+'                        # 航班号  FD0356
+        r'(Economy|Business|First(?:\s*Class)?|Premium\s*Economy)\s+'  # 舱位
+        r'([A-Z][a-z]{2}\s+\d{1,2},\s*\d{4})\s+'                # 出发日期 Jul 21, 2026
+        r'(\d{1,2}:\d{2})\s+'                                   # 出发时间
+        r'(\d{1,2}:\d{2})\s+'                                   # 到达时间
+        r'(\w+)'                                                # 状态  OK
+        r'(?:\s+(T?\d+|-)\s+(T?\d+|-))?',                       # 航站楼（可选）
+        re.IGNORECASE)
+
+    segments = []
+    for mt in row_re.finditer(joined):
+        airport_block, flight_no, cabin, dep_date, dep_time, arr_time, status, dep_term, arr_term = mt.groups()
+        # 机场块按 '/' 分隔起降两端
+        ends = re.split(r'\s*/\s*', airport_block.strip(), maxsplit=1)
+        from_part = ends[0] if len(ends) > 0 else ''
+        to_part = ends[1] if len(ends) > 1 else ''
+        from_airport, from_code = _tc_split_airport(from_part)
+        to_airport, to_code = _tc_split_airport(to_part)
+
+        segments.append({
+            'flight_no': flight_no.upper(),
+            'from_code': from_code, 'from_airport': from_airport, 'from_terminal': (dep_term or '').strip(),
+            'to_code': to_code, 'to_airport': to_airport, 'to_terminal': (arr_term or '').strip(),
+            'dep_date': dep_date.strip(), 'dep_time': dep_time.strip(),
+            'arr_date': dep_date.strip(), 'arr_time': arr_time.strip(),  # 原单无到达日期，默认同出发日
+            'cabin': cabin.strip().title(),
+            'status': status.strip().upper(),
+            'baggage': '',  # 原单无行李额，由人工选择补充
+        })
+
+    if not segments:
+        segments.append(_tc_empty_segment())
+    return segments
+
+
+def _tc_empty_segment():
+    return {
+        'flight_no': '', 'from_code': '', 'from_airport': '', 'from_terminal': '',
+        'to_code': '', 'to_airport': '', 'to_terminal': '',
+        'dep_date': '', 'dep_time': '', 'arr_date': '', 'arr_time': '',
+        'cabin': 'Economy', 'status': 'OK', 'baggage': '',
+    }
+
+
+def _tc_extract_passengers(text):
+    """提取乘客（SURNAME / GIVEN NAME / ID NO. / ETICKET NO. 成组出现，支持多位）"""
+    surnames = re.findall(r'SURNAME\s*:\s*([^\n]+)', text)
+    givens = re.findall(r'GIVEN NAME\s*:\s*([^\n]+)', text)
+    ids = re.findall(r'ID NO\.?\s*:\s*([^\n]+)', text)
+    tickets = re.findall(r'ETICKET NO\.?\s*:\s*([^\n]+)', text)
+
+    passengers = []
+    for i in range(len(surnames)):
+        surname = surnames[i].strip().upper()
+        given = (givens[i].strip().upper() if i < len(givens) else '')
+        name = '/'.join([p for p in [surname, given] if p])
+        passengers.append({
+            'name': name,
+            'pax_type': 'Adult',
+            'id_no': (ids[i].strip().upper() if i < len(ids) else ''),
+            'ticket_no': (tickets[i].strip().upper() if i < len(tickets) else ''),
+        })
+    return passengers
+
+
+def _tc_extract_notices(text):
+    """提取 NOTICE 区块的提示行（去掉行首项目符号/乱码）"""
+    m = re.search(r'NOTICE\s*:?\s*\n(.*)$', text, re.DOTALL)
+    if not m:
+        return []
+    notices = []
+    for line in m.group(1).split('\n'):
+        line = re.sub(r'^[^A-Za-z0-9]+', '', line.strip()).strip()
+        if line:
+            notices.append(line)
+    return notices
+
+
+def generate_tongcheng_itinerary(data):
+    """生成同城旅游精简英文行程单 PDF（不含价格），返回 bytes
+
+    data 结构：
+      booking_ref, issuing_airline, date_of_issue,
+      segments: [{flight_no, from_code, from_airport, from_terminal,
+                  to_code, to_airport, to_terminal, dep_date, dep_time,
+                  arr_date, arr_time, cabin, status}, ...],
+      passengers: [{name, pax_type, id_no, ticket_no}, ...],
+      notices: [str, ...]
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    )
+
+    font_regular = "Helvetica"
+    font_bold = "Helvetica-Bold"
+    brand = colors.HexColor("#28a745")  # 与网站员工工作台主题一致（绿色）
+
+    output = BytesIO()
+    doc = SimpleDocTemplate(
+        output, pagesize=A4,
+        leftMargin=20 * mm, rightMargin=20 * mm,
+        topMargin=18 * mm, bottomMargin=18 * mm,
+        title="Flight Itinerary",
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "tc_title", parent=styles["Title"],
+        fontName=font_bold, fontSize=22, leading=28,
+        textColor=brand, alignment=0, spaceAfter=2,
+    )
+    sub_style = ParagraphStyle(
+        "tc_sub", parent=styles["Normal"],
+        fontName=font_regular, fontSize=10, leading=14,
+        textColor=colors.HexColor("#666666"), spaceAfter=14,
+    )
+    h2_style = ParagraphStyle(
+        "tc_h2", parent=styles["Heading2"],
+        fontName=font_bold, fontSize=13, leading=18,
+        textColor=colors.HexColor("#222222"),
+        spaceBefore=12, spaceAfter=6,
+    )
+    note_style = ParagraphStyle(
+        "tc_note", parent=styles["Normal"],
+        fontName=font_regular, fontSize=10, leading=16,
+        textColor=colors.HexColor("#333333"),
+    )
+    seg_label_style = ParagraphStyle(
+        "tc_seglabel", parent=styles["Normal"],
+        fontName=font_bold, fontSize=11, leading=15,
+        textColor=brand, spaceBefore=8, spaceAfter=4,
+    )
+
+    story = []
+
+    # === 头部：标题 + 副信息 ===
+    sub_bits = []
+    if data.get('issuing_airline'):
+        sub_bits.append(f"Issuing Airline: {data['issuing_airline']}")
+    if data.get('booking_ref'):
+        sub_bits.append(f"Booking Reference: {data['booking_ref']}")
+    if data.get('date_of_issue'):
+        sub_bits.append(f"Date of Issue: {data['date_of_issue']}")
+    sub_text = "  &nbsp;|&nbsp;  ".join(sub_bits) if sub_bits else "Electronic Ticket Itinerary"
+
+    story.append(Paragraph("Flight Itinerary", title_style))
+    story.append(Paragraph(sub_text, sub_style))
+
+    # === Flight Information ===
+    story.append(Paragraph("Flight Information", h2_style))
+
+    def _endpoint(code, airport, terminal):
+        parts = [p for p in [code, airport] if p]
+        text = "  ·  ".join(parts)
+        if terminal:
+            text += f"  ·  Terminal {terminal}"
+        return text
+
+    def _datetime(d, t):
+        return f"{d}  {t}".strip()
+
+    def _build_flight_table(seg):
+        rows = [
+            ["Flight No.", seg.get('flight_no', '')],
+            ["From", _endpoint(seg.get('from_code', ''), seg.get('from_airport', ''), seg.get('from_terminal', ''))],
+            ["To", _endpoint(seg.get('to_code', ''), seg.get('to_airport', ''), seg.get('to_terminal', ''))],
+            ["Departure", _datetime(seg.get('dep_date', ''), seg.get('dep_time', ''))],
+            ["Arrival", _datetime(seg.get('arr_date', ''), seg.get('arr_time', ''))],
+            ["Class", seg.get('cabin', '')],
+            ["Status", seg.get('status', 'OK')],
+        ]
+        # 行李额：有值才显示
+        if seg.get('baggage', '').strip():
+            rows.append(["Baggage", seg['baggage'].strip()])
+        tbl = Table(rows, colWidths=[32 * mm, 138 * mm])
+        tbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), font_regular),
+            ("FONTNAME", (0, 0), (0, -1), font_bold),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#555555")),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#EAF6EC")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DDDDDD")),
+        ]))
+        return tbl
+
+    segments = data.get('segments') or [_tc_empty_segment()]
+    multi = len(segments) > 1
+    for i, seg in enumerate(segments, 1):
+        if multi:
+            story.append(Paragraph(f"Flight {i}", seg_label_style))
+        story.append(_build_flight_table(seg))
+
+    # === Passenger Information ===
+    passengers = data.get('passengers', []) or []
+    story.append(Paragraph(
+        f"Passenger Information ({len(passengers)} passenger{'s' if len(passengers) != 1 else ''})",
+        h2_style))
+
+    pax_header = ["#", "Name", "Type", "ID No.", "E-Ticket No."]
+    pax_rows = [pax_header]
+    for i, p in enumerate(passengers, 1):
+        pax_rows.append([
+            str(i),
+            p.get('name', ''),
+            p.get('pax_type', 'Adult'),
+            p.get('id_no', ''),
+            p.get('ticket_no', ''),
+        ])
+    pax_tbl = Table(pax_rows, colWidths=[10 * mm, 52 * mm, 16 * mm, 44 * mm, 48 * mm])
+    pax_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), font_regular),
+        ("FONTNAME", (0, 0), (-1, 0), font_bold),
+        ("FONTSIZE", (0, 0), (-1, -1), 10.5),
+        ("BACKGROUND", (0, 0), (-1, 0), brand),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (2, 0), (2, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+            [colors.white, colors.HexColor("#FAFAFA")]),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DDDDDD")),
+    ]))
+    story.append(pax_tbl)
+
+    # === Notice ===
+    notices = [n for n in (data.get('notices') or []) if n and n.strip()]
+    if notices:
+        story.append(Paragraph("Notice", h2_style))
+        for t in notices:
+            story.append(Paragraph(f"• {t}", note_style))
+
+    doc.build(story)
+    return output.getvalue()
+
+
+@flights_usbangla.route('/parse_tongcheng_pdf', methods=['POST'])
+@login_required
+@staff_only
+def parse_tongcheng_pdf_route():
+    """上传同城旅游英文 ITINERARY PDF，解析出预订信息、航段、乘客、提示"""
+    file = request.files.get('pdf_file')
+    if not file:
+        return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
+    try:
+        result = parse_tongcheng_pdf(file.stream)
+        return jsonify({
+            'success': True,
+            'booking_ref': result['booking_ref'],
+            'issuing_airline': result['issuing_airline'],
+            'date_of_issue': result['date_of_issue'],
+            'segments': result['segments'],
+            'passengers': result['passengers'],
+            'notices': result['notices'],
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'PDF解析失败：{str(e)}'}), 500
+
+
+@flights_usbangla.route('/generate_tongcheng_itinerary', methods=['POST'])
+@login_required
+@staff_only
+def generate_tongcheng_itinerary_route():
+    """根据表单数据生成同城旅游行程单 PDF（不含价格）"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+    passengers = data.get('passengers', []) or []
+    if not passengers:
+        return jsonify({'success': False, 'message': '请至少添加一位乘客'}), 400
+    segments = data.get('segments') or []
+    first_flight_no = segments[0].get('flight_no') if segments else ''
+    if not first_flight_no:
+        return jsonify({'success': False, 'message': '请填写航班号'}), 400
+
+    try:
+        pdf_bytes = generate_tongcheng_itinerary(data)
+        flight_no = (first_flight_no or 'FLIGHT').upper().replace(' ', '')
+        booking_ref = (data.get('booking_ref') or '').strip()
+        filename = f"Itinerary_{flight_no}"
+        if booking_ref:
+            filename += f"_{booking_ref}"
+        filename += ".pdf"
+        return send_file(BytesIO(pdf_bytes), download_name=filename,
+                         as_attachment=True, mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500

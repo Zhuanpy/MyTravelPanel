@@ -33,14 +33,14 @@
     .indigo-header { background: #2B1F6B !important; color: #fff; }
     .indigo-btn { background: #2B1F6B; border-color: #2B1F6B; color: #fff; }
     .indigo-btn:hover { background: #1e1550; border-color: #1e1550; color: #fff; }
-    /* Expedia 配色 */
-    .expedia-header { background: #FBCC33 !important; color: #1A1A2E; }
-    .expedia-btn { background: #FBCC33; border-color: #FBCC33; color: #1A1A2E; }
-    .expedia-btn:hover { background: #e0b52e; border-color: #e0b52e; color: #1A1A2E; }
-    /* 去哪儿配色 */
-    .qunar-header { background: #FF7E00 !important; color: #fff; }
-    .qunar-btn { background: #FF7E00; border-color: #FF7E00; color: #fff; }
-    .qunar-btn:hover { background: #e06e00; border-color: #e06e00; color: #fff; }
+    /* Expedia 配色（与网站员工工作台主题一致：绿色 #28a745） */
+    .expedia-header { background: #28a745 !important; color: #fff; }
+    .expedia-btn { background: #28a745; border-color: #28a745; color: #fff; }
+    .expedia-btn:hover { background: #218838; border-color: #1e7e34; color: #fff; }
+    /* 去哪儿配色（与网站员工工作台主题一致：绿色 #28a745） */
+    .qunar-header { background: #28a745 !important; color: #fff; }
+    .qunar-btn { background: #28a745; border-color: #28a745; color: #fff; }
+    .qunar-btn:hover { background: #218838; border-color: #1e7e34; color: #fff; }
     /* 东方航空配色 */
     .mu-header { background: #B8002E !important; color: #fff; }
     .mu-btn { background: #B8002E; border-color: #B8002E; color: #fff; }
@@ -49,6 +49,14 @@
     .mu-pax-table th { background: #fbe6ec; }
     .mu-pax-table th, .mu-pax-table td { padding: 3px 5px; font-size: 12px; vertical-align: middle; }
     .mu-pax-table .form-control-sm, .mu-pax-table .form-select-sm { padding: 1px 4px; font-size: 12px; height: 26px; }
+    /* 同城旅游配色（与网站员工工作台主题一致：绿色 #28a745） */
+    .tc-header { background: #28a745 !important; color: #fff; }
+    .tc-btn { background: #28a745; border-color: #28a745; color: #fff; }
+    .tc-btn:hover { background: #218838; border-color: #1e7e34; color: #fff; }
+    .tc-title { color: #28a745; font-weight: bold; }
+    .tc-pax-table th { background: #e3f3e7; }
+    .tc-pax-table th, .tc-pax-table td { padding: 3px 5px; font-size: 12px; vertical-align: middle; }
+    .tc-pax-table .form-control-sm, .tc-pax-table .form-select-sm { padding: 1px 4px; font-size: 12px; height: 26px; }
     /* 清理工具通用样式 */
     .clean-features { font-size: 12px; color: #666; margin: 0; padding-left: 18px; }
     .clean-features li { margin-bottom: 2px; }
@@ -87,6 +95,11 @@
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-mu" type="button">
                 <i class="fas fa-plane me-1"></i>东方航空 行程
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tc" type="button">
+                <i class="fas fa-plane-departure me-1"></i>同城旅游 行程
             </button>
         </li>
     </ul>
@@ -426,6 +439,129 @@
             </button>
         </div>
     </div><!-- /tab-mu -->
+
+    <!-- ==================== 同城旅游 (Tongcheng) Tab ==================== -->
+    <div class="tab-pane fade" id="tab-tc">
+
+        <!-- 上传解析 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header">
+                <i class="fas fa-upload me-1"></i>上传同城旅游 ITINERARY PDF
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>上传同城旅游英文 ITINERARY 电子机票 PDF，自动解析预订号、航班、乘客</li>
+                    <li>支持多航段、多乘客，可手动编辑或增删</li>
+                    <li>生成不含 FARE/TAX/TOTAL 价格的标准英文行程单 PDF</li>
+                    <li>未上传 PDF 时也可直接手动填写下方表单</li>
+                </ul>
+                <div class="row align-items-center g-2">
+                    <div class="col">
+                        <input type="file" class="form-control form-control-sm" id="tcPdfFile" accept=".pdf">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm tc-btn" onclick="tcUploadAndParse()" id="btnTcParse">
+                            <i class="fas fa-cog me-1"></i>解析
+                        </button>
+                    </div>
+                </div>
+                <div id="tcParseMsg" class="mt-2 small" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 预订信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header">
+                <i class="fas fa-file-alt me-1"></i>预订信息
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="ub-label">预订编号 (Booking Ref.)</div>
+                        <input type="text" class="form-control form-control-sm" id="tc_booking_ref" placeholder="AI7KJH">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="ub-label">出票航司 (Issuing Airline)</div>
+                        <input type="text" class="form-control form-control-sm" id="tc_issuing_airline" placeholder="THAI AIRASIA">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="ub-label">出票日期 (Date of Issue)</div>
+                        <input type="text" class="form-control form-control-sm" id="tc_date_of_issue" placeholder="Jun 22, 2026">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 航班信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-plane me-1"></i>航班信息 <span class="badge bg-light text-dark ms-1" id="tcFlightCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="tcAddFlight()" title="添加航段">
+                    <i class="fas fa-plus me-1"></i>添加航段
+                </button>
+            </div>
+            <div class="card-body">
+                <datalist id="tcBaggageOptions">
+                    <option value="20Kg Check-in"></option>
+                    <option value="23Kg x 1PC"></option>
+                    <option value="23Kg x 2PC"></option>
+                    <option value="30Kg Check-in"></option>
+                    <option value="40Kg Check-in"></option>
+                    <option value="7Kg Cabin only"></option>
+                    <option value="7Kg Cabin + 20Kg Check-in"></option>
+                    <option value="7Kg Cabin + 30Kg Check-in"></option>
+                </datalist>
+                <div id="tcFlightsContainer"></div>
+            </div>
+        </div>
+
+        <!-- 乘客信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-1"></i>乘客信息 <span class="badge bg-light text-dark ms-1" id="tcPaxCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="tcAddPassenger()">
+                    <i class="fas fa-plus me-1"></i>添加
+                </button>
+            </div>
+            <div class="card-body p-1">
+                <table class="table table-sm table-bordered mb-0 tc-pax-table" id="tcPaxTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:5%;">#</th>
+                            <th style="width:32%;">姓名 (SURNAME/GIVEN)</th>
+                            <th style="width:15%;">类型</th>
+                            <th style="width:22%;">证件号 (ID No.)</th>
+                            <th style="width:20%;">票号 (E-Ticket No.)</th>
+                            <th style="width:6%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tcPaxBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 行程提示 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-info-circle me-1"></i>行程提示 (Notice) <span class="badge bg-light text-dark ms-1" id="tcNoticeCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="tcAddNotice()">
+                    <i class="fas fa-plus me-1"></i>添加
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="tcNoticeContainer"></div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-sm" onclick="tcResetAll()">
+                <i class="fas fa-redo me-1"></i>重置
+            </button>
+            <button class="btn btn-sm tc-btn" onclick="tcGenerate()" id="btnTcGenerate">
+                <i class="fas fa-file-pdf me-1"></i>生成行程单
+            </button>
+        </div>
+    </div><!-- /tab-tc -->
 
     </div><!-- /tab-content -->
 </div>
@@ -1226,5 +1362,345 @@ function cleanQunar() {
     })
     .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic me-1"></i>清理并下载'; });
 }
+
+// ========== 同城旅游 (Tongcheng) 行程单 ==========
+
+let tcPaxIndex = 0;
+let tcNoticeIndex = 0;
+let tcFlightIndex = 0;
+
+const TC_DEFAULT_NOTICES = [
+    "PLEASE ARRIVE AT THE AIRPORT BEFORE THE CHECK-IN TIME SPECIFIED BY THE AIRLINE.",
+    "DURING CHECK-IN, PLEASE PRODUCE YOUR VALID ID CARD AS USED WHEN PURCHASING THE TICKET.",
+    "TO FIND OUT MORE ABOUT AIRLINE REGULATIONS, PLEASE REFER TO THE RELEVANT AIRLINE OR AGENTS.",
+];
+
+// ---- 航段（多段行程）----
+function tcAddFlight(data) {
+    tcFlightIndex++;
+    const d = data || {};
+    const esc = v => (v == null ? '' : String(v)).replace(/"/g, '&quot;');
+    const block = `<div class="card border mb-2 tc-flight-block" id="tc-flight-${tcFlightIndex}">
+        <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="tc-title" style="font-size:13px;">航段 <span class="tc-flight-num">${tcFlightIndex}</span></span>
+                <button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:11px;" onclick="tcRemoveFlight(${tcFlightIndex})"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <div class="ub-label">航班号 (Flight No.)</div>
+                    <input type="text" class="form-control form-control-sm tc-f-flightno" value="${esc(d.flight_no)}" placeholder="FD0356" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-4">
+                    <div class="ub-label">舱位 (Class)</div>
+                    <input type="text" class="form-control form-control-sm tc-f-cabin" value="${esc(d.cabin)}" placeholder="Economy">
+                </div>
+                <div class="col-md-4">
+                    <div class="ub-label">状态 (Status)</div>
+                    <input type="text" class="form-control form-control-sm tc-f-status" value="${esc(d.status) || 'OK'}" placeholder="OK">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <div class="ub-label">出发代码</div>
+                    <input type="text" class="form-control form-control-sm tc-f-fromcode" value="${esc(d.from_code)}" placeholder="SIN" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-7">
+                    <div class="ub-label">出发机场名称</div>
+                    <input type="text" class="form-control form-control-sm tc-f-fromairport" value="${esc(d.from_airport)}" placeholder="Changi Airport">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">出发航站楼</div>
+                    <input type="text" class="form-control form-control-sm tc-f-fromterminal" value="${esc(d.from_terminal)}" placeholder="T4">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <div class="ub-label">到达代码</div>
+                    <input type="text" class="form-control form-control-sm tc-f-tocode" value="${esc(d.to_code)}" placeholder="DMK" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-7">
+                    <div class="ub-label">到达机场名称</div>
+                    <input type="text" class="form-control form-control-sm tc-f-toairport" value="${esc(d.to_airport)}" placeholder="Don Mueang International Airport">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达航站楼</div>
+                    <input type="text" class="form-control form-control-sm tc-f-toterminal" value="${esc(d.to_terminal)}" placeholder="T1">
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <div class="ub-label">出发日期</div>
+                    <input type="text" class="form-control form-control-sm tc-f-depdate" value="${esc(d.dep_date)}" placeholder="Jul 21, 2026">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">出发时间</div>
+                    <input type="text" class="form-control form-control-sm tc-f-deptime" value="${esc(d.dep_time)}" placeholder="14:40">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达日期</div>
+                    <input type="text" class="form-control form-control-sm tc-f-arrdate" value="${esc(d.arr_date)}" placeholder="Jul 21, 2026">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达时间</div>
+                    <input type="text" class="form-control form-control-sm tc-f-arrtime" value="${esc(d.arr_time)}" placeholder="16:20">
+                </div>
+            </div>
+            <div class="row g-2 mt-1">
+                <div class="col-md-6">
+                    <div class="ub-label">行李额 (Baggage)</div>
+                    <input type="text" class="form-control form-control-sm tc-f-baggage" list="tcBaggageOptions" value="${esc(d.baggage)}" placeholder="选择或输入，如 30Kg Check-in（留空则不显示）">
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.getElementById('tcFlightsContainer').insertAdjacentHTML('beforeend', block);
+    tcUpdateFlightCount();
+}
+
+function tcRemoveFlight(idx) {
+    document.getElementById('tc-flight-' + idx)?.remove();
+    document.querySelectorAll('#tcFlightsContainer .tc-flight-num').forEach((el, i) => { el.textContent = i + 1; });
+    tcUpdateFlightCount();
+}
+
+function tcUpdateFlightCount() {
+    document.getElementById('tcFlightCount').textContent = document.querySelectorAll('#tcFlightsContainer .tc-flight-block').length;
+}
+
+function tcCollectFlights() {
+    const list = [];
+    document.querySelectorAll('#tcFlightsContainer .tc-flight-block').forEach(b => {
+        list.push({
+            flight_no: b.querySelector('.tc-f-flightno').value.trim().toUpperCase(),
+            cabin: b.querySelector('.tc-f-cabin').value.trim(),
+            status: b.querySelector('.tc-f-status').value.trim(),
+            from_code: b.querySelector('.tc-f-fromcode').value.trim().toUpperCase(),
+            from_airport: b.querySelector('.tc-f-fromairport').value.trim(),
+            from_terminal: b.querySelector('.tc-f-fromterminal').value.trim(),
+            to_code: b.querySelector('.tc-f-tocode').value.trim().toUpperCase(),
+            to_airport: b.querySelector('.tc-f-toairport').value.trim(),
+            to_terminal: b.querySelector('.tc-f-toterminal').value.trim(),
+            dep_date: b.querySelector('.tc-f-depdate').value.trim(),
+            dep_time: b.querySelector('.tc-f-deptime').value.trim(),
+            arr_date: b.querySelector('.tc-f-arrdate').value.trim(),
+            arr_time: b.querySelector('.tc-f-arrtime').value.trim(),
+            baggage: b.querySelector('.tc-f-baggage').value.trim(),
+        });
+    });
+    return list;
+}
+
+// ---- 乘客 ----
+function tcAddPassenger(data) {
+    tcPaxIndex++;
+    const d = data || {};
+    const row = `<tr id="tc-pax-${tcPaxIndex}">
+        <td class="text-center tc-pax-num">${tcPaxIndex}</td>
+        <td><input type="text" class="form-control form-control-sm tc-pax-name" value="${(d.name||'').replace(/"/g,'&quot;')}" style="text-transform:uppercase;" placeholder="CHINPHONSAI/SURIYON"></td>
+        <td><select class="form-select form-select-sm tc-pax-type">
+            <option value="Adult" ${d.pax_type==='Child'||d.pax_type==='Infant'?'':'selected'}>Adult</option>
+            <option value="Child" ${d.pax_type==='Child'?'selected':''}>Child</option>
+            <option value="Infant" ${d.pax_type==='Infant'?'selected':''}>Infant</option>
+        </select></td>
+        <td><input type="text" class="form-control form-control-sm tc-pax-id" value="${(d.id_no||'').replace(/"/g,'&quot;')}" placeholder="AC3547712" style="text-transform:uppercase;"></td>
+        <td><input type="text" class="form-control form-control-sm tc-pax-ticket" value="${(d.ticket_no||'').replace(/"/g,'&quot;')}" placeholder="AI7KJH" style="text-transform:uppercase;"></td>
+        <td class="text-center"><button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:11px;" onclick="tcRemovePassenger(${tcPaxIndex})"><i class="fas fa-times"></i></button></td>
+    </tr>`;
+    document.getElementById('tcPaxBody').insertAdjacentHTML('beforeend', row);
+    tcUpdatePaxCount();
+}
+
+function tcRemovePassenger(idx) {
+    document.getElementById('tc-pax-' + idx)?.remove();
+    document.querySelectorAll('#tcPaxBody tr').forEach((tr, i) => { tr.querySelector('.tc-pax-num').textContent = i + 1; });
+    tcUpdatePaxCount();
+}
+
+function tcUpdatePaxCount() {
+    document.getElementById('tcPaxCount').textContent = document.querySelectorAll('#tcPaxBody tr').length;
+}
+
+function tcCollectPassengers() {
+    const list = [];
+    document.querySelectorAll('#tcPaxBody tr').forEach(tr => {
+        const name = tr.querySelector('.tc-pax-name').value.trim().toUpperCase();
+        if (!name) return;
+        list.push({
+            name,
+            pax_type: tr.querySelector('.tc-pax-type').value,
+            id_no: tr.querySelector('.tc-pax-id').value.trim().toUpperCase(),
+            ticket_no: tr.querySelector('.tc-pax-ticket').value.trim().toUpperCase(),
+        });
+    });
+    return list;
+}
+
+// ---- 提示 ----
+function tcAddNotice(text) {
+    tcNoticeIndex++;
+    const value = text || '';
+    const row = `<div class="row g-1 mb-1" id="tc-notice-${tcNoticeIndex}">
+        <div class="col"><input type="text" class="form-control form-control-sm tc-notice-input" value="${value.replace(/"/g, '&quot;')}" placeholder="e.g. PLEASE ARRIVE AT THE AIRPORT BEFORE THE CHECK-IN TIME."></div>
+        <div class="col-auto"><button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:11px;" onclick="tcRemoveNotice(${tcNoticeIndex})"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    document.getElementById('tcNoticeContainer').insertAdjacentHTML('beforeend', row);
+    tcUpdateNoticeCount();
+}
+
+function tcRemoveNotice(idx) {
+    document.getElementById('tc-notice-' + idx)?.remove();
+    tcUpdateNoticeCount();
+}
+
+function tcUpdateNoticeCount() {
+    document.getElementById('tcNoticeCount').textContent = document.querySelectorAll('#tcNoticeContainer .tc-notice-input').length;
+}
+
+function tcCollectNotices() {
+    return Array.from(document.querySelectorAll('#tcNoticeContainer .tc-notice-input'))
+        .map(el => el.value.trim()).filter(v => v);
+}
+
+function tcResetAll() {
+    ['tc_booking_ref', 'tc_issuing_airline', 'tc_date_of_issue'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('tcFlightsContainer').innerHTML = '';
+    const fileInput = document.getElementById('tcPdfFile');
+    if (fileInput) fileInput.value = '';
+    const msgEl = document.getElementById('tcParseMsg');
+    if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+    document.getElementById('tcPaxBody').innerHTML = '';
+    document.getElementById('tcNoticeContainer').innerHTML = '';
+    tcPaxIndex = 0;
+    tcNoticeIndex = 0;
+    tcFlightIndex = 0;
+    tcUpdatePaxCount();
+    tcUpdateNoticeCount();
+    tcUpdateFlightCount();
+    TC_DEFAULT_NOTICES.forEach(n => tcAddNotice(n));
+    tcAddPassenger();
+    tcAddFlight();
+}
+
+function tcUploadAndParse() {
+    const fileInput = document.getElementById('tcPdfFile');
+    if (!fileInput.files.length) { alert('请选择 PDF 文件'); return; }
+
+    const btn = document.getElementById('btnTcParse');
+    const msgEl = document.getElementById('tcParseMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>解析中...';
+    msgEl.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('pdf_file', fileInput.files[0]);
+
+    fetch('{{ url_for("flights_usbangla.parse_tongcheng_pdf_route") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            msgEl.className = 'mt-2 small text-danger';
+            msgEl.textContent = '解析失败：' + data.message;
+            msgEl.style.display = '';
+            return;
+        }
+        document.getElementById('tc_booking_ref').value = data.booking_ref || '';
+        document.getElementById('tc_issuing_airline').value = data.issuing_airline || '';
+        document.getElementById('tc_date_of_issue').value = data.date_of_issue || '';
+
+        const flights = data.segments || [];
+        document.getElementById('tcFlightsContainer').innerHTML = '';
+        tcFlightIndex = 0;
+        flights.forEach(f => tcAddFlight(f));
+        if (!flights.length) tcAddFlight();
+
+        document.getElementById('tcPaxBody').innerHTML = '';
+        tcPaxIndex = 0;
+        (data.passengers || []).forEach(p => tcAddPassenger(p));
+        if (!(data.passengers || []).length) tcAddPassenger();
+
+        const notices = data.notices && data.notices.length ? data.notices : TC_DEFAULT_NOTICES;
+        document.getElementById('tcNoticeContainer').innerHTML = '';
+        tcNoticeIndex = 0;
+        notices.forEach(n => tcAddNotice(n));
+
+        const n = (data.passengers || []).length;
+        const flightNos = flights.map(f => f.flight_no).filter(Boolean).join(', ') || '(无)';
+        msgEl.className = 'mt-2 small text-success';
+        msgEl.textContent = `解析成功：预订号 ${data.booking_ref || '(无)'}，航段 ${flights.length} 段（${flightNos}），乘客 ${n} 人`;
+        msgEl.style.display = '';
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 small text-danger';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>解析'; });
+}
+
+function tcGenerate() {
+    const segments = tcCollectFlights();
+    const flight_no = (segments[0] && segments[0].flight_no) || '';
+    if (!flight_no) { alert('请至少填写一个航段的航班号'); return; }
+    const passengers = tcCollectPassengers();
+    if (!passengers.length) { alert('请至少添加一位乘客'); return; }
+
+    const payload = {
+        booking_ref: document.getElementById('tc_booking_ref').value.trim(),
+        issuing_airline: document.getElementById('tc_issuing_airline').value.trim(),
+        date_of_issue: document.getElementById('tc_date_of_issue').value.trim(),
+        segments,
+        passengers,
+        notices: tcCollectNotices(),
+    };
+
+    const btn = document.getElementById('btnTcGenerate');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+
+    fetch('{{ url_for("flights_usbangla.generate_tongcheng_itinerary_route") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: JSON.stringify(payload)
+    })
+    .then(resp => {
+        if (!resp.ok) {
+            const ct = resp.headers.get('Content-Type') || '';
+            if (ct.includes('application/json')) {
+                return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
+            }
+            throw new Error(`生成失败 (${resp.status})`);
+        }
+        return resp.blob().then(blob => ({ blob, resp }));
+    })
+    .then(({ blob, resp }) => {
+        const cd = resp.headers.get('Content-Disposition') || '';
+        let fn = `Itinerary_${flight_no}.pdf`;
+        const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+        if (m) fn = decodeURIComponent(m[1]);
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = fn;
+        a.click();
+        window.URL.revokeObjectURL(a.href);
+    })
+    .catch(err => alert('错误：' + err.message))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// 初始化同城旅游 Tab：默认提示 + 一行空乘客 + 一个空航段
+document.addEventListener('DOMContentLoaded', () => {
+    TC_DEFAULT_NOTICES.forEach(n => tcAddNotice(n));
+    tcAddPassenger();
+    tcAddFlight();
+});
 </script>
 {% endblock %}
