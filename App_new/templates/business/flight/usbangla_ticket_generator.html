@@ -68,37 +68,37 @@
     <!-- 工具切换 Tab -->
     <ul class="nav nav-tabs tool-tabs mb-3" role="tablist">
         <li class="nav-item">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-usbangla" type="button">
+            <button class="nav-link {% if active_tool == 'usbangla' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-usbangla" type="button">
                 <i class="fas fa-ticket-alt me-1"></i>US-Bangla 转换
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ctrip" type="button">
+            <button class="nav-link {% if active_tool == 'ctrip' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-ctrip" type="button">
                 <i class="fas fa-broom me-1"></i>Ctrip 清理
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-indigo" type="button">
+            <button class="nav-link {% if active_tool == 'indigo' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-indigo" type="button">
                 <i class="fas fa-eraser me-1"></i>IndiGo 去价格
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-expedia" type="button">
+            <button class="nav-link {% if active_tool == 'expedia' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-expedia" type="button">
                 <i class="fas fa-broom me-1"></i>Expedia 清理
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-qunar" type="button">
+            <button class="nav-link {% if active_tool == 'qunar' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-qunar" type="button">
                 <i class="fas fa-broom me-1"></i>去哪儿 清理
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-mu" type="button">
+            <button class="nav-link {% if active_tool == 'mu' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-mu" type="button">
                 <i class="fas fa-plane me-1"></i>东方航空 行程
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tc" type="button">
+            <button class="nav-link {% if active_tool == 'tc' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-tc" type="button">
                 <i class="fas fa-plane-departure me-1"></i>同城旅游 行程
             </button>
         </li>
@@ -106,7 +106,7 @@
 
     <div class="tab-content">
     <!-- ==================== US-Bangla Tab ==================== -->
-    <div class="tab-pane fade show active" id="tab-usbangla">
+    <div class="tab-pane fade {% if active_tool == 'usbangla' %}show active{% endif %}" id="tab-usbangla">
 
     <!-- 上传 -->
     <div class="card ub-card mb-4">
@@ -193,7 +193,7 @@
     </div><!-- /tab-usbangla -->
 
     <!-- ==================== Ctrip Tab ==================== -->
-    <div class="tab-pane fade" id="tab-ctrip">
+    <div class="tab-pane fade {% if active_tool == 'ctrip' %}show active{% endif %}" id="tab-ctrip">
         <div class="card ub-card mb-3">
             <div class="card-header ctrip-header">
                 <i class="fas fa-broom me-1"></i>Ctrip/Trip.com 行程单清理
@@ -223,7 +223,7 @@
     </div><!-- /tab-ctrip -->
 
     <!-- ==================== IndiGo Tab ==================== -->
-    <div class="tab-pane fade" id="tab-indigo">
+    <div class="tab-pane fade {% if active_tool == 'indigo' %}show active{% endif %}" id="tab-indigo">
         <div class="card ub-card mb-3">
             <div class="card-header indigo-header">
                 <i class="fas fa-eraser me-1"></i>IndiGo 机票去价格
@@ -250,7 +250,7 @@
     </div><!-- /tab-indigo -->
 
     <!-- ==================== Expedia Tab ==================== -->
-    <div class="tab-pane fade" id="tab-expedia">
+    <div class="tab-pane fade {% if active_tool == 'expedia' %}show active{% endif %}" id="tab-expedia">
         <div class="card ub-card mb-3">
             <div class="card-header expedia-header">
                 <i class="fas fa-broom me-1"></i>Expedia 行程单清理
@@ -282,7 +282,7 @@
     </div><!-- /tab-expedia -->
 
     <!-- ==================== Qunar Tab ==================== -->
-    <div class="tab-pane fade" id="tab-qunar">
+    <div class="tab-pane fade {% if active_tool == 'qunar' %}show active{% endif %}" id="tab-qunar">
         <div class="card ub-card mb-3">
             <div class="card-header qunar-header">
                 <i class="fas fa-broom me-1"></i>去哪儿行程单清理
@@ -332,7 +332,7 @@
     </div><!-- /tab-qunar -->
 
     <!-- ==================== MU (China Eastern) Tab ==================== -->
-    <div class="tab-pane fade" id="tab-mu">
+    <div class="tab-pane fade {% if active_tool == 'mu' %}show active{% endif %}" id="tab-mu">
 
         <!-- 上传解析 -->
         <div class="card ub-card mb-3">
@@ -441,7 +441,7 @@
     </div><!-- /tab-mu -->
 
     <!-- ==================== 同城旅游 (Tongcheng) Tab ==================== -->
-    <div class="tab-pane fade" id="tab-tc">
+    <div class="tab-pane fade {% if active_tool == 'tc' %}show active{% endif %}" id="tab-tc">
 
         <!-- 上传解析 -->
         <div class="card ub-card mb-3">
@@ -1701,6 +1701,20 @@ document.addEventListener('DOMContentLoaded', () => {
     TC_DEFAULT_NOTICES.forEach(n => tcAddNotice(n));
     tcAddPassenger();
     tcAddFlight();
+});
+
+// 切换 Tab 时同步更新地址栏为 /ticket_generator/<tool>，便于刷新/收藏/分享
+document.addEventListener('DOMContentLoaded', () => {
+    const baseUrl = '{{ url_for("flights_usbangla.ticket_generator") }}';
+    document.querySelectorAll('.tool-tabs [data-bs-toggle="tab"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', e => {
+            const target = e.target.getAttribute('data-bs-target') || '';
+            const tool = target.replace('#tab-', '');
+            if (tool) {
+                history.replaceState(null, '', baseUrl.replace(/\/$/, '') + '/' + tool);
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

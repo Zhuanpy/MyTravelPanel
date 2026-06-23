@@ -408,11 +408,19 @@ def generate_single_ticket(pax, flight_data, logo_path, header_image_path=None):
 
 # ========== 路由 ==========
 
+# 机票工具箱可用的 Tab 标识（与模板中的 tab-<key> 一一对应）
+TICKET_TOOLBOX_TABS = ['usbangla', 'ctrip', 'indigo', 'expedia', 'qunar', 'mu', 'tc']
+
+
 @flights_usbangla.route('/ticket_generator')
+@flights_usbangla.route('/ticket_generator/<tool>')
 @login_required
 @staff_only
-def ticket_generator():
-    return render_template('business/flight/usbangla_ticket_generator.html')
+def ticket_generator(tool='usbangla'):
+    # 非法参数回退到默认工具，避免页面无激活 Tab
+    if tool not in TICKET_TOOLBOX_TABS:
+        tool = 'usbangla'
+    return render_template('business/flight/usbangla_ticket_generator.html', active_tool=tool)
 
 
 @flights_usbangla.route('/parse_pdf', methods=['POST'])
@@ -599,9 +607,62 @@ def _ctrip_fix_name_line(page):
         x1 = max(s["bbox"][2] for s in name_spans) + 1
         y1 = max(s["bbox"][3] for s in name_spans) + 1
         page.add_redact_annot(fitz.Rect(x0, y0, x1, y1), fill=(1, 1, 1))
-        results.append({"name": clean_name, "x": x0 + 1, "y": name_spans[0]["bbox"][1] + _CTRIP_FONTSIZE + 1})
+        results.append({
+            "name": clean_name,
+            "x": x0 + 1,
+            "y": name_spans[0]["bbox"][1] + _CTRIP_FONTSIZE + 1,
+            # 原始姓名在 Name 列内的可用宽度与纵向范围（基于原始换行边界），
+            # 用于回填时限制宽度自动换行，避免长姓名覆盖到 Class 列
+            "width": x1 - x0 - 2,
+            "top": name_spans[0]["bbox"][1],
+            "bottom": y1,
+        })
 
     return results
+
+
+def _ctrip_wrap_to_width(text, width, fontname, fontsize):
+    """按列宽把姓名按单词换行，返回行列表（单个超宽单词不强制截断）"""
+    import fitz
+    lines = []
+    cur = ""
+    for word in text.split():
+        trial = (cur + " " + word).strip()
+        if not cur or fitz.get_text_length(trial, fontname=fontname, fontsize=fontsize) <= width:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _ctrip_insert_name(page, ni):
+    """在 Name 列内回填清理后的姓名：限定列宽自动换行，必要时缩小字号，避免覆盖到 Class 列"""
+    import fitz
+
+    width = max(ni.get("width", 0), 40)
+    avail_h = max(ni["bottom"] - ni["top"], _CTRIP_FONTSIZE * 1.2)
+
+    def _too_big(lines, fs):
+        # 纵向超出原始姓名区域，或单行宽度仍超过列宽（超长单词）
+        if len(lines) * fs * 1.25 > avail_h + 1:
+            return True
+        return any(
+            fitz.get_text_length(ln, fontname=_CTRIP_FONTNAME, fontsize=fs) > width + 1
+            for ln in lines
+        )
+
+    fontsize = _CTRIP_FONTSIZE
+    lines = _ctrip_wrap_to_width(ni["name"], width, _CTRIP_FONTNAME, fontsize)
+    while fontsize > 6 and _too_big(lines, fontsize):
+        fontsize -= 0.5
+        lines = _ctrip_wrap_to_width(ni["name"], width, _CTRIP_FONTNAME, fontsize)
+
+    rect = fitz.Rect(ni["x"], ni["top"] - 1, ni["x"] + width + 3, ni["bottom"] + 6)
+    page.insert_textbox(rect, "\n".join(lines), fontname=_CTRIP_FONTNAME,
+                        fontsize=fontsize, color=_CTRIP_COLOR, align=0)
 
 
 def _ctrip_fix_wrapped_flight_info(page):
@@ -786,8 +847,7 @@ def process_ctrip_pdf(file_stream):
                              "Reference", fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
 
         for ni in name_infos:
-            page.insert_text(fitz.Point(ni["x"], ni["y"]),
-                             ni["name"], fontname=_CTRIP_FONTNAME, fontsize=_CTRIP_FONTSIZE, color=_CTRIP_COLOR)
+            _ctrip_insert_name(page, ni)
 
         for fix in flight_fixes:
             main = fix["main_span"]
