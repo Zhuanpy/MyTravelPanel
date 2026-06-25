@@ -26,6 +26,9 @@
                 <a href="{{ url_for('utils_process.open_FuXin_pdf') }}" class="quick-action-btn btn-orange">
                     <i class="fas fa-tools"></i> PDF工具
                 </a>
+                <a href="{{ url_for('utils_process.image_matting') }}" class="quick-action-btn btn-green">
+                    <i class="fas fa-cut"></i> 抠图合并
+                </a>
                 <a href="{{ url_for('utils_process.open_Photoshop') }}" class="quick-action-btn btn-purple">
                     <i class="fas fa-image"></i> Photoshop
                 </a>
@@ -127,6 +130,27 @@
         </div>
         
         <div class="visa-grid-3">
+            <!-- AI 抠图合并 -->
+            <div class="resource-card resource-card-green">
+                <div class="resource-card-header">
+                    <div class="resource-card-icon resource-icon-green">
+                        <i class="fas fa-cut"></i>
+                    </div>
+                    <h4 class="resource-card-title">AI 抠图合并</h4>
+                </div>
+                <p class="resource-card-description">
+                    AI 自动去除证件、卡片、护照页背景，可自动摆正、透视校正，多张合并成一张，导出 PNG / 透明 PNG / 可打印 PDF。
+                </p>
+                <div class="resource-card-footer">
+                    <a href="{{ url_for('utils_process.image_matting') }}" class="visa-btn visa-btn-success visa-btn-sm">
+                        <i class="fas fa-arrow-right"></i> 前往处理
+                    </a>
+                    <span class="resource-card-stats">
+                        <i class="fas fa-magic"></i> AI 去背景
+                    </span>
+                </div>
+            </div>
+
             <!-- 图片压缩 -->
             <div class="resource-card resource-card-purple">
                 <div class="resource-card-header">

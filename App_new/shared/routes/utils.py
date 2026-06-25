@@ -501,6 +501,122 @@ def files_home():
     return render_template('shared/utils/文件处理首页.html')
 
 
+@utils_process.route('/image_matting')
+@login_required
+@staff_only
+def image_matting():
+    """AI 抠图合并工具页面"""
+    return render_template('shared/utils/抠图合并.html')
+
+
+@csrf.exempt
+@utils_process.route('/image_matting_process', methods=['POST'])
+@login_required
+@staff_only
+def image_matting_process():
+    """
+    上传图片 -> AI 去背景 -> 可选合并/导出 PDF -> 返回结果文件下载。
+    - 合并(merge != none): 返回单张 PNG, 或 PDF(勾选时)
+    - 不合并(merge == none): 单张返回 PNG; 多张打包为 ZIP; 勾选 PDF 时同理返回 PDF/ZIP
+    """
+    try:
+        from PIL import Image as _PILImage
+        try:
+            from App_new.utils.image_matting import matting, to_pdf_bytes
+        except ImportError as imp_err:
+            return jsonify({
+                'success': False,
+                'message': f'抠图功能所需依赖未安装(rembg/opencv 等): {imp_err}。'
+                           f'请在服务器执行: pip install rembg onnxruntime opencv-python'
+            }), 500
+
+        files = request.files.getlist('imageFiles')
+        if not files or all(f.filename == '' for f in files):
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+
+        # 读取参数
+        mode = request.form.get('mode', 'card')          # card | page
+        bg = request.form.get('bg', 'white')             # white | transparent
+        merge = request.form.get('merge', 'none')        # none | vertical | horizontal | grid
+        want_pdf = request.form.get('pdf') in ('1', 'true', 'on', 'yes')
+
+        if mode not in ('card', 'page'):
+            mode = 'card'
+        if bg not in ('white', 'transparent'):
+            bg = 'white'
+        if merge not in ('none', 'vertical', 'horizontal', 'grid'):
+            merge = 'none'
+        # 透明底无法转 PDF, 自动按白底处理 PDF
+        transparent = (bg == 'transparent')
+
+        # 解析上传图片
+        image_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff'}
+        sorted_files = sorted(files, key=lambda f: f.filename)
+        pil_images, names = [], []
+        for f in sorted_files:
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in image_exts:
+                continue
+            pil_images.append(_PILImage.open(BytesIO(f.read())))
+            names.append(os.path.splitext(os.path.basename(f.filename))[0])
+
+        if not pil_images:
+            return jsonify({'success': False, 'message': '没有找到有效的图片文件'}), 400
+
+        current_app.logger.info(
+            f'抠图处理开始: 数量={len(pil_images)} 模式={mode} 背景={bg} 合并={merge} pdf={want_pdf}')
+
+        result = matting(pil_images, mode=mode, bg=bg, merge=merge)
+
+        # ---------- 合并模式: 返回单个文件 ----------
+        if merge != 'none':
+            merged = result['merged']
+            if want_pdf:
+                buf = to_pdf_bytes(merged)
+                return send_file(buf, mimetype='application/pdf',
+                                 as_attachment=True, download_name='抠图合并结果.pdf')
+            buf = BytesIO()
+            merged.save(buf, 'PNG')
+            buf.seek(0)
+            suffix = '_透明底' if transparent else ''
+            return send_file(buf, mimetype='image/png',
+                             as_attachment=True, download_name=f'抠图合并结果{suffix}.png')
+
+        # ---------- 不合并模式 ----------
+        singles = result['singles']
+        # 单张直接返回
+        if len(singles) == 1:
+            if want_pdf:
+                buf = to_pdf_bytes(singles[0])
+                return send_file(buf, mimetype='application/pdf',
+                                 as_attachment=True, download_name=f'{names[0]}_nobg.pdf')
+            buf = BytesIO()
+            singles[0].save(buf, 'PNG')
+            buf.seek(0)
+            return send_file(buf, mimetype='image/png',
+                             as_attachment=True, download_name=f'{names[0]}_nobg.png')
+
+        # 多张: 打包 ZIP
+        import zipfile
+        zip_buf = BytesIO()
+        with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for img, name in zip(singles, names):
+                item = BytesIO()
+                if want_pdf:
+                    item = to_pdf_bytes(img)
+                    zf.writestr(f'{name}_nobg.pdf', item.getvalue())
+                else:
+                    img.save(item, 'PNG')
+                    zf.writestr(f'{name}_nobg.png', item.getvalue())
+        zip_buf.seek(0)
+        return send_file(zip_buf, mimetype='application/zip',
+                         as_attachment=True, download_name='抠图结果.zip')
+
+    except Exception as e:
+        current_app.logger.error(f'抠图处理失败: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
 @utils_process.route('/image/print/<path:image_path>')
 def serve_print_image(image_path):
     """

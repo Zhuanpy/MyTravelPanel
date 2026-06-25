@@ -1,0 +1,250 @@
+{% extends "staff_base.html" %}
+
+{% block title %}抠图合并 - MyTravelPanel{% endblock %}
+
+{% block page_title %}抠图合并{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="successMessage" class="visa-flash" style="display: none;"></div>
+
+<div class="visa-container-sm">
+    <h1 class="visa-page-title">AI 抠图合并工具</h1>
+    <p class="visa-text-center visa-text-muted">自动去除证件 / 卡片 / 护照页背景，可摆正、合并、导出 PDF</p>
+
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #ecfdf5;">
+            <h2 style="color: #059669;"><i class="fas fa-cut"></i> 上传图片 → AI 去背景</h2>
+        </div>
+        <div class="visa-card-body">
+            <form id="mattingForm" method="post" action="{{ url_for('utils_process.image_matting_process') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- 选择图片 -->
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择图片文件</label>
+                    <div id="mattingDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-green-500 tw-transition-colors"
+                         onclick="document.getElementById('mattingFilesInput').click()">
+                        <i class="fas fa-cloud-upload-alt tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
+                        <div class="tw-mb-2">
+                            <button type="button" class="visa-btn visa-btn-success visa-btn-lg"
+                                    onclick="event.stopPropagation(); document.getElementById('mattingFilesInput').click()">
+                                <i class="fas fa-folder-open"></i> 点击选择图片
+                            </button>
+                        </div>
+                        <p class="tw-text-gray-600 tw-mb-1">或将图片拖拽到此处</p>
+                        <p class="tw-text-xs tw-text-gray-400">支持 JPG、PNG、WEBP、BMP、TIFF 格式，可多选</p>
+                    </div>
+                    <input type="file" id="mattingFilesInput" name="imageFiles" multiple
+                           accept=".jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff" style="display:none"
+                           onchange="updateFileList(this, 'mattingFileList')">
+                    <div id="mattingFileList" class="tw-mt-2"></div>
+                </div>
+
+                <!-- 处理模式 -->
+                <div class="visa-form-group">
+                    <label for="mode" class="visa-form-label">处理模式</label>
+                    <select id="mode" name="mode" class="visa-form-control">
+                        <option value="card">证件 / 卡片（保留圆角 + 自动摆正）</option>
+                        <option value="page">文件 / 护照页（透视校正，拉平成矩形）</option>
+                    </select>
+                </div>
+
+                <!-- 输出背景 -->
+                <div class="visa-form-group">
+                    <label for="bg" class="visa-form-label">输出背景</label>
+                    <select id="bg" name="bg" class="visa-form-control">
+                        <option value="white">白底 PNG</option>
+                        <option value="transparent">透明底 PNG（用于叠加排版）</option>
+                    </select>
+                </div>
+
+                <!-- 合并方式 -->
+                <div class="visa-form-group">
+                    <label for="merge" class="visa-form-label">多张合并方式</label>
+                    <select id="merge" name="merge" class="visa-form-control">
+                        <option value="none">不合并（各存各的，多张打包 ZIP）</option>
+                        <option value="vertical">竖排合并成一张</option>
+                        <option value="horizontal">横排合并成一张</option>
+                        <option value="grid">网格合并成一张</option>
+                    </select>
+                </div>
+
+                <!-- 导出 PDF -->
+                <div class="visa-form-group">
+                    <label class="visa-form-label" style="cursor:pointer;">
+                        <input type="checkbox" id="pdf" name="pdf" value="1" style="margin-right:6px;">
+                        额外导出 A4 可打印 PDF（透明底将按白底转换）
+                    </label>
+                </div>
+
+                <button type="submit" class="visa-btn visa-btn-success visa-btn-lg"
+                        onclick="return handleUploadSubmit(event, this)">
+                    <i class="fas fa-magic"></i> 开始抠图并下载
+                </button>
+            </form>
+
+            <div class="tw-mt-4 tw-text-sm tw-text-gray-600">
+                <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-green-500"></i> 首次使用会自动下载 AI 模型(u2net)，请耐心等待。</p>
+                <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-green-500"></i> 多张且选择"不合并"时，结果将打包为 ZIP 下载。</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 显示已选文件列表
+function updateFileList(input, listId) {
+    const listDiv = document.getElementById(listId);
+    const files = Array.from(input.files);
+    if (files.length === 0) {
+        listDiv.innerHTML = '';
+        return;
+    }
+    let html = '<div class="tw-text-sm tw-text-gray-600 tw-mt-2">';
+    html += '<strong>已选择 ' + files.length + ' 个文件：</strong>';
+    html += '<ul class="tw-list-none tw-pl-0 tw-mt-1" style="max-height:150px;overflow-y:auto">';
+    files.forEach(function(f) {
+        const size = (f.size / 1024).toFixed(1);
+        html += '<li class="tw-py-1 tw-border-b tw-border-gray-100"><i class="fas fa-file-image tw-text-gray-400 tw-mr-1"></i>' + f.name + ' <span class="tw-text-gray-400">(' + size + ' KB)</span></li>';
+    });
+    html += '</ul></div>';
+    listDiv.innerHTML = html;
+}
+
+// 上传表单提交（文件下载模式，支持 PNG / PDF / ZIP）
+function handleUploadSubmit(event, btn) {
+    event.preventDefault();
+    const form = btn.closest('form');
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showErrorMessage('请先选择图片文件');
+        return false;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI 处理中，请稍候...';
+
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type') || '';
+        const isFile = response.ok && (
+            contentType.indexOf('application/pdf') !== -1 ||
+            contentType.indexOf('image/png') !== -1 ||
+            contentType.indexOf('application/zip') !== -1
+        );
+        if (isFile) {
+            const disposition = response.headers.get('content-disposition');
+            let filename = 'result';
+            if (disposition) {
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?((['"]).*?\2|[^;\n]*)/i);
+                if (match && match[1]) {
+                    filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
+                }
+            }
+            return response.blob().then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                showSuccessMessage('处理成功，已开始下载');
+            });
+        } else if (contentType.indexOf('application/json') !== -1) {
+            return response.json().then(data => {
+                if (data.success) {
+                    showSuccessMessage(data.message);
+                } else {
+                    showErrorMessage(data.message || '处理失败');
+                }
+            });
+        } else {
+            showErrorMessage('服务器返回错误（状态码：' + response.status + '），请重试');
+        }
+    })
+    .catch(error => {
+        showErrorMessage(error.message || '处理出错，请重试');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+
+    return false;
+}
+
+// 拖拽上传支持
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('mattingDropZone');
+    const fileInput = document.getElementById('mattingFilesInput');
+    if (!dropZone || !fileInput) return;
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        dropZone.addEventListener(evt, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('tw-border-green-500', 'tw-bg-green-50');
+        });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+        dropZone.addEventListener(evt, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('tw-border-green-500', 'tw-bg-green-50');
+        });
+    });
+    dropZone.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        if (dt.files && dt.files.length > 0) {
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+});
+
+function showSuccessMessage(message) {
+    const messageDiv = document.getElementById('successMessage');
+    messageDiv.textContent = message;
+    messageDiv.className = 'visa-flash visa-flash-success';
+    messageDiv.style.display = 'block';
+    setTimeout(() => {
+        messageDiv.style.opacity = '0';
+        setTimeout(() => {
+            messageDiv.style.display = 'none';
+            messageDiv.style.opacity = '1';
+        }, 300);
+    }, 3000);
+}
+
+function showErrorMessage(message) {
+    const messageDiv = document.getElementById('successMessage');
+    messageDiv.textContent = message;
+    messageDiv.className = 'visa-flash visa-flash-error';
+    messageDiv.style.display = 'block';
+    setTimeout(() => {
+        messageDiv.style.opacity = '0';
+        setTimeout(() => {
+            messageDiv.style.display = 'none';
+            messageDiv.style.opacity = '1';
+        }, 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -39,6 +39,12 @@ Pillow==10.3.0
 pytesseract==0.3.13
 passporteye==2.2.2
 reportlab==4.1.0
+
+# AI 抠图合并工具 (App_new/utils/image_matting.py)
+# 注意: 服务器为无界面(headless)环境, 用 opencv-python-headless 避免缺少 libGL.so.1
+rembg==2.0.69
+onnxruntime==1.23.2
+opencv-python-headless==4.13.0.92
 fpdf2==2.8.3
 
 # 日期时间处理
