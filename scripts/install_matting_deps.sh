@@ -44,10 +44,11 @@ echo "==== 升级 pip ===="
 "${PY}" -m pip install --upgrade pip
 
 echo "==== 安装抠图依赖 (rembg / onnxruntime / opencv-python-headless) ===="
+# 版本与 numpy==1.24.3 兼容, 不会强制升级 numpy/pandas
 "${PY}" -m pip install \
-    "rembg==2.0.69" \
-    "onnxruntime==1.23.2" \
-    "opencv-python-headless==4.13.0.92"
+    "rembg==2.0.59" \
+    "onnxruntime==1.16.3" \
+    "opencv-python-headless==4.9.0.80"
 
 # 若服务器之前误装了非 headless 版, 卸掉以免与 headless 冲突 (两者共用 cv2 命名空间)
 if "${PY}" -m pip show opencv-python >/dev/null 2>&1; then
