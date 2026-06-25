@@ -18,9 +18,10 @@ from PIL import Image
 
 IMG_EXT = (".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff")
 
-# 默认分割模型: isnet-general-use 比 u2net 边缘更准、保留圆角, 证件不易缺角
-# (u2net 在浅色/低对比的角容易漏判, 叠加凸包补洞会把缺角处斜切掉)
-DEFAULT_MODEL = "isnet-general-use"
+# 默认分割模型: u2net。实测对浅色/低对比证件最稳;
+# isnet-general-use 在浅色卡片上会严重漏判(只抠出极小一块), 故不采用。
+# 缺角问题改由 process_card 的"最小外接矩形拉正"几何方案解决(见下), 不依赖换模型。
+DEFAULT_MODEL = "u2net"
 
 
 # ---------------- 基础工具 ----------------
@@ -114,30 +115,33 @@ def composite_white(rgb, mask):
 
 # ---------------- 两种处理模式 ----------------
 def process_card(bgr, model):
-    """证件/卡片：凸包补洞(保留条码等深色区) + 小角度摆正 + 贴边裁切。"""
+    """证件/卡片：用最小外接矩形把卡片透视拉正并补成完整矩形。
+
+    证件是规则矩形, 直接取掩码的最小外接矩形(minAreaRect)作为卡片边界,
+    透视校正到正矩形 —— 即便掩码在某个浅色/低对比的角漏判, 也由矩形补全,
+    彻底避免"凸包斜切缺角"。整块矩形作为前景输出。
+    """
     import numpy as np
     import cv2
     mask = ai_mask(bgr, model)
     cnt = max(cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0],
               key=cv2.contourArea)
-    solid = np.zeros_like(mask)
-    cv2.fillPoly(solid, [cv2.convexHull(cnt)], 255)
-    (_, _), (_, _), ang = cv2.minAreaRect(cnt)
-    while ang <= -45:
-        ang += 90
-    while ang > 45:
-        ang -= 90
-    rb = rotate_keep(bgr, ang, (255, 255, 255))
-    rs = (rotate_keep(solid, ang, 0, cv2.INTER_NEAREST) > 127).astype(np.uint8) * 255
-    rs = cv2.erode(rs, np.ones((3, 3), np.uint8))
-    ys = np.where(rs.sum(1) > 0)[0]
-    xs = np.where(rs.sum(0) > 0)[0]
-    rb = rb[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1]
-    rs = rs[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1]
-    if rb.shape[0] > rb.shape[1]:           # 统一成横向
-        rb = cv2.rotate(rb, cv2.ROTATE_90_CLOCKWISE)
-        rs = cv2.rotate(rs, cv2.ROTATE_90_CLOCKWISE)
-    return cv2.cvtColor(rb, cv2.COLOR_BGR2RGB), rs
+    box = cv2.boxPoints(cv2.minAreaRect(cnt)).astype("float32")
+    r = order_pts(box)
+    ctr = r.mean(0)
+    r = (ctr + (r - ctr) * 0.99).astype("float32")        # 轻微内缩, 去掉边缘细背景条
+    (tl, tr, br, bl) = r
+    W = int(max(np.hypot(*(br - bl)), np.hypot(*(tr - tl))))
+    H = int(max(np.hypot(*(tr - br)), np.hypot(*(tl - bl))))
+    if W < 2 or H < 2:                                     # 兜底: 矩形异常时退回原图
+        return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB), mask
+    M = cv2.getPerspectiveTransform(
+        r, np.array([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]], "float32"))
+    persp = cv2.warpPerspective(bgr, M, (W, H), flags=cv2.INTER_CUBIC)
+    if persp.shape[0] > persp.shape[1]:                   # 统一成横向
+        persp = cv2.rotate(persp, cv2.ROTATE_90_CLOCKWISE)
+    full = np.full(persp.shape[:2], 255, np.uint8)        # 整块矩形为前景, 永不缺角
+    return cv2.cvtColor(persp, cv2.COLOR_BGR2RGB), full
 
 
 def process_page(bgr, model):
