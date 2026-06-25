@@ -57,11 +57,11 @@ if "${PY}" -m pip show opencv-python >/dev/null 2>&1; then
 fi
 
 # ---------- 3) 预下载 u2net 模型 ----------
-echo "==== 预下载 u2net 模型 (~170MB, 首次较慢) ===="
+echo "==== 预下载分割模型 isnet-general-use (~170MB, 首次较慢) ===="
 "${PY}" - <<'PYEOF'
 from rembg import new_session
-new_session("u2net")
-print("u2net 模型就绪")
+new_session("isnet-general-use")
+print("isnet-general-use 模型就绪")
 PYEOF
 
 # ---------- 4) 校验导入 ----------

@@ -18,6 +18,10 @@ from PIL import Image
 
 IMG_EXT = (".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff")
 
+# 默认分割模型: isnet-general-use 比 u2net 边缘更准、保留圆角, 证件不易缺角
+# (u2net 在浅色/低对比的角容易漏判, 叠加凸包补洞会把缺角处斜切掉)
+DEFAULT_MODEL = "isnet-general-use"
+
 
 # ---------------- 基础工具 ----------------
 def _pil_to_bgr(pil_img):
@@ -240,7 +244,7 @@ def to_pdf_bytes(pil_img, dpi=300):
 
 
 # ---------------- 对外主入口 ----------------
-def process_single(pil_img, mode="card", model="u2net"):
+def process_single(pil_img, mode="card", model=DEFAULT_MODEL):
     """处理单张图，返回 (rgb_ndarray, mask_ndarray)。"""
     proc = process_page if mode == "page" else process_card
     return proc(_pil_to_bgr(pil_img), model)
@@ -253,7 +257,7 @@ def result_to_image(rgb, mask, transparent=False):
     return Image.fromarray(composite_white(rgb, mask), "RGB")
 
 
-def matting(pil_images, mode="card", bg="white", merge="none", model="u2net",
+def matting(pil_images, mode="card", bg="white", merge="none", model=DEFAULT_MODEL,
             width=1100, gap=45, margin=45):
     """
     批量抠图主入口。
@@ -263,7 +267,7 @@ def matting(pil_images, mode="card", bg="white", merge="none", model="u2net",
         mode        : "card" | "page"  card=证件/卡片(默认), page=透视校正
         bg          : "white" | "transparent"  输出背景
         merge       : "none" | "vertical" | "horizontal" | "grid"  合并方式
-        model       : rembg 模型名, 默认 u2net
+        model       : rembg 模型名, 默认 isnet-general-use
         width/gap/margin : 合并排版参数
 
     返回:
