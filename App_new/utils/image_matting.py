@@ -23,8 +23,24 @@ IMG_EXT = (".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff")
 # 缺角问题改由 process_card 的"最小外接矩形拉正"几何方案解决(见下), 不依赖换模型。
 DEFAULT_MODEL = "u2net"
 
+# 处理前将图片最长边限制到此像素。证件只需 A4 打印, 2000px 足够清晰,
+# 却能大幅减少大图(手机动辄1200万像素)的解码/透视变换/编码/内存开销, 加快处理。
+# 注意: rembg 推理内部固定缩到 320, 故此项主要省"外围开销", 不改变AI推理耗时。
+MAX_INPUT_SIDE = 2000
+
 
 # ---------------- 基础工具 ----------------
+def _downscale(pil_img, max_side=MAX_INPUT_SIDE):
+    """若图片最长边超过 max_side, 等比缩小到 max_side; 否则原样返回。"""
+    w, h = pil_img.size
+    longest = max(w, h)
+    if longest <= max_side:
+        return pil_img
+    scale = max_side / float(longest)
+    new_size = (max(1, int(round(w * scale))), max(1, int(round(h * scale))))
+    return pil_img.resize(new_size, Image.LANCZOS)
+
+
 def _pil_to_bgr(pil_img):
     """PIL Image -> OpenCV BGR ndarray。"""
     import numpy as np
@@ -250,6 +266,7 @@ def to_pdf_bytes(pil_img, dpi=300):
 # ---------------- 对外主入口 ----------------
 def process_single(pil_img, mode="card", model=DEFAULT_MODEL):
     """处理单张图，返回 (rgb_ndarray, mask_ndarray)。"""
+    pil_img = _downscale(pil_img)          # 处理前先压缩大图, 省外围开销
     proc = process_page if mode == "page" else process_card
     return proc(_pil_to_bgr(pil_img), model)
 
