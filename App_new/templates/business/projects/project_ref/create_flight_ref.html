@@ -546,7 +546,7 @@ function addPassengerWithData(data) {
         <div class="passenger-card passenger-card-inline">
             <span class="passenger-number-inline col-num">${passengerIndex}</span>
             <div class="passenger-field-inline col-name">
-                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" value="${data.name}" required placeholder="姓名" onchange="updateLeaderName()">
+                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" value="${data.name}" required placeholder="姓名" onchange="updateLeaderName(); autofillPassportFromFrequentTraveler(this)">
             </div>
             <div class="passenger-field-inline col-type">
                 <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
@@ -611,6 +611,54 @@ function _escHtml(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;'
 function syncPaxPassport(el, i) {
     const inputs = document.querySelectorAll('#passengersContainer input[name="passport_number[]"]');
     if (inputs[i]) inputs[i].value = el.value;
+}
+
+// 常用旅客护照号自动填充：录入乘客姓名后，按姓名匹配常用旅客库自动带出护照号
+// 仅在该乘客护照号为空时填充，不覆盖已保存或手填的数据；精确匹配中文名或英文名。
+function autofillPassportFromFrequentTraveler(nameInput) {
+    if (!nameInput) return;
+    const name = (nameInput.value || '').trim();
+    if (!name) return;
+
+    const card = nameInput.closest('.passenger-card');
+    if (!card) return;
+    const hidden = card.querySelector('input[name="passport_number[]"]');
+    if (!hidden) return;
+    // 已有护照号则不覆盖（避免冲掉手填或已保存的数据）
+    if (hidden.value && hidden.value.trim()) return;
+
+    fetch(`/frequent_traveler/api/search?q=${encodeURIComponent(name)}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (!res || !res.success || !Array.isArray(res.data) || !res.data.length) return;
+        const target = name.toUpperCase();
+        // 精确匹配中文名或英文名（忽略大小写与首尾空格）
+        const match = res.data.find(t =>
+            (t.name && t.name.trim().toUpperCase() === target) ||
+            (t.name_en && t.name_en.trim().toUpperCase() === target)
+        );
+        if (!match || !match.passport_number) return;
+        // 再次确认仍为空（异步期间用户可能已手填）
+        if (hidden.value && hidden.value.trim()) return;
+        hidden.value = match.passport_number;
+
+        // 若票务表已构建并显示，按行序同步可见护照输入框
+        const cards = Array.from(document.querySelectorAll('.passenger-card'));
+        const idx = cards.indexOf(card);
+        if (idx >= 0) {
+            const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input');
+            if (visible[idx]) visible[idx].value = match.passport_number;
+        }
+
+        // 轻量提示：姓名框短暂高亮，告知已自动带出护照号
+        nameInput.title = `已从常用旅客 ${match.traveler_code || ''} 自动带出护照号`;
+        nameInput.style.transition = 'background-color .3s';
+        nameInput.style.backgroundColor = '#e6fffa';
+        setTimeout(() => { nameInput.style.backgroundColor = ''; }, 1200);
+    })
+    .catch(() => {});
 }
 
 function snapshotPaxTicketing() {
@@ -950,7 +998,7 @@ function addPassenger() {
         <div class="passenger-card passenger-card-inline">
             <span class="passenger-number-inline col-num">${passengerIndex}</span>
             <div class="passenger-field-inline col-name">
-                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required placeholder="姓名" onchange="updateLeaderName()">
+                <input type="text" class="order-input passenger-name-input" name="passenger_name[]" required placeholder="姓名" onchange="updateLeaderName(); autofillPassportFromFrequentTraveler(this)">
             </div>
             <div class="passenger-field-inline col-type">
                 <select class="order-select passenger-type-select" name="passenger_type[]" required onchange="updatePriceSummary()">
