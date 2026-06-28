@@ -420,11 +420,7 @@
                     <td>
                         <div class="action-buttons">
                             <a href="{{ url_for('flights_booking.order_detail', order_id=order.id) }}" class="btn btn-sm btn-info">详情</a>
-                            {% if order.order_status in ['draft', 'processing'] %}
-                                                          <a href="{{ url_for('flights_booking.edit_order', order_id=order.id) }}" class="btn btn-sm btn-warning">编辑</a>
-                            {% else %}
-                            <button class="btn btn-sm btn-warning" disabled style="opacity: 0.5; cursor: not-allowed;">编辑</button>
-                            {% endif %}
+                            <a href="{{ url_for('business_projects.project_ref.edit_flight_ref', ref_id=order.id) }}" class="btn btn-sm btn-warning">编辑</a>
                             <a href="{{ url_for('flights_booking.print_itinerary', order_id=order.id) }}" target="_blank" class="btn btn-sm btn-success" title="打印行程单">行程单</a>
                         </div>
                     </td>
