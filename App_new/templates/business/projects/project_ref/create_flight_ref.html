@@ -588,6 +588,12 @@ function addPassengerWithData(data) {
 
     // 应用价格锁定
     applyPriceLock();
+
+    // 加载/导入的乘客：若护照为空，按姓名从常用旅客库自动带出（编辑页打开时不触发 onchange，故在此主动调用）
+    if (!data.passport_number) {
+        const lastNameInput = $('#passengersContainer .passenger-card').last().find('.passenger-name-input')[0];
+        if (lastNameInput) autofillPassportFromFrequentTraveler(lastNameInput);
+    }
 }
 
 // 录入双标签切换：项目录入 / 行程单补充
@@ -633,13 +639,23 @@ function autofillPassportFromFrequentTraveler(nameInput) {
     .then(r => r.json())
     .then(res => {
         if (!res || !res.success || !Array.isArray(res.data) || !res.data.length) return;
-        const target = name.toUpperCase();
-        // 精确匹配中文名或英文名（忽略大小写与首尾空格）
+        // 归一化：去首尾空格、合并内部连续空格、转大写，再比较
+        const norm = s => (s == null ? '' : String(s)).trim().replace(/\s+/g, ' ').toUpperCase();
+        const target = norm(name);
+        // 精确匹配中文名或英文名
         const match = res.data.find(t =>
-            (t.name && t.name.trim().toUpperCase() === target) ||
-            (t.name_en && t.name_en.trim().toUpperCase() === target)
+            norm(t.name) === target || norm(t.name_en) === target
         );
-        if (!match || !match.passport_number) return;
+        if (!match) {
+            // 搜到了常用旅客但姓名对不上：打印候选，便于排查姓名格式不一致
+            console.debug('[常用旅客] 未精确匹配到 "' + name + '"，候选：',
+                res.data.map(t => `${t.name}/${t.name_en || ''}`).join(' | '));
+            return;
+        }
+        if (!match.passport_number) {
+            console.debug('[常用旅客] 匹配到 ' + (match.traveler_code || match.name) + '，但其护照号为空');
+            return;
+        }
         // 再次确认仍为空（异步期间用户可能已手填）
         if (hidden.value && hidden.value.trim()) return;
         hidden.value = match.passport_number;
