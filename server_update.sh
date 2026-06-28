@@ -69,6 +69,8 @@ touch $MIGRATION_LOG
 
 # 查找所有以日期开头的迁移脚本（格式：YYYYMMDD_*.py）
 MIGRATION_COUNT=0
+MIGRATION_FAIL_COUNT=0
+FAILED_SCRIPTS=""
 for script in scripts/[0-9]*_*.py; do
     if [ -f "$script" ]; then
         script_name=$(basename "$script")
@@ -78,20 +80,36 @@ for script in scripts/[0-9]*_*.py; do
             echo ">>> 跳过 $script_name (已执行)"
         else
             echo ">>> 运行 $script_name ..."
-            python "$script" --execute
-
-            # 记录已执行的脚本
-            echo "$script_name" >> "$MIGRATION_LOG"
-            MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
-            echo ">>> $script_name 执行完成"
+            # 用 if 包裹，避免 set -e 在单个脚本失败时中断整个部署
+            if python "$script" --execute; then
+                # 仅成功时记录，失败的脚本不记录以便下次部署重试
+                echo "$script_name" >> "$MIGRATION_LOG"
+                MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+                echo ">>> $script_name 执行完成"
+            else
+                MIGRATION_FAIL_COUNT=$((MIGRATION_FAIL_COUNT + 1))
+                FAILED_SCRIPTS="$FAILED_SCRIPTS $script_name"
+                echo "!!! 警告：$script_name 执行失败，已跳过（未记录，下次部署会重试），继续后续脚本"
+            fi
         fi
     fi
 done
 
-if [ $MIGRATION_COUNT -eq 0 ]; then
+if [ $MIGRATION_COUNT -eq 0 ] && [ $MIGRATION_FAIL_COUNT -eq 0 ]; then
     echo ">>> 没有新的迁移脚本需要执行"
 else
-    echo ">>> 共执行 $MIGRATION_COUNT 个迁移脚本"
+    echo ">>> 共成功执行 $MIGRATION_COUNT 个迁移脚本"
+fi
+
+# 汇总失败的脚本（不中断部署，但醒目提示）
+if [ $MIGRATION_FAIL_COUNT -gt 0 ]; then
+    echo "!!! =========================================="
+    echo "!!! 警告：有 $MIGRATION_FAIL_COUNT 个迁移脚本执行失败："
+    for s in $FAILED_SCRIPTS; do
+        echo "!!!   - $s"
+    done
+    echo "!!! 请手动检查并补跑：python scripts/<脚本名>"
+    echo "!!! =========================================="
 fi
 
 # 重启服务
