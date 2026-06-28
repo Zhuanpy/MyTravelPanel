@@ -399,6 +399,24 @@
 <div class="order-container">
     <form id="orderForm" method="POST" action="{{ url_for('flights_booking.edit_order', order_id=order.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- 文字解析补充 -->
+        <div class="order-card">
+            <h2 class="order-section-title">文字解析补充</h2>
+            <p style="color:#718096;font-size:.85rem;margin:-6px 0 10px;">
+                粘贴行程 App / 邮件里的航班文字，自动解析为航段、乘客并<strong>追加</strong>到下方表单（核对后保存）。日期会按星期自动补全年份，可手动修改。
+            </p>
+            <textarea id="flightTextInput" class="order-input"
+                      placeholder="例如：&#10;HKG Hong Kong Intl.T1&#10;Fiji Airways&#10;FJ392&#10;Business&#10;Flight time: 10h 10m&#10;Jul 4&#10;06:25&#10;NAN Nadi Intl.&#10;行李 30kg&#10;乘客：LI/CUNKOU"
+                      style="min-height:140px;font-family:monospace;white-space:pre;"></textarea>
+            <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <button type="button" class="order-btn order-btn-primary" onclick="parseFlightText()" id="btnParseFlightText">
+                    <i class="fas fa-magic"></i> 解析并追加
+                </button>
+                <span id="flightTextMsg" style="font-size:.85rem;"></span>
+            </div>
+        </div>
+
         <!-- 航段信息 -->
         <div class="order-card">
             <h2 class="order-section-title">航段信息</h2>
@@ -755,6 +773,52 @@ function initializeSelect2(element) {
             placeholder: $(element).data('placeholder') || window.select2Config.placeholder
         });
         $(element).select2(config);
+    }
+}
+
+// ========== 文字解析补充：解析粘贴文字并追加航段/乘客 ==========
+function parseFlightText() {
+    const text = document.getElementById('flightTextInput').value.trim();
+    const msg = document.getElementById('flightTextMsg');
+    if (!text) { msg.style.color = '#e53e3e'; msg.textContent = '请先粘贴行程文字'; return; }
+
+    const btn = document.getElementById('btnParseFlightText');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 解析中...';
+    msg.style.color = '#718096';
+    msg.textContent = '';
+
+    fetch('{{ url_for("flights_booking.parse_flight_text") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            msg.style.color = '#e53e3e';
+            msg.textContent = '解析失败：' + (data.error || '');
+            return;
+        }
+        const segs = data.segments || [];
+        const pax = data.passengers || [];
+        segs.forEach(s => addFlightSegment(s));
+        pax.forEach(p => appendParsedPassenger(p));
+        const fnos = segs.map(s => s.flightNumber).filter(Boolean).join(', ') || '(无)';
+        msg.style.color = '#38a169';
+        msg.textContent = `已追加 ${segs.length} 个航段（${fnos}）、${pax.length} 位乘客，请核对后保存。`;
+    })
+    .catch(err => { msg.style.color = '#e53e3e'; msg.textContent = '错误：' + err.message; })
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+function appendParsedPassenger(p) {
+    addPassenger();
+    const card = $('#passengersContainer .passenger-card').last();
+    card.find('input[name="passenger_name[]"]').val((p.name || '').toUpperCase());
+    if (p.passenger_type) {
+        card.find('select[name="passenger_type[]"]').val(p.passenger_type);
     }
 }
 

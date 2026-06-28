@@ -51,6 +51,27 @@
         }
         .no-print .btn-print { background: #059669; color: white; }
         .no-print .btn-back { background: #6b7280; color: white; }
+        /* 显示开关 */
+        .print-toggles {
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #374151;
+        }
+        .print-toggles label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+        /* 开关控制：隐藏对应字段（同时作用于屏幕与打印） */
+        body.hide-passport .col-passport { display: none !important; }
+        body.hide-seat .field-seat { display: none !important; }
+        body.hide-ticket .field-ticket { display: none !important; }
 
         /* 主体 */
         .print-page {
@@ -234,7 +255,19 @@
 <div class="no-print">
     <button class="btn-print" onclick="window.print()">打印 Print</button>
     <button class="btn-back" onclick="window.close()">关闭 Close</button>
+    <div class="print-toggles">
+        <span>打印显示：</span>
+        <label><input type="checkbox" id="toggle-passport" checked onchange="toggleField('passport', this.checked)"> 护照号码</label>
+        <label><input type="checkbox" id="toggle-seat" checked onchange="toggleField('seat', this.checked)"> 座位</label>
+        <label><input type="checkbox" id="toggle-ticket" checked onchange="toggleField('ticket', this.checked)"> 票号</label>
+    </div>
 </div>
+<script>
+    // 勾选=显示，取消=隐藏（给 body 加 hide-* 类，CSS 同时作用于屏幕预览与打印）
+    function toggleField(name, show) {
+        document.body.classList.toggle('hide-' + name, !show);
+    }
+</script>
 
 <div class="print-page">
     <!-- 标题 -->
@@ -262,10 +295,13 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">No.</th>
-                <th style="width: 35%;">Passenger Name</th>
-                <th style="width: 25%;">Passport No.</th>
-                <th style="width: 35%;">Passenger Type</th>
+                <th style="width: 4%;">No.</th>
+                <th style="width: 22%;">Passenger Name</th>
+                <th class="col-passport" style="width: 16%;">Passport No.</th>
+                <th class="field-ticket" style="width: 20%;">Ticket No.</th>
+                <th style="width: 12%;">PNR</th>
+                <th style="width: 12%;">Baggage</th>
+                <th style="width: 14%;">Type</th>
             </tr>
         </thead>
         <tbody>
@@ -273,7 +309,10 @@
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ pax.name }}</td>
-                <td>{{ pax.passport_number or '-' }}</td>
+                <td class="col-passport">{{ pax.passport_number or '-' }}</td>
+                <td class="field-ticket">{{ pax.ticket_number or '-' }}</td>
+                <td>{{ pax.pnr or '-' }}</td>
+                <td>{{ pax.baggage or '-' }}</td>
                 <td>
                     {% if pax.passenger_type == 'adult' %}Adult / 成人
                     {% elif pax.passenger_type == 'child' %}Child / 儿童
@@ -284,7 +323,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" style="text-align: center; color: #999;">No passenger data</td>
+                <td colspan="7" style="text-align: center; color: #999;">No passenger data</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -294,7 +333,7 @@
     <div class="section-title">Flight Information / 航班信息</div>
 
     {# 宏：渲染航段卡片 #}
-    {% macro segment_card(seg) %}
+    {% macro segment_card(seg, seat_map) %}
     {% set dep_info = airport_map.get(seg.departure_airport.upper().strip(), {}) %}
     {% set arr_info = airport_map.get(seg.arrival_airport.upper().strip(), {}) %}
     <div class="seg-card">
@@ -335,24 +374,15 @@
             </div>
             <div class="seg-details">
                 <div class="seg-detail-item">
-                    <div class="seg-detail-label">Ticket No.</div>
-                    <div class="seg-detail-value">{{ seg.ticket_number or '-' }}</div>
-                </div>
-                <div class="seg-detail-item">
-                    <div class="seg-detail-label">PNR</div>
-                    <div class="seg-detail-value">{{ seg.pnr or '-' }}</div>
-                </div>
-                <div class="seg-detail-item">
                     <div class="seg-detail-label">Class</div>
                     <div class="seg-detail-value">{{ seg.cabin_class if seg.cabin_class and seg.cabin_class|length > 2 else '-' }}</div>
                 </div>
-                <div class="seg-detail-item">
-                    <div class="seg-detail-label">Baggage</div>
-                    <div class="seg-detail-value">{{ seg.baggage or '-' }}</div>
-                </div>
-                <div class="seg-detail-item">
-                    <div class="seg-detail-label">Seat</div>
-                    <div class="seg-detail-value">{{ seg.seat or '-' }}</div>
+                <div class="seg-detail-item field-seat" style="flex: 1 1 auto;">
+                    <div class="seg-detail-label">Seat / 座位</div>
+                    <div class="seg-detail-value">
+                        {% set pax_seats = seat_map.get(seg.id, []) if seat_map else [] %}
+                        {% if pax_seats %}{% for ps in pax_seats %}{{ ps.name }}: {{ ps.seat }}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}{% else %}-{% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -366,13 +396,13 @@
                 Ticket No.: {{ ticket_num if ticket_num != 'NO_TICKET' else '-' }}
             </div>
             {% for seg in group_segments %}
-            {{ segment_card(seg) }}
+            {{ segment_card(seg, seg_pax_seats) }}
             {% endfor %}
         </div>
         {% endfor %}
     {% else %}
         {% for seg in segments %}
-        {{ segment_card(seg) }}
+        {{ segment_card(seg, seg_pax_seats) }}
         {% else %}
         <div class="seg-no-data">No flight data</div>
         {% endfor %}

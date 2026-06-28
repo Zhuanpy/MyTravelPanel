@@ -352,9 +352,18 @@ def submit_flight_ref():
         passenger_types = request.form.getlist('passenger_type[]')
         selling_prices = request.form.getlist('selling_price[]')
         cost_prices = request.form.getlist('cost_price[]')
-        ticket_numbers = request.form.getlist('ticket_number[]')
-        pnrs = request.form.getlist('pnr[]')
+        # 票号/PNR/行李按乘客（来自「行程单补充」票务表，字段名 pax_*）
+        ticket_numbers = request.form.getlist('pax_ticket_number[]')
+        pnrs = request.form.getlist('pax_pnr[]')
+        pax_baggages = request.form.getlist('pax_baggage[]')
         passport_numbers = request.form.getlist('passport_number[]')
+
+        # 座位按 乘客×航段：列 pax_seat_0[], pax_seat_1[]... 每列一个航段，元素按乘客顺序
+        pax_seat_cols = []
+        _s = 0
+        while f'pax_seat_{_s}[]' in request.form:
+            pax_seat_cols.append(request.form.getlist(f'pax_seat_{_s}[]'))
+            _s += 1
 
         # 删除现有乘客
         ProjectFlightPassenger.query.filter_by(ref_id=ref.id).delete()
@@ -385,6 +394,13 @@ def submit_flight_ref():
                 total_selling_price += selling_price
                 total_cost_price += cost_price
 
+                # 该乘客各航段座位（按乘客序号 i 从每个航段列取值），存为 JSON 列表
+                pax_seats = [
+                    (pax_seat_cols[c][i] if i < len(pax_seat_cols[c]) else '').strip()
+                    for c in range(len(pax_seat_cols))
+                ]
+                seats_json = json.dumps(pax_seats, ensure_ascii=False) if any(pax_seats) else None
+
                 passenger = ProjectFlightPassenger(
                     ref_id=ref.id,
                     name=passenger_names[i],
@@ -393,6 +409,8 @@ def submit_flight_ref():
                     cost_price=cost_price if cost_price > 0 else None,
                     ticket_number=ticket_numbers[i] if i < len(ticket_numbers) and ticket_numbers[i] else None,
                     pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else None,
+                    baggage=pax_baggages[i] if i < len(pax_baggages) and pax_baggages[i] else None,
+                    seats=seats_json,
                     passport_number=passport_numbers[i] if i < len(passport_numbers) and passport_numbers[i] else None
                 )
                 db.session.add(passenger)

@@ -102,6 +102,11 @@
                 <i class="fas fa-plane-departure me-1"></i>同城旅游 行程
             </button>
         </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tool == 'text' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-text" type="button">
+                <i class="fas fa-keyboard me-1"></i>文本生成
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content">
@@ -562,6 +567,116 @@
             </button>
         </div>
     </div><!-- /tab-tc -->
+
+    <!-- ==================== 文本生成 Tab ==================== -->
+    <div class="tab-pane fade {% if active_tool == 'text' %}show active{% endif %}" id="tab-text">
+
+        <!-- 文本输入解析 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header">
+                <i class="fas fa-keyboard me-1"></i>粘贴行程文字信息
+            </div>
+            <div class="card-body">
+                <ul class="clean-features mb-2">
+                    <li>没有 PDF 时，直接粘贴行程 App / 邮件里的航班文字，自动解析航段、乘客</li>
+                    <li>支持多航段、多乘客；解析为尽力而为，可手动编辑或增删后再生成</li>
+                    <li>生成不含价格的标准英文行程单 PDF（样式同同城旅游行程）</li>
+                </ul>
+                <textarea class="form-control form-control-sm" id="txtInput" rows="10"
+                          placeholder="例如：&#10;Hong KongPort Vila&#10;Depart&#10;Fri, Jul 3&#10;16:15&#10;HKG Hong Kong Intl.T1&#10;...&#10;Fiji Airways&#10;FJ392&#10;Economy class&#10;Flight time: 10h 10m&#10;...&#10;行李 30kg&#10;乘客：LI/CUNKOU&#10;WU/ZHOU"
+                          style="font-size:12px; font-family:monospace; white-space:pre;"></textarea>
+                <div class="d-flex justify-content-end mt-2">
+                    <button class="btn btn-sm tc-btn" onclick="txtParse()" id="btnTxtParse">
+                        <i class="fas fa-cog me-1"></i>解析
+                    </button>
+                </div>
+                <div id="txtParseMsg" class="mt-2 small" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 预订信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header">
+                <i class="fas fa-file-alt me-1"></i>预订信息
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="ub-label">预订编号 (Booking Ref.)</div>
+                        <input type="text" class="form-control form-control-sm" id="txt_booking_ref" placeholder="AI7KJH">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="ub-label">出票航司 (Issuing Airline)</div>
+                        <input type="text" class="form-control form-control-sm" id="txt_issuing_airline" placeholder="FIJI AIRWAYS">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="ub-label">出票日期 (Date of Issue)</div>
+                        <input type="text" class="form-control form-control-sm" id="txt_date_of_issue" placeholder="Jun 22, 2026">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 航班信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-plane me-1"></i>航班信息 <span class="badge bg-light text-dark ms-1" id="txtFlightCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="txtAddFlight()" title="添加航段">
+                    <i class="fas fa-plus me-1"></i>添加航段
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="txtFlightsContainer"></div>
+            </div>
+        </div>
+
+        <!-- 乘客信息 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-1"></i>乘客信息 <span class="badge bg-light text-dark ms-1" id="txtPaxCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="txtAddPassenger()">
+                    <i class="fas fa-plus me-1"></i>添加
+                </button>
+            </div>
+            <div class="card-body p-1">
+                <table class="table table-sm table-bordered mb-0 tc-pax-table" id="txtPaxTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:5%;">#</th>
+                            <th style="width:32%;">姓名 (SURNAME/GIVEN)</th>
+                            <th style="width:15%;">类型</th>
+                            <th style="width:22%;">证件号 (ID No.)</th>
+                            <th style="width:20%;">票号 (E-Ticket No.)</th>
+                            <th style="width:6%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="txtPaxBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 行程提示 -->
+        <div class="card ub-card mb-3">
+            <div class="card-header tc-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-info-circle me-1"></i>行程提示 (Notice) <span class="badge bg-light text-dark ms-1" id="txtNoticeCount">0</span></span>
+                <button class="btn btn-light btn-sm py-0 px-2" style="font-size:12px;" onclick="txtAddNotice()">
+                    <i class="fas fa-plus me-1"></i>添加
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="txtNoticeContainer"></div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-sm" onclick="txtResetAll()">
+                <i class="fas fa-redo me-1"></i>重置
+            </button>
+            <button class="btn btn-sm tc-btn" onclick="txtGenerate()" id="btnTxtGenerate">
+                <i class="fas fa-file-pdf me-1"></i>生成行程单
+            </button>
+        </div>
+    </div><!-- /tab-text -->
 
     </div><!-- /tab-content -->
 </div>
@@ -1701,6 +1816,338 @@ document.addEventListener('DOMContentLoaded', () => {
     TC_DEFAULT_NOTICES.forEach(n => tcAddNotice(n));
     tcAddPassenger();
     tcAddFlight();
+});
+
+// ========== 文本生成 (Text) 行程单 ==========
+// 与同城旅游(tc)结构一致，区别仅在于输入源为粘贴文字；生成复用 tc 接口。
+
+let txtPaxIndex = 0;
+let txtNoticeIndex = 0;
+let txtFlightIndex = 0;
+
+// ---- 航段 ----
+function txtAddFlight(data) {
+    txtFlightIndex++;
+    const d = data || {};
+    const esc = v => (v == null ? '' : String(v)).replace(/"/g, '&quot;');
+    const block = `<div class="card border mb-2 txt-flight-block" id="txt-flight-${txtFlightIndex}">
+        <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="tc-title" style="font-size:13px;">航段 <span class="txt-flight-num">${txtFlightIndex}</span></span>
+                <button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:11px;" onclick="txtRemoveFlight(${txtFlightIndex})"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <div class="ub-label">航班号 (Flight No.)</div>
+                    <input type="text" class="form-control form-control-sm txt-f-flightno" value="${esc(d.flight_no)}" placeholder="FJ392" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-4">
+                    <div class="ub-label">舱位 (Class)</div>
+                    <input type="text" class="form-control form-control-sm txt-f-cabin" value="${esc(d.cabin)}" placeholder="Economy">
+                </div>
+                <div class="col-md-4">
+                    <div class="ub-label">状态 (Status)</div>
+                    <input type="text" class="form-control form-control-sm txt-f-status" value="${esc(d.status) || 'OK'}" placeholder="OK">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <div class="ub-label">出发代码</div>
+                    <input type="text" class="form-control form-control-sm txt-f-fromcode" value="${esc(d.from_code)}" placeholder="HKG" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-7">
+                    <div class="ub-label">出发机场名称</div>
+                    <input type="text" class="form-control form-control-sm txt-f-fromairport" value="${esc(d.from_airport)}" placeholder="Hong Kong Intl.">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">出发航站楼</div>
+                    <input type="text" class="form-control form-control-sm txt-f-fromterminal" value="${esc(d.from_terminal)}" placeholder="T1">
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <div class="ub-label">到达代码</div>
+                    <input type="text" class="form-control form-control-sm txt-f-tocode" value="${esc(d.to_code)}" placeholder="NAN" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-7">
+                    <div class="ub-label">到达机场名称</div>
+                    <input type="text" class="form-control form-control-sm txt-f-toairport" value="${esc(d.to_airport)}" placeholder="Nadi Intl.">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达航站楼</div>
+                    <input type="text" class="form-control form-control-sm txt-f-toterminal" value="${esc(d.to_terminal)}" placeholder="T1">
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <div class="ub-label">出发日期</div>
+                    <input type="text" class="form-control form-control-sm txt-f-depdate" value="${esc(d.dep_date)}" placeholder="Jul 3, 2026">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">出发时间</div>
+                    <input type="text" class="form-control form-control-sm txt-f-deptime" value="${esc(d.dep_time)}" placeholder="16:15">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达日期</div>
+                    <input type="text" class="form-control form-control-sm txt-f-arrdate" value="${esc(d.arr_date)}" placeholder="Jul 4, 2026">
+                </div>
+                <div class="col-md-3">
+                    <div class="ub-label">到达时间</div>
+                    <input type="text" class="form-control form-control-sm txt-f-arrtime" value="${esc(d.arr_time)}" placeholder="06:25">
+                </div>
+            </div>
+            <div class="row g-2 mt-1">
+                <div class="col-md-6">
+                    <div class="ub-label">行李额 (Baggage)</div>
+                    <input type="text" class="form-control form-control-sm txt-f-baggage" list="tcBaggageOptions" value="${esc(d.baggage)}" placeholder="选择或输入，如 30Kg Check-in（留空则不显示）">
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.getElementById('txtFlightsContainer').insertAdjacentHTML('beforeend', block);
+    txtUpdateFlightCount();
+}
+
+function txtRemoveFlight(idx) {
+    document.getElementById('txt-flight-' + idx)?.remove();
+    document.querySelectorAll('#txtFlightsContainer .txt-flight-num').forEach((el, i) => { el.textContent = i + 1; });
+    txtUpdateFlightCount();
+}
+
+function txtUpdateFlightCount() {
+    document.getElementById('txtFlightCount').textContent = document.querySelectorAll('#txtFlightsContainer .txt-flight-block').length;
+}
+
+function txtCollectFlights() {
+    const list = [];
+    document.querySelectorAll('#txtFlightsContainer .txt-flight-block').forEach(b => {
+        list.push({
+            flight_no: b.querySelector('.txt-f-flightno').value.trim().toUpperCase(),
+            cabin: b.querySelector('.txt-f-cabin').value.trim(),
+            status: b.querySelector('.txt-f-status').value.trim(),
+            from_code: b.querySelector('.txt-f-fromcode').value.trim().toUpperCase(),
+            from_airport: b.querySelector('.txt-f-fromairport').value.trim(),
+            from_terminal: b.querySelector('.txt-f-fromterminal').value.trim(),
+            to_code: b.querySelector('.txt-f-tocode').value.trim().toUpperCase(),
+            to_airport: b.querySelector('.txt-f-toairport').value.trim(),
+            to_terminal: b.querySelector('.txt-f-toterminal').value.trim(),
+            dep_date: b.querySelector('.txt-f-depdate').value.trim(),
+            dep_time: b.querySelector('.txt-f-deptime').value.trim(),
+            arr_date: b.querySelector('.txt-f-arrdate').value.trim(),
+            arr_time: b.querySelector('.txt-f-arrtime').value.trim(),
+            baggage: b.querySelector('.txt-f-baggage').value.trim(),
+        });
+    });
+    return list;
+}
+
+// ---- 乘客 ----
+function txtAddPassenger(data) {
+    txtPaxIndex++;
+    const d = data || {};
+    const row = `<tr id="txt-pax-${txtPaxIndex}">
+        <td class="text-center txt-pax-num">${txtPaxIndex}</td>
+        <td><input type="text" class="form-control form-control-sm txt-pax-name" value="${(d.name||'').replace(/"/g,'&quot;')}" style="text-transform:uppercase;" placeholder="LI/CUNKOU"></td>
+        <td><select class="form-select form-select-sm txt-pax-type">
+            <option value="Adult" ${d.pax_type==='Child'||d.pax_type==='Infant'?'':'selected'}>Adult</option>
+            <option value="Child" ${d.pax_type==='Child'?'selected':''}>Child</option>
+            <option value="Infant" ${d.pax_type==='Infant'?'selected':''}>Infant</option>
+        </select></td>
+        <td><input type="text" class="form-control form-control-sm txt-pax-id" value="${(d.id_no||'').replace(/"/g,'&quot;')}" placeholder="AC3547712" style="text-transform:uppercase;"></td>
+        <td><input type="text" class="form-control form-control-sm txt-pax-ticket" value="${(d.ticket_no||'').replace(/"/g,'&quot;')}" placeholder="AI7KJH" style="text-transform:uppercase;"></td>
+        <td class="text-center"><button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:11px;" onclick="txtRemovePassenger(${txtPaxIndex})"><i class="fas fa-times"></i></button></td>
+    </tr>`;
+    document.getElementById('txtPaxBody').insertAdjacentHTML('beforeend', row);
+    txtUpdatePaxCount();
+}
+
+function txtRemovePassenger(idx) {
+    document.getElementById('txt-pax-' + idx)?.remove();
+    document.querySelectorAll('#txtPaxBody tr').forEach((tr, i) => { tr.querySelector('.txt-pax-num').textContent = i + 1; });
+    txtUpdatePaxCount();
+}
+
+function txtUpdatePaxCount() {
+    document.getElementById('txtPaxCount').textContent = document.querySelectorAll('#txtPaxBody tr').length;
+}
+
+function txtCollectPassengers() {
+    const list = [];
+    document.querySelectorAll('#txtPaxBody tr').forEach(tr => {
+        const name = tr.querySelector('.txt-pax-name').value.trim().toUpperCase();
+        if (!name) return;
+        list.push({
+            name,
+            pax_type: tr.querySelector('.txt-pax-type').value,
+            id_no: tr.querySelector('.txt-pax-id').value.trim().toUpperCase(),
+            ticket_no: tr.querySelector('.txt-pax-ticket').value.trim().toUpperCase(),
+        });
+    });
+    return list;
+}
+
+// ---- 提示 ----
+function txtAddNotice(text) {
+    txtNoticeIndex++;
+    const value = text || '';
+    const row = `<div class="row g-1 mb-1" id="txt-notice-${txtNoticeIndex}">
+        <div class="col"><input type="text" class="form-control form-control-sm txt-notice-input" value="${value.replace(/"/g, '&quot;')}" placeholder="e.g. PLEASE ARRIVE AT THE AIRPORT BEFORE THE CHECK-IN TIME."></div>
+        <div class="col-auto"><button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:11px;" onclick="txtRemoveNotice(${txtNoticeIndex})"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    document.getElementById('txtNoticeContainer').insertAdjacentHTML('beforeend', row);
+    txtUpdateNoticeCount();
+}
+
+function txtRemoveNotice(idx) {
+    document.getElementById('txt-notice-' + idx)?.remove();
+    txtUpdateNoticeCount();
+}
+
+function txtUpdateNoticeCount() {
+    document.getElementById('txtNoticeCount').textContent = document.querySelectorAll('#txtNoticeContainer .txt-notice-input').length;
+}
+
+function txtCollectNotices() {
+    return Array.from(document.querySelectorAll('#txtNoticeContainer .txt-notice-input'))
+        .map(el => el.value.trim()).filter(v => v);
+}
+
+function txtResetAll() {
+    ['txt_booking_ref', 'txt_issuing_airline', 'txt_date_of_issue'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const inputEl = document.getElementById('txtInput');
+    if (inputEl) inputEl.value = '';
+    const msgEl = document.getElementById('txtParseMsg');
+    if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+    document.getElementById('txtFlightsContainer').innerHTML = '';
+    document.getElementById('txtPaxBody').innerHTML = '';
+    document.getElementById('txtNoticeContainer').innerHTML = '';
+    txtPaxIndex = 0;
+    txtNoticeIndex = 0;
+    txtFlightIndex = 0;
+    txtUpdatePaxCount();
+    txtUpdateNoticeCount();
+    txtUpdateFlightCount();
+    TC_DEFAULT_NOTICES.forEach(n => txtAddNotice(n));
+    txtAddPassenger();
+    txtAddFlight();
+}
+
+function txtParse() {
+    const text = document.getElementById('txtInput').value.trim();
+    const msgEl = document.getElementById('txtParseMsg');
+    if (!text) { alert('请粘贴行程文字信息'); return; }
+
+    const btn = document.getElementById('btnTxtParse');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>解析中...';
+    msgEl.style.display = 'none';
+
+    fetch('{{ url_for("flights_usbangla.parse_text_itinerary_route") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: JSON.stringify({ text })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            msgEl.className = 'mt-2 small text-danger';
+            msgEl.textContent = '解析失败：' + (data.message || '');
+            msgEl.style.display = '';
+            return;
+        }
+        document.getElementById('txt_booking_ref').value = data.booking_ref || '';
+        document.getElementById('txt_issuing_airline').value = data.issuing_airline || '';
+        document.getElementById('txt_date_of_issue').value = data.date_of_issue || '';
+
+        const flights = data.segments || [];
+        document.getElementById('txtFlightsContainer').innerHTML = '';
+        txtFlightIndex = 0;
+        flights.forEach(f => txtAddFlight(f));
+        if (!flights.length) txtAddFlight();
+
+        document.getElementById('txtPaxBody').innerHTML = '';
+        txtPaxIndex = 0;
+        (data.passengers || []).forEach(p => txtAddPassenger(p));
+        if (!(data.passengers || []).length) txtAddPassenger();
+
+        const notices = data.notices && data.notices.length ? data.notices : TC_DEFAULT_NOTICES;
+        document.getElementById('txtNoticeContainer').innerHTML = '';
+        txtNoticeIndex = 0;
+        notices.forEach(n => txtAddNotice(n));
+
+        const n = (data.passengers || []).length;
+        const flightNos = flights.map(f => f.flight_no).filter(Boolean).join(', ') || '(无)';
+        msgEl.className = 'mt-2 small text-success';
+        msgEl.textContent = `解析成功：航段 ${flights.length} 段（${flightNos}），乘客 ${n} 人。请核对下方表单后生成。`;
+        msgEl.style.display = '';
+    })
+    .catch(err => {
+        msgEl.className = 'mt-2 small text-danger';
+        msgEl.textContent = '错误：' + err.message;
+        msgEl.style.display = '';
+    })
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cog me-1"></i>解析'; });
+}
+
+function txtGenerate() {
+    const segments = txtCollectFlights();
+    const flight_no = (segments[0] && segments[0].flight_no) || '';
+    if (!flight_no) { alert('请至少填写一个航段的航班号'); return; }
+    const passengers = txtCollectPassengers();
+    if (!passengers.length) { alert('请至少添加一位乘客'); return; }
+
+    const payload = {
+        booking_ref: document.getElementById('txt_booking_ref').value.trim(),
+        issuing_airline: document.getElementById('txt_issuing_airline').value.trim(),
+        date_of_issue: document.getElementById('txt_date_of_issue').value.trim(),
+        segments,
+        passengers,
+        notices: txtCollectNotices(),
+    };
+
+    const btn = document.getElementById('btnTxtGenerate');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+
+    fetch('{{ url_for("flights_usbangla.generate_tongcheng_itinerary_route") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+        body: JSON.stringify(payload)
+    })
+    .then(resp => {
+        if (!resp.ok) {
+            const ct = resp.headers.get('Content-Type') || '';
+            if (ct.includes('application/json')) {
+                return resp.json().then(d => { throw new Error(d.message || '生成失败'); });
+            }
+            throw new Error(`生成失败 (${resp.status})`);
+        }
+        return resp.blob().then(blob => ({ blob, resp }));
+    })
+    .then(({ blob, resp }) => {
+        const cd = resp.headers.get('Content-Disposition') || '';
+        let fn = `Itinerary_${flight_no}.pdf`;
+        const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/);
+        if (m) fn = decodeURIComponent(m[1]);
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = fn;
+        a.click();
+        window.URL.revokeObjectURL(a.href);
+    })
+    .catch(err => alert('错误：' + err.message))
+    .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// 初始化文本生成 Tab：默认提示 + 一行空乘客 + 一个空航段
+document.addEventListener('DOMContentLoaded', () => {
+    TC_DEFAULT_NOTICES.forEach(n => txtAddNotice(n));
+    txtAddPassenger();
+    txtAddFlight();
 });
 
 // 切换 Tab 时同步更新地址栏为 /ticket_generator/<tool>，便于刷新/收藏/分享

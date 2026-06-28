@@ -22,7 +22,12 @@ class ProjectFlightPassenger(db.Model):
 
     # 票务信息
     ticket_number = db.Column(db.String(50), comment='电子客票号')
-    pnr = db.Column(db.String(6), comment='PNR编码')
+    pnr = db.Column(db.String(10), comment='PNR编码')
+
+    # 行李额（按乘客，全程通用）
+    baggage = db.Column(db.String(50), comment='行李额')
+    # 各航段座位号：JSON 列表，按航段顺序一一对应（座位按 乘客×航段 区分）
+    seats = db.Column(db.Text, comment='各航段座位号(JSON列表,按航段顺序)')
 
     # 证件信息
     passport_number = db.Column(db.String(20), comment='护照号')
@@ -45,10 +50,29 @@ class ProjectFlightPassenger(db.Model):
             'cost_price': float(self.cost_price) if self.cost_price else None,
             'ticket_number': self.ticket_number,
             'pnr': self.pnr,
+            'baggage': self.baggage,
+            'seats': self.seat_list,
             'passport_number': self.passport_number,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+    @property
+    def seat_list(self):
+        """各航段座位号列表（解析 JSON，失败返回空列表）"""
+        if not self.seats:
+            return []
+        try:
+            import json
+            v = json.loads(self.seats)
+            return v if isinstance(v, list) else []
+        except (ValueError, TypeError):
+            return []
+
+    def seat_for_index(self, idx):
+        """取第 idx 个航段（从0起）的座位号，越界返回空串"""
+        lst = self.seat_list
+        return lst[idx] if 0 <= idx < len(lst) else ''
 
 
 class ProjectFlightSegment(db.Model):

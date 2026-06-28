@@ -668,6 +668,18 @@ def print_itinerary(order_id):
             ticket_groups[tk] = []
         ticket_groups[tk].append(seg)
 
+    # 座位按 乘客×航段：passenger.seats 按航段保存顺序（= id 升序）对齐
+    seg_order = {s.id: idx for idx, s in enumerate(sorted(segments, key=lambda s: s.id))}
+    seg_pax_seats = {}
+    for s in segments:
+        idx = seg_order.get(s.id, 0)
+        pairs = []
+        for pax in passengers:
+            seat = pax.seat_for_index(idx) if hasattr(pax, 'seat_for_index') else ''
+            if seat:
+                pairs.append({'name': pax.name, 'seat': seat})
+        seg_pax_seats[s.id] = pairs
+
     return render_template('business/flight/print_itinerary.html',
                            ref=ref,
                            header=header,
@@ -675,7 +687,8 @@ def print_itinerary(order_id):
                            segments=segments,
                            airport_map=airport_map,
                            ticket_groups=ticket_groups,
-                           has_ticket=has_ticket)
+                           has_ticket=has_ticket,
+                           seg_pax_seats=seg_pax_seats)
 
 
 @flights_booking.route('/order_detail/<int:order_id>')
@@ -1462,3 +1475,163 @@ def parse_flight_image():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'解析失败: {str(e)}'}), 500
+
+
+# ====================================================================
+#  文字行程解析（粘贴行程文字 → 追加航段/乘客到编辑表单）
+#  复用 flights_usbangla 的文本解析器，再补全完整日期、舱位代码等
+#  本模块特有字段，输出 camelCase 供前端 addFlightSegment 直接使用。
+# ====================================================================
+
+_BK_MONTHS = {m: i + 1 for i, m in enumerate(
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])}
+_BK_WEEKDAYS = {'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6}
+
+
+def _bk_parse_md(s):
+    """从 'Jul 4' 形式提取 (月, 日)，提取不到返回 None"""
+    m = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})', s or '', re.IGNORECASE)
+    if not m:
+        return None
+    return (_BK_MONTHS[m.group(1).title()], int(m.group(2)))
+
+
+def _bk_cabin_code(cabin_class):
+    """舱位等级 → 舱位代码"""
+    c = (cabin_class or '').lower()
+    if 'business' in c:
+        return 'C'
+    if 'first' in c:
+        return 'F'
+    if 'premium' in c:
+        return 'W'
+    return 'Y'
+
+
+def _bk_global_cabin(text):
+    """从 '座位/舱位 经济舱' 提取中文舱位作为缺省舱位"""
+    m = re.search(r'(?:座位|舱位)\s*[:：]?\s*(\S+)', text)
+    if not m:
+        return ''
+    v = m.group(1)
+    for zh, en in [('超级经济', 'Premium Economy'), ('豪华经济', 'Premium Economy'),
+                   ('公务', 'Business'), ('商务', 'Business'), ('头等', 'First'), ('经济', 'Economy')]:
+        if zh in v:
+            return en
+    return ''
+
+
+def _bk_base_year(text, first_md):
+    """推断起始年份：优先用文字中的星期匹配；否则按是否已过期决定今年/明年"""
+    today = datetime.now().date()
+    m = re.search(
+        r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\.?,?\s*'
+        r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})',
+        text, re.IGNORECASE)
+    if m:
+        wd = _BK_WEEKDAYS[m.group(1).title()]
+        mon = _BK_MONTHS[m.group(2).title()]
+        day = int(m.group(3))
+        for y in range(today.year, today.year + 8):
+            try:
+                d = datetime(y, mon, day).date()
+            except ValueError:
+                continue
+            if d.weekday() == wd and d >= today - timedelta(days=2):
+                return y
+    # 无星期：用首个出发日期判断是否需顺延到明年
+    y = today.year
+    if first_md:
+        try:
+            if datetime(y, first_md[0], first_md[1]).date() < today - timedelta(days=2):
+                y += 1
+        except ValueError:
+            pass
+    return y
+
+
+def _bk_resolve_segments(text, segs):
+    """把通用解析的航段补全为编辑表单可用的结构（完整日期 + 舱位代码 + camelCase）"""
+    first_md = None
+    for seg in segs:
+        first_md = _bk_parse_md(seg.get('dep_date', ''))
+        if first_md:
+            break
+
+    base_year = _bk_base_year(text, first_md)
+    global_cabin = _bk_global_cabin(text)
+
+    # 座位号：仅当 '座位 X' 中 X 含数字（真实座位如 12A）才采用，避免把中文舱位当座位
+    seat_value = ''
+    ms = re.search(r'座位\s*[:：]?\s*([A-Za-z0-9]+)', text)
+    if ms and re.search(r'\d', ms.group(1)):
+        seat_value = ms.group(1).upper()
+
+    state = {'prev_md': None, 'year': base_year}
+
+    def assign(date_str):
+        md = _bk_parse_md(date_str)
+        if not md:
+            return ''
+        if state['prev_md'] is not None and md < state['prev_md']:
+            state['year'] += 1  # 跨年（如 Dec → Jan）
+        state['prev_md'] = md
+        try:
+            return datetime(state['year'], md[0], md[1]).strftime('%Y-%m-%d')
+        except ValueError:
+            return ''
+
+    result = []
+    for seg in segs:
+        dep_date = assign(seg.get('dep_date', ''))
+        arr_date = assign(seg.get('arr_date', ''))
+        cabin_class = seg.get('cabin') or global_cabin or 'Economy'
+        result.append({
+            'flightNumber': seg.get('flight_no', ''),
+            'airlineName': seg.get('airline', '') or '',
+            'cabinClass': cabin_class,
+            'cabinCode': _bk_cabin_code(cabin_class),
+            'departureAirport': seg.get('from_code', ''),
+            'arrivalAirport': seg.get('to_code', ''),
+            'departureDate': dep_date,
+            'departureTime': seg.get('dep_time', ''),
+            'arrivalDate': arr_date,
+            'arrivalTime': seg.get('arr_time', ''),
+            'departureTerminal': seg.get('from_terminal', ''),
+            'arrivalTerminal': seg.get('to_terminal', ''),
+            'baggage': seg.get('baggage', ''),
+            'seat': seat_value,
+            'ticketNumber': '',
+            'pnr': '',
+        })
+    return result
+
+
+@flights_booking.route('/parse_flight_text', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def parse_flight_text():
+    """解析粘贴的行程文字，返回可追加到编辑表单的航段/乘客（含完整日期、舱位代码）"""
+    from App_new.business.flight.routes.flights_usbangla_routes import parse_text_itinerary
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({'success': False, 'error': '请粘贴行程文字信息'}), 400
+    try:
+        parsed = parse_text_itinerary(text)
+        segments = _bk_resolve_segments(text, parsed.get('segments', []))
+        passengers = []
+        for p in parsed.get('passengers', []):
+            if not p.get('name'):
+                continue
+            ptype = (p.get('pax_type') or 'adult').lower()
+            if ptype not in ('adult', 'child', 'infant'):
+                ptype = 'adult'
+            passengers.append({'name': p['name'], 'passenger_type': ptype})
+        return jsonify({'success': True, 'segments': segments, 'passengers': passengers})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'解析失败：{str(e)}'}), 500

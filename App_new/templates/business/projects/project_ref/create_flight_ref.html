@@ -36,6 +36,28 @@
     /* Actions 按钮区域 */
     .actions-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
     .actions-section .section-title { font-size: 13px; font-weight: 600; color: #2D3748; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0; }
+    /* 录入双标签（① 项目录入 / ② 行程单补充） */
+    .seg-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .seg-tab-btn { padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid #cbd5e0; border-radius: 8px; background: #fff; color: #4a5568; user-select: none; }
+    .seg-tab-btn.active { background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%); color: #fff; border-color: #2B6CB0; }
+    /* 默认（项目录入）：隐藏航段中的行程单专属行 */
+    .flight-segment .seg-row-itinerary { display: none; }
+    /* 切到「行程单补充」标签：隐藏项目行与项目专属区块，显示行程单行 */
+    #orderForm.tab-itinerary .seg-row-project { display: none; }
+    #orderForm.tab-itinerary .seg-row-itinerary { display: table-row; }
+    #orderForm.tab-itinerary .project-only { display: none !important; }
+    /* 仅在「行程单补充」标签显示的区块（如乘客票务表） */
+    .itinerary-only { display: none; }
+    #orderForm.tab-itinerary .itinerary-only { display: block; }
+    /* 航段删除按钮（放在每行最后一列，与输入框对齐） */
+    .flight-segment table td.seg-del-col { width: 36px; text-align: center; vertical-align: bottom; }
+    .seg-del-btn { background: none; border: none; color: #E53E3E; cursor: pointer; padding: 6px 8px; font-size: 14px; line-height: 1; }
+    .seg-del-btn:hover { color: #C53030; }
+    /* 乘客票务表 */
+    .pax-ticketing-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pax-ticketing-table th, .pax-ticketing-table td { border: 1px solid #e2e8f0; padding: 4px 6px; text-align: center; vertical-align: middle; }
+    .pax-ticketing-table th { background: #EAF1FB; color: #2D3748; font-weight: 600; }
+    .pax-ticketing-table td .order-input { width: 100%; box-sizing: border-box; }
 </style>
 {% endblock %}
 
@@ -67,8 +89,14 @@
             </div>
         </div>
 
+        <!-- 录入双标签 -->
+        <div class="seg-tabs">
+            <div class="seg-tab-btn active" id="segTabProject" onclick="switchSegTab('project')"><i class="fas fa-pen me-1"></i>① 项目录入</div>
+            <div class="seg-tab-btn" id="segTabItinerary" onclick="switchSegTab('itinerary')"><i class="fas fa-print me-1"></i>② 行程单补充</div>
+        </div>
+
         <!-- Supplier & Status -->
-        <div class="form-section">
+        <div class="form-section project-only">
             <div class="section-title"><i class="fas fa-truck me-2"></i>供应商与状态</div>
             <div class="row g-2">
                 <div class="col-2">
@@ -105,7 +133,7 @@
             <div id="flightSegmentsContainer">
                 <!-- 初始航段信息 -->
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div class="project-only" style="display: flex; gap: 10px; margin-top: 10px;">
                 <button type="button" class="btn btn-info btn-sm" onclick="addFlightSegment(null, true)">
                     <i class="fas fa-plus me-1"></i>添加航段
                 </button>
@@ -115,8 +143,21 @@
             </div>
         </div>
 
+        <!-- 乘客票务信息（行程单补充）：票号/PNR/行李按乘客，座位按 乘客×航段 -->
+        <div class="form-section itinerary-only">
+            <div class="section-title"><i class="fas fa-ticket-alt me-2"></i>乘客票务信息（票号 / PNR / 行李额 / 座位）</div>
+            <p style="color:#718096;font-size:12px;margin:-4px 0 10px;">票号、PNR、行李额按乘客填写（全程通用）；座位按每位乘客每个航段分别填写。乘客与航段在「项目录入」中维护。</p>
+            <div style="overflow-x:auto;">
+                <table class="pax-ticketing-table">
+                    <thead id="paxTicketingHead"></thead>
+                    <tbody id="paxTicketingBody"></tbody>
+                </table>
+            </div>
+            <div id="paxTicketingEmpty" style="display:none;color:#a0aec0;font-size:12px;padding:8px 0;">请先在「项目录入」中添加乘客与航段。</div>
+        </div>
+
         <!-- Passengers -->
-        <div class="form-section">
+        <div class="form-section project-only">
             {% if has_invoice %}<div class="alert alert-warning py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>已生成发票，售价已锁定。</div>{% endif %}
             {% if eo_paid %}<div class="alert alert-info py-1 mb-2" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>EO已付款，成本价已锁定。</div>{% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2B6CB0;">
@@ -140,7 +181,6 @@
                 <span class="col-type">类型</span>
                 <span class="col-price">售价</span>
                 <span class="col-price">成本</span>
-                <span class="col-passport">护照号</span>
                 <span class="col-profit">利润</span>
                 <span class="col-action"></span>
             </div>
@@ -150,7 +190,7 @@
         </div>
 
         <!-- Remarks -->
-        <div class="form-section">
+        <div class="form-section project-only">
             <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
             <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref is defined and ref else '' }}</textarea>
         </div>
@@ -246,7 +286,11 @@ window.passengersData = [
                 "passenger_type": {{ p.passenger_type|tojson }},
                 "selling_price": {{ p.selling_price|default(0, true) }},
                 "cost_price": {{ p.cost_price|default(0, true) }},
-                "passport_number": {{ (p.passport_number or '')|tojson }}
+                "passport_number": {{ (p.passport_number or '')|tojson }},
+                "ticket_number": {{ (p.ticket_number or '')|tojson }},
+                "pnr": {{ (p.pnr or '')|tojson }},
+                "baggage": {{ (p.baggage or '')|tojson }},
+                "seats": {{ p.seat_list|tojson }}
             }{% if not loop.last %},{% endif %}
         {% endfor %}
     {% elif fallback_passenger %}
@@ -523,9 +567,7 @@ function addPassengerWithData(data) {
                     <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="${data.cost_price || 0}" oninput="updatePriceSummary()" ${window.eoPaid ? 'readonly' : ''}>
                 </div>
             </div>
-            <div class="passenger-field-inline col-passport">
-                <input type="text" class="order-input" name="passport_number[]" value="${data.passport_number || ''}" placeholder="护照号" maxlength="20">
-            </div>
+            <input type="hidden" name="passport_number[]" value="${data.passport_number || ''}">
             <div class="passenger-field-inline col-profit profit-inline">
                 <span class="profit-amount-inline">+0.00</span>
             </div>
@@ -548,15 +590,131 @@ function addPassengerWithData(data) {
     applyPriceLock();
 }
 
+// 录入双标签切换：项目录入 / 行程单补充
+function switchSegTab(tab) {
+    const form = document.getElementById('orderForm');
+    const isItin = tab === 'itinerary';
+    form.classList.toggle('tab-itinerary', isItin);
+    document.getElementById('segTabProject').classList.toggle('active', !isItin);
+    document.getElementById('segTabItinerary').classList.toggle('active', isItin);
+    if (isItin) buildPaxTicketingTable();
+}
+
+// ===== 乘客票务表（票号/PNR/行李按乘客，座位按 乘客×航段）=====
+let paxTicketingSeeded = false;
+const paxTicketingValues = []; // 按乘客序号: {ticket,pnr,baggage,seats:[]}
+
+function _escAttr(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+function _escHtml(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// 票务表里的护照号回写到乘客行的隐藏 passport_number[]（提交以隐藏字段为准，保持与乘客顺序对齐）
+function syncPaxPassport(el, i) {
+    const inputs = document.querySelectorAll('#passengersContainer input[name="passport_number[]"]');
+    if (inputs[i]) inputs[i].value = el.value;
+}
+
+function snapshotPaxTicketing() {
+    const body = document.getElementById('paxTicketingBody');
+    if (!body) return;
+    body.querySelectorAll('tr').forEach((tr, i) => {
+        const val = sel => { const el = tr.querySelector(sel); return el ? el.value : ''; };
+        const seats = [];
+        tr.querySelectorAll('.pax-seat-input').forEach(el => seats.push(el.value));
+        paxTicketingValues[i] = {
+            ticket: val('.pax-ticket-input'),
+            pnr: val('.pax-pnr-input'),
+            baggage: val('.pax-baggage-input'),
+            seats: seats,
+        };
+    });
+}
+
+function buildPaxTicketingTable() {
+    const head = document.getElementById('paxTicketingHead');
+    const body = document.getElementById('paxTicketingBody');
+    if (!head || !body) return;
+
+    // 首次：用服务器乘客数据播种；之后：保留当前已填值
+    if (!paxTicketingSeeded) {
+        (window.passengersData || []).forEach((p, i) => {
+            paxTicketingValues[i] = {
+                ticket: p.ticket_number || '',
+                pnr: p.pnr || '',
+                baggage: p.baggage || '',
+                seats: Array.isArray(p.seats) ? p.seats.slice() : [],
+            };
+        });
+        paxTicketingSeeded = true;
+    } else {
+        snapshotPaxTicketing();
+    }
+
+    const names = Array.from(document.querySelectorAll('input[name="passenger_name[]"]')).map(el => el.value);
+    const segCards = Array.from(document.querySelectorAll('#flightSegmentsContainer .flight-segment'));
+    const segLabels = segCards.map((c, idx) => {
+        const fn = (c.querySelector('input[name="flight_number[]"]') || {}).value || '';
+        const dep = (c.querySelector('select[name="departure_airport[]"]') || {}).value || '';
+        const arr = (c.querySelector('select[name="arrival_airport[]"]') || {}).value || '';
+        const route = (dep && arr) ? `${dep}-${arr}` : '';
+        return { main: fn || ('航段' + (idx + 1)), sub: route };
+    });
+
+    const passportInputs = document.querySelectorAll('#passengersContainer input[name="passport_number[]"]');
+
+    let h = '<tr><th style="width:28px;">#</th><th style="min-width:90px;">乘客</th>'
+          + '<th style="min-width:100px;">护照号</th>'
+          + '<th style="min-width:120px;">票号</th><th style="min-width:70px;">PNR</th><th style="min-width:70px;">行李额</th>';
+    segLabels.forEach(l => {
+        h += `<th>座位<br><span style="font-weight:normal;font-size:11px;color:#718096;">${_escHtml(l.main)}${l.sub ? ' ' + _escHtml(l.sub) : ''}</span></th>`;
+    });
+    h += '</tr>';
+    head.innerHTML = h;
+
+    let rows = '';
+    names.forEach((nm, i) => {
+        const v = paxTicketingValues[i] || { ticket: '', pnr: '', baggage: '', seats: [] };
+        let seatCells = '';
+        segLabels.forEach((_, s) => {
+            const sv = (v.seats && v.seats[s]) || '';
+            seatCells += `<td><input type="text" class="order-input pax-seat-input" name="pax_seat_${s}[]" value="${_escAttr(sv)}" placeholder="12A" maxlength="10"></td>`;
+        });
+        const pv = passportInputs[i] ? passportInputs[i].value : '';
+        rows += `<tr>
+            <td>${i + 1}</td>
+            <td style="white-space:nowrap;">${nm ? _escHtml(nm) : '<span style="color:#a0aec0;">(未填姓名)</span>'}</td>
+            <td><input type="text" class="order-input pax-passport-input" value="${_escAttr(pv)}" placeholder="护照号" maxlength="20" oninput="syncPaxPassport(this, ${i})"></td>
+            <td><input type="text" class="order-input pax-ticket-input" name="pax_ticket_number[]" value="${_escAttr(v.ticket)}" placeholder="014-1234567890"></td>
+            <td><input type="text" class="order-input pax-pnr-input" name="pax_pnr[]" value="${_escAttr(v.pnr)}" placeholder="PNR" maxlength="10"></td>
+            <td><input type="text" class="order-input pax-baggage-input" name="pax_baggage[]" value="${_escAttr(v.baggage)}" placeholder="30KG"></td>
+            ${seatCells}
+        </tr>`;
+    });
+    body.innerHTML = rows;
+    document.getElementById('paxTicketingEmpty').style.display = names.length ? 'none' : 'block';
+}
+
+// 提交前确保票务表已按当前乘客/航段生成（即便未打开过该标签也能携带/保留值，避免清空）
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('orderForm');
+    if (!form) return;
+    // 校验失败时若是隐藏的项目必填项，自动切回项目录入标签使其可见可聚焦
+    form.addEventListener('invalid', function(e) {
+        const t = e.target;
+        if (t && t.closest && (t.closest('.seg-row-project') || t.closest('.project-only'))) {
+            switchSegTab('project');
+        }
+    }, true);
+    form.addEventListener('submit', function() {
+        try { buildPaxTicketingTable(); } catch (err) { console.error('ticketing build failed', err); }
+    });
+});
+
 // 添加带数据的航段
 function addFlightSegmentWithData(data) {
     const template = `
         <div class="flight-segment">
-            <button type="button" class="remove-btn" onclick="removeElement(this)">
-                <i class="fas fa-times"></i>
-            </button>
             <table>
-                <tr>
+                <tr class="seg-row-project">
                     <td class="flight-number-col">
                         <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data.flight_number}" placeholder="CA123" required>
@@ -591,8 +749,9 @@ function addFlightSegmentWithData(data) {
                             <input type="time" class="order-input" name="arrival_time[]" value="${data.arrival_time}" required style="flex:0.7;">
                         </div>
                     </td>
+                    <td class="seg-del-col"><button type="button" class="seg-del-btn" onclick="removeElement(this)" title="删除航段"><i class="fas fa-times"></i></button></td>
                 </tr>
-                <tr>
+                <tr class="seg-row-itinerary">
                     <td>
                         <label class="order-label">航司</label>
                         <input type="text" class="order-input" name="airline_name[]" value="${data.airline_name || ''}" placeholder="Air China">
@@ -609,20 +768,8 @@ function addFlightSegmentWithData(data) {
                         <label class="order-label">到达航站楼</label>
                         <input type="text" class="order-input" name="arrival_terminal[]" value="${data.arrival_terminal || ''}" placeholder="T3">
                     </td>
-                    <td>
-                        <label class="order-label">票号 / PNR</label>
-                        <div style="display:flex;gap:4px;">
-                            <input type="text" class="order-input" name="segment_ticket_number[]" value="${data.ticket_number || ''}" placeholder="014-1234567890" style="flex:1;">
-                            <input type="text" class="order-input" name="segment_pnr[]" value="${data.pnr || ''}" placeholder="PNR" maxlength="10" style="flex:0.5;">
-                        </div>
-                    </td>
-                    <td>
-                        <label class="order-label">行李额 / 座位</label>
-                        <div style="display:flex;gap:4px;">
-                            <input type="text" class="order-input" name="baggage[]" value="${data.baggage || ''}" placeholder="30KG" style="flex:1;">
-                            <input type="text" class="order-input" name="seat[]" value="${data.seat || ''}" placeholder="座位" maxlength="10" style="flex:0.6;">
-                        </div>
-                    </td>
+                    <td colspan="2"></td>
+                    <td class="seg-del-col"><button type="button" class="seg-del-btn" onclick="removeElement(this)" title="删除航段"><i class="fas fa-times"></i></button></td>
                 </tr>
             </table>
         </div>
@@ -721,11 +868,8 @@ function addFlightSegment(data = null, isDefault = false) {
 
     const template = `
         <div class="flight-segment">
-            <button type="button" class="remove-btn" onclick="removeElement(this)">
-                <i class="fas fa-times"></i>
-            </button>
             <table>
-                <tr>
+                <tr class="seg-row-project">
                     <td class="flight-number-col">
                         <label class="order-label required">航班号</label>
                         <input type="text" class="order-input" name="flight_number[]" value="${data ? data.flightNumber : ''}" placeholder="CA123" required>
@@ -760,8 +904,9 @@ function addFlightSegment(data = null, isDefault = false) {
                             <input type="time" class="order-input" name="arrival_time[]" value="${data ? data.arrivalTime : ''}" required style="flex:0.7;">
                         </div>
                     </td>
+                    <td class="seg-del-col"><button type="button" class="seg-del-btn" onclick="removeElement(this)" title="删除航段"><i class="fas fa-times"></i></button></td>
                 </tr>
-                <tr>
+                <tr class="seg-row-itinerary">
                     <td>
                         <label class="order-label">航司</label>
                         <input type="text" class="order-input" name="airline_name[]" value="${data ? (data.airlineName || '') : ''}" placeholder="Air China">
@@ -778,20 +923,8 @@ function addFlightSegment(data = null, isDefault = false) {
                         <label class="order-label">到达航站楼</label>
                         <input type="text" class="order-input" name="arrival_terminal[]" value="${data ? (data.arrivalTerminal || '') : ''}" placeholder="T3">
                     </td>
-                    <td>
-                        <label class="order-label">票号 / PNR</label>
-                        <div style="display:flex;gap:4px;">
-                            <input type="text" class="order-input" name="segment_ticket_number[]" value="${data ? (data.ticketNumber || '') : ''}" placeholder="014-1234567890" style="flex:1;">
-                            <input type="text" class="order-input" name="segment_pnr[]" value="${data ? (data.pnr || '') : ''}" placeholder="PNR" maxlength="10" style="flex:0.5;">
-                        </div>
-                    </td>
-                    <td>
-                        <label class="order-label">行李额 / 座位</label>
-                        <div style="display:flex;gap:4px;">
-                            <input type="text" class="order-input" name="baggage[]" value="${data ? (data.baggage || '') : ''}" placeholder="30KG" style="flex:1;">
-                            <input type="text" class="order-input" name="seat[]" value="${data ? (data.seat || '') : ''}" placeholder="座位" maxlength="10" style="flex:0.6;">
-                        </div>
-                    </td>
+                    <td colspan="2"></td>
+                    <td class="seg-del-col"><button type="button" class="seg-del-btn" onclick="removeElement(this)" title="删除航段"><i class="fas fa-times"></i></button></td>
                 </tr>
             </table>
         </div>
@@ -838,9 +971,7 @@ function addPassenger() {
                     <input type="number" step="0.01" class="order-input cost-price-input" name="cost_price[]" value="0" oninput="updatePriceSummary()" ${window.eoPaid ? 'readonly' : ''}>
                 </div>
             </div>
-            <div class="passenger-field-inline col-passport">
-                <input type="text" class="order-input" name="passport_number[]" placeholder="护照号" maxlength="20">
-            </div>
+            <input type="hidden" name="passport_number[]" value="">
             <div class="passenger-field-inline col-profit profit-inline">
                 <span class="profit-amount-inline">+0.00</span>
             </div>

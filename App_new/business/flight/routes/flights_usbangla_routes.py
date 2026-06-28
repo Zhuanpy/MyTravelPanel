@@ -409,7 +409,7 @@ def generate_single_ticket(pax, flight_data, logo_path, header_image_path=None):
 # ========== 路由 ==========
 
 # 机票工具箱可用的 Tab 标识（与模板中的 tab-<key> 一一对应）
-TICKET_TOOLBOX_TABS = ['usbangla', 'ctrip', 'indigo', 'expedia', 'qunar', 'mu', 'tc']
+TICKET_TOOLBOX_TABS = ['usbangla', 'ctrip', 'indigo', 'expedia', 'qunar', 'mu', 'tc', 'text']
 
 
 @flights_usbangla.route('/ticket_generator')
@@ -2565,3 +2565,207 @@ def generate_tongcheng_itinerary_route():
                          as_attachment=True, mimetype='application/pdf')
     except Exception as e:
         return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500
+
+
+# ====================================================================
+#  文本行程解析（粘贴行程 App 文字 → 标准行程单结构）
+#  没有原始 PDF 时使用：把一段半结构化文字解析成与同城旅游(tc)一致的
+#  航段/乘客结构，复用 generate_tongcheng_itinerary 生成不含价格的行程单。
+#  解析为「尽力而为」：表单可编辑，解析不到的字段留空由人工补全。
+# ====================================================================
+
+_TXT_MONTHS = '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
+_TXT_DATE_RE = re.compile(
+    r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?,?\s*(' + _TXT_MONTHS + r')\s+(\d{1,2})',
+    re.IGNORECASE)
+_TXT_TIME_RE = re.compile(r'^(\d{1,2}:\d{2})$')
+_TXT_AIRPORT_RE = re.compile(r'^([A-Z]{3})\s+(.+)$')
+_TXT_FLIGHTNO_RE = re.compile(r'^([A-Z]{2}\d{2,4}[A-Z]?)$')
+_TXT_CABIN_RE = re.compile(r'(Premium\s*Economy|Economy|Business|First)', re.IGNORECASE)
+
+
+def _txt_norm_date(s):
+    """从含星期/杂质的字符串中提取 'Mon D' 形式日期，提取不到返回空"""
+    m = _TXT_DATE_RE.search(s)
+    if not m:
+        return ''
+    return f"{m.group(1).title()} {int(m.group(2))}"
+
+
+def _txt_split_airport(line):
+    """'HKG Hong Kong Intl.T1' -> ('HKG', 'Hong Kong Intl.', 'T1')"""
+    m = _TXT_AIRPORT_RE.match(line)
+    if not m:
+        return '', '', ''
+    code = m.group(1)
+    rest = m.group(2).strip()
+    term = ''
+    tm = re.search(r'(?:Terminal\s*|T)(\d+|[A-Z])\s*$', rest)
+    if tm:
+        term = 'T' + tm.group(1)
+        rest = rest[:tm.start()].rstrip()
+    return code, rest, term
+
+
+def _txt_extract_passengers(lines):
+    """提取乘客：从 '乘客：' / 'Passengers:' 行起，收集随后的姓名行"""
+    start, passengers = None, []
+    for i, ln in enumerate(lines):
+        m = re.match(r'^(?:乘客|旅客|Passengers?|Pax)\s*[:：]?\s*(.*)$', ln, re.IGNORECASE)
+        if m:
+            start = i
+            if m.group(1).strip():
+                passengers.append(m.group(1).strip())
+            break
+    if start is None:
+        return []
+    for ln in lines[start + 1:]:
+        if re.search(r'(行李|Baggage|Flight|票号|Ticket|证件|ID\b)', ln, re.IGNORECASE):
+            break
+        if '/' in ln or re.match(r'^[A-Z][A-Z\s/.\-]+$', ln):
+            passengers.append(ln.strip())
+        else:
+            break
+    result = []
+    for name in passengers:
+        nm = re.sub(r'\s+', ' ', name).strip().upper()
+        if nm:
+            result.append({'name': nm, 'pax_type': 'Adult', 'id_no': '', 'ticket_no': ''})
+    return result
+
+
+def parse_text_itinerary(text):
+    """解析粘贴的行程文字，返回与 tc 一致的结构"""
+    empty = {'booking_ref': '', 'issuing_airline': '', 'date_of_issue': '',
+             'segments': [], 'passengers': [], 'notices': []}
+    if not text or not text.strip():
+        return empty
+
+    lines = [ln.strip() for ln in text.replace('\r', '').split('\n') if ln.strip()]
+
+    # 整体出发日期（"Depart" 之后第一处日期），用于补全首段出发日期
+    overall_dep_date = ''
+    for idx, ln in enumerate(lines):
+        if re.match(r'^Depart\b', ln, re.IGNORECASE):
+            for j in range(idx, min(idx + 3, len(lines))):
+                d = _txt_norm_date(lines[j])
+                if d:
+                    overall_dep_date = d
+                    break
+            break
+    if not overall_dep_date:
+        for ln in lines:
+            d = _txt_norm_date(ln)
+            if d:
+                overall_dep_date = d
+                break
+
+    # 行李额（行李 30kg / Baggage 30kg）
+    baggage = ''
+    mbag = re.search(r'(?:行李|Baggage)\D*(\d+)\s*[kK][gG]', text)
+    if mbag:
+        baggage = f"{mbag.group(1)}Kg"
+
+    is_time = lambda s: bool(_TXT_TIME_RE.match(s))
+    is_airport = lambda s: bool(_TXT_AIRPORT_RE.match(s))
+
+    # 航段锚点：航班号独占一行（如 FJ392）
+    anchors = [i for i, ln in enumerate(lines) if _TXT_FLIGHTNO_RE.match(ln)]
+
+    segments = []
+    for k, i in enumerate(anchors):
+        seg = _tc_empty_segment()
+        seg['flight_no'] = lines[i].upper()
+        seg['baggage'] = baggage
+
+        # 航司（航班号上一行，排除时间/机场行）
+        airline = lines[i - 1] if i - 1 >= 0 else ''
+        if is_time(airline) or is_airport(airline):
+            airline = ''
+        seg['_airline'] = airline
+
+        # 舱位
+        for j in range(i + 1, min(i + 6, len(lines))):
+            cm = _TXT_CABIN_RE.search(lines[j])
+            if cm:
+                seg['cabin'] = cm.group(1).title()
+                break
+
+        # 出发：自航司行上方就近取 机场 → 时间 → 日期
+        a = None
+        start = anchors[k - 1] + 1 if k > 0 else 0
+        for j in range(i - 2, start - 1, -1):
+            if is_airport(lines[j]):
+                a = j
+                break
+        if a is not None:
+            seg['from_code'], seg['from_airport'], seg['from_terminal'] = _txt_split_airport(lines[a])
+            for j in range(a - 1, max(a - 3, -1), -1):
+                if is_time(lines[j]):
+                    seg['dep_time'] = lines[j]
+                    for h in range(j - 1, max(j - 3, -1), -1):
+                        d = _txt_norm_date(lines[h])
+                        if d:
+                            seg['dep_date'] = d
+                            break
+                    break
+        if not seg['dep_date']:
+            seg['dep_date'] = overall_dep_date if k == 0 else (segments[k - 1]['arr_date'] if segments else '')
+
+        # 到达：自 'Flight time:' 下方取 日期 → 时间 → 机场
+        ft = None
+        for j in range(i + 1, min(i + 7, len(lines))):
+            if re.search(r'Flight\s*time', lines[j], re.IGNORECASE):
+                ft = j
+                break
+        scan_from = (ft + 1) if ft is not None else (i + 1)
+        end = anchors[k + 1] if k + 1 < len(anchors) else len(lines)
+        got_time = False
+        for j in range(scan_from, end):
+            if not seg['arr_date']:
+                d = _txt_norm_date(lines[j])
+                if d:
+                    seg['arr_date'] = d
+                    continue
+            if not got_time and is_time(lines[j]):
+                seg['arr_time'] = lines[j]
+                got_time = True
+                continue
+            if got_time and is_airport(lines[j]):
+                seg['to_code'], seg['to_airport'], seg['to_terminal'] = _txt_split_airport(lines[j])
+                break
+        segments.append(seg)
+
+    issuing_airline = ''
+    for seg in segments:
+        if seg.get('_airline'):
+            issuing_airline = seg['_airline']
+            break
+    # 将临时航司字段固化为 airline（tc 前端与生成均忽略该键，仅供文本补充等复用）
+    for seg in segments:
+        seg['airline'] = seg.pop('_airline', '')
+
+    return {
+        'booking_ref': '',
+        'issuing_airline': issuing_airline,
+        'date_of_issue': '',
+        'segments': segments if segments else [_tc_empty_segment()],
+        'passengers': _txt_extract_passengers(lines),
+        'notices': [],
+    }
+
+
+@flights_usbangla.route('/parse_text_itinerary', methods=['POST'])
+@login_required
+@staff_only
+def parse_text_itinerary_route():
+    """解析粘贴的行程文字，返回预订信息、航段、乘客（结构同 tc）"""
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({'success': False, 'message': '请粘贴行程文字信息'}), 400
+    try:
+        result = parse_text_itinerary(text)
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'解析失败：{str(e)}'}), 500
