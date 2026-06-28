@@ -624,12 +624,43 @@ input[type="number"].order-input {
 
 /* ===== 乘客列宽度定义 ===== */
 .col-num { width: 28px; flex-shrink: 0; }
+.col-vip { width: 60px; flex-shrink: 0; text-align: center; }
 .col-name { flex: 2.5; min-width: 120px; }
 .col-type { flex: 1; min-width: 70px; }
 .col-price { flex: 1.5; min-width: 100px; }
 .col-passport { flex: 1.5; min-width: 100px; }
 .col-profit { flex: 1.2; min-width: 80px; text-align: right; }
 .col-action { width: 28px; flex-shrink: 0; }
+
+/* ===== 常用旅客标识徽章 ===== */
+.passenger-vip-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+/* 常用：与项目人员名单一致的黄色星标 */
+.passenger-vip-badge.is-vip {
+    background: #ffc107;
+    color: #664d03;
+    border: 1px solid #ffc107;
+}
+/* 普通：灰色描边星标 */
+.passenger-vip-badge.is-regular {
+    background: #fff;
+    color: #94a3b8;
+    border: 1px solid #cbd5e1;
+}
+
+/* 常用旅客只读字段（姓名/护照）：灰底 + 禁止编辑光标 */
+.order-input.ft-locked,
+input.ft-locked {
+    background-color: #f1f5f9 !important;
+    color: #475569;
+    cursor: not-allowed;
+}
 
 /* ===== 乘客表头行 ===== */
 .passenger-header-row {
