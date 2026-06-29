@@ -89,8 +89,8 @@ class ProjectFlightSegment(db.Model):
     arrival_airport = db.Column(db.String(3), nullable=False, comment='到达机场')
     departure_time = db.Column(db.DateTime, nullable=False, comment='起飞时间')
     arrival_time = db.Column(db.DateTime, nullable=False, comment='到达时间')
-    departure_terminal = db.Column(db.String(10), comment='出发航站楼')
-    arrival_terminal = db.Column(db.String(10), comment='到达航站楼')
+    departure_terminal = db.Column(db.String(50), comment='出发航站楼')
+    arrival_terminal = db.Column(db.String(50), comment='到达航站楼')
 
     # 舱位信息
     cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
