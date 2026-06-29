@@ -889,7 +889,12 @@ function addFlightSegmentWithData(data) {
                     </td>
                     <td>
                         <label class="order-label">舱位等级</label>
-                        <input type="text" class="order-input" name="cabin_class[]" value="${data.cabin_class || ''}" placeholder="Economy">
+                        <select class="order-select" name="cabin_class[]">
+                            <option value="Economy" ${(data.cabin_class || 'Economy') === 'Economy' ? 'selected' : ''}>Economy</option>
+                            <option value="Premium Economy" ${data.cabin_class === 'Premium Economy' ? 'selected' : ''}>Premium Economy</option>
+                            <option value="Business" ${data.cabin_class === 'Business' ? 'selected' : ''}>Business</option>
+                            <option value="First" ${data.cabin_class === 'First' ? 'selected' : ''}>First</option>
+                        </select>
                     </td>
                     <td>
                         <label class="order-label">出发航站楼</label>
@@ -1044,7 +1049,12 @@ function addFlightSegment(data = null, isDefault = false) {
                     </td>
                     <td>
                         <label class="order-label">舱位等级</label>
-                        <input type="text" class="order-input" name="cabin_class[]" value="${data ? (data.cabinClass || '') : ''}" placeholder="Economy">
+                        <select class="order-select" name="cabin_class[]">
+                            <option value="Economy" ${(data && data.cabinClass ? data.cabinClass : 'Economy') === 'Economy' ? 'selected' : ''}>Economy</option>
+                            <option value="Premium Economy" ${data && data.cabinClass === 'Premium Economy' ? 'selected' : ''}>Premium Economy</option>
+                            <option value="Business" ${data && data.cabinClass === 'Business' ? 'selected' : ''}>Business</option>
+                            <option value="First" ${data && data.cabinClass === 'First' ? 'selected' : ''}>First</option>
+                        </select>
                     </td>
                     <td>
                         <label class="order-label">出发航站楼</label>
