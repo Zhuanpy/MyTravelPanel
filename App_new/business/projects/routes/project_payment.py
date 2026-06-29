@@ -173,9 +173,15 @@ def payment_detail(payment_id):
     # 获取关联的 EO 列表
     eos = ProjectEO.query.filter_by(payment_record_id=payment_id).order_by(ProjectEO.id).all()
 
+    # 在路由中安全计算合计，避免模板对 None 求和导致 500
+    total_cost = sum(float(eo.ref.cost_price) for eo in eos if eo.ref and eo.ref.cost_price)
+    total_pay = sum(float(eo.pay_amount) for eo in eos if eo.pay_amount)
+
     return render_template('business/projects/payment/detail.html',
                            payment=payment,
-                           eos=eos)
+                           eos=eos,
+                           total_cost=total_cost,
+                           total_pay=total_pay)
 
 
 @project_payment.route('/<int:payment_id>/print')

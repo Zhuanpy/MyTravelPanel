@@ -198,10 +198,10 @@
                     <tr class="fw-bold">
                         <td colspan="6" class="text-end">合计：</td>
                         <td class="text-end">
-                            {{ "%.2f"|format(eos|map(attribute='ref.cost_price')|map('default', 0)|sum) }}
+                            {{ "%.2f"|format(total_cost) }}
                         </td>
                         <td class="text-end text-primary">
-                            {{ "%.2f"|format(eos|map(attribute='pay_amount')|map('default', 0)|sum) }}
+                            {{ "%.2f"|format(total_pay) }}
                         </td>
                         <td></td>
                     </tr>
