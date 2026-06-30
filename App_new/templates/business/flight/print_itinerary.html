@@ -338,13 +338,14 @@
     {% macro segment_card(seg, seat_map) %}
     {% set dep_info = airport_map.get(seg.departure_airport.upper().strip(), {}) %}
     {% set arr_info = airport_map.get(seg.arrival_airport.upper().strip(), {}) %}
+    {% set cn_weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'] %}
     <div class="seg-card">
         <div class="seg-card-header">
             <span class="seg-flight-info">
                 ✈ {{ seg.flight_number }}
                 {% if seg.airline_name %}<span class="airline">{{ seg.airline_name }}</span>{% endif %}
             </span>
-            <span>{{ seg.departure_time.strftime('%A, %d %b %Y').upper() if seg.departure_time else '-' }}</span>
+            <span>{% if seg.departure_time %}{{ seg.departure_time.strftime('%A, %d %b %Y').upper() }} <span class="cn-sub" style="display:inline;">{{ seg.departure_time.strftime('%Y年%m月%d日') }} {{ cn_weekdays[seg.departure_time.weekday()] }}</span>{% else %}-{% endif %}</span>
         </div>
         <div class="seg-card-body">
             <div class="seg-route">
@@ -355,7 +356,7 @@
                     </div>
                     <div class="seg-point-right">
                         <div class="seg-point-time">{{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '-' }}</div>
-                        <div class="seg-point-date">{{ seg.departure_time.strftime('%d %b %Y') if seg.departure_time else '' }}</div>
+                        <div class="seg-point-date">{{ seg.departure_time.strftime('%d %b %Y') if seg.departure_time else '' }}{% if seg.departure_time %} / {{ seg.departure_time.strftime('%m月%d日') }}{% endif %}</div>
                         <div class="seg-point-terminal">Terminal / 航站楼 {{ seg.departure_terminal or '-' }}</div>
                     </div>
                 </div>
@@ -365,7 +366,7 @@
                 <div class="seg-point arr-point">
                     <div class="seg-point-left">
                         <div class="seg-point-time">{{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '-' }}{% if seg.departure_time and seg.arrival_time and seg.arrival_time.date() > seg.departure_time.date() %} <span class="next-day">+{{ (seg.arrival_time.date() - seg.departure_time.date()).days }}</span>{% endif %}</div>
-                        <div class="seg-point-date">{{ seg.arrival_time.strftime('%d %b %Y') if seg.arrival_time else '' }}</div>
+                        <div class="seg-point-date">{{ seg.arrival_time.strftime('%d %b %Y') if seg.arrival_time else '' }}{% if seg.arrival_time %} / {{ seg.arrival_time.strftime('%m月%d日') }}{% endif %}</div>
                         <div class="seg-point-terminal">Terminal / 航站楼 {{ seg.arrival_terminal or '-' }}</div>
                     </div>
                     <div class="seg-point-right">
