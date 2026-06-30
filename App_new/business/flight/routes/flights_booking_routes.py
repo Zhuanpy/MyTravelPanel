@@ -653,7 +653,9 @@ def print_itinerary(order_id):
         for ap in airports:
             airport_map[ap.airport_IATA] = {
                 'city_en': ap.city_name_en or ap.airport_IATA,
+                'city_cn': ap.city_name or '',  # 中文城市名（行程单双语显示）
                 'airport_en': ap.airport_name_en or ap.airport_IATA,
+                'airport_cn': ap.airport_name_cn or '',
             }
 
     # 按票号分组航段（保持顺序）

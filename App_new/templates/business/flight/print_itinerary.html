@@ -141,6 +141,8 @@
             font-weight: bold;
             font-size: 11px;
         }
+        /* 表头/标签下方的中文小字（双语显示） */
+        .cn-sub { display: block; font-weight: normal; font-size: 9px; color: #666; margin-top: 1px; }
 
         /* 航段卡片 */
         .seg-card {
@@ -279,14 +281,14 @@
     <!-- REF信息 -->
     <div class="ref-info">
         <div>
-            <strong>REF No.:</strong> {{ ref.ref_number }}
+            <strong>REF No. / 单号:</strong> {{ ref.ref_number }}
             {% if header %}
             &nbsp;&nbsp;|&nbsp;&nbsp;
             <strong>HID:</strong> {{ header.hid }}
             {% endif %}
         </div>
         <div>
-            <strong>Date:</strong> {{ ref.created_at.strftime('%Y-%m-%d') if ref.created_at else '' }}
+            <strong>Date / 日期:</strong> {{ ref.created_at.strftime('%Y-%m-%d') if ref.created_at else '' }}
         </div>
     </div>
 
@@ -295,13 +297,13 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 4%;">No.</th>
-                <th style="width: 22%;">Passenger Name</th>
-                <th class="col-passport" style="width: 16%;">Passport No.</th>
-                <th class="field-ticket" style="width: 20%;">Ticket No.</th>
-                <th style="width: 12%;">PNR</th>
-                <th style="width: 12%;">Baggage</th>
-                <th style="width: 14%;">Type</th>
+                <th style="width: 4%;">No.<span class="cn-sub">序号</span></th>
+                <th style="width: 22%;">Passenger Name<span class="cn-sub">乘客姓名</span></th>
+                <th class="col-passport" style="width: 16%;">Passport No.<span class="cn-sub">护照号</span></th>
+                <th class="field-ticket" style="width: 20%;">Ticket No.<span class="cn-sub">票号</span></th>
+                <th style="width: 12%;">PNR<span class="cn-sub">订座编号</span></th>
+                <th style="width: 12%;">Baggage<span class="cn-sub">行李额</span></th>
+                <th style="width: 14%;">Type<span class="cn-sub">类型</span></th>
             </tr>
         </thead>
         <tbody>
@@ -323,7 +325,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" style="text-align: center; color: #999;">No passenger data</td>
+                <td colspan="7" style="text-align: center; color: #999;">No passenger data / 暂无乘客数据</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -349,12 +351,12 @@
                 <div class="seg-point">
                     <div class="seg-point-left">
                         <div class="seg-point-code">{{ seg.departure_airport }}</div>
-                        <div class="seg-point-city">{{ dep_info.get('city_en', '') }}</div>
+                        <div class="seg-point-city">{{ dep_info.get('city_en', '') }}{% if dep_info.get('city_cn') %} {{ dep_info.get('city_cn') }}{% endif %}</div>
                     </div>
                     <div class="seg-point-right">
                         <div class="seg-point-time">{{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '-' }}</div>
                         <div class="seg-point-date">{{ seg.departure_time.strftime('%d %b %Y') if seg.departure_time else '' }}</div>
-                        <div class="seg-point-terminal">Terminal {{ seg.departure_terminal or '-' }}</div>
+                        <div class="seg-point-terminal">Terminal / 航站楼 {{ seg.departure_terminal or '-' }}</div>
                     </div>
                 </div>
                 <div class="seg-arrow">
@@ -364,17 +366,17 @@
                     <div class="seg-point-left">
                         <div class="seg-point-time">{{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '-' }}{% if seg.departure_time and seg.arrival_time and seg.arrival_time.date() > seg.departure_time.date() %} <span class="next-day">+{{ (seg.arrival_time.date() - seg.departure_time.date()).days }}</span>{% endif %}</div>
                         <div class="seg-point-date">{{ seg.arrival_time.strftime('%d %b %Y') if seg.arrival_time else '' }}</div>
-                        <div class="seg-point-terminal">Terminal {{ seg.arrival_terminal or '-' }}</div>
+                        <div class="seg-point-terminal">Terminal / 航站楼 {{ seg.arrival_terminal or '-' }}</div>
                     </div>
                     <div class="seg-point-right">
                         <div class="seg-point-code">{{ seg.arrival_airport }}</div>
-                        <div class="seg-point-city">{{ arr_info.get('city_en', '') }}</div>
+                        <div class="seg-point-city">{{ arr_info.get('city_en', '') }}{% if arr_info.get('city_cn') %} {{ arr_info.get('city_cn') }}{% endif %}</div>
                     </div>
                 </div>
             </div>
             <div class="seg-details">
                 <div class="seg-detail-item">
-                    <div class="seg-detail-label">Class</div>
+                    <div class="seg-detail-label">Class / 舱位</div>
                     <div class="seg-detail-value">{{ seg.cabin_class if seg.cabin_class and seg.cabin_class|length > 2 else '-' }}</div>
                 </div>
                 <div class="seg-detail-item field-seat" style="flex: 1 1 auto;">
@@ -393,7 +395,7 @@
         {% for ticket_num, group_segments in ticket_groups.items() %}
         <div class="ticket-group">
             <div class="ticket-group-header">
-                Ticket No.: {{ ticket_num if ticket_num != 'NO_TICKET' else '-' }}
+                Ticket No. / 票号: {{ ticket_num if ticket_num != 'NO_TICKET' else '-' }}
             </div>
             {% for seg in group_segments %}
             {{ segment_card(seg, seg_pax_seats) }}
@@ -404,7 +406,7 @@
         {% for seg in segments %}
         {{ segment_card(seg, seg_pax_seats) }}
         {% else %}
-        <div class="seg-no-data">No flight data</div>
+        <div class="seg-no-data">No flight data / 暂无航班数据</div>
         {% endfor %}
     {% endif %}
 
