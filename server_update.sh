@@ -112,6 +112,17 @@ if [ $MIGRATION_FAIL_COUNT -gt 0 ]; then
     echo "!!! =========================================="
 fi
 
+# 强制保证航站楼字段长度（幂等：MODIFY COLUMN 可重复执行）
+# 历史问题：该迁移脚本曾在失败时仍退出 0，可能被错误记为"已执行"而实际未生效。
+# 此处无条件再跑一次，确保线上 departure_terminal/arrival_terminal 为 VARCHAR(50)。
+echo ""
+echo "[5.1] 强制校验航站楼字段长度..."
+if python scripts/20260629_expand_terminal_columns.py; then
+    echo ">>> 航站楼字段长度已确认 (VARCHAR(50))"
+else
+    echo "!!! 警告：航站楼字段扩展失败，请手动检查 project_flight_segments 表结构"
+fi
+
 # 重启服务
 echo ""
 echo "[6/6] 重启服务..."

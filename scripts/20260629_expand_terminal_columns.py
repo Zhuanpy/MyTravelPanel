@@ -31,3 +31,5 @@ with app.app_context():
     except Exception as e:
         db.session.rollback()
         print(f'失败: {e}')
+        # 非零退出，让 server_update.sh 不记录为成功、下次部署自动重试
+        sys.exit(1)
