@@ -1878,6 +1878,96 @@ def update_flight_segment_field(segment_id):
     return jsonify({'success': True, 'updated': updated, 'segment': segment.to_dict()})
 
 
+# 允许通过 API 局部更新的乘客字段白名单
+# 注意：不含 selling_price/cost_price——价格会影响 REF 级别合计(ref.selling_price/cost_price)，
+# 单独改会与合计脱钩，价格仍须走完整机票表单。
+_PASSENGER_PATCHABLE_FIELDS = {
+    'ticket_number': 50,
+    'pnr': 10,
+    'baggage': 50,
+    'passport_number': 20,
+}
+
+
+@project_ref.route('/flight/<int:ref_id>/passengers', methods=['GET'])
+@login_required
+@staff_only
+def list_flight_passengers(ref_id):
+    """返回某 REF 下所有乘客（含 id、姓名、票号/PNR/行李/护照等）
+
+    供 AI agent / 自动化先取到 passenger_id 与当前值，再调用
+    /flight/passenger/<id>/update 做局部更新。
+    """
+    ref = ProjectRef.query.get_or_404(ref_id)
+    header = ProjectHeader.query.get_or_404(ref.header_id)
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'error': '您没有权限访问此REF'}), 403
+
+    passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id) \
+        .order_by(ProjectFlightPassenger.id).all()
+
+    return jsonify({
+        'success': True,
+        'ref_id': ref.id,
+        'count': len(passengers),
+        'passengers': [p.to_dict() for p in passengers],
+    })
+
+
+@project_ref.route('/flight/passenger/<int:passenger_id>/update', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def update_flight_passenger_field(passenger_id):
+    """局部更新单个乘客的非关键字段（票号、PNR、行李额、护照号）
+
+    设计目的：与航段更新接口对称，供 AI agent / 浏览器自动化精确修改乘客字段，
+    避免走整张机票表单的「删除全部乘客再重建」流程（任一乘客姓名缺失会丢人）。
+
+    请求体 JSON: {"ticket_number": "999-...", "pnr": "ABC123", ...}
+    只更新传入且在白名单内的字段；超长按字段上限截断；价格字段不在白名单内。
+    返回更新后的乘客 to_dict()。
+    """
+    passenger = ProjectFlightPassenger.query.get_or_404(passenger_id)
+
+    # 权限检查：通过乘客 → REF → header 校验
+    ref = ProjectRef.query.get_or_404(passenger.ref_id)
+    header = ProjectHeader.query.get_or_404(ref.header_id)
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'error': '您没有权限修改此乘客'}), 403
+
+    # 已付款的 EO 不允许编辑（与表单提交逻辑保持一致）
+    if ref.has_paid_eo():
+        return jsonify({'success': False, 'error': '此REF的EO已付款，不能编辑'}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    updated = {}
+    for field, max_len in _PASSENGER_PATCHABLE_FIELDS.items():
+        if field not in data:
+            continue
+        raw = data[field]
+        # 允许显式置空（None 或空串 → NULL）
+        if raw is None or str(raw).strip() == '':
+            value = None
+        else:
+            value = str(raw).strip()[:max_len]
+        setattr(passenger, field, value)
+        updated[field] = value
+
+    if not updated:
+        return jsonify({'success': False, 'error': '没有可更新的字段（白名单：%s）'
+                        % ', '.join(_PASSENGER_PATCHABLE_FIELDS.keys())}), 400
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': '保存失败: %s' % str(e)}), 500
+
+    return jsonify({'success': True, 'updated': updated, 'passenger': passenger.to_dict()})
+
+
 @project_ref.route('/flight/detail/<int:ref_id>', methods=['GET'])
 def flight_ref_detail(ref_id):
     """机票REF详情页面"""

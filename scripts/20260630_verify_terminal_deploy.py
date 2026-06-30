@@ -55,20 +55,18 @@ with app.app_context():
         'flight',                  # 列表接口片段（配合 segments 判断）
     ]
     rules = [str(r.rule) for r in app.url_map.iter_rules()]
-    found_list = [s for s in rules if s.endswith('/segments') and 'flight' in s]
-    found_update = [s for s in rules if 'flight/segment/' in s]
-
-    if found_list:
-        print(f'  ✓ 列表接口: {found_list[0]}')
-    else:
-        print('  ✗ 未找到航段列表接口 (.../flight/<ref_id>/segments)')
-        all_ok = False
-
-    if found_update:
-        print(f'  ✓ 更新接口: {found_update[0]}')
-    else:
-        print('  ✗ 未找到航段更新接口 (.../flight/segment/<id>/update)')
-        all_ok = False
+    checks = [
+        ('航段列表接口', [s for s in rules if s.endswith('/segments') and 'flight' in s]),
+        ('航段更新接口', [s for s in rules if 'flight/segment/' in s]),
+        ('乘客列表接口', [s for s in rules if s.endswith('/passengers') and 'flight' in s]),
+        ('乘客更新接口', [s for s in rules if 'flight/passenger/' in s]),
+    ]
+    for label, hits in checks:
+        if hits:
+            print(f'  ✓ {label}: {hits[0]}')
+        else:
+            print(f'  ✗ 未找到{label}')
+            all_ok = False
 
 # ---- 汇总 ----
 print()
