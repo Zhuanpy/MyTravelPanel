@@ -331,6 +331,9 @@
                         <button class="btn btn-outline-primary" type="button" onclick="copyFileName('invoiceFileName')" title="复制">
                             <i class="fas fa-copy"></i>
                         </button>
+                        <button class="btn btn-outline-success" type="button" onclick="printInvoice()" title="打印发票">
+                            <i class="fas fa-print"></i>
+                        </button>
                     </div>
                 </div>
                 <!-- REF 文件名 -->
@@ -361,6 +364,14 @@
                         <button class="btn btn-outline-primary" type="button" onclick="copyFileName('refFileName{{ ref.id }}')" title="复制">
                             <i class="fas fa-copy"></i>
                         </button>
+                        {# 打印行程单：仅机票REF有航段/乘客，故只对机票类型显示 #}
+                        {% set _tc = ref.ref_type.code|default('') if ref.ref_type else '' %}
+                        {% set _tn = ref.ref_type.name|default('') if ref.ref_type else '' %}
+                        {% if _tc in ['flight', 'airline'] or _tn == '机票' %}
+                        <a href="{{ url_for('flights_booking.print_itinerary', order_id=ref.id) }}" target="_blank" class="btn btn-outline-success" title="打印行程单">
+                            <i class="fas fa-print"></i>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
