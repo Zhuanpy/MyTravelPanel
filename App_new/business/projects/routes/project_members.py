@@ -3,7 +3,9 @@
 
 import json
 from flask import Blueprint, request, jsonify
-from App_new.exts import db
+from flask_login import login_required
+from App_new.exts import db, csrf
+from App_new.utils.decorators import staff_only
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.project_member import ProjectMember
 from App_new.business.projects.models.frequent_traveler import FrequentTraveler
@@ -12,6 +14,9 @@ project_members_bp = Blueprint('project_members', __name__)
 
 
 @project_members_bp.route('/<int:project_id>/members', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
 def get_members(project_id):
     """获取项目人员列表"""
     try:
@@ -49,6 +54,9 @@ def get_members(project_id):
 
 
 @project_members_bp.route('/<int:project_id>/members', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
 def add_member(project_id):
     """添加项目人员"""
     try:
@@ -106,6 +114,9 @@ def add_member(project_id):
 
 
 @project_members_bp.route('/<int:project_id>/members/<int:member_id>', methods=['PUT'])
+@csrf.exempt
+@login_required
+@staff_only
 def update_member(project_id, member_id):
     """更新项目人员信息"""
     try:
@@ -160,6 +171,9 @@ def update_member(project_id, member_id):
 
 
 @project_members_bp.route('/<int:project_id>/members/<int:member_id>', methods=['DELETE'])
+@csrf.exempt
+@login_required
+@staff_only
 def delete_member(project_id, member_id):
     """删除项目人员"""
     try:
@@ -179,6 +193,9 @@ def delete_member(project_id, member_id):
 
 
 @project_members_bp.route('/<int:project_id>/members/<int:member_id>/set-leader', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
 def set_leader(project_id, member_id):
     """设置人员为Leader"""
     try:
@@ -208,6 +225,9 @@ def set_leader(project_id, member_id):
 
 
 @project_members_bp.route('/<int:project_id>/members/batch', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
 def batch_add_members(project_id):
     """批量添加项目人员"""
     try:
