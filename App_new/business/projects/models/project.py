@@ -13,6 +13,7 @@ class CustomerCompany(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_name = db.Column(db.String(100), nullable=False, unique=True, comment='公司名称')
     company_code = db.Column(db.String(50), nullable=True, comment='公司代码')
+    alias = db.Column(db.String(50), nullable=True, comment='简称/别名（供搜索，如 QJEC；与 company_code 的 UEN 分开，不覆盖）')
     contact_person = db.Column(db.String(50), nullable=True, comment='联系人')
     contact_phone = db.Column(db.String(20), nullable=True, comment='联系电话')
     contact_email = db.Column(db.String(100), nullable=True, comment='联系邮箱')
@@ -128,6 +129,7 @@ class CustomerCompany(db.Model):
             'id': self.id,
             'company_name': self.company_name,
             'company_code': self.company_code,
+            'alias': self.alias,
             'contact_person': self.contact_person,
             'contact_phone': self.contact_phone,
             'contact_email': self.contact_email,

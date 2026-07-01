@@ -498,15 +498,36 @@ def delete_company(company_id):
 @login_required
 @staff_only
 def api_search_companies():
-    """API搜索公司（用于下拉选择）"""
-    search = request.args.get('q', '')
-    companies = CustomerCompany.query.filter(
-        CustomerCompany.company_name.ilike(f'%{search}%')
-    ).limit(10).all()
-    
+    """API搜索公司（用于下拉选择 / 自动化按名称或代码查ID）
+
+    按 company_name 或 company_code 模糊匹配；每条附主要联系人（is_primary），
+    供自动化下单直接拿到公司ID + 默认联系人。备选联系人用 /api/<id>/contacts。
+    """
+    search = request.args.get('q', '').strip()
+    query = CustomerCompany.query
+    if search:
+        # 分词 AND 匹配：每个词都需命中 company_name 或 company_code（顺序无关），
+        # 这样 "TENG XUAN" 也能匹配 "XUAN TENG CONSTRUCTION"，多词/隔词更宽容。
+        for term in search.split():
+            like = f'%{term}%'
+            query = query.filter(or_(
+                CustomerCompany.company_name.ilike(like),
+                CustomerCompany.company_code.ilike(like),
+                CustomerCompany.alias.ilike(like)
+            ))
+    companies = query.limit(10).all()
+
+    def _primary_contact(c):
+        contact = c.contacts.filter_by(is_primary=True).first() or c.contacts.first()
+        return contact.name if contact else (c.contact_person or None)
+
     return jsonify([{
         'id': company.id,
         'text': company.company_name,
+        'company_name': company.company_name,
+        'company_code': company.company_code,
+        'alias': company.alias,
+        'primary_contact': _primary_contact(company),
         'contact_person': company.contact_person,
         'contact_phone': company.contact_phone
     } for company in companies])
@@ -545,6 +566,27 @@ def api_company_detail(company_id):
     """API获取公司详情"""
     company = CustomerCompany.query.get_or_404(company_id)
     return jsonify(company.to_dict())
+
+@corporate.route('/api/<int:company_id>/contacts')
+@login_required
+@staff_only
+def api_company_contacts(company_id):
+    """API获取公司联系人列表（含 is_primary 主要联系人标记）
+
+    供自动化下单选联系人：默认取 is_primary=True，其余为可选，主要联系人排最前。
+    替代爬取公司详情页 HTML（联系人表格为 Vue 动态渲染，HTML 抓不到）。
+    """
+    company = CustomerCompany.query.get_or_404(company_id)
+    contacts = company.contacts.order_by(
+        CompanyContact.is_primary.desc(), CompanyContact.id
+    ).all()
+    return jsonify({
+        'success': True,
+        'company_id': company.id,
+        'company_name': company.company_name,
+        'company_code': company.company_code,
+        'contacts': [c.to_dict() for c in contacts]
+    })
 
 @corporate.route('/download-template')
 @login_required
