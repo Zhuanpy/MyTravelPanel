@@ -291,15 +291,23 @@ def create_flight_ref(header_id):
                         supplier_types=supplier_types)
 
 
-@project_ref.route('/flight/submit', methods=['POST'])
-@csrf.exempt
-@login_required
-@staff_only
-def submit_flight_ref():
-    """提交机票REF数据"""
+class FlightRefError(Exception):
+    """机票REF落库时的已知业务校验错误（EO已付款 / 缺业务类型等）"""
+    pass
+
+
+def _persist_flight_ref(src):
+    """把机票REF数据（乘客+航段+描述+extra_info）落库，成功后 commit。
+
+    src 需支持 .get(key[, default]) / .getlist(key)，因此 request.form（表单提交）
+    与 werkzeug MultiDict（JSON API）均可直接传入，两条入口复用同一套解析/落库逻辑。
+
+    返回 (ref, header_id, prepayment_msg)。已知校验失败抛 FlightRefError；
+    其他异常向上抛出，均已 rollback。不在此函数内 flash / redirect。
+    """
     try:
-        header_id = request.form.get('header_id')
-        ref_id = request.form.get('ref_id')
+        header_id = src.get('header_id')
+        ref_id = src.get('ref_id')
 
         # 如果是编辑现有REF
         if ref_id:
@@ -307,8 +315,7 @@ def submit_flight_ref():
 
             # 检查是否有已付款的EO
             if ref.has_paid_eo():
-                flash('此REF的EO已付款，不能编辑', 'error')
-                return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
+                raise FlightRefError('此REF的EO已付款，不能编辑')
 
             # 记录旧的成本价格（用于调整预付账款）
             old_cost = ref.cost_price
@@ -316,9 +323,9 @@ def submit_flight_ref():
             # 更新REF基本信息
             ref.description = '机票订单'
             ref.detailed_description = '机票订单'
-            ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
+            ref.supplier_id = src.get('supplier_id') if src.get('supplier_id') and src.get(
                 'supplier_id') != '0' else None
-            ref.remarks = request.form.get('remarks')
+            ref.remarks = src.get('remarks')
             # 状态和支付状态字段已从表单中移除，保持现有值不变
         else:
             # 创建新的REF
@@ -328,8 +335,7 @@ def submit_flight_ref():
             # 获取机票业务类型ID（按code查找，确保唯一性）
             flight_business_type = BusinessType.query.filter_by(code='airline').first()
             if not flight_business_type:
-                flash('未找到机票业务类型（airline），请先创建', 'error')
-                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+                raise FlightRefError('未找到机票业务类型（airline），请先创建')
 
             # 生成基于航段信息的名称
             ref = ProjectRef(
@@ -338,9 +344,9 @@ def submit_flight_ref():
                 description='机票订单',
                 ref_type_id=flight_business_type.id,
                 detailed_description='机票订单',
-                supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
+                supplier_id=src.get('supplier_id') if src.get('supplier_id') and src.get(
                     'supplier_id') != '0' else None,
-                remarks=request.form.get('remarks'),
+                remarks=src.get('remarks'),
                 status='confirmed',  # 默认设置为"处理中"
                 payment_status='unpaid'  # 默认设置为"未付款"
             )
@@ -348,21 +354,21 @@ def submit_flight_ref():
             db.session.flush()  # 获取ref.id
 
         # 保存乘客信息
-        passenger_names = request.form.getlist('passenger_name[]')
-        passenger_types = request.form.getlist('passenger_type[]')
-        selling_prices = request.form.getlist('selling_price[]')
-        cost_prices = request.form.getlist('cost_price[]')
+        passenger_names = src.getlist('passenger_name[]')
+        passenger_types = src.getlist('passenger_type[]')
+        selling_prices = src.getlist('selling_price[]')
+        cost_prices = src.getlist('cost_price[]')
         # 票号/PNR/行李按乘客（来自「行程单补充」票务表，字段名 pax_*）
-        ticket_numbers = request.form.getlist('pax_ticket_number[]')
-        pnrs = request.form.getlist('pax_pnr[]')
-        pax_baggages = request.form.getlist('pax_baggage[]')
-        passport_numbers = request.form.getlist('passport_number[]')
+        ticket_numbers = src.getlist('pax_ticket_number[]')
+        pnrs = src.getlist('pax_pnr[]')
+        pax_baggages = src.getlist('pax_baggage[]')
+        passport_numbers = src.getlist('passport_number[]')
 
         # 座位按 乘客×航段：列 pax_seat_0[], pax_seat_1[]... 每列一个航段，元素按乘客顺序
         pax_seat_cols = []
         _s = 0
-        while f'pax_seat_{_s}[]' in request.form:
-            pax_seat_cols.append(request.form.getlist(f'pax_seat_{_s}[]'))
+        while f'pax_seat_{_s}[]' in src:
+            pax_seat_cols.append(src.getlist(f'pax_seat_{_s}[]'))
             _s += 1
 
         # 删除现有乘客
@@ -420,22 +426,22 @@ def submit_flight_ref():
         ref.cost_price = total_cost_price if total_cost_price > 0 else None
 
         # 保存航段信息
-        flight_numbers = request.form.getlist('flight_number[]')
-        cabin_codes = request.form.getlist('cabin_code[]')
-        cabin_classes = request.form.getlist('cabin_class[]')
-        departure_airports = request.form.getlist('departure_airport[]')
-        arrival_airports = request.form.getlist('arrival_airport[]')
-        departure_dates = request.form.getlist('departure_date[]')
-        departure_times = request.form.getlist('departure_time[]')
-        arrival_dates = request.form.getlist('arrival_date[]')
-        arrival_times = request.form.getlist('arrival_time[]')
-        airline_names = request.form.getlist('airline_name[]')
-        baggages = request.form.getlist('baggage[]')
-        departure_terminals = request.form.getlist('departure_terminal[]')
-        arrival_terminals = request.form.getlist('arrival_terminal[]')
-        segment_ticket_numbers = request.form.getlist('segment_ticket_number[]')
-        segment_pnrs = request.form.getlist('segment_pnr[]')
-        seats = request.form.getlist('seat[]')
+        flight_numbers = src.getlist('flight_number[]')
+        cabin_codes = src.getlist('cabin_code[]')
+        cabin_classes = src.getlist('cabin_class[]')
+        departure_airports = src.getlist('departure_airport[]')
+        arrival_airports = src.getlist('arrival_airport[]')
+        departure_dates = src.getlist('departure_date[]')
+        departure_times = src.getlist('departure_time[]')
+        arrival_dates = src.getlist('arrival_date[]')
+        arrival_times = src.getlist('arrival_time[]')
+        airline_names = src.getlist('airline_name[]')
+        baggages = src.getlist('baggage[]')
+        departure_terminals = src.getlist('departure_terminal[]')
+        arrival_terminals = src.getlist('arrival_terminal[]')
+        segment_ticket_numbers = src.getlist('segment_ticket_number[]')
+        segment_pnrs = src.getlist('segment_pnr[]')
+        seats = src.getlist('seat[]')
 
         # 生成 description：首末日期 + 机场代码航线
         def generate_flight_description(departure_airports, arrival_airports, departure_dates):
@@ -619,7 +625,7 @@ def submit_flight_ref():
         extra_info = {
             'pax_names_display': ', '.join([name for name in passenger_names if name]),  # 乘客姓名列表
             'departure_date': departure_dates[0] if departure_dates and departure_dates[0] else '',  # 第一个航段的出发日期
-            'leader_name': request.form.get('leader_name', passenger_names[0] if passenger_names else ''),
+            'leader_name': src.get('leader_name', passenger_names[0] if passenger_names else ''),
             'flight_route': ref.description,  # 航线描述
             'total_passengers': len([name for name in passenger_names if name]),
             'adult_qty': adult_qty,
@@ -634,17 +640,151 @@ def submit_flight_ref():
             prepayment_msg = ref.adjust_prepayment_for_cost_change(old_cost)
 
         db.session.commit()
+        return ref, header_id, prepayment_msg
 
-        if prepayment_msg:
-            flash(f'机票REF保存成功！{prepayment_msg}', 'success')
-        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
-
+    except FlightRefError:
+        db.session.rollback()
+        raise
     except Exception as e:
         db.session.rollback()
         print(f"机票REF保存失败: {str(e)}")
         print(f"错误详情: {traceback.format_exc()}")
+        raise
+
+
+@project_ref.route('/flight/submit', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def submit_flight_ref():
+    """提交机票REF数据（表单入口，成功后重定向回项目详情）"""
+    header_id = request.form.get('header_id')
+    try:
+        ref, header_id, prepayment_msg = _persist_flight_ref(request.form)
+        if prepayment_msg:
+            flash(f'机票REF保存成功！{prepayment_msg}', 'success')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+    except FlightRefError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+    except Exception as e:
         flash(f'保存失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+
+
+@project_ref.route('/flight/quick-create/<int:header_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def quick_create_flight_ref(header_id):
+    """一键创建机票REF（纯JSON API，供自动化/agent串联下单流程使用）
+
+    与表单端 /flight/submit 复用同一套落库逻辑（_persist_flight_ref），
+    仅创建REF本身并返回 ref_id/ref_number；EO 与发票请分别调用
+    /projects/eo/quick_create/<ref_id> 与 /projects/invoice/header/<hid>/quick-create。
+
+    请求体（JSON）示例：
+    {
+      "supplier_id": 256,
+      "remarks": "ZHOU YONGFA 机票订单",
+      "leader_name": "ZHOU YONGFA",           // 可选，缺省取首位乘客
+      "passengers": [
+        {"name": "ZHOU YONGFA", "type": "adult",
+         "selling_price": 255, "cost_price": 224.20,
+         "ticket_number": "...", "pnr": "...", "baggage": "...",
+         "passport_number": "..."}
+      ],
+      "segments": [
+        {"flight_number": "HU448", "cabin_code": "Y", "cabin_class": "Economy",
+         "departure_airport": "SIN", "arrival_airport": "HAK",
+         "departure_date": "2026-07-03", "departure_time": "04:40",
+         "arrival_date": "2026-07-03", "arrival_time": "08:25",
+         "airline_name": "...", "baggage": "...",
+         "departure_terminal": "...", "arrival_terminal": "...",
+         "ticket_number": "...", "pnr": "...", "seat": "..."}
+      ]
+    }
+
+    返回：{"success": true, "ref_id": 4311, "ref_number": "R2562",
+           "description": "03JUL SIN-HAK-KHN", ...}
+    """
+    # 校验项目存在与访问权限（与创建页 GET 一致）
+    header = ProjectHeader.query.get_or_404(header_id)
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'error': '无权访问此项目'}), 403
+
+    data = request.get_json(silent=True) or {}
+    passengers = data.get('passengers') or []
+    segments = data.get('segments') or []
+    if not passengers:
+        return jsonify({'success': False, 'error': 'passengers 不能为空'}), 400
+    if not segments:
+        return jsonify({'success': False, 'error': 'segments 不能为空'}), 400
+
+    # 把干净的嵌套JSON转成与表单一致的 MultiDict（键名带 []），从而复用 _persist_flight_ref
+    from werkzeug.datastructures import MultiDict
+
+    def _s(v):
+        """None -> ''，其余转字符串（对齐表单的字符串语义）"""
+        return '' if v is None else str(v)
+
+    src = MultiDict()
+    src.add('header_id', str(header_id))
+    # 不设置 ref_id -> 走"新建"分支
+    supplier_id = data.get('supplier_id')
+    if supplier_id not in (None, '', 0, '0'):
+        src.add('supplier_id', str(supplier_id))
+    if data.get('remarks'):
+        src.add('remarks', _s(data.get('remarks')))
+    if data.get('leader_name'):
+        src.add('leader_name', _s(data.get('leader_name')))
+
+    # 乘客列（与表单 passenger_name[] 等对齐）
+    for p in passengers:
+        src.add('passenger_name[]', _s(p.get('name')))
+        src.add('passenger_type[]', _s(p.get('type') or 'adult'))
+        src.add('selling_price[]', _s(p.get('selling_price')))
+        src.add('cost_price[]', _s(p.get('cost_price')))
+        src.add('pax_ticket_number[]', _s(p.get('ticket_number')))
+        src.add('pax_pnr[]', _s(p.get('pnr')))
+        src.add('pax_baggage[]', _s(p.get('baggage')))
+        src.add('passport_number[]', _s(p.get('passport_number')))
+
+    # 航段列（与表单 flight_number[] 等对齐）
+    for s in segments:
+        src.add('flight_number[]', _s(s.get('flight_number')))
+        src.add('cabin_code[]', _s(s.get('cabin_code') or 'Y'))
+        src.add('cabin_class[]', _s(s.get('cabin_class')))
+        src.add('departure_airport[]', _s(s.get('departure_airport')))
+        src.add('arrival_airport[]', _s(s.get('arrival_airport')))
+        src.add('departure_date[]', _s(s.get('departure_date')))
+        src.add('departure_time[]', _s(s.get('departure_time')))
+        src.add('arrival_date[]', _s(s.get('arrival_date')))
+        src.add('arrival_time[]', _s(s.get('arrival_time')))
+        src.add('airline_name[]', _s(s.get('airline_name')))
+        src.add('baggage[]', _s(s.get('baggage')))
+        src.add('departure_terminal[]', _s(s.get('departure_terminal')))
+        src.add('arrival_terminal[]', _s(s.get('arrival_terminal')))
+        src.add('segment_ticket_number[]', _s(s.get('ticket_number')))
+        src.add('segment_pnr[]', _s(s.get('pnr')))
+        src.add('seat[]', _s(s.get('seat')))
+
+    try:
+        ref, _hid, prepayment_msg = _persist_flight_ref(src)
+    except FlightRefError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'创建失败：{str(e)}'}), 500
+
+    return jsonify({
+        'success': True,
+        'ref_id': ref.id,
+        'ref_number': ref.ref_number,
+        'description': ref.description,
+        'selling_price': float(ref.selling_price) if ref.selling_price else None,
+        'cost_price': float(ref.cost_price) if ref.cost_price else None,
+        'prepayment_msg': prepayment_msg or None,
+    })
 
 
 # 酒店REF相关函数
