@@ -40,7 +40,8 @@ ALIAS_MAP = {
 
 
 def main():
-    commit = '--commit' in sys.argv
+    # --commit 手动写库；--execute 为 server_update.sh 部署时传入，同样执行写入。
+    commit = '--commit' in sys.argv or '--execute' in sys.argv
     force = '--force' in sys.argv
 
     app = create_app()

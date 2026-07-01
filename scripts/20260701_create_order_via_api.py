@@ -24,6 +24,7 @@
     python scripts/20260701_create_order_via_api.py
 """
 
+import sys
 import requests
 
 # ============ 配置 ============
@@ -156,4 +157,10 @@ def main():
 
 
 if __name__ == "__main__":
+    # server_update.sh 会用 --execute 跑所有 scripts/日期_*.py。
+    # 本文件是「下单参考客户端」，不是数据库迁移，被部署运行器调用时直接跳过，
+    # 避免用占位 token 误建订单、以及每次部署反复失败重试。
+    if "--execute" in sys.argv:
+        print("SKIP: 这是下单参考脚本，非数据库迁移，部署时不执行（手动用法见文件头）。")
+        sys.exit(0)
     main()
