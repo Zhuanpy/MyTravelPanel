@@ -1519,6 +1519,49 @@ def cancel_payment(eo_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+class EOExistsError(Exception):
+    """REF 已存在有效(非void)EO，不能重复创建"""
+    def __init__(self, eo_number):
+        self.eo_number = eo_number
+        super().__init__(f'此REF已存在EO编号 {eo_number}，无法重复创建')
+
+
+def _create_or_reactivate_eo(ref):
+    """为REF创建或重新激活EO（仅 flush，不 commit，由调用方提交）。
+
+    返回 (eo, is_reactivated)。REF 已有有效(非void)EO 时抛 EOExistsError。
+    供 quick_create_eo（单独调用）与 quick_create_flight_ref（auto_eo）复用，
+    保证 EO 生成逻辑单一来源。
+    """
+    db.session.expire_all()  # 刷新会话，确保获取最新数据
+    existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
+    if existing_eo:
+        if existing_eo.status == 'void':
+            # 已作废的EO，重新激活
+            existing_eo.status = 'confirmed'
+            existing_eo.payment_no = None
+            existing_eo.payment_voucher_no = None
+            existing_eo.paid_date = None
+            existing_eo.pay_amount = None
+            existing_eo.payment_remarks = None
+            return existing_eo, True
+        # 有效的EO，不能重复创建
+        raise EOExistsError(existing_eo.eo_number)
+
+    # 创建新EO
+    eo = ProjectEO(
+        ref_id=ref.id,
+        external_system=None,
+        external_status=None,
+        external_reference=None,
+        status='confirmed'
+    )
+    db.session.add(eo)
+    db.session.flush()  # 获取ID但不提交
+    eo.eo_number = f'E{str(eo.id).zfill(3)}'  # 使用ID生成EO编号
+    return eo, False
+
+
 @project_eo.route('/quick_create/<int:ref_id>', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -1527,7 +1570,7 @@ def quick_create_eo(ref_id):
     """一键生成EO - API接口"""
     try:
         ref = ProjectRef.query.get_or_404(ref_id)
-        
+
         # 员工等级权限检查
         from App_new.business.projects.models.project import ProjectHeader
         header = ProjectHeader.query.get(ref.header_id)
@@ -1536,51 +1579,8 @@ def quick_create_eo(ref_id):
                 'success': False,
                 'message': '您没有权限访问此项目'
             }), 403
-        
-        # 检查REF是否已经有EO
-        db.session.expire_all()  # 刷新会话，确保获取最新数据
-        existing_eo = ProjectEO.query.filter_by(ref_id=ref.id).first()
 
-        is_reactivated = False
-        if existing_eo:
-            if existing_eo.status == 'void':
-                # 已作废的EO，重新激活
-                print(f"DEBUG: REF {ref.id} 存在已作废的EO {existing_eo.eo_number}，重新激活")
-                existing_eo.status = 'confirmed'
-                existing_eo.payment_no = None
-                existing_eo.payment_voucher_no = None
-                existing_eo.paid_date = None
-                existing_eo.pay_amount = None
-                existing_eo.payment_remarks = None
-                eo = existing_eo
-                is_reactivated = True
-            else:
-                # 有效的EO，不能重复创建
-                print(f"DEBUG: REF {ref.id} (ref_number: {ref.ref_number}) 已经存在EO {existing_eo.eo_number} (id: {existing_eo.id})")
-                return jsonify({
-                    'success': False,
-                    'message': f'此REF已存在EO编号 {existing_eo.eo_number}，无法重复创建'
-                }), 400
-        else:
-            print(f"DEBUG: REF {ref.id} 没有EO记录，准备创建...")
-
-            # 创建EO
-            eo = ProjectEO(
-                ref_id=ref.id,
-                external_system=None,
-                external_status=None,
-                external_reference=None,
-                status='confirmed'
-            )
-
-            # 先保存获取ID
-            db.session.add(eo)
-            db.session.flush()  # 获取ID但不提交
-
-            # 使用ID生成EO编号
-            eo.eo_number = f'E{str(eo.id).zfill(3)}'
-
-        # 提交事务
+        eo, is_reactivated = _create_or_reactivate_eo(ref)
         db.session.commit()
 
         action = '重新激活' if is_reactivated else '创建'
@@ -1590,7 +1590,10 @@ def quick_create_eo(ref_id):
             'eo_number': eo.eo_number,
             'eo_id': eo.id
         })
-        
+
+    except EOExistsError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         error_msg = str(e)

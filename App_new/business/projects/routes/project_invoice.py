@@ -631,12 +631,128 @@ def sync_ref_prices(invoice_id):
         return jsonify({'success': False, 'message': f'同步失败：{str(e)}'})
 
 
+def _build_invoice_for_refs(header, refs_data, meta=None):
+    """创建发票 + 明细 + 日记账（仅 flush，不 commit，由调用方提交）。返回 invoice。
+
+    refs_data: [{ref_id, total, gross, discount, tax, show_on_invoice}]
+    meta: {invoice_date('YYYY-MM-DD' 字符串), order_no, tr_no, purpose}
+    发票生成逻辑单一来源，供以下三处复用：
+    - quick_create_invoice（模态框，显式传金额）
+    - quick_create_project_invoice（按 selling_price 自动生成，纯API）
+    - quick_create_flight_ref 的 auto_invoice
+    """
+    from decimal import Decimal, InvalidOperation
+
+    def _to_dec(v):
+        """统一转 Decimal，避免 float 与 Decimal 混算导致日记账过账报错。"""
+        try:
+            return Decimal(str(v if v not in (None, '') else 0))
+        except (InvalidOperation, ValueError, TypeError):
+            return Decimal('0')
+
+    meta = meta or {}
+    user = current_user.username if current_user else None
+
+    # 计算总金额（Decimal，保证与日记账借贷方同类型）
+    total_amount = sum((_to_dec(ref.get('total', 0)) for ref in refs_data), Decimal('0'))
+
+    # 生成发票编号
+    invoice_number = ProjectInvoice.generate_invoice_number()
+
+    # 解析发票日期
+    invoice_date_str = meta.get('invoice_date')
+    if invoice_date_str:
+        invoice_date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
+    else:
+        from datetime import date
+        invoice_date = date.today()
+
+    # 获取客户名称：优先项目成员 leader，其次真实客户名（非员工名），最后联系人
+    customer_name = header.leader_member_name
+    if not customer_name and header.leader_name and header.leader_name != header.staff_name:
+        customer_name = header.leader_name
+    if not customer_name:
+        customer_name = header.contact
+
+    # 创建发票（直接为 confirmed 状态）
+    invoice = ProjectInvoice(
+        invoice_number=invoice_number,
+        header_id=header.id,
+        invoice_date=invoice_date,
+        amount=total_amount,
+        currency=header.currency or 'SGD',
+        invoice_type='full',
+        customer_name=customer_name,
+        customer_company=header.company.company_name if header.company else None,
+        ref_ids=json.dumps([ref.get('ref_id') for ref in refs_data]),
+        remarks=', '.join(filter(None, [
+            f"Order: {meta.get('order_no')}" if meta.get('order_no') else None,
+            f"TR: {meta.get('tr_no')}" if meta.get('tr_no') else None,
+            f"Purpose: {meta.get('purpose')}" if meta.get('purpose') else None
+        ])),
+        status='confirmed',
+        payment_status='unpaid',
+        created_by=user
+    )
+    db.session.add(invoice)
+    db.session.flush()
+
+    # 金额为0的发票自动标记为已付款
+    invoice.update_payment_status()
+
+    # 创建发票明细
+    for ref_data in refs_data:
+        ref_id = ref_data.get('ref_id')
+        if ref_id:
+            ref = ProjectRef.query.get(ref_id)
+            if ref and ref_data.get('show_on_invoice', True):
+                item = InvoiceItem(
+                    invoice_id=invoice.id,
+                    ref_id=ref.id,
+                    description=ref.description or ref.detailed_description or '服务',
+                    quantity=1,
+                    unit_price=_to_dec(ref_data.get('total', 0)),
+                    total_price=_to_dec(ref_data.get('total', 0)),
+                    remarks=f"Gross: {ref_data.get('gross', 0)}, Disc: {ref_data.get('discount', 0)}, Tax: {ref_data.get('tax', 0)}"
+                )
+                db.session.add(item)
+
+    # 自动生成日记账分录
+    try:
+        journal_entry = JournalEntry.create_from_invoice(invoice, user=user)
+        if journal_entry and journal_entry.lines:
+            db.session.add(journal_entry)
+            db.session.flush()
+            # create_from_invoice 已置为 posted，仅当仍是草稿才过账（避免重复过账报错）
+            if journal_entry.status == 'draft':
+                journal_entry.post(user=user)
+    except Exception as je:
+        logger.warning(f"发票 {invoice.invoice_number} 生成日记账失败: {str(je)}")
+
+    return invoice
+
+
+def _refs_without_invoice(header):
+    """返回该项目下尚未生成（非cancelled）发票的 REF 列表。"""
+    invoiced_ref_ids = set()
+    existing = ProjectInvoice.query.filter(
+        ProjectInvoice.header_id == header.id,
+        ProjectInvoice.status != 'cancelled'
+    ).all()
+    for inv in existing:
+        try:
+            invoiced_ref_ids.update(json.loads(inv.ref_ids or '[]'))
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return [ref for ref in header.refs if ref.id not in invoiced_ref_ids]
+
+
 @project_invoice.route('/header/<int:header_id>/quick-create', methods=['POST'])
 @login_required
 @staff_only
 @csrf.exempt
 def quick_create_invoice(header_id):
-    """快速生成发票 - 从模态框提交"""
+    """快速生成发票 - 从模态框提交（显式传每个REF金额）"""
     try:
         data = request.get_json()
         header = ProjectHeader.query.get_or_404(header_id)
@@ -647,9 +763,8 @@ def quick_create_invoice(header_id):
             return jsonify({'success': False, 'message': '请至少选择一个REF'})
 
         # 防重复提交：检查10秒内是否已经为相同REF创建了发票
-        from datetime import datetime, timedelta
+        from datetime import timedelta
         ref_ids_to_check = sorted([ref.get('ref_id') for ref in refs_data])
-        ref_ids_json = json.dumps(ref_ids_to_check)
 
         recent_invoice = ProjectInvoice.query.filter(
             ProjectInvoice.header_id == header_id,
@@ -669,94 +784,97 @@ def quick_create_invoice(header_id):
             except (json.JSONDecodeError, TypeError):
                 pass
 
-        # 计算总金额
-        total_amount = sum(ref.get('total', 0) for ref in refs_data)
-        
-        # 生成发票编号
-        invoice_number = ProjectInvoice.generate_invoice_number()
-        
-        # 解析发票日期
-        invoice_date_str = data.get('invoice_date')
-        if invoice_date_str:
-            from datetime import datetime
-            invoice_date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
-        else:
-            from datetime import date
-            invoice_date = date.today()
-        
-        # 获取客户名称：优先项目成员 leader，其次真实客户名（非员工名），最后联系人
-        customer_name = header.leader_member_name
-        if not customer_name and header.leader_name and header.leader_name != header.staff_name:
-            customer_name = header.leader_name
-        if not customer_name:
-            customer_name = header.contact
-
-        # 创建发票（直接为 confirmed 状态）
-        invoice = ProjectInvoice(
-            invoice_number=invoice_number,
-            header_id=header_id,
-            invoice_date=invoice_date,
-            amount=total_amount,
-            currency=header.currency or 'SGD',
-            invoice_type='full',
-            customer_name=customer_name,
-            customer_company=header.company.company_name if header.company else None,
-            ref_ids=json.dumps([ref.get('ref_id') for ref in refs_data]),
-            remarks=', '.join(filter(None, [
-                f"Order: {data.get('order_no')}" if data.get('order_no') else None,
-                f"TR: {data.get('tr_no')}" if data.get('tr_no') else None,
-                f"Purpose: {data.get('purpose')}" if data.get('purpose') else None
-            ])),
-            status='confirmed',
-            payment_status='unpaid',
-            created_by=current_user.username if current_user else None
-        )
-
-        db.session.add(invoice)
-        db.session.flush()
-
-        # 金额为0的发票自动标记为已付款
-        invoice.update_payment_status()
-
-        # 创建发票明细
-        for ref_data in refs_data:
-            ref_id = ref_data.get('ref_id')
-            if ref_id:
-                ref = ProjectRef.query.get(ref_id)
-                if ref and ref_data.get('show_on_invoice', True):
-                    item = InvoiceItem(
-                        invoice_id=invoice.id,
-                        ref_id=ref.id,
-                        description=ref.description or ref.detailed_description or '服务',
-                        quantity=1,
-                        unit_price=ref_data.get('total', 0),
-                        total_price=ref_data.get('total', 0),
-                        remarks=f"Gross: {ref_data.get('gross', 0)}, Disc: {ref_data.get('discount', 0)}, Tax: {ref_data.get('tax', 0)}"
-                    )
-                    db.session.add(item)
-
-        # 自动生成日记账分录
-        try:
-            journal_entry = JournalEntry.create_from_invoice(invoice, user=current_user.username)
-            if journal_entry and journal_entry.lines:
-                db.session.add(journal_entry)
-                db.session.flush()
-                journal_entry.post(user=current_user.username)
-        except Exception as je:
-            logger.warning(f"发票 {invoice.invoice_number} 生成日记账失败: {str(je)}")
-
+        invoice = _build_invoice_for_refs(header, refs_data, {
+            'invoice_date': data.get('invoice_date'),
+            'order_no': data.get('order_no'),
+            'tr_no': data.get('tr_no'),
+            'purpose': data.get('purpose'),
+        })
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': '发票生成成功',
             'invoice_id': invoice.id,
-            'invoice_number': invoice_number
+            'invoice_number': invoice.invoice_number
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
+
+
+@project_invoice.route('/quick_create/<int:project_id>', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def quick_create_project_invoice(project_id):
+    """一键生成发票 - 纯JSON API（金额自动取 REF.selling_price）
+
+    请求体（JSON，均可选）：
+    {
+      "ref_id": 4311,          // 只给某个REF生成；不传则给所有"尚未生成发票"的REF一次性生成
+      "invoice_date": "2026-07-03",
+      "order_no": "...", "tr_no": "...", "purpose": "..."
+    }
+    返回：{"success": true, "invoice_id": 12221, "invoice_number": "INV..."}
+    """
+    try:
+        header = ProjectHeader.query.get_or_404(project_id)
+
+        # 员工等级权限检查
+        from App_new.utils.permissions import can_access_project
+        if not can_access_project(header, current_user):
+            return jsonify({'success': False, 'message': '您没有权限访问此项目'}), 403
+
+        data = request.get_json(silent=True) or {}
+        ref_id = data.get('ref_id')
+
+        # 确定要开票的 REF：指定 ref_id 用它，否则取所有尚未开票的 REF
+        if ref_id:
+            ref = ProjectRef.query.filter_by(id=ref_id, header_id=header.id).first()
+            if not ref:
+                return jsonify({'success': False, 'message': f'REF {ref_id} 不存在或不属于此项目'}), 404
+            # 已开过票则拒绝，避免重复
+            if ref not in _refs_without_invoice(header):
+                return jsonify({'success': False, 'message': f'REF {ref.ref_number} 已生成过发票'}), 400
+            target_refs = [ref]
+        else:
+            target_refs = _refs_without_invoice(header)
+
+        if not target_refs:
+            return jsonify({'success': False, 'message': '没有需要生成发票的REF'}), 400
+
+        # 金额自动取 selling_price（total=gross=selling_price，无折扣/税）
+        refs_data = [{
+            'ref_id': r.id,
+            'total': float(r.selling_price) if r.selling_price else 0,
+            'gross': float(r.selling_price) if r.selling_price else 0,
+            'discount': 0,
+            'tax': 0,
+            'show_on_invoice': True,
+        } for r in target_refs]
+
+        invoice = _build_invoice_for_refs(header, refs_data, {
+            'invoice_date': data.get('invoice_date'),
+            'order_no': data.get('order_no'),
+            'tr_no': data.get('tr_no'),
+            'purpose': data.get('purpose'),
+        })
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'发票 {invoice.invoice_number} 生成成功（{len(target_refs)} 个REF）',
+            'invoice_id': invoice.id,
+            'invoice_number': invoice.invoice_number,
+            'ref_ids': [r.id for r in target_refs]
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500
 
 
 @project_invoice.route('/void', methods=['POST'])

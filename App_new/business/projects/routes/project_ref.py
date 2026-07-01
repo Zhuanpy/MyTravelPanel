@@ -776,15 +776,52 @@ def quick_create_flight_ref(header_id):
     except Exception as e:
         return jsonify({'success': False, 'error': f'创建失败：{str(e)}'}), 500
 
-    return jsonify({
+    result = {
         'success': True,
+        'project_id': header.id,
+        'hid': header.hid,
         'ref_id': ref.id,
         'ref_number': ref.ref_number,
         'description': ref.description,
         'selling_price': float(ref.selling_price) if ref.selling_price else None,
         'cost_price': float(ref.cost_price) if ref.cost_price else None,
         'prepayment_msg': prepayment_msg or None,
-    })
+    }
+
+    # 可选：自动生成EO（REF 已提交；EO 失败不回滚 REF，只在响应里报告）
+    if data.get('auto_eo'):
+        from App_new.business.projects.routes.project_eo import _create_or_reactivate_eo, EOExistsError
+        try:
+            eo, _reactivated = _create_or_reactivate_eo(ref)
+            db.session.commit()
+            result['eo_id'] = eo.id
+            result['eo_number'] = eo.eo_number
+        except EOExistsError as e:
+            db.session.rollback()
+            result['eo_error'] = str(e)
+        except Exception as e:
+            db.session.rollback()
+            result['eo_error'] = f'EO生成失败：{str(e)}'
+
+    # 可选：自动生成发票（金额取 REF.selling_price，复用发票核心逻辑）
+    if data.get('auto_invoice'):
+        from App_new.business.projects.routes.project_invoice import _build_invoice_for_refs
+        try:
+            refs_data = [{
+                'ref_id': ref.id,
+                'total': float(ref.selling_price) if ref.selling_price else 0,
+                'gross': float(ref.selling_price) if ref.selling_price else 0,
+                'discount': 0, 'tax': 0, 'show_on_invoice': True,
+            }]
+            invoice = _build_invoice_for_refs(header, refs_data, {})
+            db.session.commit()
+            result['invoice_id'] = invoice.id
+            result['invoice_number'] = invoice.invoice_number
+        except Exception as e:
+            db.session.rollback()
+            result['invoice_error'] = f'发票生成失败：{str(e)}'
+
+    return jsonify(result)
 
 
 # 酒店REF相关函数
@@ -2717,11 +2754,20 @@ def generate_ref_number():
 @staff_only
 @csrf.exempt
 def delete_ref(ref_id):
-    """删除REF"""
+    """删除REF
+
+    页面表单调用 -> 重定向回项目详情；
+    纯API调用（JSON 或 ?format=json）-> 返回 JSON，便于自动化删除复制来的旧REF。
+    """
     ref = ProjectRef.query.get_or_404(ref_id)
     header_id = ref.header_id
+    ref_number = ref.ref_number
     db.session.delete(ref)
     db.session.commit()
+
+    wants_json = request.is_json or request.args.get('format') == 'json'
+    if wants_json:
+        return jsonify({'success': True, 'ref_id': ref_id, 'ref_number': ref_number, 'header_id': header_id})
     return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 

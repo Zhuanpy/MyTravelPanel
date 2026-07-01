@@ -1260,6 +1260,7 @@ def copy_project(project_id):
         ref_count = 0
         segment_count = 0
         passenger_count = 0
+        ref_id_map = []  # [{old_id, new_id}]，方便调用方清理复制来的旧REF
 
         for ref in original.refs:
             new_ref = ProjectRef(
@@ -1283,6 +1284,7 @@ def copy_project(project_id):
             db.session.add(new_ref)
             db.session.flush()  # 获取新REF ID
             ref_count += 1
+            ref_id_map.append({'old_id': ref.id, 'new_id': new_ref.id})
 
             # 复制机票航段
             segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).all()
@@ -1354,7 +1356,9 @@ def copy_project(project_id):
             'success': True,
             'message': msg,
             'new_project_id': new_header.id,
-            'new_hid': new_hid
+            'new_hid': new_hid,
+            'ref_id_map': ref_id_map,                        # [{old_id, new_id}]
+            'new_ref_ids': [m['new_id'] for m in ref_id_map]  # 复制来的新REF ID（可按需删除）
         })
 
     except Exception as e:
