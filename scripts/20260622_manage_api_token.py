@@ -81,6 +81,12 @@ def cmd_revoke(token_id):
 
 def main():
     args = sys.argv[1:]
+    # server_update.sh 会用 --execute 跑所有 scripts/日期_*.py。
+    # 本文件是令牌管理 CLI，不是数据库迁移，部署运行器调用时跳过，
+    # 避免每次部署因缺 create/list/revoke 子命令而失败重试。
+    if '--execute' in args:
+        print("SKIP: 令牌管理 CLI，非数据库迁移，部署时不执行（用法见文件头）。")
+        return
     if not args:
         print(__doc__)
         sys.exit(1)
