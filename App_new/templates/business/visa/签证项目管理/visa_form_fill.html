@@ -29,10 +29,23 @@
         <div style="margin-bottom:0.8rem; color:#6b7280; font-size:0.85rem;">
             <span style="color:#dc2626;">*</span> = 需申请人提供 · 灰底为固定项（不可改） · 保存后回详情页点「生成表格」出 PDF
         </div>
-        <div id="fillFormBody">
-            <div style="text-align:center; color:#888; padding:2rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>
+        <!-- 模板工具条 -->
+        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:0.9rem; padding:0.6rem 0.8rem; background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px;">
+            <i class="fas fa-clone" style="color:#6366f1;"></i>
+            <span style="font-size:0.85rem; color:#4b5563;">模板：</span>
+            <select id="tplSelect" class="visa-form-select" style="width:auto; min-width:180px; height:34px;"></select>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" onclick="applyTemplate()"><i class="fas fa-download"></i> 应用</button>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" onclick="deleteTemplate()" title="删除所选模板"><i class="fas fa-trash"></i></button>
+            <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-success" onclick="saveAsTemplate()"><i class="fas fa-save"></i> 将当前表存为模板</button>
+            <span style="color:#9ca3af; font-size:0.78rem;">应用后按需改申请人专属字段（姓名/护照等）再保存</span>
         </div>
+        <div id="fillFormTabs"></div>
     </div>
+</div>
+
+<div id="fillFormBody">
+    <div style="text-align:center; color:#888; padding:2rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>
 </div>
 {% endblock %}
 
@@ -40,6 +53,96 @@
 <script>
 const CSRF_TOKEN = document.getElementById('csrfToken').value;
 const FORM_DATA_URL = "{{ url_for('visa_project.get_project_form_data', project_id=project.id) }}";
+const TPL_URL = "{{ url_for('visa_project.list_form_templates') }}";  // GET列表 / POST保存
+const VISA_CATEGORY = "{{ 'japan' if '日本' in project.visa_type else ('korea' if '韩国' in project.visa_type else '') }}";
+
+// 收集当前表单所有值（文本/下拉/单选），供保存表单与存模板复用
+function gatherFormValues() {
+    const values = {};
+    document.querySelectorAll('#fillFormBody .fill-field').forEach(el => {
+        const seq = el.getAttribute('data-seq');
+        if (!seq) return;
+        if (el.type === 'radio') { if (el.checked) values[seq] = el.value; }
+        else { values[seq] = el.value; }
+    });
+    return values;
+}
+
+// 把一组值套用到已渲染的表单（应用模板用）
+function applyValues(values) {
+    Object.keys(values || {}).forEach(seq => {
+        const val = values[seq];
+        const els = document.querySelectorAll('#fillFormBody [data-seq="' + seq.replace(/"/g, '\\"') + '"]');
+        els.forEach(el => {
+            if (el.type === 'radio') { el.checked = (String(el.value) === String(val)); }
+            else { el.value = (val == null ? '' : val); }
+        });
+    });
+}
+
+// 加载模板下拉（按签证类别）
+function loadTemplates() {
+    const sel = document.getElementById('tplSelect');
+    fetch(TPL_URL + '?category=' + encodeURIComponent(VISA_CATEGORY), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            const list = (data && data.templates) || [];
+            sel.innerHTML = list.length
+                ? list.map(t => `<option value="${t.id}">${t.name}</option>`).join('')
+                : '<option value="">（暂无模板）</option>';
+        })
+        .catch(() => { sel.innerHTML = '<option value="">（加载失败）</option>'; });
+}
+
+function applyTemplate() {
+    const sel = document.getElementById('tplSelect');
+    const id = sel.value;
+    if (!id) { setStatus('没有可应用的模板', false); return; }
+    fetch(TPL_URL + '/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message || '读取模板失败');
+            applyValues(data.values || {});
+            setStatus(`已应用模板「${data.name}」，请核对后保存`, true);
+        })
+        .catch(err => setStatus(err.message || '应用失败', false));
+}
+
+function saveAsTemplate() {
+    const name = (prompt('模板名称：') || '').trim();
+    if (!name) return;
+    fetch(TPL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ name, category: VISA_CATEGORY, values: gatherFormValues() })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.message || '保存失败');
+        setStatus(`已存为模板「${data.name}」`, true);
+        loadTemplates();
+    })
+    .catch(err => setStatus(err.message || '保存模板失败', false));
+}
+
+function deleteTemplate() {
+    const sel = document.getElementById('tplSelect');
+    const id = sel.value;
+    const nm = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    if (!id) return;
+    if (!confirm(`删除模板「${nm}」？`)) return;
+    fetch(TPL_URL + '/' + id, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.message || '删除失败');
+        setStatus('模板已删除', true);
+        loadTemplates();
+    })
+    .catch(err => setStatus(err.message || '删除失败', false));
+}
 
 // 顶部状态条提示
 function setStatus(msg, ok) {
@@ -60,29 +163,55 @@ function parseChoiceOptions(remark) {
     return opts;
 }
 
-// 渲染单个字段
+function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// 字段宽度倍数：1(短) / 2(中) / 3(长)，用 grid-column: span N 实现
+function fieldWidth(f) {
+    if (f.ctype === 'radio') return (f.options || []).length >= 4 ? 2 : 1; // 护照类型/婚姻=2，性别/是否=1
+    const s = ((f.label || '') + ' ' + (f.remark || '')).toLowerCase();
+    // 3 倍：地址/备注/目的/在日住宿等长文本
+    if (/address|地址|住址|remarks|备注|说明|purpose|目的|hotels|住宿|ship or airline|previous stays|other names|special/.test(s)) return 3;
+    // 2 倍：邮箱/公司/雇主名/职业/国籍与身份/邀请人担保人姓名/学校
+    if (/e-?mail|邮箱|employer name|雇主名称|company|公司|机构名|profession|occupation|职业|status|身份|inviter name|邀请人姓名|guarantor name|担保人姓名|学校/.test(s)) return 2;
+    return 1;
+}
+
+// 渲染单个字段（统一结构：label / ctype(text|select|radio) / options）
 function renderField(f) {
     const val = (f.value == null ? '' : String(f.value));
-    const label = f.form || f.seq;
+    const label = f.label || f.form || f.seq;
     const applicantMark = f.applicant ? ' <span style="color:#dc2626;" title="需申请人提供">*</span>' : '';
-    const remarkHint = f.remark ? `<span style="color:#9ca3af; font-size:0.75rem;"> · ${f.remark}</span>` : '';
-    const readonly = !f.editable;
+    const remarkHint = f.remark ? `<span style="color:#9ca3af; font-size:0.75rem;"> · ${escHtml(f.remark)}</span>` : '';
+    const readonly = f.editable === false;
+    const width = fieldWidth(f);
+    const opts = f.options || [];
     let control;
-    if (f.type === '选择') {
-        const opts = parseChoiceOptions(f.remark);
-        if (opts.length) {
-            const optHtml = ['<option value="">-- 请选择 --</option>']
-                .concat(opts.map(o => `<option value="${o.value}" ${o.value === val ? 'selected' : ''}>${o.label} (${o.value})</option>`))
-                .join('');
-            control = `<select data-seq="${f.seq}" class="visa-form-input fill-field" ${readonly ? 'disabled' : ''} style="width:100%; padding:0.35rem;">${optHtml}</select>`;
-        } else {
-            control = `<input type="text" data-seq="${f.seq}" class="visa-form-input fill-field" value="${val.replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''} style="width:100%; padding:0.35rem;">`;
-        }
+    if (f.ctype === 'radio' && opts.length) {
+        // 列出来点选（radio 按钮）
+        const gname = 'rbg_' + f.seq;
+        control = `<div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center; min-height:40px;">` +
+            opts.map((o, i) => {
+                const id = `rb_${escAttr(f.seq)}_${i}`;
+                const checked = String(o.value) === val ? 'checked' : '';
+                return `<label for="${id}" style="display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; font-size:0.875rem; color:#2d3748;">
+                    <input type="radio" id="${id}" name="${escAttr(gname)}" value="${escAttr(o.value)}" data-seq="${escAttr(f.seq)}" class="fill-field" ${checked} ${readonly ? 'disabled' : ''}>
+                    ${escHtml(o.label)}</label>`;
+            }).join('') + `</div>`;
+    } else if (f.ctype === 'select' && opts.length) {
+        const optHtml = ['<option value="">-- 请选择 --</option>']
+            .concat(opts.map(o => {
+                const tail = (String(o.label) !== String(o.value)) ? ` (${escHtml(o.value)})` : '';
+                return `<option value="${escAttr(o.value)}" ${String(o.value) === val ? 'selected' : ''}>${escHtml(o.label)}${tail}</option>`;
+            }))
+            .join('');
+        control = `<select data-seq="${escAttr(f.seq)}" class="visa-form-select fill-field" ${readonly ? 'disabled' : ''}>${optHtml}</select>`;
     } else {
-        control = `<input type="text" data-seq="${f.seq}" class="visa-form-input fill-field" value="${val.replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''} style="width:100%; padding:0.35rem; ${readonly ? 'background:#f3f4f6;' : ''}">`;
+        control = `<input type="text" data-seq="${escAttr(f.seq)}" class="visa-form-control fill-field" value="${escAttr(val)}" ${readonly ? 'readonly' : ''} ${readonly ? 'style="background:#f3f4f6;"' : ''}>`;
     }
-    return `<div style="display:flex; flex-direction:column; gap:0.25rem;">
-        <label style="font-size:0.8rem; color:#4b5563;">${label}${applicantMark}${remarkHint}</label>
+    const fullTitle = label + (f.remark ? ' · ' + f.remark : '');
+    return `<div class="visa-form-group" style="margin-bottom:0; min-width:0; ${width > 1 ? 'grid-column: span ' + width + ';' : ''}">
+        <label class="visa-form-label" title="${escAttr(fullTitle)}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${escHtml(label)}${applicantMark}${remarkHint}</label>
         ${control}
     </div>`;
 }
@@ -119,7 +248,7 @@ function renderFillForm(fields) {
     });
     tabs += '</div>';
 
-    // 各页内容区（默认只显示第一页），页内再按 section 分小节
+    // 各页内容区（默认只显示第一页），页内每个 section 一张卡片
     let sections = '';
     pageKeys.forEach((page, idx) => {
         sections += `<div class="fill-page-section" data-page="${page}" style="display:${idx === 0 ? 'block' : 'none'};">`;
@@ -132,17 +261,21 @@ function renderFillForm(fields) {
             gmap[sec].push(f);
         });
         groups.forEach(sec => {
-            sections += `<div style="margin-bottom:1.1rem;">
-                <div style="font-size:0.85rem; font-weight:600; color:#6366f1; background:#f5f7ff; padding:0.35rem 0.7rem; border-radius:6px; margin-bottom:0.6rem;">
-                    <i class="fas fa-folder-open" style="font-size:0.75rem;"></i> ${sec}</div>
-                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.7rem 1.2rem; padding:0 0.2rem;">`;
+            sections += `<div class="visa-card visa-mb-3">
+                <div class="visa-card-header">
+                    <h2 style="font-size:0.95rem;"><i class="fas fa-folder-open"></i> ${sec}
+                        <span style="color:#9ca3af; font-weight:400; font-size:0.8rem;">(${gmap[sec].length})</span></h2>
+                </div>
+                <div class="visa-card-body">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:1rem 1.2rem; align-items:start;">`;
             gmap[sec].forEach(f => { sections += renderField(f); });
-            sections += `</div></div>`;
+            sections += `</div></div></div>`;
         });
         sections += `</div>`;
     });
 
-    body.innerHTML = tabs + sections;
+    document.getElementById('fillFormTabs').innerHTML = tabs;
+    body.innerHTML = sections;
     switchFillPage(pageKeys[0]);
 }
 
@@ -169,11 +302,7 @@ function saveFillForm() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
     setStatus('保存中...');
 
-    const values = {};
-    document.querySelectorAll('#fillFormBody .fill-field').forEach(el => {
-        const seq = el.getAttribute('data-seq');
-        if (seq) values[seq] = el.value;
-    });
+    const values = gatherFormValues();
 
     fetch(FORM_DATA_URL, {
         method: 'POST',
@@ -189,6 +318,9 @@ function saveFillForm() {
     .finally(() => { btn.disabled = false; btn.innerHTML = original; });
 }
 
-document.addEventListener('DOMContentLoaded', loadFillForm);
+document.addEventListener('DOMContentLoaded', function() {
+    loadFillForm();
+    loadTemplates();
+});
 </script>
 {% endblock %}

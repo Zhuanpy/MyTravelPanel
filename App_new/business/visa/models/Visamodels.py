@@ -873,3 +873,24 @@ class VisaProjectFormData(db.Model):
             'seq': self.seq,
             'detail': self.detail,
         }
+
+
+class VisaFormTemplate(db.Model):
+    """签证填表模板：把一份填好的表存成模板，新项目可套用相同字段。
+
+    data 存 {字段名(seq): 值} 的 JSON。按 visa_category(japan/korea) 隔离，
+    因为不同签证的字段名体系不同。
+    """
+
+    __tablename__ = 'visa_form_templates'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False, comment='模板名称')
+    visa_category = db.Column(db.String(30), nullable=False, comment='签证类别 japan/korea')
+    data = db.Column(db.Text, nullable=True, comment='字段值 JSON {seq: value}')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<VisaFormTemplate {self.visa_category}:{self.name}>'

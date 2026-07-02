@@ -125,8 +125,8 @@
         </div>
     </div>
 
-    {% if '韩国' in project.visa_type %}
-    <!-- 签证表格（韩国）：填写 / 生成 / 坐标 单独成组 -->
+    {% if '韩国' in project.visa_type or '日本' in project.visa_type %}
+    <!-- 签证表格：填写 / 生成 (坐标管理仅韩国) 单独成组 -->
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-file-lines"></i> 签证表格</h2>
@@ -142,9 +142,11 @@
                         <i class="fas fa-file-excel"></i> 生成表格
                     </button>
                 </form>
+                {% if '韩国' in project.visa_type %}
                 <a href="{{ url_for('visa_project.coordinate_manager', country='korea') }}" class="visa-btn visa-btn-sm visa-btn-warning" title="管理填表坐标">
                     <i class="fas fa-crosshairs"></i> 坐标管理
                 </a>
+                {% endif %}
                 <span style="color: #6b7280; font-size: 0.8rem; margin-left: 0.4rem;">先「填写表格」录入数据，再「生成表格」出 PDF</span>
             </div>
         </div>
@@ -1184,7 +1186,14 @@ function initFormHandlers() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showMessage(data.message, 'success');
+                    showMessage((data.message || '生成成功') + '，正在下载 PDF...', 'success');
+                    // 生成成功后触发浏览器下载到本地
+                    const dlUrl = "{{ url_for('visa_project.download_form', project_id=project.id) }}";
+                    const a = document.createElement('a');
+                    a.href = dlUrl;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
                 } else {
                     throw new Error(data.message || '生成表格失败');
                 }

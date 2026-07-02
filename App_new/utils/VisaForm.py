@@ -458,6 +458,63 @@ class VisasUtils:
             raise Exception(f"合并PDF失败: {str(e)}")
 
     @classmethod
+    def japan_visa_fill_form(cls, visa_folder: str, values: dict, radio_fields=None):
+        """填充日本签证可填 PDF（AcroForm/XFA），输出到项目文件夹。
+
+        :param visa_folder: 项目文件夹名
+        :param values: {字段名: 值}
+        :param radio_fields: 单选框字段名集合（这些值按 /开关名 写入）
+        :return: 生成的 PDF 绝对路径
+        """
+        from pypdf import PdfReader, PdfWriter
+        from pypdf.generic import NameObject, BooleanObject
+        from App_new.config import Config
+
+        master = os.path.join(Config.PROJECT_ROOT, '资源', '签证', '日本签证',
+                              '共用资料', 'visa application form.pdf')
+        if not os.path.exists(master):
+            raise FileNotFoundError(f"日本母版 PDF 不存在: {master}")
+
+        radio_fields = set(radio_fields or [])
+        # 只填非空值；单选框的取值转成 /开关名
+        fill = {}
+        for k, v in (values or {}).items():
+            v = ('' if v is None else str(v)).strip()
+            if not v:
+                continue
+            if k in radio_fields:
+                fill[k] = v if v.startswith('/') else '/' + v
+            else:
+                fill[k] = v
+
+        reader = PdfReader(master)
+        writer = PdfWriter()
+        writer.append(reader)
+        for page in writer.pages:
+            try:
+                # auto_regenerate=True 让 pypdf 自动生成字段外观流，
+                # 保证填入值在各类阅读器(含 Chrome/多行字段)都能显示，不只依赖 NeedAppearances
+                writer.update_page_form_field_values(page, fill, auto_regenerate=True)
+            except Exception as e:
+                print(f"填充某页时出错(忽略): {e}")
+
+        # NeedAppearances 让填入值显示；移除 XFA 避免动态层覆盖 AcroForm
+        try:
+            acro = writer._root_object['/AcroForm'].get_object()
+            acro[NameObject('/NeedAppearances')] = BooleanObject(True)
+            if '/XFA' in acro:
+                del acro[NameObject('/XFA')]
+        except Exception as e:
+            print(f"设置 AcroForm 外观时出错(忽略): {e}")
+
+        out_dir = os.path.join(str(Config.VISA_PROJECTS_PATH), visa_folder)
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, 'Application Form.pdf')
+        with open(out_path, 'wb') as f:
+            writer.write(f)
+        return out_path
+
+    @classmethod
     def check_and_create_folder(cls, path):
         """检查路径是否存在，如果不存在则创建它。"""
         os.makedirs(path, exist_ok=True)

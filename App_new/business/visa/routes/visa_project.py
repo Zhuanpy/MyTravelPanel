@@ -6,7 +6,7 @@ import platform
 import subprocess
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
-from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity, VisaProjectFile, VisaFormCoordinate, VisaProjectFormData
+from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity, VisaProjectFile, VisaFormCoordinate, VisaProjectFormData, VisaFormTemplate
 from werkzeug.utils import secure_filename
 from App_new.utils.VisaForm import VisasUtils
 from App_new.utils.decorators import staff_only
@@ -35,8 +35,9 @@ SUPPORTED_FORM_GENERATION_VISA_TYPES = [
 
 def is_visa_type_supported_for_form_generation(visa_type):
     """检查签证类型是否支持表格生成功能"""
-    # 支持所有包含"韩国"的签证类型
-    return '韩国' in visa_type
+    # 韩国(图片叠字) / 日本(可填 PDF)
+    visa_type = visa_type or ''
+    return '韩国' in visa_type or '日本' in visa_type
 
 # 获取项目文件夹及其创建日期
 def get_project_folders_with_dates(projects_dir, excluded_folders):
@@ -405,6 +406,19 @@ def _cell_str(v):
     return str(v).strip()
 
 
+def _parse_choice_options(remark):
+    """从 Remark 解析选项，如 "男：1)/女：2" → [{value,label}]"""
+    import re
+    opts = []
+    if not remark:
+        return opts
+    for part in str(remark).split('/'):
+        m = re.search(r'(.+?)[：:]\s*([0-9]+)', part)
+        if m:
+            opts.append({'value': m.group(2).strip(), 'label': m.group(1).strip()})
+    return opts
+
+
 def _korea_template_fields():
     """读母版 FormSample.xls，返回填表字段结构列表。
 
@@ -427,18 +441,199 @@ def _korea_template_fields():
         ftype = _cell_str(row.get('类型')) or '填写'
         editable = _cell_str(row.get('是否修改')).upper() == 'Y'
         group = seq.split('.')[0].split('-')[0]  # 取整数前缀作组号
+        remark = _cell_str(row.get('Remark'))
+        form = _cell_str(row.get('FORM'))
+        is_choice = (ftype == '选择')
         fields.append({
             'page': page,
             'seq': seq,
             'type': ftype,
             'section': _KOREA_FORM_SECTIONS.get(group, f'组{group}'),
-            'form': _cell_str(row.get('FORM')),
-            'remark': _cell_str(row.get('Remark')),
+            'form': form,
+            # 统一字段结构（前端通用）
+            'label': form or seq,
+            'ctype': 'select' if is_choice else 'text',
+            'options': _parse_choice_options(remark) if is_choice else [],
+            'remark': remark,
             'editable': editable,
             'applicant': _cell_str(row.get('是否申请人提供信息')).upper() == 'Y',
             'default': _cell_str(row.get('DETAIL')) if not editable else '',
         })
     return fields
+
+
+# ============ 日本签证「填写表格」：字段来自可填 PDF（AcroForm/XFA）============
+# PDF 自带字段名(seq)、/TU 标签、下拉选项；单选框 /TU 是代号，需手工给标签。
+# 单选框：按 PDF 内文字 + 控件位置确定含义与「开关值→标签」。
+# key 用完整短名（RB5 六题各不相同）；options 的 value 必须是控件真实开关值。
+_JP_YESNO = [{'value': '0', 'label': 'Yes 是'}, {'value': '1', 'label': 'No 否'}]
+_JAPAN_RADIO_LABELS = {
+    'RB1[0]': {'label': 'Sex 性别',
+               'options': [{'value': 'M', 'label': 'Male 男'}, {'value': 'F', 'label': 'Female 女'}]},
+    'RB1[1]': {'label': 'Sex 性别',
+               'options': [{'value': 'M', 'label': 'Male 男'}, {'value': 'F', 'label': 'Female 女'}]},
+    'RB3[0]': {'label': 'Passport type 护照类型', 'options': [
+        {'value': '0', 'label': 'Diplomatic 外交'}, {'value': '1', 'label': 'Official 公务'},
+        {'value': '2', 'label': 'Ordinary 普通'}, {'value': '3', 'label': 'Other 其它'}]},
+    'RB2[0]': {'label': 'Marital status 婚姻状况', 'options': [
+        {'value': '0', 'label': 'Single 未婚'}, {'value': '1', 'label': 'Married 已婚'},
+        {'value': '3', 'label': 'Divorced 离异'}, {'value': '2', 'label': 'Widowed 丧偶'}]},
+    # RB5 六个「Have you ever…」是否题（按控件 y 位置从上到下对应）
+    'RB5[3]': {'label': '曾在任何国家被判罪/违法? (crime or offence)', 'options': _JP_YESNO},
+    'RB5[0]': {'label': '曾被判 1 年以上监禁? (imprisonment 1yr+)', 'options': _JP_YESNO},
+    'RB5[1]': {'label': '曾因毒品犯罪被判刑? (drug offence)', 'options': _JP_YESNO},
+    'RB5[5]': {'label': '曾从事卖淫相关活动? (prostitution)', 'options': _JP_YESNO},
+    'RB5[4]': {'label': '曾贩卖人口或教唆协助? (trafficking)', 'options': _JP_YESNO},
+    'RB5[2]': {'label': '曾被遣返/因逾期滞留被驱逐? (deported/overstay)', 'options': _JP_YESNO},
+}
+
+# 部分字段 /TU 只是 Name/Address/Tel（多个区块重名），给清晰标签避免混淆
+_JAPAN_FIELD_LABELS = {
+    'emp_name[0]': 'Employer name 雇主名称',
+    'emp_adr[0]': 'Employer address 雇主地址',
+    'emp_tel[0]': 'Employer tel 雇主电话',
+    'emp_name[1]': '在日住宿/联系人 名称',
+    'emp_adr[1]': '在日住宿/联系人 地址',
+    'emp_tel[1]': '在日住宿/联系人 电话',
+    'T0[1]': 'Current residential address 现住址',
+    'T97[0]': 'Tel 电话',
+    'T3[0]': 'Mobile 手机',
+    'T3[1]': 'E-Mail 邮箱',
+    'guarantor_name[0]': 'Guarantor name 担保人姓名',
+    'guarantor_adr[0]': 'Guarantor address 担保人地址',
+    'guarantor_tel[0]': 'Guarantor tel 担保人电话',
+    'T25[0]': 'Relationship 关系(担保人)',
+    'T5[1]': 'Nationality & status 国籍/身份(担保人)',
+    'T19[0]': 'Inviter name 邀请人姓名',
+    'T23[0]': 'Inviter address 邀请人地址',
+    'T10[0]': 'Inviter tel 邀请人电话',
+    'T25[1]': 'Relationship 关系(邀请人)',
+    'T14[1]': 'Inviter DOB 邀请人生日',
+    'T5[2]': 'Nationality & status 国籍/身份(邀请人)',
+    'T5[3]': 'Inviter profession 邀请人职业',
+}
+
+# 日本填表分段：字段短名 → 段落标题（按内容归类，顺序即展示顺序）
+_JAPAN_SECTIONS = [
+    ('护照信息', ['T49[0]', 'T50[0]', 'T53[0]', 'T57[0]', 'T57[1]', 'T59[0]', 'T34[0]']),
+    ('个人信息', ['T2[0]', 'T7[0]', 'T14[0]', 'T16[0]', 'RB1[0]', 'T16[1]', 'T37[0]', 'RB2[0]', 'RB3[0]']),
+    ('联系方式', ['T0[1]', 'T97[0]', 'T3[0]', 'T3[1]']),
+    ('工作 / 雇主', ['emp_name[0]', 'emp_adr[0]', 'emp_tel[0]', 'T5[0]']),
+    ('访日信息', ['T68[2]', 'T68[3]', 'T66[0]', 'T68[0]', 'T68[1]', 'T62[0]', 'T64[0]',
+                  'emp_name[1]', 'emp_adr[1]', 'emp_tel[1]']),
+    ('在日担保人', ['guarantor_name[0]', 'guarantor_adr[0]', 'guarantor_tel[0]', 'T25[0]']),
+    ('在日邀请人', ['T19[0]', 'T23[0]', 'T10[0]', 'T25[1]', 'T14[1]', 'T5[1]', 'T5[2]', 'T5[3]', 'RB1[1]']),
+    ('配偶 / 家属', ['T16[2]']),
+    ('声明事项', ['RB5[0]', 'RB5[1]', 'RB5[2]', 'RB5[3]', 'RB5[4]', 'RB5[5]']),
+    ('备注 / 申请', ['T28[0]', 'T28[1]', 'T150[0]']),
+]
+# 短名 → (段落标题, 段落序, 段内序)
+_JAPAN_SECTION_MAP = {}
+for _si, (_title, _names) in enumerate(_JAPAN_SECTIONS):
+    for _fi, _n in enumerate(_names):
+        _JAPAN_SECTION_MAP[_n] = (_title, _si, _fi)
+
+
+def _japan_master_pdf_path():
+    """日本签证母版可填 PDF 路径(共用资料)"""
+    from App_new.config import Config
+    return os.path.join(Config.PROJECT_ROOT, '资源', '签证', '日本签证', '共用资料', 'visa application form.pdf')
+
+
+def _japan_template_fields():
+    """读母版 PDF 的 AcroForm，返回统一字段结构列表。
+
+    seq=PDF字段名；label=/TU；ctype=text/select/radio；options 来自 /Opt。
+    同名字段跨页重复的只取一次（填充时按名字会一并填）。
+    """
+    from pypdf import PdfReader
+    path = _japan_master_pdf_path()
+    if not os.path.exists(path):
+        raise FileNotFoundError(f'日本母版 PDF 不存在: {path}')
+    reader = PdfReader(path)
+    all_fields = reader.get_fields() or {}
+
+    # 字段名 → 首次出现的页序（用于分标签页）
+    name_page = {}
+    for pidx, page in enumerate(reader.pages):
+        annots = page.get('/Annots')
+        if not annots:
+            continue
+        for a in annots:
+            try:
+                obj = a.get_object()
+            except Exception:
+                continue
+            if obj.get('/Subtype') != '/Widget':
+                continue
+            t = obj.get('/T')
+            if t is None:
+                parent = obj.get('/Parent')
+                t = parent.get_object().get('/T') if parent else None
+            if t is not None and str(t) not in name_page:
+                name_page[str(t)] = pidx
+
+    type_map = {'/Tx': 'text', '/Ch': 'select', '/Btn': 'radio'}
+    fields, seen = [], set()
+    for name, f in all_fields.items():
+        ft = f.get('/FT')
+        if ft not in type_map:
+            continue  # 跳过 #area 容器等非输入字段
+        # get_fields 的 key 是全限定名，取叶子段作短名(填充/存储都用短名，跨页同名去重)
+        short = str(name).split('.')[-1]
+        if short in seen:
+            continue
+        seen.add(short)
+        name = short
+
+        tu = _cell_str(f.get('/TU'))
+        ctype = type_map[ft]
+
+        # 解析选项
+        options = []
+        opt = f.get('/Opt')
+        if opt:
+            for it in opt:
+                if hasattr(it, '__len__') and not isinstance(it, str) and len(it) >= 2:
+                    options.append({'value': str(it[0]), 'label': str(it[1])})
+                else:
+                    options.append({'value': str(it), 'label': str(it)})
+
+        label = _JAPAN_FIELD_LABELS.get(name, tu or name)
+        # 单选框套用手工标签与正确的选项(覆盖 /Opt，其值可能与真实开关值不符)
+        if ft == '/Btn':
+            rb = _JAPAN_RADIO_LABELS.get(name)
+            if rb:
+                label = rb['label']
+                options = [dict(o) for o in rb['options']]
+
+        pidx = name_page.get(name, 0)
+        sec_title, sec_order, in_order = _JAPAN_SECTION_MAP.get(name, ('其它', 99, 0))
+        fields.append({
+            'page': f'PAGE0{pidx + 1}',
+            'seq': name,
+            'section': sec_title,
+            '_sort': (pidx, sec_order, in_order),
+            'label': label,
+            'ctype': ctype,
+            'options': options,
+            'remark': '',
+            'editable': True,
+            'applicant': False,
+            'default': '',
+        })
+    # 按 页 → 段落序 → 段内序 排列，让同段字段聚在一起且顺序合理
+    fields.sort(key=lambda f: f['_sort'])
+    for f in fields:
+        f.pop('_sort', None)
+    return fields
+
+
+def _project_template_fields(project):
+    """按签证类型选择字段来源：日本→PDF，其余(韩国)→Excel 母版。"""
+    if '日本' in (project.visa_type or ''):
+        return _japan_template_fields()
+    return _korea_template_fields()
 
 
 def _project_form_values(project):
@@ -447,7 +642,11 @@ def _project_form_values(project):
     if rows:
         return {r.seq: (r.detail or '') for r in rows}
 
-    # 兼容老项目：库里没有则尝试读项目文件夹里已填好的 FormSample.xls。
+    # 日本用 PDF 字段名作 key，与韩国 Excel 的坐标序列不通用，不做 Excel 回退
+    if '日本' in (project.visa_type or ''):
+        return {}
+
+    # 兼容老韩国项目：库里没有则尝试读项目文件夹里已填好的 FormSample.xls。
     # 历史项目该文件可能在根目录，也可能在 temp/ 或 visa_form/ 子目录，依次查找。
     from App_new.config import Config
     base = os.path.join(str(Config.VISA_PROJECTS_PATH), project.project_folder_name or '')
@@ -470,6 +669,19 @@ def _project_form_values(project):
         except Exception as e:
             current_app.logger.warning(f'读取项目 FormSample.xls 失败({project.id}, {xls}): {e}')
     return {}
+
+
+def _resolve_form_values(project):
+    """{seq: 值}，值 = 库值→(韩国)固定默认。用于日本 PDF 填充与通用判断。"""
+    fields = _project_template_fields(project)
+    values = _project_form_values(project)
+    out = {}
+    for f in fields:
+        v = values.get(f['seq'])
+        if v is None or v == '':
+            v = f.get('default') or ''
+        out[f['seq']] = v
+    return out
 
 
 def _resolve_form_rows(project):
@@ -499,9 +711,11 @@ def get_project_form_data(project_id):
     if not is_visa_type_supported_for_form_generation(project.visa_type or ''):
         return jsonify({'success': False, 'message': f'签证类型 "{project.visa_type}" 暂不支持填表'}), 400
     try:
-        fields = _korea_template_fields()
+        fields = _project_template_fields(project)
     except FileNotFoundError as e:
         return jsonify({'success': False, 'message': str(e)}), 400
+    except ImportError as e:
+        return jsonify({'success': False, 'message': f'缺少依赖: {e}（日本签证需 pypdf）'}), 500
     values = _project_form_values(project)
     out = []
     for f in fields:
@@ -533,8 +747,8 @@ def save_project_form_data(project_id):
 
     # seq → page 映射(用于给记录补页码)
     try:
-        seq_page = {f['seq']: f['page'] for f in _korea_template_fields()}
-    except FileNotFoundError:
+        seq_page = {f['seq']: f['page'] for f in _project_template_fields(project)}
+    except Exception:
         seq_page = {}
 
     try:
@@ -595,7 +809,7 @@ def generate_form_for_project(project_id):
         missing_fields = []
         if not project.applicant_name:
             missing_fields.append('申请人姓名')
-        if not project.singapore_status:
+        if '韩国' in (project.visa_type or '') and not project.singapore_status:
             missing_fields.append('新加坡身份')
 
         if missing_fields:
@@ -622,10 +836,26 @@ def generate_form_for_project(project_id):
         if not form_path.exists():
             current_app.logger.warning(f"项目文件夹不存在: {form_path}")
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'项目文件夹不存在: {visa_folder}，请先创建项目'
             }), 400
-        
+
+        # 日本签证：填充可填 PDF（AcroForm），输出 Application Form.pdf 到项目文件夹
+        if '日本' in project.visa_type:
+            values = _resolve_form_values(project)
+            if not any((v or '').strip() for v in values.values()):
+                return jsonify({
+                    'success': False,
+                    'message': '尚未填写表格数据，请先点击「填写表格」录入后再生成'
+                }), 400
+            radio_fields = {f['seq'] for f in _project_template_fields(project)
+                            if f.get('ctype') == 'radio'}
+            from App_new.utils.VisaForm import VisasUtils
+            out_path = VisasUtils.japan_visa_fill_form(visa_folder, values, radio_fields=radio_fields)
+            current_app.logger.info(f'日本签证 PDF 生成: {out_path}')
+            return jsonify({'success': True, 'message': '表格生成成功',
+                            'file': os.path.basename(out_path)})
+
         # 韩国签证资源(页面底图 Form-page-N.jpg)必须存在
         from App_new.config import Config
         source_path = Config.PROJECT_ROOT / "资源" / "签证" / "韩国签证" / "source"
@@ -658,7 +888,7 @@ def generate_form_for_project(project_id):
                 'message': f'签证类型 "{project.visa_type}" 的表格生成功能尚未实现'
             }), 400
         
-        return jsonify({'success': True, 'message': '表格生成成功'})
+        return jsonify({'success': True, 'message': '表格生成成功', 'file': 'visa_form.pdf'})
     except FileNotFoundError as e:
         current_app.logger.error(f"文件或目录不存在: {str(e)}")
         return jsonify({'success': False, 'message': f'文件或目录不存在: {str(e)}'}), 500
@@ -669,6 +899,109 @@ def generate_form_for_project(project_id):
         current_app.logger.error(f"生成表格时发生错误: {str(e)}")
         current_app.logger.error(f"错误详情: {traceback.format_exc()}")
         return jsonify({'success': False, 'message': f'生成表格时发生错误: {str(e)}'}), 500
+
+
+def _visa_category(visa_type):
+    """签证类别：japan / korea / ''（模板按此隔离，字段体系不同）"""
+    visa_type = visa_type or ''
+    if '日本' in visa_type:
+        return 'japan'
+    if '韩国' in visa_type:
+        return 'korea'
+    return ''
+
+
+@visa_project.route('/form-templates', methods=['GET'])
+@login_required
+@staff_only
+def list_form_templates():
+    """列出填表模板（可按 category 过滤）。"""
+    category = (request.args.get('category') or '').strip()
+    q = VisaFormTemplate.query
+    if category:
+        q = q.filter_by(visa_category=category)
+    items = q.order_by(VisaFormTemplate.updated_at.desc()).all()
+    return jsonify({'success': True, 'templates': [
+        {'id': t.id, 'name': t.name, 'category': t.visa_category} for t in items]})
+
+
+@visa_project.route('/form-templates', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def create_form_template():
+    """保存填表模板：{name, category, values:{seq:value}}。同名+同类别则覆盖。"""
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    category = (data.get('category') or '').strip()
+    values = data.get('values') or {}
+    if not name:
+        return jsonify({'success': False, 'message': '请填写模板名称'}), 400
+    if not isinstance(values, dict):
+        return jsonify({'success': False, 'message': 'values 必须是对象'}), 400
+    payload = json.dumps({k: v for k, v in values.items() if str(v).strip()}, ensure_ascii=False)
+    tpl = VisaFormTemplate.query.filter_by(name=name, visa_category=category).first()
+    try:
+        if tpl:
+            tpl.data = payload  # 覆盖同名模板
+        else:
+            tpl = VisaFormTemplate(name=name, visa_category=category, data=payload)
+            db.session.add(tpl)
+        db.session.commit()
+        return jsonify({'success': True, 'id': tpl.id, 'name': tpl.name})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'保存失败: {e}'}), 500
+
+
+@visa_project.route('/form-templates/<int:tid>', methods=['GET'])
+@login_required
+@staff_only
+def get_form_template(tid):
+    """取模板的字段值。"""
+    tpl = VisaFormTemplate.query.get_or_404(tid)
+    try:
+        values = json.loads(tpl.data or '{}')
+    except Exception:
+        values = {}
+    return jsonify({'success': True, 'name': tpl.name, 'values': values})
+
+
+@visa_project.route('/form-templates/<int:tid>', methods=['DELETE'])
+@csrf.exempt
+@login_required
+@staff_only
+def delete_form_template(tid):
+    """删除模板。"""
+    tpl = VisaFormTemplate.query.get_or_404(tid)
+    try:
+        db.session.delete(tpl)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {e}'}), 500
+
+
+@visa_project.route('/<int:project_id>/download-form', methods=['GET'])
+@login_required
+@staff_only
+def download_form(project_id):
+    """下载已生成的签证表格 PDF（韩国 visa_form.pdf / 日本 Application Form.pdf）。"""
+    project = VisaProject.query.get_or_404(project_id)
+    from App_new.config import Config
+    folder = os.path.join(str(Config.VISA_PROJECTS_PATH), project.project_folder_name or '')
+    fname = 'Application Form.pdf' if '日本' in (project.visa_type or '') else 'visa_form.pdf'
+    path = os.path.join(folder, fname)
+    if not os.path.exists(path):
+        return jsonify({'success': False, 'message': '未找到已生成的表格，请先点击「生成表格」'}), 404
+    dl_name = f"{(project.applicant_name or 'visa').strip()}_{(project.visa_type or 'form').strip()}.pdf"
+    from flask import send_file
+    try:
+        return send_file(path, as_attachment=True, download_name=dl_name)
+    except TypeError:
+        # 兼容旧版 Flask
+        return send_file(path, as_attachment=True, attachment_filename=dl_name)
 
 
 """ 签证详细 开始 """
