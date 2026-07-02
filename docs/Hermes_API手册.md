@@ -98,13 +98,16 @@
 | `/search_airports` | GET | query `iata,city` | 机场模糊搜索 |
 | `/flights_booking/parse_flight_text` | POST | JSON `text` | 粘贴行程文字 → 结构化航段/乘客 |
 | `/flights_booking/parse_flight_image` | POST | JSON `image,platform` | 截图 OCR → 航段 |
-| `/flights_athina/parse_flights` | POST | JSON `text` | 解析 Trip/携程/Google Flights/酷航 行程 |
-| `/flights_athina/generate_booking_code` | POST | JSON `[{flightNumber,flightDate}]` | 生成 GDS 订位指令串（**非真实预订**） |
+| `/flights_athina/parse_flights` | POST | JSON `text` | 解析 Trip/携程/Google Flights/酷航 行程 → 航段（对应 conversion 页「航班解析」标签） |
+| `/flights_athina/api/convert_itinerary` | POST | JSON `text,language,luggage,price` | 行程文本 → 格式化中/英文行程单（对应「机票行程转换」标签） |
+| `/flights_athina/generate_booking_code` | POST | JSON `[{flightNumber,flightDate}]` | 生成 GDS 订位指令串（对应「ATHINA代码生成」标签，**非真实预订**） |
 | `/flights_usbangla/parse_pdf` | POST | files `pdf_file` | 解析 US-Bangla 电子票 |
 | `/flights_usbangla/parse_mu_pdf` `/parse_tongcheng_pdf` `/parse_text_itinerary` | POST | files/JSON | 东航/同程/文本行程解析 |
 | `/ocr_flight_info` | POST | files `file` | 航班信息图片 OCR |
 
 > ⚠️ athina/usbangla/booking 里**没有真实自动预订**能力，只有查询/解析/生成订位串。
+> ⚠️ `/flights_athina/conversion?tab=parse|itinerary|athina` 是**页面路由**（渲染工具页 HTML），
+> 不要当 API 调；三个标签的实际能力就是上表对应的三个 POST 接口。
 
 ---
 

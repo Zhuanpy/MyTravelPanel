@@ -88,12 +88,24 @@ def athina_simple():
     """简化的Athina页面"""
     return render_template('business/flight/flight_athina.html')
 
+# 页面内三个工具标签：parse=航班解析 / itinerary=机票行程转换 / athina=ATHINA代码生成
+_CONVERSION_TABS = ('parse', 'itinerary', 'athina')
+
+
 @flights_athina.route('/conversion', methods=['GET'])
 @login_required
 @staff_only
 def athina_conversion():
-    """Athina机票工具整合页面"""
-    return render_template('business/flight/flight_athina_conversion.html', output_text="")
+    """Athina机票工具整合页面
+
+    通过 ?tab= 参数区分当前激活的标签页，便于刷新/收藏/分享时保留标签状态。
+    非法或缺省值一律回退到 parse。
+    """
+    tab = request.args.get('tab', 'parse')
+    if tab not in _CONVERSION_TABS:
+        tab = 'parse'
+    return render_template('business/flight/flight_athina_conversion.html',
+                           output_text="", active_tab=tab)
 
 @flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
 @login_required
@@ -163,6 +175,48 @@ def itinerary_conversion():
     
     # GET请求返回行程转换页面
     return render_template('flights/flight_conversion.html', output_text="")
+
+@flights_athina.route('/api/convert_itinerary', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_convert_itinerary():
+    """机票行程转换（干净 JSON 版，供 Hermes/脚本调用）
+
+    与 /itinerary_conversion 同一套格式化逻辑，但只收 JSON、只回 JSON，
+    无需伪造 X-Requested-With 头。
+
+    请求体：
+        {"text": "<行程文本>", "language": "chinese|english",
+         "luggage": "<行李，可选>", "price": "<价格，可选>"}
+    返回：
+        {"success": true, "output_text": "...", "language": "..."}
+        {"success": false, "error": "..."}
+    """
+    data = request.get_json(silent=True) or {}
+    input_text = (data.get('text') or '').strip()
+    language = (data.get('language') or 'chinese').strip().lower()
+    luggage = data.get('luggage') or ''
+    price = data.get('price') or ''
+
+    if not input_text:
+        return jsonify({'success': False, 'error': '请提供行程文本 text'}), 400
+
+    try:
+        if language == 'english':
+            output_text = format_flight_info(city_language, texts=input_text,
+                                              language='EN', luggage=luggage, price=price)
+        else:
+            output_text = format_flight_info(city_language, texts=input_text,
+                                              luggage=luggage, price=price)
+        return jsonify({
+            'success': True,
+            'output_text': output_text,
+            'language': language,
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'行程转换失败：{str(e)}'}), 500
+
 
 @flights_athina.route('/generate_booking_code', methods=['POST'])
 @csrf.exempt
