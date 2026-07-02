@@ -35,10 +35,18 @@
             <span style="font-size:0.85rem; color:#4b5563;">模板：</span>
             <select id="tplSelect" class="visa-form-select" style="width:auto; min-width:180px; height:34px;"></select>
             <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" onclick="applyTemplate()"><i class="fas fa-download"></i> 应用</button>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" onclick="editTemplate()" title="载入模板进行编辑"><i class="fas fa-pen"></i> 编辑</button>
             <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" onclick="deleteTemplate()" title="删除所选模板"><i class="fas fa-trash"></i></button>
             <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
             <button type="button" class="visa-btn visa-btn-sm visa-btn-success" onclick="saveAsTemplate()"><i class="fas fa-save"></i> 将当前表存为模板</button>
             <span style="color:#9ca3af; font-size:0.78rem;">应用后按需改申请人专属字段（姓名/护照等）再保存</span>
+        </div>
+        <!-- 模板编辑态提示条 -->
+        <div id="tplEditBanner" style="display:none; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.9rem; padding:0.6rem 0.8rem; background:#fffbeb; border:1px solid #fde68a; border-radius:6px;">
+            <i class="fas fa-pen" style="color:#d97706;"></i>
+            <span style="font-size:0.85rem; color:#92400e;">正在编辑模板「<b id="tplEditName"></b>」——修改上方字段后点更新保存回模板</span>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-warning" onclick="updateEditingTemplate()"><i class="fas fa-save"></i> 更新模板</button>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" onclick="exitEditingTemplate()">退出编辑</button>
         </div>
         <div id="fillFormTabs"></div>
     </div>
@@ -142,6 +150,48 @@ function deleteTemplate() {
         loadTemplates();
     })
     .catch(err => setStatus(err.message || '删除失败', false));
+}
+
+// 模板编辑：载入所选模板到表单，进入编辑态
+let _editingTpl = null;
+function editTemplate() {
+    const sel = document.getElementById('tplSelect');
+    const id = sel.value;
+    const nm = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    if (!id) { setStatus('请先选择模板', false); return; }
+    fetch(TPL_URL + '/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message || '读取模板失败');
+            applyValues(data.values || {});
+            _editingTpl = { id: id, name: data.name || nm };
+            document.getElementById('tplEditName').textContent = _editingTpl.name;
+            document.getElementById('tplEditBanner').style.display = 'flex';
+            setStatus(`已载入模板「${_editingTpl.name}」，改完点「更新模板」`, true);
+        })
+        .catch(err => setStatus(err.message || '编辑失败', false));
+}
+
+function updateEditingTemplate() {
+    if (!_editingTpl) return;
+    fetch(TPL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ name: _editingTpl.name, category: VISA_CATEGORY, values: gatherFormValues() })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.message || '更新失败');
+        setStatus(`模板「${_editingTpl.name}」已更新`, true);
+        exitEditingTemplate();
+        loadTemplates();
+    })
+    .catch(err => setStatus(err.message || '更新失败', false));
+}
+
+function exitEditingTemplate() {
+    _editingTpl = null;
+    document.getElementById('tplEditBanner').style.display = 'none';
 }
 
 // 顶部状态条提示
