@@ -19,6 +19,11 @@
 - **入参形态**：标注 `JSON` 用 `Content-Type: application/json`；标注 `form` 用表单编码；标注 `files` 用 multipart。
 - **参考脚本**：`scripts/20260701_create_order_via_api.py`（完整下单流水线，权威示例）。
 
+### 自描述接口（Hermes 开机 fetch 一次即可拿到最新清单）
+- `GET /api/hermes/catalog` —— 结构化 JSON 接口目录（含分组、路径、入参、说明），agent 好解析。
+- `GET /api/hermes/manual` —— 返回本手册 markdown 全文（运行时读取，始终最新）。
+- 二者都走 token 鉴权。Hermes 记忆里只需存「去 `/api/hermes/catalog` 拿清单」一句，不必记全文。
+
 ---
 
 ## 1. 机票下单（核心闭环，已打通）

@@ -178,6 +178,7 @@ def create_app():
     from .shared.routes.supplier import supplier
     from .utils.routes.checklist import checklist_bp
     from .shared.models.routes_files import files_process
+    from .shared.routes.hermes_api import hermes_api
 
     app.register_blueprint(utils_blue, url_prefix='/utils')
     app.register_blueprint(utils_process, url_prefix='/utils_process')
@@ -188,6 +189,7 @@ def create_app():
     app.register_blueprint(business_types, url_prefix='/business_types')
     app.register_blueprint(supplier, url_prefix='/supplier')
     app.register_blueprint(checklist_bp)  # 任务清单蓝图，已包含 url_prefix='/utils/checklists'
+    app.register_blueprint(hermes_api)  # Hermes 自描述接口，已包含 url_prefix='/api/hermes'
 
     # 财务模块 - 银行对账单路由
     from .finance.routes.uob_routes import uob_blue
