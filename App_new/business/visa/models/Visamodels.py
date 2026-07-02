@@ -785,3 +785,91 @@ class VisaProjectFile(db.Model):
             return f'{self.file_size / 1024:.1f} KB'
         else:
             return f'{self.file_size / (1024 * 1024):.1f} MB'
+
+
+class VisaFormCoordinate(db.Model):
+    """签证表单填写坐标表
+
+    原本存放在 资源/签证/<国家>/source/坐标列表.xls,改为入库防止文件丢失。
+    通用设计:用 country 字段区分国家,目前仅韩国(korea)在用。
+    匹配逻辑按 (country, seq) 定位坐标 X/Y。
+    """
+    __tablename__ = 'visa_form_coordinates'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    # 国家/签证类型标识(如 korea),与资源文件夹一一对应
+    country = db.Column(db.String(50), nullable=False, comment='国家/签证类型标识')
+    # 页码,如 PAGE01
+    page = db.Column(db.String(20), nullable=False, comment='页码')
+    # 坐标序列,如 1.0-1(填表数据按此序列匹配坐标)
+    seq = db.Column(db.String(20), nullable=False, comment='坐标序列')
+    # 坐标位置
+    coord_x = db.Column(db.Integer, nullable=False, comment='坐标X')
+    coord_y = db.Column(db.Integer, nullable=False, comment='坐标Y')
+    # 说明信息(便于后台维护辨认)
+    label = db.Column(db.String(255), comment='坐标说明')
+    coord_type = db.Column(db.String(50), comment='坐标类型,如 填写/选填')
+    type_note = db.Column(db.String(255), comment='类型说明')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('country', 'seq', name='uq_visa_coord_country_seq'),
+        db.Index('idx_visa_coord_country_page', 'country', 'page'),
+    )
+
+    def __repr__(self):
+        return f'<VisaFormCoordinate {self.country} {self.page} {self.seq} ({self.coord_x},{self.coord_y})>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'country': self.country,
+            'page': self.page,
+            'seq': self.seq,
+            'coord_x': self.coord_x,
+            'coord_y': self.coord_y,
+            'label': self.label,
+            'coord_type': self.coord_type,
+            'type_note': self.type_note,
+        }
+
+
+class VisaProjectFormData(db.Model):
+    """签证项目填表数据表
+
+    存每个项目、每个坐标序列(seq)要填的值(detail)。字段结构(标签/类型/选项)
+    仍来自母版 FormSample.xls；本表只存"值"，替代过去手工编辑项目文件夹里的 Excel。
+    去重键: (project_id, seq)。
+    """
+
+    __tablename__ = 'visa_project_form_data'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer,
+                           db.ForeignKey('visa_projects.id', ondelete='CASCADE'),
+                           nullable=False, comment='所属签证项目')
+    page = db.Column(db.String(20), nullable=True, comment='页码,如 PAGE01')
+    seq = db.Column(db.String(20), nullable=False, comment='坐标序列,与坐标表/母版匹配')
+    detail = db.Column(db.Text, nullable=True, comment='填写的值')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('project_id', 'seq', name='uq_visa_form_data_project_seq'),
+        db.Index('idx_visa_form_data_project', 'project_id'),
+    )
+
+    def __repr__(self):
+        return f'<VisaProjectFormData p={self.project_id} {self.seq}={self.detail!r}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'project_id': self.project_id,
+            'page': self.page,
+            'seq': self.seq,
+            'detail': self.detail,
+        }

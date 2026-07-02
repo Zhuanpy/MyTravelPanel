@@ -115,8 +115,12 @@ _CATALOG = {
             'endpoints': [
                 {'method': 'POST', 'path': '/visa/project/api/files/<pid>/upload',
                  'input': 'multipart files+description', 'desc': '上传签证材料'},
+                {'method': 'GET', 'path': '/visa/project/<id>/form-data',
+                 'input': '-', 'desc': '读取韩国签证填表字段结构+已填值'},
+                {'method': 'POST', 'path': '/visa/project/<id>/form-data',
+                 'input': 'JSON {values:{seq:detail}}', 'desc': '写入申请人填表值（存库，供 generate_form 生成）'},
                 {'method': 'POST', 'path': '/visa/project/generate_form/<id>',
-                 'input': '-', 'desc': '生成韩国签证表格（申请人数据仍来自项目文件夹 FormSample.xls）'},
+                 'input': '-', 'desc': '生成韩国签证表格（填表值改从数据库读取）'},
                 {'method': 'POST', 'path': '/visa/project/sync_project_documents/<id>',
                  'input': '-', 'desc': '从模板同步资料清单'},
             ],

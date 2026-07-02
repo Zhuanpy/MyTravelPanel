@@ -230,12 +230,14 @@ class VisasUtils:
         output.save(pdfFilePath, "pdf", save_all=True, append_images=sources)
 
     @classmethod
-    def korea_visa_fill_form(cls, visa_folder: str, static_path):
+    def korea_visa_fill_form(cls, visa_folder: str, static_path, form_rows=None):
         """
         根据提供的表格信息填充表单，并生成对应的图片和 PDF 文件。
 
         :param visa_folder: 项目文件夹夹名称
         :param static_path: 数据 flask 项目 static 文件夹路径，其它资源文件通过此文件夹找
+        :param form_rows: 可选，填表数据行 [{PAGE, 坐标序列, 类型, DETAIL}]。
+                          传入时用它(来自数据库)；不传则回退读项目文件夹的 FormSample.xls。
         """
         from App_new.config import Config
         visa_project_path = Config.VISA_PROJECTS_PATH
@@ -253,86 +255,94 @@ class VisasUtils:
         if not os.path.exists(source_path):
             raise FileNotFoundError(f"韩国签证资源路径不存在: {source_path}")
 
+        # 从数据库读取韩国签证坐标(原 坐标列表.xls 已入库 visa_form_coordinates)
+        from App_new.business.visa.models import VisaFormCoordinate
+        coord_rows = VisaFormCoordinate.query.filter_by(country='korea').all()
+        if not coord_rows:
+            raise Exception(
+                "数据库中没有韩国签证坐标数据 (visa_form_coordinates, country='korea')，"
+                "请先运行 scripts/20260629_import_korea_visa_coordinates.py 导入"
+            )
+        loc_all = pd.DataFrame([{
+            'PAGE': c.page,
+            '坐标序列': str(c.seq),
+            '坐标X': int(c.coord_x),
+            '坐标Y': int(c.coord_y),
+        } for c in coord_rows])
+        print(f"从数据库读取到 {len(loc_all)} 条韩国签证坐标")
+
         for p in range(1, 6):
             page = f'PAGE0{p}'
-            loc_file = os.path.join(source_path, "坐标列表.xls")
-            
-            # 检查坐标文件是否存在
-            if not os.path.exists(loc_file):
-                raise FileNotFoundError(f"坐标列表文件不存在: {loc_file}")
-            
-            # 读取坐标信息
-            try:
-                loc_list = pd.read_excel(loc_file, sheet_name='Sheet1')
-                print(f"坐标文件列名: {list(loc_list.columns)}")
-                print(f"查找页面: {page}")
-                
-                # 过滤当前页面的数据
-                loc_list = loc_list[loc_list['PAGE'] == page]
-                print(f"找到 {len(loc_list)} 条坐标数据")
-                
-                # 确保坐标序列是字符串类型
-                loc_list['坐标序列'] = loc_list['坐标序列'].astype(str)
-                
-                # 确保坐标X和坐标Y是整数类型
-                loc_list['坐标X'] = loc_list['坐标X'].astype(int)
-                loc_list['坐标Y'] = loc_list['坐标Y'].astype(int)
-                
-                print(f"坐标序列示例: {list(loc_list['坐标序列'].head())}")
-                
-            except Exception as e:
-                raise Exception(f"读取坐标文件失败: {str(e)}")
 
-            # 清理填写表格信息
-            form_sample = os.path.join(form_path, "FormSample.xls")
-            
-            print(f"尝试读取表单文件: {form_sample}")
-            
-            # 检查表单模板文件是否存在
-            if not os.path.exists(form_sample):
-                print(f"错误: 表单模板文件不存在: {form_sample}")
-                print(f"请确保在项目文件夹 {form_path} 中有 FormSample.xls 文件")
-                raise FileNotFoundError(f"表单模板文件不存在: {form_sample}")
-            
-            print(f"成功找到表单文件: {form_sample}")
-            
-            try:
-                form = pd.read_excel(form_sample, sheet_name='Sheet1')
-                
-                # 检查必需的列是否存在
-                required_columns = ['PAGE', 'DETAIL', '坐标序列', '类型']
-                missing_columns = [col for col in required_columns if col not in form.columns]
-                
-                if missing_columns:
-                    print(f"警告: FormSample.xls 缺少以下列: {missing_columns}")
-                    print(f"现有列: {list(form.columns)}")
-                    
-                    # 如果缺少PAGE列，添加默认值
-                    if 'PAGE' not in form.columns:
-                        form['PAGE'] = page
-                        print(f"已添加默认PAGE列: {page}")
-                    
-                    # 如果缺少其他列，添加空值
-                    for col in missing_columns:
-                        if col != 'PAGE':
-                            form[col] = ''
-                            print(f"已添加空列: {col}")
-                
-                # 过滤当前页面的数据
-                form = form[form['PAGE'] == page]
-                
-                # 过滤非空数据
-                if 'DETAIL' in form.columns:
-                    form = form[~(form['DETAIL'].isnull())]
-                
-                # 确保数据类型正确
-                if '坐标序列' in form.columns and 'DETAIL' in form.columns:
+            # 过滤当前页面的坐标数据
+            loc_list = loc_all[loc_all['PAGE'] == page].copy()
+            print(f"查找页面: {page}，找到 {len(loc_list)} 条坐标数据")
+
+            # 确保数据类型正确
+            loc_list['坐标序列'] = loc_list['坐标序列'].astype(str)
+            loc_list['坐标X'] = loc_list['坐标X'].astype(int)
+            loc_list['坐标Y'] = loc_list['坐标Y'].astype(int)
+
+            # 获取当前页要填写的数据：优先用调用方传入的 form_rows(来自数据库)，
+            # 否则回退读项目文件夹里的 FormSample.xls(向后兼容)。
+            if form_rows is not None:
+                page_rows = [r for r in form_rows if r.get('PAGE') == page]
+                form = pd.DataFrame(page_rows, columns=['PAGE', '坐标序列', '类型', 'DETAIL'])
+                if not form.empty:
+                    form = form[form['DETAIL'].astype(str).str.strip() != '']
                     form[["坐标序列", "DETAIL"]] = form[["坐标序列", "DETAIL"]].astype(str)
-                
-                print(f"处理页面 {page}，找到 {len(form)} 条数据")
-                
-            except Exception as e:
-                raise Exception(f"读取表单模板文件失败: {str(e)}")
+                print(f"[DB] 处理页面 {page}，找到 {len(form)} 条填表数据")
+            else:
+                # 清理填写表格信息
+                form_sample = os.path.join(form_path, "FormSample.xls")
+
+                print(f"尝试读取表单文件: {form_sample}")
+
+                # 检查表单模板文件是否存在
+                if not os.path.exists(form_sample):
+                    print(f"错误: 表单模板文件不存在: {form_sample}")
+                    print(f"请确保在项目文件夹 {form_path} 中有 FormSample.xls 文件")
+                    raise FileNotFoundError(f"表单模板文件不存在: {form_sample}")
+
+                print(f"成功找到表单文件: {form_sample}")
+
+                try:
+                    form = pd.read_excel(form_sample, sheet_name='Sheet1')
+
+                    # 检查必需的列是否存在
+                    required_columns = ['PAGE', 'DETAIL', '坐标序列', '类型']
+                    missing_columns = [col for col in required_columns if col not in form.columns]
+
+                    if missing_columns:
+                        print(f"警告: FormSample.xls 缺少以下列: {missing_columns}")
+                        print(f"现有列: {list(form.columns)}")
+
+                        # 如果缺少PAGE列，添加默认值
+                        if 'PAGE' not in form.columns:
+                            form['PAGE'] = page
+                            print(f"已添加默认PAGE列: {page}")
+
+                        # 如果缺少其他列，添加空值
+                        for col in missing_columns:
+                            if col != 'PAGE':
+                                form[col] = ''
+                                print(f"已添加空列: {col}")
+
+                    # 过滤当前页面的数据
+                    form = form[form['PAGE'] == page]
+
+                    # 过滤非空数据
+                    if 'DETAIL' in form.columns:
+                        form = form[~(form['DETAIL'].isnull())]
+
+                    # 确保数据类型正确
+                    if '坐标序列' in form.columns and 'DETAIL' in form.columns:
+                        form[["坐标序列", "DETAIL"]] = form[["坐标序列", "DETAIL"]].astype(str)
+
+                    print(f"处理页面 {page}，找到 {len(form)} 条数据")
+
+                except Exception as e:
+                    raise Exception(f"读取表单模板文件失败: {str(e)}")
 
             # 打开图片并创建绘图对象
             image_name = f"Form-page-{p}.jpg"  # 使用Form-page-1.jpg, Form-page-2.jpg等格式

@@ -6,7 +6,7 @@ import platform
 import subprocess
 from flask_login import login_required, current_user
 from App_new.exts import db, csrf
-from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity, VisaProjectFile
+from App_new.business.visa.models.Visamodels import VisaTypes, VisaDocuments, VisaLinks, VisaProject, VisaCountries, VisaSingaporeIdentity, VisaProjectFile, VisaFormCoordinate, VisaProjectFormData
 from werkzeug.utils import secure_filename
 from App_new.utils.VisaForm import VisasUtils
 from App_new.utils.decorators import staff_only
@@ -371,6 +371,207 @@ def edit_project(project_id):
     return render_template('business/visa/签证项目管理/visa_project_edit.html', project=project)
 
 
+# ============ 韩国签证「填写表格」：字段模板 + 项目填表值 ============
+# 字段结构(标签/类型/选项)来自母版 FormSample.xls；填的值存 visa_project_form_data。
+
+# 韩国签证填表分段：按坐标序列整数前缀(组号)归类，给每段一个可读标题
+_KOREA_FORM_SECTIONS = {
+    '1': '个人信息',
+    '2': '停留信息',
+    '3': '护照信息',
+    '4': '联系方式 / 紧急联络人',
+    '5': '婚姻 / 配偶 / 子女',
+    '6': '学历',
+    '7': '雇佣 / 公司',
+    '8': '访问信息',
+    '9': '邀请机构',
+    '10': '费用 / 赞助人',
+    '11': '其它',
+    '12': '签名',
+}
+
+
+def _korea_master_template_path():
+    """韩国签证母版 FormSample.xls 路径(共用资料)"""
+    from App_new.config import Config
+    return os.path.join(Config.PROJECT_ROOT, '资源', '签证', '韩国签证', '共用资料', 'FormSample.xls')
+
+
+def _cell_str(v):
+    """Excel 单元格 → 干净字符串(NaN/None → '')"""
+    import pandas as pd
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ''
+    return str(v).strip()
+
+
+def _korea_template_fields():
+    """读母版 FormSample.xls，返回填表字段结构列表。
+
+    每项: {page, seq, type(填写/选择), form(标签), remark(提示/选项), editable, applicant, default}
+    - type '选择' 用 remark 里的 "男：1)/女：2" 生成下拉；'填写' 用文本框
+    - editable=False(是否修改=N) 的是固定默认值，前端只读
+    - default 仅对固定字段有意义(母版里 Y 字段是样例数据，不作默认)
+    """
+    import pandas as pd
+    path = _korea_master_template_path()
+    if not os.path.exists(path):
+        raise FileNotFoundError(f'母版模板不存在: {path}')
+    df = pd.read_excel(path, sheet_name='Sheet1')
+    fields = []
+    for _, row in df.iterrows():
+        page = _cell_str(row.get('PAGE'))
+        seq = _cell_str(row.get('坐标序列'))
+        if not page or not seq:
+            continue  # 跳过分隔/空行
+        ftype = _cell_str(row.get('类型')) or '填写'
+        editable = _cell_str(row.get('是否修改')).upper() == 'Y'
+        group = seq.split('.')[0].split('-')[0]  # 取整数前缀作组号
+        fields.append({
+            'page': page,
+            'seq': seq,
+            'type': ftype,
+            'section': _KOREA_FORM_SECTIONS.get(group, f'组{group}'),
+            'form': _cell_str(row.get('FORM')),
+            'remark': _cell_str(row.get('Remark')),
+            'editable': editable,
+            'applicant': _cell_str(row.get('是否申请人提供信息')).upper() == 'Y',
+            'default': _cell_str(row.get('DETAIL')) if not editable else '',
+        })
+    return fields
+
+
+def _project_form_values(project):
+    """项目已填的值 {seq: detail}。优先数据库，其次旧的 FormSample.xls，最后空。"""
+    rows = VisaProjectFormData.query.filter_by(project_id=project.id).all()
+    if rows:
+        return {r.seq: (r.detail or '') for r in rows}
+
+    # 兼容老项目：库里没有则尝试读项目文件夹里已填好的 FormSample.xls。
+    # 历史项目该文件可能在根目录，也可能在 temp/ 或 visa_form/ 子目录，依次查找。
+    from App_new.config import Config
+    base = os.path.join(str(Config.VISA_PROJECTS_PATH), project.project_folder_name or '')
+    for sub in ('', 'temp', 'visa_form', 'vsia_form'):
+        xls = os.path.join(base, sub, 'FormSample.xls')
+        if not os.path.exists(xls):
+            continue
+        try:
+            import pandas as pd
+            df = pd.read_excel(xls, sheet_name='Sheet1')
+            values = {}
+            for _, row in df.iterrows():
+                seq = _cell_str(row.get('坐标序列'))
+                detail = _cell_str(row.get('DETAIL'))
+                if seq and detail:
+                    values[seq] = detail
+            if values:  # 找到有内容的就用它
+                current_app.logger.info(f'项目{project.id} 从 {xls} 读到 {len(values)} 条填表值')
+                return values
+        except Exception as e:
+            current_app.logger.warning(f'读取项目 FormSample.xls 失败({project.id}, {xls}): {e}')
+    return {}
+
+
+def _resolve_form_rows(project):
+    """构建生成表格所需的行: [{PAGE, 坐标序列, 类型, DETAIL}]，值 = 库值→旧Excel→固定默认。"""
+    fields = _korea_template_fields()
+    values = _project_form_values(project)
+    rows = []
+    for f in fields:
+        detail = values.get(f['seq'])
+        if detail is None or detail == '':
+            detail = f['default']  # 固定字段回退默认；可填字段为空则空(生成时会跳过)
+        rows.append({
+            'PAGE': f['page'],
+            '坐标序列': f['seq'],
+            '类型': f['type'],
+            'DETAIL': detail,
+        })
+    return rows
+
+
+@visa_project.route('/<int:project_id>/form-data', methods=['GET'])
+@login_required
+@staff_only
+def get_project_form_data(project_id):
+    """读取项目填表表单(字段结构 + 已填值)，供详情页「填写表格」渲染。"""
+    project = VisaProject.query.get_or_404(project_id)
+    if not is_visa_type_supported_for_form_generation(project.visa_type or ''):
+        return jsonify({'success': False, 'message': f'签证类型 "{project.visa_type}" 暂不支持填表'}), 400
+    try:
+        fields = _korea_template_fields()
+    except FileNotFoundError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+    values = _project_form_values(project)
+    out = []
+    for f in fields:
+        v = values.get(f['seq'])
+        if v is None or v == '':
+            v = f['default']
+        out.append({**f, 'value': v})
+    return jsonify({'success': True, 'fields': out})
+
+
+@visa_project.route('/<int:project_id>/form-data', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def save_project_form_data(project_id):
+    """保存项目填表值到 visa_project_form_data（整体替换该项目的记录）。
+
+    请求体: {"values": {"1.1-1": "LYU", "1.4-": "23 MAR 1989", ...}}
+    只存非空值；页码从母版模板匹配。
+    """
+    project = VisaProject.query.get_or_404(project_id)
+    if not is_visa_type_supported_for_form_generation(project.visa_type or ''):
+        return jsonify({'success': False, 'message': f'签证类型 "{project.visa_type}" 暂不支持填表'}), 400
+
+    data = request.get_json(silent=True) or {}
+    values = data.get('values') or {}
+    if not isinstance(values, dict):
+        return jsonify({'success': False, 'message': 'values 必须是 {seq: detail} 对象'}), 400
+
+    # seq → page 映射(用于给记录补页码)
+    try:
+        seq_page = {f['seq']: f['page'] for f in _korea_template_fields()}
+    except FileNotFoundError:
+        seq_page = {}
+
+    try:
+        # 整体替换：先删该项目旧记录，再插入非空值
+        VisaProjectFormData.query.filter_by(project_id=project.id).delete()
+        saved = 0
+        for seq, detail in values.items():
+            detail = (str(detail) if detail is not None else '').strip()
+            if not detail:
+                continue
+            db.session.add(VisaProjectFormData(
+                project_id=project.id,
+                page=seq_page.get(seq),
+                seq=seq,
+                detail=detail,
+            ))
+            saved += 1
+        db.session.commit()
+        return jsonify({'success': True, 'saved': saved})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'保存填表数据失败({project_id}): {e}')
+        return jsonify({'success': False, 'message': f'保存失败: {e}'}), 500
+
+
+@visa_project.route('/<int:project_id>/fill-form', methods=['GET'])
+@login_required
+@staff_only
+def fill_form_page(project_id):
+    """填写签证表格的独立页面（数据仍走 /form-data 接口）。"""
+    project = VisaProject.query.get_or_404(project_id)
+    if not is_visa_type_supported_for_form_generation(project.visa_type or ''):
+        flash(f'签证类型 "{project.visa_type}" 暂不支持填表', 'warning')
+        return redirect(url_for('visa_project.visa_detail', project_id=project.id))
+    return render_template('business/visa/签证项目管理/visa_form_fill.html', project=project)
+
+
 @visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
 @csrf.exempt
 def generate_form_for_project(project_id):
@@ -425,58 +626,35 @@ def generate_form_for_project(project_id):
                 'message': f'项目文件夹不存在: {visa_folder}，请先创建项目'
             }), 400
         
-        # 检查FormSample.xls文件是否存在
-        form_sample_path = form_path / "FormSample.xls"
-        current_app.logger.info(f"检查表单模板文件: {form_sample_path}")
-        if not form_sample_path.exists():
-            current_app.logger.warning(f"表单模板文件不存在: {form_sample_path}")
-            return jsonify({
-                'success': False, 
-                'message': f'表单模板文件不存在: {form_sample_path}'
-            }), 400
-        
-        # 检查韩国签证资源文件是否存在
+        # 韩国签证资源(页面底图 Form-page-N.jpg)必须存在
         from App_new.config import Config
         source_path = Config.PROJECT_ROOT / "资源" / "签证" / "韩国签证" / "source"
-        
         current_app.logger.info(f"检查韩国签证资源路径: {source_path}")
-        
         if not source_path.exists():
             current_app.logger.warning(f"韩国签证资源文件不存在: {source_path}")
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'韩国签证资源文件不存在: {source_path}'
             }), 400
-        
-        # 检查坐标列表文件是否存在
-        coord_file = source_path / "坐标列表.xls"
-        current_app.logger.info(f"检查坐标列表文件: {coord_file}")
-        if not coord_file.exists():
-            current_app.logger.warning(f"坐标列表文件不存在: {coord_file}")
+
+        # 填表值改从数据库读取(坐标也已入库)，不再依赖项目文件夹里的 FormSample.xls；
+        # 老项目库里没有时，_resolve_form_rows 会自动回退读旧的 FormSample.xls。
+        form_rows = _resolve_form_rows(project)
+        if not any((r.get('DETAIL') or '').strip() for r in form_rows):
             return jsonify({
-                'success': False, 
-                'message': f'坐标列表文件不存在: {coord_file}'
+                'success': False,
+                'message': '尚未填写表格数据，请先点击「填写表格」录入后再生成'
             }), 400
-        
-        # 检查项目文件夹中的FormSample.xls文件
-        project_folder = Config.VISA_PROJECTS_PATH / visa_folder
-        form_sample_file = project_folder / "FormSample.xls"
-        current_app.logger.info(f"检查表单模板文件: {form_sample_file}")
-        if not form_sample_file.exists():
-            current_app.logger.warning(f"表单模板文件不存在: {form_sample_file}")
-            return jsonify({
-                'success': False, 
-                'message': f'表单模板文件不存在: {form_sample_file}，请确保项目文件夹中有FormSample.xls文件'
-            }), 400
-        
+
         # 根据签证类型调用相应的表格生成函数
         if '韩国' in project.visa_type:
             # 调用韩国签证表格生成函数
             from App_new.utils.VisaForm import VisasUtils
-            VisasUtils.korea_visa_fill_form(visa_folder=visa_folder, static_path=str(static_path))
+            VisasUtils.korea_visa_fill_form(
+                visa_folder=visa_folder, static_path=str(static_path), form_rows=form_rows)
         else:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'签证类型 "{project.visa_type}" 的表格生成功能尚未实现'
             }), 400
         
@@ -2643,3 +2821,137 @@ def copy_project(project_id):
             'success': False,
             'message': f'复制项目失败: {str(e)}'
         }), 500
+
+
+# ==================== 签证填表坐标管理 ====================
+
+# 目前支持坐标管理的国家(与 visa_form_coordinates.country 对应)
+VISA_COORD_COUNTRIES = {
+    'korea': '韩国签证',
+}
+
+# 国家标识 -> 资源文件夹名(背景图所在 资源/签证/<folder>/source)
+VISA_COORD_FOLDERS = {
+    'korea': '韩国签证',
+}
+
+
+@visa_project.route('/coordinates/page-image/<country>/<page>')
+@login_required
+@staff_only
+def coordinate_page_image(country, page):
+    """返回某页填表背景图(Form-page-N.jpg),供坐标编辑器叠加点位"""
+    import re
+    from flask import send_file, abort
+    from App_new.config import Config
+
+    folder = VISA_COORD_FOLDERS.get(country)
+    if not folder:
+        abort(404)
+    m = re.search(r'(\d+)$', page or '')
+    if not m:
+        abort(404)
+    n = int(m.group(1))
+    img_path = os.path.join(Config.PROJECT_ROOT, '资源', '签证', folder, 'source', f'Form-page-{n}.jpg')
+    if not os.path.exists(img_path):
+        abort(404)
+    return send_file(img_path)
+
+
+@visa_project.route('/coordinates')
+@login_required
+@staff_only
+def coordinate_manager():
+    """签证填表坐标管理页面(原 坐标列表.xls 已入库)"""
+    country = request.args.get('country', 'korea')
+    coords = VisaFormCoordinate.query.filter_by(country=country).order_by(
+        VisaFormCoordinate.page.asc(), VisaFormCoordinate.id.asc()
+    ).all()
+    # 按页码分组,方便模板展示
+    pages = {}
+    for c in coords:
+        pages.setdefault(c.page, []).append(c)
+    return render_template(
+        'business/visa/签证项目管理/coordinate_manager.html',
+        country=country,
+        country_name=VISA_COORD_COUNTRIES.get(country, country),
+        countries=VISA_COORD_COUNTRIES,
+        pages=pages,
+        total=len(coords)
+    )
+
+
+@visa_project.route('/coordinates/save', methods=['POST'])
+@login_required
+@staff_only
+def coordinate_save():
+    """更新单条坐标"""
+    try:
+        data = request.get_json(silent=True) or request.form
+        coord_id = data.get('id')
+        coord = VisaFormCoordinate.query.get_or_404(int(coord_id))
+
+        coord.page = (data.get('page') or coord.page).strip()
+        coord.seq = (data.get('seq') or coord.seq).strip()
+        coord.coord_x = int(data.get('coord_x'))
+        coord.coord_y = int(data.get('coord_y'))
+        coord.label = (data.get('label') or '').strip() or None
+        coord.coord_type = (data.get('coord_type') or '').strip() or None
+        coord.type_note = (data.get('type_note') or '').strip() or None
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': '保存成功', 'coord': coord.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'保存失败: {str(e)}'}), 500
+
+
+@visa_project.route('/coordinates/add', methods=['POST'])
+@login_required
+@staff_only
+def coordinate_add():
+    """新增一条坐标"""
+    try:
+        data = request.get_json(silent=True) or request.form
+        country = (data.get('country') or 'korea').strip()
+        seq = (data.get('seq') or '').strip()
+        page = (data.get('page') or '').strip()
+        if not seq or not page:
+            return jsonify({'success': False, 'message': '页码和坐标序列不能为空'}), 400
+
+        # 校验 (country, seq) 唯一
+        exists = VisaFormCoordinate.query.filter_by(country=country, seq=seq).first()
+        if exists:
+            return jsonify({'success': False, 'message': f'坐标序列 "{seq}" 已存在'}), 400
+
+        coord = VisaFormCoordinate(
+            country=country,
+            page=page,
+            seq=seq,
+            coord_x=int(data.get('coord_x') or 0),
+            coord_y=int(data.get('coord_y') or 0),
+            label=(data.get('label') or '').strip() or None,
+            coord_type=(data.get('coord_type') or '').strip() or None,
+            type_note=(data.get('type_note') or '').strip() or None,
+        )
+        db.session.add(coord)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '新增成功', 'coord': coord.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'新增失败: {str(e)}'}), 500
+
+
+@visa_project.route('/coordinates/delete/<int:coord_id>', methods=['POST'])
+@login_required
+@staff_only
+def coordinate_delete(coord_id):
+    """删除一条坐标"""
+    try:
+        coord = VisaFormCoordinate.query.get_or_404(coord_id)
+        db.session.delete(coord)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '删除成功'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500

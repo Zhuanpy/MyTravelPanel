@@ -121,20 +121,35 @@
                     <span class="visa-info-label" style="margin-bottom: 0;">创建时间：</span>
                     <span class="visa-info-value">{{ project.created_date.strftime('%Y-%m-%d') }}</span>
                 </div>
-                {% if '韩国' in project.visa_type %}
-                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
-                    <span class="visa-info-label" style="margin-bottom: 0;">生成表格：</span>
-                    <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" style="margin: 0;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="visa-btn visa-btn-sm visa-btn-success" id="generateFormBtn" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">
-                            <i class="fas fa-file-excel"></i> 生成表格
-                        </button>
-                    </form>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
+
+    {% if '韩国' in project.visa_type %}
+    <!-- 签证表格（韩国）：填写 / 生成 / 坐标 单独成组 -->
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header">
+            <h2><i class="fas fa-file-lines"></i> 签证表格</h2>
+        </div>
+        <div class="visa-card-body">
+            <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; padding: 0.3rem 0;">
+                <a href="{{ url_for('visa_project.fill_form_page', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-primary" id="fillFormBtn" title="填写表格数据">
+                    <i class="fas fa-pen-to-square"></i> 填写表格
+                </a>
+                <form id="generateFormForm" action="{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}" method="post" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="visa-btn visa-btn-sm visa-btn-success" id="generateFormBtn">
+                        <i class="fas fa-file-excel"></i> 生成表格
+                    </button>
+                </form>
+                <a href="{{ url_for('visa_project.coordinate_manager', country='korea') }}" class="visa-btn visa-btn-sm visa-btn-warning" title="管理填表坐标">
+                    <i class="fas fa-crosshairs"></i> 坐标管理
+                </a>
+                <span style="color: #6b7280; font-size: 0.8rem; margin-left: 0.4rem;">先「填写表格」录入数据，再「生成表格」出 PDF</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 备注信息 -->
     <div class="visa-card visa-mb-3">
@@ -585,6 +600,7 @@
 </div>
 
 <input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
+
 {% endblock %}
 
 {% block extra_js %}

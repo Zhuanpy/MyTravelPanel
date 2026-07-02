@@ -1,0 +1,194 @@
+{% extends "staff_base.html" %}
+
+{% block page_title %}填写签证表格 - {{ project.applicant_name or '申请人未设置' }}{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('visa_project.visa_detail', project_id=project.id) }}" class="visa-btn visa-btn-sm visa-btn-secondary">
+    <i class="fas fa-arrow-left"></i> 返回详情
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+{% endblock %}
+
+{% block content %}
+<input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
+
+<div class="visa-card visa-mb-3">
+    <div class="visa-card-header">
+        <h2><i class="fas fa-pen-to-square"></i> 填写签证表格</h2>
+        <div class="visa-flex visa-gap-2" style="align-items:center;">
+            <span id="fillFormStatus" style="color:#6b7280; font-size:0.8rem;"></span>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" id="fillFormSaveBtn" onclick="saveFillForm()">
+                <i class="fas fa-save"></i> 保存
+            </button>
+        </div>
+    </div>
+    <div class="visa-card-body">
+        <div style="margin-bottom:0.8rem; color:#6b7280; font-size:0.85rem;">
+            <span style="color:#dc2626;">*</span> = 需申请人提供 · 灰底为固定项（不可改） · 保存后回详情页点「生成表格」出 PDF
+        </div>
+        <div id="fillFormBody">
+            <div style="text-align:center; color:#888; padding:2rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF_TOKEN = document.getElementById('csrfToken').value;
+const FORM_DATA_URL = "{{ url_for('visa_project.get_project_form_data', project_id=project.id) }}";
+
+// 顶部状态条提示
+function setStatus(msg, ok) {
+    const el = document.getElementById('fillFormStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.color = ok === false ? '#dc2626' : (ok === true ? '#16a34a' : '#6b7280');
+}
+
+// 解析 Remark 里的选项，如 "男：1)/女：2" → [{label,value}]
+function parseChoiceOptions(remark) {
+    const opts = [];
+    if (!remark) return opts;
+    remark.split('/').forEach(part => {
+        const m = part.match(/(.+?)[：:]\s*([0-9]+)/);
+        if (m) opts.push({ label: m[1].trim(), value: m[2].trim() });
+    });
+    return opts;
+}
+
+// 渲染单个字段
+function renderField(f) {
+    const val = (f.value == null ? '' : String(f.value));
+    const label = f.form || f.seq;
+    const applicantMark = f.applicant ? ' <span style="color:#dc2626;" title="需申请人提供">*</span>' : '';
+    const remarkHint = f.remark ? `<span style="color:#9ca3af; font-size:0.75rem;"> · ${f.remark}</span>` : '';
+    const readonly = !f.editable;
+    let control;
+    if (f.type === '选择') {
+        const opts = parseChoiceOptions(f.remark);
+        if (opts.length) {
+            const optHtml = ['<option value="">-- 请选择 --</option>']
+                .concat(opts.map(o => `<option value="${o.value}" ${o.value === val ? 'selected' : ''}>${o.label} (${o.value})</option>`))
+                .join('');
+            control = `<select data-seq="${f.seq}" class="visa-form-input fill-field" ${readonly ? 'disabled' : ''} style="width:100%; padding:0.35rem;">${optHtml}</select>`;
+        } else {
+            control = `<input type="text" data-seq="${f.seq}" class="visa-form-input fill-field" value="${val.replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''} style="width:100%; padding:0.35rem;">`;
+        }
+    } else {
+        control = `<input type="text" data-seq="${f.seq}" class="visa-form-input fill-field" value="${val.replace(/"/g, '&quot;')}" ${readonly ? 'readonly' : ''} style="width:100%; padding:0.35rem; ${readonly ? 'background:#f3f4f6;' : ''}">`;
+    }
+    return `<div style="display:flex; flex-direction:column; gap:0.25rem;">
+        <label style="font-size:0.8rem; color:#4b5563;">${label}${applicantMark}${remarkHint}</label>
+        ${control}
+    </div>`;
+}
+
+// 切换标签页
+function switchFillPage(page) {
+    document.querySelectorAll('.fill-tab-btn').forEach(b => {
+        const on = b.getAttribute('data-page') === page;
+        b.style.background = on ? '#6366f1' : '#fff';
+        b.style.color = on ? '#fff' : '#374151';
+        b.style.fontWeight = on ? '600' : '400';
+    });
+    document.querySelectorAll('.fill-page-section').forEach(s => {
+        s.style.display = s.getAttribute('data-page') === page ? 'block' : 'none';
+    });
+}
+
+function renderFillForm(fields) {
+    const body = document.getElementById('fillFormBody');
+    if (!fields.length) {
+        body.innerHTML = '<div style="color:#888; padding:1rem;">没有可填写的字段（母版模板为空）</div>';
+        return;
+    }
+    const pages = {};
+    fields.forEach(f => { (pages[f.page] = pages[f.page] || []).push(f); });
+    const pageKeys = Object.keys(pages).sort();
+
+    // 标签条
+    let tabs = '<div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:1rem; border-bottom:1px solid #e5e7eb; padding-bottom:0.6rem;">';
+    pageKeys.forEach(page => {
+        tabs += `<button type="button" class="fill-tab-btn" data-page="${page}" onclick="switchFillPage('${page}')"
+            style="padding:0.35rem 0.9rem; border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151; cursor:pointer; font-size:0.85rem;">
+            ${page} <span style="color:#9ca3af;">(${pages[page].length})</span></button>`;
+    });
+    tabs += '</div>';
+
+    // 各页内容区（默认只显示第一页），页内再按 section 分小节
+    let sections = '';
+    pageKeys.forEach((page, idx) => {
+        sections += `<div class="fill-page-section" data-page="${page}" style="display:${idx === 0 ? 'block' : 'none'};">`;
+        // 按 section 分组，保持原顺序
+        const groups = [];
+        const gmap = {};
+        pages[page].forEach(f => {
+            const sec = f.section || '其它';
+            if (!gmap[sec]) { gmap[sec] = []; groups.push(sec); }
+            gmap[sec].push(f);
+        });
+        groups.forEach(sec => {
+            sections += `<div style="margin-bottom:1.1rem;">
+                <div style="font-size:0.85rem; font-weight:600; color:#6366f1; background:#f5f7ff; padding:0.35rem 0.7rem; border-radius:6px; margin-bottom:0.6rem;">
+                    <i class="fas fa-folder-open" style="font-size:0.75rem;"></i> ${sec}</div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.7rem 1.2rem; padding:0 0.2rem;">`;
+            gmap[sec].forEach(f => { sections += renderField(f); });
+            sections += `</div></div>`;
+        });
+        sections += `</div>`;
+    });
+
+    body.innerHTML = tabs + sections;
+    switchFillPage(pageKeys[0]);
+}
+
+function loadFillForm() {
+    setStatus('加载中...');
+    fetch(FORM_DATA_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message || '加载失败');
+            renderFillForm(data.fields || []);
+            setStatus('');
+        })
+        .catch(err => {
+            document.getElementById('fillFormBody').innerHTML =
+                `<div style="color:#dc2626; padding:1rem;">${err.message || '加载失败'}</div>`;
+            setStatus('加载失败', false);
+        });
+}
+
+function saveFillForm() {
+    const btn = document.getElementById('fillFormSaveBtn');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+    setStatus('保存中...');
+
+    const values = {};
+    document.querySelectorAll('#fillFormBody .fill-field').forEach(el => {
+        const seq = el.getAttribute('data-seq');
+        if (seq) values[seq] = el.value;
+    });
+
+    fetch(FORM_DATA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ values })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.message || '保存失败');
+        setStatus(`已保存 ${data.saved} 项`, true);
+    })
+    .catch(err => setStatus(err.message || '保存失败', false))
+    .finally(() => { btn.disabled = false; btn.innerHTML = original; });
+}
+
+document.addEventListener('DOMContentLoaded', loadFillForm);
+</script>
+{% endblock %}
