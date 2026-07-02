@@ -851,7 +851,8 @@ class VisaProjectFormData(db.Model):
                            db.ForeignKey('visa_projects.id', ondelete='CASCADE'),
                            nullable=False, comment='所属签证项目')
     page = db.Column(db.String(20), nullable=True, comment='页码,如 PAGE01')
-    seq = db.Column(db.String(20), nullable=False, comment='坐标序列,与坐标表/母版匹配')
+    # seq 可为韩国坐标序列(短)或日本PDF全限定字段名(较长)，故留足长度
+    seq = db.Column(db.String(120), nullable=False, comment='字段键(韩国坐标序列/日本PDF全限定名)')
     detail = db.Column(db.Text, nullable=True, comment='填写的值')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

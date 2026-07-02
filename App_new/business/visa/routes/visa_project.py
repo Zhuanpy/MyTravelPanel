@@ -468,10 +468,11 @@ def _korea_template_fields():
 # key 用完整短名（RB5 六题各不相同）；options 的 value 必须是控件真实开关值。
 _JP_YESNO = [{'value': '0', 'label': 'Yes 是'}, {'value': '1', 'label': 'No 否'}]
 _JAPAN_RADIO_LABELS = {
+    # 注意：RB1 真实开关值是 0(Male)/1(Female)，非 M/F（M/F 只是 /Opt 显示串）
     'RB1[0]': {'label': 'Sex 性别',
-               'options': [{'value': 'M', 'label': 'Male 男'}, {'value': 'F', 'label': 'Female 女'}]},
+               'options': [{'value': '0', 'label': 'Male 男'}, {'value': '1', 'label': 'Female 女'}]},
     'RB1[1]': {'label': 'Sex 性别',
-               'options': [{'value': 'M', 'label': 'Male 男'}, {'value': 'F', 'label': 'Female 女'}]},
+               'options': [{'value': '0', 'label': 'Male 男'}, {'value': '1', 'label': 'Female 女'}]},
     'RB3[0]': {'label': 'Passport type 护照类型', 'options': [
         {'value': '0', 'label': 'Diplomatic 外交'}, {'value': '1', 'label': 'Official 公务'},
         {'value': '2', 'label': 'Ordinary 普通'}, {'value': '3', 'label': 'Other 其它'}]},
@@ -533,6 +534,42 @@ for _si, (_title, _names) in enumerate(_JAPAN_SECTIONS):
     for _fi, _n in enumerate(_names):
         _JAPAN_SECTION_MAP[_n] = (_title, _si, _fi)
 
+# 第2页字段的 标签+段落+段内序（短名在第2页内唯一，按 PDF 位置核对：
+# 上半块=担保人，下半块=邀请人）。覆盖第1页同短名映射，修正 T5[0]/T14[0] 跨页冲突。
+_JAPAN_PAGE2 = {
+    # 在日担保人（页面上半块）
+    'guarantor_name[0]': ('Guarantor name 担保人姓名', '在日担保人', 0),
+    'guarantor_adr[0]': ('Guarantor address 担保人地址', '在日担保人', 1),
+    'guarantor_tel[0]': ('Guarantor tel 担保人电话', '在日担保人', 2),
+    'T14[1]': ('Guarantor DOB 担保人生日', '在日担保人', 3),
+    'T25[1]': ('Relationship 关系(担保人)', '在日担保人', 4),
+    'T5[0]': ('Guarantor profession 担保人职业', '在日担保人', 5),
+    'T5[1]': ('Nationality & status 国籍/身份(担保人)', '在日担保人', 6),
+    # 在日邀请人（页面下半块）
+    'T19[0]': ('Inviter name 邀请人姓名', '在日邀请人', 0),
+    'T23[0]': ('Inviter address 邀请人地址', '在日邀请人', 1),
+    'T10[0]': ('Inviter tel 邀请人电话', '在日邀请人', 2),
+    'T14[0]': ('Inviter DOB 邀请人生日', '在日邀请人', 3),
+    'T25[0]': ('Relationship 关系(邀请人)', '在日邀请人', 4),
+    'T5[3]': ('Inviter profession 邀请人职业', '在日邀请人', 5),
+    'T5[2]': ('Nationality & status 国籍/身份(邀请人)', '在日邀请人', 6),
+    'RB1[1]': (None, '在日邀请人', 7),  # 单选，标签用 radio 表
+    # 配偶 / 家属
+    'T16[2]': ("Partner's profession 配偶/家属职业", '配偶 / 家属', 0),
+    # 声明事项（RB5 标签用 radio 表）
+    'RB5[0]': (None, '声明事项', 0), 'RB5[1]': (None, '声明事项', 1),
+    'RB5[2]': (None, '声明事项', 2), 'RB5[3]': (None, '声明事项', 3),
+    'RB5[4]': (None, '声明事项', 4), 'RB5[5]': (None, '声明事项', 5),
+    # 备注 / 申请
+    'T28[0]': ('Remarks 备注', '备注 / 申请', 0),
+    'T28[1]': ('Yes 的详情说明 (details)', '备注 / 申请', 1),
+    'T150[0]': ('Date of application 申请日期', '备注 / 申请', 2),
+}
+# 段落全局顺序
+_JAPAN_SECTION_ORDER = {t: i for i, t in enumerate(
+    ['护照信息', '个人信息', '联系方式', '工作 / 雇主', '访日信息',
+     '在日担保人', '在日邀请人', '配偶 / 家属', '声明事项', '备注 / 申请', '其它'])}
+
 
 def _japan_master_pdf_path():
     """日本签证母版可填 PDF 路径(共用资料)"""
@@ -553,38 +590,17 @@ def _japan_template_fields():
     reader = PdfReader(path)
     all_fields = reader.get_fields() or {}
 
-    # 字段名 → 首次出现的页序（用于分标签页）
-    name_page = {}
-    for pidx, page in enumerate(reader.pages):
-        annots = page.get('/Annots')
-        if not annots:
-            continue
-        for a in annots:
-            try:
-                obj = a.get_object()
-            except Exception:
-                continue
-            if obj.get('/Subtype') != '/Widget':
-                continue
-            t = obj.get('/T')
-            if t is None:
-                parent = obj.get('/Parent')
-                t = parent.get_object().get('/T') if parent else None
-            if t is not None and str(t) not in name_page:
-                name_page[str(t)] = pidx
-
     type_map = {'/Tx': 'text', '/Ch': 'select', '/Btn': 'radio'}
-    fields, seen = [], set()
+    fields = []
     for name, f in all_fields.items():
         ft = f.get('/FT')
         if ft not in type_map:
             continue  # 跳过 #area 容器等非输入字段
-        # get_fields 的 key 是全限定名，取叶子段作短名(填充/存储都用短名，跨页同名去重)
-        short = str(name).split('.')[-1]
-        if short in seen:
-            continue
-        seen.add(short)
-        name = short
+        # 用全限定名作 seq：页1、页2 的同名字段(如 T5[0]/T14[0])是不同键，各填各的，
+        # 避免跨页短名冲突导致申请人的值漏进第2页担保人/邀请人栏。
+        seq = str(name)
+        short = seq.split('.')[-1]
+        page_idx = 2 if 'Page2[0]' in seq else 1
 
         tu = _cell_str(f.get('/TU'))
         ctype = type_map[ft]
@@ -599,21 +615,32 @@ def _japan_template_fields():
                 else:
                     options.append({'value': str(it), 'label': str(it)})
 
-        label = _JAPAN_FIELD_LABELS.get(name, tu or name)
-        # 单选框套用手工标签与正确的选项(覆盖 /Opt，其值可能与真实开关值不符)
-        if ft == '/Btn':
-            rb = _JAPAN_RADIO_LABELS.get(name)
-            if rb:
-                label = rb['label']
-                options = [dict(o) for o in rb['options']]
+        # 标签 + 段落：第2页用专属映射(短名在页内唯一)，第1页用通用映射
+        if page_idx == 2 and short in _JAPAN_PAGE2:
+            lbl, section, in_order = _JAPAN_PAGE2[short]
+            label = lbl
+        else:
+            label = _JAPAN_FIELD_LABELS.get(short, tu or short)
+            sec_info = _JAPAN_SECTION_MAP.get(short)
+            section = sec_info[0] if sec_info else '其它'
+            in_order = sec_info[2] if sec_info else 0
 
-        pidx = name_page.get(name, 0)
-        sec_title, sec_order, in_order = _JAPAN_SECTION_MAP.get(name, ('其它', 99, 0))
+        # 单选框：正确选项 + 手工标签
+        if ft == '/Btn':
+            rb = _JAPAN_RADIO_LABELS.get(short)
+            if rb:
+                options = [dict(o) for o in rb['options']]
+                if not label:
+                    label = rb['label']
+        if not label:
+            label = tu or short
+
+        sec_order = _JAPAN_SECTION_ORDER.get(section, 99)
         fields.append({
-            'page': f'PAGE0{pidx + 1}',
-            'seq': name,
-            'section': sec_title,
-            '_sort': (pidx, sec_order, in_order),
+            'page': f'PAGE0{page_idx}',
+            'seq': seq,
+            'section': section,
+            '_sort': (page_idx, sec_order, in_order),
             'label': label,
             'ctype': ctype,
             'options': options,
@@ -622,7 +649,7 @@ def _japan_template_fields():
             'applicant': False,
             'default': '',
         })
-    # 按 页 → 段落序 → 段内序 排列，让同段字段聚在一起且顺序合理
+    # 按 页 → 段落序 → 段内序 排列
     fields.sort(key=lambda f: f['_sort'])
     for f in fields:
         f.pop('_sort', None)
