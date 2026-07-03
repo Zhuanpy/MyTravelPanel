@@ -359,7 +359,8 @@ def copy_tour_project(project_id):
         db.session.add(new_project)
         db.session.flush()  # 获取新项目ID
 
-        # 复制所有关联的团组
+        # 复制所有关联的团组（记录 旧团组ID→新团组ID，供价格预算的 group_id 重映射）
+        group_id_map = {}
         original_groups = TourGroup.query.filter_by(project_id=project_id).all()
         for original_group in original_groups:
             new_group = TourGroup(
@@ -383,6 +384,7 @@ def copy_tour_project(project_id):
 
             db.session.add(new_group)
             db.session.flush()  # 获取新团组ID
+            group_id_map[original_group.id] = new_group.id
 
             # 复制该团组的所有行程安排
             original_itineraries = TourItinerary.query.filter_by(tour_id=original_group.id).all()
@@ -397,6 +399,51 @@ def copy_tour_project(project_id):
                     image3=original_itinerary.image3
                 )
                 db.session.add(new_itinerary)
+
+        # 复制关联的价格预算单（含明细），group_id 重映射到新团组
+        from App_new.business.tour.models.PackageBudget import BudgetHeader, BudgetItem
+        original_budgets = BudgetHeader.query.filter_by(project_id=project_id).all()
+        for ob in original_budgets:
+            new_budget = BudgetHeader(
+                package_name=ob.package_name,
+                adult_count=ob.adult_count,
+                child_count=ob.child_count,
+                currency=ob.currency,
+                target_currency=ob.target_currency,
+                exchange_rate=ob.exchange_rate,
+                status=ob.status,
+                is_template=ob.is_template,
+                remarks=ob.remarks,
+                created_by=ob.created_by,
+                created_at=datetime.utcnow(),
+                project_id=new_project.id,
+                group_id=group_id_map.get(ob.group_id),  # 旧团组→新团组
+            )
+            db.session.add(new_budget)
+            db.session.flush()  # 获取新预算单ID
+
+            for oi in ob.items:
+                db.session.add(BudgetItem(
+                    header_id=new_budget.id,
+                    category=oi.category,
+                    item_name=oi.item_name,
+                    item_details=oi.item_details,
+                    pricing_method=oi.pricing_method,
+                    item_unit_price=oi.item_unit_price,
+                    item_quantity=oi.item_quantity,
+                    adult_price=oi.adult_price,
+                    child_price=oi.child_price,
+                    count_adult_apply=oi.count_adult_apply,
+                    count_child_apply=oi.count_child_apply,
+                    adult_count_override=oi.adult_count_override,
+                    child_count_override=oi.child_count_override,
+                    total_override=oi.total_override,
+                    sort_order=oi.sort_order,
+                    tax_rate=oi.tax_rate,
+                    tax_amount=oi.tax_amount,
+                    is_optional=oi.is_optional,
+                    remarks=oi.remarks,
+                ))
 
         # 提交所有更改
         db.session.commit()

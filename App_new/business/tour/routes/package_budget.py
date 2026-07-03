@@ -814,6 +814,87 @@ def copy_item(budget_id, item_id):
         return jsonify({'success': False, 'error': '复制失败'}), 500
 
 
+@package_budget.route('/<int:budget_id>/copy_source_options', methods=['GET'])
+@login_required
+@staff_only
+def copy_source_options(budget_id):
+    """返回可作为复制来源的其它预算单列表（排除当前单），供「复制价格」弹窗选择。"""
+    try:
+        budgets = BudgetHeader.query.filter(BudgetHeader.id != budget_id)\
+            .order_by(BudgetHeader.created_at.desc()).limit(300).all()
+        out = []
+        for b in budgets:
+            out.append({
+                'id': b.id,
+                'name': b.package_name,
+                'project': b.project.project_name if b.project else None,
+                'item_count': len(b.items),
+                'currency': b.currency,
+            })
+        return jsonify({'success': True, 'budgets': out})
+    except Exception as e:
+        current_app.logger.error(f"copy_source_options failed {budget_id}: {e}")
+        return jsonify({'success': False, 'error': '加载失败'}), 500
+
+
+@package_budget.route('/<int:budget_id>/copy_items_from/<int:source_id>', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def copy_items_from(budget_id, source_id):
+    """从其它预算单复制明细（含价格）到当前预算单。
+
+    mode=append 追加（默认）；mode=replace 先清空当前明细再复制。
+    """
+    try:
+        budget = BudgetHeader.query.get_or_404(budget_id)
+        source = BudgetHeader.query.get_or_404(source_id)
+        if source.id == budget.id:
+            return jsonify({'success': False, 'error': '不能从自身复制'}), 400
+
+        mode = (request.form.get('mode') or 'append').strip()
+        if mode == 'replace':
+            BudgetItem.query.filter_by(header_id=budget.id).delete()
+            db.session.flush()
+            base_order = 0
+        else:
+            base_order = db.session.query(db.func.max(BudgetItem.sort_order))\
+                .filter_by(header_id=budget.id).scalar() or 0
+
+        copied = 0
+        for src in source.items:
+            base_order += 1
+            db.session.add(BudgetItem(
+                header_id=budget.id,
+                category=src.category,
+                item_name=src.item_name,
+                item_details=src.item_details,
+                pricing_method=src.pricing_method,
+                item_unit_price=src.item_unit_price,
+                item_quantity=src.item_quantity,
+                adult_price=src.adult_price,
+                child_price=src.child_price,
+                count_adult_apply=src.count_adult_apply,
+                count_child_apply=src.count_child_apply,
+                adult_count_override=src.adult_count_override,
+                child_count_override=src.child_count_override,
+                total_override=src.total_override,
+                sort_order=base_order,
+                tax_rate=src.tax_rate,
+                tax_amount=src.tax_amount,
+                is_optional=src.is_optional,
+                remarks=src.remarks,
+            ))
+            copied += 1
+
+        db.session.commit()
+        return jsonify({'success': True, 'copied': copied, 'mode': mode})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"copy_items_from failed {budget_id}<-{source_id}: {e}")
+        return jsonify({'success': False, 'error': f'复制失败: {e}'}), 500
+
+
 @package_budget.route('/<int:budget_id>/duplicate', methods=['POST'])
 @login_required
 @staff_only

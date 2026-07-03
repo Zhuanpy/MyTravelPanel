@@ -302,6 +302,9 @@
                     <i class="fas fa-upload"></i> 上传
                 </button>
                 <input type="file" id="importItemsFile" accept=".xlsx,.xls" style="display:none" onchange="importItems(this)">
+                <button type="button" class="btn btn-outline-info btn-sm" onclick="openCopyPriceModal()" title="从其它预算单复制明细价格">
+                    <i class="fas fa-clone"></i> 复制价格
+                </button>
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetAddItemModal()">
                     <i class="fas fa-plus"></i> 添加
                 </button>
@@ -394,6 +397,46 @@
     </div>
 
     <!-- 添加项目弹窗 -->
+    <!-- 从其它预算复制价格 弹窗 -->
+    <div class="modal fade" id="copyPriceModal" tabindex="-1" aria-labelledby="copyPriceModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 560px;">
+        <div class="modal-content">
+            <div class="modal-header bg-light py-2">
+                <span class="modal-title card-title" id="copyPriceModalLabel"><i class="fas fa-clone text-info"></i> 从其它预算复制价格</span>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body py-3">
+                <div class="mb-2">
+                    <input type="text" id="copySourceSearch" class="form-control form-control-sm" placeholder="搜索预算单名称 / 项目..." oninput="filterCopySource()">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">选择来源预算单</label>
+                    <select id="copySourceSelect" class="form-select" size="8" style="font-size:0.85rem;"></select>
+                    <div id="copySourceEmpty" class="text-muted small mt-1" style="display:none;">没有其它预算单可复制</div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">复制方式</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="copyMode" id="copyModeAppend" value="append" checked>
+                            <label class="form-check-label small" for="copyModeAppend">追加到现有明细</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="copyMode" id="copyModeReplace" value="replace">
+                            <label class="form-check-label small text-danger" for="copyModeReplace">覆盖（先清空当前明细）</label>
+                        </div>
+                    </div>
+                </div>
+                <div id="copyPriceStatus" class="small"></div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-info btn-sm text-white" id="copyPriceConfirmBtn" onclick="doCopyPrice()"><i class="fas fa-clone"></i> 复制</button>
+            </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 620px;">
         <div class="modal-content">
@@ -566,6 +609,71 @@ function importItems(input) {
     })
     .catch(() => alert('导入失败，请检查文件格式'))
     .finally(() => { input.value = ''; });
+}
+
+// ===== 从其它预算复制价格 =====
+let _copySourceCache = [];
+
+function openCopyPriceModal() {
+    const sel = document.getElementById('copySourceSelect');
+    const empty = document.getElementById('copySourceEmpty');
+    const status = document.getElementById('copyPriceStatus');
+    if (status) { status.textContent = ''; }
+    sel.innerHTML = '<option>加载中...</option>';
+    const modal = new bootstrap.Modal(document.getElementById('copyPriceModal'));
+    modal.show();
+    fetch("{{ url_for('package_budget.copy_source_options', budget_id=budget.id) }}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error || '加载失败');
+            _copySourceCache = data.budgets || [];
+            renderCopySource(_copySourceCache);
+            if (empty) empty.style.display = _copySourceCache.length ? 'none' : 'block';
+        })
+        .catch(err => { sel.innerHTML = ''; if (status) { status.textContent = err.message || '加载失败'; status.style.color = '#dc2626'; } });
+}
+
+function renderCopySource(list) {
+    const sel = document.getElementById('copySourceSelect');
+    sel.innerHTML = list.map(b => {
+        const proj = b.project ? ' · ' + b.project : '';
+        return `<option value="${b.id}">#${b.id} ${b.name}${proj}（${b.item_count}项 · ${b.currency || ''}）</option>`;
+    }).join('');
+}
+
+function filterCopySource() {
+    const kw = (document.getElementById('copySourceSearch').value || '').toLowerCase().trim();
+    if (!kw) { renderCopySource(_copySourceCache); return; }
+    renderCopySource(_copySourceCache.filter(b =>
+        (b.name || '').toLowerCase().includes(kw) || (b.project || '').toLowerCase().includes(kw) || String(b.id) === kw));
+}
+
+function doCopyPrice() {
+    const sel = document.getElementById('copySourceSelect');
+    const sourceId = sel.value;
+    const status = document.getElementById('copyPriceStatus');
+    if (!sourceId) { if (status) { status.textContent = '请选择来源预算单'; status.style.color = '#dc2626'; } return; }
+    const mode = document.querySelector('input[name="copyMode"]:checked').value;
+    if (mode === 'replace' && !confirm('覆盖会先清空当前预算单的所有明细，确定继续？')) return;
+    const btn = document.getElementById('copyPriceConfirmBtn');
+    const original = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 复制中...';
+    const csrfEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfEl ? csrfEl.value : '';
+    const url = "{{ url_for('package_budget.copy_items_from', budget_id=budget.id, source_id=999999999) }}".replace('999999999', sourceId);
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
+        body: 'mode=' + encodeURIComponent(mode)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.error || '复制失败');
+        if (status) { status.textContent = `已复制 ${data.copied} 项，正在刷新...`; status.style.color = '#16a34a'; }
+        setTimeout(() => location.reload(), 800);
+    })
+    .catch(err => { if (status) { status.textContent = err.message || '复制失败'; status.style.color = '#dc2626'; } })
+    .finally(() => { btn.disabled = false; btn.innerHTML = original; });
 }
 
 // 选择货币：自动保存到预算单，并同步页面上所有货币单位（仅换标签，不换算）
