@@ -356,20 +356,20 @@
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                     <div class="info-card">
                         <h6>大人价格</h6>
-                        <p class="text-green-600 font-medium">S${{ "%.2f"|format(project_budget.adult_unit_price) }}</p>
+                        <p class="text-green-600 font-medium">{{ project_budget.final_currency }} {{ project_budget.adult_unit_price_final_str }}</p>
                     </div>
                     <div class="info-card">
                         <h6>小孩价格</h6>
-                        <p class="text-green-600 font-medium">S${{ "%.2f"|format(project_budget.child_unit_price) }}</p>
+                        <p class="text-green-600 font-medium">{{ project_budget.final_currency }} {{ project_budget.child_unit_price_final_str }}</p>
                     </div>
                     <div class="info-card">
                         <h6>团总价</h6>
-                        <p class="text-green-600 font-medium">S${{ "%.2f"|format(project_budget.total_price) }}</p>
+                        <p class="text-green-600 font-medium">{{ project_budget.final_currency }} {{ project_budget.total_price_final_str }}</p>
                     </div>
                 </div>
                 <p class="text-xs text-gray-400 mt-2">
                     <i class="fas fa-info-circle"></i> 价格自动取自
-                    <a href="{{ url_for('package_budget.detail', budget_id=project_budget.id) }}" target="_blank" class="text-blue-500 underline">价格预算单 #{{ project_budget.id }}</a>，
+                    <a href="{{ url_for('package_budget.detail', budget_id=project_budget.id) }}" target="_blank" class="text-blue-500 underline">价格预算单 #{{ project_budget.id }}</a>{% if project_budget.needs_conversion %}（已按汇率换算为 {{ project_budget.final_currency }}）{% endif %}，
                     修改预算后此处自动更新
                 </p>
                 {% else %}

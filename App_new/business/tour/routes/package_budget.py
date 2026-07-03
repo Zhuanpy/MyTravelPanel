@@ -1153,6 +1153,57 @@ def update_currency(budget_id):
         return jsonify({'success': False, 'error': '保存失败'}), 500
 
 
+@package_budget.route('/<int:budget_id>/update_final_pricing', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def update_final_pricing(budget_id):
+    """设置最终统一货币 + 固定汇率，用于把录入货币按汇率换算成最终报价货币。
+
+    请求: target_currency=SGD/CNY, exchange_rate=数字(1 SGD=?CNY)
+    返回换算后的大人/小孩人均价与团总价，供前端即时刷新。
+    """
+    try:
+        budget = BudgetHeader.query.get_or_404(budget_id)
+        target_currency = (request.form.get('target_currency') or '').strip().upper()
+        rate_raw = (request.form.get('exchange_rate') or '').strip()
+
+        if target_currency and target_currency not in ('SGD', 'CNY'):
+            return jsonify({'success': False, 'error': '不支持的最终货币'}), 400
+        budget.target_currency = target_currency or None
+
+        if rate_raw:
+            try:
+                rate = float(rate_raw)
+            except ValueError:
+                return jsonify({'success': False, 'error': '汇率必须是数字'}), 400
+            if rate <= 0:
+                return jsonify({'success': False, 'error': '汇率必须大于0'}), 400
+            budget.exchange_rate = rate
+        else:
+            budget.exchange_rate = None
+
+        # 录入货币≠最终货币却没填汇率时，提示（仍保存，但不换算）
+        warn = None
+        if budget.needs_conversion is False and budget.target_currency and budget.target_currency != (budget.currency or 'SGD') and not budget.exchange_rate:
+            warn = '已选最终货币与录入货币不同，但未填写有效汇率，暂不换算'
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'final_currency': budget.final_currency,
+            'needs_conversion': budget.needs_conversion,
+            'adult_unit_price_final': round(budget.adult_unit_price_final or 0, 2),
+            'child_unit_price_final': round(budget.child_unit_price_final or 0, 2),
+            'total_price_final': round(budget.total_price_final or 0, 2),
+            'warning': warn,
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"update_final_pricing failed for budget {budget_id}: {e}")
+        return jsonify({'success': False, 'error': '保存失败'}), 500
+
+
 # 明细项目 Excel 导入/导出的列定义：(模型字段, 表头, 列宽)
 EXCEL_ITEM_COLUMNS = [
     ('id', 'ID', 8),

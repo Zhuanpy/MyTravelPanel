@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from datetime import date
 from App_new.exts import db  # 确保你已正确导入 db 对象
@@ -12,7 +13,10 @@ class BudgetHeader(db.Model):
     package_name = db.Column(db.String(255), nullable=False)
     adult_count = db.Column(db.Integer, nullable=False)
     child_count = db.Column(db.Integer, nullable=False)
-    currency = db.Column(db.String(10), default='SGD')
+    currency = db.Column(db.String(10), default='SGD')  # 录入货币：明细价格所用货币
+    # 最终统一货币 + 固定汇率（录入货币≠最终货币时按汇率换算）
+    target_currency = db.Column(db.String(10), nullable=True)  # 最终统一货币；空=同录入货币
+    exchange_rate = db.Column(db.Float, nullable=True)  # 固定汇率：1 SGD = exchange_rate CNY
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.String(50))
@@ -42,6 +46,85 @@ class BudgetHeader(db.Model):
     def child_unit_price(self):
         """儿童人均价：各计入儿童的预算项目儿童单价之和"""
         return sum((item.child_unit_price or 0) for item in self.items if item.count_child_apply)
+
+    # ===== 最终统一货币换算 =====
+    @property
+    def final_currency(self):
+        """最终统一货币：未设置时同录入货币"""
+        return self.target_currency or self.currency or 'SGD'
+
+    @staticmethod
+    def _round_up_int(amount):
+        """换算取整规则：向上取整到 5 的倍数（末位凑成 0 或 5）。
+        例：166→170，127→130，134.1→135，160→160。
+        减 1e-6 消除浮点误差（如 165.0000001 不误进为 170）。
+        """
+        if amount is None:
+            return amount
+        return float(math.ceil((amount - 1e-6) / 5) * 5)
+
+    @staticmethod
+    def _fmt_money(v):
+        """金额显示：整数不带小数，非整数保留两位。"""
+        if v is None:
+            return '0'
+        return f'{v:.0f}' if abs(v - round(v)) < 1e-9 else f'{v:.2f}'
+
+    def to_final(self, amount):
+        """把录入货币金额换算为最终统一货币（换算结果向上取整）。
+
+        汇率约定：exchange_rate = 1 SGD 兑多少 CNY。
+        - 录入CNY→最终SGD：金额 / 汇率，再向上取整
+        - 录入SGD→最终CNY：金额 * 汇率，再向上取整
+        - 货币相同或未设汇率：原样返回（不取整）
+        """
+        if amount is None:
+            return amount
+        base = self.currency or 'SGD'
+        tgt = self.final_currency
+        if base == tgt:
+            return amount
+        rate = self.exchange_rate
+        if not rate or rate <= 0:
+            return amount  # 未设置有效汇率则不换算（避免误算）
+        if base == 'CNY' and tgt == 'SGD':
+            return self._round_up_int(amount / rate)
+        if base == 'SGD' and tgt == 'CNY':
+            return self._round_up_int(amount * rate)
+        return amount
+
+    @property
+    def needs_conversion(self):
+        """是否发生了货币换算（录入币≠最终币且有有效汇率）"""
+        return (self.currency or 'SGD') != self.final_currency and bool(self.exchange_rate and self.exchange_rate > 0)
+
+    @property
+    def adult_unit_price_final(self):
+        """成人人均价（最终统一货币）"""
+        return self.to_final(self.adult_unit_price)
+
+    @property
+    def child_unit_price_final(self):
+        """儿童人均价（最终统一货币）"""
+        return self.to_final(self.child_unit_price)
+
+    @property
+    def total_price_final(self):
+        """团总价（最终统一货币）"""
+        return self.to_final(self.total_price)
+
+    # 显示用字符串：换算后为整数则不带小数，未换算的原值保留两位
+    @property
+    def adult_unit_price_final_str(self):
+        return self._fmt_money(self.adult_unit_price_final)
+
+    @property
+    def child_unit_price_final_str(self):
+        return self._fmt_money(self.child_unit_price_final)
+
+    @property
+    def total_price_final_str(self):
+        return self._fmt_money(self.total_price_final)
 
     def __repr__(self):
         return f'<BudgetHeader {self.package_name}>'

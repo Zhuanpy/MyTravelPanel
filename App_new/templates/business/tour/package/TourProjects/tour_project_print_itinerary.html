@@ -719,7 +719,7 @@
 <div class="tour-meta">
     <span class="meta-pax">人数：{{ tour.pax }} 人</span>
     {% if project_budget %}
-        <span class="meta-sep">&nbsp;|&nbsp;</span><span class="meta-price">大人：SGD {{ "%.2f"|format(project_budget.adult_unit_price) }}{% if project_budget.child_unit_price and project_budget.child_unit_price > 0 %}&nbsp;·&nbsp;小孩：SGD {{ "%.2f"|format(project_budget.child_unit_price) }}{% endif %}</span>
+        <span class="meta-sep">&nbsp;|&nbsp;</span><span class="meta-price">大人：{{ project_budget.final_currency }} {{ project_budget.adult_unit_price_final_str }}{% if project_budget.child_unit_price_final and project_budget.child_unit_price_final > 0 %}&nbsp;·&nbsp;小孩：{{ project_budget.final_currency }} {{ project_budget.child_unit_price_final_str }}{% endif %}</span>
     {% elif tour.budget_per_person %}
         <span class="meta-sep">&nbsp;|&nbsp;</span><span class="meta-price">人均预算：SGD {{ "%.2f"|format(tour.budget_per_person) }}</span>
     {% elif tour.project and tour.project.budget and tour.pax and tour.pax > 0 %}
