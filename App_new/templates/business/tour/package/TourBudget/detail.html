@@ -314,23 +314,23 @@
                     <thead>
                         <tr>
                             <th style="width:7%">类别</th>
-                            <th style="width:18%">项目名称</th>
-                            <th style="width:22%">详情</th>
-                            <th style="width:12%">计价</th>
-                            <th style="width:10%">人数</th>
-                            <th style="width:14%" class="text-end">人均价格 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
-                            <th style="width:17%">操作</th>
+                            <th style="width:16%">项目名称</th>
+                            <th style="width:16%">详情</th>
+                            <th style="width:11%">计价</th>
+                            <th style="width:9%">人数</th>
+                            <th style="width:13%" class="text-end">大人人均 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
+                            <th style="width:13%" class="text-end">小孩人均 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
+                            <th style="width:15%">操作</th>
                         </tr>
                     </thead>
                     <tbody id="itemsTbody">
-                        {% set ns = namespace(total=0.0) %}
+                        {% set ns = namespace(adult_total=0.0, child_total=0.0) %}
                         {% for item in budget.items %}
-                        {% set adult_cnt = item.adult_count_override if item.adult_count_override is not none else budget.adult_count %}
-                        {% set child_cnt = item.child_count_override if item.child_count_override is not none else budget.child_count %}
-                        {% set persons = (adult_cnt if item.count_adult_apply else 0) + (child_cnt if item.count_child_apply else 0) %}
-                        {% set per_person_total = (item.subtotal / persons) if persons > 0 else 0 %}
-                        {% set ns.total = ns.total + per_person_total %}
-                        <tr data-category="{{ item.category or '未分类' }}" data-total="{{ '%.6f'|format(per_person_total) }}">
+                        {% set adult_up = item.adult_unit_price if item.count_adult_apply else 0 %}
+                        {% set child_up = item.child_unit_price if item.count_child_apply else 0 %}
+                        {% set ns.adult_total = ns.adult_total + adult_up %}
+                        {% set ns.child_total = ns.child_total + child_up %}
+                        <tr data-category="{{ item.category or '未分类' }}" data-adult="{{ '%.6f'|format(adult_up) }}" data-child="{{ '%.6f'|format(child_up) }}">
                             <td><span class="badge bg-secondary">{{ item.category or '未分类' }}</span></td>
                             <td>
                                 <span class="item-name" title="{{ item.item_name }}">{{ item.item_name }}</span>
@@ -352,12 +352,11 @@
                                 {% if item.count_adult_apply %}<span class="badge bg-info" style="font-size:0.7rem">成{{ item.adult_count_override or budget.adult_count }}</span>{% endif %}
                                 {% if item.count_child_apply and (budget.child_count > 0 or item.child_count_override) %}<span class="badge bg-warning text-dark" style="font-size:0.7rem">儿{{ item.child_count_override or budget.child_count }}</span>{% endif %}
                             </td>
-                            <td class="price-display">
-                                <span class="price-adult">{{ "%.2f"|format(item.adult_unit_price) }}</span>
-                                {% set child_up = item.child_unit_price %}
-                                {% if item.count_child_apply and child_up and child_up > 0 and child_up != item.adult_unit_price %}
-                                <span class="price-sep">/</span><span class="price-child">{{ "%.2f"|format(child_up) }}</span>
-                                {% endif %}
+                            <td class="text-end">
+                                {% if item.count_adult_apply %}<span class="price-adult">{{ "%.2f"|format(item.adult_unit_price) }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if item.count_child_apply %}<span class="price-child">{{ "%.2f"|format(item.child_unit_price) }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
@@ -377,8 +376,9 @@
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="5" class="text-end fw-bold">人均价格合计:</td>
-                            <td class="text-end fw-bold text-primary"><span id="totalDisplay">{{ "%.2f"|format(ns.total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
+                            <td colspan="5" class="text-end fw-bold">人均总和:</td>
+                            <td class="text-end fw-bold text-primary" title="大人人均总和"><span id="adultTotalDisplay">{{ "%.2f"|format(ns.adult_total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
+                            <td class="text-end fw-bold text-info" title="小孩人均总和"><span id="childTotalDisplay">{{ "%.2f"|format(ns.child_total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -639,18 +639,21 @@ function filterByCategory() {
     const sel = document.getElementById('categoryFilter');
     const val = sel ? sel.value : '';
     const rows = document.querySelectorAll('#itemsTbody tr');
-    let total = 0, visible = 0;
+    let adultTotal = 0, childTotal = 0, visible = 0;
     rows.forEach(tr => {
         const cat = tr.getAttribute('data-category');
         const show = !val || cat === val;
         tr.style.display = show ? '' : 'none';
         if (show) {
             visible++;
-            total += parseFloat(tr.getAttribute('data-total')) || 0;
+            adultTotal += parseFloat(tr.getAttribute('data-adult')) || 0;
+            childTotal += parseFloat(tr.getAttribute('data-child')) || 0;
         }
     });
-    const totalEl = document.getElementById('totalDisplay');
-    if (totalEl) totalEl.textContent = total.toFixed(2);
+    const adultEl = document.getElementById('adultTotalDisplay');
+    if (adultEl) adultEl.textContent = adultTotal.toFixed(2);
+    const childEl = document.getElementById('childTotalDisplay');
+    if (childEl) childEl.textContent = childTotal.toFixed(2);
     const cntEl = document.getElementById('itemVisibleCount');
     if (cntEl) cntEl.textContent = visible;
 }
