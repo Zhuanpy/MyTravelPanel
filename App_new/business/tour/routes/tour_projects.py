@@ -371,6 +371,8 @@ def copy_tour_project(project_id):
                 return_date=original_group.return_date,
                 pax=original_group.pax,
                 budget_per_person=original_group.budget_per_person,
+                adult_price=original_group.adult_price,
+                child_price=original_group.child_price,
                 agency=original_group.agency,
                 operator=original_group.operator,
                 included_items=original_group.included_items,
@@ -622,19 +624,30 @@ def view_tour_itinerary(group_id):
         print(f"✅ 公司信息: {company.company_name if company else 'None'}")
         
         current_time = datetime.now()
-        
+
         # 验证 project 关系是否正常
         if group.project_id:
             if group.project is None:
                 print(f"⚠️ 警告: 团组 {group_id} 的 project_id={group.project_id} 但对应的项目不存在")
             else:
                 print(f"✅ 项目关系已加载: {group.project.project_name}")
-        
+
+        # 价格取自项目的价格预算单：优先绑定本团组的，否则取项目最新一张
+        project_budget = None
+        if group.project_id:
+            from App_new.business.tour.models.PackageBudget import BudgetHeader
+            project_budget = BudgetHeader.query.filter_by(
+                    project_id=group.project_id, group_id=group.id)\
+                .order_by(BudgetHeader.created_at.desc()).first() \
+                or BudgetHeader.query.filter_by(project_id=group.project_id)\
+                .order_by(BudgetHeader.created_at.desc()).first()
+
         return render_template('business/tour/package/TourProjects/tour_project_print_itinerary.html',
-                             tour=group, 
+                             tour=group,
                              itinerary=itineraries,
                              company=company,
-                             current_time=current_time)
+                             current_time=current_time,
+                             project_budget=project_budget)
     except Exception as e:
         import traceback
         error_msg = f"❌ 渲染行程单时出错: {str(e)}\n{traceback.format_exc()}"
@@ -678,6 +691,7 @@ def edit_tour_group(group_id):
             # 检查出发日期和返回日期是否发生变化（在更新之前保存原始值）
             old_departure_date = group.departure_date
             old_return_date = group.return_date
+            sync_warning = None  # 人数同步到预算单时的提示（多团组未指定等）
             
             group.title = request.form.get('title')
             # 转换日期格式
@@ -701,12 +715,13 @@ def edit_tour_group(group_id):
                 group.adult_count = adult_n
                 group.child_count = child_n
                 group.pax = adult_n + child_n
-                # 双向同步：人数变更推送到该项目的所有预算单（成人需≥1）
-                if group.project_id and adult_n >= 1:
-                    from App_new.business.tour.models.PackageBudget import BudgetHeader
-                    BudgetHeader.query.filter_by(project_id=group.project_id).update(
-                        {'adult_count': adult_n, 'child_count': child_n},
-                        synchronize_session=False)
+                # 双向同步：团组人数 → 预算单（按团组精确匹配，多团组不拉平；允许成人=0）
+                if group.project_id:
+                    from App_new.business.tour.routes.package_budget import sync_group_counts_to_budgets
+                    _synced, _skipped_multi = sync_group_counts_to_budgets(
+                        group.project_id, group.id, adult_n, child_n)
+                    if _skipped_multi:
+                        sync_warning = '项目有多个团组且预算单未指定对应团组，人数未自动同步到预算单'
             group.agency = request.form.get('agency')
             group.operator = request.form.get('operator')
             group.project_type = request.form.get('project_type')
@@ -716,6 +731,7 @@ def edit_tour_group(group_id):
             # 处理人均预算
             budget_per_person_str = request.form.get('budget_per_person', '').strip()
             group.budget_per_person = float(budget_per_person_str) if budget_per_person_str else None
+            # 注：价格已改为自动取自项目的价格预算单（BudgetHeader），团队弹窗不再维护价格
             # 套餐说明已迁出本弹窗、改由独立区块保存；
             # 仅当表单确实带了这些字段时才更新，避免编辑团队时被清空
             if 'included_items' in request.form:
@@ -762,9 +778,12 @@ def edit_tour_group(group_id):
             
             # 检查是否是AJAX请求
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': True, 'message': '行程团修改成功'})
+                msg = '行程团修改成功' + (f'（{sync_warning}）' if sync_warning else '')
+                return jsonify({'success': True, 'message': msg, 'warning': sync_warning})
             else:
                 flash('行程团修改成功', 'success')
+                if sync_warning:
+                    flash(sync_warning, 'warning')
                 return redirect(url_for('tour_projects.edit_tour_project', project_id=group.project_id))
         except Exception as e:
             print(f"团信息更新失败: {str(e)}")
@@ -790,6 +809,8 @@ def edit_tour_group(group_id):
             'group_code': group.group_code,
             'group_status': group.group_status,
             'budget_per_person': group.budget_per_person,
+            'adult_price': group.adult_price,
+            'child_price': group.child_price,
             'included_items': group.included_items,
             'excluded_items': group.excluded_items,
             'important_notes': group.important_notes

@@ -1159,6 +1159,7 @@ def visa_detail(project_name=None, project_id=None):
                              document_data=document_data,
                              document_statuses=document_statuses,
                              template_files=template_files,
+                             specific_identity=specific_identity,
                              has_header=has_header,
                              has_ref=has_ref)
                              

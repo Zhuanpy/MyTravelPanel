@@ -60,18 +60,18 @@
             <table class="visa-table">
                 <thead>
                     <tr>    
-                        <th>项目ID</th>
-                        <th>创建时间</th>
-                        <th>项目HID</th>
                         <th>项目名称</th>
+                        <th>项目HID</th>
+                        <th>团编号</th>
+                        <th>项目类型</th>
                         <th>项目状态</th>
+                        <th>出发日期</th>
+                        <th>返程日期</th>
+                        <th>项目预算</th>
                         <th>联系人</th>
-                        <th>联系方式</th>
+                        <th>创建时间</th>
                         <th>备注</th>
-                        <th>编辑项目</th>
-                        <th>复制项目</th>
-                        <th>打开项目</th>
-                        <th>删除项目</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,43 +84,37 @@
                             <input type="hidden" name="current_order" value="{{ order }}">
                             <input type="hidden" name="current_page" value="{{ pagination.page if pagination else 1 }}">
                             <input type="hidden" name="folder_name" value="{{ project.folder_name }}">
-                            <td>{{ project.id }}</td>
-                            <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                <a href="{{ url_for('tour_projects.edit_tour_project', project_id=project.id) }}" class="text-primary" style="text-decoration: underline;" title="{{ project.project_name }}">{{ project.project_name }}</a>
+                            </td>
                             {% if project.project_hid and hid_to_project_id.get(project.project_hid) %}
                             <td><a href="{{ url_for('business_projects.detail.project_detail', project_id=hid_to_project_id[project.project_hid]) }}" class="text-primary" style="text-decoration: underline;">{{ project.project_hid }}</a></td>
                             {% else %}
                             <td>{{ project.project_hid or 'N/A' }}</td>
                             {% endif %}
-                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ project.project_name }}</td>
+                            <td>{{ project.group_codes or 'N/A' }}</td>
+                            <td>{{ project.project_type or 'N/A' }}</td>
                             <td>
                                 <span class="visa-badge {% if project.project_status == '处理中' %}visa-badge-primary{% elif project.project_status == '待出行' %}visa-badge-warning{% elif project.project_status == '已完成' %}visa-badge-success{% elif project.project_status == '忽略单' %}visa-badge-secondary{% else %}visa-badge-info{% endif %}">
                                     {{ project.project_status or 'N/A' }}
                                 </span>
                             </td>
+                            <td>{{ project.trip_departure_date.strftime('%Y-%m-%d') if project.trip_departure_date else 'N/A' }}</td>
+                            <td>{{ project.trip_return_date.strftime('%Y-%m-%d') if project.trip_return_date else 'N/A' }}</td>
+                            <td>{% if project.budget is not none %}{{ project.currency or 'SGD' }} {{ '%.2f'|format(project.budget) }}{% else %}N/A{% endif %}</td>
                             <td>{{ project.contact_person or 'N/A' }}</td>
-                            <td>{{ project.contact_info or 'N/A' }}</td>
+                            <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>{{ project.remarks or 'N/A' }}</td>
-                            
-                            <!-- 编辑项目按钮 -->
-                            <td>
-                                <a href="{{ url_for('tour_projects.edit_tour_project', project_id=project.id) }}" class="visa-btn visa-btn-info visa-btn-sm">编辑项目</a>
-                            </td>
 
-                            <!-- 复制项目按钮 -->
+                            <!-- 操作列：复制 / 打开 / 删除 -->
                             <td>
-                                <a href="#" class="visa-btn visa-btn-secondary visa-btn-sm" data-project-id="{{ project.id }}" onclick="copyProject(event, this)">
-                                    <i class="fas fa-copy"></i> 复制
-                                </a>
-                            </td>
-
-                            <!-- 打开项目按钮 -->
-                            <td>
-                                <a href="#" id="open-project-{{ project.id }}" class="visa-btn visa-btn-warning visa-btn-sm">打开项目</a>
-                            </td>
-
-                            <!-- 删除项目按钮 -->
-                            <td>
-                                <a class="visa-btn visa-btn-danger visa-btn-sm" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                                <div style="display: flex; gap: 0.5rem; white-space: nowrap;">
+                                    <a href="#" class="visa-btn visa-btn-secondary visa-btn-sm" data-project-id="{{ project.id }}" onclick="copyProject(event, this)">
+                                        <i class="fas fa-copy"></i> 复制
+                                    </a>
+                                    <a href="#" id="open-project-{{ project.id }}" class="visa-btn visa-btn-warning visa-btn-sm">打开</a>
+                                    <a class="visa-btn visa-btn-danger visa-btn-sm" href="#" data-project-id="{{ project.id }}" onclick="deleteProject(event, this)">删除</a>
+                                </div>
                             </td>
                         </form>
                     </tr>

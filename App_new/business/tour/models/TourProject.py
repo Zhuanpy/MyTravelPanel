@@ -27,6 +27,8 @@ class TourGroup(db.Model):
     group_code = db.Column(db.String(100), nullable=True, comment='团编号')
     group_status = db.Column(db.String(50), nullable=True, comment='团状态')
     budget_per_person = db.Column(db.Float, nullable=True, comment='人均预算')
+    adult_price = db.Column(db.Float, nullable=True, comment='大人价格')
+    child_price = db.Column(db.Float, nullable=True, comment='小孩价格')
     included_items = db.Column(db.Text, nullable=True, comment='包含项目')
     excluded_items = db.Column(db.Text, nullable=True, comment='不包含项目')
     important_notes = db.Column(db.Text, nullable=True, comment='注意事项')
@@ -50,6 +52,15 @@ class TourGroup(db.Model):
         if self.departure_date and self.return_date:
             return (self.return_date - self.departure_date).days + 1
         return 0
+
+    @property
+    def total_price(self):
+        """团总价 = 大人价格×大人数 + 小孩价格×小孩数（价格为空时按 0 计）"""
+        if self.adult_price is None and self.child_price is None:
+            return None
+        adult_total = (self.adult_price or 0) * (self.adult_count or 0)
+        child_total = (self.child_price or 0) * (self.child_count or 0)
+        return adult_total + child_total
 
 # tour itinerary  每日行程表
 class TourItinerary(db.Model):
@@ -142,6 +153,26 @@ class TourProject(db.Model):
         self.project_type = project_type
         self.budget = budget
         self.departure_date = departure_date
+
+    @property
+    def trip_departure_date(self):
+        """出发日期：优先取项目字段，否则取最早团组的出发日期"""
+        if self.departure_date:
+            return self.departure_date
+        first = self.groups.order_by(TourGroup.departure_date.asc()).first()
+        return first.departure_date if first else None
+
+    @property
+    def trip_return_date(self):
+        """返程日期：取最晚团组的返回日期"""
+        last = self.groups.order_by(TourGroup.return_date.desc()).first()
+        return last.return_date if last else None
+
+    @property
+    def group_codes(self):
+        """团编号：汇总项目下所有团组的团编号（多个用逗号分隔）"""
+        codes = [g.group_code for g in self.groups.order_by(TourGroup.departure_date.asc()).all() if g.group_code]
+        return ', '.join(codes) if codes else None
 
     def save(self):
         """保存或更新当前实例到数据库"""

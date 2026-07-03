@@ -326,16 +326,64 @@
                                 </span>
                             </p>
                         </div>
-                        <div class="info-card">
-                            <h6>人均预算</h6>
-                            <p class="text-green-600 font-medium" style="{% if not group.budget_per_person %}color: #94a3b8; font-style: italic;{% endif %}">
-                                {% if group.budget_per_person %}S${{ "%.2f"|format(group.budget_per_person) }}{% if group.pax %}<span class="text-gray-500 font-normal">（总≈S${{ "%.0f"|format(group.budget_per_person * group.pax) }}）</span>{% endif %}{% else %}未设置{% endif %}
-                            </p>
-                        </div>
                     </div>
                 </div>
                 {% endif %}
         </div>
+
+        <!-- 价格区块（独立于团队信息，含价格预算入口）-->
+        {% if groups %}
+        {% set group = groups[0] %}
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden mt-6">
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+                <h4 class="text-base font-semibold text-gray-700 flex items-center gap-2 m-0">
+                    <i class="fas fa-tags text-green-500"></i> 价格
+                </h4>
+                <div class="flex gap-2">
+                    {% if project_budget %}
+                    <a href="{{ url_for('package_budget.detail', budget_id=project_budget.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                        <i class="fas fa-calculator"></i> 价格预算
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('package_budget.quick_create_for_project', project_id=project.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium" title="该项目还没有预算单，点击一键创建">
+                        <i class="fas fa-plus-circle"></i> 创建价格预算
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="p-4">
+                {% if project_budget %}
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div class="info-card">
+                        <h6>大人价格</h6>
+                        <p class="text-green-600 font-medium">S${{ "%.2f"|format(project_budget.adult_unit_price) }}</p>
+                    </div>
+                    <div class="info-card">
+                        <h6>小孩价格</h6>
+                        <p class="text-green-600 font-medium">S${{ "%.2f"|format(project_budget.child_unit_price) }}</p>
+                    </div>
+                    <div class="info-card">
+                        <h6>团总价</h6>
+                        <p class="text-green-600 font-medium">S${{ "%.2f"|format(project_budget.total_price) }}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">
+                    <i class="fas fa-info-circle"></i> 价格自动取自
+                    <a href="{{ url_for('package_budget.detail', budget_id=project_budget.id) }}" target="_blank" class="text-blue-500 underline">价格预算单 #{{ project_budget.id }}</a>，
+                    修改预算后此处自动更新
+                </p>
+                {% else %}
+                <div class="text-center py-6 bg-gray-50 rounded-xl">
+                    <i class="fas fa-tags text-3xl text-gray-300 mb-2"></i>
+                    <p class="text-gray-500 mb-3 text-sm">该项目还没有价格预算，创建后价格自动显示在这里</p>
+                    <a href="{{ url_for('package_budget.quick_create_for_project', project_id=project.id) }}" target="_blank" class="inline-flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                        <i class="fas fa-plus-circle"></i> 创建价格预算
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         <!-- 行程安排区块 -->
         {% if groups %}
@@ -353,15 +401,6 @@
                         <a href="{{ url_for('tour_projects.view_tour_itinerary', group_id=group.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs font-medium">
                             <i class="fas fa-route"></i> 行程单
                         </a>
-                        {% if project_budget %}
-                        <a href="{{ url_for('package_budget.detail', budget_id=project_budget.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
-                            <i class="fas fa-calculator"></i> 价格预算
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('package_budget.quick_create_for_project', project_id=project.id) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium" title="该项目还没有预算单，点击一键创建">
-                            <i class="fas fa-plus-circle"></i> 创建价格预算
-                        </a>
-                        {% endif %}
                         <button type="button" onclick="addItinerary({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium">
                             <i class="fas fa-plus"></i> 添加行程
                         </button>
@@ -603,10 +642,6 @@
                             <option value="已完成">已完成</option>
                             <option value="已取消">已取消</option>
                         </select>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">人均预算 (SGD)</label>
-                        <input type="number" name="budget_per_person" id="editGroupBudgetPerPerson" class="visa-form-control" step="0.01" min="0" placeholder="请输入人均预算">
                     </div>
                 </div>
             </form>
@@ -1179,7 +1214,6 @@ function editGroup(groupId) {
             document.getElementById('editGroupOperator').value = group.operator || '';
             document.getElementById('editGroupCode').value = group.group_code || '';
             document.getElementById('editGroupStatus').value = group.group_status || '计划中';
-            document.getElementById('editGroupBudgetPerPerson').value = group.budget_per_person || '';
             showModal('editGroupModal');
         } else {
             alert('获取团队信息失败: ' + data.message);
@@ -1302,8 +1336,12 @@ function updateGroup() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('团队信息更新成功！', 'success');
-            setTimeout(() => location.reload(), 1000);
+            if (data.warning) {
+                showAlert('团队信息已保存，但' + data.warning, 'warning');
+            } else {
+                showAlert('团队信息更新成功！', 'success');
+            }
+            setTimeout(() => location.reload(), 1500);
         } else {
             showAlert('更新团队失败: ' + data.message, 'danger');
         }

@@ -16,6 +16,76 @@ import urllib.parse
 package_budget = Blueprint('package_budget', __name__, url_prefix='/package_budget')
 
 
+# ============ 人数双向同步：预算单 <-> 团组 ============
+# 说明：项目可能有多个团组。预算单通过 group_id 精确对应某个团组；
+# 未指定 group_id 时，仅在项目只有一个团组的情况下才回退按项目同步，避免把多团组拉平。
+
+def sync_budget_counts_to_groups(project_id, group_id, adult_count, child_count):
+    """预算单人数 → 团组。返回 (synced, skipped_multi)。
+    - 预算指定了 group_id：只同步该团组
+    - 未指定且项目仅一个团组：同步该团组
+    - 未指定且多团组：不拉平（skipped_multi=True）
+    """
+    from App_new.business.tour.models.TourProject import TourGroup
+    groups = TourGroup.query.filter_by(project_id=project_id).all()
+    if group_id:
+        targets = [g for g in groups if g.id == group_id]
+    elif len(groups) == 1:
+        targets = groups
+    else:
+        targets = []
+    for g in targets:
+        g.adult_count = adult_count
+        g.child_count = child_count
+        g.pax = (adult_count or 0) + (child_count or 0)
+    skipped_multi = (not targets) and len(groups) > 1
+    return len(targets), skipped_multi
+
+
+def sync_group_counts_to_budgets(project_id, group_id, adult_count, child_count):
+    """团组人数 → 预算单。返回 (synced, skipped_multi)。
+    - 预算 group_id 命中该团组：同步
+    - 预算未指定 group_id：仅当项目只有一个团组时回退同步，否则跳过
+    """
+    from App_new.business.tour.models.TourProject import TourGroup
+    budgets = BudgetHeader.query.filter_by(project_id=project_id).all()
+    group_count = TourGroup.query.filter_by(project_id=project_id).count()
+    synced = 0
+    skipped_multi = False
+    for b in budgets:
+        if b.group_id == group_id:
+            b.adult_count = adult_count
+            b.child_count = child_count
+            synced += 1
+        elif b.group_id is None:
+            if group_count == 1:
+                b.adult_count = adult_count
+                b.child_count = child_count
+                synced += 1
+            else:
+                skipped_multi = True
+    return synced, skipped_multi
+
+
+def auto_link_budget_project(budget):
+    """预算未关联项目时，按套餐名精确匹配唯一项目自动关联；顺带绑定唯一团组。
+    返回关联到的 TourProject 或 None。
+    """
+    from App_new.business.tour.models.TourProject import TourProject, TourGroup
+    name = (budget.package_name or '').strip()
+    if not name:
+        return None
+    matches = TourProject.query.filter_by(project_name=name).all()
+    if len(matches) != 1:
+        return None
+    project = matches[0]
+    budget.project_id = project.id
+    groups = TourGroup.query.filter_by(project_id=project.id).all()
+    if len(groups) == 1:
+        budget.group_id = groups[0].id
+    return project
+
+
 @package_budget.route('/')
 @package_budget.route('/list')
 @login_required
@@ -97,8 +167,11 @@ def create():
                 flash('套餐名称不能为空', 'error')
                 return render_template('business/tour/package/TourBudget/create.html', form=request.form)
             
-            if not adult_count or adult_count < 1:
-                flash('成人数量必须大于0', 'error')
+            # 允许成人=0，但大人和小孩不能同时为0
+            if adult_count is None or adult_count < 0:
+                adult_count = 0
+            if (adult_count + child_count) < 1:
+                flash('大人和小孩人数不能同时为0', 'error')
                 return render_template('business/tour/package/TourBudget/create.html', form=request.form)
             
             # 获取当前用户名字
@@ -126,14 +199,18 @@ def create():
             )
             
             db.session.add(budget)
+            db.session.flush()  # 拿到 budget.id
 
-            # 双向同步：新建预算若关联项目，人数回写到该项目团队
+            # 新建预算若关联项目：绑定唯一团组并双向同步人数到团组
             if project_id:
                 from App_new.business.tour.models.TourProject import TourGroup
-                TourGroup.query.filter_by(project_id=project_id).update(
-                    {'adult_count': adult_count, 'child_count': child_count,
-                     'pax': adult_count + child_count},
-                    synchronize_session=False)
+                only = TourGroup.query.filter_by(project_id=project_id).all()
+                if len(only) == 1:
+                    budget.group_id = only[0].id
+                synced, skipped_multi = sync_budget_counts_to_groups(
+                    project_id, budget.group_id, adult_count, child_count)
+                if skipped_multi:
+                    flash('项目有多个团组且未指定对应团组，人数未自动同步到团队', 'warning')
 
             db.session.commit()
 
@@ -225,6 +302,7 @@ def quick_create_for_project(project_id):
             created_by=created_by_name,
             created_at=datetime.utcnow(),
             project_id=project_id,
+            group_id=first_group.id if first_group else None,
         )
         db.session.add(budget)
         db.session.commit()
@@ -237,6 +315,42 @@ def quick_create_for_project(project_id):
         return redirect(url_for('package_budget.budgets_by_project', project_id=project_id))
 
 
+# 服务费默认单价（每人），可在明细中编辑调整
+DEFAULT_SERVICE_FEE = 100
+
+
+def ensure_service_fee_item(budget):
+    """确保预算单包含"服务费"明细，避免漏算服务费。
+
+    - 默认 100/每人（成人、儿童均计入），添加后可在明细中自行编辑调整
+    - 幂等：已存在服务费明细则不重复添加
+    - 模板单不自动添加
+    返回 True 表示本次新增了服务费明细
+    """
+    if getattr(budget, 'is_template', False):
+        return False
+    # 已有服务费明细（按类别或名称识别）则跳过
+    for it in budget.items:
+        if (it.category or '').strip() == '服务费' or (it.item_name or '').strip() == '服务费':
+            return False
+
+    max_order = db.session.query(db.func.max(BudgetItem.sort_order)).filter_by(header_id=budget.id).scalar() or 0
+    fee = BudgetItem(
+        header_id=budget.id,
+        category='服务费',
+        item_name='服务费',
+        pricing_method='person_based',
+        adult_price=DEFAULT_SERVICE_FEE,
+        child_price=DEFAULT_SERVICE_FEE,
+        count_adult_apply=True,
+        count_child_apply=True,
+        sort_order=max_order + 1,
+    )
+    db.session.add(fee)
+    db.session.commit()
+    return True
+
+
 @package_budget.route('/<int:budget_id>')
 @login_required
 @staff_only
@@ -244,6 +358,8 @@ def detail(budget_id):
     """预算单详情页面"""
     try:
         budget = BudgetHeader.query.get_or_404(budget_id)
+        # 自动补充"服务费"明细（默认100/每人，可编辑），避免漏算
+        ensure_service_fee_item(budget)
         # 获取业务类型作为“类别”选项
         business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order.asc(), BusinessType.id.asc()).all()
         
@@ -312,10 +428,13 @@ def edit(budget_id):
                 flash('套餐名称不能为空', 'error')
                 return render_template('business/tour/package/TourBudget/edit.html', budget=budget, projects=projects)
             
-            if not adult_count or adult_count < 1:
-                flash('成人数量必须大于0', 'error')
+            # 允许成人=0，但大人和小孩不能同时为0
+            if adult_count is None or adult_count < 0:
+                adult_count = 0
+            if (adult_count + child_count) < 1:
+                flash('大人和小孩人数不能同时为0', 'error')
                 return render_template('business/tour/package/TourBudget/edit.html', budget=budget, projects=projects)
-            
+
             # 更新预算单
             budget.package_name = package_name
             budget.adult_count = adult_count
@@ -327,13 +446,28 @@ def edit(budget_id):
             budget.project_id = project_id
             budget.updated_at = datetime.utcnow()
 
-            # 双向同步：预算人数回写到关联项目的团队（pax 自动汇总）
-            if project_id:
+            # 未关联项目：尝试按套餐名自动关联
+            if not project_id:
+                linked = auto_link_budget_project(budget)
+                if linked:
+                    project_id = linked.id
+                    flash(f'已自动关联到项目「{linked.project_name}」', 'info')
+
+            # 若已关联项目但未绑定团组，且项目只有一个团组，则自动绑定
+            if project_id and not budget.group_id:
                 from App_new.business.tour.models.TourProject import TourGroup
-                TourGroup.query.filter_by(project_id=project_id).update(
-                    {'adult_count': adult_count, 'child_count': child_count,
-                     'pax': adult_count + child_count},
-                    synchronize_session=False)
+                only = TourGroup.query.filter_by(project_id=project_id).all()
+                if len(only) == 1:
+                    budget.group_id = only[0].id
+
+            # 双向同步：预算人数 → 团组
+            if project_id:
+                synced, skipped_multi = sync_budget_counts_to_groups(
+                    project_id, budget.group_id, adult_count, child_count)
+                if skipped_multi:
+                    flash('项目有多个团组且未指定对应团组，人数未自动同步到团队', 'warning')
+            else:
+                flash('该预算单未关联项目，人数未同步到团队', 'warning')
 
             db.session.commit()
 

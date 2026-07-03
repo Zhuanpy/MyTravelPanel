@@ -354,7 +354,10 @@
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
             <h2><i class="fas fa-file-download"></i> 模板文件</h2>
-            <a href="{{ url_for('visa_basic.visa_template_manager', visa_type=project.visa_type) }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-left: auto;" title="进入模板管理">
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem; margin-left: auto;" data-action="open-modal" data-modal-id="uploadTemplateModal" title="上传模板文件">
+                <i class="fas fa-upload"></i> 上传模板
+            </button>
+            <a href="{{ url_for('visa_basic.visa_template_manager', visa_type=project.visa_type) }}" target="_blank" class="visa-btn visa-btn-sm visa-btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="进入模板管理">
                 <i class="fas fa-cog"></i> 模板管理
             </a>
         </div>
@@ -434,6 +437,57 @@
 <!-- ==================== 模态框区域 ==================== -->
 
 <!-- 添加资料模态框 -->
+<!-- 上传模板文件模态框 -->
+<div id="uploadTemplateModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header">
+            <h3 class="visa-modal-title">上传模板文件</h3>
+            <button type="button" class="visa-modal-close" data-action="close-modal" data-modal-id="uploadTemplateModal">&times;</button>
+        </div>
+        <form id="uploadTemplateForm" enctype="multipart/form-data">
+            <input type="hidden" name="visa_type_id" value="{{ types_info.id }}">
+            <div class="visa-modal-body">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">模板名称 <span style="color:red;">*</span></label>
+                    <input type="text" class="visa-form-control" name="template_name" required placeholder="例如：日本签证申请表模板">
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">模板类型 <span style="color:red;">*</span></label>
+                    <input type="text" class="visa-form-control" name="template_type" list="templateTypeList" required placeholder="例如：申请表、公司信、邀请信">
+                    <datalist id="templateTypeList">
+                        {% for t in template_files|map(attribute='template_type')|unique %}
+                        <option value="{{ t }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">适用身份</label>
+                    <select class="visa-form-select" name="identity_id">
+                        <option value="">共用模板（所有身份）</option>
+                        {% if specific_identity %}
+                        <option value="{{ specific_identity.id }}" selected>本项目身份：{{ specific_identity.identity_zh }}</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">模板文件 <span style="color:red;">*</span></label>
+                    <input type="file" class="visa-form-control" name="template_file" required
+                           accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png">
+                    <small style="color: var(--visa-text-muted); font-size: 0.72rem;">支持 PDF / Word / Excel / 图片 / TXT</small>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">模板描述</label>
+                    <textarea class="visa-form-textarea" name="description" placeholder="可选描述信息"></textarea>
+                </div>
+            </div>
+            <div class="visa-modal-footer">
+                <button type="button" class="visa-btn visa-btn-secondary" data-action="close-modal" data-modal-id="uploadTemplateModal">取消</button>
+                <button type="submit" class="visa-btn visa-btn-primary">上传</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="addDocumentModal" class="visa-modal">
     <div class="visa-modal-dialog">
         <div class="visa-modal-header">
@@ -1086,6 +1140,44 @@ function initFormHandlers() {
         });
     }
 
+    // 上传模板文件表单
+    const uploadTemplateForm = document.getElementById('uploadTemplateForm');
+    if (uploadTemplateForm) {
+        uploadTemplateForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '上传中...';
+
+            fetch(`{{ url_for('visa_basic.upload_visa_template') }}`, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(data.message || '模板文件上传成功', 'success');
+                    closeModal('uploadTemplateModal');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    throw new Error(data.message || '上传失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage(error.message || '上传失败，请重试', 'error');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+        });
+    }
+
     // 编辑备注表单
     const editNotesForm = document.getElementById('editNotesForm');
     if (editNotesForm) {
@@ -1294,6 +1386,9 @@ document.addEventListener('click', function(e) {
             break;
         case 'show-add-link-modal':
             openModal('addLinkModal');
+            break;
+        case 'open-modal':
+            openModal(target.dataset.modalId);
             break;
         case 'close-modal':
             closeModal(target.dataset.modalId);

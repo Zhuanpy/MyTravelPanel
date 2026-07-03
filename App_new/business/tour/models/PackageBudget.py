@@ -24,11 +24,24 @@ class BudgetHeader(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('tour_project.id'), nullable=True, index=True)
     project = db.relationship("TourProject", backref=db.backref("budgets", lazy="dynamic"))
 
+    # 关联团组ID：用于多团组时按团组精确同步人数（为空表示未指定具体团组）
+    group_id = db.Column(db.Integer, db.ForeignKey('tour_group.id'), nullable=True, index=True)
+
     items = db.relationship("BudgetItem", backref="header", cascade="all, delete-orphan")
 
     @property
     def total_price(self):
         return sum(item.subtotal for item in self.items)
+
+    @property
+    def adult_unit_price(self):
+        """成人人均价：各计入成人的预算项目成人单价之和"""
+        return sum((item.adult_unit_price or 0) for item in self.items if item.count_adult_apply)
+
+    @property
+    def child_unit_price(self):
+        """儿童人均价：各计入儿童的预算项目儿童单价之和"""
+        return sum((item.child_unit_price or 0) for item in self.items if item.count_child_apply)
 
     def __repr__(self):
         return f'<BudgetHeader {self.package_name}>'
