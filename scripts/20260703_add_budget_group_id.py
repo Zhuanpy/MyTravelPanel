@@ -43,21 +43,20 @@ def main():
                 return
 
         # 2) 回填：项目仅一个团组的预算单，group_id 指向该团组
-        from App_new.business.tour.models.PackageBudget import BudgetHeader
-        from App_new.business.tour.models.TourProject import TourGroup
-
-        backfilled = 0
-        budgets = BudgetHeader.query.filter(
-            BudgetHeader.project_id.isnot(None),
-            BudgetHeader.group_id.is_(None)).all()
-        for b in budgets:
-            groups = TourGroup.query.filter_by(project_id=b.project_id).all()
-            if len(groups) == 1:
-                b.group_id = groups[0].id
-                backfilled += 1
-        if backfilled:
-            db.session.commit()
-        print(f"回填完成：{backfilled} 个预算单已绑定唯一团组")
+        #    用原生 SQL，避免走 ORM（模型可能含本次尚未建好的列，如 adult_price）导致查询报错
+        result = db.session.execute(text('''
+            UPDATE package_budget_header h
+            JOIN (
+                SELECT project_id, MIN(id) AS gid, COUNT(*) AS cnt
+                FROM tour_group
+                GROUP BY project_id
+                HAVING cnt = 1
+            ) g ON h.project_id = g.project_id
+            SET h.group_id = g.gid
+            WHERE h.project_id IS NOT NULL AND h.group_id IS NULL
+        '''))
+        db.session.commit()
+        print(f"回填完成：{result.rowcount} 个预算单已绑定唯一团组")
 
 
 if __name__ == '__main__':
