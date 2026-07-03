@@ -39,6 +39,9 @@
             <button type="button" class="visa-btn visa-btn-sm visa-btn-danger" onclick="deleteTemplate()" title="删除所选模板"><i class="fas fa-trash"></i></button>
             <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
             <button type="button" class="visa-btn visa-btn-sm visa-btn-success" onclick="saveAsTemplate()"><i class="fas fa-save"></i> 将当前表存为模板</button>
+            <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
+            <input type="file" id="masterFile" style="display:none;" onchange="uploadMaster(this)">
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" onclick="document.getElementById('masterFile').click()" title="上传本签证类型的填表母版（共用，覆盖旧母版）"><i class="fas fa-file-upload"></i> 上传母版</button>
             <span style="color:#9ca3af; font-size:0.78rem;">应用后按需改申请人专属字段（姓名/护照等）再保存</span>
         </div>
         <!-- 模板编辑态提示条 -->
@@ -63,6 +66,30 @@ const CSRF_TOKEN = document.getElementById('csrfToken').value;
 const FORM_DATA_URL = "{{ url_for('visa_project.get_project_form_data', project_id=project.id) }}";
 const TPL_URL = "{{ url_for('visa_project.list_form_templates') }}";  // GET列表 / POST保存
 const VISA_CATEGORY = "{{ 'japan' if '日本' in project.visa_type else ('korea' if '韩国' in project.visa_type else '') }}";
+const MASTER_UPLOAD_URL = "{{ url_for('visa_project.upload_master_template', project_id=project.id) }}";
+const MASTER_ACCEPT = VISA_CATEGORY === 'japan' ? '.pdf' : (VISA_CATEGORY === 'korea' ? '.xls,.xlsx' : '');
+
+// 上传填表母版（共用资料），成功后重新加载表单字段
+function uploadMaster(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    setStatus('母版上传中...');
+    fetch(MASTER_UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.message || '上传失败');
+        setStatus(data.message || '母版上传成功', true);
+        loadFillForm();  // 重新读取母版字段
+    })
+    .catch(err => setStatus(err.message || '母版上传失败', false))
+    .finally(() => { input.value = ''; });
+}
 
 // 收集当前表单所有值（文本/下拉/单选），供保存表单与存模板复用
 function gatherFormValues() {
@@ -339,8 +366,19 @@ function loadFillForm() {
             setStatus('');
         })
         .catch(err => {
+            const msg = err.message || '加载失败';
+            // 母版缺失：直接给出上传入口，方便在本页补传母版
+            const missingMaster = /母版|不存在|not exist|FileNotFound/i.test(msg);
+            const uploadBtn = missingMaster
+                ? `<div style="margin-top:0.8rem;">
+                       <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" onclick="document.getElementById('masterFile').click()">
+                           <i class="fas fa-file-upload"></i> 上传母版文件
+                       </button>
+                       <span style="color:#9ca3af; font-size:0.8rem; margin-left:0.5rem;">上传后将自动重新加载表单</span>
+                   </div>`
+                : '';
             document.getElementById('fillFormBody').innerHTML =
-                `<div style="color:#dc2626; padding:1rem;">${err.message || '加载失败'}</div>`;
+                `<div style="padding:1rem;"><div style="color:#dc2626;">${msg}</div>${uploadBtn}</div>`;
             setStatus('加载失败', false);
         });
 }
@@ -369,6 +407,8 @@ function saveFillForm() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const mf = document.getElementById('masterFile');
+    if (mf && MASTER_ACCEPT) mf.setAttribute('accept', MASTER_ACCEPT);
     loadFillForm();
     loadTemplates();
 });

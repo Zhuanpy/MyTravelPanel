@@ -801,6 +801,60 @@ def save_project_form_data(project_id):
         return jsonify({'success': False, 'message': f'保存失败: {e}'}), 500
 
 
+def _project_master_template_target(project):
+    """返回项目填表母版的 (目标路径, 允许扩展名集合, 类型说明)。不支持则 (None, None, None)。
+
+    母版为「共用资料」，按签证类型固定命名，上传即覆盖该类型所有项目共用的母版。
+    """
+    vt = project.visa_type or ''
+    if '日本' in vt:
+        return _japan_master_pdf_path(), {'pdf'}, '日本可填 PDF 母版'
+    if '韩国' in vt:
+        return _korea_master_template_path(), {'xls', 'xlsx'}, '韩国 Excel 母版'
+    return None, None, None
+
+
+@visa_project.route('/<int:project_id>/upload-master-template', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def upload_master_template(project_id):
+    """上传当前签证类型的填表母版文件（共用资料），供填表页读取字段结构。
+
+    注意：母版按签证类型共用，上传会覆盖该类型所有项目使用的母版（旧文件自动备份）。
+    """
+    project = VisaProject.query.get_or_404(project_id)
+    target_path, allowed_exts, kind = _project_master_template_target(project)
+    if not target_path:
+        return jsonify({'success': False, 'message': f'签证类型 "{project.visa_type}" 暂不支持上传母版'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+
+    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    if ext not in allowed_exts:
+        return jsonify({'success': False,
+                        'message': f'{kind}需 {"/".join(sorted(allowed_exts))} 格式，当前为 .{ext}'}), 400
+
+    try:
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        # 已存在则先备份旧母版，避免误覆盖不可恢复
+        if os.path.exists(target_path):
+            import shutil
+            from datetime import datetime
+            bak = f"{target_path}.{datetime.now().strftime('%Y%m%d_%H%M%S')}.bak"
+            shutil.copy2(target_path, bak)
+        file.save(target_path)
+        current_app.logger.info(f'项目{project_id} 上传{kind}: {target_path}')
+        return jsonify({'success': True, 'message': f'{kind}上传成功，可继续填表'})
+    except Exception as e:
+        current_app.logger.error(f'上传母版失败({project_id}): {e}')
+        return jsonify({'success': False, 'message': f'上传失败: {e}'}), 500
+
+
 @visa_project.route('/<int:project_id>/fill-form', methods=['GET'])
 @login_required
 @staff_only
