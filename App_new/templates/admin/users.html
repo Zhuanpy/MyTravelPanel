@@ -1,90 +1,111 @@
 {% extends "admin/base.html" %}
 
-{% block title %}用户管理 - 管理员后台{% endblock %}
+{% set scope = scope|default('staff') %}
+{% block title %}{{ '会员管理' if scope == 'member' else '员工管理' }} - 管理员后台{% endblock %}
 
 {% block page_content %}
 <div class="admin-content">
     <div class="container-fluid">
         <!-- 页面标题和操作 -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-users me-2"></i>用户管理</h2>
+            <h2>
+                {% if scope == 'member' %}
+                <i class="fas fa-user-circle me-2"></i>会员管理
+                {% else %}
+                <i class="fas fa-user-tie me-2"></i>员工管理
+                {% endif %}
+            </h2>
             <div class="d-flex gap-2">
-                {% if request.args.get('role') == 'staff' %}
+                {% if scope != 'member' %}
                 <a href="{{ url_for('admin.staff_levels') }}" class="btn btn-warning">
                     <i class="fas fa-layer-group me-2"></i>员工等级管理
                 </a>
-                {% endif %}
                 <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
                     <i class="fas fa-user-plus me-2"></i>创建员工/管理员
                 </a>
+                {% endif %}
                 <button class="btn btn-outline-secondary" onclick="location.reload()">
                     <i class="fas fa-sync-alt me-2"></i>刷新
                 </button>
             </div>
         </div>
 
-        <!-- 角色统计卡片 -->
+        <!-- 统计卡片 -->
         <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="stat-card bg-danger">
-                    <div class="stat-icon">
-                        <i class="fas fa-crown"></i>
+            {% if scope == 'member' %}
+            <div class="col-md-4">
+                <div class="stat-card bg-primary">
+                    <div class="stat-icon"><i class="fas fa-user-circle"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ member_count or 0 }}</h3>
+                        <p>会员总数</p>
                     </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card bg-success">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ active_count or 0 }}</h3>
+                        <p>活跃会员</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card bg-info">
+                    <div class="stat-icon"><i class="fas fa-certificate"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ verified_count or 0 }}</h3>
+                        <p>已验证会员</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-md-4">
+                <div class="stat-card bg-danger">
+                    <div class="stat-icon"><i class="fas fa-crown"></i></div>
                     <div class="stat-info">
                         <h3 id="adminCount">{{ admin_count or 0 }}</h3>
                         <p>管理员</p>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="stat-card bg-warning">
-                    <div class="stat-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
+                    <div class="stat-icon"><i class="fas fa-shield-alt"></i></div>
                     <div class="stat-info">
                         <h3 id="staffCount">{{ staff_count or 0 }}</h3>
                         <p>员工</p>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="stat-card bg-primary">
-                    <div class="stat-icon">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3 id="memberCount">{{ member_count or 0 }}</h3>
-                        <p>会员</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="stat-card bg-success">
-                    <div class="stat-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
                     <div class="stat-info">
                         <h3 id="totalCount">{{ total_count or 0 }}</h3>
-                        <p>总用户数</p>
+                        <p>内部用户合计</p>
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- 用户列表 -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-list me-2"></i>用户列表
+                    <i class="fas fa-list me-2"></i>{{ '会员列表' if scope == 'member' else '员工列表' }}
                 </h5>
                 <div class="d-flex gap-2">
-                    <!-- 角色筛选 -->
+                    {% if scope != 'member' %}
+                    <!-- 角色筛选（仅内部用户） -->
                     <select class="form-select form-select-sm" id="roleFilter" style="width: auto;">
                         <option value="">所有角色</option>
                         <option value="admin">管理员</option>
                         <option value="staff">员工</option>
-                        <option value="member">会员</option>
                     </select>
+                    {% endif %}
                     <!-- 搜索框 -->
                     <div class="input-group input-group-sm" style="width: 250px;">
                         <input type="text" class="form-control" id="searchInput" placeholder="搜索用户...">
@@ -208,8 +229,20 @@
                                             <i class="fas fa-layer-group"></i>
                                         </button>
                                         {% endif %}
+                                        {% if user.role and user.role.name in ['admin', 'staff'] %}
+                                        <button class="btn btn-sm btn-outline-success"
+                                                onclick="openTokenManager({{ user.id }}, '{{ user.email }}')"
+                                                title="API Token 管理">
+                                            <i class="fas fa-robot"></i>
+                                        </button>
+                                        {% endif %}
                                         {% if user.id != current_user.id %}
-                                        <button class="btn btn-sm btn-outline-warning" 
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                onclick="resetUserPassword({{ user.id }}, '{{ user.email }}')"
+                                                title="重置密码">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-warning"
                                                 onclick="toggleUserStatus({{ user.id }}, {{ user.is_active | tojson }})"
                                                 title="{% if user.is_active %}禁用{% else %}启用{% endif %}用户">
                                             <i class="fas {% if user.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
@@ -236,13 +269,70 @@
         {% if not users %}
         <div class="text-center py-5">
             <i class="fas fa-users" style="font-size: 4rem; color: #ccc;"></i>
-            <h4 class="mt-3 text-muted">暂无用户数据</h4>
-            <p class="text-muted">开始创建您的第一个用户吧</p>
+            {% if scope == 'member' %}
+            <h4 class="mt-3 text-muted">暂无会员数据</h4>
+            <p class="text-muted">会员通过注册加入，暂无可管理的会员</p>
+            {% else %}
+            <h4 class="mt-3 text-muted">暂无员工数据</h4>
+            <p class="text-muted">开始创建您的第一个员工/管理员吧</p>
             <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus me-2"></i>创建用户
+                <i class="fas fa-user-plus me-2"></i>创建员工/管理员
             </a>
+            {% endif %}
         </div>
         {% endif %}
+    </div>
+</div>
+
+<!-- API Token 管理弹窗 -->
+<div class="modal fade" id="tokenManagerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-robot me-2"></i>API Token 管理
+                    <span class="text-muted small ms-2" id="tokenUserEmail"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="text-muted small">
+                        令牌用于该员工的 agent / 脚本免登录访问。明文仅生成时显示一次。
+                    </div>
+                    <button class="btn btn-sm btn-success" id="btnGenerateToken">
+                        <i class="fas fa-plus me-1"></i>生成新 Token
+                    </button>
+                </div>
+                <!-- 新生成的明文令牌提示（仅显示一次） -->
+                <div class="alert alert-warning d-none" id="newTokenAlert">
+                    <div class="fw-bold mb-1"><i class="fas fa-key me-1"></i>新令牌（请立即复制，仅显示这一次）：</div>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" id="newTokenValue" readonly>
+                        <button class="btn btn-outline-secondary" type="button" id="btnCopyToken">
+                            <i class="fas fa-copy"></i> 复制
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>前缀</th>
+                                <th>状态</th>
+                                <th>最后使用</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tokenTableBody">
+                            <tr><td colspan="6" class="text-center text-muted py-3">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -333,20 +423,23 @@ const csrfToken = document.querySelector('meta[name=csrf-token]') ?
     document.querySelector('meta[name=csrf-token]').getAttribute('content') : '';
 </script>
 <script>
-// 角色筛选
-document.getElementById('roleFilter').addEventListener('change', function() {
-    const filterValue = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#userTableBody tr');
-    
-    rows.forEach(row => {
-        const roleText = row.cells[1].textContent.toLowerCase();
-        if (!filterValue || roleText.includes(filterValue)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+// 角色筛选（仅内部用户页存在该下拉）
+const roleFilterEl = document.getElementById('roleFilter');
+if (roleFilterEl) {
+    roleFilterEl.addEventListener('change', function() {
+        const filterValue = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#userTableBody tr');
+
+        rows.forEach(row => {
+            const roleText = row.cells[1].textContent.toLowerCase();
+            if (!filterValue || roleText.includes(filterValue)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
     });
-});
+}
 
 // 搜索功能
 document.getElementById('searchInput').addEventListener('input', function() {
@@ -388,6 +481,178 @@ function toggleUserStatus(userId, currentStatus) {
             alert('操作失败，请稍后重试');
         });
     }
+}
+
+// ===== API Token 管理 =====
+let tokenManagerUserId = null;
+let tokenManagerModal = null;
+
+// 打开某用户的 Token 管理弹窗
+function openTokenManager(userId, userEmail) {
+    tokenManagerUserId = userId;
+    document.getElementById('tokenUserEmail').textContent = userEmail;
+    // 每次打开重置「新令牌」提示
+    document.getElementById('newTokenAlert').classList.add('d-none');
+    document.getElementById('newTokenValue').value = '';
+    document.getElementById('tokenTableBody').innerHTML =
+        '<tr><td colspan="6" class="text-center text-muted py-3">加载中...</td></tr>';
+
+    if (!tokenManagerModal) {
+        const modalEl = document.getElementById('tokenManagerModal');
+        // 把弹窗挪到 body 直属节点，避免被 .main-content 的堆叠上下文(z-index:1)
+        // 困住，导致 Bootstrap 挂在 body 上的半透明遮罩盖在弹窗前面。
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+        tokenManagerModal = new bootstrap.Modal(modalEl);
+    }
+    tokenManagerModal.show();
+    loadTokenList();
+}
+
+// 加载并渲染 Token 列表
+function loadTokenList() {
+    fetch(`/admin/api/user/${tokenManagerUserId}/tokens`)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('tokenTableBody');
+            if (!data.success) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">加载失败：${data.message}</td></tr>`;
+                return;
+            }
+            if (!data.tokens.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">暂无令牌，点击右上角「生成新 Token」创建</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.tokens.map(t => `
+                <tr class="${t.is_active ? '' : 'text-muted'}">
+                    <td>${t.id}</td>
+                    <td>${escapeHtml(t.name || '')}</td>
+                    <td><code>${escapeHtml(t.prefix || '')}…</code></td>
+                    <td>${t.is_active
+                        ? '<span class="badge bg-success">启用</span>'
+                        : '<span class="badge bg-secondary">已撤销</span>'}</td>
+                    <td class="small">${t.last_used_at || '从未'}</td>
+                    <td>${t.is_active
+                        ? `<button class="btn btn-sm btn-outline-danger" onclick="revokeToken(${t.id})" title="撤销"><i class="fas fa-ban"></i></button>`
+                        : '<span class="text-muted small">—</span>'}</td>
+                </tr>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('tokenTableBody').innerHTML =
+                '<tr><td colspan="6" class="text-center text-danger py-3">加载失败，请稍后重试</td></tr>';
+        });
+}
+
+// 生成新 Token（当前弹窗对应的用户）
+document.getElementById('btnGenerateToken').addEventListener('click', function() {
+    const name = prompt('填写用途标签（如 hermes-agent），留空默认 api-agent：', 'api-agent');
+    if (name === null) {
+        return; // 取消
+    }
+    fetch(`/admin/api/user/${tokenManagerUserId}/generate-token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ name: name.trim() })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 展示明文令牌（仅此一次）
+            document.getElementById('newTokenValue').value = data.token;
+            document.getElementById('newTokenAlert').classList.remove('d-none');
+            loadTokenList();
+        } else {
+            alert('生成失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('生成失败，请稍后重试');
+    });
+});
+
+// 复制新令牌
+document.getElementById('btnCopyToken').addEventListener('click', function() {
+    const input = document.getElementById('newTokenValue');
+    input.select();
+    navigator.clipboard.writeText(input.value)
+        .then(() => showToast('success', '已复制到剪贴板'))
+        .catch(() => { document.execCommand('copy'); });
+});
+
+// 撤销令牌
+function revokeToken(tokenId) {
+    if (!confirm(`确定撤销令牌 #${tokenId} 吗？撤销后使用该令牌的 agent 将立即无法访问。`)) {
+        return;
+    }
+    fetch(`/admin/api/token/${tokenId}/revoke`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            loadTokenList();
+        } else {
+            alert('撤销失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('撤销失败，请稍后重试');
+    });
+}
+
+// HTML 转义，防止令牌名称等注入
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+// 重置用户密码
+function resetUserPassword(userId, userEmail) {
+    // 留空则由后端随机生成一个临时密码
+    const input = prompt(`为用户 ${userEmail} 设置新密码（至少 6 位）。\n留空则自动生成一个随机临时密码：`, '');
+    if (input === null) {
+        return; // 取消
+    }
+    const password = input.trim();
+    if (password && password.length < 6) {
+        alert('密码长度至少 6 位');
+        return;
+    }
+    fetch(`/admin/api/user/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ password: password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 明文密码仅此一次返回，用 prompt 方便管理员复制
+            prompt(`✅ ${data.message}\n\n请复制以下新密码转交用户，并提醒其登录后尽快修改：`, data.password);
+        } else {
+            alert('重置失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('重置失败，请稍后重试');
+    });
 }
 
 // 删除用户

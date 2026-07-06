@@ -119,30 +119,61 @@ def dashboard():
 @login_required
 @admin_only
 def users():
-    """用户管理"""
+    """员工/管理员管理（内部用户）"""
     try:
-        # 获取所有用户
-        all_users = AuthUser.query.order_by(AuthUser.created_at.desc()).all()
-        
-        # 统计各角色用户数量
+        # 仅内部用户：管理员 + 员工
+        internal_users = (AuthUser.query.join(Role)
+                          .filter(Role.name.in_(['admin', 'staff']))
+                          .order_by(AuthUser.created_at.desc()).all())
+
         admin_count = AuthUser.query.join(Role).filter(Role.name == 'admin').count()
         staff_count = AuthUser.query.join(Role).filter(Role.name == 'staff').count()
-        member_count = AuthUser.query.join(Role).filter(Role.name == 'member').count()
-        total_count = AuthUser.query.count()
-        
+
         return render_template('admin/users.html',
-                             users=all_users,
+                             scope='staff',
+                             users=internal_users,
                              admin_count=admin_count,
                              staff_count=staff_count,
-                             member_count=member_count,
-                             total_count=total_count)
+                             total_count=admin_count + staff_count)
     except Exception as e:
-        flash(f'加载用户列表失败：{str(e)}', 'error')
+        flash(f'加载员工列表失败：{str(e)}', 'error')
         return render_template('admin/users.html',
+                             scope='staff',
                              users=[],
                              admin_count=0,
                              staff_count=0,
+                             total_count=0)
+
+@admin.route('/members')
+@login_required
+@admin_only
+def members():
+    """会员管理"""
+    try:
+        # 仅会员角色
+        member_users = (AuthUser.query.join(Role)
+                        .filter(Role.name == 'member')
+                        .order_by(AuthUser.created_at.desc()).all())
+
+        member_count = len(member_users)
+        active_count = sum(1 for u in member_users if u.is_active)
+        verified_count = sum(1 for u in member_users if u.is_verified)
+
+        return render_template('admin/users.html',
+                             scope='member',
+                             users=member_users,
+                             member_count=member_count,
+                             active_count=active_count,
+                             verified_count=verified_count,
+                             total_count=member_count)
+    except Exception as e:
+        flash(f'加载会员列表失败：{str(e)}', 'error')
+        return render_template('admin/users.html',
+                             scope='member',
+                             users=[],
                              member_count=0,
+                             active_count=0,
+                             verified_count=0,
                              total_count=0)
 
 @admin.route('/user/<int:user_id>')
@@ -163,7 +194,8 @@ def user_detail(user_id):
         
         return render_template('admin/user_detail.html',
                              user=user,
-                             user_stats=user_stats)
+                             user_stats=user_stats,
+                             now=datetime.utcnow())
     except Exception as e:
         flash(f'加载用户详情失败：{str(e)}', 'error')
         return redirect(url_for('admin.users'))
@@ -925,6 +957,148 @@ def api_delete_user(user_id):
             'message': '用户已删除'
         })
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@admin.route('/api/user/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+@admin_only
+def api_reset_user_password(user_id):
+    """管理员重置用户密码
+
+    可在请求体传 {"password": "新密码"} 指定密码；不传则随机生成一个临时密码。
+    同时清除登录失败锁定状态，并递增 session_version 使该用户其它会话立即失效。
+    新密码以明文返回给管理员（仅此一次），请及时转交用户并提醒尽快自行修改。
+    """
+    try:
+        import secrets
+
+        user = AuthUser.query.get_or_404(user_id)
+
+        # 取管理员指定的密码；未指定则生成一个便于临时登录的随机密码
+        data = request.get_json(silent=True) or {}
+        new_password = (data.get('password') or '').strip()
+        if not new_password:
+            new_password = 'mtp_' + secrets.token_urlsafe(9)
+        elif len(new_password) < 6:
+            return jsonify({
+                'success': False,
+                'message': '密码长度至少 6 位'
+            }), 400
+
+        # 设置新密码（默认递增 session_version，强制其它会话失效）
+        user.set_password(new_password)
+
+        # 清除登录失败锁定状态，确保重置后能立即登录
+        user.login_attempts = 0
+        user.is_locked = False
+        user.locked_at = None
+        user.unlock_at = None
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'用户 {user.email} 的密码已重置',
+            'password': new_password
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@admin.route('/api/user/<int:user_id>/generate-token', methods=['POST'])
+@login_required
+@admin_only
+def api_generate_user_token(user_id):
+    """管理员为指定用户生成 API Token
+
+    令牌用于让该员工的 AI agent、脚本等非浏览器客户端以无状态方式访问受
+    @login_required 保护的接口，避免依赖浏览器 session 频繁掉线。
+    明文令牌仅在此处返回一次，数据库只保存其 SHA256 哈希。
+    可在请求体传 {"name": "用途标签"}，不传则默认 api-agent。
+    """
+    try:
+        from App_new.auth.models.auth import ApiToken
+
+        user = AuthUser.query.get_or_404(user_id)
+
+        data = request.get_json(silent=True) or {}
+        name = (data.get('name') or '').strip() or 'api-agent'
+
+        token, raw_token = ApiToken.generate(user.id, name=name)
+        db.session.add(token)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'已为 {user.email} 生成 API Token（{name}）',
+            'token': raw_token,
+            'token_id': token.id,
+            'name': token.name
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@admin.route('/api/user/<int:user_id>/tokens', methods=['GET'])
+@login_required
+@admin_only
+def api_list_user_tokens(user_id):
+    """列出指定用户的所有 API Token（仅元信息，不含明文）"""
+    try:
+        from App_new.auth.models.auth import ApiToken
+
+        user = AuthUser.query.get_or_404(user_id)
+        tokens = ApiToken.query.filter_by(user_id=user.id).order_by(ApiToken.id).all()
+
+        return jsonify({
+            'success': True,
+            'user_email': user.email,
+            'tokens': [{
+                'id': t.id,
+                'name': t.name,
+                'prefix': t.prefix,
+                'is_active': t.is_active,
+                'created_at': t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '',
+                'last_used_at': t.last_used_at.strftime('%Y-%m-%d %H:%M') if t.last_used_at else ''
+            } for t in tokens]
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@admin.route('/api/token/<int:token_id>/revoke', methods=['POST'])
+@login_required
+@admin_only
+def api_revoke_token(token_id):
+    """撤销（停用）指定的 API Token"""
+    try:
+        from App_new.auth.models.auth import ApiToken
+
+        token = ApiToken.query.get_or_404(token_id)
+        token.is_active = False
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'令牌 #{token.id}（{token.name}）已撤销'
+        })
+
     except Exception as e:
         db.session.rollback()
         return jsonify({

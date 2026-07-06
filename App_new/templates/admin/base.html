@@ -79,7 +79,12 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin.users') }}">
-                            <i class="fas fa-users"></i> 用户管理
+                            <i class="fas fa-user-tie"></i> 员工管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.members') }}">
+                            <i class="fas fa-user-circle"></i> 会员管理
                         </a>
                     </li>
                     <li class="nav-item">
@@ -153,14 +158,21 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if 'user' in request.endpoint %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint in ['admin.users', 'admin.user_detail', 'admin.edit_user', 'admin.create_user'] %}active{% endif %}"
                                href="{{ url_for('admin.users') }}">
-                                <i class="fas fa-users me-2"></i>
-                                用户管理
+                                <i class="fas fa-user-tie me-2"></i>
+                                员工管理
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint == 'admin.locked_users' %}active{% endif %}" 
+                            <a class="nav-link {% if request.endpoint == 'admin.members' %}active{% endif %}"
+                               href="{{ url_for('admin.members') }}">
+                                <i class="fas fa-user-circle me-2"></i>
+                                会员管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'admin.locked_users' %}active{% endif %}"
                                href="{{ url_for('admin.locked_users') }}">
                                 <i class="fas fa-lock me-2"></i>
                                 锁定用户管理
