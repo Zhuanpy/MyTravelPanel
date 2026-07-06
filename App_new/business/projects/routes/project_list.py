@@ -104,6 +104,120 @@ def api_search_companies():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@bp.route('/api/search-by-person')
+@login_required
+@staff_only
+def api_search_by_person():
+    """按姓名反查项目（结构化 JSON）
+
+    命中范围：项目联系人 contact、项目负责人 leader_name、REF 乘客、项目成员。
+    供 Hermes 等 agent 通过姓名查某人参与过哪些项目/REF，免去解析 HTML 列表页。
+
+    query 参数：
+        q     : 姓名关键词（必填），大小写不敏感的模糊匹配
+        limit : 每类命中上限，默认 50
+    """
+    try:
+        from sqlalchemy import or_
+        from ..models.project_member import ProjectMember
+        from App_new.business.flight.models.flight import ProjectFlightPassenger
+
+        query = request.args.get('q', '').strip()
+        if not query:
+            return jsonify({'success': True, 'query': '', 'count': 0, 'data': []})
+
+        limit = request.args.get('limit', 50, type=int) or 50
+        like = f'%{query}%'
+        q_lower = query.lower()
+        results = []
+
+        def company_name_of(header):
+            """项目关联客户公司名（无则 None）"""
+            return header.company.company_name if header.company else None
+
+        # 1) REF 乘客（机票）
+        pax_rows = (db.session.query(ProjectFlightPassenger, ProjectRef, ProjectHeader)
+                    .join(ProjectRef, ProjectFlightPassenger.ref_id == ProjectRef.id)
+                    .join(ProjectHeader, ProjectRef.header_id == ProjectHeader.id)
+                    .filter(ProjectFlightPassenger.name.like(like))
+                    .order_by(ProjectHeader.created_at.desc())
+                    .limit(limit).all())
+        for pax, ref, header in pax_rows:
+            results.append({
+                'project_id': header.id,
+                'hid': header.hid,
+                'ref_number': ref.ref_number,
+                'description': ref.description or header.desc,
+                'company_name': company_name_of(header),
+                'matched_name': pax.name,
+                'role': 'passenger',
+                'status': header.status,
+                'ref_status': ref.status,
+                'selling_price': float(ref.selling_price) if ref.selling_price is not None else None,
+                'created_at': header.created_at.isoformat() if header.created_at else None,
+            })
+
+        # 2) 项目成员
+        mem_rows = (db.session.query(ProjectMember, ProjectHeader)
+                    .join(ProjectHeader, ProjectMember.header_id == ProjectHeader.id)
+                    .filter(or_(ProjectMember.member_name.like(like),
+                                ProjectMember.member_name_en.like(like)))
+                    .order_by(ProjectHeader.created_at.desc())
+                    .limit(limit).all())
+        for mem, header in mem_rows:
+            results.append({
+                'project_id': header.id,
+                'hid': header.hid,
+                'ref_number': None,
+                'description': header.desc,
+                'company_name': company_name_of(header),
+                'matched_name': mem.member_name_en or mem.member_name,
+                'role': 'leader' if mem.is_leader else 'member',
+                'status': header.status,
+                'ref_status': None,
+                'selling_price': None,
+                'created_at': header.created_at.isoformat() if header.created_at else None,
+            })
+
+        # 3) 项目联系人 / 负责人（Header 字段）
+        hdr_rows = (ProjectHeader.query
+                    .filter(or_(ProjectHeader.contact.like(like),
+                                ProjectHeader.leader_name.like(like)))
+                    .order_by(ProjectHeader.created_at.desc())
+                    .limit(limit).all())
+        for header in hdr_rows:
+            # 同一项目可能既是联系人又是负责人，分别记一条
+            matched = []
+            if header.contact and q_lower in header.contact.lower():
+                matched.append(('contact', header.contact))
+            if header.leader_name and q_lower in header.leader_name.lower():
+                matched.append(('leader', header.leader_name))
+            for role, name in matched:
+                results.append({
+                    'project_id': header.id,
+                    'hid': header.hid,
+                    'ref_number': None,
+                    'description': header.desc,
+                    'company_name': company_name_of(header),
+                    'matched_name': name,
+                    'role': role,
+                    'status': header.status,
+                    'ref_status': None,
+                    'selling_price': None,
+                    'created_at': header.created_at.isoformat() if header.created_at else None,
+                })
+
+        return jsonify({
+            'success': True,
+            'query': query,
+            'count': len(results),
+            'data': results
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @bp.route('/')
 @login_required
 @staff_only

@@ -104,6 +104,9 @@ _CATALOG = {
         {
             'name': '项目 / 成员 / 提醒',
             'endpoints': [
+                {'method': 'GET', 'path': '/projects/list/api/search-by-person',
+                 'input': 'query q,limit?',
+                 'desc': '按姓名反查项目：命中联系人/负责人/REF乘客/项目成员，返回结构化列表（含 hid/ref_number/company_name/role/selling_price）'},
                 {'method': 'GET', 'path': '/projects/<pid>/members', 'input': '-', 'desc': '成员列表'},
                 {'method': 'GET', 'path': '/projects/detail/<pid>/refs', 'input': '-', 'desc': '项目 REF 列表'},
                 {'method': 'GET', 'path': '/projects/reminder/<hid>/list', 'input': '-', 'desc': '项目提醒列表'},
