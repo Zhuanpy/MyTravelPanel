@@ -5,11 +5,15 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 <style>
-/* 页面内 Ctrl+P 兜底：隔离打印区域（打印按钮走独立弹窗，不依赖这段） */
+/* 页面内打印 / Chrome printToPDF：隔离打印区域，只输出发票。
+   #printInvoice 平时 inline display:none，这里用 !important 强制显示，
+   否则 visibility:visible 无法覆盖 display:none，打印会是空白（agent 走 CDP
+   Page.printToPDF 直接访问本页即可拿到发票 PDF，无需独立路由）。 */
 @media print {
     body * { visibility: hidden; }
     #printInvoice, #printInvoice * { visibility: visible !important; }
     #printInvoice {
+        display: block !important;
         position: absolute;
         left: 0;
         top: 0;

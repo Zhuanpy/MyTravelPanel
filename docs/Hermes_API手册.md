@@ -267,6 +267,27 @@
 
 ---
 
+## 11. 打印 / PDF（HTML 页 + Chrome printToPDF）
+
+发票和行程单**没有服务端 PDF 生成**，一直是浏览器把打印页转 PDF。Hermes 自带 Chrome，
+所以直接复用：带 `X-API-Key` 导航到打印页 → 调 CDP `Page.printToPDF` 即得 PDF 字节。
+打印 CSS（`@media print`）已隔离，只输出单据本身，nav/操作按钮不会进 PDF。
+
+| 单据 | 打印页 | 方法 | 说明 |
+|---|---|---|---|
+| 发票 PDF | `/projects/invoice/<invoice_id>` | GET | 发票详情页；`@media print` 已强制只显示发票区（`#printInvoice`） |
+| 行程单 PDF | `/flights_booking/print_itinerary/<ref_id>` | GET | 独立 A4 打印页（仅机票 REF 有航段/乘客） |
+
+**Hermes 取 PDF 的步骤（CDP）**：
+1. 用带 token 的 Chrome 导航到上述 URL（`X-API-Key` 通过 `Network.setExtraHTTPHeaders` 注入）。
+2. 等页面加载完成，调用 `Page.printToPDF`（建议 `printBackground=true`、`preferCSSPageSize=true`）。
+3. 返回的 base64 解码即 PDF 文件。
+
+> 单页发票用 `@media print` 的绝对定位隔离即可；若遇到**多页发票**内容被截断，
+> 再考虑加一个正常文档流的独立打印页（当前未做）。行程单页本就是独立文档流，不受影响。
+
+---
+
 ## 尚不可用（当前只有 HTML/表单，需另补 JSON 接口才能给 Hermes）
 
 按对「让 Hermes 干活」的价值排序：

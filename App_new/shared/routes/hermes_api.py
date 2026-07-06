@@ -128,6 +128,17 @@ _CATALOG = {
                  'input': '-', 'desc': '从模板同步资料清单'},
             ],
         },
+        {
+            'name': '打印 / PDF（HTML 页 + Chrome printToPDF）',
+            'note': '这些是打印用 HTML 页，不是 JSON 接口。用你的 Chrome 带 X-API-Key 导航过去，'
+                    '再调 CDP Page.printToPDF 即得 PDF 字节（打印 CSS 已隔离，只输出单据本身）。',
+            'endpoints': [
+                {'method': 'GET', 'path': '/projects/invoice/<invoice_id>',
+                 'input': '-', 'desc': '发票页；printToPDF → 发票 PDF（@media print 只输出发票区）'},
+                {'method': 'GET', 'path': '/flights_booking/print_itinerary/<ref_id>',
+                 'input': '-', 'desc': '行程单打印页（独立 A4 HTML）；printToPDF → 行程单 PDF'},
+            ],
+        },
     ],
     # 尚未 JSON 化、Hermes 暂时调不了的动作，避免它误以为存在
     'not_available_yet': [
