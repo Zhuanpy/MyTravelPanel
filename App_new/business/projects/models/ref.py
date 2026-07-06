@@ -226,7 +226,9 @@ class ProjectRef(db.Model):
             return ''
 
         # 如果EO已付款或已作废，不能调整
-        if self.eos.status in ('paid', 'void'):
+        # 注意：EO 无 'paid' 状态（枚举只有 confirmed/void），付款看 is_paid。
+        # 已付款的EO已有 confirmed 使用记录，若在此再自动扣减会重复扣（余额账实差的根因）。
+        if self.eos.is_paid or self.eos.status == 'void':
             return ''
 
         # 如果没有供应商或成本，无需调整
@@ -244,6 +246,13 @@ class ProjectRef(db.Model):
 
         # 如果没有pending使用记录，且新成本 > 0，则创建新记录
         if not pending_usage:
+            # 防重复扣：若该EO已有 confirmed 使用记录（已实际扣款），不再自动扣减
+            confirmed_usage = PrepaymentUsage.query.filter_by(
+                eo_id=self.eos.id,
+                status='confirmed'
+            ).first()
+            if confirmed_usage:
+                return ''
             if new_cost_decimal > 0:
                 # 查找该供应商的可用预付账款
                 # 用 balance_amount > 0 过滤，不依赖 status

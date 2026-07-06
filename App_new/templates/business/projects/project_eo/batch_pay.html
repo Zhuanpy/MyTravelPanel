@@ -519,12 +519,12 @@ let currentSupplierName = '';
 
 function updatePrepaymentRemaining() {
     const el = document.getElementById('prepaymentRemaining');
-    if (!el || currentPrepaymentBalance <= 0) return;
+    if (!el || (currentPrepaymentBalance + currentExistingUsage) <= 0) return;
     const payAmount = parseFloat(document.getElementById('pay_amount').value) || 0;
     if (payAmount > 0) {
-        // 实际可用余额 = 当前余额 + 已有使用额（已扣过balance_amount，付款时会复用不会重复扣）
-        const actualAvailable = currentPrepaymentBalance + currentExistingUsage;
-        const remaining = actualAvailable - payAmount;
+        // 扣款后真实余额 = 账户余额 − 本次新扣（新扣 = 付款额 − 可复用的已扣款）
+        // 即 currentPrepaymentBalance + currentExistingUsage − payAmount
+        const remaining = currentPrepaymentBalance + currentExistingUsage - payAmount;
         const color = remaining >= 0 ? 'text-primary' : 'text-danger';
         el.innerHTML = `<br><small>扣款后余额: <strong class="${color}">SGD ${remaining.toFixed(2)}</strong></small>`;
     } else {
@@ -558,9 +558,12 @@ function loadPrepaymentBalance(supplierId) {
                 currentExistingUsage = data.existing_usage_total || 0;
                 currentSupplierName = data.supplier_name || '';
 
-                // 显示预付账款列表信息（实际可用 = 当前余额 + 已选EO的已有使用额）
-                const actualAvailable = currentPrepaymentBalance + currentExistingUsage;
-                let prepaymentInfo = `<strong>${currentSupplierName}</strong> 可用预付余额: <strong class="text-success">SGD ${actualAvailable.toFixed(2)}</strong>`;
+                // 「可用预付余额」显示账户真实余额，不把已扣款的复用额算进去（避免虚高误导超付）
+                let prepaymentInfo = `<strong>${currentSupplierName}</strong> 可用预付余额: <strong class="text-success">SGD ${currentPrepaymentBalance.toFixed(2)}</strong>`;
+                if (currentExistingUsage > 0) {
+                    // 选中的EO里有已扣过款的，重付时会复用、不重复扣，单列提示
+                    prepaymentInfo += `<br><small class="text-muted">选中EO含已扣款 SGD ${currentExistingUsage.toFixed(2)}（重付不重复扣）</small>`;
+                }
                 if (data.prepayments.length > 1) {
                     prepaymentInfo += `<br><small class="text-muted">共 ${data.prepayments.length} 笔预付账款，将按充值时间顺序自动抵扣</small>`;
                 }
