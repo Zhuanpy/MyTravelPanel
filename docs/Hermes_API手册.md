@@ -4,7 +4,8 @@
 本手册只收录**当前已经是 JSON、agent 可直接调**的接口，按任务组织。
 文末「尚不可用」列出还停留在表单/HTML、需要另补 JSON 接口的动作，供边界参考。
 
-> 本文档为盘点结果，只读整理，未改动任何代码。生成日期 2026-07-02。
+> 初版为盘点整理，生成日期 2026-07-02。
+> 最后更新 2026-07-06：新增「按姓名反查项目」接口 `/projects/list/api/search-by-person`（见 §8）。
 
 ---
 
@@ -187,10 +188,46 @@
 | `/projects/detail/<pid>/email/send` | POST | form+files/JSON | 发项目邮件（带附件） |
 | `/projects/list/api/stats` `/api/quick-filter/<t>` | GET | query | 项目统计/快捷筛选 |
 | `/projects/list/api/search_companies` | GET | query `q` | 搜索客户公司 |
+| `/projects/list/api/search-by-person` | GET | query `q,limit?` | **按姓名反查项目**：命中联系人/负责人/REF乘客/项目成员，返回结构化列表 |
 | `/projects/<pid>/members` (+`/batch` `/<mid>` `/set-leader`) | GET/POST/PUT/DELETE | JSON | 成员管理（全 JSON） |
 | `/projects/reminder/<hid>/list` (+`create/update/delete/toggle`) | GET/POST | JSON | 项目提醒（全 JSON） |
 | `/projects/file/<hid>/files` (+`upload/download/delete`) | GET/POST | files/JSON | 项目文件 |
 | `/projects/header/update_desc` `/update_company` `/update_status` `/update_contact` `/update_remarks` | POST | JSON | header 字段级改（⚠️无鉴权装饰器） |
+
+**按姓名反查项目** `GET /projects/list/api/search-by-person?q=ZHANG+SHIBIN&limit=50`
+
+用姓名一次查出「这个人在哪些项目/REF 里出现过」，免去解析列表页 HTML。命中四类来源合并返回，用 `role` 区分：
+
+- `passenger` —— REF 乘客（机票），带 `ref_number` 与该 REF 的 `selling_price`/`ref_status`
+- `member` / `leader` —— 项目成员（`is_leader` 为 leader）
+- `contact` —— 项目联系人（Header.contact）
+- `leader` —— 项目负责人（Header.leader_name）
+
+返回示例：
+```json
+{
+  "success": true,
+  "query": "ZHANG SHIBIN",
+  "count": 1,
+  "data": [
+    {
+      "project_id": 3267,
+      "hid": "H1962",
+      "ref_number": "R2596",
+      "description": "06AUG-18AUG SIN-YVR-SIN",
+      "company_name": "CHEN LI",
+      "matched_name": "ZHANG SHIBIN",
+      "role": "passenger",
+      "status": "active",
+      "ref_status": "confirmed",
+      "selling_price": 11700.00,
+      "created_at": "2026-07-03T13:03:50"
+    }
+  ]
+}
+```
+
+> 项目级命中（member/leader/contact）无对应单一 REF，`ref_number`/`selling_price`/`ref_status` 为 `null`，`description` 取项目描述。`limit` 为每类来源上限（默认 50）。
 
 ---
 
