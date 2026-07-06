@@ -71,9 +71,15 @@
 | 接口 | 方法 | 入参 | 说明 |
 |---|---|---|---|
 | `/projects/ref/flight/<rid>/segments` | GET | — | 航段列表（先拿 id） |
-| `/projects/ref/flight/segment/<sid>/update` | POST | JSON | 改单个航段字段（航站楼/时刻/票号等） |
-| `/projects/ref/flight/<rid>/passengers` | GET | — | 乘客列表 |
-| `/projects/ref/flight/passenger/<pid>/update` | POST | JSON | 改单个乘客字段 |
+| `/projects/ref/flight/segment/<sid>/update` | POST | JSON | 改单个航段字段（航站楼/航司/舱位/行李/票号/PNR）。**不含座位** |
+| `/projects/ref/flight/<rid>/passengers` | GET | — | 乘客列表（含 seats 数组） |
+| `/projects/ref/flight/passenger/<pid>/update` | POST | JSON | 改单个乘客字段（票号/PNR/行李/护照）；**座位也走这里** |
+
+> ⚠️ **座位是「乘客×航段」级**，存在 `passenger.seats`（JSON 列表，按航段 id 升序对齐），
+> 行程单补充 Tab、打印行程单都读它。**不要**用 segment/update 写座位（航段表的 seat 不参与项目 REF 显示）。
+> 座位写法（passenger/update）：
+> - 整列覆盖：`{"seats": ["53K", "12A"]}`
+> - 单段设置：`{"segment_id": 123, "seat": "53K"}`（先 GET segments 拿 id）
 
 ---
 

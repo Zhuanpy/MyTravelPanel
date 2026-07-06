@@ -1970,7 +1970,9 @@ _SEGMENT_PATCHABLE_FIELDS = {
     'airline_name': 50,
     'cabin_class': 20,
     'baggage': 50,
-    'seat': 10,
+    # 注意：座位不在此白名单——项目 REF 的行程单/打印读的是「乘客级」座位
+    # (ProjectFlightPassenger.seats)，请用 /flight/passenger/<id>/update 写座位。
+    # 航段表的 seat 列仅供机票订单页(order_edit)使用，此处写了也不会显示。
     'ticket_number': 50,
     'pnr': 10,
 }
@@ -2103,6 +2105,12 @@ def update_flight_passenger_field(passenger_id):
 
     请求体 JSON: {"ticket_number": "999-...", "pnr": "ABC123", ...}
     只更新传入且在白名单内的字段；超长按字段上限截断；价格字段不在白名单内。
+
+    座位（按 乘客×航段，存于 passenger.seats JSON）另走两种写法：
+      - 整列覆盖: {"seats": ["53K", "12A"]}（索引 = 航段 id 升序）
+      - 单段设置: {"segment_id": 123, "seat": "53K"}（只改该航段那一个座位）
+    注意：座位不是航段级字段——/flight/segment/<id>/update 的 seat 只写航段表，
+    行程单/打印读的是乘客级 seats，请用本接口写座位。
     返回更新后的乘客 to_dict()。
     """
     passenger = ProjectFlightPassenger.query.get_or_404(passenger_id)
@@ -2132,8 +2140,46 @@ def update_flight_passenger_field(passenger_id):
         setattr(passenger, field, value)
         updated[field] = value
 
+    # 座位（按 乘客×航段）：seats 存 JSON 列表，索引 = 航段按 id 升序的顺序
+    # （与打印行程单 seat_for_index、建单 pax_seat 列口径一致）。
+    # 支持两种写法：
+    #   1) 整列覆盖: {"seats": ["53K", "12A"]}
+    #   2) 单段设置: {"segment_id": 123, "seat": "53K"}  —— 只改该航段对应的那一个座位
+    _SEAT_MAX = 10
+    if 'seats' in data:
+        raw_list = data.get('seats') or []
+        if not isinstance(raw_list, list):
+            return jsonify({'success': False, 'error': 'seats 必须是数组'}), 400
+        new_seats = [
+            ('' if s is None else str(s).strip()[:_SEAT_MAX])
+            for s in raw_list
+        ]
+        passenger.seats = json.dumps(new_seats, ensure_ascii=False) if any(new_seats) else None
+        updated['seats'] = new_seats
+    elif 'segment_id' in data and 'seat' in data:
+        # 定位该航段在「id 升序」中的下标
+        seg_ids = [
+            sid for (sid,) in ProjectFlightSegment.query
+            .filter_by(ref_id=ref.id)
+            .order_by(ProjectFlightSegment.id)
+            .with_entities(ProjectFlightSegment.id).all()
+        ]
+        try:
+            idx = seg_ids.index(int(data['segment_id']))
+        except (ValueError, TypeError):
+            return jsonify({'success': False,
+                            'error': 'segment_id 不属于该乘客所在的 REF'}), 400
+        raw = data['seat']
+        seat_val = '' if raw is None else str(raw).strip()[:_SEAT_MAX]
+        # 取现有列表并补齐到航段数，写入目标下标
+        seats = passenger.seat_list
+        seats = seats + [''] * (len(seg_ids) - len(seats)) if len(seats) < len(seg_ids) else seats
+        seats[idx] = seat_val
+        passenger.seats = json.dumps(seats, ensure_ascii=False) if any(seats) else None
+        updated['seats'] = seats
+
     if not updated:
-        return jsonify({'success': False, 'error': '没有可更新的字段（白名单：%s）'
+        return jsonify({'success': False, 'error': '没有可更新的字段（白名单：%s；座位用 seats 或 segment_id+seat）'
                         % ', '.join(_PASSENGER_PATCHABLE_FIELDS.keys())}), 400
 
     try:
