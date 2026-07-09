@@ -250,14 +250,6 @@
                         </p>
                     </div>
                 </div>
-                {% if project.remarks %}
-                <div class="bg-gray-50 border-l-4 border-green-500 rounded-r-lg p-4">
-                    <div class="text-sm font-semibold text-green-600 mb-2 flex items-center gap-2">
-                        <i class="fas fa-sticky-note"></i> 备注
-                    </div>
-                    <div class="text-gray-700">{{ project.remarks }}</div>
-                </div>
-                {% endif %}
 
                 <!-- 团队信息 -->
                 {% if groups %}
@@ -326,6 +318,18 @@
                                 </span>
                             </p>
                         </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 备注 -->
+                {% if project.remarks %}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="bg-gray-50 border-l-4 border-green-500 rounded-r-lg p-4">
+                        <div class="text-sm font-semibold text-green-600 mb-2 flex items-center gap-2">
+                            <i class="fas fa-sticky-note"></i> 备注
+                        </div>
+                        <div class="text-gray-700">{{ project.remarks }}</div>
                     </div>
                 </div>
                 {% endif %}
