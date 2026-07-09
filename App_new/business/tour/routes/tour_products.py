@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 from io import BytesIO
 
@@ -1367,8 +1367,117 @@ def renew_product(product_id):
         product.product_status = 'active'  # 续期后自动激活
         product.updated_at = datetime.utcnow()
         db.session.commit()
-        
+
+        _sync_renewed_products([product])
+
         return jsonify({'success': True, 'message': '续期成功', 'valid_until': str(new_date)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def _sync_renewed_products(products):
+    """把续期后的产品同步到统一产品表（容错，同步失败不影响续期结果）"""
+    if not products:
+        return
+    try:
+        from App_new.business.products.sync_helper import sync_tour_product_to_unified
+        for product in products:
+            sync_tour_product_to_unified(product, created_by=current_user.username)
+        db.session.commit()
+    except Exception as sync_err:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).warning(f'产品同步失败(不影响续期): {sync_err}')
+
+
+@tour_products_bp.route('/bulk-renew', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def bulk_renew_products():
+    """批量续期产品
+
+    两种模式（二选一）：
+      - valid_until: 所有选中产品统一设置为该有效期
+      - extend_days: 在各自基准日期上延长指定天数
+                     （已过期的从今天起算，未过期的在原有效期上叠加）
+    """
+    try:
+        data = request.get_json() or {}
+        product_ids = data.get('product_ids', [])
+        valid_until = data.get('valid_until')
+        extend_days = data.get('extend_days')
+
+        if not product_ids:
+            return jsonify({'success': False, 'message': '请选择要续期的产品'}), 400
+
+        if not valid_until and not extend_days:
+            return jsonify({'success': False, 'message': '请提供新的有效期或延长天数'}), 400
+
+        new_date = None
+        if valid_until:
+            try:
+                new_date = datetime.strptime(valid_until, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'message': '日期格式无效'}), 400
+        else:
+            try:
+                extend_days = int(extend_days)
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': '延长天数无效'}), 400
+            if extend_days <= 0:
+                return jsonify({'success': False, 'message': '延长天数必须大于 0'}), 400
+
+        today = datetime.utcnow().date()
+        renewed_products = []
+        renewed = []
+        errors = []
+
+        for product_id in product_ids:
+            product = Product.query.get(product_id)
+            if not product:
+                errors.append(f'产品ID {product_id} 不存在')
+                continue
+
+            if new_date:
+                target_date = new_date
+            else:
+                # 已过期（或未设置有效期）的从今天起算，未过期的在原有效期上叠加
+                base_date = product.valid_until if (product.valid_until and product.valid_until > today) else today
+                target_date = base_date + timedelta(days=extend_days)
+
+            product.valid_until = target_date
+            product.product_status = 'active'  # 续期后自动重新上架
+            product.updated_at = datetime.utcnow()
+
+            renewed_products.append(product)
+            renewed.append({
+                'id': product.id,
+                'name': product.product_name,
+                'valid_until': str(target_date)
+            })
+
+        if not renewed:
+            return jsonify({'success': False, 'message': '没有可续期的产品', 'errors': errors}), 400
+
+        db.session.commit()
+
+        # 同步到统一产品表（放在 commit 之后，同步失败不回滚续期）
+        _sync_renewed_products(renewed_products)
+
+        message = f'成功续期 {len(renewed)} 个产品'
+        if errors:
+            message += f'，{len(errors)} 个失败'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'renewed_count': len(renewed),
+            'renewed': renewed,
+            'errors': errors
+        })
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
