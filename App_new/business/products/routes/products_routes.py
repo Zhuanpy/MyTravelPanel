@@ -283,6 +283,53 @@ def delete(product_id):
     return redirect(request.referrer or url_for('products.index'))
 
 
+@products_bp.route('/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete():
+    """批量删除产品
+
+    与单个删除行为一致：只删除统一产品表(products_unified)的记录，
+    关联的价格/规则/门票变体由模型的 cascade 自动清理。
+    整批放在一个事务里，任一条删除失败则全部回滚。
+    """
+    data = request.get_json(silent=True) or {}
+    product_ids = data.get('product_ids', [])
+
+    if not product_ids:
+        return jsonify({'success': False, 'message': '请选择要删除的产品'}), 400
+
+    deleted_names = []
+    errors = []
+
+    for product_id in product_ids:
+        product = ProductsUnified.query.get(product_id)
+        if not product:
+            errors.append(f'产品ID {product_id} 不存在')
+            continue
+        deleted_names.append(product.product_name)
+        db.session.delete(product)
+
+    if not deleted_names:
+        return jsonify({'success': False, 'message': '没有可删除的产品', 'errors': errors}), 400
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+    message = f'成功删除 {len(deleted_names)} 个产品'
+    if errors:
+        message += f'，{len(errors)} 个跳过'
+
+    return jsonify({
+        'success': True,
+        'message': message,
+        'deleted_count': len(deleted_names),
+        'errors': errors
+    })
+
+
 @products_bp.route('/status/<int:product_id>', methods=['POST'])
 @login_required
 def update_status(product_id):

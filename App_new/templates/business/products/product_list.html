@@ -118,15 +118,26 @@
 
     <!-- 产品列表 -->
     <div class="card">
-        <div class="card-header">
-            <span class="fw-bold">产品列表</span>
-            <span class="text-muted">（共 {{ pagination.total }} 个产品）</span>
+        <div class="card-header d-flex align-items-center">
+            <div>
+                <span class="fw-bold">产品列表</span>
+                <span class="text-muted">（共 {{ pagination.total }} 个产品）</span>
+            </div>
+            <!-- 批量删除按钮（选中产品后显示） -->
+            <button type="button" id="bulkDeleteBtn" class="btn btn-danger btn-sm ms-auto d-none"
+                    onclick="confirmBulkDelete()">
+                <i class="fas fa-trash-alt me-1"></i> 删除选中 (<span id="bulkSelectedCount">0</span>)
+            </button>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th style="width: 36px;">
+                                <input type="checkbox" class="form-check-input" id="selectAllProducts"
+                                       onchange="toggleSelectAllProducts(this)" title="全选本页">
+                            </th>
                             <th style="width: 130px;">产品编号</th>
                             <th style="width: 240px;">产品名称</th>
                             <th style="width: 70px;">分类</th>
@@ -141,6 +152,12 @@
                     <tbody>
                         {% for product in products %}
                         <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input product-checkbox"
+                                       value="{{ product.id }}"
+                                       data-product-name="{{ product.product_name }}"
+                                       onchange="updateBulkSelectionState()">
+                            </td>
                             <td>
                                 <code>{{ product.product_code }}</code>
                             </td>
@@ -233,7 +250,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="fas fa-box-open fa-3x mb-3"></i>
                                 <p class="mb-0">暂无产品数据</p>
                             </td>
@@ -311,6 +328,31 @@
         </div>
     </div>
 </div>
+
+<!-- 批量删除确认模态框 -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认批量删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除以下 <strong id="bulkDeleteCount" class="text-danger">0</strong> 个产品吗？</p>
+                <div class="border rounded bg-light px-3 py-2 mb-3" style="max-height: 200px; overflow-y: auto;">
+                    <ul id="bulkDeleteProductList" class="mb-0 ps-3 small text-muted"></ul>
+                </div>
+                <p class="text-danger mb-0">此操作不可恢复！关联的价格、规则与门票变体会一并删除。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" id="bulkDeleteConfirmBtn" class="btn btn-danger" onclick="executeBulkDelete()">
+                    确认删除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -319,6 +361,103 @@ function confirmDelete(productId, productName) {
     document.getElementById('deleteProductName').textContent = productName;
     document.getElementById('deleteForm').action = '/staff/products/delete/' + productId;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// ========================================
+// 批量删除
+// ========================================
+
+// 全选/取消全选（仅作用于当前页）
+function toggleSelectAllProducts(selectAllCheckbox) {
+    document.querySelectorAll('.product-checkbox').forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+    updateBulkSelectionState();
+}
+
+// 同步全选框状态与批量删除按钮
+function updateBulkSelectionState() {
+    const allCheckboxes = document.querySelectorAll('.product-checkbox');
+    const checkedCount = document.querySelectorAll('.product-checkbox:checked').length;
+
+    const selectAll = document.getElementById('selectAllProducts');
+    if (selectAll) {
+        selectAll.checked = (checkedCount > 0 && checkedCount === allCheckboxes.length);
+        selectAll.indeterminate = (checkedCount > 0 && checkedCount < allCheckboxes.length);
+    }
+
+    const btn = document.getElementById('bulkDeleteBtn');
+    btn.classList.toggle('d-none', checkedCount === 0);
+    document.getElementById('bulkSelectedCount').textContent = checkedCount;
+}
+
+// 弹出批量删除确认框
+function confirmBulkDelete() {
+    const selected = document.querySelectorAll('.product-checkbox:checked');
+    if (selected.length === 0) {
+        alert('请先选择要删除的产品');
+        return;
+    }
+
+    document.getElementById('bulkDeleteCount').textContent = selected.length;
+
+    const listEl = document.getElementById('bulkDeleteProductList');
+    listEl.innerHTML = '';
+    selected.forEach(cb => {
+        const li = document.createElement('li');
+        li.textContent = cb.dataset.productName;
+        listEl.appendChild(li);
+    });
+
+    new bootstrap.Modal(document.getElementById('bulkDeleteModal')).show();
+}
+
+// 执行批量删除
+function executeBulkDelete() {
+    const productIds = Array.from(document.querySelectorAll('.product-checkbox:checked'))
+                            .map(cb => parseInt(cb.value, 10));
+    if (productIds.length === 0) {
+        return;
+    }
+
+    const btn = document.getElementById('bulkDeleteConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 删除中...';
+
+    fetch('/staff/products/bulk-delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify({ product_ids: productIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let msg = data.message;
+            if (data.errors && data.errors.length > 0) {
+                msg += '\n\n跳过明细：\n' + data.errors.join('\n');
+            }
+            alert(msg);
+            location.reload();
+        } else {
+            alert('批量删除失败：' + data.message);
+            resetBulkDeleteBtn();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('批量删除时发生错误');
+        resetBulkDeleteBtn();
+    });
+}
+
+function resetBulkDeleteBtn() {
+    const btn = document.getElementById('bulkDeleteConfirmBtn');
+    btn.disabled = false;
+    btn.innerHTML = '确认删除';
+    bootstrap.Modal.getInstance(document.getElementById('bulkDeleteModal'))?.hide();
 }
 </script>
 {% endblock %}
