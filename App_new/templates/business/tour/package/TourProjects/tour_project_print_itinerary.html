@@ -209,7 +209,9 @@
 
         @media print {
             .print-actions,
-            .print-options {
+            .print-options,
+            /* 图片加载提示：屏幕上可见，但绝不能出现在打印/PDF 里 */
+            #imageLoadingIndicator {
                 display: none !important;
             }
         }
@@ -745,10 +747,13 @@
             <div class="day-images">
                 {% for image_path in day.images %}
                 <div class="day-image-item">
+                    {# 打印页必须立即加载全部图片：懒加载会让视口外的图片永不加载，
+                       导致打印/PDF 缺图，且加载计数永远停在中途 #}
                     <img src="{{ url_for('utils_process.serve_print_image', image_path=image_path) }}"
                          alt="行程图片"
                          class="itinerary-image"
-                         loading="lazy">
+                         loading="eager"
+                         decoding="sync">
                 </div>
                 {% endfor %}
             </div>
@@ -822,61 +827,93 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 图片加载状态管理
-document.addEventListener('DOMContentLoaded', function() {
-    const images = document.querySelectorAll('.itinerary-image');
-    let loadedCount = 0;
-    const totalImages = images.length;
+//
+// 服务端打印（Chrome CDP Page.printToPDF）用法：
+//   导航到本页后，先轮询 document.documentElement.dataset.printReady === '1'
+//   （或 window.__printImagesReady === true），再调用 Page.printToPDF。
+//   该标志在所有图片 load/error 落定后置位；即使有图片卡住，
+//   也会在 IMAGE_LOAD_TIMEOUT_MS 后兜底置位，不会永远阻塞打印。
+(function() {
+    const IMAGE_LOAD_TIMEOUT_MS = 20000;
 
-    if (totalImages === 0) return;
+    // 标记页面可以打印了（幂等）
+    function markPrintReady() {
+        if (window.__printImagesReady) return;
+        window.__printImagesReady = true;
+        document.documentElement.dataset.printReady = '1';
+        // 供外部（含 CDP）监听
+        document.dispatchEvent(new CustomEvent('print-images-ready'));
+    }
 
-    // 创建加载指示器
-    const loadingIndicator = document.createElement('div');
-    loadingIndicator.id = 'imageLoadingIndicator';
-    loadingIndicator.innerHTML = `
-        <div style="position: fixed; bottom: 20px; right: 20px; background: #4CAF50; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; font-size: 14px;">
-            <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
-            正在加载图片 <span id="loadProgress">0</span>/${totalImages}
-        </div>
-    `;
-    document.body.appendChild(loadingIndicator);
+    document.addEventListener('DOMContentLoaded', function() {
+        const images = Array.from(document.querySelectorAll('.itinerary-image'));
+        const totalImages = images.length;
 
-    images.forEach(img => {
-        if (img.complete) {
-            loadedCount++;
-            updateProgress();
-        } else {
-            img.addEventListener('load', function() {
-                loadedCount++;
-                updateProgress();
-            });
-            img.addEventListener('error', function() {
-                loadedCount++;
-                updateProgress();
-            });
+        // 没有图片：立即就绪
+        if (totalImages === 0) {
+            markPrintReady();
+            return;
+        }
+
+        let settledCount = 0;
+        let finished = false;
+
+        // 创建加载指示器（@media print 中已隐藏，不会进入 PDF）
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'imageLoadingIndicator';
+        loadingIndicator.innerHTML = `
+            <div style="position: fixed; bottom: 20px; right: 20px; background: #4CAF50; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; font-size: 14px;">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                正在加载图片 <span id="loadProgress">0</span>/${totalImages}
+            </div>
+        `;
+        document.body.appendChild(loadingIndicator);
+
+        // 图片再慢也不能永远阻塞打印
+        const timeoutId = setTimeout(function() {
+            console.warn(`图片加载超时（${settledCount}/${totalImages}），强制标记为可打印`);
+            finish(true);
+        }, IMAGE_LOAD_TIMEOUT_MS);
+
+        images.forEach(img => {
+            // complete 为 true 表示已落定（无论成功还是失败）
+            if (img.complete) {
+                onSettled();
+            } else {
+                img.addEventListener('load', onSettled, { once: true });
+                img.addEventListener('error', onSettled, { once: true });
+            }
+        });
+
+        function onSettled() {
+            settledCount++;
+            const progressEl = document.getElementById('loadProgress');
+            if (progressEl) {
+                progressEl.textContent = settledCount;
+            }
+            if (settledCount >= totalImages) {
+                finish(false);
+            }
+        }
+
+        function finish(timedOut) {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timeoutId);
+            markPrintReady();
+
+            const indicator = document.getElementById('imageLoadingIndicator');
+            if (!indicator) return;
+            indicator.innerHTML = `
+                <div style="position: fixed; bottom: 20px; right: 20px; background: ${timedOut ? '#f59e0b' : '#4CAF50'}; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; font-size: 14px;">
+                    <i class="fas ${timedOut ? 'fa-exclamation-triangle' : 'fa-check'}" style="margin-right: 8px;"></i>
+                    ${timedOut ? '部分图片加载超时，仍可打印' : '图片加载完成，可以打印'}
+                </div>
+            `;
+            setTimeout(() => indicator.remove(), 3000);
         }
     });
-
-    function updateProgress() {
-        const progressEl = document.getElementById('loadProgress');
-        if (progressEl) {
-            progressEl.textContent = loadedCount;
-        }
-        if (loadedCount >= totalImages) {
-            setTimeout(() => {
-                const indicator = document.getElementById('imageLoadingIndicator');
-                if (indicator) {
-                    indicator.innerHTML = `
-                        <div style="position: fixed; bottom: 20px; right: 20px; background: #4CAF50; color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; font-size: 14px;">
-                            <i class="fas fa-check" style="margin-right: 8px;"></i>
-                            图片加载完成，可以打印
-                        </div>
-                    `;
-                    setTimeout(() => indicator.remove(), 3000);
-                }
-            }, 500);
-        }
-    }
-});
+})();
 </script>
 
 </body>

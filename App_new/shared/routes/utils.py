@@ -649,8 +649,8 @@ def serve_print_image(image_path):
             original_mtime = os.path.getmtime(full_path)
             cache_mtime = os.path.getmtime(cache_path)
             if cache_mtime > original_mtime:
-                # 缓存有效，直接返回
-                return send_file(cache_path, mimetype='image/jpeg')
+                # 缓存有效，直接返回（带浏览器缓存头，重复打印不再重新下载）
+                return send_file(cache_path, mimetype='image/jpeg', max_age=86400)
 
         # 处理图片
         with Image.open(full_path) as img:
@@ -677,8 +677,8 @@ def serve_print_image(image_path):
             # 保存到缓存
             img.save(cache_path, 'JPEG', quality=70, optimize=True)
 
-        # 返回处理后的图片
-        return send_file(cache_path, mimetype='image/jpeg')
+        # 返回处理后的图片（带浏览器缓存头）
+        return send_file(cache_path, mimetype='image/jpeg', max_age=86400)
 
     except Exception as e:
         current_app.logger.error(f'图片处理失败: {str(e)}')
