@@ -78,6 +78,10 @@
                 <i class="fas fa-upload"></i> 导入
             </button>
             <input type="file" id="importFile" accept=".json,.xls,.xlsx" style="display:none">
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" id="exportImgBtn"
+                    title="把本国家全部背景图打包成 zip 下载">
+                <i class="fas fa-file-archive"></i> 导出背景图
+            </button>
             <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" id="uploadImgBtn"
                     title="上传当前页的表格背景图（生成表格也用这批图）">
                 <i class="fas fa-image"></i> 上传背景图
@@ -160,6 +164,7 @@ const URL_DEL_BASE = "{{ url_for('visa_project.coordinate_delete', coord_id=0) }
 const URL_IMG_BASE = "{{ url_for('visa_project.coordinate_page_image', country=country, page='__PAGE__') }}";
 const URL_IMPORT = "{{ url_for('visa_project.coordinate_import') }}";
 const URL_IMG_UPLOAD_BASE = "{{ url_for('visa_project.coordinate_page_image_upload', country=country, page='__PAGE__') }}";
+const URL_IMG_EXPORT = "{{ url_for('visa_project.coordinate_page_images_export', country=country) }}";
 
 let activePage = document.querySelector('.coord-tab.active')?.dataset.page || '';
 let activeRow = null;
@@ -336,6 +341,29 @@ function setImgMissing(missing) {
     imgBox.style.display = missing ? 'none' : '';
 }
 imgEl.addEventListener('error', () => setImgMissing(true));
+
+// ---- 导出全部背景图(zip) ----
+// 一张图都没有时后端回 404 JSON，不能直接 location.href 过去，否则用户看到一坨 JSON
+document.getElementById('exportImgBtn').addEventListener('click', async () => {
+    try {
+        const resp = await fetch(URL_IMG_EXPORT);
+        if (!resp.ok) {
+            const res = await resp.json().catch(() => ({}));
+            alert(res.message || `导出失败 (HTTP ${resp.status})`);
+            return;
+        }
+        const blob = await resp.blob();
+        const name = (resp.headers.get('Content-Disposition') || '').match(/filename=([^;]+)/)?.[1]
+                     || `${COUNTRY}_page_images.zip`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name.trim().replace(/"/g, '');
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert(`导出失败: ${err.message}`);
+    }
+});
 
 // ---- 上传当前页背景图 ----
 const pageImgFile = document.getElementById('pageImgFile');

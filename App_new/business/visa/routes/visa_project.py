@@ -3283,6 +3283,45 @@ def coordinate_page_image(country, page):
     return send_file(img_path)
 
 
+@visa_project.route('/coordinates/page-images/export')
+@login_required
+@staff_only
+def coordinate_page_images_export():
+    """把该国全部背景图打包成 zip 下载,便于整套搬到另一台机器。"""
+    import re
+    import zipfile
+    from io import BytesIO
+    from flask import send_file
+    from App_new.config import Config
+
+    country = request.args.get('country', 'korea')
+    folder = VISA_COORD_FOLDERS.get(country)
+    if not folder:
+        return jsonify({'success': False, 'message': f'不支持的国家: {country}'}), 400
+
+    source_dir = os.path.join(Config.PROJECT_ROOT, '资源', '签证', folder, 'source')
+    images = []
+    if os.path.isdir(source_dir):
+        for name in os.listdir(source_dir):
+            m = re.fullmatch(r'Form-page-(\d+)\.jpg', name)
+            if m:
+                images.append((int(m.group(1)), name))
+    images.sort()
+
+    if not images:
+        return jsonify({'success': False, 'message': f'{country} 还没有任何背景图可导出'}), 404
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for _, name in images:
+            zf.write(os.path.join(source_dir, name), arcname=name)
+    buf.seek(0)
+
+    filename = f"{country}_page_images_{datetime.now().strftime('%Y%m%d')}.zip"
+    return send_file(buf, mimetype='application/zip',
+                     as_attachment=True, download_name=filename)
+
+
 @visa_project.route('/coordinates/page-image/<country>/<page>', methods=['POST'])
 @login_required
 @staff_only
