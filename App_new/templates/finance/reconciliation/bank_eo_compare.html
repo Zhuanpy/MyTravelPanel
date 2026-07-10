@@ -744,7 +744,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let html = '';
         bankTransactions.forEach(tx => {
-            const isMatched = tx.eo_id && tx.eo_id > 0;
+            // eo_id 只覆盖 EO 匹配；付款/预付款/运营费用/股东还款记在 BankTransactionMatch，
+            // 由后端汇总成 is_matched 下发
+            const isMatched = tx.is_matched || (tx.eo_id && tx.eo_id > 0);
             const isPersonal = tx.owner_label && ['个人消费', '个人商用', 'personal'].includes(tx.owner_label);
             const isReconciled = tx.is_reconciled;
 

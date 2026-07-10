@@ -1541,9 +1541,10 @@ def get_eo_compare_data():
             )
 
         # 获取通过BankTransactionMatch表已匹配的银行交易ID
-        matched_tx_ids_via_btm = db.session.query(BankTransactionMatch.transaction_id).filter(
-            BankTransactionMatch.match_type.in_(['payment', 'prepayment', 'eo', 'operating_expense'])
-        ).subquery()
+        # 不按 match_type 过滤：任何一条匹配记录都说明该流水已有归属。
+        # 早先这里写死了 ['payment','prepayment','eo','operating_expense']，漏掉 loan_repay，
+        # 导致已匹配股东还款的流水仍留在「待匹配」列表里。
+        matched_tx_ids_via_btm = db.session.query(BankTransactionMatch.transaction_id).subquery()
 
         # 根据状态筛选
         if status == 'all':
@@ -1758,10 +1759,21 @@ def get_eo_compare_data():
 
         # 格式化数据
         tx_data = []
+        # 一次性取出所有已匹配的流水ID及其匹配类型，避免逐行查询
+        btm_rows = db.session.query(
+            BankTransactionMatch.transaction_id, BankTransactionMatch.match_type
+        ).filter(
+            BankTransactionMatch.transaction_id.in_([t.id for t in transactions])
+        ).all() if transactions else []
+        btm_type_by_tx = {tx_id: mtype for tx_id, mtype in btm_rows}
+
         for tx in transactions:
             tx_dict = tx.to_dict()
             tx_dict['bank_name'] = tx.statement.bank_name if tx.statement else ''
             tx_dict['account_name'] = tx.statement.account_name if tx.statement else ''
+            # eo_id 只覆盖 EO 匹配；付款/预付款/运营费用/股东还款都记在 BankTransactionMatch
+            tx_dict['is_matched'] = bool(tx.eo_id) or tx.id in btm_type_by_tx
+            tx_dict['match_type'] = btm_type_by_tx.get(tx.id) or ('eo' if tx.eo_id else None)
             tx_data.append(tx_dict)
 
         eo_data = []
