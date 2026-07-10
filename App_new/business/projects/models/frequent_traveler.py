@@ -58,6 +58,30 @@ class FrequentTraveler(db.Model):
     def __repr__(self):
         return f'<FrequentTraveler {self.name}>'
 
+    @staticmethod
+    def normalize_name(value):
+        """姓名归一化：去首尾空格、合并内部连续空格、转大写（与前端匹配规则一致）"""
+        if not value:
+            return ''
+        return ' '.join(str(value).split()).upper()
+
+    @classmethod
+    def match_by_name(cls, name):
+        """按姓名精确匹配常用旅客（比对 name / name_en 的归一化结果），无匹配返回 None"""
+        target = cls.normalize_name(name)
+        if not target:
+            return None
+
+        like = f'%{target}%'
+        candidates = cls.query.filter(
+            db.or_(cls.name.ilike(like), cls.name_en.ilike(like))
+        ).limit(20).all()
+
+        for t in candidates:
+            if cls.normalize_name(t.name) == target or cls.normalize_name(t.name_en) == target:
+                return t
+        return None
+
     @property
     def staff_display_name(self):
         """所属员工显示名（无则返回 None）"""

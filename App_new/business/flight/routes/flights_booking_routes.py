@@ -641,6 +641,17 @@ def print_itinerary(order_id):
     passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
     segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(ProjectFlightSegment.departure_time).all()
 
+    # 护照号：乘客本身没存时，按姓名回退到常用旅客库（不落库，仅用于打印展示）
+    from App_new.business.projects.models.frequent_traveler import FrequentTraveler
+    pax_passports = {}
+    for pax in passengers:
+        number = (pax.passport_number or '').strip()
+        if not number:
+            traveler = FrequentTraveler.match_by_name(pax.name)
+            if traveler and traveler.passport_number:
+                number = traveler.passport_number.strip()
+        pax_passports[pax.id] = number
+
     # 查询机场信息，构建IATA→机场数据映射
     iata_codes = set()
     for seg in segments:
@@ -686,6 +697,7 @@ def print_itinerary(order_id):
                            ref=ref,
                            header=header,
                            passengers=passengers,
+                           pax_passports=pax_passports,
                            segments=segments,
                            airport_map=airport_map,
                            ticket_groups=ticket_groups,

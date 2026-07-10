@@ -311,7 +311,7 @@
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ pax.name }}</td>
-                <td class="col-passport">{{ pax.passport_number or '-' }}</td>
+                <td class="col-passport">{{ pax_passports.get(pax.id) or pax.passport_number or '-' }}</td>
                 <td class="field-ticket">{{ pax.ticket_number or '-' }}</td>
                 <td>{{ pax.pnr or '-' }}</td>
                 <td>{{ pax.baggage or '-' }}</td>

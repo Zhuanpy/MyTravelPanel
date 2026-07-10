@@ -12,6 +12,7 @@ from App_new.business.flight.models.flight import ProjectFlightPassenger, Projec
 from App_new.business.flight.models.models import AirportData
 from App_new.exts import csrf, db
 from App_new.business.projects.models.project import CustomerCompany
+from App_new.business.projects.models.frequent_traveler import FrequentTraveler
 from App_new.business.visa.models.Visamodels import VisaCountries, VisaProject
 from App_new.shared.models.business_types import BusinessType
 from App_new.business.projects.forms.ref_forms import ProjectRefForm
@@ -407,6 +408,13 @@ def _persist_flight_ref(src):
                 ]
                 seats_json = json.dumps(pax_seats, ensure_ascii=False) if any(pax_seats) else None
 
+                # 护照号：表单没填时，若是常用旅客则从常用旅客库带出（护照在库中为准，前端只读）
+                passport_number = passport_numbers[i].strip() if i < len(passport_numbers) and passport_numbers[i] else ''
+                if not passport_number:
+                    traveler = FrequentTraveler.match_by_name(passenger_names[i])
+                    if traveler and traveler.passport_number:
+                        passport_number = traveler.passport_number.strip()
+
                 passenger = ProjectFlightPassenger(
                     ref_id=ref.id,
                     name=passenger_names[i],
@@ -417,7 +425,7 @@ def _persist_flight_ref(src):
                     pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else None,
                     baggage=pax_baggages[i] if i < len(pax_baggages) and pax_baggages[i] else None,
                     seats=seats_json,
-                    passport_number=passport_numbers[i] if i < len(passport_numbers) and passport_numbers[i] else None
+                    passport_number=passport_number or None
                 )
                 db.session.add(passenger)
 
