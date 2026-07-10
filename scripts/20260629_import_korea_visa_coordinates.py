@@ -5,6 +5,10 @@
 - 以 country='korea' 导入坐标数据
 - 幂等:重复运行会先清空 korea 旧数据再导入
 
+xls 缺失时的行为(资源/ 目录不入 Git,服务器上通常没有此文件):
+- 库中已有 korea 坐标 → 迁移目标已达成,跳过并退出 0
+- 库中没有 korea 坐标 → 真失败,退出 1,下次部署重试
+
 运行方式: python scripts/20260629_import_korea_visa_coordinates.py
 """
 import sys
@@ -29,7 +33,14 @@ with app.app_context():
     # 2. 定位 xls
     xls_path = os.path.join(Config.PROJECT_ROOT, '资源', '签证', '韩国签证', 'source', '坐标列表.xls')
     if not os.path.exists(xls_path):
-        print(f'失败: 坐标文件不存在: {xls_path}')
+        # 坐标一旦入库就不再依赖 xls,此时视为已完成,避免每次部署重复报错
+        existing = VisaFormCoordinate.query.filter_by(country=COUNTRY).count()
+        if existing:
+            print(f'跳过: 坐标文件不存在,但库中已有 {existing} 条 {COUNTRY} 坐标,视为已完成')
+            sys.exit(0)
+        print(f'失败: 坐标文件不存在,且库中无 {COUNTRY} 坐标: {xls_path}')
+        print('请在网页「填表坐标管理」页(/visa/project/coordinates)点「导入」上传坐标文件,')
+        print('或把 坐标列表.xls 放到上述路径后手动补跑本脚本。')
         sys.exit(1)
 
     df = pd.read_excel(xls_path, sheet_name='Sheet1')

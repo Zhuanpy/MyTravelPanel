@@ -19,16 +19,16 @@
   D. 付款记录 SupplierPayment 按来源(bank/prepayment/mixed)拆分
 
 运行:
-    python scripts/20260706_reconcile_indigo_prepayment.py                # 默认 INDIGO AIRLINE SINGAPORE
-    python scripts/20260706_reconcile_indigo_prepayment.py --id 229
-    python scripts/20260706_reconcile_indigo_prepayment.py --name "SCOOT"
+    python scripts/tools/20260706_reconcile_indigo_prepayment.py                # 默认 INDIGO AIRLINE SINGAPORE
+    python scripts/tools/20260706_reconcile_indigo_prepayment.py --id 229
+    python scripts/tools/20260706_reconcile_indigo_prepayment.py --name "SCOOT"
 """
 import sys
 import os
 import argparse
 from decimal import Decimal
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from App_new import create_app
 from App_new.exts import db

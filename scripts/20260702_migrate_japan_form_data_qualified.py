@@ -5,6 +5,12 @@
 改用全限定名后，旧数据(短名)需迁移。冲突短名(T5[0]/T14[0])的旧值属申请人，映射到第1页。
 
 幂等：已是全限定名(含'.')的跳过。
+
+母版 PDF 缺失时的行为(资源/ 目录不入 Git，服务器上通常没有此文件)：
+- 没有待迁移的短名数据 → 迁移目标已达成，跳过映射并退出 0
+- 仍有待迁移数据 → 真失败，退出 1，下次部署重试
+加宽 seq 列、修正 RB1 性别值这两步不依赖母版，任何情况下都会执行。
+
 运行方式: python scripts/20260702_migrate_japan_form_data_qualified.py
 """
 import sys
@@ -31,18 +37,36 @@ with app.app_context():
         db.session.rollback()
         print(f'ALTER seq 列跳过/失败(可能已是120): {e}')
 
-    # 短名 → 全限定名（冲突时优先第1页 PAGE01）
-    short_to_qual = {}
-    for f in vp._japan_template_fields():
-        short = f['seq'].split('.')[-1]
-        if short not in short_to_qual or f['page'] == 'PAGE01':
-            short_to_qual[short] = (f['seq'], f['page'])
-
     projects = VisaProject.query.filter(VisaProject.visa_type.like('%日本%')).all()
     print(f'日本项目数: {len(projects)}')
+
+    # 一次性取出所有行，据此判断是否真的还有短名 seq 待迁移
+    rows_by_project = {
+        p.id: VisaProjectFormData.query.filter_by(project_id=p.id).all() for p in projects
+    }
+    pending = sum(1 for rows in rows_by_project.values()
+                  for r in rows if '.' not in (r.seq or ''))
+
+    # 短名 → 全限定名（冲突时优先第1页 PAGE01）；仅在有待迁移数据时才需读母版
+    short_to_qual = {}
+    if pending:
+        try:
+            template_fields = vp._japan_template_fields()
+        except (FileNotFoundError, ImportError) as e:
+            print(f'失败: 无法读取日本母版 PDF: {e}')
+            print(f'仍有 {pending} 条短名 seq 待迁移。'
+                  '请先在填表页点「上传母版」传入 PDF，再手动补跑本脚本。')
+            sys.exit(1)
+        for f in template_fields:
+            short = f['seq'].split('.')[-1]
+            if short not in short_to_qual or f['page'] == 'PAGE01':
+                short_to_qual[short] = (f['seq'], f['page'])
+    else:
+        print('没有待迁移的短名 seq，跳过母版读取')
+
     total = 0
     for p in projects:
-        rows = VisaProjectFormData.query.filter_by(project_id=p.id).all()
+        rows = rows_by_project[p.id]
         changed = 0
         for r in rows:
             if '.' in (r.seq or ''):
