@@ -1858,6 +1858,13 @@ def get_eo_compare_data():
             repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date >= start_date)
         if end_date:
             repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date <= end_date)
+        # 与预付款保持一致：默认隐藏已核对，否则它会显示成「待匹配」，
+        # 但自动匹配候选池又排除已核对记录，界面与引擎口径不一致
+        if hide_reconciled:
+            repay_query = repay_query.filter(
+                or_(ShareholderLoanRepayment.is_reconciled == False,
+                    ShareholderLoanRepayment.is_reconciled.is_(None))
+            )
 
         # 获取已匹配的还款ID
         matched_repay_ids = db.session.query(BankTransactionMatch.match_id).filter(
@@ -1868,6 +1875,15 @@ def get_eo_compare_data():
             repay_query = repay_query.filter(~ShareholderLoanRepayment.id.in_(matched_repay_ids))
         elif status == 'matched':
             repay_query = repay_query.filter(ShareholderLoanRepayment.id.in_(matched_repay_ids))
+        elif status == 'reconciled':
+            repay_query = ShareholderLoanRepayment.query.filter(
+                ShareholderLoanRepayment.status != 'cancelled',
+                ShareholderLoanRepayment.is_reconciled == True
+            )
+            if start_date:
+                repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date >= start_date)
+            if end_date:
+                repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date <= end_date)
 
         repay_query = repay_query.order_by(desc(ShareholderLoanRepayment.repayment_date))
         repayments = repay_query.limit(50).all()
@@ -1889,6 +1905,7 @@ def get_eo_compare_data():
                 'description': repay.description or '',
                 'remarks': repay.remarks or '',
                 'is_matched': is_matched,
+                'is_reconciled': repay.is_reconciled or False,
                 'status': repay.status
             })
 
