@@ -692,11 +692,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         ...r,
                         record_type: 'loan_repay',
                         record_id: r.id,
-                        record_number: r.repayment_number || '',
-                        record_date: r.repayment_date || '',
+                        record_number: r.number || '',
+                        record_date: r.date || '',
                         record_amount: r.amount || 0,
-                        record_supplier: r.shareholder_name || '股东还款',
-                        supplier_name: r.shareholder_name || '股东还款'
+                        record_supplier: r.supplier_name || '股东还款',
+                        supplier_name: r.supplier_name || '股东还款'
                     });
                 });
 

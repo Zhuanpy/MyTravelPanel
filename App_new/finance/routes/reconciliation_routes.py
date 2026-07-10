@@ -2090,6 +2090,21 @@ def eo_auto_match_suggestions():
             prepay_query = prepay_query.filter(SupplierPrepayment.payment_date <= end_date)
         unmatched_prepayments = prepay_query.all() if query_prepayment else []
 
+        # 查询未匹配的股东还款记录
+        matched_repay_ids = db.session.query(BankTransactionMatch.match_id).filter(
+            BankTransactionMatch.match_type == 'loan_repay'
+        ).subquery()
+        repay_query = ShareholderLoanRepayment.query.filter(
+            ShareholderLoanRepayment.status != 'cancelled',
+            ~ShareholderLoanRepayment.id.in_(matched_repay_ids),
+            or_(ShareholderLoanRepayment.is_reconciled == False, ShareholderLoanRepayment.is_reconciled.is_(None))
+        )
+        if start_date:
+            repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date >= start_date - timedelta(days=14))
+        if end_date:
+            repay_query = repay_query.filter(ShareholderLoanRepayment.repayment_date <= end_date)
+        unmatched_loan_repayments = repay_query.all() if query_loan_repay else []
+
         # 查询未匹配的运营费用记录
         from App_new.finance.models.operating_expense import OperatingExpense
         matched_oe_ids = db.session.query(BankTransactionMatch.match_id).filter(
@@ -2126,6 +2141,11 @@ def eo_auto_match_suggestions():
         for o in unmatched_operating_expenses:
             if o.expense_number:
                 oe_by_number[o.expense_number.strip()] = o
+
+        repay_by_number = {}
+        for r in unmatched_loan_repayments:
+            if r.repayment_number:
+                repay_by_number[r.repayment_number.strip()] = r
 
         # 计算匹配建议
         suggestions = []
@@ -2191,6 +2211,14 @@ def eo_auto_match_suggestions():
                                     best_score = 200
                                     best_match_type = 'operating_expense'
                                     break
+                        if not best_match:
+                            # 在文本中搜索股东还款编号（SR开头）
+                            for rn, repay_rec in repay_by_number.items():
+                                if rn in text:
+                                    best_match = repay_rec
+                                    best_score = 200
+                                    best_match_type = 'loan_repay'
+                                    break
 
             if not best_match:
                 # 回退：金额+日期匹配，优先匹配预付款
@@ -2218,13 +2246,21 @@ def eo_auto_match_suggestions():
                         best_match = eo
                         best_match_type = 'eo'
 
-                # 最后匹配运营费用
+                # 匹配运营费用
                 for oe in unmatched_operating_expenses:
                     score = calculate_operating_expense_match_score(tx, oe)
                     if score > best_score and score >= 40:
                         best_score = score
                         best_match = oe
                         best_match_type = 'operating_expense'
+
+                # 最后匹配股东还款
+                for repay in unmatched_loan_repayments:
+                    score = calculate_loan_repay_match_score(tx, repay)
+                    if score > best_score and score >= 40:
+                        best_score = score
+                        best_match = repay
+                        best_match_type = 'loan_repay'
 
             if best_match:
                 suggestion = {
@@ -2295,6 +2331,14 @@ def eo_auto_match_suggestions():
                         'record_date': best_match.expense_date.isoformat() if best_match.expense_date else '',
                         'record_amount': float(best_match.amount) if best_match.amount else 0,
                         'supplier_name': best_match.payee_name or (best_match.expense_account.name if best_match.expense_account else '运营费用')
+                    })
+                elif best_match_type == 'loan_repay':
+                    suggestion.update({
+                        'match_id': best_match.id,
+                        'record_number': best_match.repayment_number,
+                        'record_date': best_match.repayment_date.isoformat() if best_match.repayment_date else '',
+                        'record_amount': float(best_match.total_amount) if best_match.total_amount else 0,
+                        'supplier_name': best_match.description or '股东还款'
                     })
 
                 suggestions.append(suggestion)
@@ -2509,6 +2553,43 @@ def calculate_operating_expense_match_score(transaction, expense):
     payee = (expense.payee_name or '').lower()
     if payee and len(payee) >= 2 and payee in bank_text:
         score = min(100, score + 15)
+
+    return score
+
+
+def calculate_loan_repay_match_score(transaction, repayment):
+    """计算银行支出与股东还款记录的匹配分数（金额+日期）
+
+    股东还款没有供应商/收款方字段，因此不做名称加分，
+    只按金额（允许±1%）+ 日期远近打分。
+    """
+    tx_amount = float(transaction.amount or 0)
+    repay_amount = float(repayment.total_amount or 0)
+
+    if tx_amount == 0 or repay_amount == 0:
+        return 0
+
+    # 金额匹配（允许0.01误差，或1%以内的差异）
+    if abs(tx_amount - repay_amount) >= 0.01:
+        diff_ratio = abs(tx_amount - repay_amount) / repay_amount
+        if diff_ratio > 0.01:
+            return 0
+
+    # 日期匹配
+    tx_date = transaction.transaction_date
+    repay_date = repayment.repayment_date
+
+    score = 40
+    if tx_date and repay_date:
+        date_diff = abs((tx_date - repay_date).days)
+        if date_diff == 0:
+            score = 100
+        elif date_diff <= 3:
+            score = 90
+        elif date_diff <= 7:
+            score = 70
+        elif date_diff <= 14:
+            score = 50
 
     return score
 
