@@ -3251,26 +3251,89 @@ VISA_COORD_FOLDERS = {
 }
 
 
+def _coord_page_image_path(country, page):
+    """某国某页背景图的磁盘路径(Form-page-N.jpg)。国家或页码非法时返回 None。
+
+    生成韩国表格时 VisaForm 也读同一批图(逐页 Image.open 后叠字),
+    所以上传和读取必须共用这个函数,不能各写一份。
+    """
+    import re
+    from App_new.config import Config
+
+    folder = VISA_COORD_FOLDERS.get(country)
+    if not folder:
+        return None
+    m = re.search(r'(\d+)$', page or '')
+    if not m:
+        return None
+    return os.path.join(Config.PROJECT_ROOT, '资源', '签证', folder, 'source',
+                        f'Form-page-{int(m.group(1))}.jpg')
+
+
 @visa_project.route('/coordinates/page-image/<country>/<page>')
 @login_required
 @staff_only
 def coordinate_page_image(country, page):
     """返回某页填表背景图(Form-page-N.jpg),供坐标编辑器叠加点位"""
-    import re
     from flask import send_file, abort
-    from App_new.config import Config
 
-    folder = VISA_COORD_FOLDERS.get(country)
-    if not folder:
-        abort(404)
-    m = re.search(r'(\d+)$', page or '')
-    if not m:
-        abort(404)
-    n = int(m.group(1))
-    img_path = os.path.join(Config.PROJECT_ROOT, '资源', '签证', folder, 'source', f'Form-page-{n}.jpg')
-    if not os.path.exists(img_path):
+    img_path = _coord_page_image_path(country, page)
+    if not img_path or not os.path.exists(img_path):
         abort(404)
     return send_file(img_path)
+
+
+@visa_project.route('/coordinates/page-image/<country>/<page>', methods=['POST'])
+@login_required
+@staff_only
+def coordinate_page_image_upload(country, page):
+    """上传某页背景图。统一转存为 Form-page-N.jpg,旧图自动备份。
+
+    背景图不入 Git(资源/ 被忽略),换服务器后需要在本页重新上传。
+    """
+    img_path = _coord_page_image_path(country, page)
+    if not img_path:
+        return jsonify({'success': False, 'message': f'不支持的国家或页码: {country}/{page}'}), 400
+
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ('jpg', 'jpeg', 'png'):
+        return jsonify({'success': False, 'message': f'背景图需 jpg/jpeg/png 格式,当前为 .{ext}'}), 400
+
+    try:
+        from PIL import Image, UnidentifiedImageError
+        try:
+            image = Image.open(file.stream)
+            image.load()  # 提前触发解码,坏图在这里就炸,而不是写盘写到一半
+        except (UnidentifiedImageError, OSError) as e:
+            return jsonify({'success': False, 'message': f'不是有效的图片文件: {e}'}), 400
+
+        os.makedirs(os.path.dirname(img_path), exist_ok=True)
+        # 旧图先备份,误传能找回来
+        backup_name = None
+        if os.path.exists(img_path):
+            backup_name = f"{os.path.basename(img_path)}.{datetime.now().strftime('%Y%m%d_%H%M%S')}.bak"
+            shutil.copy2(img_path, os.path.join(os.path.dirname(img_path), backup_name))
+
+        # PNG 可能带透明通道,JPEG 存不了 alpha,统一转 RGB
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image.save(img_path, 'JPEG', quality=92)
+
+        current_app.logger.info(f'背景图上传 {country}/{page}: {img_path} (备份 {backup_name})')
+        return jsonify({
+            'success': True,
+            'message': f'{page} 背景图已更新 ({image.width}×{image.height})',
+            'width': image.width,
+            'height': image.height,
+            'backup': backup_name,
+        })
+    except Exception as e:
+        current_app.logger.error(f'背景图上传失败({country}/{page}): {e}')
+        return jsonify({'success': False, 'message': f'上传失败: {e}'}), 500
 
 
 @visa_project.route('/coordinates')
@@ -3370,3 +3433,200 @@ def coordinate_delete(coord_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
+
+# ---------------- 坐标导出 / 导入 ----------------
+# 坐标只存数据库(visa_form_coordinates),不再依赖 资源/ 下的 坐标列表.xls。
+# 本地改好坐标 → 导出 JSON → 在服务器导入,即可把本地数据同步上去。
+
+# 原 坐标列表.xls 的列名 → 模型字段,导入时兼容这套老表头
+COORD_XLS_COLUMNS = {
+    'PAGE': 'page',
+    '坐标序列': 'seq',
+    '坐标X': 'coord_x',
+    '坐标Y': 'coord_y',
+    '坐标说明': 'label',
+    '坐标类型': 'coord_type',
+    '类型说明': 'type_note',
+}
+
+
+def _coord_backup_dir():
+    from App_new.config import Config
+    path = os.path.join(Config.PROJECT_ROOT, 'backups', 'visa_coordinates')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _dump_coords(country):
+    """导出该国家的坐标为可直接回灌的记录列表(不含 id/country)。"""
+    rows = VisaFormCoordinate.query.filter_by(country=country).order_by(
+        VisaFormCoordinate.page.asc(), VisaFormCoordinate.id.asc()
+    ).all()
+    return [{
+        'page': c.page,
+        'seq': c.seq,
+        'coord_x': c.coord_x,
+        'coord_y': c.coord_y,
+        'label': c.label,
+        'coord_type': c.coord_type,
+        'type_note': c.type_note,
+    } for c in rows]
+
+
+def _clean_str(value):
+    """Excel 的空值会是 NaN,统一收敛成 None。"""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text if text and text.lower() != 'nan' else None
+
+
+def _parse_coord_file(file_storage):
+    """解析上传的坐标文件,返回规范化记录列表。校验不通过抛 ValueError。
+
+    支持 .json(本页导出的格式)与 .xls/.xlsx(原 坐标列表.xls 的列名)。
+    """
+    filename = (file_storage.filename or '').lower()
+    ext = filename.rsplit('.', 1)[-1] if '.' in filename else ''
+
+    if ext == 'json':
+        try:
+            # utf-8-sig 兼容 Windows 记事本存出来的 BOM
+            raw = json.loads(file_storage.read().decode('utf-8-sig'))
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            raise ValueError(f'JSON 无法解析: {e}')
+        if not isinstance(raw, list):
+            raise ValueError('JSON 根节点必须是数组')
+        records = raw
+    elif ext in ('xls', 'xlsx'):
+        import pandas as pd
+        df = pd.read_excel(file_storage, sheet_name=0)
+        missing = [c for c in ('PAGE', '坐标序列', '坐标X', '坐标Y') if c not in df.columns]
+        if missing:
+            raise ValueError(f'Excel 缺少必需列: {"、".join(missing)}')
+        records = []
+        for _, row in df.iterrows():
+            records.append({
+                field: row.get(col)
+                for col, field in COORD_XLS_COLUMNS.items() if col in df.columns
+            })
+    else:
+        raise ValueError(f'不支持的格式 ".{ext}",请上传 .json / .xls / .xlsx')
+
+    cleaned = []
+    seen = set()
+    for idx, rec in enumerate(records, start=1):
+        if not isinstance(rec, dict):
+            raise ValueError(f'第 {idx} 行不是对象')
+        page = _clean_str(rec.get('page'))
+        seq = _clean_str(rec.get('seq'))
+        if not page or not seq:
+            continue  # 母版里的分隔空行,跳过
+        if seq in seen:
+            raise ValueError(f'坐标序列 "{seq}" 在文件里重复(第 {idx} 行),(国家, 序列) 必须唯一')
+        seen.add(seq)
+        try:
+            coord_x = int(float(rec.get('coord_x') or 0))
+            coord_y = int(float(rec.get('coord_y') or 0))
+        except (TypeError, ValueError):
+            raise ValueError(
+                f'第 {idx} 行(序列 {seq}) 坐标不是数字: '
+                f'X={rec.get("coord_x")!r} Y={rec.get("coord_y")!r}'
+            )
+        cleaned.append({
+            'page': page,
+            'seq': seq,
+            'coord_x': coord_x,
+            'coord_y': coord_y,
+            'label': _clean_str(rec.get('label')),
+            'coord_type': _clean_str(rec.get('coord_type')),
+            'type_note': _clean_str(rec.get('type_note')),
+        })
+
+    if not cleaned:
+        raise ValueError('文件里没有有效的坐标行')
+    return cleaned
+
+
+@visa_project.route('/coordinates/export')
+@login_required
+@staff_only
+def coordinate_export():
+    """把某国家的坐标导出成 JSON 文件下载(可原样导入回来)。"""
+    from flask import Response
+
+    country = request.args.get('country', 'korea')
+    if country not in VISA_COORD_COUNTRIES:
+        return jsonify({'success': False, 'message': f'不支持的国家: {country}'}), 400
+
+    records = _dump_coords(country)
+    filename = f"{country}_coordinates_{datetime.now().strftime('%Y%m%d')}.json"
+    return Response(
+        json.dumps(records, ensure_ascii=False, indent=2),
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
+    )
+
+
+@visa_project.route('/coordinates/import', methods=['POST'])
+@login_required
+@staff_only
+def coordinate_import():
+    """整国覆盖导入坐标:先备份现有数据,再在一个事务里清空并写入。
+
+    覆盖语义 = 导入后该国家的坐标与文件完全一致,文件里没有的行会被删除。
+    """
+    country = (request.form.get('country') or 'korea').strip()
+    if country not in VISA_COORD_COUNTRIES:
+        return jsonify({'success': False, 'message': f'不支持的国家: {country}'}), 400
+
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+
+    try:
+        records = _parse_coord_file(file)
+    except ValueError as e:
+        return jsonify({'success': False, 'message': f'文件解析失败: {e}'}), 400
+    except Exception as e:
+        current_app.logger.error(f'坐标文件解析异常({country}): {e}')
+        return jsonify({'success': False, 'message': f'文件解析失败: {e}'}), 400
+
+    # 覆盖是破坏性的,先把现有数据落盘,出事能手工回灌。
+    # 时间戳只到秒,同一秒内的两次导入会撞名,加序号兜底,绝不覆盖已有备份。
+    backup_dir = _coord_backup_dir()
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_name = f'{country}_{stamp}.json'
+    dup = 1
+    while os.path.exists(os.path.join(backup_dir, backup_name)):
+        dup += 1
+        backup_name = f'{country}_{stamp}_{dup}.json'
+    backup_path = os.path.join(backup_dir, backup_name)
+    old_records = _dump_coords(country)
+    try:
+        with open(backup_path, 'w', encoding='utf-8') as fp:
+            json.dump(old_records, fp, ensure_ascii=False, indent=2)
+    except Exception as e:
+        current_app.logger.error(f'坐标备份失败({country}): {e}')
+        return jsonify({'success': False, 'message': f'备份失败,已中止导入: {e}'}), 500
+
+    try:
+        deleted = VisaFormCoordinate.query.filter_by(country=country).delete()
+        for rec in records:
+            db.session.add(VisaFormCoordinate(country=country, **rec))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'坐标导入失败({country}): {e}')
+        return jsonify({'success': False, 'message': f'导入失败,已回滚(原数据未改动): {e}'}), 500
+
+    current_app.logger.info(
+        f'坐标导入 {country}: 覆盖 {deleted} 条 → 写入 {len(records)} 条,备份于 {backup_path}')
+    return jsonify({
+        'success': True,
+        'message': f'导入成功:原有 {deleted} 条已覆盖为 {len(records)} 条(备份 {backup_name})',
+        'deleted': deleted,
+        'imported': len(records),
+        'backup': backup_name,
+    })

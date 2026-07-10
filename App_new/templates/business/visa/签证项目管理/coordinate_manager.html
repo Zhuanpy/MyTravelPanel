@@ -68,6 +68,21 @@
             <button type="button" class="visa-btn visa-btn-sm visa-btn-success" id="addRowBtn">
                 <i class="fas fa-plus"></i> 新增坐标
             </button>
+            <a class="visa-btn visa-btn-sm visa-btn-secondary"
+               href="{{ url_for('visa_project.coordinate_export', country=country) }}"
+               title="导出本国家全部坐标为 JSON，可在另一台机器导入">
+                <i class="fas fa-download"></i> 导出
+            </a>
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" id="importBtn"
+                    title="导入坐标文件，整国覆盖当前数据（导入前自动备份）">
+                <i class="fas fa-upload"></i> 导入
+            </button>
+            <input type="file" id="importFile" accept=".json,.xls,.xlsx" style="display:none">
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" id="uploadImgBtn"
+                    title="上传当前页的表格背景图（生成表格也用这批图）">
+                <i class="fas fa-image"></i> 上传背景图
+            </button>
+            <input type="file" id="pageImgFile" accept=".jpg,.jpeg,.png" style="display:none">
             <span class="coord-hint" id="activeHint">未选中行</span>
         </div>
 
@@ -78,6 +93,14 @@
                     <div class="coord-img-box" id="imgBox">
                         <img id="pageImg" alt="表格背景图" draggable="false">
                         <!-- markers injected here -->
+                    </div>
+                    <div id="imgMissing" style="display:none; padding:2rem; text-align:center; color:#888;">
+                        <i class="fas fa-image" style="font-size:2rem; opacity:.4;"></i>
+                        <p style="margin:.75rem 0 .25rem;">本页背景图缺失（<code>Form-page-N.jpg</code> 不在服务器上）</p>
+                        <p style="font-size:.85rem; margin:0 0 .75rem;">坐标仍可手工编辑，但点图选点和「生成表格」都需要这张图</p>
+                        <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" id="uploadImgBtn2">
+                            <i class="fas fa-upload"></i> 上传本页背景图
+                        </button>
                     </div>
                 </div>
                 <div class="coord-hint" style="margin-top:4px;">图片尺寸 <span id="imgDim">-</span> ｜ 鼠标位置 <span id="mousePos">-</span></div>
@@ -135,6 +158,8 @@ const URL_SAVE = "{{ url_for('visa_project.coordinate_save') }}";
 const URL_ADD = "{{ url_for('visa_project.coordinate_add') }}";
 const URL_DEL_BASE = "{{ url_for('visa_project.coordinate_delete', coord_id=0) }}".slice(0, -1);
 const URL_IMG_BASE = "{{ url_for('visa_project.coordinate_page_image', country=country, page='__PAGE__') }}";
+const URL_IMPORT = "{{ url_for('visa_project.coordinate_import') }}";
+const URL_IMG_UPLOAD_BASE = "{{ url_for('visa_project.coordinate_page_image_upload', country=country, page='__PAGE__') }}";
 
 let activePage = document.querySelector('.coord-tab.active')?.dataset.page || '';
 let activeRow = null;
@@ -183,6 +208,7 @@ document.getElementById('coordTabs').addEventListener('click', (e) => {
 imgEl.addEventListener('load', () => {
     natW = imgEl.naturalWidth; natH = imgEl.naturalHeight;
     document.getElementById('imgDim').textContent = `${natW} × ${natH}`;
+    setImgMissing(false);   // 从缺图的页切回有图的页时要把提示收起来
     renderMarkers();
 });
 
@@ -301,6 +327,85 @@ document.getElementById('addRowBtn').addEventListener('click', () => {
     tbody.insertBefore(tr, tbody.firstChild);
     setActiveRow(tr);
     tr.querySelector('input').focus();
+});
+
+// ---- 背景图缺失提示 ----
+const imgMissingEl = document.getElementById('imgMissing');
+function setImgMissing(missing) {
+    imgMissingEl.style.display = missing ? 'block' : 'none';
+    imgBox.style.display = missing ? 'none' : '';
+}
+imgEl.addEventListener('error', () => setImgMissing(true));
+
+// ---- 上传当前页背景图 ----
+const pageImgFile = document.getElementById('pageImgFile');
+document.getElementById('uploadImgBtn').addEventListener('click', () => pageImgFile.click());
+document.getElementById('uploadImgBtn2').addEventListener('click', () => pageImgFile.click());
+
+pageImgFile.addEventListener('change', async () => {
+    const file = pageImgFile.files[0];
+    pageImgFile.value = '';
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+        const resp = await fetch(URL_IMG_UPLOAD_BASE.replace('__PAGE__', encodeURIComponent(activePage)), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+            body: fd
+        });
+        const res = await resp.json();
+        if (!res.success) { alert(res.message); return; }
+        // 坐标是绝对像素，换了尺寸会整页错位，提醒一下
+        if (natW && natH && (res.width !== natW || res.height !== natH)) {
+            alert(`注意：新图尺寸 ${res.width}×${res.height}，与原图 ${natW}×${natH} 不同，`
+                + `现有坐标会整页错位，需要重新校准。`);
+        }
+        toast(res.message);
+        setImgMissing(false);
+        // 加时间戳绕开浏览器缓存，否则看到的还是旧图
+        imgEl.src = URL_IMG_BASE.replace('__PAGE__', encodeURIComponent(activePage)) + '?t=' + Date.now();
+    } catch (err) {
+        alert(`上传失败: ${err.message}`);
+    }
+});
+
+// ---- 导入坐标（整国覆盖，导入前服务端会自动备份） ----
+const importFile = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+
+importFile.addEventListener('change', async () => {
+    const file = importFile.files[0];
+    if (!file) return;
+    const total = document.getElementById('coordTotal').textContent;
+    const ok = confirm(
+        `确定用「${file.name}」覆盖 ${COUNTRY} 的坐标吗？\n\n` +
+        `现有 ${total} 条会被全部删除并替换为文件内容，文件里没有的坐标将消失。\n` +
+        `（导入前服务器会自动备份，失败会整体回滚）`
+    );
+    importFile.value = '';  // 允许再次选择同一个文件
+    if (!ok) return;
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('country', COUNTRY);
+    try {
+        const resp = await fetch(URL_IMPORT, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+            body: fd
+        });
+        const res = await resp.json();
+        if (res.success) {
+            toast(res.message);
+            setTimeout(() => location.reload(), 1200);  // 整表已换，重新渲染
+        } else {
+            alert(res.message);
+        }
+    } catch (err) {
+        alert(`导入失败: ${err.message}`);
+    }
 });
 
 function bumpTotal(delta) {
