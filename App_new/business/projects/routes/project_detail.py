@@ -30,15 +30,12 @@ def test_detail():
 def project_detail(project_id):
     """项目详情页面"""
     try:
-        print(f"DEBUG: 访问项目详情页面，project_id: {project_id}")
-        
         from App_new.business.projects.models.project import ProjectHeader
         from App_new.business.projects.models.project import CustomerCompany
-        
+
         # 使用project_id查询ProjectHeader
         header = ProjectHeader.query.get_or_404(project_id)
-        print(f"DEBUG: 找到项目 HID: {header.hid}, 描述: {header.desc}")
-        
+
         # 员工等级权限检查
         if not can_access_project(header, current_user):
             flash('您没有权限访问此项目', 'error')
@@ -47,7 +44,6 @@ def project_detail(project_id):
         # 手动加载相关的REF数据
         refs = ProjectRef.query.filter_by(header_id=project_id).all()
         header.refs = refs
-        print(f"DEBUG: 加载了 {len(refs)} 个REF记录")
 
         # 获取上一个和下一个项目（优化查询）
         prev_header = ProjectHeader.query.filter(
@@ -60,7 +56,6 @@ def project_detail(project_id):
 
         # 获取公司信息（通过backref自动关联）
         company = header.company
-        print(f"DEBUG: 公司信息: {company.company_name if company else 'None'}")
 
         # 获取活跃的公司列表供选择（按客户归属过滤：1级员工只看自己归属 + 公共客户）
         companies_query = CustomerCompany.query.filter_by(status='active')
@@ -75,7 +70,6 @@ def project_detail(project_id):
                     )
                 )
         companies = companies_query.order_by(CustomerCompany.company_name).all()
-        print(f"DEBUG: 加载了 {len(companies)} 个活跃公司")
 
         # 获取项目的 leader 成员名称
         from App_new.business.projects.models.project_member import ProjectMember
@@ -128,7 +122,7 @@ def project_detail(project_id):
         used_eo_subquery = db.session.query(PrepaymentUsage.eo_id).filter(
             PrepaymentUsage.eo_id.isnot(None),
             PrepaymentUsage.status.in_(['confirmed', 'pending'])
-        ).distinct().subquery()
+        ).distinct().scalar_subquery()
 
         # 查询每个供应商的待付款EO总额（排除已从预付款扣减的）
         pending_eo_amounts = db.session.query(
@@ -151,7 +145,6 @@ def project_detail(project_id):
                 supplier_balances[supplier_id]['pending_eo'] = pending_amount
                 supplier_balances[supplier_id]['expected_balance'] = supplier_balances[supplier_id]['balance'] - pending_amount
 
-        print(f"DEBUG: 准备渲染模板 business/projects/project_detail.html")
         return render_template('business/projects/project_detail.html',
                                header=header,
                                company=company,
@@ -1228,7 +1221,6 @@ def copy_project(project_id):
         # 复制项目主表（日期使用当前时间）
         from datetime import datetime
         now = datetime.utcnow()  # 使用UTC时间，与模型默认值保持一致
-        print(f"[DEBUG] 复制项目 - 当前时间(UTC): {now}")
 
         new_header = ProjectHeader(
             hid=new_hid,
