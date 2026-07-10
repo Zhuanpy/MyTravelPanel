@@ -224,6 +224,45 @@ def main():
         print(f'  还款候选数(未加日期窗口): {len(cands)}')
         print(f'  目标还款在候选池中: {yes(any(x.id == rep.id for x in cands))}')
 
+        print()
+        print('=' * 70)
+        print('5. 候选池为空时，定位到底是哪个条件筛掉的')
+        print('=' * 70)
+        all_reps = ShareholderLoanRepayment.query.all()
+        print(f'  还款记录总数: {len(all_reps)}')
+
+        lr_rows = BankTransactionMatch.query.filter_by(match_type='loan_repay').all()
+        null_ids = [x.id for x in lr_rows if x.match_id is None]
+        print(f'  BankTransactionMatch 中 match_type=loan_repay 的行数: {len(lr_rows)}')
+        print(f'  其中 match_id 为 NULL 的行: {len(null_ids)}  {null_ids if null_ids else ""}')
+        if null_ids:
+            print('  >>> 命中 SQL 陷阱: NOT IN (..., NULL) 对任何行都返回 unknown，')
+            print('      会把整个还款候选池清空，与具体数据无关。这是代码 bug，需要修。')
+
+        print()
+        print('  逐条还款，看被哪个条件拦下:')
+        for r in all_reps:
+            c_status = r.status != 'cancelled'
+            c_match = BankTransactionMatch.query.filter_by(
+                match_type='loan_repay', match_id=r.id).first() is None
+            c_recon = not r.is_reconciled
+            blockers = []
+            if not c_status:
+                blockers.append(f'status={r.status!r}')
+            if not c_match:
+                blockers.append('已被 BankTransactionMatch 占用')
+            if not c_recon:
+                blockers.append(f'is_reconciled={r.is_reconciled!r}')
+            verdict = '通过' if not blockers else ('拦截: ' + '; '.join(blockers))
+            print(f'    {r.repayment_number}  {r.repayment_date}  {r.total_amount}'
+                  f'  status={r.status!r} is_reconciled={r.is_reconciled!r}  -> {verdict}')
+
+        if all_reps and not cands and not null_ids and \
+                all(x.status != 'cancelled' and not x.is_reconciled for x in all_reps):
+            print()
+            print('  >>> 所有还款单看都该通过，但候选池仍为空 -> 高度怀疑是子查询 NOT IN 的 NULL 语义，')
+            print('      或 matched_repay_ids 子查询本身有问题。')
+
 
 if __name__ == '__main__':
     main()
