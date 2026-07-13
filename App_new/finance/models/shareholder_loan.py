@@ -20,7 +20,7 @@ class ShareholderLoan(db.Model):
 
     # 还款跟踪
     repaid_amount = db.Column(db.Numeric(12, 2), default=0, comment='已还金额')
-    status = db.Column(db.String(20), default='active', comment='状态: active/partial/repaid/cancelled')
+    status = db.Column(db.String(20), default='active', comment='状态: draft/active/partial/repaid/cancelled')
 
     # 关联会计分录
     journal_entry_id = db.Column(db.Integer, db.ForeignKey('project_journal_entries.id'), comment='关联会计分录')
@@ -50,16 +50,25 @@ class ShareholderLoan(db.Model):
     def status_display(self):
         """状态显示"""
         status_map = {
+            'draft': '待确认',
             'active': '未还',
             'partial': '部分归还',
             'repaid': '已还清',
-            'cancelled': '已作废'
+            'cancelled': '已冲销'
         }
         return status_map.get(self.status, self.status)
 
+    @property
+    def is_draft(self):
+        """草稿态：未过账，可自由修改删除"""
+        return self.status == 'draft'
+
     def update_status(self):
-        """根据已还金额更新状态"""
-        if self.status == 'cancelled':
+        """根据已还金额更新状态
+
+        草稿与已冲销为终态，不参与已还金额推导。
+        """
+        if self.status in ('draft', 'cancelled'):
             return
 
         repaid = float(self.repaid_amount or 0)
@@ -106,7 +115,7 @@ class ShareholderLoanRepayment(db.Model):
     remarks = db.Column(db.Text, comment='备注')
 
     # 状态
-    status = db.Column(db.String(20), default='posted', comment='状态: posted/cancelled')
+    status = db.Column(db.String(20), default='posted', comment='状态: draft/posted/cancelled')
 
     # 关联会计分录
     journal_entry_id = db.Column(db.Integer, db.ForeignKey('project_journal_entries.id'), comment='关联会计分录')
@@ -125,6 +134,21 @@ class ShareholderLoanRepayment(db.Model):
     journal_entry = db.relationship('JournalEntry', foreign_keys=[journal_entry_id])
     bank_account = db.relationship('ChartOfAccount', foreign_keys=[bank_account_id])
     details = db.relationship('ShareholderLoanRepaymentDetail', back_populates='repayment', lazy='dynamic')
+
+    @property
+    def status_display(self):
+        """状态显示"""
+        status_map = {
+            'draft': '待确认',
+            'posted': '已确认',
+            'cancelled': '已冲销'
+        }
+        return status_map.get(self.status, self.status)
+
+    @property
+    def is_draft(self):
+        """草稿态：未过账，未扣减借款已还金额"""
+        return self.status == 'draft'
 
     @classmethod
     def generate_repayment_number(cls):

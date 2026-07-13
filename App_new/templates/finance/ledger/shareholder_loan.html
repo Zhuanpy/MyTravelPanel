@@ -80,23 +80,38 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if loan.status == 'active' %}
+                                        {% if loan.status == 'draft' %}
+                                        <span class="badge bg-light text-dark border">待确认</span>
+                                        {% elif loan.status == 'active' %}
                                         <span class="badge bg-primary">未还</span>
                                         {% elif loan.status == 'partial' %}
                                         <span class="badge bg-warning">部分归还</span>
                                         {% elif loan.status == 'repaid' %}
                                         <span class="badge bg-success">已还清</span>
                                         {% elif loan.status == 'cancelled' %}
-                                        <span class="badge bg-secondary">已作废</span>
+                                        <span class="badge bg-secondary">已冲销</span>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        {% if loan.status == 'active' and (loan.repaid_amount or 0) == 0 %}
+                                    <td style="white-space: nowrap;">
+                                        {% if loan.status == 'draft' %}
+                                        <button class="btn btn-outline-success btn-sm confirm-loan-btn"
+                                                data-loan-id="{{ loan.id }}"
+                                                data-loan-number="{{ loan.loan_number }}"
+                                                title="确认并过账">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm delete-loan-btn"
+                                                data-loan-id="{{ loan.id }}"
+                                                data-loan-number="{{ loan.loan_number }}"
+                                                title="删除草稿">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% elif loan.status == 'active' and (loan.repaid_amount or 0) == 0 %}
                                         <button class="btn btn-outline-danger btn-sm cancel-loan-btn"
                                                 data-loan-id="{{ loan.id }}"
                                                 data-loan-number="{{ loan.loan_number }}"
-                                                title="作废此借款">
-                                            <i class="fas fa-times"></i>
+                                                title="冲销此借款（生成反向分录）">
+                                            <i class="fas fa-rotate-left"></i>
                                         </button>
                                         {% endif %}
                                     </td>
@@ -145,14 +160,29 @@
                                     </td>
                                     <td class="text-end text-danger">{{ "%.2f"|format(repayment.total_amount) }}</td>
                                     <td>
-                                        {% if repayment.status == 'posted' %}
+                                        {% if repayment.status == 'draft' %}
+                                        <span class="badge bg-light text-dark border">待确认</span>
+                                        {% elif repayment.status == 'posted' %}
                                         <span class="badge bg-success">已确认</span>
                                         {% elif repayment.status == 'cancelled' %}
-                                        <span class="badge bg-secondary">已作废</span>
+                                        <span class="badge bg-secondary">已冲销</span>
                                         {% endif %}
                                     </td>
                                     <td style="white-space: nowrap;">
-                                        {% if repayment.status == 'posted' %}
+                                        {% if repayment.status == 'draft' %}
+                                        <button class="btn btn-outline-success btn-sm confirm-repayment-btn"
+                                                data-repayment-id="{{ repayment.id }}"
+                                                data-repayment-number="{{ repayment.repayment_number }}"
+                                                title="确认并过账">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm delete-repayment-btn"
+                                                data-repayment-id="{{ repayment.id }}"
+                                                data-repayment-number="{{ repayment.repayment_number }}"
+                                                title="删除草稿">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% elif repayment.status == 'posted' %}
                                         <a href="{{ url_for('ledger_routes.print_repayment_pdf', repayment_id=repayment.id) }}"
                                            class="btn btn-outline-primary btn-sm" title="打印PDF" target="_blank">
                                             <i class="fas fa-print"></i>
@@ -160,8 +190,8 @@
                                         <button class="btn btn-outline-danger btn-sm cancel-repayment-btn"
                                                 data-repayment-id="{{ repayment.id }}"
                                                 data-repayment-number="{{ repayment.repayment_number }}"
-                                                title="作废此还款">
-                                            <i class="fas fa-undo"></i>
+                                                title="冲销此还款（生成反向分录）">
+                                            <i class="fas fa-rotate-left"></i>
                                         </button>
                                         {% endif %}
                                     </td>
@@ -217,8 +247,11 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check"></i> 确认借款
+                    <button type="submit" class="btn btn-outline-success" name="action" value="draft">
+                        <i class="fas fa-save"></i> 保存草稿
+                    </button>
+                    <button type="submit" class="btn btn-success" name="action" value="confirm">
+                        <i class="fas fa-check"></i> 确认并过账
                     </button>
                 </div>
             </form>
@@ -319,8 +352,11 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-danger" id="repaySubmitBtn" disabled>
-                        <i class="fas fa-check"></i> 确认还款
+                    <button type="submit" class="btn btn-outline-danger repay-submit-btn" name="action" value="draft" disabled>
+                        <i class="fas fa-save"></i> 保存草稿
+                    </button>
+                    <button type="submit" class="btn btn-danger repay-submit-btn" name="action" value="confirm" disabled>
+                        <i class="fas fa-check"></i> 确认并过账
                     </button>
                 </div>
             </form>
@@ -392,7 +428,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         document.getElementById('totalRepayAmount').textContent = total.toFixed(2) + ' SGD';
-        document.getElementById('repaySubmitBtn').disabled = total <= 0;
+        document.querySelectorAll('.repay-submit-btn').forEach(btn => {
+            btn.disabled = total <= 0;
+        });
     }
 
     // 股东借款表单
@@ -406,15 +444,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // 点了哪个按钮决定是存草稿还是直接过账
+        const confirm = e.submitter && e.submitter.value === 'confirm';
+
         const data = {
             loan_date: formData.get('loan_date'),
             amount: amount,
             bank_account_id: parseInt(formData.get('bank_account_id')),
             description: formData.get('description') || '',
-            remarks: formData.get('remarks') || ''
+            remarks: formData.get('remarks') || '',
+            confirm: confirm
         };
 
-        const submitBtn = this.querySelector('button[type="submit"]');
+        const submitBtn = e.submitter;
         const originalText = submitBtn.innerHTML;
 
         try {
@@ -467,15 +509,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // 点了哪个按钮决定是存草稿还是直接过账
+        const confirm = e.submitter && e.submitter.value === 'confirm';
+
         const data = {
             repayment_date: formData.get('repayment_date'),
             bank_account_id: parseInt(formData.get('bank_account_id')),
             description: formData.get('description') || '',
             remarks: formData.get('remarks') || '',
-            allocations: allocations
+            allocations: allocations,
+            confirm: confirm
         };
 
-        const submitBtn = document.getElementById('repaySubmitBtn');
+        const submitBtn = e.submitter;
         const originalText = submitBtn.innerHTML;
 
         try {
@@ -518,77 +564,73 @@ document.addEventListener('DOMContentLoaded', function() {
         updateTotalRepayAmount();
     });
 
-    // 作废借款按钮
-    document.querySelectorAll('.cancel-loan-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const loanId = this.dataset.loanId;
-            const loanNumber = this.dataset.loanNumber;
-
-            if (!confirm(`确定要作废借款 ${loanNumber} 吗？\n\n作废后将冲销相关会计分录。`)) {
-                return;
-            }
-
-            try {
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-                const response = await fetch(`/ledger/shareholder-loan/cancel-loan/${loanId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    alert(result.message);
-                    location.reload();
-                } else {
-                    alert('作废失败: ' + result.message);
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-times"></i>';
+    // 行内操作按钮统一处理：确认弹窗 -> POST -> 刷新
+    function bindRowAction(selector, buildUrl, buildMessage, failLabel) {
+        document.querySelectorAll(selector).forEach(btn => {
+            btn.addEventListener('click', async function() {
+                if (!confirm(buildMessage(this.dataset))) {
+                    return;
                 }
-            } catch (error) {
-                alert('请求失败: ' + error.message);
-                this.disabled = false;
-                this.innerHTML = '<i class="fas fa-times"></i>';
-            }
-        });
-    });
 
-    // 作废还款按钮
-    document.querySelectorAll('.cancel-repayment-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const repaymentId = this.dataset.repaymentId;
-            const repaymentNumber = this.dataset.repaymentNumber;
+                const originalHtml = this.innerHTML;
+                try {
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            if (!confirm(`确定要作废还款 ${repaymentNumber} 吗？\n\n作废后将恢复相关借款的未还金额。`)) {
-                return;
-            }
+                    const response = await fetch(buildUrl(this.dataset), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const result = await response.json();
 
-            try {
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-                const response = await fetch(`/ledger/shareholder-loan/cancel-repayment/${repaymentId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    alert(result.message);
-                    location.reload();
-                } else {
-                    alert('作废失败: ' + result.message);
+                    if (result.success) {
+                        alert(result.message);
+                        location.reload();
+                    } else {
+                        alert(failLabel + '失败: ' + result.message);
+                        this.disabled = false;
+                        this.innerHTML = originalHtml;
+                    }
+                } catch (error) {
+                    alert('请求失败: ' + error.message);
                     this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-undo"></i>';
+                    this.innerHTML = originalHtml;
                 }
-            } catch (error) {
-                alert('请求失败: ' + error.message);
-                this.disabled = false;
-                this.innerHTML = '<i class="fas fa-undo"></i>';
-            }
+            });
         });
-    });
+    }
+
+    // 借款：确认过账 / 删除草稿 / 冲销
+    bindRowAction('.confirm-loan-btn',
+        d => `/ledger/shareholder-loan/confirm-loan/${d.loanId}`,
+        d => `确定要确认借款 ${d.loanNumber} 吗？\n\n确认后将生成会计分录并计入余额，之后不能撤回，只能冲销。`,
+        '确认');
+
+    bindRowAction('.delete-loan-btn',
+        d => `/ledger/shareholder-loan/delete-loan/${d.loanId}`,
+        d => `确定要删除草稿借款 ${d.loanNumber} 吗？\n\n草稿未过账，删除后不可恢复。`,
+        '删除');
+
+    bindRowAction('.cancel-loan-btn',
+        d => `/ledger/shareholder-loan/cancel-loan/${d.loanId}`,
+        d => `确定要冲销借款 ${d.loanNumber} 吗？\n\n原记录保留，另生成一张反向分录。`,
+        '冲销');
+
+    // 还款：确认过账 / 删除草稿 / 冲销
+    bindRowAction('.confirm-repayment-btn',
+        d => `/ledger/shareholder-loan/confirm-repayment/${d.repaymentId}`,
+        d => `确定要确认还款 ${d.repaymentNumber} 吗？\n\n确认后将扣减借款未还金额并生成会计分录，之后不能撤回，只能冲销。`,
+        '确认');
+
+    bindRowAction('.delete-repayment-btn',
+        d => `/ledger/shareholder-loan/delete-repayment/${d.repaymentId}`,
+        d => `确定要删除草稿还款 ${d.repaymentNumber} 吗？\n\n草稿未过账，删除后不可恢复。`,
+        '删除');
+
+    bindRowAction('.cancel-repayment-btn',
+        d => `/ledger/shareholder-loan/cancel-repayment/${d.repaymentId}`,
+        d => `确定要冲销还款 ${d.repaymentNumber} 吗？\n\n原记录保留，另生成反向分录，并恢复相关借款的未还金额。`,
+        '冲销');
 
     // 借款详情链接
     document.querySelectorAll('.loan-detail-link').forEach(link => {

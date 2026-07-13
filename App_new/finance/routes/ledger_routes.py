@@ -1948,6 +1948,105 @@ def sync_invoice_payment_status():
 
 # ==================== 股东借款管理 ====================
 
+def _post_loan_journal_entry(loan):
+    """为借款生成并过账日记账分录：借 银行 / 贷 股东借款(2400)
+
+    返回 (entry, error_message)。error_message 非空表示科目缺失。
+    """
+    loan_account = ChartOfAccount.query.filter_by(code='2400').first()
+    bank_account = ChartOfAccount.query.get(loan.bank_account_id)
+    if not loan_account:
+        return None, '股东借款科目(2400)不存在'
+    if not bank_account:
+        return None, '银行账户不存在'
+
+    amount = Decimal(str(loan.amount))
+    entry = JournalEntry(
+        entry_number=JournalEntry._generate_entry_number(),
+        entry_date=loan.loan_date,
+        source_type='manual',
+        description=loan.description or f'股东借款 {loan.loan_number}',
+        currency='SGD',
+        remarks=loan.remarks or None,
+        created_by=current_user.username if current_user else None
+    )
+    entry.lines.append(JournalEntryLine(
+        line_no=1, account_id=bank_account.id,
+        debit=amount, credit=Decimal('0'), memo='收到股东借款'
+    ))
+    entry.lines.append(JournalEntryLine(
+        line_no=2, account_id=loan_account.id,
+        debit=Decimal('0'), credit=amount, memo='应付股东款'
+    ))
+    entry.total_amount = amount
+    entry.status = 'posted'
+    entry.posted_at = datetime.utcnow()
+    entry.posted_by = current_user.username if current_user else None
+    db.session.add(entry)
+    db.session.flush()
+    return entry, None
+
+
+def _post_repayment_journal_entry(repayment, loan_numbers):
+    """为还款生成并过账日记账分录：借 股东借款(2400) / 贷 银行
+
+    返回 (entry, error_message)。
+    """
+    loan_account = ChartOfAccount.query.filter_by(code='2400').first()
+    bank_account = ChartOfAccount.query.get(repayment.bank_account_id)
+    if not loan_account:
+        return None, '股东借款科目(2400)不存在'
+    if not bank_account:
+        return None, '银行账户不存在'
+
+    total_amount = Decimal(str(repayment.total_amount))
+    entry = JournalEntry(
+        entry_number=JournalEntry._generate_entry_number(),
+        entry_date=repayment.repayment_date,
+        source_type='manual',
+        description=repayment.description or f'归还股东借款 {repayment.repayment_number}',
+        currency='SGD',
+        remarks=f'归还借款: {loan_numbers}' + (f'\n{repayment.remarks}' if repayment.remarks else ''),
+        created_by=current_user.username if current_user else None
+    )
+    entry.lines.append(JournalEntryLine(
+        line_no=1, account_id=loan_account.id,
+        debit=total_amount, credit=Decimal('0'),
+        memo=f'归还股东借款: {loan_numbers}'
+    ))
+    entry.lines.append(JournalEntryLine(
+        line_no=2, account_id=bank_account.id,
+        debit=Decimal('0'), credit=total_amount, memo='银行付款'
+    ))
+    entry.total_amount = total_amount
+    entry.status = 'posted'
+    entry.posted_at = datetime.utcnow()
+    entry.posted_by = current_user.username if current_user else None
+    db.session.add(entry)
+    db.session.flush()
+    return entry, None
+
+
+def _apply_repayment_to_loans(repayment):
+    """把还款明细扣减到各笔借款上（过账时调用）
+
+    过账前需重新校验：草稿创建之后，可能已有别的还款先行过账占用了额度。
+    返回 error_message 或 None。
+    """
+    for detail in repayment.details:
+        loan = detail.loan
+        if loan.status not in ('active', 'partial'):
+            return f'借款 {loan.loan_number} 当前状态为「{loan.status_display}」，无法归还'
+        if Decimal(str(detail.amount)) > Decimal(str(loan.remaining_amount)):
+            return f'借款 {loan.loan_number} 的归还金额超过剩余金额（剩余 {loan.remaining_amount:.2f}）'
+
+    for detail in repayment.details:
+        loan = detail.loan
+        loan.repaid_amount = Decimal(str(loan.repaid_amount or 0)) + detail.amount
+        loan.update_status()
+    return None
+
+
 @ledger_blue.route('/shareholder-loan')
 @login_required
 @staff_only
@@ -1971,13 +2070,16 @@ def shareholder_loan_list():
     ).order_by(ShareholderLoanRepayment.repayment_date.desc(), ShareholderLoanRepayment.id.desc()).all()
 
     # 计算当前余额（从shareholder_loans表直接计算）
+    # 草稿未过账、已冲销已反向分录，两者都不计入余额
+    _balance_filter = ShareholderLoan.status.notin_(['cancelled', 'draft'])
+
     total_borrowed = db.session.query(
         func.coalesce(func.sum(ShareholderLoan.amount), 0)
-    ).filter(ShareholderLoan.status != 'cancelled').scalar()
+    ).filter(_balance_filter).scalar()
 
     total_repaid = db.session.query(
         func.coalesce(func.sum(ShareholderLoan.repaid_amount), 0)
-    ).filter(ShareholderLoan.status != 'cancelled').scalar()
+    ).filter(_balance_filter).scalar()
 
     current_balance = float(total_borrowed or 0) - float(total_repaid or 0)
 
@@ -2007,7 +2109,11 @@ def shareholder_loan_list():
 @login_required
 @staff_only
 def shareholder_loan_borrow():
-    """添加股东借款"""
+    """添加股东借款
+
+    confirm=True（默认）：立即过账，状态 active
+    confirm=False：仅存草稿，不生成分录，不计入余额
+    """
     try:
         data = request.get_json()
         amount = Decimal(str(data.get('amount', 0)))
@@ -2015,6 +2121,7 @@ def shareholder_loan_borrow():
         bank_account_id = int(data.get('bank_account_id'))
         description = data.get('description', '').strip()
         remarks = data.get('remarks', '').strip()
+        confirm = data.get('confirm', True)
 
         if amount <= 0:
             return jsonify({'success': False, 'message': '金额必须大于0'})
@@ -2031,58 +2138,33 @@ def shareholder_loan_borrow():
         # 生成借款编号
         loan_number = ShareholderLoan.generate_loan_number()
 
-        # 创建日记账分录
-        entry_desc = description or f'股东借款 {loan_number}'
-        entry = JournalEntry(
-            entry_number=JournalEntry._generate_entry_number(),
-            entry_date=loan_date,
-            source_type='manual',
-            description=entry_desc,
-            currency='SGD',
-            remarks=remarks or None,
-            created_by=current_user.username if current_user else None
-        )
-
-        # 借 银行，贷 股东借款
-        entry.lines.append(JournalEntryLine(
-            line_no=1,
-            account_id=bank_account.id,
-            debit=amount,
-            credit=Decimal('0'),
-            memo='收到股东借款'
-        ))
-        entry.lines.append(JournalEntryLine(
-            line_no=2,
-            account_id=loan_account.id,
-            debit=Decimal('0'),
-            credit=amount,
-            memo='应付股东款'
-        ))
-
-        entry.total_amount = amount
-        entry.status = 'posted'
-        entry.posted_at = datetime.utcnow()
-        entry.posted_by = current_user.username if current_user else None
-        db.session.add(entry)
-        db.session.flush()  # 获取entry.id
-
-        # 创建借款记录
+        # 创建借款记录（草稿不生成分录）
         loan = ShareholderLoan(
             loan_number=loan_number,
             amount=amount,
             loan_date=loan_date,
             description=description or None,
             remarks=remarks or None,
-            journal_entry_id=entry.id,
             bank_account_id=bank_account_id,
+            status='active' if confirm else 'draft',
             created_by=current_user.username if current_user else None
         )
         db.session.add(loan)
+        db.session.flush()
+
+        if confirm:
+            entry, err = _post_loan_journal_entry(loan)
+            if err:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': err})
+            loan.journal_entry_id = entry.id
+
         db.session.commit()
 
+        action = '已确认并过账' if confirm else '已存为草稿'
         return jsonify({
             'success': True,
-            'message': f'股东借款 {loan_number} 已记录，金额 {amount} SGD',
+            'message': f'股东借款 {loan_number} {action}，金额 {amount} SGD',
             'loan_id': loan.id,
             'loan_number': loan_number
         })
@@ -2100,13 +2182,18 @@ def shareholder_loan_borrow():
 @login_required
 @staff_only
 def shareholder_loan_repay():
-    """归还股东借款"""
+    """归还股东借款
+
+    confirm=True（默认）：立即过账，扣减借款已还金额，状态 posted
+    confirm=False：仅存草稿，不生成分录，不扣减借款已还金额
+    """
     try:
         data = request.get_json()
         repayment_date = datetime.strptime(data.get('repayment_date'), '%Y-%m-%d').date()
         bank_account_id = int(data.get('bank_account_id'))
         description = data.get('description', '').strip()
         remarks = data.get('remarks', '').strip()
+        confirm = data.get('confirm', True)
         # allocations: [{loan_id: 1, amount: 1000}, {loan_id: 2, amount: 500}]
         allocations = data.get('allocations', [])
 
@@ -2148,79 +2235,49 @@ def shareholder_loan_repay():
 
         # 生成还款编号
         repayment_number = ShareholderLoanRepayment.generate_repayment_number()
-
-        # 创建日记账分录
         loan_numbers = ', '.join([d['loan'].loan_number for d in loan_details])
-        entry_desc = description or f'归还股东借款 {repayment_number}'
-        entry = JournalEntry(
-            entry_number=JournalEntry._generate_entry_number(),
-            entry_date=repayment_date,
-            source_type='manual',
-            description=entry_desc,
-            currency='SGD',
-            remarks=f'归还借款: {loan_numbers}' + (f'\n{remarks}' if remarks else ''),
-            created_by=current_user.username if current_user else None
-        )
 
-        # 借 股东借款，贷 银行
-        entry.lines.append(JournalEntryLine(
-            line_no=1,
-            account_id=loan_account.id,
-            debit=total_amount,
-            credit=Decimal('0'),
-            memo=f'归还股东借款: {loan_numbers}'
-        ))
-        entry.lines.append(JournalEntryLine(
-            line_no=2,
-            account_id=bank_account.id,
-            debit=Decimal('0'),
-            credit=total_amount,
-            memo='银行付款'
-        ))
-
-        entry.total_amount = total_amount
-        entry.status = 'posted'
-        entry.posted_at = datetime.utcnow()
-        entry.posted_by = current_user.username if current_user else None
-        db.session.add(entry)
-        db.session.flush()
-
-        # 创建还款记录
+        # 创建还款记录（草稿不生成分录、不扣减借款）
         repayment = ShareholderLoanRepayment(
             repayment_number=repayment_number,
             total_amount=total_amount,
             repayment_date=repayment_date,
             description=description or None,
             remarks=remarks or None,
-            journal_entry_id=entry.id,
             bank_account_id=bank_account_id,
+            status='posted' if confirm else 'draft',
             created_by=current_user.username if current_user else None
         )
         db.session.add(repayment)
         db.session.flush()
 
-        # 创建还款明细并更新借款状态
+        # 创建还款明细
         for detail in loan_details:
-            loan = detail['loan']
-            amount = detail['amount']
-
-            # 创建明细
-            repayment_detail = ShareholderLoanRepaymentDetail(
+            db.session.add(ShareholderLoanRepaymentDetail(
                 repayment_id=repayment.id,
-                loan_id=loan.id,
-                amount=amount
-            )
-            db.session.add(repayment_detail)
+                loan_id=detail['loan'].id,
+                amount=detail['amount']
+            ))
 
-            # 更新借款已还金额
-            loan.repaid_amount = Decimal(str(loan.repaid_amount or 0)) + amount
-            loan.update_status()
+        if confirm:
+            db.session.flush()  # 让 repayment.details 可见
+            err = _apply_repayment_to_loans(repayment)
+            if err:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': err})
+
+            entry, err = _post_repayment_journal_entry(repayment, loan_numbers)
+            if err:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': err})
+            repayment.journal_entry_id = entry.id
 
         db.session.commit()
 
+        action = '已确认并过账' if confirm else '已存为草稿'
         return jsonify({
             'success': True,
-            'message': f'还款 {repayment_number} 已记录，金额 {total_amount} SGD',
+            'message': f'还款 {repayment_number} {action}，金额 {total_amount} SGD',
             'repayment_id': repayment.id,
             'repayment_number': repayment_number
         })
@@ -2268,14 +2325,16 @@ def shareholder_loan_balance():
     if not loan_account:
         return jsonify({'success': False, 'message': '股东借款科目不存在', 'balance': 0})
 
-    # 从借款记录表计算余额
+    # 从借款记录表计算余额（草稿未过账、已冲销已反向，均不计入）
+    _balance_filter = ShareholderLoan.status.notin_(['cancelled', 'draft'])
+
     total_borrowed = db.session.query(
         func.coalesce(func.sum(ShareholderLoan.amount), 0)
-    ).filter(ShareholderLoan.status != 'cancelled').scalar()
+    ).filter(_balance_filter).scalar()
 
     total_repaid = db.session.query(
         func.coalesce(func.sum(ShareholderLoan.repaid_amount), 0)
-    ).filter(ShareholderLoan.status != 'cancelled').scalar()
+    ).filter(_balance_filter).scalar()
 
     balance = float(total_borrowed or 0) - float(total_repaid or 0)
 
@@ -2294,17 +2353,23 @@ def shareholder_loan_balance():
 @login_required
 @staff_only
 def shareholder_loan_cancel_loan(loan_id):
-    """作废借款记录"""
+    """冲销借款记录（生成反向分录，原单保留）
+
+    仅适用于已确认（已过账）的借款；草稿请用删除接口。
+    """
     try:
         loan = ShareholderLoan.query.get(loan_id)
         if not loan:
             return jsonify({'success': False, 'message': '借款记录不存在'})
 
+        if loan.status == 'draft':
+            return jsonify({'success': False, 'message': '草稿借款请直接删除，无需冲销'})
+
         if loan.status == 'cancelled':
-            return jsonify({'success': False, 'message': '该借款已作废'})
+            return jsonify({'success': False, 'message': '该借款已冲销'})
 
         if float(loan.repaid_amount or 0) > 0:
-            return jsonify({'success': False, 'message': '该借款已有还款记录，无法作废'})
+            return jsonify({'success': False, 'message': '该借款已有还款记录，无法冲销'})
 
         # 冲销关联的会计分录
         if loan.journal_entry_id:
@@ -2340,18 +2405,18 @@ def shareholder_loan_cancel_loan(loan_id):
                 entry.remarks = (entry.remarks or '') + f' [已作废]'
                 db.session.add(reverse_entry)
 
-        # 标记借款为已作废
+        # 标记借款为已冲销
         loan.status = 'cancelled'
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': f'借款 {loan.loan_number} 已作废'
+            'message': f'借款 {loan.loan_number} 已冲销'
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"作废借款失败: {str(e)}")
+        logger.error(f"冲销借款失败: {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
 
 
@@ -2360,14 +2425,20 @@ def shareholder_loan_cancel_loan(loan_id):
 @login_required
 @staff_only
 def shareholder_loan_cancel_repayment(repayment_id):
-    """作废还款记录"""
+    """冲销还款记录（生成反向分录，恢复借款已还金额，原单保留）
+
+    仅适用于已确认（已过账）的还款；草稿请用删除接口。
+    """
     try:
         repayment = ShareholderLoanRepayment.query.get(repayment_id)
         if not repayment:
             return jsonify({'success': False, 'message': '还款记录不存在'})
 
+        if repayment.status == 'draft':
+            return jsonify({'success': False, 'message': '草稿还款请直接删除，无需冲销'})
+
         if repayment.status == 'cancelled':
-            return jsonify({'success': False, 'message': '该还款已作废'})
+            return jsonify({'success': False, 'message': '该还款已冲销'})
 
         # 恢复关联借款的已还金额
         for detail in repayment.details:
@@ -2410,18 +2481,147 @@ def shareholder_loan_cancel_repayment(repayment_id):
                 entry.remarks = (entry.remarks or '') + f' [已作废]'
                 db.session.add(reverse_entry)
 
-        # 标记还款为已作废
+        # 标记还款为已冲销
         repayment.status = 'cancelled'
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': f'还款 {repayment.repayment_number} 已作废'
+            'message': f'还款 {repayment.repayment_number} 已冲销'
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"作废还款失败: {str(e)}")
+        logger.error(f"冲销还款失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@ledger_blue.route('/shareholder-loan/confirm-loan/<int:loan_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def shareholder_loan_confirm_loan(loan_id):
+    """确认草稿借款：生成并过账分录，状态 draft -> active"""
+    try:
+        loan = ShareholderLoan.query.get(loan_id)
+        if not loan:
+            return jsonify({'success': False, 'message': '借款记录不存在'})
+        if loan.status != 'draft':
+            return jsonify({'success': False, 'message': f'该借款状态为「{loan.status_display}」，只有草稿可以确认'})
+
+        entry, err = _post_loan_journal_entry(loan)
+        if err:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': err})
+
+        loan.journal_entry_id = entry.id
+        loan.status = 'active'
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'借款 {loan.loan_number} 已确认并过账'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"确认借款失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@ledger_blue.route('/shareholder-loan/confirm-repayment/<int:repayment_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def shareholder_loan_confirm_repayment(repayment_id):
+    """确认草稿还款：扣减借款已还金额并过账分录，状态 draft -> posted"""
+    try:
+        repayment = ShareholderLoanRepayment.query.get(repayment_id)
+        if not repayment:
+            return jsonify({'success': False, 'message': '还款记录不存在'})
+        if repayment.status != 'draft':
+            return jsonify({'success': False, 'message': f'该还款状态为「{repayment.status_display}」，只有草稿可以确认'})
+
+        # 草稿创建之后额度可能已被别的还款占用，过账前重新校验
+        err = _apply_repayment_to_loans(repayment)
+        if err:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': err})
+
+        loan_numbers = ', '.join(d.loan.loan_number for d in repayment.details)
+        entry, err = _post_repayment_journal_entry(repayment, loan_numbers)
+        if err:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': err})
+
+        repayment.journal_entry_id = entry.id
+        repayment.status = 'posted'
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'还款 {repayment.repayment_number} 已确认并过账'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"确认还款失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@ledger_blue.route('/shareholder-loan/delete-loan/<int:loan_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def shareholder_loan_delete_loan(loan_id):
+    """删除草稿借款（未过账，无账务影响，直接删除）"""
+    try:
+        loan = ShareholderLoan.query.get(loan_id)
+        if not loan:
+            return jsonify({'success': False, 'message': '借款记录不存在'})
+        if loan.status != 'draft':
+            return jsonify({'success': False, 'message': '只有草稿借款可以删除，已确认的请用冲销'})
+
+        # 防御：草稿不应被还款引用（pending_loans 已排除草稿）
+        if loan.repayment_details.count() > 0:
+            return jsonify({'success': False, 'message': '该借款已被还款记录引用，无法删除'})
+
+        loan_number = loan.loan_number
+        db.session.delete(loan)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': f'草稿借款 {loan_number} 已删除'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除草稿借款失败: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@ledger_blue.route('/shareholder-loan/delete-repayment/<int:repayment_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def shareholder_loan_delete_repayment(repayment_id):
+    """删除草稿还款（未过账，未扣减借款，直接删除）"""
+    try:
+        repayment = ShareholderLoanRepayment.query.get(repayment_id)
+        if not repayment:
+            return jsonify({'success': False, 'message': '还款记录不存在'})
+        if repayment.status != 'draft':
+            return jsonify({'success': False, 'message': '只有草稿还款可以删除，已确认的请用冲销'})
+
+        repayment_number = repayment.repayment_number
+        for detail in repayment.details.all():
+            db.session.delete(detail)
+        db.session.delete(repayment)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': f'草稿还款 {repayment_number} 已删除'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"删除草稿还款失败: {str(e)}")
         return jsonify({'success': False, 'message': str(e)})
 
 
@@ -2432,11 +2632,11 @@ def shareholder_loan_detail(loan_id):
     """借款详情"""
     loan = ShareholderLoan.query.get_or_404(loan_id)
 
-    # 获取还款明细
+    # 获取还款明细（只算已过账的；草稿还款尚未扣减借款）
     repayment_details = ShareholderLoanRepaymentDetail.query.filter_by(
         loan_id=loan_id
     ).join(ShareholderLoanRepayment).filter(
-        ShareholderLoanRepayment.status != 'cancelled'
+        ShareholderLoanRepayment.status == 'posted'
     ).order_by(ShareholderLoanRepayment.repayment_date).all()
 
     return jsonify({
@@ -2469,6 +2669,11 @@ def shareholder_loan_detail(loan_id):
 def print_repayment_pdf(repayment_id):
     """打印还款凭证（HTML 打印页，样式对齐 Payment Voucher）"""
     repayment = ShareholderLoanRepayment.query.get_or_404(repayment_id)
+
+    # 草稿尚未过账，不出具凭证
+    if repayment.status == 'draft':
+        flash('草稿还款尚未确认过账，无法打印凭证', 'warning')
+        return redirect(url_for('ledger_routes.shareholder_loan_list'))
 
     # 还款合计（用于总额与金额大写）
     total_repay = sum(float(detail.amount) for detail in repayment.details)
