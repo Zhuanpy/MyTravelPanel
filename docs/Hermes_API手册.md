@@ -71,15 +71,46 @@
 | 接口 | 方法 | 入参 | 说明 |
 |---|---|---|---|
 | `/projects/ref/flight/<rid>/segments` | GET | — | 航段列表（先拿 id） |
-| `/projects/ref/flight/segment/<sid>/update` | POST | JSON | 改单个航段字段（航站楼/航司/舱位/行李/票号/PNR）。**不含座位** |
-| `/projects/ref/flight/<rid>/passengers` | GET | — | 乘客列表（含 seats 数组） |
-| `/projects/ref/flight/passenger/<pid>/update` | POST | JSON | 改单个乘客字段（票号/PNR/行李/护照）；**座位也走这里** |
+| `/projects/ref/flight/segment/<sid>/update` | POST | JSON | 改单个航段字段（航站楼/航司/舱位）。**不含 PNR/票号/座位/行李** |
+| `/projects/ref/flight/<rid>/passengers` | GET | — | 乘客列表（含 segments 格子数组） |
+| `/projects/ref/flight/passenger/<pid>/update` | POST | JSON | 改单个乘客的默认值 + 各航段格子 |
+| `/projects/ref/flight/<rid>/ticketing` | POST | JSON | **补行程单首选**：一个请求灌完整个 REF 的票务矩阵 |
 
-> ⚠️ **座位是「乘客×航段」级**，存在 `passenger.seats`（JSON 列表，按航段 id 升序对齐），
-> 行程单补充 Tab、打印行程单都读它。**不要**用 segment/update 写座位（航段表的 seat 不参与项目 REF 显示）。
-> 座位写法（passenger/update）：
-> - 整列覆盖：`{"seats": ["53K", "12A"]}`
-> - 单段设置：`{"segment_id": 123, "seat": "53K"}`（先 GET segments 拿 id）
+> ⚠️ **PNR / 票号 / 座位 / 行李 是「乘客×航段」级**，存在 `project_flight_passenger_segments`
+> 交叉表里。格子留空 = 继承乘客级默认值（座位除外，座位没有默认值）。
+> **不要**用 segment/update 写这四个字段——航段表上的同名字段已废弃，写了也不显示。
+
+**补行程单（推荐流程）**：先 `GET /flight/<rid>/segments` 拿航段 id，再一次性写完：
+
+```json
+POST /projects/ref/flight/<rid>/ticketing
+{
+  "replace": false,
+  "passengers": [
+    {
+      "name": "HONG YING",
+      "pnr": "ABC123",
+      "ticket_number": "784-1234567890",
+      "baggage": "23KG",
+      "passport_number": "E12345678",
+      "segments": [
+        {"segment_id": 1664, "seat": "12A"},
+        {"segment_id": 1665, "seat": "3C", "pnr": "ZZZ999", "baggage": "30KG"}
+      ]
+    }
+  ]
+}
+```
+- 乘客可用 `name`（大小写/首尾空格不敏感）或 `passenger_id` 指定；同名多人时必须用 id
+- `segments` 里留空的字段继承上面的乘客级默认值；座位没有默认值，必须逐段写
+- `replace: true` = 先清空这些乘客的所有旧格子再写（整份覆盖，用于重新出票/改签后重灌）
+- 任一乘客出错整批回滚，不会写一半
+
+**单个乘客微调**（改一个座位这种）：`POST /flight/passenger/<pid>/update`
+- 乘客级默认值：`{"pnr": "ABC123", "ticket_number": "784-...", "baggage": "23KG"}`
+- 分航段覆盖：`{"segments": [{"segment_id": 123, "seat": "53K"}]}`
+- 单段简写：`{"segment_id": 123, "seat": "53K"}`
+- 格子字段传 `null` 或 `""` = 清空覆盖值，回落到乘客级默认值（四项全清则该行格子自动删除）
 
 ---
 

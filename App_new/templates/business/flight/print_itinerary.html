@@ -28,7 +28,6 @@
                 min-height: 100vh;
             }
             .seg-card { page-break-inside: avoid; }
-            .ticket-group { page-break-inside: avoid; }
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -221,19 +220,46 @@
         .seg-detail-value { font-size: 11px; font-weight: 600; margin-top: 2px; word-break: break-all; }
         .seg-no-data { text-align: center; color: #999; padding: 20px; font-size: 11px; }
 
-        /* 票号分组 */
-        .ticket-group { margin-bottom: 12px; }
-        .ticket-group-header {
-            background: #eef2ff;
-            padding: 5px 12px;
-            font-size: 11px;
-            font-weight: bold;
-            border: 1px solid #bbb;
-            border-radius: 6px 6px 0 0;
+        /* 航段内的乘客票务表（PNR/票号/座位/行李 按 乘客×航段） */
+        .seg-pax-table { margin-top: 10px; font-size: 10px; table-layout: fixed; }
+        .seg-pax-table th {
+            background: #f7f8fa;
+            padding: 4px 6px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #666;
         }
-        .ticket-group .seg-card:first-of-type { border-radius: 0 0 6px 6px; }
-        .ticket-group .seg-card { margin-bottom: 0; border-radius: 0; border-top: none; }
-        .ticket-group .seg-card:last-child { border-radius: 0 0 6px 6px; }
+        .seg-pax-table td { padding: 4px 6px; word-break: break-all; }
+
+        /* 列宽：隐藏票号/座位列后，腾出来的宽度只在其余「数据列」之间重分配，
+           乘客姓名列宽度固定不变（否则姓名列会把空出来的宽度全吃掉） */
+        .seg-pax-table .c-pax   { width: 28%; }
+        .seg-pax-table .c-class { width: 12%; }
+        .seg-pax-table .c-pnr   { width: 12%; }
+        .seg-pax-table .c-tkt   { width: 22%; }
+        .seg-pax-table .c-seat  { width: 10%; }
+        .seg-pax-table .c-bag   { width: 16%; }
+
+        body.hide-ticket .seg-pax-table .c-pnr  { width: 18%; }
+        body.hide-ticket .seg-pax-table .c-seat { width: 14%; }
+        body.hide-ticket .seg-pax-table .c-bag  { width: 28%; }
+
+        body.hide-seat .seg-pax-table .c-pnr { width: 16%; }
+        body.hide-seat .seg-pax-table .c-tkt { width: 26%; }
+        body.hide-seat .seg-pax-table .c-bag { width: 18%; }
+
+        body.hide-ticket.hide-seat .seg-pax-table .c-class { width: 14%; }
+        body.hide-ticket.hide-seat .seg-pax-table .c-pnr   { width: 24%; }
+        body.hide-ticket.hide-seat .seg-pax-table .c-bag   { width: 34%; }
+
+        /* 顶部乘客表同理：隐藏护照列后，姓名列保持原宽，空出的给类型列 */
+        .pax-table { table-layout: fixed; }
+        .pax-table .c-no       { width: 6%; }
+        .pax-table .c-name     { width: 44%; }
+        .pax-table .c-passport { width: 28%; }
+        .pax-table .c-type     { width: 22%; }
+        body.hide-passport .pax-table .c-type { width: 50%; }
 
         /* 状态标签 */
         .status-confirmed { color: #059669; font-weight: bold; }
@@ -294,27 +320,22 @@
 
     <!-- 乘客信息 -->
     <div class="section-title">Passenger Information / 乘客信息</div>
-    <table>
+    <table class="pax-table">
         <thead>
             <tr>
-                <th style="width: 4%;">No.<span class="cn-sub">序号</span></th>
-                <th style="width: 22%;">Passenger Name<span class="cn-sub">乘客姓名</span></th>
-                <th class="col-passport" style="width: 16%;">Passport No.<span class="cn-sub">护照号</span></th>
-                <th class="field-ticket" style="width: 20%;">Ticket No.<span class="cn-sub">票号</span></th>
-                <th style="width: 12%;">PNR<span class="cn-sub">订座编号</span></th>
-                <th style="width: 12%;">Baggage<span class="cn-sub">行李额</span></th>
-                <th style="width: 14%;">Type<span class="cn-sub">类型</span></th>
+                <th class="c-no">No.<span class="cn-sub">序号</span></th>
+                <th class="c-name">Passenger Name<span class="cn-sub">乘客姓名</span></th>
+                <th class="c-passport col-passport">Passport No.<span class="cn-sub">护照号</span></th>
+                <th class="c-type">Type<span class="cn-sub">类型</span></th>
             </tr>
         </thead>
         <tbody>
+            {# 票号/PNR/行李/座位是「乘客×航段」级的，列在下面各航段卡片里 #}
             {% for pax in passengers %}
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ pax.name }}</td>
                 <td class="col-passport">{{ pax_passports.get(pax.id) or pax.passport_number or '-' }}</td>
-                <td class="field-ticket">{{ pax.ticket_number or '-' }}</td>
-                <td>{{ pax.pnr or '-' }}</td>
-                <td>{{ pax.baggage or '-' }}</td>
                 <td>
                     {% if pax.passenger_type == 'adult' %}Adult / 成人
                     {% elif pax.passenger_type == 'child' %}Child / 儿童
@@ -325,7 +346,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" style="text-align: center; color: #999;">No passenger data / 暂无乘客数据</td>
+                <td colspan="4" style="text-align: center; color: #999;">No passenger data / 暂无乘客数据</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -334,8 +355,8 @@
     <!-- 航班信息 -->
     <div class="section-title">Flight Information / 航班信息</div>
 
-    {# 宏：渲染航段卡片 #}
-    {% macro segment_card(seg, seat_map) %}
+    {# 宏：渲染航段卡片。pax_rows = 该航段下每位乘客的 PNR/票号/座位/行李 #}
+    {% macro segment_card(seg, pax_rows) %}
     {% set dep_info = airport_map.get(seg.departure_airport.upper().strip(), {}) %}
     {% set arr_info = airport_map.get(seg.arrival_airport.upper().strip(), {}) %}
     {% set cn_weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'] %}
@@ -375,41 +396,51 @@
                     </div>
                 </div>
             </div>
+            {# 舱位是航段级的（全体乘客一致），作为一列跟着每行走 #}
+            {% set cabin = seg.cabin_class if seg.cabin_class and seg.cabin_class|length > 2 else '-' %}
+            {% set rows = pax_rows.get(seg.id, []) if pax_rows else [] %}
+            {% if rows %}
+            <table class="seg-pax-table">
+                <thead>
+                    <tr>
+                        <th class="c-pax">Passenger<span class="cn-sub">乘客</span></th>
+                        <th class="c-class">Class<span class="cn-sub">舱位</span></th>
+                        <th class="c-pnr">PNR<span class="cn-sub">订座编号</span></th>
+                        <th class="c-tkt field-ticket">Ticket No.<span class="cn-sub">票号</span></th>
+                        <th class="c-seat field-seat">Seat<span class="cn-sub">座位</span></th>
+                        <th class="c-bag">Baggage<span class="cn-sub">行李额</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.name }}</td>
+                        <td>{{ cabin }}</td>
+                        <td>{{ row.pnr or '-' }}</td>
+                        <td class="field-ticket">{{ row.ticket_number or '-' }}</td>
+                        <td class="field-seat">{{ row.seat or '-' }}</td>
+                        <td>{{ row.baggage or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
             <div class="seg-details">
                 <div class="seg-detail-item">
                     <div class="seg-detail-label">Class / 舱位</div>
-                    <div class="seg-detail-value">{{ seg.cabin_class if seg.cabin_class and seg.cabin_class|length > 2 else '-' }}</div>
-                </div>
-                <div class="seg-detail-item field-seat" style="flex: 1 1 auto;">
-                    <div class="seg-detail-label">Seat / 座位</div>
-                    <div class="seg-detail-value">
-                        {% set pax_seats = seat_map.get(seg.id, []) if seat_map else [] %}
-                        {% if pax_seats %}{% for ps in pax_seats %}{{ ps.name }}: {{ ps.seat }}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}{% else %}-{% endif %}
-                    </div>
+                    <div class="seg-detail-value">{{ cabin }}</div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
     {% endmacro %}
 
-    {% if has_ticket %}
-        {% for ticket_num, group_segments in ticket_groups.items() %}
-        <div class="ticket-group">
-            <div class="ticket-group-header">
-                Ticket No. / 票号: {{ ticket_num if ticket_num != 'NO_TICKET' else '-' }}
-            </div>
-            {% for seg in group_segments %}
-            {{ segment_card(seg, seg_pax_seats) }}
-            {% endfor %}
-        </div>
-        {% endfor %}
+    {% for seg in segments %}
+    {{ segment_card(seg, seg_pax_rows) }}
     {% else %}
-        {% for seg in segments %}
-        {{ segment_card(seg, seg_pax_seats) }}
-        {% else %}
-        <div class="seg-no-data">No flight data / 暂无航班数据</div>
-        {% endfor %}
-    {% endif %}
+    <div class="seg-no-data">No flight data / 暂无航班数据</div>
+    {% endfor %}
 
     <!-- 底部说明 -->
     <div class="footer-note">

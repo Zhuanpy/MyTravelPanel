@@ -53,11 +53,19 @@
     .flight-segment table td.seg-del-col { width: 36px; text-align: center; vertical-align: bottom; }
     .seg-del-btn { background: none; border: none; color: #E53E3E; cursor: pointer; padding: 6px 8px; font-size: 14px; line-height: 1; }
     .seg-del-btn:hover { color: #C53030; }
-    /* 乘客票务表 */
-    .pax-ticketing-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .pax-ticketing-table th, .pax-ticketing-table td { border: 1px solid #e2e8f0; padding: 4px 6px; text-align: center; vertical-align: middle; }
-    .pax-ticketing-table th { background: #EAF1FB; color: #2D3748; font-weight: 600; }
-    .pax-ticketing-table td .order-input { width: 100%; box-sizing: border-box; }
+    /* 乘客票务卡片：卡片头=乘客级默认值，卡片内表格=每个航段的覆盖值 */
+    .pax-tk-card { border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+    .pax-tk-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #EAF1FB; padding: 8px 10px; }
+    .pax-tk-name { font-weight: 600; color: #2D3748; font-size: 13px; white-space: nowrap; }
+    .pax-tk-field { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #4A5568; }
+    .pax-tk-field .order-input { width: 130px; }
+    .pax-tk-field .order-input.narrow { width: 90px; }
+    .pax-tk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .pax-tk-table th, .pax-tk-table td { border-top: 1px solid #e2e8f0; padding: 4px 6px; text-align: center; vertical-align: middle; }
+    .pax-tk-table th { background: #F7FAFC; color: #4A5568; font-weight: 600; font-size: 11px; }
+    .pax-tk-table td .order-input { width: 100%; box-sizing: border-box; }
+    .pax-tk-seg { text-align: left !important; white-space: nowrap; color: #2D3748; }
+    .pax-tk-seg small { color: #718096; font-weight: normal; }
 </style>
 {% endblock %}
 
@@ -143,16 +151,11 @@
             </div>
         </div>
 
-        <!-- 乘客票务信息（行程单补充）：票号/PNR/行李按乘客，座位按 乘客×航段 -->
+        <!-- 乘客票务信息（行程单补充）：PNR/票号/座位/行李 按 乘客×航段 -->
         <div class="form-section itinerary-only">
-            <div class="section-title"><i class="fas fa-ticket-alt me-2"></i>乘客票务信息（票号 / PNR / 行李额 / 座位）</div>
-            <p style="color:#718096;font-size:12px;margin:-4px 0 10px;">票号、PNR、行李额按乘客填写（全程通用）；座位按每位乘客每个航段分别填写。乘客与航段在「项目录入」中维护。</p>
-            <div style="overflow-x:auto;">
-                <table class="pax-ticketing-table">
-                    <thead id="paxTicketingHead"></thead>
-                    <tbody id="paxTicketingBody"></tbody>
-                </table>
-            </div>
+            <div class="section-title"><i class="fas fa-ticket-alt me-2"></i>乘客票务信息（PNR / 票号 / 座位 / 行李额）</div>
+            <p style="color:#718096;font-size:12px;margin:-4px 0 10px;">每位乘客先填一次默认值（全程通用），再按航段逐段填写；航段里留空的格子自动继承该乘客的默认值。乘客与航段在「项目录入」中维护。</p>
+            <div id="paxTicketingBody"></div>
             <div id="paxTicketingEmpty" style="display:none;color:#a0aec0;font-size:12px;padding:8px 0;">请先在「项目录入」中添加乘客与航段。</div>
         </div>
 
@@ -291,7 +294,18 @@ window.passengersData = [
                 "ticket_number": {{ (p.ticket_number or '')|tojson }},
                 "pnr": {{ (p.pnr or '')|tojson }},
                 "baggage": {{ (p.baggage or '')|tojson }},
-                "seats": {{ p.seat_list|tojson }}
+                {# 分航段的覆盖值，顺序与下面 segmentsData 一一对应；空值=继承上面的默认值 #}
+                "cells": [
+                    {% for s in ref.flight_segments %}
+                        {% set c = p.cell_for(s) %}
+                        {
+                            "pnr": {{ ((c.pnr if c else '') or '')|tojson }},
+                            "ticket_number": {{ ((c.ticket_number if c else '') or '')|tojson }},
+                            "seat": {{ ((c.seat if c else '') or '')|tojson }},
+                            "baggage": {{ ((c.baggage if c else '') or '')|tojson }}
+                        }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
             }{% if not loop.last %},{% endif %}
         {% endfor %}
     {% elif fallback_passenger %}
@@ -319,11 +333,7 @@ window.segmentsData = [
                 "arrival_date": {{ (s.arrival_time.strftime('%Y-%m-%d') if s.arrival_time else '')|tojson }},
                 "arrival_time_only": {{ (s.arrival_time.strftime('%H:%M') if s.arrival_time else '')|tojson }},
                 "departure_terminal": {{ (s.departure_terminal or '')|tojson }},
-                "arrival_terminal": {{ (s.arrival_terminal or '')|tojson }},
-                "ticket_number": {{ (s.ticket_number or '')|tojson }},
-                "pnr": {{ (s.pnr or '')|tojson }},
-                "baggage": {{ (s.baggage or '')|tojson }},
-                "seat": {{ (s.seat or '')|tojson }}
+                "arrival_terminal": {{ (s.arrival_terminal or '')|tojson }}
             }{% if not loop.last %},{% endif %}
         {% endfor %}
     {% endif %}
@@ -515,11 +525,7 @@ function loadExistingData() {
                 arrival_date: segment.arrival_date || '',
                 arrival_time: segment.arrival_time_only || '',
                 departure_terminal: segment.departure_terminal || '',
-                arrival_terminal: segment.arrival_terminal || '',
-                ticket_number: segment.ticket_number || '',
-                pnr: segment.pnr || '',
-                baggage: segment.baggage || '',
-                seat: segment.seat || ''
+                arrival_terminal: segment.arrival_terminal || ''
             });
         });
     }
@@ -607,9 +613,10 @@ function switchSegTab(tab) {
     if (isItin) buildPaxTicketingTable();
 }
 
-// ===== 乘客票务表（票号/PNR/行李按乘客，座位按 乘客×航段）=====
+// ===== 乘客票务表（PNR/票号/座位/行李 按 乘客×航段，留空继承乘客级默认值）=====
 let paxTicketingSeeded = false;
-const paxTicketingValues = []; // 按乘客序号: {ticket,pnr,baggage,seats:[]}
+// 按乘客序号: {ticket,pnr,baggage(乘客级默认值), cells:[{pnr,ticket_number,seat,baggage}](按航段序号)}
+const paxTicketingValues = [];
 
 function _escAttr(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
 function _escHtml(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -743,23 +750,44 @@ function checkFrequentTraveler(nameInput) {
 function snapshotPaxTicketing() {
     const body = document.getElementById('paxTicketingBody');
     if (!body) return;
-    body.querySelectorAll('tr').forEach((tr, i) => {
-        const val = sel => { const el = tr.querySelector(sel); return el ? el.value : ''; };
-        const seats = [];
-        tr.querySelectorAll('.pax-seat-input').forEach(el => seats.push(el.value));
+    body.querySelectorAll('.pax-tk-card').forEach((card, i) => {
+        const val = sel => { const el = card.querySelector(sel); return el ? el.value : ''; };
+        const cells = [];
+        card.querySelectorAll('.pax-tk-table tbody tr').forEach(tr => {
+            const cv = sel => { const el = tr.querySelector(sel); return el ? el.value : ''; };
+            cells.push({
+                pnr: cv('.cell-pnr'),
+                ticket_number: cv('.cell-ticket'),
+                seat: cv('.cell-seat'),
+                baggage: cv('.cell-baggage'),
+            });
+        });
         paxTicketingValues[i] = {
             ticket: val('.pax-ticket-input'),
             pnr: val('.pax-pnr-input'),
             baggage: val('.pax-baggage-input'),
-            seats: seats,
+            cells: cells,
         };
     });
 }
 
+// 默认值改动时，同步该乘客所有航段格子的 placeholder（提示「留空=继承XXX」）
+function refreshCellPlaceholders(card) {
+    const get = sel => { const el = card.querySelector(sel); return el ? el.value.trim() : ''; };
+    const defaults = {
+        'cell-pnr': get('.pax-pnr-input'),
+        'cell-ticket': get('.pax-ticket-input'),
+        'cell-baggage': get('.pax-baggage-input'),
+    };
+    Object.keys(defaults).forEach(cls => {
+        const hint = defaults[cls] ? '继承 ' + defaults[cls] : '—';
+        card.querySelectorAll('.' + cls).forEach(el => { el.placeholder = hint; });
+    });
+}
+
 function buildPaxTicketingTable() {
-    const head = document.getElementById('paxTicketingHead');
     const body = document.getElementById('paxTicketingBody');
-    if (!head || !body) return;
+    if (!body) return;
 
     // 首次：用服务器乘客数据播种；之后：保留当前已填值
     if (!paxTicketingSeeded) {
@@ -768,7 +796,7 @@ function buildPaxTicketingTable() {
                 ticket: p.ticket_number || '',
                 pnr: p.pnr || '',
                 baggage: p.baggage || '',
-                seats: Array.isArray(p.seats) ? p.seats.slice() : [],
+                cells: Array.isArray(p.cells) ? p.cells.slice() : [],
             };
         });
         paxTicketingSeeded = true;
@@ -787,40 +815,64 @@ function buildPaxTicketingTable() {
     });
 
     const passportInputs = document.querySelectorAll('#passengersContainer input[name="passport_number[]"]');
-
-    let h = '<tr><th style="width:28px;">#</th><th style="min-width:90px;">乘客</th>'
-          + '<th style="min-width:100px;">护照号</th>'
-          + '<th style="min-width:120px;">票号</th><th style="min-width:70px;">PNR</th><th style="min-width:70px;">行李额</th>';
-    segLabels.forEach(l => {
-        h += `<th>座位<br><span style="font-weight:normal;font-size:11px;color:#718096;">${_escHtml(l.main)}${l.sub ? ' ' + _escHtml(l.sub) : ''}</span></th>`;
-    });
-    h += '</tr>';
-    head.innerHTML = h;
-
-    // 常用旅客行的护照号在本页只读（编辑请到常用旅客管理页）
+    // 常用旅客的护照号在本页只读（编辑请到常用旅客管理页）
     const paxCards = document.querySelectorAll('#passengersContainer .passenger-card');
 
-    let rows = '';
+    let html = '';
     names.forEach((nm, i) => {
-        const v = paxTicketingValues[i] || { ticket: '', pnr: '', baggage: '', seats: [] };
-        let seatCells = '';
-        segLabels.forEach((_, s) => {
-            const sv = (v.seats && v.seats[s]) || '';
-            seatCells += `<td><input type="text" class="order-input pax-seat-input" name="pax_seat_${s}[]" value="${_escAttr(sv)}" placeholder="12A" maxlength="10"></td>`;
-        });
+        const v = paxTicketingValues[i] || { ticket: '', pnr: '', baggage: '', cells: [] };
         const pv = passportInputs[i] ? passportInputs[i].value : '';
         const ftLock = paxCards[i] && paxCards[i].dataset.isFrequent === '1';
-        rows += `<tr>
-            <td>${i + 1}</td>
-            <td style="white-space:nowrap;">${nm ? _escHtml(nm) : '<span style="color:#a0aec0;">(未填姓名)</span>'}</td>
-            <td><input type="text" class="order-input pax-passport-input${ftLock ? ' ft-locked' : ''}" value="${_escAttr(pv)}" placeholder="护照号" maxlength="20" oninput="syncPaxPassport(this, ${i})" ${ftLock ? 'readonly title="常用旅客护照只读，编辑请到常用旅客管理页"' : ''}></td>
-            <td><input type="text" class="order-input pax-ticket-input" name="pax_ticket_number[]" value="${_escAttr(v.ticket)}" placeholder="014-1234567890"></td>
-            <td><input type="text" class="order-input pax-pnr-input" name="pax_pnr[]" value="${_escAttr(v.pnr)}" placeholder="PNR" maxlength="10"></td>
-            <td><input type="text" class="order-input pax-baggage-input" name="pax_baggage[]" value="${_escAttr(v.baggage)}" placeholder="30KG"></td>
-            ${seatCells}
-        </tr>`;
+
+        // 航段行：字段名 cell_{乘客序号}_{航段序号}_{字段}，与后端解析口径一致
+        let segRows = '';
+        segLabels.forEach((l, j) => {
+            const c = (v.cells && v.cells[j]) || {};
+            segRows += `<tr>
+                <td class="pax-tk-seg">${_escHtml(l.main)}${l.sub ? ' <small>' + _escHtml(l.sub) + '</small>' : ''}</td>
+                <td><input type="text" class="order-input cell-pnr" name="cell_${i}_${j}_pnr" value="${_escAttr(c.pnr || '')}" maxlength="10"></td>
+                <td><input type="text" class="order-input cell-ticket" name="cell_${i}_${j}_ticket_number" value="${_escAttr(c.ticket_number || '')}"></td>
+                <td><input type="text" class="order-input cell-seat" name="cell_${i}_${j}_seat" value="${_escAttr(c.seat || '')}" placeholder="12A" maxlength="10"></td>
+                <td><input type="text" class="order-input cell-baggage" name="cell_${i}_${j}_baggage" value="${_escAttr(c.baggage || '')}"></td>
+            </tr>`;
+        });
+
+        const segTable = segLabels.length ? `
+            <table class="pax-tk-table">
+                <thead>
+                    <tr>
+                        <th class="pax-tk-seg" style="min-width:120px;">航段</th>
+                        <th style="min-width:80px;">PNR</th>
+                        <th style="min-width:130px;">票号</th>
+                        <th style="min-width:70px;">座位</th>
+                        <th style="min-width:80px;">行李额</th>
+                    </tr>
+                </thead>
+                <tbody>${segRows}</tbody>
+            </table>` : '<div style="color:#a0aec0;font-size:12px;padding:8px 10px;">请先在「项目录入」中添加航段。</div>';
+
+        html += `<div class="pax-tk-card">
+            <div class="pax-tk-head">
+                <span class="pax-tk-name">${i + 1}. ${nm ? _escHtml(nm) : '<span style="color:#a0aec0;">(未填姓名)</span>'}</span>
+                <span class="pax-tk-field">护照号
+                    <input type="text" class="order-input pax-passport-input${ftLock ? ' ft-locked' : ''}" value="${_escAttr(pv)}" placeholder="护照号" maxlength="20" oninput="syncPaxPassport(this, ${i})" ${ftLock ? 'readonly title="常用旅客护照只读，编辑请到常用旅客管理页"' : ''}>
+                </span>
+                <span class="pax-tk-field">默认 PNR
+                    <input type="text" class="order-input narrow pax-pnr-input" name="pax_pnr[]" value="${_escAttr(v.pnr)}" placeholder="PNR" maxlength="10" oninput="refreshCellPlaceholders(this.closest('.pax-tk-card'))">
+                </span>
+                <span class="pax-tk-field">默认票号
+                    <input type="text" class="order-input pax-ticket-input" name="pax_ticket_number[]" value="${_escAttr(v.ticket)}" placeholder="014-1234567890" oninput="refreshCellPlaceholders(this.closest('.pax-tk-card'))">
+                </span>
+                <span class="pax-tk-field">默认行李额
+                    <input type="text" class="order-input narrow pax-baggage-input" name="pax_baggage[]" value="${_escAttr(v.baggage)}" placeholder="30KG" oninput="refreshCellPlaceholders(this.closest('.pax-tk-card'))">
+                </span>
+            </div>
+            ${segTable}
+        </div>`;
     });
-    body.innerHTML = rows;
+
+    body.innerHTML = html;
+    body.querySelectorAll('.pax-tk-card').forEach(refreshCellPlaceholders);
     document.getElementById('paxTicketingEmpty').style.display = names.length ? 'none' : 'block';
 }
 

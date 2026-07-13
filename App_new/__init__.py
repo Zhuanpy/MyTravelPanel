@@ -528,7 +528,9 @@ def import_all_models():
         from .finance.models.settlement_batch import SettlementBatch
         # 航班
         try:
-            from .business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment
+            from .business.flight.models.flight import (
+                ProjectFlightPassenger, ProjectFlightSegment, ProjectFlightPassengerSegment
+            )
             from .business.flight.models.models import AirportData, FlightSchedule, FlightOrder
         except Exception:
             pass

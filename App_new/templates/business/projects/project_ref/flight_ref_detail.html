@@ -102,6 +102,27 @@
         gap: 20px;
         margin-top: 10px;
     }
+
+    /* 乘客卡片内的「乘客×航段」票务表 */
+    .pax-seg-table {
+        width: 100%;
+        margin-top: 12px;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .pax-seg-table th,
+    .pax-seg-table td {
+        padding: 6px 10px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .pax-seg-table th {
+        font-size: 12px;
+        font-weight: 600;
+        color: #718096;
+        background: #f7fafc;
+    }
+    .pax-seg-table tbody tr:last-child td { border-bottom: none; }
     
     .price-item {
         display: flex;
@@ -329,19 +350,38 @@
                         <span class="price-label">利润</span>
                         <span class="price-value">SGD {{ "%.2f"|format((passenger.selling_price or 0) - (passenger.cost_price or 0)) }}</span>
                     </div>
-                    {% if passenger.ticket_number %}
+                    {% if passenger.passport_number %}
                     <div class="price-item">
-                        <span class="price-label">电子客票号</span>
-                        <span class="price-value">{{ passenger.ticket_number }}</span>
-                    </div>
-                    {% endif %}
-                    {% if passenger.pnr %}
-                    <div class="price-item">
-                        <span class="price-label">PNR编码</span>
-                        <span class="price-value">{{ passenger.pnr }}</span>
+                        <span class="price-label">护照号</span>
+                        <span class="price-value">{{ passenger.passport_number }}</span>
                     </div>
                     {% endif %}
                 </div>
+                {# 票务信息按 乘客×航段：格子留空则继承乘客级默认值，这里显示的是最终生效值 #}
+                {% if ref.flight_segments %}
+                <table class="pax-seg-table">
+                    <thead>
+                        <tr>
+                            <th>航段</th>
+                            <th>PNR</th>
+                            <th>电子客票号</th>
+                            <th>座位</th>
+                            <th>行李额</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for segment in ref.flight_segments %}
+                        <tr>
+                            <td>{{ segment.flight_number }} {{ segment.departure_airport }}-{{ segment.arrival_airport }}</td>
+                            <td>{{ passenger.pnr_for(segment) or '-' }}</td>
+                            <td>{{ passenger.ticket_number_for(segment) or '-' }}</td>
+                            <td>{{ passenger.seat_for(segment) or '-' }}</td>
+                            <td>{{ passenger.baggage_for(segment) or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
             </div>
             {% endfor %}
             

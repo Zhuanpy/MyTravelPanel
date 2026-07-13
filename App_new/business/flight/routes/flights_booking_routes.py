@@ -669,29 +669,20 @@ def print_itinerary(order_id):
                 'airport_cn': ap.airport_name_cn or '',
             }
 
-    # 按票号分组航段（保持顺序）
-    from collections import OrderedDict
-    ticket_groups = OrderedDict()
-    has_ticket = False
+    # 票务信息按 乘客×航段：每个航段下列出所有乘客的 PNR/票号/座位/行李
+    # （取值链见 ProjectFlightPassenger._resolve：格子 → 乘客级默认 → 航段级遗留值）
+    seg_pax_rows = {}
     for seg in segments:
-        tk = seg.ticket_number or 'NO_TICKET'
-        if seg.ticket_number:
-            has_ticket = True
-        if tk not in ticket_groups:
-            ticket_groups[tk] = []
-        ticket_groups[tk].append(seg)
-
-    # 座位按 乘客×航段：passenger.seats 按航段保存顺序（= id 升序）对齐
-    seg_order = {s.id: idx for idx, s in enumerate(sorted(segments, key=lambda s: s.id))}
-    seg_pax_seats = {}
-    for s in segments:
-        idx = seg_order.get(s.id, 0)
-        pairs = []
+        rows = []
         for pax in passengers:
-            seat = pax.seat_for_index(idx) if hasattr(pax, 'seat_for_index') else ''
-            if seat:
-                pairs.append({'name': pax.name, 'seat': seat})
-        seg_pax_seats[s.id] = pairs
+            rows.append({
+                'name': pax.name,
+                'pnr': pax.pnr_for(seg),
+                'ticket_number': pax.ticket_number_for(seg),
+                'seat': pax.seat_for(seg),
+                'baggage': pax.baggage_for(seg),
+            })
+        seg_pax_rows[seg.id] = rows
 
     return render_template('business/flight/print_itinerary.html',
                            ref=ref,
@@ -700,9 +691,7 @@ def print_itinerary(order_id):
                            pax_passports=pax_passports,
                            segments=segments,
                            airport_map=airport_map,
-                           ticket_groups=ticket_groups,
-                           has_ticket=has_ticket,
-                           seg_pax_seats=seg_pax_seats)
+                           seg_pax_rows=seg_pax_rows)
 
 
 @flights_booking.route('/order_detail/<int:order_id>')
@@ -1051,10 +1040,11 @@ def export_excel():
                     'Arr. Terminal': seg.arrival_terminal or '' if seg else '',
                     'Cabin Code': seg.cabin_code if seg else '',
                     'Cabin Class': seg.cabin_class or '' if seg else '',
-                    'Baggage': seg.baggage or '' if seg else '',
-                    'Seat': seg.seat or '' if seg else '',
-                    'Ticket No.': seg.ticket_number or '' if seg else '',
-                    'PNR': seg.pnr or '' if seg else '',
+                    # 这四项按 乘客×航段 取（格子 → 乘客级默认 → 航段级遗留值）
+                    'Baggage': pax.baggage_for(seg) if pax and seg else '',
+                    'Seat': pax.seat_for(seg) if pax and seg else '',
+                    'Ticket No.': pax.ticket_number_for(seg) if pax and seg else '',
+                    'PNR': pax.pnr_for(seg) if pax and seg else '',
                     'Segment ID': seg.id if seg else '',
                     'Passenger ID': pax.id if pax else '',
                 })

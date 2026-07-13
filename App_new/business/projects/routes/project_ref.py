@@ -8,7 +8,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
-from App_new.business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment
+from App_new.business.flight.models.flight import (
+    ProjectFlightPassenger, ProjectFlightSegment, ProjectFlightPassengerSegment
+)
 from App_new.business.flight.models.models import AirportData
 from App_new.exts import csrf, db
 from App_new.business.projects.models.project import CustomerCompany
@@ -365,14 +367,36 @@ def _persist_flight_ref(src):
         pax_baggages = src.getlist('pax_baggage[]')
         passport_numbers = src.getlist('passport_number[]')
 
-        # 座位按 乘客×航段：列 pax_seat_0[], pax_seat_1[]... 每列一个航段，元素按乘客顺序
-        pax_seat_cols = []
+        # 乘客×航段 明细格子：字段名 cell_{乘客序号}_{航段序号}_{pnr|ticket_number|seat|baggage}
+        # 显式二维命名，不依赖数组下标隐式对齐（老的 pax_seat_N[] 列见下方兼容读取）
+        cell_fields = ('pnr', 'ticket_number', 'seat', 'baggage')
+        cells_input = {}  # (乘客序号, 航段序号) -> {字段: 值}
+        for key in src.keys():
+            if not key.startswith('cell_'):
+                continue
+            parts = key.split('_', 3)  # cell / i / j / field
+            if len(parts) != 4 or parts[3] not in cell_fields:
+                continue
+            try:
+                pi, si = int(parts[1]), int(parts[2])
+            except ValueError:
+                continue
+            value = (src.get(key) or '').strip()
+            if value:
+                cells_input.setdefault((pi, si), {})[parts[3]] = value
+
+        # 兼容老入口（quick-create 等）仍在用的座位列 pax_seat_0[], pax_seat_1[]...
+        # 每列一个航段，元素按乘客顺序；新表单已不再提交这些字段
         _s = 0
         while f'pax_seat_{_s}[]' in src:
-            pax_seat_cols.append(src.getlist(f'pax_seat_{_s}[]'))
+            for pi, seat_val in enumerate(src.getlist(f'pax_seat_{_s}[]')):
+                seat_val = (seat_val or '').strip()
+                if seat_val:
+                    cells_input.setdefault((pi, _s), {}).setdefault('seat', seat_val)
             _s += 1
 
-        # 删除现有乘客
+        # 删除现有乘客（连带其 乘客×航段 格子，格子有外键必须先删）
+        ProjectFlightPassengerSegment.query.filter_by(ref_id=ref.id).delete()
         ProjectFlightPassenger.query.filter_by(ref_id=ref.id).delete()
 
         # 安全处理乘客信息 - 确保所有字段长度一致
@@ -390,6 +414,7 @@ def _persist_flight_ref(src):
         # 添加新乘客并计算总价
         total_selling_price = 0
         total_cost_price = 0
+        new_passengers = {}  # 表单里的乘客序号 -> 新建的乘客对象（用于后面挂格子）
 
         for i in range(len(passenger_names)):
             if passenger_names[i]:  # 确保乘客姓名不为空
@@ -400,13 +425,6 @@ def _persist_flight_ref(src):
                 # 累加总价
                 total_selling_price += selling_price
                 total_cost_price += cost_price
-
-                # 该乘客各航段座位（按乘客序号 i 从每个航段列取值），存为 JSON 列表
-                pax_seats = [
-                    (pax_seat_cols[c][i] if i < len(pax_seat_cols[c]) else '').strip()
-                    for c in range(len(pax_seat_cols))
-                ]
-                seats_json = json.dumps(pax_seats, ensure_ascii=False) if any(pax_seats) else None
 
                 # 护照号：表单没填时，若是常用旅客则从常用旅客库带出（护照在库中为准，前端只读）
                 passport_number = passport_numbers[i].strip() if i < len(passport_numbers) and passport_numbers[i] else ''
@@ -424,10 +442,10 @@ def _persist_flight_ref(src):
                     ticket_number=ticket_numbers[i] if i < len(ticket_numbers) and ticket_numbers[i] else None,
                     pnr=pnrs[i] if i < len(pnrs) and pnrs[i] else None,
                     baggage=pax_baggages[i] if i < len(pax_baggages) and pax_baggages[i] else None,
-                    seats=seats_json,
                     passport_number=passport_number or None
                 )
                 db.session.add(passenger)
+                new_passengers[i] = passenger
 
         # 更新REF级别的总价
         ref.selling_price = total_selling_price if total_selling_price > 0 else None
@@ -447,9 +465,30 @@ def _persist_flight_ref(src):
         baggages = src.getlist('baggage[]')
         departure_terminals = src.getlist('departure_terminal[]')
         arrival_terminals = src.getlist('arrival_terminal[]')
+        # 注：PNR/票号/座位/行李不再写到航段上（航段级=全体乘客共用，口径已废弃），
+        # 一律落到 乘客×航段 格子里。老入口传来的航段级值在下面统一展开成格子。
         segment_ticket_numbers = src.getlist('segment_ticket_number[]')
         segment_pnrs = src.getlist('segment_pnr[]')
         seats = src.getlist('seat[]')
+
+        def _seg_level(col, j):
+            return (col[j] or '').strip() if j < len(col) else ''
+
+        for j in range(max(len(segment_ticket_numbers), len(segment_pnrs), len(seats), len(baggages))):
+            legacy = {
+                'ticket_number': _seg_level(segment_ticket_numbers, j),
+                'pnr': _seg_level(segment_pnrs, j),
+                'seat': _seg_level(seats, j),
+                'baggage': _seg_level(baggages, j),
+            }
+            legacy = {k: v for k, v in legacy.items() if v}
+            if not legacy:
+                continue
+            # 航段级值 = 该航段上所有乘客共用，展开给每个乘客；已有的格子值优先
+            for pi in range(len(passenger_names)):
+                cell = cells_input.setdefault((pi, j), {})
+                for k, v in legacy.items():
+                    cell.setdefault(k, v)
 
         # 生成 description：首末日期 + 机场代码航线
         def generate_flight_description(departure_airports, arrival_airports, departure_dates):
@@ -550,6 +589,8 @@ def _persist_flight_ref(src):
             departure_dates[i] for i in range(len(departure_dates)) if i < len(departure_dates)
         )
 
+        new_segments = {}  # 表单里的航段序号 -> 新建的航段对象（用于后面挂格子）
+
         # 只有当有有效航段数据时才更新航段，否则保留原有航段
         if has_valid_segment_data:
             # 生成并更新描述
@@ -602,18 +643,38 @@ def _persist_flight_ref(src):
                         cabin_class=(cabin_classes[i] if i < len(cabin_classes) and cabin_classes[i] else cabin_code_val),
                         cabin_code=cabin_code_val,
                         airline_name=(airline_names[i] if i < len(airline_names) and airline_names[i] else None),
-                        baggage=(baggages[i] if i < len(baggages) and baggages[i] else None),
                         departure_terminal=(departure_terminals[i] if i < len(departure_terminals) and departure_terminals[i] else None),
                         arrival_terminal=(arrival_terminals[i] if i < len(arrival_terminals) and arrival_terminals[i] else None),
-                        ticket_number=(segment_ticket_numbers[i] if i < len(segment_ticket_numbers) and segment_ticket_numbers[i] else None),
-                        pnr=(segment_pnrs[i] if i < len(segment_pnrs) and segment_pnrs[i] else None),
-                        seat=(seats[i] if i < len(seats) and seats[i] else None),
                         status='pending'
                     )
                     db.session.add(segment)
+                    new_segments[i] = segment
                 except (ValueError, IndexError) as e:
                     # 记录错误但继续处理其他航段
                     continue
+
+        # 重建 乘客×航段 格子（乘客/航段都是先删后建，id 要 flush 之后才有）
+        if cells_input:
+            db.session.flush()
+            if not has_valid_segment_data:
+                # 没提交航段数据 -> 沿用库里原有航段，按 id 升序对齐表单里的航段序号
+                existing = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(
+                    ProjectFlightSegment.id).all()
+                new_segments = dict(enumerate(existing))
+
+            for (pi, si), values in sorted(cells_input.items()):
+                passenger = new_passengers.get(pi)
+                segment = new_segments.get(si)
+                if not passenger or not segment:
+                    continue  # 乘客姓名为空或航段无效 -> 该格子没有落脚点，丢弃
+                cell = ProjectFlightPassengerSegment(
+                    ref_id=ref.id,
+                    passenger_id=passenger.id,
+                    segment_id=segment.id,
+                    **values
+                )
+                if not cell.is_empty():
+                    db.session.add(cell)
 
         # 统计各类型乘客数量
         adult_qty = 0
@@ -699,17 +760,24 @@ def quick_create_flight_ref(header_id):
       "passengers": [
         {"name": "ZHOU YONGFA", "type": "adult",
          "selling_price": 255, "cost_price": 224.20,
+         // 乘客级默认值：所有航段共用，除非下面的 segments 单独覆盖
          "ticket_number": "...", "pnr": "...", "baggage": "...",
-         "passport_number": "..."}
+         "passport_number": "...",
+         // 可选，分航段覆盖，顺序与外层 segments 数组一一对应
+         "segments": [
+           {"seat": "53K"},
+           {"seat": "12A", "pnr": "XYZ789", "ticket_number": "...", "baggage": "30KG"}
+         ]}
       ],
       "segments": [
         {"flight_number": "HU448", "cabin_code": "Y", "cabin_class": "Economy",
          "departure_airport": "SIN", "arrival_airport": "HAK",
          "departure_date": "2026-07-03", "departure_time": "04:40",
          "arrival_date": "2026-07-03", "arrival_time": "08:25",
-         "airline_name": "...", "baggage": "...",
+         "airline_name": "...",
          "departure_terminal": "...", "arrival_terminal": "...",
-         "ticket_number": "...", "pnr": "...", "seat": "..."}
+         // 以下四项为兼容老调用：会展开成「该航段上每个乘客」的格子
+         "baggage": "...", "ticket_number": "...", "pnr": "...", "seat": "..."}
       ]
     }
 
@@ -748,7 +816,7 @@ def quick_create_flight_ref(header_id):
         src.add('leader_name', _s(data.get('leader_name')))
 
     # 乘客列（与表单 passenger_name[] 等对齐）
-    for p in passengers:
+    for pi, p in enumerate(passengers):
         src.add('passenger_name[]', _s(p.get('name')))
         src.add('passenger_type[]', _s(p.get('type') or 'adult'))
         src.add('selling_price[]', _s(p.get('selling_price')))
@@ -757,6 +825,12 @@ def quick_create_flight_ref(header_id):
         src.add('pax_pnr[]', _s(p.get('pnr')))
         src.add('pax_baggage[]', _s(p.get('baggage')))
         src.add('passport_number[]', _s(p.get('passport_number')))
+
+        # 该乘客的分航段覆盖值（可选），顺序与 segments 数组一一对应
+        for si, cell in enumerate(p.get('segments') or []):
+            for field in ('pnr', 'ticket_number', 'seat', 'baggage'):
+                if (cell or {}).get(field):
+                    src.add(f'cell_{pi}_{si}_{field}', _s(cell.get(field)))
 
     # 航段列（与表单 flight_number[] 等对齐）
     for s in segments:
@@ -1972,17 +2046,13 @@ def edit_flight_ref(ref_id):
 
 
 # 允许通过 API 局部更新的航段字段白名单（不含日期/机场等关键字段，避免破坏航段结构）
+# 注意：PNR / 票号 / 座位 / 行李不在此白名单——它们是「乘客×航段」级的，
+# 请用 /flight/passenger/<id>/update 写（航段级的同名旧字段已废弃，写了也不显示）。
 _SEGMENT_PATCHABLE_FIELDS = {
     'departure_terminal': 50,
     'arrival_terminal': 50,
     'airline_name': 50,
     'cabin_class': 20,
-    'baggage': 50,
-    # 注意：座位不在此白名单——项目 REF 的行程单/打印读的是「乘客级」座位
-    # (ProjectFlightPassenger.seats)，请用 /flight/passenger/<id>/update 写座位。
-    # 航段表的 seat 列仅供机票订单页(order_edit)使用，此处写了也不会显示。
-    'ticket_number': 50,
-    'pnr': 10,
 }
 
 
@@ -2075,6 +2145,99 @@ _PASSENGER_PATCHABLE_FIELDS = {
     'passport_number': 20,
 }
 
+# 「乘客×航段」格子上可更新的字段（留空 = 继承乘客级默认值）
+_CELL_PATCHABLE_FIELDS = {
+    'pnr': 10,
+    'ticket_number': 50,
+    'seat': 10,
+    'baggage': 50,
+}
+
+
+class _TicketingError(Exception):
+    """票务写入的入参错误，带 HTTP 状态码（供 jsonify 直接返回）"""
+
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.message = message
+        self.status = status
+
+
+def _apply_passenger_defaults(passenger, data):
+    """写乘客级默认值（白名单内的字段），返回 {字段: 新值}
+
+    传 None 或空串 = 显式置空。
+    """
+    updated = {}
+    for field, max_len in _PASSENGER_PATCHABLE_FIELDS.items():
+        if field not in data:
+            continue
+        raw = data[field]
+        value = None if raw is None or str(raw).strip() == '' else str(raw).strip()[:max_len]
+        setattr(passenger, field, value)
+        updated[field] = value
+    return updated
+
+
+def _apply_cell_patches(passenger, ref_id, seg_ids, patches):
+    """写「乘客×航段」格子，返回本次动过的格子列表
+
+    元素是 ProjectFlightPassengerSegment 对象（commit 后才有 id，调用方负责序列化），
+    或 {'segment_id': X, 'cleared': True}（四个字段被清空、整行已删除）。
+    """
+    if not isinstance(patches, list):
+        raise _TicketingError('segments 必须是数组')
+
+    touched_cells = []
+    for patch in patches:
+        if not isinstance(patch, dict):
+            raise _TicketingError('segments 的元素必须是对象')
+        try:
+            segment_id = int(patch.get('segment_id'))
+        except (TypeError, ValueError):
+            raise _TicketingError('segments 的元素缺少 segment_id')
+        if segment_id not in seg_ids:
+            raise _TicketingError('segment_id %s 不属于该乘客所在的 REF' % segment_id)
+
+        cell = passenger.cell_for(segment_id)
+        if cell is None:
+            cell = ProjectFlightPassengerSegment(
+                ref_id=ref_id, passenger_id=passenger.id, segment_id=segment_id)
+            passenger.segment_cells.append(cell)
+
+        touched = False
+        for field, max_len in _CELL_PATCHABLE_FIELDS.items():
+            if field not in patch:
+                continue
+            raw = patch[field]
+            value = None if raw is None or str(raw).strip() == '' else str(raw).strip()[:max_len]
+            setattr(cell, field, value)
+            touched = True
+
+        if not touched:
+            continue
+        # 四个字段全被清空 -> 这个格子没有任何覆盖值了，直接删掉，别留空行
+        if cell.is_empty():
+            passenger.segment_cells.remove(cell)
+            touched_cells.append({'segment_id': segment_id, 'cleared': True})
+        else:
+            touched_cells.append(cell)
+    return touched_cells
+
+
+def _serialize_cells(cells):
+    """commit 之后再序列化（新建的格子那时才有 id）"""
+    return [c if isinstance(c, dict) else c.to_dict() for c in cells]
+
+
+def _ref_segment_ids(ref_id):
+    """该 REF 下所有航段 id 的集合"""
+    return {
+        sid for (sid,) in ProjectFlightSegment.query
+        .filter_by(ref_id=ref_id)
+        .with_entities(ProjectFlightSegment.id).all()
+    }
+
 
 @project_ref.route('/flight/<int:ref_id>/passengers', methods=['GET'])
 @login_required
@@ -2113,13 +2276,16 @@ def update_flight_passenger_field(passenger_id):
 
     请求体 JSON: {"ticket_number": "999-...", "pnr": "ABC123", ...}
     只更新传入且在白名单内的字段；超长按字段上限截断；价格字段不在白名单内。
+    这里写的是「乘客级默认值」——该乘客所有航段共用，除非下面的格子单独覆盖。
 
-    座位（按 乘客×航段，存于 passenger.seats JSON）另走两种写法：
-      - 整列覆盖: {"seats": ["53K", "12A"]}（索引 = 航段 id 升序）
-      - 单段设置: {"segment_id": 123, "seat": "53K"}（只改该航段那一个座位）
-    注意：座位不是航段级字段——/flight/segment/<id>/update 的 seat 只写航段表，
-    行程单/打印读的是乘客级 seats，请用本接口写座位。
-    返回更新后的乘客 to_dict()。
+    分航段的 PNR / 票号 / 座位 / 行李（乘客×航段 格子）走同一个接口：
+      - 批量: {"segments": [{"segment_id": 123, "seat": "53K"},
+                            {"segment_id": 124, "seat": "12A", "pnr": "XYZ789"}]}
+      - 单个: {"segment_id": 123, "seat": "53K"}
+    格子字段传 null 或空串 = 清空覆盖值，回落到乘客级默认值。
+    注意：这四个字段不能走 /flight/segment/<id>/update（那是航段级、全体乘客共用的
+    废弃字段，写了也不显示）。
+    返回更新后的乘客 to_dict()（含 segments 格子）。
     """
     passenger = ProjectFlightPassenger.query.get_or_404(passenger_id)
 
@@ -2135,60 +2301,28 @@ def update_flight_passenger_field(passenger_id):
 
     data = request.get_json(silent=True) or {}
 
-    updated = {}
-    for field, max_len in _PASSENGER_PATCHABLE_FIELDS.items():
-        if field not in data:
-            continue
-        raw = data[field]
-        # 允许显式置空（None 或空串 → NULL）
-        if raw is None or str(raw).strip() == '':
-            value = None
-        else:
-            value = str(raw).strip()[:max_len]
-        setattr(passenger, field, value)
-        updated[field] = value
+    updated = _apply_passenger_defaults(passenger, data)
 
-    # 座位（按 乘客×航段）：seats 存 JSON 列表，索引 = 航段按 id 升序的顺序
-    # （与打印行程单 seat_for_index、建单 pax_seat 列口径一致）。
-    # 支持两种写法：
-    #   1) 整列覆盖: {"seats": ["53K", "12A"]}
-    #   2) 单段设置: {"segment_id": 123, "seat": "53K"}  —— 只改该航段对应的那一个座位
-    _SEAT_MAX = 10
-    if 'seats' in data:
-        raw_list = data.get('seats') or []
-        if not isinstance(raw_list, list):
-            return jsonify({'success': False, 'error': 'seats 必须是数组'}), 400
-        new_seats = [
-            ('' if s is None else str(s).strip()[:_SEAT_MAX])
-            for s in raw_list
-        ]
-        passenger.seats = json.dumps(new_seats, ensure_ascii=False) if any(new_seats) else None
-        updated['seats'] = new_seats
-    elif 'segment_id' in data and 'seat' in data:
-        # 定位该航段在「id 升序」中的下标
-        seg_ids = [
-            sid for (sid,) in ProjectFlightSegment.query
-            .filter_by(ref_id=ref.id)
-            .order_by(ProjectFlightSegment.id)
-            .with_entities(ProjectFlightSegment.id).all()
-        ]
+    # 分航段的 PNR/票号/座位/行李（乘客×航段 格子），支持两种写法：
+    #   1) 批量: {"segments": [{"segment_id": 123, "seat": "53K", "pnr": "XYZ789"}, ...]}
+    #   2) 单个: {"segment_id": 123, "seat": "53K"}
+    cell_patches = data.get('segments')
+    if cell_patches is None and 'segment_id' in data:
+        cell_patches = [data]
+    if cell_patches is not None:
         try:
-            idx = seg_ids.index(int(data['segment_id']))
-        except (ValueError, TypeError):
-            return jsonify({'success': False,
-                            'error': 'segment_id 不属于该乘客所在的 REF'}), 400
-        raw = data['seat']
-        seat_val = '' if raw is None else str(raw).strip()[:_SEAT_MAX]
-        # 取现有列表并补齐到航段数，写入目标下标
-        seats = passenger.seat_list
-        seats = seats + [''] * (len(seg_ids) - len(seats)) if len(seats) < len(seg_ids) else seats
-        seats[idx] = seat_val
-        passenger.seats = json.dumps(seats, ensure_ascii=False) if any(seats) else None
-        updated['seats'] = seats
+            touched = _apply_cell_patches(passenger, ref.id, _ref_segment_ids(ref.id), cell_patches)
+        except _TicketingError as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': e.message}), e.status
+        if touched:
+            updated['segments'] = touched
 
     if not updated:
-        return jsonify({'success': False, 'error': '没有可更新的字段（白名单：%s；座位用 seats 或 segment_id+seat）'
-                        % ', '.join(_PASSENGER_PATCHABLE_FIELDS.keys())}), 400
+        return jsonify({'success': False,
+                        'error': '没有可更新的字段（乘客级白名单：%s；分航段用 segments 或 segment_id + %s）'
+                                 % (', '.join(_PASSENGER_PATCHABLE_FIELDS.keys()),
+                                    '/'.join(_CELL_PATCHABLE_FIELDS.keys()))}), 400
 
     try:
         db.session.commit()
@@ -2196,7 +2330,116 @@ def update_flight_passenger_field(passenger_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': '保存失败: %s' % str(e)}), 500
 
+    if 'segments' in updated:
+        updated['segments'] = _serialize_cells(updated['segments'])
+
     return jsonify({'success': True, 'updated': updated, 'passenger': passenger.to_dict()})
+
+
+@project_ref.route('/flight/<int:ref_id>/ticketing', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def update_flight_ticketing(ref_id):
+    """一次性灌入整个 REF 的「乘客×航段」票务矩阵（PNR / 票号 / 座位 / 行李）
+
+    供 Hermes 等自动化补行程单：拿到 REF 后一个请求写完所有乘客的所有航段，
+    不用按乘客循环调 /flight/passenger/<id>/update。
+
+    乘客可用 passenger_id 指定，也可用 name 按姓名匹配（大小写与首尾空格不敏感；
+    同名多人时报错，请改用 passenger_id）。航段一律用 segment_id，先 GET
+    /flight/<ref_id>/segments 拿。
+
+    请求体 JSON：
+    {
+      "replace": false,          // 可选，true = 先清空这些乘客的所有旧格子再写（整份覆盖）
+      "passengers": [
+        {
+          "name": "HONG YING",              // 或 "passenger_id": 1375
+          "pnr": "ABC123",                  // 乘客级默认值，该乘客所有航段共用
+          "ticket_number": "784-1234567890",
+          "baggage": "23KG",
+          "passport_number": "E12345678",
+          "segments": [                     // 分航段覆盖；字段留空则继承上面的默认值
+            {"segment_id": 1664, "seat": "12A"},
+            {"segment_id": 1665, "seat": "3C", "pnr": "ZZZ999", "baggage": "30KG"}
+          ]
+        }
+      ]
+    }
+
+    返回 {"success": true, "ref_id": ..., "passengers": [更新后的乘客 to_dict()]}。
+    任一乘客出错则整批回滚，不会写一半。
+    """
+    ref = ProjectRef.query.get_or_404(ref_id)
+    header = ProjectHeader.query.get_or_404(ref.header_id)
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'error': '您没有权限修改此REF'}), 403
+
+    if ref.has_paid_eo():
+        return jsonify({'success': False, 'error': '此REF的EO已付款，不能编辑'}), 403
+
+    data = request.get_json(silent=True) or {}
+    items = data.get('passengers')
+    if not isinstance(items, list) or not items:
+        return jsonify({'success': False, 'error': 'passengers 不能为空'}), 400
+
+    all_passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+    seg_ids = _ref_segment_ids(ref.id)
+    replace = bool(data.get('replace'))
+
+    def _match(item):
+        """按 passenger_id 或 name 找到该 REF 下的乘客"""
+        pid = item.get('passenger_id')
+        if pid not in (None, ''):
+            for p in all_passengers:
+                if p.id == int(pid):
+                    return p
+            raise _TicketingError('passenger_id %s 不属于该 REF' % pid)
+
+        name = (item.get('name') or '').strip().lower()
+        if not name:
+            raise _TicketingError('每个乘客必须给出 passenger_id 或 name')
+        hits = [p for p in all_passengers if (p.name or '').strip().lower() == name]
+        if not hits:
+            raise _TicketingError('该 REF 下没有叫「%s」的乘客' % item.get('name'))
+        if len(hits) > 1:
+            raise _TicketingError('该 REF 下有多位乘客叫「%s」，请改用 passenger_id' % item.get('name'))
+        return hits[0]
+
+    touched_passengers = []
+    try:
+        for item in items:
+            if not isinstance(item, dict):
+                raise _TicketingError('passengers 的元素必须是对象')
+            passenger = _match(item)
+
+            if replace:
+                # 整份覆盖：先清掉该乘客所有旧格子，避免上一次写的值残留。
+                # 必须立刻 flush 把 DELETE 发出去——否则同一个 (passenger_id, segment_id)
+                # 的新格子会先 INSERT，撞上唯一约束。
+                passenger.segment_cells.clear()
+                db.session.flush()
+
+            _apply_passenger_defaults(passenger, item)
+            _apply_cell_patches(passenger, ref.id, seg_ids, item.get('segments') or [])
+            touched_passengers.append(passenger)
+    except (_TicketingError, ValueError) as e:
+        db.session.rollback()
+        status = getattr(e, 'status', 400)
+        return jsonify({'success': False, 'error': str(e)}), status
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': '保存失败: %s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'ref_id': ref.id,
+        'passengers': [p.to_dict() for p in touched_passengers],
+    })
 
 
 @project_ref.route('/flight/detail/<int:ref_id>', methods=['GET'])

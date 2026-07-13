@@ -20,14 +20,10 @@ class ProjectFlightPassenger(db.Model):
     selling_price = db.Column(db.Numeric(10, 2), comment='售价')
     cost_price = db.Column(db.Numeric(10, 2), comment='成本')
 
-    # 票务信息
-    ticket_number = db.Column(db.String(50), comment='电子客票号')
-    pnr = db.Column(db.String(10), comment='PNR编码')
-
-    # 行李额（按乘客，全程通用）
-    baggage = db.Column(db.String(50), comment='行李额')
-    # 各航段座位号：JSON 列表，按航段顺序一一对应（座位按 乘客×航段 区分）
-    seats = db.Column(db.Text, comment='各航段座位号(JSON列表,按航段顺序)')
+    # 票务信息（乘客级默认值：航段格子留空时继承这里）
+    ticket_number = db.Column(db.String(50), comment='电子客票号(默认值)')
+    pnr = db.Column(db.String(10), comment='PNR编码(默认值)')
+    baggage = db.Column(db.String(50), comment='行李额(默认值)')
 
     # 证件信息
     passport_number = db.Column(db.String(20), comment='护照号')
@@ -35,6 +31,14 @@ class ProjectFlightPassenger(db.Model):
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 乘客×航段 明细格子
+    segment_cells = db.relationship(
+        'ProjectFlightPassengerSegment',
+        backref='passenger',
+        lazy='select',
+        cascade='all, delete-orphan'
+    )
 
     def __repr__(self):
         return f'<ProjectFlightPassenger {self.name}>'
@@ -51,28 +55,94 @@ class ProjectFlightPassenger(db.Model):
             'ticket_number': self.ticket_number,
             'pnr': self.pnr,
             'baggage': self.baggage,
-            'seats': self.seat_list,
             'passport_number': self.passport_number,
+            'segments': [c.to_dict() for c in sorted(self.segment_cells, key=lambda x: x.segment_id or 0)],
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
-    @property
-    def seat_list(self):
-        """各航段座位号列表（解析 JSON，失败返回空列表）"""
-        if not self.seats:
-            return []
-        try:
-            import json
-            v = json.loads(self.seats)
-            return v if isinstance(v, list) else []
-        except (ValueError, TypeError):
-            return []
+    def cell_for(self, segment):
+        """取该乘客在指定航段上的格子，没有则返回 None。segment 可传对象或 id"""
+        segment_id = getattr(segment, 'id', segment)
+        if not segment_id:
+            return None
+        for c in self.segment_cells:
+            if c.segment_id == segment_id:
+                return c
+        return None
 
-    def seat_for_index(self, idx):
-        """取第 idx 个航段（从0起）的座位号，越界返回空串"""
-        lst = self.seat_list
-        return lst[idx] if 0 <= idx < len(lst) else ''
+    def _resolve(self, segment, field, passenger_default):
+        """取值链：乘客×航段格子 → 乘客级默认值 → 航段级遗留值
+
+        最后一级是为了兼容老数据：机票订单页（order_create/order_edit）至今仍把
+        PNR/票号/行李/座位写在航段上，全体乘客共用。新的 REF 录入不再写那里。
+        """
+        cell = self.cell_for(segment)
+        value = getattr(cell, field, None) if cell else None
+        legacy = getattr(segment, field, None) if not isinstance(segment, int) else None
+        return value or passenger_default or legacy or ''
+
+    def pnr_for(self, segment):
+        """该乘客在指定航段的 PNR"""
+        return self._resolve(segment, 'pnr', self.pnr)
+
+    def ticket_number_for(self, segment):
+        """该乘客在指定航段的票号"""
+        return self._resolve(segment, 'ticket_number', self.ticket_number)
+
+    def baggage_for(self, segment):
+        """该乘客在指定航段的行李额"""
+        return self._resolve(segment, 'baggage', self.baggage)
+
+    def seat_for(self, segment):
+        """该乘客在指定航段的座位号（座位没有乘客级默认值）"""
+        return self._resolve(segment, 'seat', None)
+
+
+class ProjectFlightPassengerSegment(db.Model):
+    """乘客×航段 明细表 - 4级表
+
+    每个「乘客 × 航段」一行，存该乘客在该航段上的 PNR / 票号 / 座位 / 行李。
+    四个字段均可留空，留空表示继承 ProjectFlightPassenger 上的乘客级默认值
+    （座位除外，座位没有默认值）。
+    """
+    __tablename__ = 'project_flight_passenger_segments'
+    __table_args__ = (
+        db.UniqueConstraint('passenger_id', 'segment_id', name='uq_pax_segment'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    # 冗余 ref_id：乘客/航段是「先删后建」，按 ref_id 批量清理格子最省事
+    ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=False, index=True, comment='REF明细ID')
+    passenger_id = db.Column(db.Integer, db.ForeignKey('project_flight_passengers.id'), nullable=False, comment='乘客ID')
+    segment_id = db.Column(db.Integer, db.ForeignKey('project_flight_segments.id'), nullable=False, comment='航段ID')
+
+    pnr = db.Column(db.String(10), comment='PNR编码(留空继承乘客级)')
+    ticket_number = db.Column(db.String(50), comment='电子客票号(留空继承乘客级)')
+    seat = db.Column(db.String(10), comment='座位号')
+    baggage = db.Column(db.String(50), comment='行李额(留空继承乘客级)')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ProjectFlightPassengerSegment pax={self.passenger_id} seg={self.segment_id}>'
+
+    def is_empty(self):
+        """四个字段全空 = 这个格子没有任何覆盖值，可以不落库"""
+        return not any([self.pnr, self.ticket_number, self.seat, self.baggage])
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'passenger_id': self.passenger_id,
+            'segment_id': self.segment_id,
+            'pnr': self.pnr,
+            'ticket_number': self.ticket_number,
+            'seat': self.seat,
+            'baggage': self.baggage
+        }
 
 
 class ProjectFlightSegment(db.Model):
@@ -95,12 +165,12 @@ class ProjectFlightSegment(db.Model):
     # 舱位信息
     cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
     cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
-    baggage = db.Column(db.String(50), comment='行李额')
-    seat = db.Column(db.String(10), comment='座位号')
-
-    # 票号信息
-    ticket_number = db.Column(db.String(50), comment='电子客票号')
-    pnr = db.Column(db.String(10), comment='PNR编码')
+    # 以下四个字段是航段级（全体乘客共用），已被 project_flight_passenger_segments 取代。
+    # REF 录入不再写入，仅作为老数据的最后一级回退（见 ProjectFlightPassenger._resolve）。
+    baggage = db.Column(db.String(50), comment='行李额(遗留,全体乘客共用)')
+    seat = db.Column(db.String(10), comment='座位号(遗留,全体乘客共用)')
+    ticket_number = db.Column(db.String(50), comment='电子客票号(遗留,全体乘客共用)')
+    pnr = db.Column(db.String(10), comment='PNR编码(遗留,全体乘客共用)')
 
     # 航段状态
     status = db.Column(db.String(20), nullable=False, default='pending', comment='航段状态')
