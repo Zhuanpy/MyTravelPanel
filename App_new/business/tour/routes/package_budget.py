@@ -1028,26 +1028,6 @@ def export_budget(budget_id):
         return jsonify({'error': '导出失败'}), 500
 
 
-@package_budget.route('/import', methods=['GET', 'POST'])
-@login_required
-@staff_only
-@csrf.exempt
-def import_budget():
-    """导入预算单"""
-    if request.method == 'POST':
-        try:
-            # 这里可以实现从JSON文件导入预算单的功能
-            # 暂时返回提示信息
-            flash('导入功能正在开发中', 'info')
-            return redirect(url_for('package_budget.list_budgets'))
-        
-        except Exception as e:
-            current_app.logger.error(f"Error in import budget: {e}")
-            flash('导入预算单时发生错误', 'error')
-    
-    return render_template('business/tour/package/TourBudget/import.html')
-
-
 @package_budget.route('/templates')
 @login_required
 @staff_only

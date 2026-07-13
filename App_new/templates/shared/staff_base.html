@@ -329,9 +329,6 @@
                             <li><a class="dropdown-item" href="{{ url_for('package_budget.list_templates') }}">
                                 <i class="fas fa-file-alt me-2"></i>预算模板
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('package_budget.import_budget') }}">
-                                <i class="fas fa-upload me-2"></i>导入预算
-                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">旅游项目</h6></li>
                             <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('tour_projects') %}active{% endif %}"
