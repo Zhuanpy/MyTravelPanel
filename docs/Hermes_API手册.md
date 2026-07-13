@@ -291,16 +291,133 @@ POST /projects/ref/flight/<rid>/ticketing
 
 ---
 
-## 10. 产品 / 预算
+## 10. 旅游项目 / 预算单（纯 JSON，已打通）
 
-| 接口 | 方法 | 入参 | 说明 |
-|---|---|---|---|
-| `/staff/products/api/list` | GET | query | 统一产品列表 |
-| `/staff/products/api/detail/<id>` | GET | — | 产品详情 |
-| `/staff/products/api/categories` `/api/stats` | GET | — | 分类/统计 |
-| `/tour/products/<id>/price-variants` | GET | — | 旅游产品价格变体 |
-| `/package_budget/<bid>/export` | GET | — | 预算单导出 JSON |
-| `/package_budget/project/<pid>/json` | GET | — | 项目关联预算单 JSON |
+层级：`TourProject`（项目）→ `TourGroup`（团组）→ `TourItinerary`（每日行程）；
+`BudgetHeader`（预算单）挂在项目下，`BudgetItem`（预算明细）挂在预算单下。
+
+### 旅游项目
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/tour/projects/api/projects/<pid>` | GET | **先调这个**：项目全貌（项目+团组+每天行程，含所有 id） |
+| `/tour/projects/api/projects` | POST | 新建项目（同时建第一个团组），返回 `project_id` / `group_id` |
+| `/tour/projects/api/projects/<pid>` | POST | 局部更新项目（只改传入的字段） |
+| `/tour/projects/api/projects/<pid>/groups` | POST | 给项目新增团组 |
+| `/tour/projects/api/groups/<gid>` | POST | 局部更新团组 |
+| `/tour/projects/api/groups/<gid>/itinerary` | POST | **批量灌行程**（补行程主力接口） |
+| `/tour/projects/api/itinerary/<iid>` | POST | 局部更新单天行程 |
+
+**批量灌行程**——一个请求把一份行程文案铺成 Day 1..Day N：
+
+```json
+POST /tour/projects/api/groups/<gid>/itinerary
+{
+  "replace": true,
+  "days": [
+    {"day_title": "Day 1: 抵达札幌", "date": "2026-09-01", "content": "<p>专车接机…</p>"},
+    {"day_title": "Day 2: 小樽一日游", "content": "<p>小樽运河…</p>"},
+    {"day_title": "Day 3: 富良野", "content": "<p>薰衣草田…</p>"}
+  ]
+}
+```
+- `date` 不填就按团组出发日 + 天序自动推算（第 N 天 = 出发日 + N-1 天），只有第一天要给
+- `replace: true` = 先清空旧行程再写；默认 `false` 是追加
+- 任一天出错整批回滚，不会留下半份行程
+- 图片 `image1/2/3` 只接受**路径字符串**（素材库路径或已上传的相对路径）。要上传新图片文件，走 multipart 的 `/tour/projects/itinerary/create/<gid>`
+
+**团组人数**：`pax` 是自动汇总的（= `adult_count` + `child_count`），不要直接写 `pax`。改团组人数会自动同步到关联的预算单。
+
+### 预算单
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/package_budget/api/budgets/<bid>` | GET | 整张预算单（表头+明细+合计） |
+| `/package_budget/api/projects/<pid>/quick-create` | POST | **幂等**按项目一键建单，已有则返回现有的 |
+| `/package_budget/api/budgets` | POST | 新建预算单（可同时灌明细） |
+| `/package_budget/api/budgets/<bid>` | POST | 更新表头（含 `target_currency` / `exchange_rate`） |
+| `/package_budget/api/budgets/<bid>/items` | POST | 批量增明细（`replace: true` 可整份覆盖） |
+| `/package_budget/api/budgets/<bid>/items/<iid>` | POST | 局部更新单条明细 |
+| `/package_budget/api/budgets/<bid>/items/<iid>/delete` | POST | 删除单条明细 |
+
+**预算明细有两条互斥的计价路径，选错小计就算错**：
+
+```json
+POST /package_budget/api/budgets/<bid>/items
+{
+  "replace": true,
+  "items": [
+    // person_based（默认）：adult_price / child_price × 人数
+    {"category": "机票", "item_name": "新加坡-札幌往返",
+     "pricing_method": "person_based", "adult_price": 800, "child_price": 600},
+
+    // item_based：item_unit_price × item_quantity（与成人/儿童单价无关）
+    {"category": "用车", "item_name": "9座商务车 7天",
+     "pricing_method": "item_based", "item_unit_price": 350, "item_quantity": 7},
+
+    // 进阶字段
+    {"category": "酒店", "item_name": "札幌市区4晚",
+     "pricing_method": "person_based", "adult_price": 480, "child_price": 240,
+     "count_child_apply": false,      // 这项不算在儿童头上
+     "adult_count_override": 2,       // 这项单独按 2 个成人算（不跟表头人数）
+     "total_override": 1200,          // 直接覆盖小计：给了它，上面的单价×人数就不算了
+     "is_optional": true, "remarks": "..."}
+  ]
+}
+```
+
+**最终货币换算**：表头的 `target_currency` + `exchange_rate` 决定。约定 `exchange_rate` = 1 SGD 兑多少 CNY；换算结果会**向上取整到 5 的倍数**（166→170）。返回里 `total_price` 是录入货币的原值，`total_price_final` 是换算后的值。
+
+### 从供应商行程文档（.docx）导入项目
+
+典型来源：地接社发来的报价行程单，一张大表格，每行一天，列是「日期 / 城市(抵达·离开) / 交通 / 旅游景点 / 餐食 / 酒店参考」，表格下面跟着报价、购物站、小费、团款包含、团款不含、其他备注。
+
+**标准流程**：
+
+1. `GET /tour/projects/api/projects/<pid>` —— **先读现状，做对撞检查**（见下方坑 2）
+2. `POST /tour/projects/api/groups/<gid>` —— 写团组：日期、人数、`included_items` / `excluded_items` / `important_notes`
+3. `POST /tour/projects/api/groups/<gid>/itinerary`（`replace: true`）—— 一次灌完整份每日行程
+
+每天的 `content` 建议按「交通 / 景点 / 餐食 / 酒店」分行组织，比照搬表格单元格更适合网页展示：
+
+```
+交通：巴士
+景点：雪乡风景区（含景区接驳车）、雪韵大街、大石碑…
+注：雪乡倒站车无行李舱，建议小背包进入景区
+餐食：B：酒店内享用　L：/　D：/
+酒店：准四 — 雪韵假日酒店 或 忆山雪酒店 或同级
+```
+
+文档里的「团款包含 / 团款不含 / 小费 / 购物站 / 其他备注」分别落到团组的
+`included_items` / `excluded_items` / `important_notes`（小费和购物站并进 `important_notes`）。
+
+> ⚠️ **坑 1：报价格子可能是空的。** 很多报价单的价格表只有「2人 / RMB/人」的表头，
+> 供应商还没填数字。**抽不到价格就把 `adult_price` / `child_price` 留空，并在回复里
+> 明确说"文档未提供报价"** —— 不要瞎填，也不要默默跳过不提。价格没有就先别建预算单。
+
+> ⚠️ **坑 2：日期必须和项目现有数据对撞检查。** 文档表格里的日期通常只有月/日
+> （`D1 11/26`），年份得从文件名推（`20261126（2人小包）…docx` → 2026）。
+> 更要命的是，**文档日期常常和项目里已有的出行日期不一致** —— 文档可能是供应商的
+> 报价样板日期，而项目里存的是客人的实际出行日期。
+> 发现不一致时**停下来问用户以哪个为准**，不要自己选一个覆盖过去。
+
+> ⚠️ **坑 3：项目可能是从别的项目复制来的。** `folder_name` 带「(副本)」、或团组行程
+> 与项目名对不上（比如项目叫「6D5N 哈尔滨」但挂着 8 天北京行程），说明是复制的空壳，
+> 里面的 `group_code`、`operator`（地接社）也是从源项目带过来的**脏数据**。
+> 这些字段文档里往往没有，不要凭空覆盖，但要在回复里提醒用户手动核对。
+
+### 只读 / 其他
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/staff/products/api/list` `/api/detail/<id>` | GET | 统一产品列表 / 详情 |
+| `/tour/products/<id>/price-variants` | GET | 旅游产品价格变体 |
+| `/package_budget/<bid>/export` | GET | 预算单导出 JSON |
+| `/package_budget/project/<pid>/json` | GET | 项目关联的预算单列表 |
+
+> ⚠️ **不要用页面表单路由**（`/tour/projects/edit/<id>`、`/package_budget/<bid>/edit`、
+> `/package_budget/<bid>/add_item` 等）。它们只收 form-encoded，成功后返回 302 重定向，
+> 拿不到新建对象的 id，错误信息也只在 flash 里。一律用上面的 `/api/` 接口。
 
 ---
 

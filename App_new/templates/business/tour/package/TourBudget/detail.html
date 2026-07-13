@@ -42,6 +42,14 @@
     }
 
     /* 项目名称：填满列宽，超出省略号 */
+    /* 项目名称可点击 -> 打开编辑弹窗 */
+    .item-name-link {
+        color: #0d6efd;
+        cursor: pointer;
+    }
+    .item-name-link:hover {
+        text-decoration: underline;
+    }
     .item-name {
         display: block;
         font-weight: 500;
@@ -316,13 +324,16 @@
                 <table class="table table-compact table-hover table-striped mb-0" style="table-layout: fixed;">
                     <thead>
                         <tr>
-                            <th style="width:7%">类别</th>
+                            {# 点击按类别排序：升序 → 降序 → 恢复原始顺序 #}
+                            <th style="width:7%; cursor:pointer; user-select:none;" onclick="sortByCategory()" title="点击按类别排序">
+                                类别 <i id="catSortIcon" class="fas fa-sort text-muted" style="font-size:11px;"></i>
+                            </th>
                             <th style="width:16%">项目名称</th>
                             <th style="width:16%">详情</th>
                             <th style="width:11%">计价</th>
                             <th style="width:9%">人数</th>
-                            <th style="width:13%" class="text-end">大人人均 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
-                            <th style="width:13%" class="text-end">小孩人均 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
+                            <th style="width:13%">大人人均 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
+                            <th style="width:13%">小孩人均 (<span class="currency-unit">{{ budget.currency }}</span>)</th>
                             <th style="width:15%">操作</th>
                         </tr>
                     </thead>
@@ -333,10 +344,15 @@
                         {% set child_up = item.child_unit_price if item.count_child_apply else 0 %}
                         {% set ns.adult_total = ns.adult_total + adult_up %}
                         {% set ns.child_total = ns.child_total + child_up %}
-                        <tr data-category="{{ item.category or '未分类' }}" data-adult="{{ '%.6f'|format(adult_up) }}" data-child="{{ '%.6f'|format(child_up) }}">
+                        {# data-cat-order：类别的排序权重（业务类型的既定顺序）；不在业务类型表里的排到最后 #}
+                        <tr data-category="{{ item.category or '未分类' }}"
+                            data-cat-order="{{ category_order.get(item.category, 9999) }}"
+                            data-adult="{{ '%.6f'|format(adult_up) }}" data-child="{{ '%.6f'|format(child_up) }}">
                             <td><span class="badge bg-secondary">{{ item.category or '未分类' }}</span></td>
                             <td>
-                                <span class="item-name" title="{{ item.item_name }}">{{ item.item_name }}</span>
+                                {# 点击项目名称打开编辑弹窗（操作列不再放编辑按钮） #}
+                                <span class="item-name item-name-link" title="点击编辑「{{ item.item_name }}」"
+                                      onclick="editItem({{ item.id }})">{{ item.item_name }}</span>
                                 {% if item.is_optional %}<span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem">可选</span>{% endif %}
                             </td>
                             <td>
@@ -355,19 +371,17 @@
                                 {% if item.count_adult_apply %}<span class="badge bg-info" style="font-size:0.7rem">成{{ item.adult_count_override or budget.adult_count }}</span>{% endif %}
                                 {% if item.count_child_apply and (budget.child_count > 0 or item.child_count_override) %}<span class="badge bg-warning text-dark" style="font-size:0.7rem">儿{{ item.child_count_override or budget.child_count }}</span>{% endif %}
                             </td>
-                            <td class="text-end">
+                            <td>
                                 {% if item.count_adult_apply %}<span class="price-adult">{{ "%.2f"|format(item.adult_unit_price) }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
                             </td>
-                            <td class="text-end">
+                            <td>
                                 {% if item.count_child_apply %}<span class="price-child">{{ "%.2f"|format(item.child_unit_price) }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
                             </td>
                             <td>
+                                {# 编辑改为点击项目名称，这里只留复制和删除 #}
                                 <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-secondary btn-action" onclick="copyItem({{ item.id }})" title="复制">
                                         <i class="fas fa-copy"></i>
-                                    </button>
-                                    <button class="btn btn-outline-primary btn-action" onclick="editItem({{ item.id }})" title="编辑">
-                                        <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-outline-danger btn-action" onclick="deleteItem({{ item.id }})" title="删除">
                                         <i class="fas fa-trash"></i>
@@ -380,8 +394,8 @@
                     <tfoot>
                         <tr class="table-light">
                             <td colspan="5" class="text-end fw-bold">人均总和:</td>
-                            <td class="text-end fw-bold text-primary" title="大人人均总和"><span id="adultTotalDisplay">{{ "%.2f"|format(ns.adult_total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
-                            <td class="text-end fw-bold text-info" title="小孩人均总和"><span id="childTotalDisplay">{{ "%.2f"|format(ns.child_total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
+                            <td class="fw-bold text-primary" title="大人人均总和"><span id="adultTotalDisplay">{{ "%.2f"|format(ns.adult_total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
+                            <td class="fw-bold text-info" title="小孩人均总和"><span id="childTotalDisplay">{{ "%.2f"|format(ns.child_total) }}</span> <span class="currency-unit">{{ budget.currency }}</span></td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -536,7 +550,7 @@
                             </div>
                         </div>
                         <div class="col-auto">
-                            <button type="submit" class="btn btn-success btn-sm px-4">
+                            <button type="submit" id="itemFormSubmit" class="btn btn-success btn-sm px-4">
                                 <i class="fas fa-plus"></i> 添加
                             </button>
                         </div>
@@ -585,8 +599,12 @@ function resetAddItemModal() {
     document.getElementById('add_adult_count_override').value = '';
     document.getElementById('add_child_count_override').value = '';
     document.getElementById('add_remarks').value = '';
+    // 退出编辑模式，否则关掉编辑弹窗后再点「添加」会误改上次编辑的那条明细
+    _editingItemId = null;
     const label = document.getElementById('addItemModalLabel');
     if (label) label.innerHTML = '<i class="fas fa-plus text-success"></i> 添加项目';
+    const submitBtn = document.getElementById('itemFormSubmit');
+    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-plus"></i> 添加';
 }
 
 // 上传Excel导入明细项目（有ID更新，无ID新增）
@@ -742,6 +760,41 @@ function downloadBudget() {
     window.location.href = base + (cur ? ('?currency=' + encodeURIComponent(cur)) : '');
 }
 
+// 按类别排序明细项目：点击表头在 升序 → 降序 → 原始顺序 之间循环
+// 排序键是业务类型的既定顺序（data-cat-order），不是拼音——按名字排没有业务含义。
+// 只重排 DOM，不改数据库；筛选、合计、编辑都不受影响。
+let _catSortState = 0;  // 0=原始顺序 1=升序 2=降序
+
+function sortByCategory() {
+    const tbody = document.getElementById('itemsTbody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // 首次点击时记住原始顺序，用于第三次点击还原
+    rows.forEach((tr, i) => {
+        if (tr.dataset.origIndex === undefined) tr.dataset.origIndex = i;
+    });
+
+    _catSortState = (_catSortState + 1) % 3;
+
+    const icon = document.getElementById('catSortIcon');
+    const key = tr => parseInt(tr.dataset.catOrder || '9999', 10);
+    const orig = tr => parseInt(tr.dataset.origIndex, 10);
+
+    if (_catSortState === 0) {
+        rows.sort((a, b) => orig(a) - orig(b));
+        if (icon) icon.className = 'fas fa-sort text-muted';
+    } else {
+        const dir = _catSortState === 1 ? 1 : -1;
+        // 同类别内保持原始先后顺序（稳定排序）
+        rows.sort((a, b) => (key(a) - key(b)) * dir || orig(a) - orig(b));
+        if (icon) icon.className = _catSortState === 1
+            ? 'fas fa-sort-up text-primary' : 'fas fa-sort-down text-primary';
+    }
+
+    rows.forEach(tr => tbody.appendChild(tr));
+}
+
 // 按分类筛选明细项目（同时更新计数与人均价格合计）
 function filterByCategory() {
     const sel = document.getElementById('categoryFilter');
@@ -777,20 +830,15 @@ function deleteItem(itemId) {
     }
 }
 
-function editItem(itemId) {
-    window.location.href = `/package_budget/{{ budget.id }}/item/${itemId}/edit`;
-}
-
-// 复制：把原项目数据回填到弹窗，允许编辑后再保存（提交即创建副本）
-function copyItem(itemId) {
-    const data = BUDGET_ITEMS[itemId];
-    if (!data) { alert('无法获取项目数据'); return; }
+// 把一条明细的数据回填到弹窗表单（复制和编辑共用）
+// nameSuffix：复制时给名称加「（副本）」后缀，编辑时为空
+function fillItemForm(data, nameSuffix) {
     const form = document.getElementById('itemForm');
     const get = (name) => form.querySelector(`[name="${name}"]`);
 
-    // 类别 / 名称（加副本后缀）/ 详情
+    // 类别 / 名称 / 详情
     if (get('category')) get('category').value = data.category || '';
-    get('item_name').value = (data.item_name || '') + '（副本）';
+    get('item_name').value = (data.item_name || '') + (nameSuffix || '');
     get('item_details').value = data.item_details || '';
 
     // 计价方式 + 对应价格
@@ -819,17 +867,88 @@ function copyItem(itemId) {
     get('count_child_apply').checked = !!data.count_child_apply;
     get('is_optional').checked = !!data.is_optional;
 
-    // 隐藏字段：保留人数覆盖 / 备注
+    // 隐藏字段：人数覆盖 / 备注
     document.getElementById('add_adult_count_override').value = data.adult_count_override ?? '';
     document.getElementById('add_child_count_override').value = data.child_count_override ?? '';
     document.getElementById('add_remarks').value = data.remarks || '';
+}
 
-    // 标题改为复制提示
+// 编辑：点击项目名称打开弹窗（不再跳独立页面）
+// 保存时走 JSON API 局部更新，不重建这条明细
+let _editingItemId = null;
+
+function editItem(itemId) {
+    const data = BUDGET_ITEMS[itemId];
+    if (!data) { alert('无法获取项目数据'); return; }
+
+    _editingItemId = itemId;
+    fillItemForm(data, '');
+
+    const label = document.getElementById('addItemModalLabel');
+    if (label) label.innerHTML = '<i class="fas fa-pen text-primary"></i> 编辑项目';
+    const submitBtn = document.getElementById('itemFormSubmit');
+    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存修改';
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('addItemModal')).show();
+}
+
+// 复制：回填后允许改，提交即创建副本
+function copyItem(itemId) {
+    const data = BUDGET_ITEMS[itemId];
+    if (!data) { alert('无法获取项目数据'); return; }
+
+    _editingItemId = null;  // 复制是新增，不是改原项目
+    fillItemForm(data, '（副本）');
+
     const label = document.getElementById('addItemModalLabel');
     if (label) label.innerHTML = '<i class="fas fa-copy text-warning"></i> 复制项目（可编辑后保存）';
+    const submitBtn = document.getElementById('itemFormSubmit');
+    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-plus"></i> 添加';
 
-    // 打开弹窗
     bootstrap.Modal.getOrCreateInstance(document.getElementById('addItemModal')).show();
+}
+
+// 编辑模式下拦截表单提交：走 JSON API 局部更新；新增/复制仍走原来的表单 POST
+function handleItemFormSubmit(event) {
+    if (_editingItemId === null) return;  // 新增/复制 -> 放行给原来的表单提交
+    event.preventDefault();
+
+    const form = document.getElementById('itemForm');
+    const get = (name) => form.querySelector(`[name="${name}"]`);
+    const num = (el) => (el && el.value !== '' ? parseFloat(el.value) : null);
+
+    const method = form.querySelector('input[name="pricing_method"]:checked').value;
+    const payload = {
+        category: get('category') ? get('category').value : '',
+        item_name: get('item_name').value,
+        item_details: get('item_details').value,
+        pricing_method: method,
+        count_adult_apply: get('count_adult_apply').checked,
+        count_child_apply: get('count_child_apply').checked,
+        is_optional: get('is_optional').checked,
+        adult_count_override: document.getElementById('add_adult_count_override').value || null,
+        child_count_override: document.getElementById('add_child_count_override').value || null,
+        remarks: document.getElementById('add_remarks').value,
+    };
+    if (method === 'item_based') {
+        payload.item_unit_price = num(get('item_unit_price'));
+        payload.item_quantity = num(get('item_quantity')) || 1;
+    } else {
+        payload.adult_price = num(get('adult_price'));
+        payload.child_price = num(get('child_price'));
+    }
+
+    fetch(`/package_budget/api/budgets/{{ budget.id }}/items/${_editingItemId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else alert('保存失败：' + (data.error || '未知错误'));
+        })
+        .catch(err => alert('保存失败：' + err));
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -905,6 +1024,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const qty = itemQty ? (parseInt(itemQty.value) || 0) : 0;
                 if (up <= 0 || qty <= 0) { e.preventDefault(); alert('请输入物品单价和件数'); return false; }
             }
+
+            // 校验通过后分流：编辑模式走 JSON API 局部更新（handleItemFormSubmit 内部会
+            // preventDefault）；新增/复制继续走原来的表单 POST
+            handleItemFormSubmit(e);
         };
     }
 });

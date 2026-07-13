@@ -1,11 +1,15 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
+from flask_login import login_required, current_user
+from App_new.utils.decorators import staff_only
 from App_new.exts import db, csrf
 from App_new.business.tour.models.TourProject import TourGroup, TourItinerary, TourProject, TourProjectAttachment
 from flask import send_file
 from App_new.business.tour.models.Packagemodels import CompanyInfo
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import re
 import sys
+import json
 import subprocess
 import urllib.parse
 import html
@@ -47,6 +51,8 @@ def save_uploaded_image(file, upload_folder):
 
 @tour_projects.route('/create', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def create_tour_project():
     """创建旅游项目页面 - 同时创建项目和团队"""
     if request.method == 'POST':
@@ -218,6 +224,8 @@ def create_tour_project():
     return render_template('business/tour/package/TourProjects/tour_project_create.html')
 
 @tour_projects.route('/manage', methods=['GET'])
+@login_required
+@staff_only
 def manage_tour_projects():
     """管理旅游项目页面"""
     # 获取表单参数（如果没有则使用默认值）
@@ -275,6 +283,8 @@ def manage_tour_projects():
 
 @tour_projects.route('/update/<int:project_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def update_tour_project(project_id):
     """更新旅游项目"""
     try:
@@ -318,6 +328,8 @@ def update_tour_project(project_id):
 
 @tour_projects.route('/copy/<int:project_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def copy_tour_project(project_id):
     """复制旅游项目及其关联数据"""
     try:
@@ -475,6 +487,8 @@ def copy_tour_project(project_id):
 
 @tour_projects.route('/delete/<int:project_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def delete_tour_project(project_id):
     """删除旅游项目"""
     try:
@@ -501,6 +515,8 @@ def delete_tour_project(project_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 @tour_projects.route('/open_folder', methods=['GET', 'POST'])
+@login_required
+@staff_only
 def open_tour_project_folder():
     """打开旅游项目文件夹"""
     folder_name = request.args.get('folder_name', '')
@@ -587,6 +603,8 @@ def open_tour_project_folder():
 
 # 新增：行程团管理相关路由
 @tour_projects.route('/groups', methods=['GET'])
+@login_required
+@staff_only
 def list_tour_groups():
     """列出所有行程团"""
     groups = TourGroup.query.order_by(TourGroup.created_at.desc()).all()
@@ -594,6 +612,8 @@ def list_tour_groups():
 
 @tour_projects.route('/create_tour_group/<int:project_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def create_tour_group(project_id):
     """创建新的行程团"""
     try:
@@ -642,6 +662,8 @@ def create_tour_group(project_id):
             return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
 
 @tour_projects.route('/groups/<int:group_id>', methods=['GET'])
+@login_required
+@staff_only
 def view_tour_group(group_id):
     """查看行程团详情"""
     group = TourGroup.query.get_or_404(group_id)
@@ -655,6 +677,8 @@ def view_tour_group(group_id):
                          current_time=current_time)
 
 @tour_projects.route('/groups/<int:group_id>/itinerary', methods=['GET'])
+@login_required
+@staff_only
 def view_tour_itinerary(group_id):
     """查看行程单（仅包含每日行程安排和价格信息）"""
     group = None
@@ -720,6 +744,8 @@ def view_tour_itinerary(group_id):
 
 @tour_projects.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def edit_tour_group(group_id):
     from App_new.business.tour.models.TourProject import TourGroup, TourItinerary
     from flask import request, redirect, url_for, flash, jsonify
@@ -869,6 +895,8 @@ def edit_tour_group(group_id):
 
 @tour_projects.route('/groups/<int:group_id>/package-info', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def edit_group_package_info(group_id):
     """只更新团组的套餐说明三字段（包含/不包含/注意事项）
 
@@ -899,6 +927,8 @@ def edit_group_package_info(group_id):
 
 @tour_projects.route('/group/<int:group_id>/delete', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def delete_tour_group(group_id):
     """删除行程团"""
     from flask_wtf.csrf import CSRFError
@@ -941,6 +971,8 @@ def delete_tour_group(group_id):
 # 行程安排管理
 @tour_projects.route('/groups/<int:group_id>/itinerary/add', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def add_itinerary(group_id):
     """添加行程安排"""
     group = TourGroup.query.get_or_404(group_id)
@@ -964,6 +996,8 @@ def add_itinerary(group_id):
 
 @tour_projects.route('/itinerary/<int:itinerary_id>/edit', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def edit_itinerary(itinerary_id):
     """编辑行程安排"""
     from flask import jsonify
@@ -1066,6 +1100,8 @@ def edit_itinerary(itinerary_id):
 
 @tour_projects.route('/itinerary/<int:itinerary_id>/delete', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def delete_itinerary(itinerary_id):
     """删除行程安排"""
     from flask_wtf.csrf import CSRFError
@@ -1110,6 +1146,8 @@ def delete_itinerary(itinerary_id):
 
 @tour_projects.route('/itinerary/clear/<int:group_id>', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def clear_group_itineraries(group_id):
     """清空指定团队的所有行程安排（用于自动生成前的覆盖操作）"""
     group = TourGroup.query.get(group_id)
@@ -1126,6 +1164,8 @@ def clear_group_itineraries(group_id):
 
 @tour_projects.route('/edit/<int:project_id>', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def edit_tour_project(project_id):
     """编辑旅游项目页面"""
     project = TourProject.query.get_or_404(project_id)
@@ -1244,6 +1284,8 @@ def edit_tour_project(project_id):
 
 @tour_projects.route('/<int:project_id>/create-linked-header', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def create_linked_header(project_id):
     """为旅游项目自动创建主系统 HID 项目（ProjectHeader），并回写 project_hid
 
@@ -1338,6 +1380,8 @@ def create_linked_header(project_id):
 
 
 @tour_projects.route('/detail/<int:project_id>', methods=['GET'])
+@login_required
+@staff_only
 def project_details(project_id):
     """项目详细页面"""
     project = TourProject.query.get_or_404(project_id)
@@ -1357,6 +1401,8 @@ def project_details(project_id):
 
 @tour_projects.route('/itinerary/create/<int:group_id>', methods=['GET', 'POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def create_itinerary(group_id):
     from App_new.business.tour.models.TourProject import TourItinerary, TourGroup
     from flask import request, redirect, url_for, render_template, flash, jsonify
@@ -1481,6 +1527,8 @@ def save_attachment_file(file, project_id):
 
 
 @tour_projects.route('/project/<int:project_id>/attachments', methods=['GET'])
+@login_required
+@staff_only
 def list_attachments(project_id):
     """获取项目附件列表"""
     project = TourProject.query.get_or_404(project_id)
@@ -1503,6 +1551,8 @@ def list_attachments(project_id):
 
 @tour_projects.route('/project/<int:project_id>/attachments/upload', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def upload_attachment(project_id):
     """上传项目附件"""
     try:
@@ -1579,6 +1629,8 @@ def get_attachment_full_path(attachment):
 
 
 @tour_projects.route('/attachments/<int:attachment_id>/download', methods=['GET'])
+@login_required
+@staff_only
 def download_attachment(attachment_id):
     """下载附件"""
     try:
@@ -1604,6 +1656,8 @@ def download_attachment(attachment_id):
 
 
 @tour_projects.route('/attachments/<int:attachment_id>/view', methods=['GET'])
+@login_required
+@staff_only
 def view_attachment(attachment_id):
     """在线查看附件（主要用于PDF和图片）"""
     try:
@@ -1628,6 +1682,8 @@ def view_attachment(attachment_id):
 
 @tour_projects.route('/attachments/<int:attachment_id>/delete', methods=['POST'])
 @csrf.exempt
+@login_required
+@staff_only
 def delete_attachment(attachment_id):
     """删除附件"""
     try:
@@ -1659,3 +1715,731 @@ def delete_attachment(attachment_id):
         else:
             flash(f'删除失败：{str(e)}', 'error')
             return redirect(url_for('tour_projects.edit_tour_project', project_id=project_id))
+
+
+# ============================================================================
+# 纯 JSON API（供 Hermes 等自动化调用）
+#
+# 页面上那批表单路由（edit_tour_project / edit_tour_group / create_itinerary 等）
+# 只有带 X-Requested-With: XMLHttpRequest 头时才返回 JSON，否则给 302，且只收
+# form-encoded。这里的接口一律收 JSON、返回 {'success':..., 'error':...}，并回传
+# id 供下一步串联。约定与机票的 /projects/ref/flight/... 一致。
+# ============================================================================
+
+
+class _TourApiError(Exception):
+    """旅游 API 的入参错误，带 HTTP 状态码"""
+
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.message = message
+        self.status = status
+
+
+def _as_bool_tour(value, default=False):
+    """宽松解析布尔：接受 true/false、1/0、"1"/"0"、"true"/"false" """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _parse_date(value, field, required=False):
+    """解析 YYYY-MM-DD，空值返回 None"""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        if required:
+            raise _TourApiError('%s 不能为空' % field)
+        return None
+    try:
+        return datetime.strptime(str(value).strip(), '%Y-%m-%d').date()
+    except ValueError:
+        raise _TourApiError('%s 日期格式必须是 YYYY-MM-DD，收到：%r' % (field, value))
+
+
+def _parse_int(value, field):
+    """解析整数，空值返回 None"""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise _TourApiError('%s 必须是整数，收到：%r' % (field, value))
+
+
+def _parse_float(value, field):
+    """解析小数，空值返回 None"""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise _TourApiError('%s 必须是数字，收到：%r' % (field, value))
+
+
+def _group_to_dict(group, with_itineraries=False):
+    """团组序列化"""
+    data = {
+        'id': group.id,
+        'project_id': group.project_id,
+        'title': group.title,
+        'departure_date': group.departure_date.strftime('%Y-%m-%d') if group.departure_date else None,
+        'return_date': group.return_date.strftime('%Y-%m-%d') if group.return_date else None,
+        'duration_days': group.duration_days,
+        'pax': group.pax,
+        'adult_count': group.adult_count,
+        'child_count': group.child_count,
+        'adult_price': group.adult_price,
+        'child_price': group.child_price,
+        'total_price': group.total_price,
+        'agency': group.agency,
+        'operator': group.operator,
+        'group_code': group.group_code,
+        'group_status': group.group_status,
+        'included_items': group.included_items,
+        'excluded_items': group.excluded_items,
+        'important_notes': group.important_notes,
+    }
+    if with_itineraries:
+        data['itineraries'] = [_itinerary_to_dict(i) for i in group.itineraries.all()]
+    return data
+
+
+def _itinerary_to_dict(itinerary):
+    """每日行程序列化"""
+    return {
+        'id': itinerary.id,
+        'tour_id': itinerary.tour_id,
+        'day_title': itinerary.day_title,
+        'day_number': itinerary.day_number,
+        'date': itinerary.date.strftime('%Y-%m-%d') if itinerary.date else None,
+        'content': itinerary.content,
+        'image1': itinerary.image1,
+        'image2': itinerary.image2,
+        'image3': itinerary.image3,
+    }
+
+
+def _project_to_dict(project, with_groups=True):
+    """项目序列化"""
+    data = {
+        'id': project.id,
+        'project_name': project.project_name,
+        'project_hid': project.project_hid,
+        'project_type': project.project_type,
+        'project_status': project.project_status,
+        'contact_person': project.contact_person,
+        'contact_info': project.contact_info,
+        'budget': project.budget,
+        'currency': project.currency,
+        'departure_date': project.departure_date.strftime('%Y-%m-%d') if project.departure_date else None,
+        'remarks': project.remarks,
+        'folder_name': project.folder_name,
+        'created_by': project.created_by,
+        'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else None,
+    }
+    if with_groups:
+        data['groups'] = [_group_to_dict(g) for g in project.groups.all()]
+    return data
+
+
+def _apply_group_payload(group, data, partial=False):
+    """把 JSON 写进团组。partial=True 时只更新传入的字段
+
+    人数：pax = adult_count + child_count 自动汇总（与页面保持一致）。
+    """
+    if not partial or 'title' in data:
+        title = (data.get('title') or '').strip()
+        if not title:
+            raise _TourApiError('title（行程名称）不能为空')
+        group.title = title
+
+    if not partial or 'departure_date' in data:
+        group.departure_date = _parse_date(data.get('departure_date'), 'departure_date', required=not partial)
+    if not partial or 'return_date' in data:
+        group.return_date = _parse_date(data.get('return_date'), 'return_date', required=not partial)
+    if group.departure_date and group.return_date and group.return_date < group.departure_date:
+        raise _TourApiError('return_date（返回日期）不能早于 departure_date（出发日期）')
+
+    if not partial or 'adult_count' in data or 'child_count' in data:
+        if 'adult_count' in data or not partial:
+            group.adult_count = _parse_int(data.get('adult_count'), 'adult_count') or 0
+        if 'child_count' in data or not partial:
+            group.child_count = _parse_int(data.get('child_count'), 'child_count') or 0
+        group.pax = (group.adult_count or 0) + (group.child_count or 0)
+        if group.pax < 1:
+            raise _TourApiError('大人和小孩人数不能同时为 0')
+
+    for field in ('agency', 'operator', 'group_code', 'group_status',
+                  'included_items', 'excluded_items', 'important_notes'):
+        if field in data:
+            setattr(group, field, (data.get(field) or '').strip() or None)
+
+    for field in ('adult_price', 'child_price', 'budget_per_person'):
+        if field in data:
+            setattr(group, field, _parse_float(data.get(field), field))
+
+    return group
+
+
+@tour_projects.route('/api/projects/<int:project_id>', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_get_project(project_id):
+    """读取项目全貌（项目 + 团组 + 每个团的每日行程）
+
+    Hermes 改任何东西之前先调这个，拿到 project_id / group_id / itinerary_id。
+    """
+    project = TourProject.query.get_or_404(project_id)
+    data = _project_to_dict(project, with_groups=False)
+    data['groups'] = [_group_to_dict(g, with_itineraries=True) for g in project.groups.all()]
+    return jsonify({'success': True, 'project': data})
+
+
+@tour_projects.route('/api/projects', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_create_project():
+    """新建旅游项目（同时建第一个团组），纯JSON
+
+    页面表单的 /create 成功后是 redirect，自动化拿不到新建的 project_id，故有此接口。
+
+    请求体：
+    {
+      "project_name": "北海道7日",        // 必填
+      "project_status": "处理中",         // 必填：处理中/待出行/已完成/忽略单
+      "contact_person": "张先生",         // 必填
+      "contact_info": "9123 4567",
+      "project_hid": "H2601",             // 可选，关联主系统项目
+      "project_type": "定制游",
+      "budget": 20000,
+      "remarks": "...",
+      "group": {                          // 必填：项目至少要有一个团组
+        "title": "北海道7日",             // 不填则用项目名
+        "departure_date": "2026-09-01",   // 必填
+        "return_date": "2026-09-07",      // 必填
+        "adult_count": 4,
+        "child_count": 2,
+        "agency": "...", "operator": "...",
+        "group_code": "...", "group_status": "计划中",
+        "included_items": "...", "excluded_items": "...", "important_notes": "..."
+      }
+    }
+
+    返回 {"success": true, "project_id": 81, "group_id": 95, "project": {...}}
+    """
+    data = request.get_json(silent=True) or {}
+
+    try:
+        project_name = (data.get('project_name') or '').strip()
+        if not project_name:
+            raise _TourApiError('project_name（项目名称）不能为空')
+        project_status = (data.get('project_status') or '').strip()
+        if not project_status:
+            raise _TourApiError('project_status（项目状态）不能为空')
+        contact_person = (data.get('contact_person') or '').strip()
+        if not contact_person:
+            raise _TourApiError('contact_person（联系人）不能为空')
+
+        group_data = data.get('group')
+        if not isinstance(group_data, dict) or not group_data:
+            raise _TourApiError('group（团组信息）不能为空，项目至少要有一个团组')
+
+        departure_date = _parse_date(group_data.get('departure_date'), 'group.departure_date', required=True)
+        return_date = _parse_date(group_data.get('return_date'), 'group.return_date', required=True)
+        if return_date < departure_date:
+            raise _TourApiError('return_date（返回日期）不能早于 departure_date（出发日期）')
+
+        project_hid = (data.get('project_hid') or '').strip() or None
+
+        # 文件夹名与页面表单同一套规则：创建日期_HID_项目名
+        creation_date = datetime.now().date()
+        folder_name = f"{creation_date}_{project_hid}_{project_name}" if project_hid \
+            else f"{creation_date}_{project_name}"
+
+        from ....config import Config
+        create_folder(Config.TOUR_PROJECTS_PATH, folder_name)
+
+        project = TourProject(
+            project_name=project_name,
+            project_hid=project_hid,
+            project_type=(data.get('project_type') or '').strip() or None,
+            budget=_parse_float(data.get('budget'), 'budget'),
+            project_status=project_status,
+            folder_name=folder_name,
+            contact_person=contact_person,
+            contact_info=(data.get('contact_info') or '').strip(),
+            remarks=(data.get('remarks') or '').strip() or None,
+            departure_date=departure_date,
+        )
+        db.session.add(project)
+        db.session.flush()  # 拿 project.id
+
+        group = TourGroup(project_id=project.id, title=project_name,
+                          departure_date=departure_date, return_date=return_date, pax=1)
+        _apply_group_payload(group, group_data, partial=True)
+        if not group.title:
+            group.title = project_name
+        db.session.add(group)
+        db.session.flush()
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_create_project failed: {e}")
+        return jsonify({'success': False, 'error': '创建失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'project_id': project.id,
+        'group_id': group.id,
+        'project': _project_to_dict(project),
+    })
+
+
+@tour_projects.route('/api/projects/<int:project_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_project(project_id):
+    """局部更新项目（只改传入的字段）
+
+    可改：project_name / project_hid / project_type / project_status /
+          contact_person / contact_info / budget / departure_date / remarks
+    团组信息请走 /api/groups/<group_id>。
+    """
+    project = TourProject.query.get_or_404(project_id)
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({'success': False, 'error': '请求体为空，没有要更新的字段'}), 400
+
+    try:
+        for field in ('project_name', 'project_status', 'contact_person'):
+            if field in data:
+                value = (data.get(field) or '').strip()
+                if not value:
+                    raise _TourApiError('%s 不能为空' % field)
+                setattr(project, field, value)
+
+        for field in ('project_hid', 'project_type', 'contact_info', 'remarks'):
+            if field in data:
+                setattr(project, field, (data.get(field) or '').strip() or None)
+
+        if 'budget' in data:
+            project.budget = _parse_float(data.get('budget'), 'budget')
+        if 'departure_date' in data:
+            project.departure_date = _parse_date(data.get('departure_date'), 'departure_date')
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_update_project failed: {e}")
+        return jsonify({'success': False, 'error': '更新失败：%s' % str(e)}), 500
+
+    return jsonify({'success': True, 'project': _project_to_dict(project)})
+
+
+@tour_projects.route('/api/projects/<int:project_id>/groups', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_create_group(project_id):
+    """给项目新增一个团组（纯JSON）"""
+    project = TourProject.query.get_or_404(project_id)
+    data = request.get_json(silent=True) or {}
+
+    try:
+        group = TourGroup(project_id=project.id, title=(data.get('title') or project.project_name),
+                          departure_date=_parse_date(data.get('departure_date'), 'departure_date', required=True),
+                          return_date=_parse_date(data.get('return_date'), 'return_date', required=True),
+                          pax=1)
+        _apply_group_payload(group, data, partial=True)
+        db.session.add(group)
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_create_group failed: {e}")
+        return jsonify({'success': False, 'error': '创建失败：%s' % str(e)}), 500
+
+    return jsonify({'success': True, 'group_id': group.id, 'group': _group_to_dict(group)})
+
+
+@tour_projects.route('/api/groups/<int:group_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_group(group_id):
+    """局部更新团组（只改传入的字段）
+
+    可改：title / departure_date / return_date / adult_count / child_count /
+          adult_price / child_price / budget_per_person / agency / operator /
+          group_code / group_status / included_items / excluded_items / important_notes
+
+    改人数会自动汇总 pax = adult_count + child_count，并同步到该团关联的预算单。
+    """
+    group = TourGroup.query.get_or_404(group_id)
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({'success': False, 'error': '请求体为空，没有要更新的字段'}), 400
+
+    result = {'success': True}
+    try:
+        counts_changed = 'adult_count' in data or 'child_count' in data
+        _apply_group_payload(group, data, partial=True)
+
+        # 人数变了就同步到预算单（与页面表单同一套规则）
+        if counts_changed:
+            from .package_budget import sync_group_counts_to_budgets
+            synced, skipped_multi = sync_group_counts_to_budgets(
+                group.project_id, group.id, group.adult_count, group.child_count)
+            result['counts_synced_to_budgets'] = synced
+            if skipped_multi:
+                result['counts_not_synced'] = '项目有多个团组，未绑定 group_id 的预算单人数未同步'
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_update_group failed: {e}")
+        return jsonify({'success': False, 'error': '更新失败：%s' % str(e)}), 500
+
+    result['group'] = _group_to_dict(group)
+    return jsonify(result)
+
+
+@tour_projects.route('/api/groups/<int:group_id>/itinerary', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_set_itinerary(group_id):
+    """批量写入每日行程（Hermes 补行程的主力接口）
+
+    一个请求把一份行程文案铺成 Day 1..Day N，不用逐天调 create_itinerary
+    （逐天调中途失败会留下半份行程，这里任一天出错整批回滚）。
+
+    请求体：
+    {
+      "replace": true,          // true = 先清空该团组所有旧行程再写（默认 false 追加）
+      "days": [
+        {"day_title": "Day 1: 抵达札幌", "date": "2026-09-01",
+         "content": "<p>抵达新千岁机场，专车接机…</p>",
+         "image1": "itinerary_images/sapporo_a1b2c3d4.jpg"},
+
+        {"day_title": "Day 2: 小樽一日游", "date": "2026-09-02",
+         "content": "..."}
+      ]
+    }
+
+    date 不填时按团组出发日期 + 天序自动推算（第 N 天 = 出发日 + N-1 天）。
+    图片只接受**路径字符串**（素材库路径，或已上传返回的相对路径）；
+    要上传新图片文件请走 multipart 的 /itinerary/create/<gid>。
+
+    返回 {"success": true, "replaced": 3, "created": 7, "itineraries": [...]}
+    """
+    group = TourGroup.query.get_or_404(group_id)
+    data = request.get_json(silent=True) or {}
+
+    days = data.get('days')
+    if not isinstance(days, list) or not days:
+        return jsonify({'success': False, 'error': 'days 不能为空'}), 400
+
+    replaced = 0
+    created = []
+    try:
+        if _as_bool_tour(data.get('replace'), False):
+            old = TourItinerary.query.filter_by(tour_id=group_id).all()
+            replaced = len(old)
+            for row in old:
+                db.session.delete(row)
+            db.session.flush()
+
+        for index, day in enumerate(days):
+            if not isinstance(day, dict):
+                raise _TourApiError('days[%d] 必须是对象' % index)
+
+            day_title = (day.get('day_title') or '').strip()
+            if not day_title:
+                raise _TourApiError('days[%d] 缺少 day_title' % index)
+
+            content = day.get('content')
+            if content is None or not str(content).strip():
+                raise _TourApiError('days[%d]「%s」缺少 content（行程详情）' % (index, day_title))
+
+            # 日期没给就按出发日 + 天序推算
+            date = _parse_date(day.get('date'), 'days[%d].date' % index)
+            if date is None:
+                if not group.departure_date:
+                    raise _TourApiError('days[%d] 没给 date，且团组没有出发日期可供推算' % index)
+                date = group.departure_date + timedelta(days=index)
+
+            itinerary = TourItinerary(
+                tour_id=group_id,
+                day_title=day_title,
+                date=date,
+                content=str(content),
+                image1=(day.get('image1') or '').strip() or None,
+                image2=(day.get('image2') or '').strip() or None,
+                image3=(day.get('image3') or '').strip() or None,
+            )
+            db.session.add(itinerary)
+            created.append(itinerary)
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_set_itinerary failed: {e}")
+        return jsonify({'success': False, 'error': '写入失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'group_id': group_id,
+        'replaced': replaced,
+        'created': len(created),
+        'itineraries': [_itinerary_to_dict(i) for i in created],
+    })
+
+
+# ============================================================================
+# 行程模板：导出 / 导入
+#
+# 用途：把一条已排好的行程存成 JSON 模板，下次遇到类似线路直接导入，日期自动平移。
+# 模板里每天记的是 day_offset（相对出发日的天数偏移）而不是绝对日期，
+# 所以同一份模板可以套到任何出发日期上。
+# ============================================================================
+
+TEMPLATE_VERSION = 1
+
+
+def _group_to_template(group):
+    """把团组导出成行程模板（日期存成相对出发日的偏移）"""
+    days = []
+    for itinerary in group.itineraries.all():
+        offset = 0
+        if itinerary.date and group.departure_date:
+            offset = (itinerary.date - group.departure_date).days
+        days.append({
+            'day_offset': offset,
+            'day_title': itinerary.day_title,
+            'content': itinerary.content,
+            'image1': itinerary.image1,
+            'image2': itinerary.image2,
+            'image3': itinerary.image3,
+        })
+
+    return {
+        'template_version': TEMPLATE_VERSION,
+        'exported_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        'source': {
+            'project_id': group.project_id,
+            'group_id': group.id,
+            'departure_date': group.departure_date.strftime('%Y-%m-%d') if group.departure_date else None,
+        },
+        'title': group.title,
+        'duration_days': group.duration_days,
+        # 这三项同一条线路通常是一样的，随模板走
+        'included_items': group.included_items,
+        'excluded_items': group.excluded_items,
+        'important_notes': group.important_notes,
+        'days': days,
+    }
+
+
+@tour_projects.route('/api/groups/<int:group_id>/export', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_export_itinerary_template(group_id):
+    """导出行程模板（下载 .json 文件）
+
+    带 ?inline=1 时直接返回 JSON 而不触发下载（供 Hermes 读取）。
+    """
+    group = TourGroup.query.get_or_404(group_id)
+    template = _group_to_template(group)
+
+    if request.args.get('inline'):
+        return jsonify({'success': True, 'template': template})
+
+    # 文件名：行程名_天数.json（去掉文件名里的非法字符）
+    safe_title = re.sub(r'[\\/:*?"<>|]', '_', (group.title or 'itinerary').strip())
+    filename = f"{safe_title}_{group.duration_days}天.json"
+
+    body = json.dumps(template, ensure_ascii=False, indent=2)
+    response = current_app.response_class(body, mimetype='application/json; charset=utf-8')
+    # 中文文件名走 RFC 5987 的 filename*，避免被 latin-1 编码卡住
+    quoted = urllib.parse.quote(filename)
+    response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{quoted}"
+    return response
+
+
+@tour_projects.route('/api/groups/<int:group_id>/import', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_import_itinerary_template(group_id):
+    """导入行程模板到当前团组
+
+    两种传法：
+      - multipart 上传 .json 文件（字段名 file）—— 页面上的「导入模板」按钮走这条
+      - 直接把模板 JSON 作为请求体 —— Hermes 走这条
+
+    导入行为（与页面按钮一致）：
+      - 每日行程：**整份覆盖**（先清空旧的），日期按当前团组的出发日重新排
+        （第 N 天 = 出发日 + day_offset），不使用模板里的绝对日期
+      - 团组的返回日期：自动改成最后一天的日期
+      - 包含/不包含/注意事项：一并覆盖（可用 "overwrite_notes": false 关掉）
+      - **人数、价格、标题、旅行社/地接社：一律不动**（那是客人自己的信息）
+
+    返回 {"success": true, "created": 6, "replaced": 6, "return_date": "2026-12-01"}
+    """
+    group = TourGroup.query.get_or_404(group_id)
+
+    # 取模板：优先文件上传，其次请求体
+    uploaded = request.files.get('file')
+    if uploaded and uploaded.filename:
+        try:
+            template = json.loads(uploaded.read().decode('utf-8'))
+        except (ValueError, UnicodeDecodeError) as e:
+            return jsonify({'success': False, 'error': '文件不是合法的 JSON 模板：%s' % str(e)}), 400
+    else:
+        template = request.get_json(silent=True) or {}
+
+    # 允许把 /export 的返回值（{'success':..,'template':{..}}）原样传回来
+    if isinstance(template.get('template'), dict):
+        template = template['template']
+
+    days = template.get('days')
+    if not isinstance(days, list) or not days:
+        return jsonify({'success': False, 'error': '模板里没有 days（每日行程）'}), 400
+
+    if not group.departure_date:
+        return jsonify({'success': False, 'error': '当前团组没有出发日期，无法按模板排日期'}), 400
+
+    replaced = 0
+    created = []
+    try:
+        old = TourItinerary.query.filter_by(tour_id=group_id).all()
+        replaced = len(old)
+        for row in old:
+            db.session.delete(row)
+        db.session.flush()
+
+        max_offset = 0
+        for index, day in enumerate(days):
+            if not isinstance(day, dict):
+                raise _TourApiError('days[%d] 必须是对象' % index)
+
+            day_title = (day.get('day_title') or '').strip()
+            content = day.get('content')
+            if not day_title or content is None or not str(content).strip():
+                raise _TourApiError('days[%d] 缺少 day_title 或 content' % index)
+
+            # 日期平移：模板里存的是相对出发日的偏移，没有就按顺序当天序
+            offset = day.get('day_offset')
+            offset = index if offset is None else _parse_int(offset, 'days[%d].day_offset' % index)
+            max_offset = max(max_offset, offset)
+
+            itinerary = TourItinerary(
+                tour_id=group_id,
+                day_title=day_title,
+                date=group.departure_date + timedelta(days=offset),
+                content=str(content),
+                image1=(day.get('image1') or '').strip() or None,
+                image2=(day.get('image2') or '').strip() or None,
+                image3=(day.get('image3') or '').strip() or None,
+            )
+            db.session.add(itinerary)
+            created.append(itinerary)
+
+        # 返回日期跟着最后一天走
+        group.return_date = group.departure_date + timedelta(days=max_offset)
+
+        # 包含/不包含/注意事项随模板走（人数、价格、标题、供应商一律不动）
+        if _as_bool_tour(request.args.get('overwrite_notes', template.get('overwrite_notes', True)), True):
+            for field in ('included_items', 'excluded_items', 'important_notes'):
+                if template.get(field):
+                    setattr(group, field, template[field])
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_import_itinerary_template failed: {e}")
+        return jsonify({'success': False, 'error': '导入失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'group_id': group_id,
+        'replaced': replaced,
+        'created': len(created),
+        'departure_date': group.departure_date.strftime('%Y-%m-%d'),
+        'return_date': group.return_date.strftime('%Y-%m-%d'),
+        'itineraries': [_itinerary_to_dict(i) for i in created],
+    })
+
+
+@tour_projects.route('/api/itinerary/<int:itinerary_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_itinerary(itinerary_id):
+    """局部更新单天行程（只改传入的字段）
+
+    可改：day_title / date / content / image1 / image2 / image3
+    图片传空串 = 清空该图；只接受路径字符串，不接受文件上传。
+    """
+    itinerary = TourItinerary.query.get_or_404(itinerary_id)
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({'success': False, 'error': '请求体为空，没有要更新的字段'}), 400
+
+    try:
+        if 'day_title' in data:
+            day_title = (data.get('day_title') or '').strip()
+            if not day_title:
+                raise _TourApiError('day_title 不能为空')
+            itinerary.day_title = day_title
+
+        if 'date' in data:
+            date = _parse_date(data.get('date'), 'date')
+            if date is None:
+                raise _TourApiError('date 不能为空')
+            itinerary.date = date
+
+        if 'content' in data:
+            content = data.get('content')
+            if content is None or not str(content).strip():
+                raise _TourApiError('content（行程详情）不能为空')
+            itinerary.content = str(content)
+
+        for field in ('image1', 'image2', 'image3'):
+            if field in data:
+                setattr(itinerary, field, (data.get(field) or '').strip() or None)
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_update_itinerary failed: {e}")
+        return jsonify({'success': False, 'error': '更新失败：%s' % str(e)}), 500
+
+    return jsonify({'success': True, 'itinerary': _itinerary_to_dict(itinerary)})

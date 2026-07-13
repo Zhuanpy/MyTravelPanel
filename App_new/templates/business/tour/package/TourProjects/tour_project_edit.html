@@ -411,6 +411,14 @@
                         <button type="button" onclick="autoGenerateItineraries({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-xs font-medium">
                             <i class="fas fa-magic"></i> 自动生成
                         </button>
+                        {# 行程模板：导出成 JSON 存下来，下次类似线路直接导入，日期按出发日自动平移 #}
+                        <button type="button" onclick="exportItineraryTemplate({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-xs font-medium" title="把当前行程存成 JSON 模板">
+                            <i class="fas fa-download"></i> 导出模板
+                        </button>
+                        <button type="button" onclick="pickItineraryTemplate({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-xs font-medium" title="导入 JSON 模板，覆盖当前行程">
+                            <i class="fas fa-upload"></i> 导入模板
+                        </button>
+                        <input type="file" id="itineraryTemplateFile" accept=".json,application/json" style="display:none;" onchange="importItineraryTemplate({{ group.id }}, this)">
                     </div>
                 </div>
                 <!-- 行程表格 -->
@@ -1439,6 +1447,59 @@ function addItinerary(groupId) {
 }
 
 // 自动生成行程
+// ===== 行程模板：导出 / 导入 =====
+// 模板存的是 day_offset（相对出发日的偏移）而非绝对日期，
+// 所以同一份模板套到任何出发日期上都能自动排好。
+
+function exportItineraryTemplate(groupId) {
+    // 直接走浏览器下载（后端带 Content-Disposition）
+    window.location.href = `/tour/projects/api/groups/${groupId}/export`;
+}
+
+function pickItineraryTemplate(groupId) {
+    const input = document.getElementById('itineraryTemplateFile');
+    if (input) {
+        input.value = '';  // 清掉上次的选择，否则选同一个文件不触发 change
+        input.click();
+    }
+}
+
+function importItineraryTemplate(groupId, input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    if (!confirm(
+        `导入模板「${file.name}」？\n\n` +
+        '· 当前的每日行程会被全部替换\n' +
+        '· 日期按本团组的出发日自动重排\n' +
+        '· 包含/不包含/注意事项也会被覆盖\n' +
+        '· 人数、价格、团队标题不受影响'
+    )) {
+        input.value = '';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch(`/tour/projects/api/groups/${groupId}/import`, { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(
+                    `导入成功！\n\n` +
+                    `替换了 ${data.replaced} 天，写入 ${data.created} 天\n` +
+                    `行程日期：${data.departure_date} ~ ${data.return_date}`
+                );
+                location.reload();
+            } else {
+                alert('导入失败：' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => alert('导入失败：' + err))
+        .finally(() => { input.value = ''; });
+}
+
 function autoGenerateItineraries(groupId) {
     // 从顶部「团队信息」区域查找「行程日期」卡片
     // 该卡片渲染格式：YYYY-MM-DD ~ YYYY-MM-DD（N天）

@@ -362,7 +362,11 @@ def detail(budget_id):
         ensure_service_fee_item(budget)
         # 获取业务类型作为“类别”选项
         business_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order.asc(), BusinessType.id.asc()).all()
-        
+
+        # 类别的排序权重：按业务类型自己的 sort_order（机票、酒店、用车…这个既定顺序），
+        # 而不是拼音/笔画——按名字排没有业务含义。不在业务类型表里的类别排到最后。
+        category_order = {bt.name: index for index, bt in enumerate(business_types)}
+
         # 计算分类统计
         category_totals = {}
         adult_total = 0
@@ -392,7 +396,8 @@ def detail(budget_id):
                              category_totals=category_totals,
                              adult_total=adult_total,
                              child_total=child_total,
-                             business_types=business_types)
+                             business_types=business_types,
+                             category_order=category_order)
     
     except Exception as e:
         current_app.logger.error(f"Error in budget detail: {e}")
@@ -1538,7 +1543,581 @@ def budgets_by_project_json(project_id):
             })
         
         return jsonify({'success': True, 'budgets': result, 'count': len(result)})
-    
+
     except Exception as e:
         current_app.logger.error(f"Error in budgets_by_project_json: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# 纯 JSON API（供 Hermes 等自动化调用）
+#
+# 与页面表单路由分开：表单路由返回 redirect + flash，自动化拿不到新建对象的 id，
+# 也读不到错误原因。这里的接口一律收 JSON、返回 {'success': ..., 'error': ...}，
+# 并回传 id 供下一步串联。约定与机票的 /projects/ref/flight/... 一致。
+# ============================================================================
+
+
+class _BudgetApiError(Exception):
+    """预算 API 的入参错误，带 HTTP 状态码"""
+
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.message = message
+        self.status = status
+
+
+def _as_bool(value, default=False):
+    """宽松解析布尔：接受 true/false、1/0、"1"/"0"、"true"/"false" """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _as_number(value, field, cast=float):
+    """解析数字，空值返回 None，格式错误抛 _BudgetApiError"""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        return cast(value)
+    except (TypeError, ValueError):
+        raise _BudgetApiError('%s 必须是数字，收到：%r' % (field, value))
+
+
+def _item_to_dict(item):
+    """预算明细序列化（含算出来的小计和人均单价）"""
+    return {
+        'id': item.id,
+        'header_id': item.header_id,
+        'category': item.category,
+        'item_name': item.item_name,
+        'item_details': item.item_details,
+        'pricing_method': item.pricing_method,
+        'item_unit_price': float(item.item_unit_price) if item.item_unit_price is not None else None,
+        'item_quantity': item.item_quantity,
+        'adult_price': float(item.adult_price) if item.adult_price is not None else None,
+        'child_price': float(item.child_price) if item.child_price is not None else None,
+        'count_adult_apply': bool(item.count_adult_apply),
+        'count_child_apply': bool(item.count_child_apply),
+        'adult_count_override': item.adult_count_override,
+        'child_count_override': item.child_count_override,
+        'total_override': float(item.total_override) if item.total_override is not None else None,
+        'tax_rate': item.tax_rate,
+        'is_optional': bool(item.is_optional),
+        'sort_order': item.sort_order,
+        'remarks': item.remarks,
+        # 以下为算出来的值，只读
+        'subtotal': float(item.subtotal),
+        'adult_unit_price': float(item.adult_unit_price),
+        'child_unit_price': float(item.child_unit_price),
+    }
+
+
+def _budget_to_dict(budget, with_items=True):
+    """预算单序列化（含合计与最终货币换算结果）"""
+    data = {
+        'id': budget.id,
+        'package_name': budget.package_name,
+        'adult_count': budget.adult_count,
+        'child_count': budget.child_count,
+        'currency': budget.currency,
+        'target_currency': budget.target_currency,
+        'exchange_rate': budget.exchange_rate,
+        'status': budget.status,
+        'is_template': bool(budget.is_template),
+        'remarks': budget.remarks,
+        'project_id': budget.project_id,
+        'group_id': budget.group_id,
+        'created_by': budget.created_by,
+        'created_at': budget.created_at.strftime('%Y-%m-%d %H:%M') if budget.created_at else None,
+        # 合计（录入货币）
+        'total_price': float(budget.total_price),
+        'adult_unit_price': float(budget.adult_unit_price),
+        'child_unit_price': float(budget.child_unit_price),
+        # 合计（最终统一货币，换算后向上取整到 5 的倍数）
+        'final_currency': budget.final_currency,
+        'needs_conversion': budget.needs_conversion,
+        'total_price_final': budget.total_price_final,
+        'adult_unit_price_final': budget.adult_unit_price_final,
+        'child_unit_price_final': budget.child_unit_price_final,
+    }
+    if with_items:
+        items = sorted(budget.items, key=lambda i: (i.sort_order or 0, i.id or 0))
+        data['items'] = [_item_to_dict(i) for i in items]
+    return data
+
+
+def _current_user_display_name():
+    """created_by 用的显示名（与表单路由的取法保持一致）"""
+    if current_user.is_authenticated and getattr(current_user, 'profile', None):
+        name = f"{current_user.profile.first_name or ''} {current_user.profile.last_name or ''}".strip()
+        if name:
+            return name
+        return current_user.email
+    if current_user.is_authenticated:
+        return current_user.email
+    return 'admin'
+
+
+def _apply_item_payload(item, data, partial=False):
+    """把 JSON 写进预算明细。partial=True 时只更新传入的字段（用于局部更新）
+
+    计价方式两条互斥的路径（与页面表单同一套规则）：
+      - person_based：用 adult_price / child_price，清空 item_unit_price
+      - item_based：用 item_unit_price × item_quantity，清空 adult_price / child_price
+    """
+    if not partial or 'category' in data:
+        category = (data.get('category') or '').strip()
+        if not category:
+            raise _BudgetApiError('category（类别）不能为空')
+        item.category = category
+
+    if not partial or 'item_name' in data:
+        item_name = (data.get('item_name') or '').strip()
+        if not item_name:
+            raise _BudgetApiError('item_name（项目名称）不能为空')
+        item.item_name = item_name
+
+    if 'item_details' in data:
+        item.item_details = (data.get('item_details') or '').strip() or None
+
+    # 计价方式：局部更新时没传就沿用原来的
+    pricing_method = data.get('pricing_method') or (item.pricing_method if partial else None) or 'person_based'
+    if pricing_method not in ('person_based', 'item_based'):
+        raise _BudgetApiError("pricing_method 只能是 'person_based' 或 'item_based'，收到：%r" % pricing_method)
+    item.pricing_method = pricing_method
+
+    if pricing_method == 'item_based':
+        if not partial or 'item_unit_price' in data:
+            item.item_unit_price = _as_number(data.get('item_unit_price'), 'item_unit_price')
+        if not partial or 'item_quantity' in data:
+            item.item_quantity = _as_number(data.get('item_quantity'), 'item_quantity', int) or 1
+        if item.item_unit_price is None:
+            raise _BudgetApiError('item_based 计价方式必须给出 item_unit_price')
+        # 互斥字段清空，避免两套价格并存算错
+        item.adult_price = None
+        item.child_price = None
+    else:
+        if not partial or 'adult_price' in data:
+            item.adult_price = _as_number(data.get('adult_price'), 'adult_price')
+        if not partial or 'child_price' in data:
+            item.child_price = _as_number(data.get('child_price'), 'child_price')
+        if item.adult_price is None and item.child_price is None:
+            raise _BudgetApiError('person_based 计价方式至少要给出 adult_price 或 child_price')
+        item.item_unit_price = None
+        item.item_quantity = 1
+
+    # 这项算不算在成人/儿童头上（默认都算）
+    if not partial or 'count_adult_apply' in data:
+        item.count_adult_apply = _as_bool(data.get('count_adult_apply'), True)
+    if not partial or 'count_child_apply' in data:
+        item.count_child_apply = _as_bool(data.get('count_child_apply'), True)
+    if not partial or 'is_optional' in data:
+        item.is_optional = _as_bool(data.get('is_optional'), False)
+
+    # 这项单独用不同人数（不传/传 null = 跟随预算单表头的人数）
+    if not partial or 'adult_count_override' in data:
+        item.adult_count_override = _as_number(data.get('adult_count_override'), 'adult_count_override', int)
+    if not partial or 'child_count_override' in data:
+        item.child_count_override = _as_number(data.get('child_count_override'), 'child_count_override', int)
+
+    # 直接覆盖小计：给了这个值，上面的单价×人数就不算了
+    if not partial or 'total_override' in data:
+        item.total_override = _as_number(data.get('total_override'), 'total_override')
+
+    if 'tax_rate' in data:
+        item.tax_rate = _as_number(data.get('tax_rate'), 'tax_rate') or 0
+    if 'sort_order' in data:
+        item.sort_order = _as_number(data.get('sort_order'), 'sort_order', int) or 0
+    if 'remarks' in data:
+        item.remarks = (data.get('remarks') or '').strip() or None
+
+    return item
+
+
+def _next_sort_order(budget_id):
+    """明细排序号：接在当前最大值之后"""
+    current_max = db.session.query(db.func.max(BudgetItem.sort_order)).filter_by(header_id=budget_id).scalar() or 0
+    return current_max + 1
+
+
+@package_budget.route('/api/budgets/<int:budget_id>', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_get_budget(budget_id):
+    """读取整张预算单（表头 + 全部明细 + 合计）"""
+    budget = BudgetHeader.query.get_or_404(budget_id)
+    return jsonify({'success': True, 'budget': _budget_to_dict(budget)})
+
+
+@package_budget.route('/api/budgets', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_create_budget():
+    """新建预算单（纯JSON）
+
+    页面表单的 /create 成功后是 redirect，自动化拿不到新建的 budget_id，故有此接口。
+
+    请求体：
+    {
+      "package_name": "北海道7日",     // 必填
+      "adult_count": 4,                // 必填（大人+小孩不能同时为0）
+      "child_count": 2,
+      "currency": "SGD",               // 录入货币，默认 SGD
+      "target_currency": "CNY",        // 可选，最终统一货币
+      "exchange_rate": 5.4,            // 可选，1 SGD = 5.4 CNY
+      "status": "draft",               // draft/active/archived
+      "is_template": false,
+      "remarks": "...",
+      "project_id": 80,                // 可选，关联旅游项目
+      "group_id": 12,                  // 可选，关联具体团组
+      "items": [ ...预算明细... ]      // 可选，建单同时灌入明细
+    }
+
+    返回 {"success": true, "budget_id": 24, "budget": {...}}
+    """
+    data = request.get_json(silent=True) or {}
+
+    try:
+        package_name = (data.get('package_name') or '').strip()
+        if not package_name:
+            raise _BudgetApiError('package_name（套餐名称）不能为空')
+
+        adult_count = _as_number(data.get('adult_count'), 'adult_count', int) or 0
+        child_count = _as_number(data.get('child_count'), 'child_count', int) or 0
+        if adult_count < 0 or child_count < 0:
+            raise _BudgetApiError('人数不能为负数')
+        if (adult_count + child_count) < 1:
+            raise _BudgetApiError('大人和小孩人数不能同时为 0')
+
+        project_id = _as_number(data.get('project_id'), 'project_id', int)
+        group_id = _as_number(data.get('group_id'), 'group_id', int)
+        if project_id and not TourProject.query.get(project_id):
+            raise _BudgetApiError('project_id %s 对应的项目不存在' % project_id)
+
+        budget = BudgetHeader(
+            package_name=package_name,
+            adult_count=adult_count,
+            child_count=child_count,
+            currency=(data.get('currency') or 'SGD').strip(),
+            target_currency=(data.get('target_currency') or '').strip() or None,
+            exchange_rate=_as_number(data.get('exchange_rate'), 'exchange_rate'),
+            status=(data.get('status') or 'draft').strip(),
+            is_template=_as_bool(data.get('is_template'), False),
+            remarks=(data.get('remarks') or '').strip() or None,
+            created_by=_current_user_display_name(),
+            created_at=datetime.utcnow(),
+            project_id=project_id,
+            group_id=group_id,
+        )
+        db.session.add(budget)
+        db.session.flush()  # 拿 budget.id
+
+        # 关联了项目但没指定团组：项目只有一个团组时自动绑定，并把人数同步过去
+        if project_id:
+            from App_new.business.tour.models.TourProject import TourGroup
+            if not budget.group_id:
+                groups = TourGroup.query.filter_by(project_id=project_id).all()
+                if len(groups) == 1:
+                    budget.group_id = groups[0].id
+            sync_budget_counts_to_groups(project_id, budget.group_id, adult_count, child_count)
+
+        # 可选：建单的同时把明细一起灌进来
+        for index, payload in enumerate(data.get('items') or []):
+            if not isinstance(payload, dict):
+                raise _BudgetApiError('items[%d] 必须是对象' % index)
+            item = BudgetItem(header_id=budget.id, sort_order=index + 1)
+            _apply_item_payload(item, payload)
+            db.session.add(item)
+
+        db.session.commit()
+    except _BudgetApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_create_budget failed: {e}")
+        return jsonify({'success': False, 'error': '创建失败：%s' % str(e)}), 500
+
+    return jsonify({'success': True, 'budget_id': budget.id, 'budget': _budget_to_dict(budget)})
+
+
+@package_budget.route('/api/budgets/<int:budget_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_budget(budget_id):
+    """更新预算单表头（局部更新，只改传入的字段）
+
+    可改：package_name / adult_count / child_count / currency / target_currency /
+          exchange_rate / status / is_template / remarks / project_id / group_id
+
+    改人数会按原有规则同步到团组（预算单绑定了 group_id 就同步那个团；
+    没绑定且项目只有一个团组则同步那个；多团组且未绑定则跳过，返回里会带
+    counts_not_synced 提示）。
+    """
+    budget = BudgetHeader.query.get_or_404(budget_id)
+    data = request.get_json(silent=True) or {}
+
+    result = {'success': True}
+    try:
+        if 'package_name' in data:
+            name = (data.get('package_name') or '').strip()
+            if not name:
+                raise _BudgetApiError('package_name（套餐名称）不能为空')
+            budget.package_name = name
+
+        counts_changed = 'adult_count' in data or 'child_count' in data
+        if counts_changed:
+            if 'adult_count' in data:
+                budget.adult_count = _as_number(data.get('adult_count'), 'adult_count', int) or 0
+            if 'child_count' in data:
+                budget.child_count = _as_number(data.get('child_count'), 'child_count', int) or 0
+            if budget.adult_count < 0 or budget.child_count < 0:
+                raise _BudgetApiError('人数不能为负数')
+            if (budget.adult_count + budget.child_count) < 1:
+                raise _BudgetApiError('大人和小孩人数不能同时为 0')
+
+        if 'currency' in data:
+            budget.currency = (data.get('currency') or 'SGD').strip()
+        if 'target_currency' in data:
+            budget.target_currency = (data.get('target_currency') or '').strip() or None
+        if 'exchange_rate' in data:
+            budget.exchange_rate = _as_number(data.get('exchange_rate'), 'exchange_rate')
+        if 'status' in data:
+            budget.status = (data.get('status') or 'draft').strip()
+        if 'is_template' in data:
+            budget.is_template = _as_bool(data.get('is_template'), False)
+        if 'remarks' in data:
+            budget.remarks = (data.get('remarks') or '').strip() or None
+        if 'project_id' in data:
+            project_id = _as_number(data.get('project_id'), 'project_id', int)
+            if project_id and not TourProject.query.get(project_id):
+                raise _BudgetApiError('project_id %s 对应的项目不存在' % project_id)
+            budget.project_id = project_id
+        if 'group_id' in data:
+            budget.group_id = _as_number(data.get('group_id'), 'group_id', int)
+
+        budget.updated_at = datetime.utcnow()
+
+        # 人数变了就同步到团组
+        if counts_changed and budget.project_id:
+            synced, skipped_multi = sync_budget_counts_to_groups(
+                budget.project_id, budget.group_id, budget.adult_count, budget.child_count)
+            result['counts_synced_to_groups'] = synced
+            if skipped_multi:
+                result['counts_not_synced'] = '项目有多个团组且预算单未绑定 group_id，人数未同步到团队'
+        elif counts_changed:
+            result['counts_not_synced'] = '该预算单未关联项目，人数未同步到团队'
+
+        db.session.commit()
+    except _BudgetApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_update_budget failed: {e}")
+        return jsonify({'success': False, 'error': '更新失败：%s' % str(e)}), 500
+
+    result['budget'] = _budget_to_dict(budget)
+    return jsonify(result)
+
+
+@package_budget.route('/api/budgets/<int:budget_id>/items', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_add_items(budget_id):
+    """批量新增预算明细（也可只传一条）
+
+    请求体：
+    {
+      "replace": false,          // true = 先清空该预算单的所有旧明细再写（整份覆盖）
+      "items": [
+        {"category": "机票", "item_name": "新加坡-札幌往返",
+         "pricing_method": "person_based", "adult_price": 800, "child_price": 600},
+
+        {"category": "用车", "item_name": "9座商务车 7天",
+         "pricing_method": "item_based", "item_unit_price": 350, "item_quantity": 7},
+
+        {"category": "酒店", "item_name": "札幌市区4晚", "item_details": "双床房",
+         "pricing_method": "person_based", "adult_price": 480, "child_price": 240,
+         "count_child_apply": false,        // 这项不算在儿童头上
+         "adult_count_override": 2,         // 这项单独按 2 个成人算
+         "total_override": 1200,            // 直接覆盖小计（给了它就不按单价×人数算）
+         "is_optional": true, "remarks": "..."}
+      ]
+    }
+
+    pricing_method 两条互斥的路径：
+      - person_based（默认）：adult_price / child_price × 人数
+      - item_based：item_unit_price × item_quantity（与成人/儿童单价无关）
+
+    返回 {"success": true, "created": 3, "items": [...], "budget": {...含新合计...}}
+    任一条出错则整批回滚，不会写一半。
+    """
+    budget = BudgetHeader.query.get_or_404(budget_id)
+    data = request.get_json(silent=True) or {}
+
+    payloads = data.get('items')
+    if payloads is None and data.get('item_name'):
+        payloads = [data]  # 单条简写：直接把明细字段平铺在顶层
+    if not isinstance(payloads, list) or not payloads:
+        return jsonify({'success': False, 'error': 'items 不能为空'}), 400
+
+    created = []
+    try:
+        if _as_bool(data.get('replace'), False):
+            for old in list(budget.items):
+                db.session.delete(old)
+            db.session.flush()
+
+        order = _next_sort_order(budget_id)
+        for index, payload in enumerate(payloads):
+            if not isinstance(payload, dict):
+                raise _BudgetApiError('items[%d] 必须是对象' % index)
+            item = BudgetItem(header_id=budget_id, sort_order=order + index)
+            _apply_item_payload(item, payload)
+            db.session.add(item)
+            created.append(item)
+
+        db.session.commit()
+    except _BudgetApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_add_items failed: {e}")
+        return jsonify({'success': False, 'error': '添加失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'created': len(created),
+        'items': [_item_to_dict(i) for i in created],
+        'budget': _budget_to_dict(budget, with_items=False),
+    })
+
+
+@package_budget.route('/api/budgets/<int:budget_id>/items/<int:item_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_item(budget_id, item_id):
+    """局部更新单条预算明细（只改传入的字段）"""
+    budget = BudgetHeader.query.get_or_404(budget_id)
+    item = BudgetItem.query.get_or_404(item_id)
+    if item.header_id != budget_id:
+        return jsonify({'success': False, 'error': '该明细不属于此预算单'}), 400
+
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({'success': False, 'error': '请求体为空，没有要更新的字段'}), 400
+
+    try:
+        _apply_item_payload(item, data, partial=True)
+        db.session.commit()
+    except _BudgetApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_update_item failed: {e}")
+        return jsonify({'success': False, 'error': '更新失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'item': _item_to_dict(item),
+        'budget': _budget_to_dict(budget, with_items=False),
+    })
+
+
+@package_budget.route('/api/budgets/<int:budget_id>/items/<int:item_id>/delete', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_delete_item(budget_id, item_id):
+    """删除单条预算明细
+
+    与老的 /<bid>/item/<iid>/delete 的区别：那个虽然标了 csrf.exempt，代码里却仍
+    强制要求 body 带 csrf_token 字段。这个接口不需要。
+    """
+    budget = BudgetHeader.query.get_or_404(budget_id)
+    item = BudgetItem.query.get_or_404(item_id)
+    if item.header_id != budget_id:
+        return jsonify({'success': False, 'error': '该明细不属于此预算单'}), 400
+
+    try:
+        db.session.delete(item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_delete_item failed: {e}")
+        return jsonify({'success': False, 'error': '删除失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'deleted_item_id': item_id,
+        'budget': _budget_to_dict(budget, with_items=False),
+    })
+
+
+@package_budget.route('/api/projects/<int:project_id>/quick-create', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_quick_create_for_project(project_id):
+    """为旅游项目一键建预算单（幂等，纯JSON）
+
+    与页面版 /quick_create/<pid> 同样的逻辑，但返回 JSON 而不是 redirect。
+    项目已有预算单时不重复创建，直接返回最新那个并带 already_exists: true。
+
+    套餐名取项目名，人数取首个团组（大人/小孩，回退 pax），币种取项目币种。
+    """
+    project = TourProject.query.get_or_404(project_id)
+
+    existing = BudgetHeader.query.filter_by(project_id=project_id) \
+        .order_by(BudgetHeader.created_at.desc()).first()
+    if existing:
+        return jsonify({
+            'success': True,
+            'already_exists': True,
+            'budget_id': existing.id,
+            'budget': _budget_to_dict(existing),
+        })
+
+    first_group = project.groups.first() if hasattr(project, 'groups') else None
+    adult_count, child_count = 1, 0
+    if first_group:
+        adult_count = first_group.adult_count or first_group.pax or 1
+        child_count = first_group.child_count or 0
+
+    try:
+        budget = BudgetHeader(
+            package_name=project.project_name or f'项目{project_id}预算',
+            adult_count=adult_count,
+            child_count=child_count,
+            currency=project.currency or 'SGD',
+            status='active',
+            is_template=False,
+            created_by=_current_user_display_name(),
+            created_at=datetime.utcnow(),
+            project_id=project_id,
+            group_id=first_group.id if first_group else None,
+        )
+        db.session.add(budget)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_quick_create_for_project failed: {e}")
+        return jsonify({'success': False, 'error': '创建失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'already_exists': False,
+        'budget_id': budget.id,
+        'budget': _budget_to_dict(budget),
+    })
