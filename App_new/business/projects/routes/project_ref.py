@@ -2086,14 +2086,18 @@ def list_flight_segments(ref_id):
 @login_required
 @staff_only
 def update_flight_segment_field(segment_id):
-    """局部更新单个航段的非关键字段（航站楼、航司、舱位等级、行李、座位、票号、PNR）
+    """局部更新单个航段的非关键字段（航站楼、航司、舱位等级）
 
     设计目的：供 AI agent / 浏览器自动化精确修改某个航段字段，
     避免走整张机票表单的「删除全部航段再重建」流程（任一航段日期/机场缺失会丢段）。
 
     请求体 JSON: {"departure_terminal": "T3", "arrival_terminal": "T2", ...}
-    只更新传入且在白名单内的字段；超长按字段上限截断。
+    只更新传入且在白名单内的字段（departure_terminal/arrival_terminal/airline_name/cabin_class）；超长按字段上限截断。
     返回更新后的航段 to_dict()。
+
+    注意：座位 / 票号 / PNR / 行李 不在这里——它们是「乘客×航段」级的，
+    请改用 POST /flight/passenger/<passenger_id>/update
+    传 {"segment_id": <本航段id>, "seat": "58A"}（航段级同名旧字段已废弃，写了也不显示）。
     """
     segment = ProjectFlightSegment.query.get_or_404(segment_id)
 
@@ -2123,6 +2127,19 @@ def update_flight_segment_field(segment_id):
         updated[field] = value
 
     if not updated:
+        # 常见误用：把座位/票号/PNR/行李（乘客×航段级）发到航段接口。明确指路，别只甩白名单。
+        misrouted = [f for f in ('seat', 'ticket_number', 'pnr', 'baggage') if f in data]
+        if misrouted:
+            return jsonify({
+                'success': False,
+                'error': '%s 是「乘客×航段」级字段，不能走航段接口；请改用 '
+                         'POST /flight/passenger/<passenger_id>/update，传 '
+                         '{"segment_id": %s, "%s": "..."}（或 segments 数组批量）。'
+                         % ('/'.join(misrouted), segment_id, misrouted[0]),
+                'segment_id': segment_id,
+                'ref_id': ref.id,
+                'hint_endpoint': '/projects/ref/flight/passenger/<passenger_id>/update',
+            }), 400
         return jsonify({'success': False, 'error': '没有可更新的字段（白名单：%s）'
                         % ', '.join(_SEGMENT_PATCHABLE_FIELDS.keys())}), 400
 
