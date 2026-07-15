@@ -16,14 +16,23 @@ from .config import Config
 migrate = Migrate()
 
 
-def create_app():
-    """应用工厂函数"""
+def create_app(config_name=None):
+    """应用工厂函数
+
+    config_name: 'production' / 'development' / 'testing'。
+    缺省时读环境变量 APP_ENV，仍缺省则用 'production'（安全默认：DEBUG=False）。
+    gunicorn 载入 app_new:app 会走这里的默认 -> 生产配置；本地 app_new.py 显式传
+    'development'。历史坑：以前无条件用基类 Config（DEBUG=True），导致线上跑在调试态。
+    """
     app = Flask(
         __name__,
         template_folder='templates',
         static_folder='static'
     )
-    app.config.from_object(Config)
+    from .config import config as _config_map
+    config_name = config_name or os.environ.get('APP_ENV', 'production')
+    # 未知值也回退到生产（安全默认），不用 development
+    app.config.from_object(_config_map.get(config_name) or _config_map['production'])
 
     # 追加模板目录，兼容分模块模板
     from jinja2 import ChoiceLoader, FileSystemLoader

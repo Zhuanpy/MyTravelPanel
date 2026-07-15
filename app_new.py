@@ -38,5 +38,9 @@ if __name__ == "__main__":
     print("架构版本: App_new (重构版)")
     print("=" * 50)
 
-    # threaded=True 支持多设备同时访问
+    # 本地开发：生产配置默认 SESSION_COOKIE_SECURE=True，本地是 http 会导致登录 cookie
+    # 发不出去 -> 登录死循环。本地跑时关掉它（仅影响本地直跑，不影响 gunicorn 生产）。
+    app.config['SESSION_COOKIE_SECURE'] = False
+
+    # threaded=True 支持多设备同时访问；debug=True 仅本地直跑生效
     app.run(debug=True, host='0.0.0.0', port=port, threaded=True)

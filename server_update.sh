@@ -129,36 +129,50 @@ echo "[6/6] 重启服务..."
 
 GUNICORN_PATTERN="gunicorn.*app_new:app"
 
-echo ">>> 优雅停止旧的 gunicorn 进程 (TERM)..."
-pkill -TERM -f "$GUNICORN_PATTERN" || true
-sleep 3
+# 手动启动 gunicorn（无 systemd 时的回退方案；带错误日志，不再把输出丢 /dev/null）
+start_manual_gunicorn() {
+    echo ">>> 手动启动 gunicorn（错误日志 -> logs/gunicorn-error.log）..."
+    pkill -TERM -f "$GUNICORN_PATTERN" || true
+    sleep 3
+    if pgrep -f "$GUNICORN_PATTERN" > /dev/null; then
+        echo ">>> 仍有残留进程，强制终止 (KILL)..."
+        pkill -KILL -f "$GUNICORN_PATTERN" || true
+        sleep 1
+    fi
+    mkdir -p logs
+    gunicorn --workers 3 --bind 127.0.0.1:8000 app_new:app \
+        --daemon --capture-output \
+        --error-logfile logs/gunicorn-error.log --log-level info
+    sleep 2
+    NEW_PROCS=$(pgrep -f "$GUNICORN_PATTERN" | wc -l)
+    if [ "$NEW_PROCS" -lt 3 ]; then
+        echo ">>> 错误：gunicorn 启动异常，进程数 $NEW_PROCS（期望 ≥ 3）"
+        exit 1
+    fi
+    echo ">>> gunicorn 启动成功（进程数 $NEW_PROCS）"
+    ps -eo pid,lstart,cmd | grep "$GUNICORN_PATTERN" | grep -v grep
+}
 
-# 兜底：还活着的强杀
-if pgrep -f "$GUNICORN_PATTERN" > /dev/null; then
-    echo ">>> 仍有残留进程，强制终止 (KILL)..."
-    pkill -KILL -f "$GUNICORN_PATTERN" || true
-    sleep 1
+# 优先用 systemd 托管（更稳：崩溃自动重启、开机自启、日志进 journald）。
+# 单元文件见 deploy/mytravelpanel.service，安装方法见该文件头部注释。
+if systemctl list-unit-files 2>/dev/null | grep -q '^mytravelpanel\.service'; then
+    echo ">>> 检测到 systemd 单元 mytravelpanel，用 systemctl 重启..."
+    # 先清掉可能残留的手动 daemon，避免占用 8000 让 systemctl restart 静默失败
+    pkill -f "$GUNICORN_PATTERN" || true
+    sleep 2
+    sudo systemctl restart mytravelpanel || true
+    sleep 4
+    if systemctl is-active --quiet mytravelpanel && ss -tlnp 2>/dev/null | grep -q ':8000 '; then
+        echo ">>> systemd 服务已启动（8000 监听中）"
+    else
+        echo "!!! systemd 启动异常，最近日志如下，回退到手动 gunicorn："
+        journalctl -u mytravelpanel -n 15 --no-pager || true
+        start_manual_gunicorn
+    fi
+else
+    echo ">>> 未检测到 systemd 单元（可安装 deploy/mytravelpanel.service 后转为托管），暂用手动 gunicorn"
+    start_manual_gunicorn
 fi
-
-# 确认全部清理
-if pgrep -f "$GUNICORN_PATTERN" > /dev/null; then
-    echo ">>> 错误：旧 gunicorn 进程未能终止，请手动检查"
-    ps -eo pid,lstart,cmd | grep gunicorn | grep -v grep
-    exit 1
-fi
-
-echo ">>> 启动新的 gunicorn..."
-gunicorn --workers 3 --bind 127.0.0.1:8000 app_new:app --daemon
-sleep 2
-
-# 验证新进程启动成功
-NEW_PROCS=$(pgrep -f "$GUNICORN_PATTERN" | wc -l)
-if [ "$NEW_PROCS" -lt 3 ]; then
-    echo ">>> 错误：gunicorn 启动异常，进程数 $NEW_PROCS（期望 ≥ 3）"
-    exit 1
-fi
-echo ">>> gunicorn 启动成功（进程数 $NEW_PROCS）"
-ps -eo pid,lstart,cmd | grep "$GUNICORN_PATTERN" | grep -v grep
 
 echo ">>> 重启 nginx..."
 sudo systemctl restart nginx

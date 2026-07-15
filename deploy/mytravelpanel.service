@@ -1,0 +1,39 @@
+# MyTravelPanel (Joyeful Escapes) —— gunicorn systemd 单元
+#
+# 作用：把应用交给 systemd 托管，取代「SSH 里手动 gunicorn --daemon」的裸跑方式。
+#   - 前台运行（Type=simple，无 --daemon）→ stdout/stderr 自动进 journald
+#   - 崩溃自动重启（Restart=always）
+#   - 开机自启（WantedBy=multi-user.target）
+#   - worker 定期回收防内存泄漏（--max-requests）
+# 与应用自身的 logs/error.log 双保险：应用级报错进 logs/error.log，
+# 进程级/启动期问题进 journald（journalctl -u mytravelpanel）。
+#
+# 安装（服务器上，一次性，需 root）：
+#   sudo cp /var/www/MyTravelPanel/deploy/mytravelpanel.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable mytravelpanel        # 开机自启
+#   # 先停掉手动裸跑的进程，释放 8000 端口
+#   sudo pkill -f 'gunicorn.*app_new:app' || true
+#   sudo systemctl restart mytravelpanel
+#   systemctl status mytravelpanel --no-pager | head -8
+#
+# 之后 ./server_update.sh 会自动优先用 systemd 重启。
+
+[Unit]
+Description=MyTravelPanel (Joyeful Escapes) Gunicorn
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/MyTravelPanel
+# WorkingDirectory 里有 .env，config.py 的 load_dotenv() 会读到数据库密码等
+ExecStart=/var/www/MyTravelPanel/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 --max-requests 500 --max-requests-jitter 50 app_new:app
+Restart=always
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
