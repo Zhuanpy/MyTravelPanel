@@ -50,6 +50,10 @@ def create_app():
     app.permanent_session_lifetime = timedelta(days=1)
     app.config['STATIC_FOLDER'] = 'static'
 
+    # 应用级错误日志（未捕获异常写入 logs/error.log，不依赖 gunicorn stderr）
+    from .shared.error_logging import init_error_logging
+    init_error_logging(app)
+
     # 性能监控（慢请求 + 慢 SQL 日志，写入 logs/slow_request.log 与 logs/slow_query.log）
     from .shared.monitoring import init_monitoring
     init_monitoring(app)
