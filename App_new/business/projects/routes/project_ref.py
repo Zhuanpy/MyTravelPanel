@@ -3073,16 +3073,44 @@ def delete_ref(ref_id):
     页面表单调用 -> 重定向回项目详情；
     纯API调用（JSON 或 ?format=json）-> 返回 JSON，便于自动化删除复制来的旧REF。
     """
+    from sqlalchemy.exc import IntegrityError
+    from flask import current_app
+
     ref = ProjectRef.query.get_or_404(ref_id)
     header_id = ref.header_id
     ref_number = ref.ref_number
-    db.session.delete(ref)
-    db.session.commit()
-
     wants_json = request.is_json or request.args.get('format') == 'json'
-    if wants_json:
-        return jsonify({'success': True, 'ref_id': ref_id, 'ref_number': ref_number, 'header_id': header_id})
-    return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+
+    def _back(ok, error=None):
+        if wants_json:
+            if ok:
+                return jsonify({'success': True, 'ref_id': ref_id,
+                                'ref_number': ref_number, 'header_id': header_id})
+            return jsonify({'success': False, 'error': error}), 400
+        if not ok:
+            flash(error, 'error')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+
+    try:
+        # 机票子表未配置 ORM 级联，必须按「格子 → 乘客/航段」顺序先手动清理，
+        # 否则 DELETE project_refs 会被外键挡住（1451）。EO / ref_order_items 走 ORM 级联删除。
+        ProjectFlightPassengerSegment.query.filter_by(ref_id=ref.id).delete()
+        ProjectFlightPassenger.query.filter_by(ref_id=ref.id).delete()
+        ProjectFlightSegment.query.filter_by(ref_id=ref.id).delete()
+        db.session.delete(ref)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        current_app.logger.warning('删除REF %s(%s) 失败：存在关联数据',
+                                   ref_id, ref_number, exc_info=True)
+        return _back(False, f'REF {ref_number} 存在关联数据（如已付款EO、收款、预付款或银行流水），'
+                            f'无法删除，请先处理这些记录')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error('删除REF %s 异常', ref_id, exc_info=True)
+        return _back(False, f'删除失败：{str(e)}')
+
+    return _back(True)
 
 
 @project_ref.route('/copy/<int:ref_id>', methods=['POST'])
