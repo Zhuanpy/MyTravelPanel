@@ -404,7 +404,8 @@
                                             title="复制项目">
                                         <i class="fas fa-copy"></i>
                                     </button>
-                                    {% if not stats.has_eo and not stats.has_receipt and not stats.has_invoice %}
+                                    {# 仅无 EO/发票/收款/预付款/退款 的项目可删除，口径与后端 delete_header 一致 #}
+                                    {% if project.id in deletable_ids %}
                                     <button type="button" class="btn btn-outline-danger delete-project"
                                             data-project-id="{{ project.id }}"
                                             data-project-hid="{{ project.hid }}"

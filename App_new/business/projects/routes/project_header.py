@@ -7,7 +7,7 @@ from App_new.exts import csrf, db
 from App_new.business.projects.forms.project_forms import ProjectHeaderForm
 from App_new.utils.decorators import staff_only, admin_only
 from datetime import datetime
-from sqlalchemy import func, collate
+from sqlalchemy import func, collate, text
 import traceback
 import json
 
@@ -206,12 +206,41 @@ def edit_header(header_id):
                          selected_operator_ids=selected_operator_ids,
                          selected_salesperson_ids=selected_salesperson_ids)
 
+def get_delete_blockers(header_id):
+    """返回禁止删除项目的原因列表（空列表 = 可以删除）
+
+    只要项目已产生实质业务数据（EO / 发票 / 收款 / 预付款使用 / 退款），
+    就不允许删除，避免误删已进入财务流程的项目。
+    仅有 REF / 机票草稿等尚未产生财务动作的项目仍可删除。
+    """
+    checks = [
+        ('EO', 'SELECT COUNT(*) FROM project_eos e '
+               'JOIN project_refs r ON e.ref_id = r.id WHERE r.header_id = :h'),
+        ('发票', 'SELECT COUNT(*) FROM project_invoices WHERE header_id = :h'),
+        ('收款', 'SELECT COUNT(*) FROM project_receipts WHERE header_id = :h'),
+        ('预付款使用记录',
+         'SELECT COUNT(*) FROM prepayment_usages pu '
+         'JOIN project_refs r ON pu.ref_id = r.id WHERE r.header_id = :h'),
+        ('退款', 'SELECT COUNT(*) FROM project_refunds WHERE header_id = :h'),
+    ]
+    blockers = []
+    for label, sql in checks:
+        count = db.session.execute(text(sql), {'h': header_id}).scalar() or 0
+        if count:
+            blockers.append(f'{label}（{count} 条）')
+    return blockers
+
+
 @project_header.route('/<int:header_id>/delete', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
 def delete_header(header_id):
-    """删除项目主表（幂等设计：不存在也视为删除成功）"""
+    """删除项目主表（幂等设计：不存在也视为删除成功）
+
+    删除前先判断项目是否已有 EO / 发票 / 收款 / 预付款 / 退款 等业务数据，
+    有则拒绝删除；仅对无这些财务动作的项目执行删除。
+    """
     try:
         header = ProjectHeader.query.get(header_id)
 
@@ -223,34 +252,74 @@ def delete_header(header_id):
                 flash('项目不存在或已删除', 'success')
                 return redirect(url_for('business_projects.list.list_projects'))
 
-        # 删除所有相关的发票及其明细项
-        from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
-        invoices = ProjectInvoice.query.filter_by(header_id=header_id).all()
-        for invoice in invoices:
-            # 先删除发票明细项
-            InvoiceItem.query.filter_by(invoice_id=invoice.id).delete()
-            db.session.delete(invoice)
+        # 删除前置校验：已有实质业务数据的项目不允许删除
+        blockers = get_delete_blockers(header_id)
+        if blockers:
+            msg = '该项目已有 ' + '、'.join(blockers) + '，不可删除'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': msg})
+            else:
+                flash(msg, 'error')
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
-        # 删除所有相关的收款记录
-        from App_new.business.projects.models.receipt import ProjectReceipt
-        receipts = ProjectReceipt.query.filter_by(header_id=header_id).all()
-        for receipt in receipts:
-            db.session.delete(receipt)
+        # 收集本项目关联的所有 ref / eo / invoice / receipt 主键
+        # （数据库里大量子表外键是 ON DELETE NO ACTION，不会随父行级联删除，
+        #   必须在删除父行之前按依赖顺序显式清理，否则报 1451 外键约束错误）
+        ref_ids = [r[0] for r in db.session.execute(
+            text('SELECT id FROM project_refs WHERE header_id = :h'), {'h': header_id})]
+        eo_ids = []
+        invoice_ids = [r[0] for r in db.session.execute(
+            text('SELECT id FROM project_invoices WHERE header_id = :h'), {'h': header_id})]
+        receipt_ids = [r[0] for r in db.session.execute(
+            text('SELECT id FROM project_receipts WHERE header_id = :h'), {'h': header_id})]
 
-        # 删除所有相关的EO（通过REF关联）
-        from App_new.business.projects.models.ref import ProjectRef
-        from App_new.business.projects.models.eo import ProjectEO
-        refs = ProjectRef.query.filter_by(header_id=header_id).all()
-        for ref in refs:
-            # 删除该REF下的所有EO
-            eos = ProjectEO.query.filter_by(ref_id=ref.id).all()
-            for eo in eos:
-                db.session.delete(eo)
-            # 删除REF
-            db.session.delete(ref)
+        def _in(ids):
+            """把整数主键列表拼成安全的 IN (...) 片段；ids 全部来自数据库主键"""
+            return '(' + ','.join(str(int(i)) for i in ids) + ')'
 
-        # 删除项目主表
-        db.session.delete(header)
+        if ref_ids:
+            eo_ids = [r[0] for r in db.session.execute(
+                text(f'SELECT id FROM project_eos WHERE ref_id IN {_in(ref_ids)}'))]
+
+        # 依赖顺序：先删最深的子表，逐级向上，最后删主表
+        # 每条 DELETE 只在对应 id 列表非空时执行
+        stmts = []
+        if ref_ids:
+            r = _in(ref_ids)
+            # 机票：乘客×航段格子(4级) → 乘客/航段(3级) → 订单项
+            stmts.append(f'DELETE FROM project_flight_passenger_segments WHERE ref_id IN {r}')
+            stmts.append(f'DELETE FROM project_flight_passengers WHERE ref_id IN {r}')
+            stmts.append(f'DELETE FROM project_flight_segments WHERE ref_id IN {r}')
+            stmts.append(f'DELETE FROM ref_order_items WHERE ref_id IN {r}')
+            stmts.append(f'DELETE FROM prepayment_usages WHERE ref_id IN {r}')
+            stmts.append(f'DELETE FROM visa_projects WHERE ref_id IN {r}')
+        if eo_ids:
+            e = _in(eo_ids)
+            stmts.append(f'DELETE FROM prepayment_usages WHERE eo_id IN {e}')
+            stmts.append(f'DELETE FROM supplier_statement_items WHERE eo_id IN {e}')
+        if receipt_ids:
+            # 银行流水对收款是 NO ACTION，删收款前先解除匹配
+            stmts.append(
+                f'UPDATE bank_transactions SET matched_receipt_id = NULL '
+                f'WHERE matched_receipt_id IN {_in(receipt_ids)}')
+        if invoice_ids:
+            # 退款明细引用发票是 NO ACTION，删发票前先删退款明细
+            stmts.append(f'DELETE FROM project_refund_items WHERE invoice_id IN {_in(invoice_ids)}')
+        # 项目级 NO ACTION 子表
+        stmts.append('DELETE FROM project_journal_entries WHERE header_id = :h')
+        stmts.append('DELETE FROM project_refunds WHERE header_id = :h')
+        stmts.append('DELETE FROM visa_projects WHERE header_id = :h')
+        stmts.append('DELETE FROM project_receipts WHERE header_id = :h')
+        stmts.append('DELETE FROM project_invoices WHERE header_id = :h')
+        if ref_ids:
+            stmts.append(f'DELETE FROM project_eos WHERE ref_id IN {_in(ref_ids)}')
+        stmts.append('DELETE FROM project_refs WHERE header_id = :h')
+
+        for sql in stmts:
+            db.session.execute(text(sql), {'h': header_id})
+
+        # 删除项目主表（project_members / reminders / emails / files 等为 CASCADE，随主表自动删除）
+        db.session.execute(text('DELETE FROM project_headers WHERE id = :h'), {'h': header_id})
         db.session.commit()
 
         # 检查是否是AJAX请求
