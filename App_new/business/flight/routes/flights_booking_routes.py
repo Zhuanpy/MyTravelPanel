@@ -17,6 +17,9 @@ import re
 
 flights_booking = Blueprint('flights_booking', __name__, url_prefix='/flights_booking')
 
+# 行程单 JSON 导入导出模板版本（跨平台自包含格式，不含平台内部ID）
+FLIGHT_ORDER_TEMPLATE_VERSION = 'flight-order-v1'
+
 
 def get_city_name_en(iata_code):
     """从机场IATA代码获取城市英文名"""
@@ -887,6 +890,16 @@ def order_list():
         CustomerCompany.status == 'active'
     ).order_by(CustomerCompany.company_name).all()
 
+    # 供「导入行程单」选择目标项目：按权限过滤可访问的项目
+    project_query = ProjectHeader.query.filter(ProjectHeader.status != 'cancelled')
+    if current_user.role and current_user.role.name == 'staff':
+        _lvl = 1
+        if current_user.profile:
+            _lvl = current_user.profile.staff_level or 1
+        if _lvl == 1:
+            project_query = project_query.filter(ProjectHeader.staff_id == current_user.id)
+    import_projects = project_query.order_by(ProjectHeader.created_at.desc()).all()
+
     # 按创建时间倒序排序并分页
     results = query.order_by(ProjectRef.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False)
@@ -959,9 +972,10 @@ def order_list():
     
     orders = PaginationWrapper(results, orders_data)
     
-    return render_template('business/flight/order_list.html', 
-                         orders=orders, 
+    return render_template('business/flight/order_list.html',
+                         orders=orders,
                          suppliers=suppliers,
+                         import_projects=import_projects,
                          countries=countries)
 
 
@@ -1203,6 +1217,278 @@ def import_excel():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'导入失败：{str(e)}'})
+
+
+@flights_booking.route('/order/<int:order_id>/export')
+@login_required
+@staff_only
+def export_order_json(order_id):
+    """下载单个行程单为自包含 JSON（可导入到另一平台）
+
+    order_id 为 ProjectRef.id。格式不含平台内部ID（航段/乘客用序号对齐），
+    因此可在另一平台原样新建。带 ?inline=1 时直接返回 JSON 不触发下载。
+    """
+    from flask import current_app
+    from App_new.utils.permissions import can_access_project
+    from App_new.business.flight.models.flight import ProjectFlightPassengerSegment
+    import urllib.parse
+
+    ref = ProjectRef.query.filter_by(id=order_id, ref_type_id=1).first_or_404()
+    header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'error': '无权访问此订单'}), 403
+
+    passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).order_by(
+        ProjectFlightPassenger.id).all()
+    segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id).order_by(
+        ProjectFlightSegment.departure_time, ProjectFlightSegment.id).all()
+
+    # 乘客/航段 -> 导出序号（cells 用序号引用，避免依赖平台内部ID）
+    pax_index = {p.id: i for i, p in enumerate(passengers)}
+    seg_index = {s.id: i for i, s in enumerate(segments)}
+
+    def _num(v):
+        return float(v) if v is not None else None
+
+    template = {
+        'template_version': FLIGHT_ORDER_TEMPLATE_VERSION,
+        'exported_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        'source': {
+            'ref_id': ref.id,
+            'ref_number': ref.ref_number,
+            'header_id': ref.header_id,
+            'header_hid': header.hid if header else None,
+        },
+        'ref': {
+            'description': ref.description,
+            'detailed_description': ref.detailed_description,
+            'remarks': ref.remarks,
+            'currency': ref.currency,
+            'status': ref.status,
+            'payment_status': ref.payment_status,
+            'supplier_name': ref.supplier.company_name if ref.supplier else None,
+            'leader_name': header.leader_name if header else None,
+        },
+        'passengers': [
+            {
+                'index': i,
+                'name': p.name,
+                'passenger_type': p.passenger_type,
+                'selling_price': _num(p.selling_price),
+                'cost_price': _num(p.cost_price),
+                'ticket_number': p.ticket_number,
+                'pnr': p.pnr,
+                'baggage': p.baggage,
+                'passport_number': p.passport_number,
+            } for i, p in enumerate(passengers)
+        ],
+        'segments': [
+            {
+                'index': i,
+                'flight_number': s.flight_number,
+                'airline_name': s.airline_name,
+                'departure_airport': s.departure_airport,
+                'arrival_airport': s.arrival_airport,
+                'departure_date': s.departure_time.strftime('%Y-%m-%d') if s.departure_time else None,
+                'departure_time': s.departure_time.strftime('%H:%M') if s.departure_time else None,
+                'arrival_date': s.arrival_time.strftime('%Y-%m-%d') if s.arrival_time else None,
+                'arrival_time': s.arrival_time.strftime('%H:%M') if s.arrival_time else None,
+                'departure_terminal': s.departure_terminal,
+                'arrival_terminal': s.arrival_terminal,
+                'cabin_class': s.cabin_class,
+                'cabin_code': s.cabin_code,
+            } for i, s in enumerate(segments)
+        ],
+        'cells': [],
+    }
+
+    # 乘客×航段 覆盖格子（PNR/票号/座位/行李的分格覆盖值）
+    cells = ProjectFlightPassengerSegment.query.filter_by(ref_id=ref.id).all()
+    for c in cells:
+        if c.passenger_id in pax_index and c.segment_id in seg_index:
+            template['cells'].append({
+                'passenger_index': pax_index[c.passenger_id],
+                'segment_index': seg_index[c.segment_id],
+                'pnr': c.pnr,
+                'ticket_number': c.ticket_number,
+                'seat': c.seat,
+                'baggage': c.baggage,
+            })
+
+    if request.args.get('inline'):
+        return jsonify({'success': True, 'template': template})
+
+    safe_ref = re.sub(r'[\\/:*?"<>|]', '_', (ref.ref_number or 'order').strip())
+    filename = f"机票行程单_{safe_ref}.json"
+    body = json.dumps(template, ensure_ascii=False, indent=2)
+    response = current_app.response_class(body, mimetype='application/json; charset=utf-8')
+    # 中文文件名走 RFC 5987 的 filename*，避免被 latin-1 编码卡住
+    quoted = urllib.parse.quote(filename)
+    response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{quoted}"
+    return response
+
+
+@flights_booking.route('/import_order', methods=['POST'])
+@login_required
+@staff_only
+def import_order_json():
+    """导入单个行程单 JSON 到指定项目
+
+    两种传法：
+      - multipart 上传 .json 文件（字段名 file）+ 表单字段 header_id —— 页面按钮走这条
+      - 直接把模板 JSON 作为请求体，header_id 走 query 参数 —— 自动化走这条
+
+    导入行为（两者都要）：在目标项目下按 REF 编号匹配
+      - 匹配到 → 更新该 REF（复用其 REF 编号）
+      - 没匹配到 → 在目标项目下新建 REF（自动生成新 REF 编号）
+    复用 _persist_flight_ref，与页面创建/编辑走同一套落库逻辑。
+    """
+    from werkzeug.datastructures import MultiDict
+    from App_new.utils.permissions import can_access_project
+    from App_new.business.projects.routes.project_ref import _persist_flight_ref, FlightRefError
+
+    header_id = request.form.get('header_id') or request.args.get('header_id')
+    if not header_id:
+        return jsonify({'success': False, 'message': '请选择要导入到的项目'}), 400
+    header = ProjectHeader.query.get(header_id)
+    if not header:
+        return jsonify({'success': False, 'message': '项目不存在'}), 404
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'message': '无权把行程单导入到该项目'}), 403
+
+    # 取模板：优先文件上传，其次请求体
+    uploaded = request.files.get('file')
+    if uploaded and uploaded.filename:
+        try:
+            template = json.loads(uploaded.read().decode('utf-8'))
+        except (ValueError, UnicodeDecodeError) as e:
+            return jsonify({'success': False, 'message': f'文件不是合法的 JSON 行程单：{str(e)}'}), 400
+    else:
+        template = request.get_json(silent=True) or {}
+
+    # 允许把 /export 的返回值（{'success':..,'template':{..}}）原样传回来
+    if isinstance(template.get('template'), dict):
+        template = template['template']
+
+    passengers = template.get('passengers') or []
+    segments = template.get('segments') or []
+    if not passengers:
+        return jsonify({'success': False, 'message': '行程单缺少乘客(passengers)'}), 400
+    if not segments:
+        return jsonify({'success': False, 'message': '行程单缺少航段(segments)'}), 400
+
+    # 字段长度预校验：跨平台/手工编辑的 JSON 可能把整段行程塞进 flight_number 等短字段，
+    # 直接落库会撞 MySQL 列长限制抛 500。这里先校验，给出可读提示并避免脏事务。
+    _seg_limits = {
+        'flight_number': 10, 'airline_name': 50,
+        'departure_airport': 3, 'arrival_airport': 3,
+        'departure_terminal': 50, 'arrival_terminal': 50,
+        'cabin_class': 20, 'cabin_code': 2,
+    }
+    _pax_limits = {
+        'name': 50, 'ticket_number': 50, 'pnr': 10,
+        'baggage': 50, 'passport_number': 20,
+    }
+    length_errors = []
+    for i, s in enumerate(segments):
+        for f, limit in _seg_limits.items():
+            v = s.get(f)
+            if v is not None and len(str(v)) > limit:
+                length_errors.append(f'第{i + 1}个航段 {f} 过长（{len(str(v))}>{limit}）：{str(v)[:20]}…')
+    for i, p in enumerate(passengers):
+        for f, limit in _pax_limits.items():
+            v = p.get(f)
+            if v is not None and len(str(v)) > limit:
+                length_errors.append(f'第{i + 1}位乘客 {f} 过长（{len(str(v))}>{limit}）：{str(v)[:20]}…')
+    if length_errors:
+        return jsonify({
+            'success': False,
+            'message': 'JSON 字段格式不对（疑似不是本系统「下载」导出的文件）：\n' + '\n'.join(length_errors[:8]),
+        }), 400
+
+    ref_info = template.get('ref') or {}
+    source = template.get('source') or {}
+
+    def _s(v):
+        """None -> ''，其余转字符串（对齐表单的字符串语义）"""
+        return '' if v is None else str(v)
+
+    src = MultiDict()
+    src.add('header_id', str(header.id))
+
+    # 两者都要：同项目下按 REF 编号匹配，匹配到则更新，否则新建
+    source_ref_number = source.get('ref_number')
+    action = 'created'
+    if source_ref_number:
+        existing = ProjectRef.query.filter_by(
+            header_id=header.id, ref_number=source_ref_number, ref_type_id=1).first()
+        if existing:
+            src.add('ref_id', str(existing.id))
+            action = 'updated'
+
+    # 供应商：按名称解析到目标平台的供应商，找不到就留空（不阻断导入）
+    supplier_name = ref_info.get('supplier_name')
+    if supplier_name:
+        supplier = CustomerCompany.query.filter_by(
+            company_name=supplier_name, is_supplier=True).first()
+        if supplier:
+            src.add('supplier_id', str(supplier.id))
+    if ref_info.get('remarks'):
+        src.add('remarks', _s(ref_info.get('remarks')))
+    if ref_info.get('leader_name'):
+        src.add('leader_name', _s(ref_info.get('leader_name')))
+
+    # 乘客列（与表单 passenger_name[] 等对齐）
+    for p in passengers:
+        src.add('passenger_name[]', _s(p.get('name')))
+        src.add('passenger_type[]', _s(p.get('passenger_type') or p.get('type') or 'adult'))
+        src.add('selling_price[]', _s(p.get('selling_price')))
+        src.add('cost_price[]', _s(p.get('cost_price')))
+        src.add('pax_ticket_number[]', _s(p.get('ticket_number')))
+        src.add('pax_pnr[]', _s(p.get('pnr')))
+        src.add('pax_baggage[]', _s(p.get('baggage')))
+        src.add('passport_number[]', _s(p.get('passport_number')))
+
+    # 航段列（与表单 flight_number[] 等对齐）
+    for s in segments:
+        src.add('flight_number[]', _s(s.get('flight_number')))
+        src.add('cabin_code[]', _s(s.get('cabin_code') or 'Y'))
+        src.add('cabin_class[]', _s(s.get('cabin_class')))
+        src.add('departure_airport[]', _s(s.get('departure_airport')))
+        src.add('arrival_airport[]', _s(s.get('arrival_airport')))
+        src.add('departure_date[]', _s(s.get('departure_date')))
+        src.add('departure_time[]', _s(s.get('departure_time')))
+        src.add('arrival_date[]', _s(s.get('arrival_date')))
+        src.add('arrival_time[]', _s(s.get('arrival_time')))
+        src.add('airline_name[]', _s(s.get('airline_name')))
+        src.add('departure_terminal[]', _s(s.get('departure_terminal')))
+        src.add('arrival_terminal[]', _s(s.get('arrival_terminal')))
+
+    # 乘客×航段 覆盖格子（显式二维命名 cell_{乘客序号}_{航段序号}_{字段}）
+    for c in (template.get('cells') or []):
+        pi = c.get('passenger_index')
+        si = c.get('segment_index')
+        if pi is None or si is None:
+            continue
+        for field in ('pnr', 'ticket_number', 'seat', 'baggage'):
+            if c.get(field):
+                src.add(f'cell_{pi}_{si}_{field}', _s(c.get(field)))
+
+    try:
+        ref, _hid, prepayment_msg = _persist_flight_ref(src)
+    except FlightRefError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'导入失败：{str(e)}'}), 500
+
+    action_cn = '更新' if action == 'updated' else '新建'
+    return jsonify({
+        'success': True,
+        'action': action,
+        'ref_id': ref.id,
+        'ref_number': ref.ref_number,
+        'message': f'{action_cn}成功：{ref.ref_number}（{len(passengers)}名乘客，{len(segments)}个航段）',
+    })
 
 
 @flights_booking.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])

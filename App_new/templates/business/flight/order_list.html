@@ -316,6 +316,9 @@
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
                 <i class="fas fa-upload me-1"></i>导入Excel
             </button>
+            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#importJsonModal">
+                <i class="fas fa-file-import me-1"></i>导入行程单
+            </button>
             <a href="{{ url_for('flights_booking.create_order') }}" class="btn btn-primary">创建机票订单</a>
         </div>
     </div>
@@ -419,9 +422,9 @@
                     <td>{{ order.created_date.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>
                         <div class="action-buttons">
-                            <a href="{{ url_for('flights_booking.order_detail', order_id=order.id) }}" class="btn btn-sm btn-info">详情</a>
                             <a href="{{ url_for('business_projects.project_ref.edit_flight_ref', ref_id=order.id) }}" class="btn btn-sm btn-warning">编辑</a>
                             <a href="{{ url_for('flights_booking.print_itinerary', order_id=order.id) }}" target="_blank" class="btn btn-sm btn-success" title="打印行程单">行程单</a>
+                            <a href="{{ url_for('flights_booking.export_order_json', order_id=order.id) }}" class="btn btn-sm btn-secondary" title="下载行程单JSON(可导入到另一平台)">下载</a>
                         </div>
                     </td>
                 </tr>
@@ -537,6 +540,48 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 <button type="button" class="btn btn-primary" id="importSubmitBtn" onclick="submitImport()">
                     <span class="spinner-border spinner-border-sm d-none" id="importSpinner"></span>
+                    开始导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 导入行程单JSON模态框 -->
+<div class="modal fade" id="importJsonModal" tabindex="-1" aria-labelledby="importJsonModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importJsonModalLabel">导入行程单（JSON）</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">从其他平台「下载」的行程单 JSON，选择要导入到的项目后上传即可。<br>
+                    同项目下 REF 编号相同则更新，否则在该项目下新建 REF。</p>
+                <div class="mb-3">
+                    <label class="form-label">导入到项目 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control mb-2" id="importProjectFilter" placeholder="输入项目编号/联系人筛选...">
+                    <select class="form-select" id="importProjectSelect" size="6">
+                        {% for p in import_projects %}
+                        <option value="{{ p.id }}"
+                                data-search="{{ (p.hid ~ ' ' ~ (p.contact or '') ~ ' ' ~ (p.display_desc or ''))|lower }}">
+                            {{ p.hid }}{% if p.contact %} - {{ p.contact }}{% endif %}{% if p.display_desc and p.display_desc != '-' %} · {{ p.display_desc }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">选择行程单JSON文件 <span class="text-danger">*</span></label>
+                    <input type="file" class="form-control" id="importJsonFile" accept=".json,application/json">
+                </div>
+                <div id="importJsonResult" style="display: none;">
+                    <div class="alert" id="importJsonAlert" style="white-space: pre-line;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="importJsonSubmitBtn" onclick="submitImportJson()">
+                    <span class="spinner-border spinner-border-sm d-none" id="importJsonSpinner"></span>
                     开始导入
                 </button>
             </div>
@@ -770,12 +815,84 @@ function submitImport() {
     });
 }
 
+// 行程单JSON导入：项目筛选
+function filterImportProjects() {
+    const kw = (document.getElementById('importProjectFilter').value || '').toLowerCase().trim();
+    document.querySelectorAll('#importProjectSelect option').forEach(opt => {
+        const hay = opt.getAttribute('data-search') || '';
+        opt.hidden = kw && hay.indexOf(kw) === -1;
+    });
+}
+
+// 行程单JSON导入：提交
+function submitImportJson() {
+    const select = document.getElementById('importProjectSelect');
+    const headerId = select.value;
+    if (!headerId) {
+        alert('请选择要导入到的项目');
+        return;
+    }
+    const fileInput = document.getElementById('importJsonFile');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('请选择行程单JSON文件');
+        return;
+    }
+
+    const btn = document.getElementById('importJsonSubmitBtn');
+    const spinner = document.getElementById('importJsonSpinner');
+    const resultDiv = document.getElementById('importJsonResult');
+    const alertDiv = document.getElementById('importJsonAlert');
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    resultDiv.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('header_id', headerId);
+    formData.append('file', file);
+
+    fetch('{{ url_for("flights_booking.import_order_json") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        resultDiv.style.display = 'block';
+        if (data.success) {
+            alertDiv.className = 'alert alert-success';
+            alertDiv.textContent = data.message;
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alertDiv.className = 'alert alert-danger';
+            alertDiv.textContent = data.message || '导入失败';
+        }
+    })
+    .catch(error => {
+        resultDiv.style.display = 'block';
+        alertDiv.className = 'alert alert-danger';
+        alertDiv.textContent = '导入失败：' + error.message;
+    })
+    .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+    });
+}
+
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化所有支付状态选择框的样式
     document.querySelectorAll('.payment-select').forEach(select => {
         updatePaymentSelectStyle(select);
     });
+    // 行程单导入项目筛选
+    const projFilter = document.getElementById('importProjectFilter');
+    if (projFilter) {
+        projFilter.addEventListener('input', filterImportProjects);
+    }
 });
 </script>
 {% endblock %}
