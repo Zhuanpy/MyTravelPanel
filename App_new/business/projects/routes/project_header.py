@@ -209,19 +209,25 @@ def edit_header(header_id):
 def get_delete_blockers(header_id):
     """返回禁止删除项目的原因列表（空列表 = 可以删除）
 
-    只要项目已产生实质业务数据（EO / 发票 / 收款 / 预付款使用 / 退款），
+    只要项目还有生效中的业务数据（EO / 发票 / 收款 / 预付款使用 / 退款），
     就不允许删除，避免误删已进入财务流程的项目。
-    仅有 REF / 机票草稿等尚未产生财务动作的项目仍可删除。
+    已作废的记录（EO void / 发票收款退款 cancelled / 预付使用 reversed）不算阻止，
+    这样「void 收款 → void 发票 → void EO → 删 REF」走完一圈后项目可以正常删除。
     """
     checks = [
-        ('EO', 'SELECT COUNT(*) FROM project_eos e '
-               'JOIN project_refs r ON e.ref_id = r.id WHERE r.header_id = :h'),
-        ('发票', 'SELECT COUNT(*) FROM project_invoices WHERE header_id = :h'),
-        ('收款', 'SELECT COUNT(*) FROM project_receipts WHERE header_id = :h'),
+        ('EO', "SELECT COUNT(*) FROM project_eos e "
+               "JOIN project_refs r ON e.ref_id = r.id "
+               "WHERE r.header_id = :h AND e.status <> 'void'"),
+        ('发票', "SELECT COUNT(*) FROM project_invoices "
+                 "WHERE header_id = :h AND status <> 'cancelled'"),
+        ('收款', "SELECT COUNT(*) FROM project_receipts "
+                 "WHERE header_id = :h AND status <> 'cancelled'"),
         ('预付款使用记录',
-         'SELECT COUNT(*) FROM prepayment_usages pu '
-         'JOIN project_refs r ON pu.ref_id = r.id WHERE r.header_id = :h'),
-        ('退款', 'SELECT COUNT(*) FROM project_refunds WHERE header_id = :h'),
+         "SELECT COUNT(*) FROM prepayment_usages pu "
+         "JOIN project_refs r ON pu.ref_id = r.id "
+         "WHERE r.header_id = :h AND pu.status <> 'reversed'"),
+        ('退款', "SELECT COUNT(*) FROM project_refunds "
+                 "WHERE header_id = :h AND status <> 'cancelled'"),
     ]
     blockers = []
     for label, sql in checks:

@@ -1343,21 +1343,26 @@ def list_projects():
                     display_name = u.username
                 staff_list.append({'id': u.id, 'name': display_name})
 
-        # 计算本页哪些项目「可删除」：无 EO / 发票 / 收款 / 预付款使用 / 退款 的项目才可删
-        # （与后端 delete_header 的 get_delete_blockers 判断口径保持一致；前端据此隐藏删除按钮）
+        # 计算本页哪些项目「可删除」：没有生效中的 EO / 发票 / 收款 / 预付款使用 / 退款 才可删
+        # 已作废的记录不算阻止，口径与后端 delete_header 的 get_delete_blockers 保持一致
         deletable_ids = set()
         page_ids = [p.id for p in projects]
         if page_ids:
             id_list = '(' + ','.join(str(int(i)) for i in page_ids) + ')'
             blocked_ids = set()
             blocker_sqls = [
-                f'SELECT DISTINCT r.header_id FROM project_eos e '
-                f'JOIN project_refs r ON e.ref_id = r.id WHERE r.header_id IN {id_list}',
-                f'SELECT DISTINCT header_id FROM project_invoices WHERE header_id IN {id_list}',
-                f'SELECT DISTINCT header_id FROM project_receipts WHERE header_id IN {id_list}',
-                f'SELECT DISTINCT r.header_id FROM prepayment_usages pu '
-                f'JOIN project_refs r ON pu.ref_id = r.id WHERE r.header_id IN {id_list}',
-                f'SELECT DISTINCT header_id FROM project_refunds WHERE header_id IN {id_list}',
+                f"SELECT DISTINCT r.header_id FROM project_eos e "
+                f"JOIN project_refs r ON e.ref_id = r.id "
+                f"WHERE r.header_id IN {id_list} AND e.status <> 'void'",
+                f"SELECT DISTINCT header_id FROM project_invoices "
+                f"WHERE header_id IN {id_list} AND status <> 'cancelled'",
+                f"SELECT DISTINCT header_id FROM project_receipts "
+                f"WHERE header_id IN {id_list} AND status <> 'cancelled'",
+                f"SELECT DISTINCT r.header_id FROM prepayment_usages pu "
+                f"JOIN project_refs r ON pu.ref_id = r.id "
+                f"WHERE r.header_id IN {id_list} AND pu.status <> 'reversed'",
+                f"SELECT DISTINCT header_id FROM project_refunds "
+                f"WHERE header_id IN {id_list} AND status <> 'cancelled'",
             ]
             for sql in blocker_sqls:
                 blocked_ids.update(row[0] for row in db.session.execute(text(sql)))
