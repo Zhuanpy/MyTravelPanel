@@ -312,6 +312,12 @@ def delete_header(header_id):
             # 退款明细引用发票是 NO ACTION，删发票前先删退款明细
             stmts.append(f'DELETE FROM project_refund_items WHERE invoice_id IN {_in(invoice_ids)}')
         # 项目级 NO ACTION 子表
+        # 日记账：分录明细(3级) → 分录(2级)。明细的 entry_id 是 NO ACTION，不先删会挡住主表
+        stmts.append('DELETE FROM project_journal_entry_lines WHERE entry_id IN '
+                     '(SELECT id FROM project_journal_entries WHERE header_id = :h)')
+        # 冲销分录用 reversed_entry_id 指向同表的被冲销分录，逐行删除时会自己挡自己，先解除引用
+        stmts.append('UPDATE project_journal_entries SET reversed_entry_id = NULL '
+                     'WHERE header_id = :h AND reversed_entry_id IS NOT NULL')
         stmts.append('DELETE FROM project_journal_entries WHERE header_id = :h')
         stmts.append('DELETE FROM project_refunds WHERE header_id = :h')
         stmts.append('DELETE FROM visa_projects WHERE header_id = :h')
