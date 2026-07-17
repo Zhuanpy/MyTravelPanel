@@ -80,10 +80,22 @@ _CATALOG = {
                 {'method': 'POST', 'path': '/projects/ref/flight/quick-create/<pid>',
                  'input': 'JSON {supplier_id,leader_name,passengers,segments,auto_eo,auto_invoice}',
                  'desc': '一键建 机票REF + EO + 发票'},
+                {'method': 'GET', 'path': '/projects/ref/flight/<rid>/segments',
+                 'input': '-', 'desc': '航段列表（改单前先拿 segment_id）'},
+                {'method': 'GET', 'path': '/projects/ref/flight/<rid>/passengers',
+                 'input': '-', 'desc': '乘客列表（含 segments 格子：PNR/票号/座位/行李）'},
+                {'method': 'POST', 'path': '/projects/ref/flight/<rid>/ticketing',
+                 'input': 'JSON {replace,passengers:[{name|passenger_id,pnr,ticket_number,'
+                          'baggage,passport_number,segments:[{segment_id,seat,pnr,...}]}]}',
+                 'desc': '★补行程单首选：一个请求灌完整个 REF 的「乘客×航段」票务矩阵，'
+                         '出错整批回滚。多乘客/多航段用它，别按乘客循环'},
                 {'method': 'POST', 'path': '/projects/ref/flight/segment/<sid>/update',
-                 'input': 'JSON', 'desc': '改单个航段字段（航站楼/时刻/票号）'},
+                 'input': 'JSON {departure_terminal,arrival_terminal,airline_name,cabin_class}',
+                 'desc': '改单个航段字段。仅限这 4 个字段；'
+                         'PNR/票号/座位/行李是乘客×航段级，写这里不显示，用 ticketing'},
                 {'method': 'POST', 'path': '/projects/ref/flight/passenger/<pid>/update',
-                 'input': 'JSON', 'desc': '改单个乘客字段'},
+                 'input': 'JSON {ticket_number,pnr,baggage,passport_number,segments:[...]}',
+                 'desc': '改单个乘客（乘客级默认值 + 各航段格子）。只动一两个格子时用'},
             ],
         },
         {
