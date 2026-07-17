@@ -10,24 +10,67 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+/* 右下角浮动保存条 */
+.fill-save-bar {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.fill-save-bar #fillFormStatus {
+    color: #6b7280;
+    font-size: 0.8rem;
+    max-width: 260px;
+}
+/* 避免最后一张卡片被保存条挡住 */
+#fillFormBody { padding-bottom: 4.5rem; }
+
+/* 默认字段排布：自适应列数，字段按 fieldWidth() 跨列 */
+.fill-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem 1.2rem;
+    align-items: start;
+}
+/* 「一条记录一行」排布：每条记录一个 .fill-row，列数由该段最宽的一条决定 */
+.fill-rows { display: flex; flex-direction: column; gap: 1rem; }
+.fill-row {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+    gap: 1rem 1.2rem;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .fill-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    .fill-save-bar { right: 0.75rem; bottom: 0.75rem; }
+    .fill-save-bar #fillFormStatus { max-width: 140px; }
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
 
+<div class="visa-container">
 <div class="visa-card visa-mb-3">
     <div class="visa-card-header">
         <h2><i class="fas fa-pen-to-square"></i> 填写签证表格</h2>
-        <div class="visa-flex visa-gap-2" style="align-items:center;">
-            <span id="fillFormStatus" style="color:#6b7280; font-size:0.8rem;"></span>
-            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" id="fillFormSaveBtn" onclick="saveFillForm()">
-                <i class="fas fa-save"></i> 保存
-            </button>
-        </div>
     </div>
     <div class="visa-card-body">
         <div style="margin-bottom:0.8rem; color:#6b7280; font-size:0.85rem;">
-            <span style="color:#dc2626;">*</span> = 需申请人提供 · 灰底为固定项（不可改） · 保存后回详情页点「生成表格」出 PDF
+            <span style="color:#dc2626;">*</span> = 需申请人提供 · 灰底为固定项（不可改） · 右下角「生成表格」会先保存再出 PDF
         </div>
         <!-- 模板工具条 -->
         <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:0.9rem; padding:0.6rem 0.8rem; background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px;">
@@ -58,6 +101,19 @@
 <div id="fillFormBody">
     <div style="text-align:center; color:#888; padding:2rem;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>
 </div>
+</div>{# /visa-container #}
+
+<!-- 右下角常驻保存条：表格很长，滚到哪都能存；生成表格也放这儿，省得回详情页 -->
+<div class="fill-save-bar">
+    <span id="fillFormStatus"></span>
+    <button type="button" class="visa-btn visa-btn-primary" id="fillFormSaveBtn" onclick="saveFillForm()">
+        <i class="fas fa-save"></i> 保存
+    </button>
+    <button type="button" class="visa-btn visa-btn-success" id="fillFormGenBtn" onclick="generateFillForm()"
+            title="先保存当前填写内容，再生成表格并下载">
+        <i class="fas fa-file-arrow-down"></i> 生成表格
+    </button>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -67,7 +123,21 @@ const FORM_DATA_URL = "{{ url_for('visa_project.get_project_form_data', project_
 const TPL_URL = "{{ url_for('visa_project.list_form_templates') }}";  // GET列表 / POST保存
 const VISA_CATEGORY = "{{ 'japan' if '日本' in project.visa_type else ('korea' if '韩国' in project.visa_type else '') }}";
 const MASTER_UPLOAD_URL = "{{ url_for('visa_project.upload_master_template', project_id=project.id) }}";
+const GENERATE_URL = "{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}";
+const DOWNLOAD_URL = "{{ url_for('visa_project.download_form', project_id=project.id) }}";
 const MASTER_ACCEPT = VISA_CATEGORY === 'japan' ? '.pdf' : (VISA_CATEGORY === 'korea' ? '.xls,.xlsx' : '');
+const INIT_PAGE = {{ (active_page or '')|tojson }};  // ?page= 指定的默认分页
+
+// ?page= 容错匹配母版真实页码：'2' / 'page2' / 'PAGE02' 都能命中 'PAGE02'
+function matchPageKey(want, pageKeys) {
+    if (!want) return null;
+    const w = String(want).trim();
+    const exact = pageKeys.find(k => k.toLowerCase() === w.toLowerCase());
+    if (exact) return exact;
+    const num = w.replace(/\D/g, '');  // 只留数字，去掉 PAGE 前缀与前导零差异
+    if (!num) return null;
+    return pageKeys.find(k => k.replace(/\D/g, '').replace(/^0+/, '') === num.replace(/^0+/, '')) || null;
+}
 
 // 上传填表母版（共用资料），成功后重新加载表单字段
 function uploadMaster(input) {
@@ -255,13 +325,14 @@ function fieldWidth(f) {
 }
 
 // 渲染单个字段（统一结构：label / ctype(text|select|radio) / options）
-function renderField(f) {
+// opts.noSpan：行分组模式下列宽由行决定，不再按 fieldWidth() 跨列
+function renderField(f, opts0) {
     const val = (f.value == null ? '' : String(f.value));
     const label = f.label || f.form || f.seq;
     const applicantMark = f.applicant ? ' <span style="color:#dc2626;" title="需申请人提供">*</span>' : '';
     const remarkHint = f.remark ? `<span style="color:#9ca3af; font-size:0.75rem;"> · ${escHtml(f.remark)}</span>` : '';
     const readonly = f.editable === false;
-    const width = fieldWidth(f);
+    const width = (opts0 && opts0.noSpan) ? 1 : fieldWidth(f);
     const opts = f.options || [];
     let control;
     if (f.ctype === 'radio' && opts.length) {
@@ -293,8 +364,34 @@ function renderField(f) {
     </div>`;
 }
 
-// 切换标签页
-function switchFillPage(page) {
+// 渲染一个分段的字段区：
+// 段内字段带 row 的走「一条记录一行」，否则用默认自适应网格
+function renderSectionBody(list) {
+    if (!list.some(f => f.row)) {
+        return `<div class="fill-grid">` + list.map(f => renderField(f)).join('') + `</div>`;
+    }
+    const order = [];
+    const rmap = {};
+    list.forEach(f => {
+        const key = f.row || ('_solo_' + f.seq);  // 没 row 的字段自己独占一行
+        if (!rmap[key]) { rmap[key] = []; order.push(key); }
+        rmap[key].push(f);
+    });
+    // 列数取最长的一条记录，短的行(如单个是否题)留空位，各行字段左右对齐
+    const cols = Math.max.apply(null, order.map(k => rmap[k].length));
+    return `<div class="fill-rows">` + order.map(k =>
+        `<div class="fill-row" style="--cols:${cols};">` +
+        rmap[k].map(f => renderField(f, { noSpan: true })).join('') + `</div>`
+    ).join('') + `</div>`;
+}
+
+// 切换标签页；同步 ?page= 便于刷新/分享定位到同一页
+function switchFillPage(page, pushUrl) {
+    if (pushUrl !== false) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        history.replaceState(null, '', url);
+    }
     document.querySelectorAll('.fill-tab-btn').forEach(b => {
         const on = b.getAttribute('data-page') === page;
         b.style.background = on ? '#6366f1' : '#fff';
@@ -315,6 +412,8 @@ function renderFillForm(fields) {
     const pages = {};
     fields.forEach(f => { (pages[f.page] = pages[f.page] || []).push(f); });
     const pageKeys = Object.keys(pages).sort();
+    // ?page= 命中就用它，否则第一页；URL 里写错的页码不报错，静默回落
+    const initPage = matchPageKey(INIT_PAGE, pageKeys) || pageKeys[0];
 
     // 标签条
     let tabs = '<div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:1rem; border-bottom:1px solid #e5e7eb; padding-bottom:0.6rem;">';
@@ -327,8 +426,8 @@ function renderFillForm(fields) {
 
     // 各页内容区（默认只显示第一页），页内每个 section 一张卡片
     let sections = '';
-    pageKeys.forEach((page, idx) => {
-        sections += `<div class="fill-page-section" data-page="${page}" style="display:${idx === 0 ? 'block' : 'none'};">`;
+    pageKeys.forEach((page) => {
+        sections += `<div class="fill-page-section" data-page="${page}" style="display:${page === initPage ? 'block' : 'none'};">`;
         // 按 section 分组，保持原顺序
         const groups = [];
         const gmap = {};
@@ -343,17 +442,14 @@ function renderFillForm(fields) {
                     <h2 style="font-size:0.95rem;"><i class="fas fa-folder-open"></i> ${sec}
                         <span style="color:#9ca3af; font-weight:400; font-size:0.8rem;">(${gmap[sec].length})</span></h2>
                 </div>
-                <div class="visa-card-body">
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:1rem 1.2rem; align-items:start;">`;
-            gmap[sec].forEach(f => { sections += renderField(f); });
-            sections += `</div></div></div>`;
+                <div class="visa-card-body">` + renderSectionBody(gmap[sec]) + `</div></div>`;
         });
         sections += `</div>`;
     });
 
     document.getElementById('fillFormTabs').innerHTML = tabs;
     body.innerHTML = sections;
-    switchFillPage(pageKeys[0]);
+    switchFillPage(initPage, false);  // 首屏不改写 URL，保留用户给的 ?page= 原样
 }
 
 function loadFillForm() {
@@ -383,27 +479,60 @@ function loadFillForm() {
         });
 }
 
-function saveFillForm() {
-    const btn = document.getElementById('fillFormSaveBtn');
-    const original = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
-    setStatus('保存中...');
-
-    const values = gatherFormValues();
-
-    fetch(FORM_DATA_URL, {
+// 提交当前表单值；失败时 reject，供「保存」与「生成表格」共用
+function postFormValues() {
+    return fetch(FORM_DATA_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify({ values })
+        body: JSON.stringify({ values: gatherFormValues() })
     })
     .then(r => r.json())
     .then(data => {
         if (!data.success) throw new Error(data.message || '保存失败');
-        setStatus(`已保存 ${data.saved} 项`, true);
-    })
-    .catch(err => setStatus(err.message || '保存失败', false))
-    .finally(() => { btn.disabled = false; btn.innerHTML = original; });
+        return data;
+    });
+}
+
+// 按钮忙碌态：置灰 + 转圈，返回恢复原状的函数
+function busy(btn, text) {
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
+    return () => { btn.disabled = false; btn.innerHTML = original; };
+}
+
+function saveFillForm() {
+    const done = busy(document.getElementById('fillFormSaveBtn'), '保存中...');
+    setStatus('保存中...');
+    postFormValues()
+        .then(data => setStatus(`已保存 ${data.saved} 项`, true))
+        .catch(err => setStatus(err.message || '保存失败', false))
+        .finally(done);
+}
+
+// 生成表格：生成端读的是库里的值，所以必须先保存，否则出的是旧数据
+function generateFillForm() {
+    const done = busy(document.getElementById('fillFormGenBtn'), '生成中...');
+    setStatus('保存中...');
+    postFormValues()
+        .then(() => {
+            setStatus('生成中...');
+            return fetch(GENERATE_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(r => r.json());
+        })
+        .then(data => {
+            if (!data.success) throw new Error(data.message || '生成表格失败');
+            setStatus((data.message || '生成成功') + '，正在下载...', true);
+            const a = document.createElement('a');
+            a.href = DOWNLOAD_URL;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        })
+        .catch(err => setStatus(err.message || '生成表格失败', false))
+        .finally(done);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

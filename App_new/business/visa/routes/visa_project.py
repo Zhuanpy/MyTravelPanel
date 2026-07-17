@@ -391,6 +391,93 @@ _KOREA_FORM_SECTIONS = {
     '12': '签名',
 }
 
+# 部分组内容太杂，只按组号归类会把不相干的字段堆在一张卡片里。
+# 这里按坐标序列前缀再拆一层，命中则用细分标题，否则回落到组标题。
+_KOREA_SUB_SECTIONS = (
+    # 第 8 组「访问信息」：本次行程 / 韩国历史访问 / 其它国家历史访问
+    ('8.1-', '申请访问目的'),
+    ('8.2-', '申请访问目的'),
+    ('8.3-', '申请访问目的'),
+    ('8.4-', '申请访问目的'),
+    ('8.5-', '申请访问目的'),
+    ('8.6-', '历史访问信息'),        # 是否去过韩国 + 次数 / 目的 / 出入境日期
+    ('8.7-', '历史访问其它国家'),    # 近 5 年访问其它国家(最多 4 条)
+)
+
+
+def _korea_section_title(seq, group):
+    """字段所属分段标题：先看细分前缀，再回落到组标题。"""
+    for prefix, title in _KOREA_SUB_SECTIONS:
+        if seq.startswith(prefix):
+            return title
+    return _KOREA_FORM_SECTIONS.get(group, f'组{group}')
+
+
+# 这些前缀下「一条记录一行」：同一条记录的几个字段排在同一行，方便按条录入
+_KOREA_ROW_GROUPED_PREFIXES = ('8.6-', '8.7-')
+
+# 行分组推不出来的字段，按 seq 显式指定行 id
+_KOREA_ROW_OVERRIDES = {
+    # 历史访问信息：是否去过+去过几次 挤一行；其余 8.6-N-* 按前缀各自成行
+    '8.6-0-': '8.6-r1',
+    '8.6-1-': '8.6-r1',
+}
+
+
+def _korea_row_key(seq):
+    """行分组 id：同 id 的字段在前端排一行；None 表示不参与行分组。
+
+    8.7-1-1/8.7-1-2/8.7-1-3(国家1 的 名字/目的/时间) → '8.7-1'
+    8.7-0-(是否访问过其它国家) → '8.7-0'，自己独占一行
+    """
+    if seq in _KOREA_ROW_OVERRIDES:
+        return _KOREA_ROW_OVERRIDES[seq]
+    for prefix in _KOREA_ROW_GROUPED_PREFIXES:
+        if seq.startswith(prefix):
+            parts = seq.split('-')
+            return f'{parts[0]}-{parts[1]}' if len(parts) >= 2 else seq
+    return None
+
+
+# 母版 FormSample.xls 里缺、但表格上确实存在的字段，在读母版后补进来。
+# 韩国表格「8.6 历史访问韩国」那张表有 5 行，母版只给了第 1 行(8.6-2-*)，
+# 这里补第 2~5 行。母版是共用资料且不入 Git(资源/ 已忽略)，改母版线上还得重传，
+# 放代码里可随 git 部署；母版将来真加了同 seq 的行，下面的补充会自动跳过。
+# 坐标另存 visa_form_coordinates，见 scripts/20260717_add_korea_visit_history_rows.py。
+_KOREA_EXTRA_FIELDS = [
+    # (seq, 标签)；第 N 次访问记录 → 8.6-(N+1)-1 目的 / 8.6-(N+1)-2 出入境日期
+    (f'8.6-{n + 1}-{col}', label)
+    for n in range(2, 6)
+    for col, label in ((1, f'入境韩国目的{n}'), (2, f'入境和出境韩国日期{n}'))
+]
+
+
+def _korea_extra_field(seq, label, page='PAGE03'):
+    """把 _KOREA_EXTRA_FIELDS 的 (seq, 标签) 补成与母版字段同构的结构。"""
+    group = seq.split('.')[0].split('-')[0]
+    return {
+        'page': page,
+        'seq': seq,
+        'type': '填写',
+        'section': _korea_section_title(seq, group),
+        'form': label,
+        'label': label,
+        'ctype': 'text',
+        'options': [],
+        'remark': '',
+        'editable': True,
+        'applicant': True,   # 与第 1 行(母版 8.6-2-* 标 Y)保持一致
+        'default': '',
+        'row': _korea_row_key(seq),
+    }
+
+
+# 母版里标了「是否修改=N」但实际应由填表人自行填写/留空的字段。
+# 母版的 DETAIL 只是样例数据(如某个新加坡地址)，不能当固定默认值用。
+_KOREA_FORCE_EDITABLE_SEQS = {
+    '4.2-',  # 其它地址：申请人可填可不填
+}
+
 
 def _korea_master_template_path():
     """韩国签证母版 FormSample.xls 路径(共用资料)"""
@@ -424,8 +511,9 @@ def _korea_template_fields():
 
     每项: {page, seq, type(填写/选择), form(标签), remark(提示/选项), editable, applicant, default}
     - type '选择' 用 remark 里的 "男：1)/女：2" 生成下拉；'填写' 用文本框
-    - editable=False(是否修改=N) 的是固定默认值，前端只读
+    - editable=False(是否修改=N，且不在 _KOREA_FORCE_EDITABLE_SEQS 里) 的是固定默认值，前端只读
     - default 仅对固定字段有意义(母版里 Y 字段是样例数据，不作默认)
+    - 母版缺的字段由 _KOREA_EXTRA_FIELDS 补齐(如历史访问韩国的第 2~5 行)
     """
     import pandas as pd
     path = _korea_master_template_path()
@@ -439,7 +527,8 @@ def _korea_template_fields():
         if not page or not seq:
             continue  # 跳过分隔/空行
         ftype = _cell_str(row.get('类型')) or '填写'
-        editable = _cell_str(row.get('是否修改')).upper() == 'Y'
+        editable = (_cell_str(row.get('是否修改')).upper() == 'Y'
+                    or seq in _KOREA_FORCE_EDITABLE_SEQS)
         group = seq.split('.')[0].split('-')[0]  # 取整数前缀作组号
         remark = _cell_str(row.get('Remark'))
         form = _cell_str(row.get('FORM'))
@@ -448,7 +537,8 @@ def _korea_template_fields():
             'page': page,
             'seq': seq,
             'type': ftype,
-            'section': _KOREA_FORM_SECTIONS.get(group, f'组{group}'),
+            'section': _korea_section_title(seq, group),
+            'row': _korea_row_key(seq),
             'form': form,
             # 统一字段结构（前端通用）
             'label': form or seq,
@@ -459,6 +549,11 @@ def _korea_template_fields():
             'applicant': _cell_str(row.get('是否申请人提供信息')).upper() == 'Y',
             'default': _cell_str(row.get('DETAIL')) if not editable else '',
         })
+
+    # 补齐母版缺的字段(见 _KOREA_EXTRA_FIELDS)；母版已有同 seq 则以母版为准
+    have = {f['seq'] for f in fields}
+    fields.extend(_korea_extra_field(seq, label)
+                  for seq, label in _KOREA_EXTRA_FIELDS if seq not in have)
     return fields
 
 
@@ -859,12 +954,18 @@ def upload_master_template(project_id):
 @login_required
 @staff_only
 def fill_form_page(project_id):
-    """填写签证表格的独立页面（数据仍走 /form-data 接口）。"""
+    """填写签证表格的独立页面（数据仍走 /form-data 接口）。
+
+    ?page= 指定默认打开的分页，支持 "1" / "PAGE01" 两种写法；
+    页码集合由母版决定，故只做格式清洗，真正的匹配在前端渲染时做。
+    """
     project = VisaProject.query.get_or_404(project_id)
     if not is_visa_type_supported_for_form_generation(project.visa_type or ''):
         flash(f'签证类型 "{project.visa_type}" 暂不支持填表', 'warning')
         return redirect(url_for('visa_project.visa_detail', project_id=project.id))
-    return render_template('business/visa/签证项目管理/visa_form_fill.html', project=project)
+    page = (request.args.get('page') or '').strip()[:10]
+    return render_template('business/visa/签证项目管理/visa_form_fill.html',
+                           project=project, active_page=page)
 
 
 @visa_project.route('/generate_form/<int:project_id>', methods=['POST'])
