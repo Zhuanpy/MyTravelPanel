@@ -35,7 +35,7 @@ echo "=========================================="
 
 # 项目目录
 PROJECT_DIR="/var/www/MyTravelPanel"
-BRANCH="wip/backup-20250825-235609"
+BRANCH="master"
 MIGRATION_LOG="$PROJECT_DIR/.migration_history"
 
 # 进入项目目录
@@ -45,10 +45,13 @@ cd $PROJECT_DIR
 echo "当前目录: $(pwd)"
 
 # 拉取最新代码
+# 注意：历史曾被改写（清理泄露密钥），服务器旧 clone 会与远程分叉，
+# 用 fetch + reset --hard 强制对齐（gitignored 的 .env 等不受影响），比 git pull 稳。
 echo ""
-echo "[2/6] 拉取最新代码..."
-git fetch origin
-git pull origin $BRANCH
+echo "[2/6] 拉取最新代码（fetch + reset --hard origin/$BRANCH）..."
+git fetch origin --prune
+git checkout "$BRANCH" 2>/dev/null || git checkout -b "$BRANCH" "origin/$BRANCH"
+git reset --hard "origin/$BRANCH"
 
 # 激活虚拟环境
 echo ""
