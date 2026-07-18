@@ -1222,6 +1222,140 @@ def edit_product(product_id):
                          image_lib_map=image_lib_map)
 
 
+# ==================== Hermes / Agent 用 JSON 接口 ====================
+
+@tour_products_bp.route('/<int:product_id>/json', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
+def product_json(product_id):
+    """读取产品全量数据（主体字段 + 逐日行程），供 Hermes 先读后改"""
+    product = Product.query.get_or_404(product_id)
+    itineraries = ProductItinerary.query.filter_by(product_id=product_id)\
+        .order_by(ProductItinerary.day_number).all()
+    return jsonify({
+        'success': True,
+        'product': product.to_dict(),
+        'itineraries': [it.to_dict() for it in itineraries]
+    })
+
+
+@tour_products_bp.route('/<int:product_id>/itineraries', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
+def list_itineraries(product_id):
+    """列出某产品的全部逐日行程（含 itinerary_id），供 Hermes 定位要改的那一天"""
+    Product.query.get_or_404(product_id)  # 校验产品存在
+    itineraries = ProductItinerary.query.filter_by(product_id=product_id)\
+        .order_by(ProductItinerary.day_number).all()
+    return jsonify({
+        'success': True,
+        'product_id': product_id,
+        'count': len(itineraries),
+        'itineraries': [it.to_dict() for it in itineraries]
+    })
+
+
+# 产品主体字段：JSON 局部更新白名单及类型
+_PATCH_STR_FIELDS = {
+    'product_name', 'product_code', 'departure_city', 'destination_city',
+    'product_type', 'currency', 'product_description', 'included_services',
+    'excluded_services', 'important_notes', 'suitable_season',
+    'difficulty_level', 'product_status'
+}
+_PATCH_INT_FIELDS = {'supplier_id', 'duration_days', 'min_pax', 'max_pax'}
+_PATCH_FLOAT_FIELDS = {'base_price', 'child_price', 'infant_price', 'single_room_supplement'}
+_PATCH_DATE_FIELDS = {'valid_from', 'valid_until'}
+
+
+@tour_products_bp.route('/<int:product_id>/patch', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def patch_product(product_id):
+    """产品主体字段的 JSON 局部更新（供 Hermes）
+
+    只更新请求 JSON 中出现的字段，其余保持不变，避免整表单重提交丢字段。
+    支持白名单字段，另支持 city_name（自动建城市，可配 country_name）、
+    tags（数组或逗号字符串）、is_featured。图片/文件类字段不走此接口。
+    请求体示例: {"base_price": 1288, "product_name": "北海道5日", "tags": ["亲子", "豪华"]}
+    """
+    product = Product.query.get_or_404(product_id)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not data:
+        return jsonify({'success': False, 'message': '请求体需为非空 JSON 对象'}), 400
+
+    updated = []
+    try:
+        for key, value in data.items():
+            if key in _PATCH_STR_FIELDS:
+                setattr(product, key, value if value not in (None, '') else None)
+            elif key in _PATCH_INT_FIELDS:
+                setattr(product, key, int(value) if value not in (None, '') else None)
+            elif key in _PATCH_FLOAT_FIELDS:
+                setattr(product, key, float(value) if value not in (None, '') else None)
+            elif key in _PATCH_DATE_FIELDS:
+                setattr(product, key,
+                        datetime.strptime(value, '%Y-%m-%d').date() if value else None)
+            elif key == 'is_featured':
+                setattr(product, key,
+                        value.strip() in ('1', 'true', 'True') if isinstance(value, str)
+                        else bool(value))
+            elif key == 'tags':
+                if isinstance(value, list):
+                    tags_list = [str(t).strip() for t in value if str(t).strip()]
+                else:
+                    tags_list = [t.strip() for t in str(value).split(',') if t.strip()]
+                product.tags = json.dumps(tags_list, ensure_ascii=False)
+            elif key == 'city_name':
+                from App_new.business.tour.models.Packagemodels import ProductCity
+                city_name = (value or '').strip()
+                if city_name:
+                    city = ProductCity.query.filter_by(city_name=city_name).first()
+                    if not city:
+                        country_name = data.get('country_name') or '未知'
+                        city = ProductCity(city_name=city_name, display_name=city_name,
+                                           country_name=country_name)
+                        db.session.add(city)
+                        db.session.flush()
+                    product.city_id = city.id
+                    product.city_name = city_name
+                else:
+                    product.city_id = None
+                    product.city_name = None
+            elif key == 'country_name':
+                continue  # 仅配合 city_name 使用
+            else:
+                continue  # 非白名单字段忽略（图片/文件走各自专用接口）
+            updated.append(key)
+
+        if not updated:
+            return jsonify({'success': False, 'message': '没有可更新的有效字段'}), 400
+
+        product.updated_at = datetime.utcnow()
+
+        # 同步到统一产品表（与表单编辑保持一致）
+        from App_new.business.products.sync_helper import sync_tour_product_to_unified
+        sync_tour_product_to_unified(product, created_by=getattr(current_user, 'username', 'api'))
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'已更新 {len(updated)} 个字段',
+            'updated_fields': updated,
+            'product': product.to_dict()
+        })
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'字段值类型错误：{str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
 @tour_products_bp.route('/<int:product_id>/toggle-status', methods=['POST'])
 @csrf.exempt
 @login_required

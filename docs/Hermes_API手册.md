@@ -442,6 +442,49 @@ POST /package_budget/api/budgets/<bid>/items
 
 ---
 
+## 12. 旅游产品库（Product Catalog：逐日行程 + 主体字段）
+
+对应 `/tour/products/<pid>/edit` 页面。注意与第 10 节「旅游项目」不同：这里是**产品库**
+（`Product` → `ProductItinerary` 每日行程），第 10 节是**具体项目/团**。全部 `@csrf.exempt`。
+
+### 读侧（先读后改）
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/tour/products/<pid>/json` | GET | **先调这个**：产品全量（主体字段 + 全部逐日行程，含 itinerary_id） |
+| `/tour/products/<pid>/itineraries` | GET | 只列逐日行程（拿 itinerary_id 用） |
+| `/tour/products/<pid>/itinerary/<iid>` | GET | 读单天行程 |
+
+### 改产品主体字段（JSON body，局部更新）
+
+```json
+POST /tour/products/<pid>/patch          // Content-Type: application/json
+{"base_price": 1288, "product_status": "active", "tags": ["亲子", "豪华"]}
+```
+- 只更新传入的字段，其余不动；返回 `{success, message, updated_fields, product}`
+- 白名单：`product_name / product_code / base_price / child_price / infant_price /
+  single_room_supplement / currency / duration_days / min_pax / max_pax /
+  departure_city / destination_city / product_type / product_status /
+  product_description / included_services / excluded_services / important_notes /
+  suitable_season / difficulty_level / supplier_id / valid_from / valid_until /
+  is_featured / tags（数组或逗号串）/ city_name（不存在自动建，可配 country_name）`
+- `valid_from/valid_until` 用 `YYYY-MM-DD`；封面图 / 图库 / 供应商文件**不走此接口**
+
+### 改逐日行程（form-data，非 JSON）
+
+| 接口 | 方法 | 关键字段（multipart form-data） |
+|---|---|---|
+| `/tour/products/<pid>/itinerary/add` | POST | `day_number`(必填) `day_title` `content` `library_image1~3` 或上传 `image1~3` |
+| `/tour/products/<pid>/itinerary/<iid>/update` | POST | 同上 |
+| `/tour/products/<pid>/itinerary/<iid>/delete` | POST | — |
+| `/tour/products/<pid>/itinerary/auto-assign-images` | POST | 自动从产品图库配图 |
+| `/tour/products/<pid>/itinerary/import-excel` | POST | Excel 文件批量导入 |
+
+> ⚠️ **主体走 JSON body，逐日行程走 form-data 字段**——两者格式不同别混。
+> 逐日行程图片 `library_imageN` 只接路径字符串，上传新文件用 `imageN`（multipart）。
+
+---
+
 ## 尚不可用（当前只有 HTML/表单，需另补 JSON 接口才能给 Hermes）
 
 按对「让 Hermes 干活」的价值排序：
