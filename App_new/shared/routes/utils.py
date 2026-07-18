@@ -367,63 +367,24 @@ def upload_pdf_to_pdf():
         if not files or all(f.filename == '' for f in files):
             return jsonify({'success': False, 'message': '请选择PDF文件'}), 400
 
-        from PyPDF2 import PdfReader, PdfWriter
-        try:
-            from PyPDF2 import PageObject, Transformation
-        except Exception:
-            PageObject = None
-            Transformation = None
+        from PyPDF2 import PdfReader
+        from App_new.utils.VisaForm import merge_readers_unified_width
 
-        writer = PdfWriter()
-        total_pages = 0
-
-        # A4尺寸（pt）
-        A4_W = 595.276
-        A4_H = 841.890
-
-        # 按文件名排序
+        # 按文件名排序后读入各 PDF
         sorted_files = sorted(files, key=lambda f: f.filename)
-
+        readers = []
         for f in sorted_files:
             if not f.filename.lower().endswith('.pdf'):
                 continue
             # 将上传文件读入BytesIO，确保可seek
             file_bytes = BytesIO(f.read())
             try:
-                reader = PdfReader(file_bytes, strict=False)
+                readers.append(PdfReader(file_bytes, strict=False))
             except TypeError:
-                reader = PdfReader(file_bytes)
+                readers.append(PdfReader(file_bytes))
 
-            if getattr(reader, 'is_encrypted', False):
-                try:
-                    reader.decrypt('')
-                except Exception:
-                    continue
-
-            for page in reader.pages:
-                try:
-                    if PageObject is not None and Transformation is not None:
-                        try:
-                            orig_w = float(page.mediabox.width)
-                            orig_h = float(page.mediabox.height)
-                            if orig_w <= 0 or orig_h <= 0:
-                                raise ValueError('invalid page size')
-                            scale = min(A4_W / orig_w, A4_H / orig_h)
-                            tx = (A4_W - orig_w * scale) / 2.0
-                            ty = (A4_H - orig_h * scale) / 2.0
-                            blank = PageObject.create_blank_page(width=A4_W, height=A4_H)
-                            blank.merge_transformed_page(
-                                page,
-                                Transformation().scale(scale, scale).translate(tx, ty)
-                            )
-                            writer.add_page(blank)
-                        except Exception:
-                            writer.add_page(page)
-                    else:
-                        writer.add_page(page)
-                    total_pages += 1
-                except Exception:
-                    continue
+        # 统一宽度合并（与“文件夹合并”共用同一实现）
+        writer, total_pages, _target_width = merge_readers_unified_width(readers)
 
         if total_pages == 0:
             return jsonify({'success': False, 'message': '未能从PDF文件中提取有效页面'}), 400

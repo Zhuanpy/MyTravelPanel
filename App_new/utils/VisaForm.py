@@ -2,12 +2,105 @@ import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import os
 from PyPDF2 import PdfReader, PdfWriter
+from io import BytesIO
+from collections import Counter
+import statistics
 try:
     # Optional imports available in newer PyPDF2/pypdf versions
     from PyPDF2 import PageObject, Transformation  # type: ignore
 except Exception:  # pragma: no cover
     PageObject = None
     Transformation = None
+
+
+def _unified_target_width(readers):
+    """扫描所有页面宽度，返回统一目标宽度。
+
+    取“最常见宽度”（众数），避免个别超大/超小的 PDF 把整份文档带偏
+    （例如 3 个 A4 + 1 个大图，应统一到 A4 而不是被大图放大）；
+    宽度各不相同、无明显众数时取中位数；读不到宽度时回退 A4 宽度（210mm）。
+    """
+    widths = []
+    for reader in readers:
+        try:
+            if getattr(reader, 'is_encrypted', False):
+                try:
+                    reader.decrypt('')
+                except Exception:
+                    continue
+            for page in reader.pages:
+                try:
+                    w = float(page.mediabox.width)
+                    if w > 0:
+                        widths.append(w)
+                except Exception:
+                    continue
+        except Exception:
+            continue
+    if not widths:
+        return 595.276
+    rounded = [round(w) for w in widths]  # 归并不同扫描造成的细微差异
+    counter = Counter(rounded)
+    top = max(counter.values())
+    modes = [w for w, c in counter.items() if c == top]
+    return float(modes[0]) if len(modes) == 1 else float(statistics.median(rounded))
+
+
+def merge_readers_unified_width(readers):
+    """把多个 PdfReader 的所有页面等比缩放到“统一宽度”后合并到一个 PdfWriter。
+
+    只统一宽度、每页高度按各自比例保留，避免各 PDF 宽度不一导致合并后大小参差。
+    供“文件夹合并”和“上传合并”两个入口共用，避免逻辑分叉。
+    返回 (writer, total_pages, target_width)。
+    """
+    target_width = _unified_target_width(readers)
+    writer = PdfWriter()
+    total_pages = 0
+    for reader in readers:
+        try:
+            if getattr(reader, 'is_encrypted', False):
+                try:
+                    reader.decrypt('')
+                except Exception:
+                    continue
+            for page in reader.pages:
+                try:
+                    if Transformation is not None:
+                        try:
+                            orig_w = float(page.mediabox.width)
+                            orig_h = float(page.mediabox.height)
+                            if orig_w <= 0 or orig_h <= 0:
+                                raise ValueError('invalid page size')
+                            scale = target_width / orig_w
+                            new_h = orig_h * scale
+                            # 兼容 mediabox 原点非 (0,0)：先把左下角平移到原点，再等比缩放
+                            llx = float(page.mediabox.left)
+                            lly = float(page.mediabox.bottom)
+                            page.add_transformation(
+                                Transformation().translate(-llx, -lly).scale(scale, scale)
+                            )
+                            page.mediabox.lower_left = (0, 0)
+                            page.mediabox.upper_right = (target_width, new_h)
+                            try:
+                                page.cropbox.lower_left = (0, 0)
+                                page.cropbox.upper_right = (target_width, new_h)
+                            except Exception:
+                                pass
+                            writer.add_page(page)
+                        except Exception as _e:
+                            # 回退：无法转换时直接添加原始页面
+                            print(f"统一宽度失败，使用原始页面，原因: {_e}")
+                            writer.add_page(page)
+                    else:
+                        writer.add_page(page)
+                    total_pages += 1
+                except Exception as e:
+                    print(f"添加页面失败: {str(e)}")
+                    continue
+        except Exception as e:
+            print(f"跳过损坏的PDF: {str(e)}")
+            continue
+    return writer, total_pages, target_width
 
 
 class MyPdfFile:
@@ -29,116 +122,22 @@ class MyPdfFile:
 
             pdf_paths = [os.path.join(self.files, filename) for filename in sorted(pdf_lst)]
 
-            def _open_reader(fh):
-                """兼容不同版本的 PdfReader（部分版本不支持 strict 关键字）"""
-                try:
-                    return PdfReader(fh, strict=False)
-                except TypeError:
-                    return PdfReader(fh)
-
-            # ---- 第一遍：扫描所有页面宽度，确定统一目标宽度 ----
-            # 各 PDF 宽度不一时统一到“最大宽度”：最宽的页保持原样，较窄的页等比放大到同宽，
-            # 每页高度按各自比例保留，避免强塞 A4 造成大量白边、页面大小参差。
-            widths = []
+            # 读入各 PDF（读进内存，避免写出前文件句柄已关闭）
+            readers = []
             for pdf_path in pdf_paths:
                 try:
                     with open(pdf_path, 'rb') as fh:
-                        reader = _open_reader(fh)
-                        if getattr(reader, 'is_encrypted', False):
-                            try:
-                                reader.decrypt("")
-                            except Exception:
-                                continue
-                        for page in reader.pages:
-                            try:
-                                w = float(page.mediabox.width)
-                                if w > 0:
-                                    widths.append(w)
-                            except Exception:
-                                continue
-                except Exception:
-                    continue
-
-            # 统一目标宽度：取“最常见宽度”（众数），避免个别超大/超小的 PDF 把整份文档带偏
-            # （例如 3 个 A4 + 1 个大图，应统一到 A4 而不是被大图放大）；
-            # 若宽度各不相同、无明显众数，则取中位数。无法读取时回退 A4 宽度（210mm）。
-            if widths:
-                from collections import Counter
-                import statistics
-                rounded = [round(w) for w in widths]  # 归并不同扫描造成的细微差异
-                counter = Counter(rounded)
-                top = max(counter.values())
-                modes = [w for w, c in counter.items() if c == top]
-                target_width = float(modes[0]) if len(modes) == 1 else float(statistics.median(rounded))
-            else:
-                target_width = 595.276
-
-            writer = PdfWriter()
-            total_pages_added = 0
-
-            # ---- 第二遍：把每页等比缩放到统一宽度后写入 ----
-            for pdf_path in pdf_paths:
-                try:
-                    with open(pdf_path, 'rb') as fh:
-                        reader = _open_reader(fh)
-
-                        if getattr(reader, 'is_encrypted', False):
-                            try:
-                                reader.decrypt("")
-                            except Exception as e:
-                                print(f"跳过加密的PDF文件 {pdf_path}: {str(e)}")
-                                continue
-
-                        num_pages = len(reader.pages)
-
-                        for page_index in range(num_pages):
-                            try:
-                                page = reader.pages[page_index]
-                                # 将每页等比缩放到统一宽度（高度随比例变化）
-                                if Transformation is not None:
-                                    try:
-                                        orig_w = float(page.mediabox.width)
-                                        orig_h = float(page.mediabox.height)
-                                        if orig_w <= 0 or orig_h <= 0:
-                                            raise ValueError("invalid page size")
-
-                                        scale = target_width / orig_w
-                                        new_w = target_width
-                                        new_h = orig_h * scale
-                                        # 兼容 mediabox 原点非 (0,0)：先把左下角平移到原点，再等比缩放
-                                        llx = float(page.mediabox.left)
-                                        lly = float(page.mediabox.bottom)
-                                        page.add_transformation(
-                                            Transformation().translate(-llx, -lly).scale(scale, scale)
-                                        )
-                                        page.mediabox.lower_left = (0, 0)
-                                        page.mediabox.upper_right = (new_w, new_h)
-                                        # 同步 cropbox，避免查看器按旧裁剪框显示
-                                        try:
-                                            page.cropbox.lower_left = (0, 0)
-                                            page.cropbox.upper_right = (new_w, new_h)
-                                        except Exception:
-                                            pass
-                                        writer.add_page(page)
-                                    except Exception as _e:
-                                        # 回退：无法转换时直接添加原始页面
-                                        print(f"统一宽度失败，使用原始页面: {pdf_path} 第 {page_index + 1} 页，原因: {_e}")
-                                        writer.add_page(page)
-                                else:
-                                    # 缺少必要API时，直接添加原始页面
-                                    writer.add_page(page)
-                                total_pages_added += 1
-                            except AssertionError as e:
-                                # 针对 PyPDF2 clone 过程中出现的断言错误，跳过该页
-                                print(f"跳过损坏页面 {pdf_path} 第 {page_index + 1} 页: {str(e)}")
-                                continue
-                            except Exception as e:
-                                print(f"添加页面失败 {pdf_path} 第 {page_index + 1} 页: {str(e)}")
-                                continue
-                    print(f"成功处理文件: {pdf_path}，页数: {num_pages}")
+                        bio = BytesIO(fh.read())
+                    try:
+                        readers.append(PdfReader(bio, strict=False))
+                    except TypeError:
+                        readers.append(PdfReader(bio))
                 except Exception as e:
                     print(f"跳过损坏的PDF文件 {pdf_path}: {str(e)}")
                     continue
+
+            # 统一宽度合并（与“上传合并”共用同一实现）
+            writer, total_pages_added, target_width = merge_readers_unified_width(readers)
 
             if total_pages_added == 0:
                 raise ValueError("未能从任何PDF添加有效页面，可能所有文件均损坏或加密")
