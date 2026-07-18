@@ -19,7 +19,10 @@ class MyPdfFile:
         try:
             output_path = os.path.join(self.files, 'Pdf.pdf')
 
-            pdf_lst = [f for f in os.listdir(self.files) if f.lower().endswith('.pdf')]
+            # 排除工具自己的输出文件，避免反复运行时把上次的合并结果又并进来
+            output_name = os.path.basename(output_path).lower()
+            pdf_lst = [f for f in os.listdir(self.files)
+                       if f.lower().endswith('.pdf') and f.lower() != output_name]
 
             if not pdf_lst:
                 raise ValueError("文件夹中没有找到PDF文件")
