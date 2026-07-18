@@ -55,6 +55,23 @@
         margin-bottom: 8px;
     }
 
+    /* 选项卡 */
+    .tabs {
+        display: flex; gap: 4px;
+        border-bottom: 2px solid #e4efe8;
+        margin: 18px 0 20px;
+    }
+    .tab-btn {
+        padding: 10px 22px; border: none; background: none;
+        font-size: .95rem; font-weight: 600; color: #64748b; cursor: pointer;
+        border-bottom: 3px solid transparent; margin-bottom: -2px;
+        display: inline-flex; align-items: center; gap: 7px;
+    }
+    .tab-btn:hover { color: var(--brand-dark); }
+    .tab-btn.active { color: var(--brand-dark); border-bottom-color: var(--brand); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
     /* 双语区块标题 */
     .sec-title {
         display: flex; justify-content: space-between; align-items: baseline;
@@ -192,7 +209,14 @@
         <p class="itin-desc">{{ package.description }}</p>
         {% endif %}
 
-        <!-- 每日行程 -->
+        <!-- 内容选项卡：默认看行程/包含，价格单独一栏 -->
+        <div class="tabs">
+            <button type="button" class="tab-btn active" onclick="showTab('tab-trip', this)"><i class="fas fa-route"></i> 行程 · 包含</button>
+            <button type="button" class="tab-btn" onclick="showTab('tab-price', this)"><i class="fas fa-tags"></i> 价格</button>
+        </div>
+
+        <!-- Tab：行程 + 费用/须知 -->
+        <div id="tab-trip" class="tab-panel active">
         <div class="sec-title">
             <span class="cn">每日行程安排</span>
             <span class="en">Daily Itinerary</span>
@@ -222,42 +246,11 @@
             <div class="empty"><i class="fas fa-calendar-alt"></i><br>详细行程信息请联系我们的旅游顾问获取</div>
         {% endif %}
 
-        <!-- 价格与包含项目 -->
+        {% if package.includes or package.excludes or package.notes %}
+        <!-- 费用与须知 -->
         <div class="sec-title">
-            <span class="cn">价格与包含项目</span>
-            <span class="en">Price &amp; Inclusions</span>
-        </div>
-
-        {% if package.price_variants %}
-        <div class="price-table-wrap">
-            <table class="price-table">
-                <thead>
-                    <tr>
-                        <th>套餐类型</th>
-                        <th>Twin 双人房</th>
-                        <th>3rd Pax 第三人</th>
-                        <th>Single 单人房</th>
-                        <th>Child No Bed</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pv in package.price_variants %}
-                    <tr>
-                        <td>
-                            {{ pv.variant_name }}
-                            {% if pv.start_date and pv.end_date %}
-                            <div style="font-size:.72rem;color:#94a3b8;font-weight:normal;">{{ pv.start_date }} ~ {{ pv.end_date }}</div>
-                            {% endif %}
-                        </td>
-                        <td class="money">{% if pv.twin_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.twin_price) }}{% else %}-{% endif %}</td>
-                        <td class="money">{% if pv.third_pax_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.third_pax_price) }}{% else %}-{% endif %}</td>
-                        <td class="money">{% if pv.single_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.single_price) }}{% else %}-{% endif %}</td>
-                        <td class="money">{% if pv.child_no_bed_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.child_no_bed_price) }}{% else %}-{% endif %}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="price-note"><i class="fas fa-info-circle"></i> 以上为每人价格，实际价格以报名时为准；儿童年龄以出发日期为准。</p>
+            <span class="cn">费用与须知</span>
+            <span class="en">Inclusions &amp; Notes</span>
         </div>
         {% endif %}
 
@@ -293,6 +286,50 @@
             </ul>
         </div>
         {% endif %}
+        </div><!-- /tab-trip -->
+
+        <!-- Tab：价格（单独一栏） -->
+        <div id="tab-price" class="tab-panel">
+            <div class="sec-title">
+                <span class="cn">价格明细</span>
+                <span class="en">Price</span>
+            </div>
+            {% if package.price %}<p class="itin-desc">参考价：<b style="color:var(--brand-dark)">{{ package.price }}</b> / 人起</p>{% endif %}
+            {% if package.price_variants %}
+            <div class="price-table-wrap">
+                <table class="price-table">
+                    <thead>
+                        <tr>
+                            <th>套餐类型</th>
+                            <th>Twin 双人房</th>
+                            <th>3rd Pax 第三人</th>
+                            <th>Single 单人房</th>
+                            <th>Child No Bed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pv in package.price_variants %}
+                        <tr>
+                            <td>
+                                {{ pv.variant_name }}
+                                {% if pv.start_date and pv.end_date %}
+                                <div style="font-size:.72rem;color:#94a3b8;font-weight:normal;">{{ pv.start_date }} ~ {{ pv.end_date }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="money">{% if pv.twin_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.twin_price) }}{% else %}-{% endif %}</td>
+                            <td class="money">{% if pv.third_pax_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.third_pax_price) }}{% else %}-{% endif %}</td>
+                            <td class="money">{% if pv.single_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.single_price) }}{% else %}-{% endif %}</td>
+                            <td class="money">{% if pv.child_no_bed_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.child_no_bed_price) }}{% else %}-{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="price-note"><i class="fas fa-info-circle"></i> 以上为每人价格，实际价格以报名时为准；儿童年龄以出发日期为准。</p>
+            </div>
+            {% else %}
+            <div class="empty">具体价格请联系客服 / WhatsApp 咨询获取报价</div>
+            {% endif %}
+        </div><!-- /tab-price -->
 
         <!-- 联系 / 预订 -->
         <div class="contact-bar">
@@ -322,6 +359,13 @@
 
 {% block extra_js %}
 <script>
+function showTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+}
+
 function viewImage(src) {
     document.getElementById('viewerImage').src = src;
     document.getElementById('imageViewer').style.display = 'flex';
