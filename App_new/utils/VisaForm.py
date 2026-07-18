@@ -26,17 +26,47 @@ class MyPdfFile:
 
             pdf_paths = [os.path.join(self.files, filename) for filename in sorted(pdf_lst)]
 
-            writer = PdfWriter()
-            total_pages_added = 0
+            def _open_reader(fh):
+                """兼容不同版本的 PdfReader（部分版本不支持 strict 关键字）"""
+                try:
+                    return PdfReader(fh, strict=False)
+                except TypeError:
+                    return PdfReader(fh)
 
+            # ---- 第一遍：扫描所有页面宽度，确定统一目标宽度 ----
+            # 各 PDF 宽度不一时统一到“最大宽度”：最宽的页保持原样，较窄的页等比放大到同宽，
+            # 每页高度按各自比例保留，避免强塞 A4 造成大量白边、页面大小参差。
+            widths = []
             for pdf_path in pdf_paths:
                 try:
                     with open(pdf_path, 'rb') as fh:
-                        try:
-                            reader = PdfReader(fh, strict=False)
-                        except TypeError:
-                            # some versions don't support strict kw
-                            reader = PdfReader(fh)
+                        reader = _open_reader(fh)
+                        if getattr(reader, 'is_encrypted', False):
+                            try:
+                                reader.decrypt("")
+                            except Exception:
+                                continue
+                        for page in reader.pages:
+                            try:
+                                w = float(page.mediabox.width)
+                                if w > 0:
+                                    widths.append(w)
+                            except Exception:
+                                continue
+                except Exception:
+                    continue
+
+            # 无法读取任何宽度时回退到 A4 宽度（210mm）
+            target_width = max(widths) if widths else 595.276
+
+            writer = PdfWriter()
+            total_pages_added = 0
+
+            # ---- 第二遍：把每页等比缩放到统一宽度后写入 ----
+            for pdf_path in pdf_paths:
+                try:
+                    with open(pdf_path, 'rb') as fh:
+                        reader = _open_reader(fh)
 
                         if getattr(reader, 'is_encrypted', False):
                             try:
@@ -46,34 +76,39 @@ class MyPdfFile:
                                 continue
 
                         num_pages = len(reader.pages)
-                        # 统一输出为A4尺寸（单位：pt）
-                        A4_W = 595.276  # 210mm
-                        A4_H = 841.890  # 297mm
 
                         for page_index in range(num_pages):
                             try:
                                 page = reader.pages[page_index]
-                                # 将每页内容缩放/居中到A4尺寸
-                                if PageObject is not None and Transformation is not None:
+                                # 将每页等比缩放到统一宽度（高度随比例变化）
+                                if Transformation is not None:
                                     try:
                                         orig_w = float(page.mediabox.width)
                                         orig_h = float(page.mediabox.height)
                                         if orig_w <= 0 or orig_h <= 0:
                                             raise ValueError("invalid page size")
 
-                                        scale = min(A4_W / orig_w, A4_H / orig_h)
-                                        tx = (A4_W - orig_w * scale) / 2.0
-                                        ty = (A4_H - orig_h * scale) / 2.0
-
-                                        blank = PageObject.create_blank_page(width=A4_W, height=A4_H)
-                                        blank.merge_transformed_page(
-                                            page,
-                                            Transformation().scale(scale, scale).translate(tx, ty)
+                                        scale = target_width / orig_w
+                                        new_w = target_width
+                                        new_h = orig_h * scale
+                                        # 兼容 mediabox 原点非 (0,0)：先把左下角平移到原点，再等比缩放
+                                        llx = float(page.mediabox.left)
+                                        lly = float(page.mediabox.bottom)
+                                        page.add_transformation(
+                                            Transformation().translate(-llx, -lly).scale(scale, scale)
                                         )
-                                        writer.add_page(blank)
+                                        page.mediabox.lower_left = (0, 0)
+                                        page.mediabox.upper_right = (new_w, new_h)
+                                        # 同步 cropbox，避免查看器按旧裁剪框显示
+                                        try:
+                                            page.cropbox.lower_left = (0, 0)
+                                            page.cropbox.upper_right = (new_w, new_h)
+                                        except Exception:
+                                            pass
+                                        writer.add_page(page)
                                     except Exception as _e:
                                         # 回退：无法转换时直接添加原始页面
-                                        print(f"A4标准化失败，使用原始页面: {pdf_path} 第 {page_index + 1} 页，原因: {_e}")
+                                        print(f"统一宽度失败，使用原始页面: {pdf_path} 第 {page_index + 1} 页，原因: {_e}")
                                         writer.add_page(page)
                                 else:
                                     # 缺少必要API时，直接添加原始页面
@@ -96,7 +131,7 @@ class MyPdfFile:
 
             with open(output_path, 'wb') as out_fh:
                 writer.write(out_fh)
-            print(f"PDF合并完成，输出文件: {output_path}，共添加页数: {total_pages_added}")
+            print(f"PDF合并完成，输出文件: {output_path}，统一宽度: {target_width:.1f}pt，共添加页数: {total_pages_added}")
 
         except Exception as e:
             print(f"PDF合并失败: {str(e)}")
