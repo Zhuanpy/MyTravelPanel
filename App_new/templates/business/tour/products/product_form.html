@@ -450,11 +450,11 @@
                             {% endfor %}
                         </div>
                     </div>
-                    <small class="text-gray-400" style="font-size:11px;"><i class="fas fa-info-circle"></i> 国家 / 城市根据所选供应商自动带出</small>
+                    <small class="text-gray-400" style="font-size:11px;"><i class="fas fa-info-circle"></i> 选供应商会自动带出国家/城市，如产品发往其它国家可手动修改</small>
                 </div>
                 <div class="visa-form-group"><label class="visa-form-label">产品类型</label><select id="bi_product_type" class="visa-form-select"><option value="">-- 选择类型 --</option><option value="跟团游">跟团游</option><option value="自由行">自由行</option><option value="定制游">定制游</option><option value="当地游">当地游</option></select></div>
-                <div class="visa-form-group"><label class="visa-form-label">国家（来自供应商）</label><input type="text" id="bi_country" class="visa-form-control" value="{{ product.country or '' }}" readonly style="background:#f8fafc;" placeholder="选择供应商后自动带出"></div>
-                <div class="visa-form-group"><label class="visa-form-label">城市（来自供应商）</label><input type="text" id="bi_city" class="visa-form-control" value="{{ product.city_name or '' }}" readonly style="background:#f8fafc;" placeholder="选择供应商后自动带出"></div>
+                <div class="visa-form-group"><label class="visa-form-label">国家</label><input type="text" id="bi_country" class="visa-form-control" value="{{ product.country or '' }}" placeholder="选供应商自动带出，可修改"></div>
+                <div class="visa-form-group"><label class="visa-form-label">城市</label><input type="text" id="bi_city" class="visa-form-control" value="{{ product.city_name or '' }}" placeholder="选供应商自动带出，可修改"></div>
                 <div class="visa-form-group"><label class="visa-form-label">行程天数 <span style="color: red;">*</span></label><input type="number" id="bi_duration_days" class="visa-form-control" min="1" value="{{ product.duration_days or '' }}"></div>
                 <div class="visa-form-group"><label class="visa-form-label">最少人数</label><input type="number" id="bi_min_pax" class="visa-form-control" min="1" value="{{ product.min_pax or 1 }}"></div>
                 <div class="visa-form-group"><label class="visa-form-label">最多人数</label><input type="number" id="bi_max_pax" class="visa-form-control" min="1" value="{{ product.max_pax or '' }}"></div>
