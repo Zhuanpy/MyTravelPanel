@@ -142,15 +142,17 @@
                     <table class="visa-table company-table" style="table-layout: fixed; width: 100%;">
                         <thead>
                             <tr>
-                                <th style="width: 34%;">公司名称</th>
+                                <th style="width: 24%;">公司名称</th>
                                 <th style="width: 7%;" class="col-narrow">角色</th>
-                                <th style="width: 12%;">集团/关联</th>
-                                <th style="width: 11%;">公司代码</th>
-                                <th style="width: 10%;">联系人</th>
-                                <th style="width: 12%;">联系电话</th>
-                                <th style="width: 8%;" class="col-narrow">所属</th>
+                                <th style="width: 10%;">集团/关联</th>
+                                <th style="width: 9%;">公司代码</th>
+                                <th style="width: 8%;">国家</th>
+                                <th style="width: 8%;">地区</th>
+                                <th style="width: 9%;">联系人</th>
+                                <th style="width: 10%;">联系电话</th>
+                                <th style="width: 7%;" class="col-narrow">所属</th>
                                 <th style="width: 6%;" class="col-narrow">状态</th>
-                                <th style="width: 6%;" class="col-narrow">点击</th>
+                                <th style="width: 5%;" class="col-narrow">点击</th>
                                 <th style="width: 8%;" class="col-narrow">创建时间</th>
                             </tr>
                         </thead>
@@ -192,6 +194,8 @@
                                     {% endif %}
                                 </td>
                                 <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ company.company_code or '-' }}</td>
+                                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.country or '' }}">{{ company.country or '-' }}</td>
+                                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.region or '' }}">{{ company.region or '-' }}</td>
                                 <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ company.contact_person or '-' }}</td>
                                 <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ company.contact_phone or '-' }}</td>
                                 <td class="col-narrow" style="font-size: 0.78rem;" title="{{ company.staff_display_name or '公共' }}">
