@@ -650,11 +650,42 @@ def tour_packages():
                 'includes': includes[:4] if includes else ['专业导游', '优质服务']
             })
         
-        # 获取国家和城市列表（用于下拉选择）
-        countries = db.session.query(ProductCity.country_name).filter(
+        # 获取国家列表（用于下拉选择）；label 显示英文方便查找，value 仍用库中值以便筛选
+        country_rows = db.session.query(ProductCity.country_name).filter(
             ProductCity.country_name.isnot(None)
         ).distinct().order_by(ProductCity.country_name).all()
-        countries = [c[0] for c in countries if c[0]]
+        # 中文→英文映射（来自签证国家对照表）
+        cn_en = {}
+        try:
+            from App_new.business.visa.models.Visamodels import VisaCountries
+            for vc in VisaCountries.query.all():
+                if vc.country_name_CN and vc.country_name_EN:
+                    cn_en[vc.country_name_CN.strip()] = vc.country_name_EN.strip()
+        except Exception:
+            cn_en = {}
+        # 常见国家中→英兜底（补 VisaCountries 缺失或简称不一致的）
+        cn_en_fallback = {
+            '中国': 'China', '新加坡': 'Singapore', '马来西亚': 'Malaysia', '泰国': 'Thailand',
+            '印尼': 'Indonesia', '印度尼西亚': 'Indonesia', '越南': 'Vietnam', '斯里兰卡': 'Sri Lanka',
+            '日本': 'Japan', '韩国': 'South Korea', '菲律宾': 'Philippines', '柬埔寨': 'Cambodia',
+            '老挝': 'Laos', '缅甸': 'Myanmar', '印度': 'India', '尼泊尔': 'Nepal', '不丹': 'Bhutan',
+            '马尔代夫': 'Maldives', '文莱': 'Brunei', '香港': 'Hong Kong', '中国香港': 'Hong Kong',
+            '澳门': 'Macau', '中国澳门': 'Macau', '台湾': 'Taiwan', '中国台湾': 'Taiwan',
+            '阿联酋': 'United Arab Emirates', '土耳其': 'Turkey', '埃及': 'Egypt',
+            '澳大利亚': 'Australia', '新西兰': 'New Zealand', '英国': 'United Kingdom',
+            '法国': 'France', '德国': 'Germany', '意大利': 'Italy', '西班牙': 'Spain',
+            '瑞士': 'Switzerland', '美国': 'United States', '加拿大': 'Canada', '俄罗斯': 'Russia',
+        }
+        countries = []
+        for c in country_rows:
+            if not c[0]:
+                continue
+            val = c[0]
+            key = val.strip()
+            label = cn_en.get(key) or cn_en_fallback.get(key) or val
+            countries.append({'value': val, 'label': label})
+        # 按英文标签排序，方便查找
+        countries.sort(key=lambda x: x['label'].lower())
         
         # 根据选择的国家获取城市列表
         cities = []

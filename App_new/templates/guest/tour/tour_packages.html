@@ -13,7 +13,7 @@
                 <select name="country" id="countryFilter" class="form-select form-select-sm" style="min-width: 150px;" onchange="filterByCountry()">
                     <option value="">全部国家</option>
                     {% for c in countries %}
-                    <option value="{{ c }}" {% if country == c %}selected{% endif %}>{{ c }}</option>
+                    <option value="{{ c.value }}" {% if country == c.value %}selected{% endif %}>{{ c.label }}</option>
                     {% endfor %}
                 </select>
             </div>
