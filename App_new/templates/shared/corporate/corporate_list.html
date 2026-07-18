@@ -96,6 +96,18 @@
                 </select>
             </div>
 
+            <div class="visa-filter-item">
+                <label class="visa-form-label">
+                    <i class="fas fa-globe"></i> 国家/地区
+                </label>
+                <select class="visa-form-select" name="country">
+                    <option value="">全部国家</option>
+                    {% for c in countries %}
+                        <option value="{{ c }}" {{ 'selected' if current_country == c }}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="visa-filter-item" style="flex: 1; max-width: 400px;">
                 <label class="visa-form-label">
                     <i class="fas fa-search"></i> 搜索
@@ -214,7 +226,7 @@
                 {% if companies.pages > 1 %}
                 <div class="visa-pagination">
                     {% if companies.has_prev %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country')) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     {% endif %}
@@ -222,7 +234,7 @@
                     {% for page_num in companies.iter_pages() %}
                         {% if page_num %}
                             {% if page_num != companies.page %}
-                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role')) }}">
+                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country')) }}">
                                     {{ page_num }}
                                 </a>
                             {% else %}
@@ -234,7 +246,7 @@
                     {% endfor %}
 
                     {% if companies.has_next %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country')) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     {% endif %}

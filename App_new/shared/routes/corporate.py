@@ -63,6 +63,7 @@ def list_companies():
     status = request.args.get('status', '')
     group_name_filter = request.args.get('group_name', '')
     role = request.args.get('role', '')  # customer, supplier, all
+    country = request.args.get('country', '')  # 国家/地区筛选
 
     query = CustomerCompany.query
 
@@ -94,6 +95,10 @@ def list_companies():
     if status:
         query = query.filter(CustomerCompany.status == status)
 
+    # 国家/地区筛选
+    if country:
+        query = query.filter(CustomerCompany.country == country)
+
     # 集团/关联标签筛选
     if group_name_filter:
         if group_name_filter == 'has_group':
@@ -124,11 +129,24 @@ def list_companies():
     from App_new.shared.models.business_types import BusinessType
     supplier_types = BusinessType.query.filter_by(is_active=True).order_by(BusinessType.sort_order).all()
 
+    # 国家/地区选项（按当前角色范围，仅列已使用的非空国家）
+    country_query = db.session.query(CustomerCompany.country).filter(
+        CustomerCompany.country.isnot(None),
+        CustomerCompany.country != ''
+    )
+    if role == 'customer':
+        country_query = country_query.filter(CustomerCompany.is_customer == True)
+    elif role == 'supplier':
+        country_query = country_query.filter(CustomerCompany.is_supplier == True)
+    countries = [r[0] for r in country_query.distinct().order_by(CustomerCompany.country).all()]
+
     return render_template('shared/corporate/corporate_list.html',
                            companies=companies,
                            group_names=group_names,
                            supplier_types=supplier_types,
-                           current_role=role)
+                           countries=countries,
+                           current_role=role,
+                           current_country=country)
 
 
 # 客户归属：无权访问时的统一处理
