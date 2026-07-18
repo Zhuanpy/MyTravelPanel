@@ -16,6 +16,26 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* 让 select2 下拉外观与 visa-form-select 保持一致 */
+    .select2-container { width: 100% !important; }
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+        padding-left: 10px;
+        color: #111827;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -235,21 +255,28 @@
                                 <div class="visa-grid-4">
                                     <div class="visa-form-group">
                                         <label class="visa-form-label">供应商类型</label>
-                                        <select name="supplier_type_id" class="visa-form-select">
+                                        <select id="supplier_type_select" name="supplier_type_id" class="visa-form-select">
                                             <option value="">-- 选择类型 --</option>
                                             {% for st in supplier_types %}
                                             <option value="{{ st.id }}"
                                                     {{ 'selected' if company and company.supplier_type_id == st.id }}>
-                                                {{ st.name }}
+                                                {{ st.name_en or st.name }}
                                             </option>
                                             {% endfor %}
                                         </select>
                                     </div>
                                     <div class="visa-form-group">
                                         <label class="visa-form-label">国家</label>
-                                        <input type="text" name="country" class="visa-form-control"
-                                               placeholder="如: Singapore"
-                                               value="{{ company.country if company else '' }}">
+                                        <select id="country_select" name="country" class="visa-form-select">
+                                            <option value="">-- 选择国家 --</option>
+                                            {% set cur_country = company.country if company else '' %}
+                                            {% if cur_country and cur_country not in country_list %}
+                                            <option value="{{ cur_country }}" selected>{{ cur_country }}</option>
+                                            {% endif %}
+                                            {% for c in country_list %}
+                                            <option value="{{ c }}" {{ 'selected' if cur_country == c }}>{{ c }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                     <div class="visa-form-group">
                                         <label class="visa-form-label">城市</label>
@@ -458,8 +485,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% endblock %}
 
-{% if company %}
 {% block extra_js %}
+<!-- select2：供应商类型 / 国家 可搜索下拉（新增、编辑两页都启用） -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+(function initSupplierSelect2() {
+    if (window.jQuery && jQuery.fn.select2) {
+        jQuery('#supplier_type_select').select2({ width: '100%', placeholder: '-- 选择类型 --', allowClear: true });
+        // 国家允许搜索定位，tags 允许在列表外临时输入
+        jQuery('#country_select').select2({ width: '100%', placeholder: '-- 选择国家 --', allowClear: true, tags: true });
+    }
+})();
+</script>
+{% if company %}
 <script>
 const companyId = {{ company.id }};
 
@@ -821,7 +859,7 @@ function deleteFile(fileId) {
     });
 }
 </script>
-{% endblock %}
 {% endif %}
+{% endblock %}
 
 

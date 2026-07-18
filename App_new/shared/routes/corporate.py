@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 import uuid
 from App_new.shared.forms.company_forms import CustomerCompanyForm
 from App_new.utils.decorators import staff_only
+from App_new.shared.constants import COUNTRIES_EN
 from sqlalchemy import or_
 import pandas as pd
 import io
@@ -262,6 +263,7 @@ def create_company():
                            company=None,
                            existing_group_names=get_existing_group_names(),
                            supplier_types=supplier_types,
+                           country_list=COUNTRIES_EN,
                            staff_list=_get_staff_list())
 
 @corporate.route('/<int:company_id>')
@@ -492,6 +494,7 @@ def edit_company(company_id):
                            company=company,
                            existing_group_names=get_existing_group_names(),
                            supplier_types=supplier_types,
+                           country_list=COUNTRIES_EN,
                            staff_list=_get_staff_list())
 
 @corporate.route('/<int:company_id>/delete', methods=['POST'])
