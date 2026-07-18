@@ -435,29 +435,26 @@
                     <label class="visa-form-label">产品名称 <span style="color: red;">*</span></label>
                     <input type="text" id="bi_product_name" class="visa-form-control" value="{{ product.product_name }}">
                 </div>
-                <!-- 供应商 类型/国家/城市 筛选 + 搜索 -->
+                <!-- 供应商：选择后自动带出国家/城市，无需再手动筛选或输入 -->
                 <div class="visa-form-group" style="grid-column: 1 / -1;" id="supplierSelectWrapper">
                     <label class="visa-form-label">供应商 <span style="color: red;">*</span></label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <select id="supplierFilterType" class="visa-form-select" style="flex:1;"><option value="">全部类型</option>{% set type_set = [] %}{% for s in suppliers %}{% if s.supplier_type and s.supplier_type.name not in type_set %}{% if type_set.append(s.supplier_type.name) %}{% endif %}<option value="{{ s.supplier_type.name }}">{{ s.supplier_type.name }}</option>{% endif %}{% endfor %}</select>
-                        <select id="supplierFilterCountry" class="visa-form-select" style="flex:1;"><option value="">全部国家</option>{% set country_set = [] %}{% for s in suppliers %}{% if s.country and s.country not in country_set %}{% if country_set.append(s.country) %}{% endif %}<option value="{{ s.country }}">{{ s.country }}</option>{% endif %}{% endfor %}</select>
-                        <select id="supplierFilterCity" class="visa-form-select" style="flex:1;"><option value="">全部城市</option>{% set city_set = [] %}{% for s in suppliers %}{% if s.city and s.city not in city_set %}{% if city_set.append(s.city) %}{% endif %}<option value="{{ s.city }}">{{ s.city }}</option>{% endif %}{% endfor %}</select>
-                        <div style="position: relative; flex: 2;">
-                            <input type="hidden" id="supplierId" value="{{ product.supplier_id or '' }}">
-                            <input type="text" id="supplierSearch" class="visa-form-select" style="cursor:text;" placeholder="-- 搜索或选择供应商 --" autocomplete="off" value="{% if product.supplier_id %}{% for s in suppliers %}{% if s.id == product.supplier_id %}{{ s.company_name }}{% endif %}{% endfor %}{% endif %}">
-                            <div id="supplierDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-top:none; border-radius:0 0 6px 6px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100;">
-                                <div class="supplier-option" data-id="" data-name="" data-type="" data-country="" data-city="" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; color:#94a3b8; border-bottom:1px solid #f1f5f9;">-- 清除选择 --</div>
-                                {% for supplier in suppliers %}
-                                <div class="supplier-option" data-id="{{ supplier.id }}" data-name="{{ supplier.company_name }}" data-type="{{ supplier.supplier_type.name if supplier.supplier_type else '' }}" data-country="{{ supplier.country or '' }}" data-city="{{ supplier.city or '' }}" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f1f5f9;">
-                                    <span>{{ supplier.company_name }}</span><small style="color:#94a3b8; margin-left:0.5rem;">{% if supplier.supplier_type %}{{ supplier.supplier_type.name }}{% endif %}{% if supplier.country %} · {{ supplier.country }}{% endif %}{% if supplier.city %} · {{ supplier.city }}{% endif %}</small>
-                                </div>
-                                {% endfor %}
+                    <div style="position: relative;">
+                        <input type="hidden" id="supplierId" value="{{ product.supplier_id or '' }}">
+                        <input type="text" id="supplierSearch" class="visa-form-select" style="cursor:text;" placeholder="-- 搜索或选择供应商 --" autocomplete="off" value="{% if product.supplier_id %}{% for s in suppliers %}{% if s.id == product.supplier_id %}{{ s.company_name }}{% endif %}{% endfor %}{% endif %}">
+                        <div id="supplierDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-top:none; border-radius:0 0 6px 6px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100;">
+                            <div class="supplier-option" data-id="" data-name="" data-type="" data-country="" data-city="" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; color:#94a3b8; border-bottom:1px solid #f1f5f9;">-- 清除选择 --</div>
+                            {% for supplier in suppliers %}
+                            <div class="supplier-option" data-id="{{ supplier.id }}" data-name="{{ supplier.company_name }}" data-type="{{ supplier.supplier_type.name if supplier.supplier_type else '' }}" data-country="{{ supplier.country or '' }}" data-city="{{ supplier.city or '' }}" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f1f5f9;">
+                                <span>{{ supplier.company_name }}</span><small style="color:#94a3b8; margin-left:0.5rem;">{% if supplier.supplier_type %}{{ supplier.supplier_type.name }}{% endif %}{% if supplier.country %} · {{ supplier.country }}{% endif %}{% if supplier.city %} · {{ supplier.city }}{% endif %}</small>
                             </div>
+                            {% endfor %}
                         </div>
                     </div>
+                    <small class="text-gray-400" style="font-size:11px;"><i class="fas fa-info-circle"></i> 国家 / 城市根据所选供应商自动带出</small>
                 </div>
                 <div class="visa-form-group"><label class="visa-form-label">产品类型</label><select id="bi_product_type" class="visa-form-select"><option value="">-- 选择类型 --</option><option value="跟团游">跟团游</option><option value="自由行">自由行</option><option value="定制游">定制游</option><option value="当地游">当地游</option></select></div>
-                <div class="visa-form-group"><label class="visa-form-label">城市 <span style="color: red;">*</span></label><select id="citySelect" class="visa-form-select" onchange="updateCountry()"><option value="">-- 选择城市 --</option>{% for city in cities %}<option value="{{ city.city_name }}" data-country="{{ city.country_name }}" {% if product.city_name == city.city_name %}selected{% endif %}>{{ city.city_name }} ({{ city.country_name }})</option>{% endfor %}</select></div>
+                <div class="visa-form-group"><label class="visa-form-label">国家（来自供应商）</label><input type="text" id="bi_country" class="visa-form-control" value="{{ product.country or '' }}" readonly style="background:#f8fafc;" placeholder="选择供应商后自动带出"></div>
+                <div class="visa-form-group"><label class="visa-form-label">城市（来自供应商）</label><input type="text" id="bi_city" class="visa-form-control" value="{{ product.city_name or '' }}" readonly style="background:#f8fafc;" placeholder="选择供应商后自动带出"></div>
                 <div class="visa-form-group"><label class="visa-form-label">行程天数 <span style="color: red;">*</span></label><input type="number" id="bi_duration_days" class="visa-form-control" min="1" value="{{ product.duration_days or '' }}"></div>
                 <div class="visa-form-group"><label class="visa-form-label">最少人数</label><input type="number" id="bi_min_pax" class="visa-form-control" min="1" value="{{ product.min_pax or 1 }}"></div>
                 <div class="visa-form-group"><label class="visa-form-label">最多人数</label><input type="number" id="bi_max_pax" class="visa-form-control" min="1" value="{{ product.max_pax or '' }}"></div>
@@ -694,7 +691,12 @@ function showAlert(message, type) {
         if (document.activeElement === searchInput) dropdown.style.display = 'block';
     }
     options.forEach(function(opt) {
-        opt.addEventListener('click', function() { hiddenInput.value = this.dataset.id; searchInput.value = this.dataset.name; dropdown.style.display = 'none'; });
+        opt.addEventListener('click', function() {
+            hiddenInput.value = this.dataset.id; searchInput.value = this.dataset.name; dropdown.style.display = 'none';
+            // 选择供应商后，自动带出其国家 / 城市
+            var ci = document.getElementById('bi_city'); if (ci) ci.value = this.dataset.city || '';
+            var co = document.getElementById('bi_country'); if (co) co.value = this.dataset.country || '';
+        });
     });
     document.addEventListener('click', function(e) {
         const wrapper = document.getElementById('supplierSelectWrapper');
@@ -738,8 +740,8 @@ function updateBasicInfo() {
         product_name: name,
         supplier_id: _val('supplierId'),
         product_type: _val('bi_product_type'),
-        city_name: _val('citySelect'),
-        country_name: _val('countryName'),
+        city_name: _val('bi_city'),
+        country_name: _val('bi_country'),
         duration_days: _val('bi_duration_days'),
         min_pax: _val('bi_min_pax'),
         max_pax: _val('bi_max_pax'),
