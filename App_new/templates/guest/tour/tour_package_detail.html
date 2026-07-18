@@ -4,711 +4,319 @@
 
 {% block extra_css %}
 <style>
-    /* 头部大图区域 */
-    .package-hero {
-        position: relative;
-        height: 450px;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        overflow: hidden;
+    /* ============ 旅游配套详情：参考行程单的简洁文档风 ============ */
+    :root { --brand: #2e9e57; --brand-dark: #248a4a; }
+
+    .itin-wrap {
+        background: #f4f6f5;
+        padding: 24px 16px 56px;
     }
-    
-    .package-hero-bg {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-size: cover;
-        background-position: center;
-        opacity: 0.4;
-    }
-    
-    .package-hero-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7));
-    }
-    
-    .package-hero-content {
-        position: relative;
-        z-index: 10;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        padding-bottom: 3rem;
-    }
-    
-    .package-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: rgba(255,255,255,0.15);
-        backdrop-filter: blur(10px);
-        border-radius: 50px;
-        color: white;
-        font-size: 0.875rem;
-        border: 1px solid rgba(255,255,255,0.2);
-    }
-    
-    .package-title {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: white;
-        margin: 1rem 0;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    }
-    
-    .package-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-    
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: rgba(255,255,255,0.9);
-        font-size: 0.95rem;
-    }
-    
-    .meta-item i {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255,255,255,0.2);
-        border-radius: 8px;
-    }
-    
-    /* 主内容区域 */
-    .package-content {
-        background: #f8fafc;
-        padding: 3rem 0;
-    }
-    
-    .content-card {
-        background: white;
-        border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        border: 1px solid #f0f0f0;
-    }
-    
-    .content-card-title {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #1a1a2e;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #f0f0f0;
-    }
-    
-    .content-card-title i {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        font-size: 1rem;
-    }
-    
-    .content-card-title .icon-blue { background: #e0f2fe; color: #0284c7; }
-    .content-card-title .icon-green { background: #dcfce7; color: #16a34a; }
-    .content-card-title .icon-red { background: #fee2e2; color: #dc2626; }
-    .content-card-title .icon-yellow { background: #fef3c7; color: #d97706; }
-    
-    /* 行程时间轴 */
-    .itinerary-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .itinerary-day {
-        display: flex;
-        gap: 1.5rem;
-        padding: 1.5rem;
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    .itin-card {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #fff;
         border-radius: 12px;
-        border-left: 4px solid #3b82f6;
-        transition: all 0.3s ease;
-    }
-    
-    .itinerary-day:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-    }
-    
-    .day-number {
-        flex-shrink: 0;
-        width: 60px;
-        height: 60px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
-        border-radius: 12px;
-        font-weight: 700;
-    }
-    
-    .day-number span:first-child {
-        font-size: 1.5rem;
-        line-height: 1;
-    }
-    
-    .day-number span:last-child {
-        font-size: 0.7rem;
-        opacity: 0.8;
-    }
-    
-    .day-content h4 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #1e293b;
-        margin-bottom: 0.75rem;
-    }
-    
-    .day-content p {
-        color: #64748b;
-        font-size: 0.95rem;
-        line-height: 1.7;
-        margin: 0;
-    }
-    
-    /* 图片画廊 */
-    .day-images {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-top: 1rem;
-        justify-content: flex-start;
+        box-shadow: 0 4px 18px rgba(0,0,0,.06);
+        padding: 32px;
     }
 
-    .day-images img {
-        flex: 1 1 calc(33.333% - 0.75rem);
-        min-width: 150px;
-        max-width: calc(33.333% - 0.75rem);
-        height: 160px;
-        object-fit: cover;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /* 面包屑 */
+    .itin-crumb { font-size: .82rem; color: #94a3b8; margin-bottom: 18px; }
+    .itin-crumb a { color: #94a3b8; text-decoration: none; }
+    .itin-crumb a:hover { color: var(--brand); }
+
+    /* 头部 */
+    .itin-code {
+        display: inline-block; font-size: .75rem; font-weight: 600;
+        color: var(--brand); background: #e8f5ee;
+        padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
+    }
+    .itin-title {
+        font-size: 1.8rem; font-weight: 700; color: #1f2937;
+        line-height: 1.3; margin: 0 0 12px;
+    }
+    .itin-meta {
+        display: flex; flex-wrap: wrap; gap: 8px 20px;
+        color: #475569; font-size: .92rem; margin-bottom: 20px;
+    }
+    .itin-meta span { display: inline-flex; align-items: center; gap: 6px; }
+    .itin-meta i { color: var(--brand); }
+    .itin-meta .price { color: var(--brand-dark); font-weight: 700; }
+
+    /* 封面图 */
+    .itin-cover {
+        width: 100%; max-height: 340px; object-fit: cover;
+        border-radius: 10px; margin-bottom: 24px;
     }
 
-    .day-images img:hover {
-        transform: scale(1.03);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    /* 简介 */
+    .itin-desc {
+        color: #475569; line-height: 1.8; font-size: .98rem;
+        margin-bottom: 8px;
     }
 
-    /* 单张图片时居中显示 */
-    .day-images img:only-child {
-        max-width: 100%;
-        flex: 0 1 auto;
-        width: 100%;
-        height: 220px;
+    /* 双语区块标题 */
+    .sec-title {
+        display: flex; justify-content: space-between; align-items: baseline;
+        background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+        color: #fff; padding: 9px 14px; border-radius: 7px;
+        margin: 30px 0 18px;
+    }
+    .sec-title .cn { font-size: 1.05rem; font-weight: 700; }
+    .sec-title .en { font-size: .8rem; font-style: italic; opacity: .9; }
+
+    /* 每日行程 */
+    .day {
+        border: 1.5px solid #d8ecdf; border-left: 4px solid var(--brand);
+        border-radius: 8px; background: #fbfdfc;
+        padding: 16px 18px; margin-bottom: 16px;
+    }
+    .day-head {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 1.05rem; font-weight: 700; color: var(--brand-dark);
+        border-bottom: 1px solid #e4efe8; padding-bottom: 8px; margin-bottom: 10px;
+    }
+    .day-badge {
+        flex: 0 0 auto; background: var(--brand); color: #fff;
+        font-size: .72rem; font-weight: 700; letter-spacing: .5px;
+        padding: 3px 9px; border-radius: 6px;
+    }
+    .day-body { color: #374151; line-height: 1.7; font-size: .95rem; white-space: pre-wrap; word-wrap: break-word; }
+    .day-body p { margin: 0 0 6px; }
+    .day-body ul, .day-body ol { margin: 0 0 6px; padding-left: 20px; }
+    .day-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .day-imgs img {
+        width: 168px; height: 118px; object-fit: cover;
+        border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer;
+        transition: transform .15s;
+    }
+    .day-imgs img:hover { transform: scale(1.03); }
+
+    /* 包含 / 不含 / 注意事项 */
+    .info-block {
+        background: #fbfdfc; border-left: 4px solid var(--brand);
+        border-radius: 6px; padding: 14px 16px; margin-bottom: 14px;
+    }
+    .info-block .lbl {
+        font-weight: 700; color: var(--brand-dark);
+        font-size: .92rem; margin-bottom: 8px;
+    }
+    .info-list { list-style: none; margin: 0; padding: 0; }
+    .info-list li {
+        display: flex; align-items: flex-start; gap: 8px;
+        color: #374151; font-size: .92rem; line-height: 1.6; margin-bottom: 5px;
+    }
+    .info-list.yes li i { color: var(--brand); margin-top: 3px; }
+    .info-list.no li i { color: #cbd5e1; margin-top: 3px; }
+    .notes-list { margin: 0; padding-left: 18px; color: #475569; }
+    .notes-list li { margin-bottom: 6px; line-height: 1.6; font-size: .92rem; }
+
+    /* 价格明细表 */
+    .price-table-wrap { overflow-x: auto; }
+    table.price-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    table.price-table thead th {
+        background: var(--brand); color: #fff; font-weight: 600;
+        padding: 9px 12px; text-align: center; white-space: nowrap;
+    }
+    table.price-table thead th:first-child { text-align: left; }
+    table.price-table td {
+        padding: 9px 12px; text-align: center; border-bottom: 1px solid #eef2f0;
+    }
+    table.price-table td:first-child { text-align: left; font-weight: 600; color: #1f2937; }
+    table.price-table tbody tr:nth-child(odd) { background: #f8faf9; }
+    table.price-table .money { color: var(--brand-dark); font-weight: 700; }
+    .price-note { margin-top: 10px; font-size: .8rem; color: #94a3b8; }
+
+    /* 底部联系条 */
+    .contact-bar {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        justify-content: center; margin-top: 32px; padding-top: 22px;
+        border-top: 1px solid #eef2f0;
+    }
+    .contact-bar .price-tag {
+        margin-right: auto; font-size: 1.05rem; color: #64748b;
+    }
+    .contact-bar .price-tag b { color: var(--brand-dark); font-size: 1.35rem; }
+    .btn-cta {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 20px; border-radius: 8px; font-weight: 600;
+        font-size: .92rem; text-decoration: none; transition: opacity .15s;
+    }
+    .btn-cta:hover { opacity: .9; }
+    .btn-wa { background: #25d366; color: #fff; }
+    .btn-book { background: var(--brand); color: #fff; }
+    .btn-tel { background: #eef2f0; color: #334155; }
+
+    .empty {
+        text-align: center; color: #94a3b8; padding: 32px;
+        background: #f8faf9; border: 1px dashed #d8ecdf; border-radius: 8px;
     }
 
-    /* 两张图片时各占一半 */
-    .day-images img:first-child:nth-last-child(2),
-    .day-images img:first-child:nth-last-child(2) ~ img {
-        flex: 1 1 calc(50% - 0.5rem);
-        max-width: calc(50% - 0.5rem);
-    }
-    
-    /* 包含/不包含列表 */
-    .include-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .include-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        background: #f8fafc;
-        border-radius: 8px;
-    }
-
-    .include-item span {
-        flex: 1;
-        line-height: 1.5;
-    }
-
-    .include-item i {
-        width: 24px;
-        height: 24px;
-        min-width: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        font-size: 0.75rem;
-        flex-shrink: 0;
-        margin-top: 2px;
-    }
-
-    .include-item.yes i { background: #dcfce7; color: #16a34a; }
-    .include-item.no i { background: #fee2e2; color: #dc2626; }
-    
-    /* 侧边栏价格卡片 */
-    .price-card {
-        background: white;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        position: sticky;
-        top: 100px;
-    }
-    
-    .price-header {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        color: white;
-        padding: 2rem;
-        text-align: center;
-    }
-    
-    .price-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        margin-bottom: 0.25rem;
-    }
-    
-    .price-value small {
-        font-size: 1rem;
-        font-weight: 400;
-        opacity: 0.8;
-    }
-    
-    .price-note {
-        font-size: 0.875rem;
-        opacity: 0.7;
-    }
-    
-    .price-body {
-        padding: 1.5rem;
-    }
-    
-    .price-stats {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .stat-item {
-        text-align: center;
-        padding: 1rem;
-        background: #f8fafc;
-        border-radius: 12px;
-    }
-    
-    .stat-item i {
-        font-size: 1.5rem;
-        color: #3b82f6;
-        margin-bottom: 0.5rem;
-    }
-    
-    .stat-item .label {
-        font-size: 0.75rem;
-        color: #64748b;
-        display: block;
-    }
-    
-    .stat-item .value {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #1e293b;
-    }
-    
-    .btn-book {
-        display: block;
-        width: 100%;
-        padding: 1rem;
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        text-align: center;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        margin-bottom: 0.75rem;
-    }
-    
-    .btn-book:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
-        color: white;
-    }
-    
-    .btn-contact {
-        display: block;
-        width: 100%;
-        padding: 0.875rem;
-        background: #f1f5f9;
-        color: #475569;
-        border: none;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 500;
-        text-align: center;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-contact:hover {
-        background: #e2e8f0;
-        color: #1e293b;
-    }
-    
-    /* 亮点标签 */
-    .highlights-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-    
-    .highlight-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.375rem 0.75rem;
-        background: #fef3c7;
-        color: #92400e;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 500;
-    }
-    
-    /* 响应式 */
-    @media (max-width: 991px) {
-        .package-hero { height: 350px; }
-        .package-title { font-size: 1.75rem; }
-        .price-card { position: relative; top: 0; margin-top: 2rem; }
-
-        .day-images img {
-            flex: 1 1 calc(50% - 0.5rem);
-            max-width: calc(50% - 0.5rem);
-            height: 140px;
-        }
-    }
-
-    @media (max-width: 576px) {
-        .package-hero { height: 300px; }
-        .package-meta { gap: 0.75rem; }
-        .meta-item { font-size: 0.8rem; }
-        .itinerary-day { flex-direction: column; gap: 1rem; }
-        .day-number { width: 100%; height: auto; flex-direction: row; padding: 0.75rem; gap: 0.5rem; }
-
-        /* 移动端图片单列显示 */
-        .day-images {
-            gap: 0.75rem;
-        }
-
-        .day-images img {
-            flex: 1 1 100%;
-            max-width: 100%;
-            height: 180px;
-        }
-
-        .day-images img:first-child:nth-last-child(2),
-        .day-images img:first-child:nth-last-child(2) ~ img {
-            flex: 1 1 100%;
-            max-width: 100%;
-        }
-
-        .content-card {
-            padding: 1.5rem;
-        }
-    }
-
-    /* 图片查看器优化 */
-    #imageViewer {
-        cursor: zoom-out;
-    }
-
-    #imageViewer img {
-        cursor: default;
+    @media (max-width: 640px) {
+        .itin-card { padding: 20px; }
+        .itin-title { font-size: 1.4rem; }
+        .day-imgs img { width: calc(50% - 4px); height: 96px; }
+        .contact-bar .price-tag { margin-right: 0; width: 100%; text-align: center; margin-bottom: 6px; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- 头部大图区域 -->
-<section class="package-hero">
-    {% if package.image %}
-    <div class="package-hero-bg" style="background-image: url('{{ url_for('static', filename=package.image) }}');"></div>
-    {% endif %}
-    <div class="package-hero-overlay"></div>
-    <div class="container package-hero-content">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-3" style="background: transparent;">
-                <li class="breadcrumb-item"><a href="{{ url_for('public.index') }}" style="color: rgba(255,255,255,0.7);">首页</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('public.tour_packages') }}" style="color: rgba(255,255,255,0.7);">旅游配套</a></li>
-                <li class="breadcrumb-item active" style="color: white;">详情</li>
-            </ol>
-        </nav>
-        
-        <div class="package-badge">
-            <i class="fas fa-tag"></i>
-            <span>{{ package.code }}</span>
+<div class="itin-wrap">
+    <div class="itin-card">
+
+        <!-- 面包屑 -->
+        <div class="itin-crumb">
+            <a href="{{ url_for('public.index') }}">首页</a> /
+            <a href="{{ url_for('public.tour_packages') }}">旅游配套</a> /
+            <span>详情</span>
         </div>
-        
-        <h1 class="package-title">{{ package.name }}</h1>
-        
-        <div class="package-meta">
-            <div class="meta-item">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>{{ package.destination }}</span>
+
+        <!-- 头部 -->
+        {% if package.code %}<span class="itin-code"><i class="fas fa-tag"></i> {{ package.code }}</span>{% endif %}
+        <h1 class="itin-title">{{ package.name }}</h1>
+        <div class="itin-meta">
+            <span><i class="fas fa-map-marker-alt"></i>{{ package.destination }}</span>
+            <span><i class="fas fa-calendar-alt"></i>{{ package.duration }}</span>
+            {% if package.min_pax %}<span><i class="fas fa-users"></i>{{ package.min_pax }}人起</span>{% endif %}
+            {% if package.price %}<span class="price"><i class="fas fa-tag"></i>{{ package.price }} / 人起</span>{% endif %}
+        </div>
+
+        <!-- 封面图 -->
+        {% if package.image %}
+        <img class="itin-cover" src="{{ url_for('static', filename=package.image) }}" alt="{{ package.name }}">
+        {% endif %}
+
+        <!-- 简介 -->
+        {% if package.description %}
+        <p class="itin-desc">{{ package.description }}</p>
+        {% endif %}
+
+        <!-- 每日行程 -->
+        <div class="sec-title">
+            <span class="cn">每日行程安排</span>
+            <span class="en">Daily Itinerary</span>
+        </div>
+        {% if package.itinerary %}
+            {% for day in package.itinerary %}
+            <div class="day">
+                <div class="day-head">
+                    <span class="day-badge">DAY {{ day.day }}</span>
+                    {{ day.title }}
+                </div>
+                {% if day.content %}
+                <div class="day-body">{{ day.content | safe }}</div>
+                {% elif day.activities %}
+                <div class="day-body">{{ day.activities | join('、') }}</div>
+                {% endif %}
+                {% if day.images %}
+                <div class="day-imgs">
+                    {% for img in day.images[:3] %}
+                    <img src="{{ url_for('static', filename=img) }}" alt="行程图片" onclick="viewImage(this.src)">
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
-            <div class="meta-item">
-                <i class="fas fa-calendar-alt"></i>
-                <span>{{ package.duration }}</span>
-            </div>
-            {% if package.min_pax %}
-            <div class="meta-item">
-                <i class="fas fa-users"></i>
-                <span>{{ package.min_pax }}人起</span>
-            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty"><i class="fas fa-calendar-alt"></i><br>详细行程信息请联系我们的旅游顾问获取</div>
+        {% endif %}
+
+        <!-- 价格与包含项目 -->
+        <div class="sec-title">
+            <span class="cn">价格与包含项目</span>
+            <span class="en">Price &amp; Inclusions</span>
+        </div>
+
+        {% if package.price_variants %}
+        <div class="price-table-wrap">
+            <table class="price-table">
+                <thead>
+                    <tr>
+                        <th>套餐类型</th>
+                        <th>Twin 双人房</th>
+                        <th>3rd Pax 第三人</th>
+                        <th>Single 单人房</th>
+                        <th>Child No Bed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pv in package.price_variants %}
+                    <tr>
+                        <td>
+                            {{ pv.variant_name }}
+                            {% if pv.start_date and pv.end_date %}
+                            <div style="font-size:.72rem;color:#94a3b8;font-weight:normal;">{{ pv.start_date }} ~ {{ pv.end_date }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="money">{% if pv.twin_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.twin_price) }}{% else %}-{% endif %}</td>
+                        <td class="money">{% if pv.third_pax_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.third_pax_price) }}{% else %}-{% endif %}</td>
+                        <td class="money">{% if pv.single_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.single_price) }}{% else %}-{% endif %}</td>
+                        <td class="money">{% if pv.child_no_bed_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.child_no_bed_price) }}{% else %}-{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="price-note"><i class="fas fa-info-circle"></i> 以上为每人价格，实际价格以报名时为准；儿童年龄以出发日期为准。</p>
+        </div>
+        {% endif %}
+
+        {% if package.includes %}
+        <div class="info-block">
+            <div class="lbl">包含项目 / Included</div>
+            <ul class="info-list yes">
+                {% for item in package.includes %}
+                <li><i class="fas fa-check"></i><span>{{ item }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if package.excludes %}
+        <div class="info-block">
+            <div class="lbl">不包含 / Excluded</div>
+            <ul class="info-list no">
+                {% for item in package.excludes %}
+                <li><i class="fas fa-times"></i><span>{{ item }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if package.notes %}
+        <div class="info-block">
+            <div class="lbl">注意事项 / Notes</div>
+            <ul class="notes-list">
+                {% for note in package.notes %}
+                <li>{{ note }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- 联系 / 预订 -->
+        <div class="contact-bar">
+            {% if package.price %}<div class="price-tag">参考价 <b>{{ package.price }}</b> / 人起</div>{% endif %}
+            <a class="btn-cta btn-wa" target="_blank"
+               href="https://wa.me/6596275316?text=您好，我想咨询旅游配套：{{ package.name }}（{{ package.code }}）">
+                <i class="fab fa-whatsapp"></i> WhatsApp 咨询
+            </a>
+            {% if company and company.phone %}
+            <a class="btn-cta btn-tel" href="tel:{{ company.phone }}"><i class="fas fa-phone"></i> {{ company.phone }}</a>
+            {% endif %}
+            {% if current_user.is_authenticated %}
+            <a class="btn-cta btn-book" href="{{ url_for('orders.book_tour', product_id=package.id) }}"><i class="fas fa-shopping-cart"></i> 立即预订</a>
+            {% else %}
+            <a class="btn-cta btn-book" href="{{ url_for('auth_profile.member_login', next=url_for('orders.book_tour', product_id=package.id)) }}"><i class="fas fa-shopping-cart"></i> 立即预订</a>
             {% endif %}
         </div>
+
     </div>
-</section>
-
-<!-- 主内容区域 -->
-<section class="package-content">
-    <div class="container">
-        <div class="row">
-            <!-- 左侧内容 -->
-            <div class="col-lg-9">
-                <!-- 产品介绍 -->
-                <div class="content-card">
-                    <h3 class="content-card-title">
-                        <i class="fas fa-info-circle icon-blue"></i>
-                        产品介绍
-                    </h3>
-                    <p style="color: #475569; line-height: 1.8; font-size: 1rem;">
-                        {{ package.description or '探索这个精彩的旅游目的地，感受独特的自然风光和人文魅力。我们精心设计的行程将带您领略最具特色的景点和体验。' }}
-                    </p>
-                </div>
-
-                <!-- 详细行程 -->
-                <div class="content-card">
-                    <h3 class="content-card-title">
-                        <i class="fas fa-route icon-blue"></i>
-                        详细行程
-                    </h3>
-                    
-                    {% if package.itinerary %}
-                    <div class="itinerary-list">
-                        {% for day in package.itinerary %}
-                        <div class="itinerary-day">
-                            <div class="day-number">
-                                <span>{{ day.day }}</span>
-                                <span>DAY</span>
-                            </div>
-                            <div class="day-content">
-                                <h4>{{ day.title }}</h4>
-                                <p>
-                                    {% if day.activities %}
-                                        {{ day.activities | join('、') }}
-                                    {% else %}
-                                        {{ day.content or '精彩行程安排' }}
-                                    {% endif %}
-                                </p>
-                                {% if day.images %}
-                                <div class="day-images">
-                                    {% for img in day.images[:3] %}
-                                    <img src="{{ url_for('static', filename=img) }}" alt="行程图片" onclick="viewImage(this.src)">
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div style="text-align: center; padding: 3rem; color: #94a3b8;">
-                        <i class="fas fa-calendar-alt" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <p>详细行程信息请联系我们的旅游顾问获取</p>
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <!-- 费用包含 -->
-                <div class="content-card">
-                    <h3 class="content-card-title">
-                        <i class="fas fa-check-circle icon-green"></i>
-                        费用包含
-                    </h3>
-                    <div class="include-list">
-                        {% for include in package.includes %}
-                        <div class="include-item yes">
-                            <i class="fas fa-check"></i>
-                            <span>{{ include }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <!-- 费用不含 -->
-                {% if package.excludes %}
-                <div class="content-card">
-                    <h3 class="content-card-title">
-                        <i class="fas fa-times-circle icon-red"></i>
-                        费用不含
-                    </h3>
-                    <div class="include-list">
-                        {% for exclude in package.excludes %}
-                        <div class="include-item no">
-                            <i class="fas fa-times"></i>
-                            <span>{{ exclude }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- 注意事项 -->
-                {% if package.notes %}
-                <div class="content-card">
-                    <h3 class="content-card-title">
-                        <i class="fas fa-exclamation-triangle icon-yellow"></i>
-                        注意事项
-                    </h3>
-                    <ul style="margin: 0; padding-left: 1.25rem; color: #475569;">
-                        {% for note in package.notes %}
-                        <li style="margin-bottom: 0.75rem; line-height: 1.6;">{{ note }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-
-                {% if package.price_variants %}
-                <!-- 价格明细 -->
-                <div class="content-card">
-                    <h3 class="content-card-title">
-                        <i class="fas fa-tags icon-blue"></i>
-                        价格明细
-                    </h3>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                            <thead>
-                                <tr style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
-                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; white-space: nowrap;">套餐类型</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: center; font-weight: 600;">Twin 双人房</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: center; font-weight: 600;">3rd Pax 第三人</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: center; font-weight: 600;">Single 单人房</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: center; font-weight: 600;">Child No Bed</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for pv in package.price_variants %}
-                                <tr style="border-bottom: 1px solid #e2e8f0; {% if loop.index is odd %}background: #f8fafc;{% endif %}">
-                                    <td style="padding: 0.75rem 1rem; font-weight: 500; color: #1e40af;">
-                                        {{ pv.variant_name }}
-                                        {% if pv.start_date and pv.end_date %}
-                                        <div style="font-size: 0.75rem; color: #64748b; font-weight: normal;">
-                                            {{ pv.start_date }} ~ {{ pv.end_date }}
-                                        </div>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 0.75rem 1rem; text-align: center; color: #059669; font-weight: 600;">
-                                        {% if pv.twin_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.twin_price) }}{% else %}-{% endif %}
-                                    </td>
-                                    <td style="padding: 0.75rem 1rem; text-align: center; color: #059669; font-weight: 600;">
-                                        {% if pv.third_pax_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.third_pax_price) }}{% else %}-{% endif %}
-                                    </td>
-                                    <td style="padding: 0.75rem 1rem; text-align: center; color: #059669; font-weight: 600;">
-                                        {% if pv.single_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.single_price) }}{% else %}-{% endif %}
-                                    </td>
-                                    <td style="padding: 0.75rem 1rem; text-align: center; color: #059669; font-weight: 600;">
-                                        {% if pv.child_no_bed_price %}{{ pv.currency or package.currency }} {{ "%.0f"|format(pv.child_no_bed_price) }}{% else %}-{% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <p style="margin-top: 1rem; font-size: 0.8rem; color: #64748b;">
-                        <i class="fas fa-info-circle"></i> 以上价格为每人价格，实际价格以报名时为准。儿童年龄以出发日期为准。
-                    </p>
-                </div>
-                {% endif %}
-            </div>
-            
-            <!-- 右侧侧边栏 -->
-            <div class="col-lg-3">
-                <div class="price-card">
-                    <div class="price-header">
-                        <div class="price-value">
-                            {{ package.price }}<small>/人起</small>
-                        </div>
-                        <div class="price-note">参考价格，详询客服</div>
-                    </div>
-                    <div class="price-body">
-                        <div class="price-stats">
-                            <div class="stat-item">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span class="label">行程天数</span>
-                                <span class="value">{{ package.duration }}</span>
-                            </div>
-                            <div class="stat-item">
-                                <i class="fas fa-users"></i>
-                                <span class="label">成团人数</span>
-                                <span class="value">{% if package.min_pax %}{{ package.min_pax }}人起{% else %}灵活安排{% endif %}</span>
-                            </div>
-                        </div>
-                        
-                        {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('orders.book_tour', product_id=package.id) }}" class="btn-book">
-                            <i class="fas fa-shopping-cart me-2"></i>立即预订
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('auth_profile.member_login', next=url_for('orders.book_tour', product_id=package.id)) }}" class="btn-book">
-                            <i class="fas fa-shopping-cart me-2"></i>立即预订
-                        </a>
-                        {% endif %}
-                        <a href="https://wa.me/6596275316?text=您好，我想咨询旅游配套：{{ package.name }}（{{ package.code }}）" target="_blank" class="btn-contact">
-                            <i class="fab fa-whatsapp me-2"></i>WhatsApp咨询
-                        </a>
-                        <a href="tel:{{ company.phone if company and company.phone else '+6512345678' }}" class="btn-contact" style="margin-top: 0.5rem;">
-                            <i class="fas fa-phone me-2"></i>{{ company.phone if company and company.phone else '+65 1234 5678' }}
-                        </a>
-                    </div>
-                </div>
-                
-            </div>
-        </div>
-    </div>
-</section>
+</div>
 
 <!-- 图片查看器 -->
-<div id="imageViewer" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center;" onclick="this.style.display='none'">
-    <img id="viewerImage" style="max-width: 90%; max-height: 90%; border-radius: 8px;">
-    <button style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;">
-        <i class="fas fa-times"></i>
-    </button>
+<div id="imageViewer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;align-items:center;justify-content:center;" onclick="this.style.display='none'">
+    <img id="viewerImage" style="max-width:90%;max-height:90%;border-radius:8px;">
 </div>
 {% endblock %}
 
