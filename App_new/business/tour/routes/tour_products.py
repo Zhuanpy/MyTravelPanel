@@ -676,6 +676,72 @@ def clear_gallery_images(product_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@tour_products_bp.route('/<int:product_id>/upload-image', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def upload_product_image(product_id):
+    """AJAX 上传/选择产品图片（封面 cover / 图库 gallery / 供应商文件 supplier_doc）
+
+    - 文件上传：字段 image（可多选，gallery 时批量），复用 save_uploaded_file / save_document_file
+    - 图片库选择：字段 image_path（已有相对路径），不传文件
+    返回 {success, path/paths}
+    """
+    try:
+        product = Product.query.get_or_404(product_id)
+        kind = request.form.get('kind', 'gallery')
+
+        # 供应商说明文件
+        if kind == 'supplier_doc':
+            f = request.files.get('image') or request.files.get('file')
+            if not f or not f.filename:
+                return jsonify({'success': False, 'message': '请选择文件'}), 400
+            path, name = save_document_file(f)
+            if not path:
+                return jsonify({'success': False, 'message': '文件保存失败'}), 500
+            product.supplier_document = path
+            product.supplier_document_name = name
+            db.session.commit()
+            return jsonify({'success': True, 'path': path, 'name': name})
+
+        # 封面 / 图库：优先图片库路径，其次文件上传
+        image_path = (request.form.get('image_path') or '').strip()
+        saved_paths = []
+        if image_path:
+            saved_paths.append(image_path)
+        else:
+            for f in request.files.getlist('image'):
+                if f and f.filename:
+                    p = save_uploaded_file(f)
+                    if p:
+                        saved_paths.append(p)
+        if not saved_paths:
+            return jsonify({'success': False, 'message': '未收到图片'}), 400
+
+        if kind == 'cover':
+            product.cover_image = saved_paths[0]
+        else:  # gallery：追加去重
+            existing = []
+            if product.gallery_images:
+                try:
+                    existing = json.loads(product.gallery_images) if isinstance(product.gallery_images, str) else product.gallery_images
+                except Exception:
+                    existing = []
+            for p in saved_paths:
+                if p not in existing:
+                    existing.append(p)
+            product.gallery_images = json.dumps(existing)
+
+        db.session.commit()
+        return jsonify({'success': True, 'paths': saved_paths})
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @tour_products_bp.route('/<int:product_id>/itinerary/<int:itinerary_id>')
 @login_required
 @staff_only

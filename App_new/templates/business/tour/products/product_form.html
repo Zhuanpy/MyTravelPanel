@@ -4,17 +4,19 @@
 {% block page_title %}{{ '编辑产品' if product else '添加产品' }}{% if product %} <small class="text-muted fw-normal" style="font-size: 0.6em;">产品ID: {{ product.id }}</small>{% endif %}{% endblock %}
 {% block page_actions %}
 <div class="d-flex gap-2">
+    {% if not product %}
     <button type="submit" form="productForm" class="btn btn-success btn-sm">
-        <i class="fas fa-save me-1"></i> {{ '保存修改' if product else '创建产品' }}
+        <i class="fas fa-save me-1"></i> 创建产品
     </button>
+    {% endif %}
     {% if product %}
     <a href="{{ url_for('tour_products.print_itinerary', product_id=product.id) }}" target="_blank" class="btn btn-outline-info btn-sm">
         <i class="fas fa-print me-1"></i> 打印行程
     </a>
+    {% endif %}
     <a href="{{ url_for('tour_products.product_list') }}" class="btn btn-outline-secondary btn-sm">
         <i class="fas fa-arrow-left me-1"></i> 返回列表
     </a>
-    {% endif %}
 </div>
 {% endblock %}
 
@@ -22,63 +24,53 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-    /* 标签页样式 */
-    .tabs-header {
+    /* 信息卡片（照搬编辑旅游项目页） */
+    .info-card {
+        background: #f8fafc;
+        border-radius: 6px;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
         display: flex;
-        border-bottom: 2px solid #e5e7eb;
-        padding: 0;
-        margin: 0;
-        overflow-x: auto;
-        background: #f9fafb;
-        border-radius: 1rem 1rem 0 0;
-    }
-    .tab-button {
-        padding: 1rem 1.5rem;
-        background: transparent;
-        border: none;
-        border-bottom: 3px solid transparent;
-        cursor: pointer;
-        font-size: 0.95rem;
-        font-weight: 500;
-        color: #6b7280;
-        transition: all 0.3s ease;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
+        align-items: baseline;
         gap: 0.5rem;
+        min-width: 0;
     }
-    .tab-button:hover {
-        background: #f3f4f6;
-        color: #374151;
+    .info-card:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    .info-card h6 {
+        font-size: 0.7rem; color: #64748b; margin: 0; font-weight: 500;
+        white-space: nowrap; flex-shrink: 0;
     }
-    .tab-button.active {
-        color: #10b981;
-        border-bottom-color: #10b981;
-        background: white;
+    .info-card p {
+        font-size: 0.82rem; color: #1e293b; margin: 0; font-weight: 500;
+        min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .tab-content {
-        display: none;
-        padding: 2rem;
-        animation: fadeIn 0.3s ease;
+    .info-empty { color: #94a3b8; font-style: italic; }
+
+    /* 区块卡片 */
+    .section-card {
+        background: white; border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem; overflow: hidden;
     }
-    .tab-content.active {
-        display: block;
+    .section-header {
+        padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb;
+        display: flex; justify-content: space-between; align-items: center;
+        background: #f9fafb;
     }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+    .section-header h4 { margin: 0; font-size: 1rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 0.5rem; }
+    .section-body { padding: 1.25rem 1.5rem; }
+
+    /* 长文本预览块 */
+    .text-block {
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+        padding: 0.75rem 1rem; white-space: pre-wrap; word-break: break-word;
+        font-size: 0.85rem; color: #374151; line-height: 1.6; max-height: 200px; overflow-y: auto;
     }
-    .tab-icon {
-        font-size: 1.1rem;
-    }
-    .required-badge {
-        background: #fef3c7;
-        color: #92400e;
-        font-size: 0.7rem;
-        padding: 0.15rem 0.4rem;
-        border-radius: 0.25rem;
-        font-weight: 600;
-    }
+    .text-block-label { font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.35rem; }
+
+    /* 供应商下拉 hover */
+    .supplier-option:hover { background: #e0f2fe !important; }
 </style>
 {% endblock %}
 
@@ -86,707 +78,438 @@
 <div class="bg-gray-50 min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto">
 
-        <form method="POST" id="productForm" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <!-- 标签页容器 -->
-            <div class="tabs-container bg-white rounded-2xl shadow-md mb-8">
-            <!-- 标签页头部 -->
-            <div class="tabs-header">
-                <button type="button" class="tab-button active" data-tab="basic">
-                    <i class="fas fa-info-circle tab-icon"></i>
-                    <span>基本信息</span>
-                    <span class="required-badge">必填</span>
-                </button>
-                {% if product %}
-                <button type="button" class="tab-button" data-tab="variants">
-                    <i class="fas fa-tags tab-icon"></i>
-                    <span>价格设置</span>
-                    <span class="visa-badge visa-badge-warning" style="font-size: 0.7rem;">{{ price_variants|length if price_variants else 0 }}</span>
-                </button>
-                <button type="button" class="tab-button" data-tab="itinerary">
-                    <i class="fas fa-route tab-icon"></i>
-                    <span>每日行程</span>
-                    <span class="visa-badge visa-badge-info" style="font-size: 0.7rem;">{{ itineraries|length if itineraries else 0 }}</span>
-                </button>
-                {% endif %}
-                <button type="button" class="tab-button" data-tab="media">
-                    <i class="fas fa-images tab-icon"></i>
-                    <span>图片资源</span>
+    {% if product %}
+    {# ==================== 编辑模式：卡片 + 弹窗 ==================== #}
+
+        <!-- 基本信息 -->
+        <div class="section-card">
+            <div class="section-header">
+                <h4><i class="fas fa-info-circle text-green-500"></i> 产品基本信息</h4>
+                <button type="button" onclick="editBasicInfo()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                    <i class="fas fa-edit"></i> 编辑基本信息
                 </button>
             </div>
-            
-            <!-- Tab 1: 基本信息 -->
-            <div id="tab-basic" class="tab-content active">
-                <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
-                    <i class="fas fa-info-circle"></i> 基本信息
-                </h3>
-                <div class="visa-grid-4">
-                    <div class="visa-form-group" style="grid-column: 1 / -1;">
-                        <label class="visa-form-label">产品名称 <span style="color: red;">*</span></label>
-                        <input type="text" name="product_name" value="{{ product.product_name if product else '' }}"
-                               class="visa-form-control" required placeholder="如：新加坡3天2晚自由行">
-                    </div>
-                    <div class="visa-form-group" style="grid-column: 1 / -1;">
-                        <label class="visa-form-label">供应商 <span style="color: red;">*</span></label>
-                        <div style="display: flex; gap: 0.5rem;" id="supplierSelectWrapper">
-                            <select id="supplierFilterType" class="visa-form-select" style="flex: 1;">
-                                <option value="">全部类型</option>
-                                {% set type_set = [] %}
-                                {% for s in suppliers %}
-                                    {% if s.supplier_type and s.supplier_type.name not in type_set %}
-                                        {% if type_set.append(s.supplier_type.name) %}{% endif %}
-                                        <option value="{{ s.supplier_type.name }}">{{ s.supplier_type.name }}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                            <select id="supplierFilterCountry" class="visa-form-select" style="flex: 1;">
-                                <option value="">全部国家</option>
-                                {% set country_set = [] %}
-                                {% for s in suppliers %}
-                                    {% if s.country and s.country not in country_set %}
-                                        {% if country_set.append(s.country) %}{% endif %}
-                                        <option value="{{ s.country }}">{{ s.country }}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                            <select id="supplierFilterCity" class="visa-form-select" style="flex: 1;">
-                                <option value="">全部城市</option>
-                                {% set city_set = [] %}
-                                {% for s in suppliers %}
-                                    {% if s.city and s.city not in city_set %}
-                                        {% if city_set.append(s.city) %}{% endif %}
-                                        <option value="{{ s.city }}">{{ s.city }}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                            <!-- 供应商搜索 + 下拉 -->
-                            <div style="position: relative; flex: 2;">
-                            <input type="hidden" name="supplier_id" id="supplierId"
-                                   value="{{ product.supplier_id if product and product.supplier_id else '' }}" required>
-                            <input type="text" id="supplierSearch" class="visa-form-select" style="cursor: text;"
-                                   placeholder="-- 搜索或选择供应商 --" autocomplete="off"
-                                   value="{% if product and product.supplier_id %}{% for s in suppliers %}{% if s.id == product.supplier_id %}{{ s.company_name }}{% endif %}{% endfor %}{% endif %}">
-                            <div id="supplierDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 220px; overflow-y: auto; background: #fff; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 6px 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;">
-                                <div class="supplier-option" data-id="" data-name="" data-type="" data-country="" data-city="" style="padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.85rem; color: #94a3b8; border-bottom: 1px solid #f1f5f9;">-- 清除选择 --</div>
-                                {% for supplier in suppliers %}
-                                <div class="supplier-option"
-                                     data-id="{{ supplier.id }}"
-                                     data-name="{{ supplier.company_name }}"
-                                     data-type="{{ supplier.supplier_type.name if supplier.supplier_type else '' }}"
-                                     data-country="{{ supplier.country or '' }}"
-                                     data-city="{{ supplier.city or '' }}"
-                                     style="padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #f1f5f9;">
-                                    <span>{{ supplier.company_name }}</span>
-                                    <small style="color: #94a3b8; margin-left: 0.5rem;">
-                                        {% if supplier.supplier_type %}{{ supplier.supplier_type.name }}{% endif %}
-                                        {% if supplier.country %} · {{ supplier.country }}{% endif %}
-                                        {% if supplier.city %} · {{ supplier.city }}{% endif %}
-                                    </small>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% if product and product.product_code %}
-                    <input type="hidden" name="product_code" value="{{ product.product_code }}">
-                    {% endif %}
-                    <input type="hidden" name="country_name" id="countryName" value="{{ product.country if product else '' }}">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">产品类型</label>
-                        <select name="product_type" class="visa-form-select">
-                            <option value="">-- 选择类型 --</option>
-                            <option value="跟团游" {% if product and product.product_type == '跟团游' %}selected{% endif %}>跟团游</option>
-                            <option value="自由行" {% if product and product.product_type == '自由行' %}selected{% endif %}>自由行</option>
-                            <option value="定制游" {% if product and product.product_type == '定制游' %}selected{% endif %}>定制游</option>
-                            <option value="当地游" {% if product and product.product_type == '当地游' %}selected{% endif %}>当地游</option>
-                        </select>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">城市 <span style="color: red;">*</span></label>
-                        <select name="city_name" id="citySelect" class="visa-form-select" required onchange="updateCountry()">
-                            <option value="">-- 选择城市 --</option>
-                            {% for city in cities %}
-                            <option value="{{ city.city_name }}" 
-                                    data-country="{{ city.country_name }}"
-                                    {% if product and product.city_name == city.city_name %}selected{% endif %}>
-                                {{ city.city_name }} ({{ city.country_name }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">行程天数 <span style="color: red;">*</span></label>
-                        <input type="number" name="duration_days" value="{{ product.duration_days if product and product.duration_days else '' }}" 
-                               class="visa-form-control" required min="1" placeholder="如：3">
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">最少人数</label>
-                        <input type="number" name="min_pax" value="{{ product.min_pax if product and product.min_pax else '1' }}"
-                               class="visa-form-control" min="1" placeholder="1">
-                    </div>
+            <div class="section-body">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    <div class="info-card"><h6>产品名称</h6><p title="{{ product.product_name }}">{{ product.product_name }}</p></div>
+                    <div class="info-card"><h6>供应商</h6><p class="{% if not product.display_company_name %}info-empty{% endif %}">{{ product.display_company_name or '未设置' }}</p></div>
+                    <div class="info-card"><h6>产品编号</h6><p class="{% if not product.product_code %}info-empty{% endif %}">{{ product.product_code or '未设置' }}</p></div>
+                    <div class="info-card"><h6>产品类型</h6><p class="{% if not product.product_type %}info-empty{% endif %}">{{ product.product_type or '未设置' }}</p></div>
+                    <div class="info-card"><h6>城市</h6><p class="{% if not product.city_name %}info-empty{% endif %}">{{ product.city_name or '未设置' }}</p></div>
+                    <div class="info-card"><h6>国家</h6><p class="{% if not product.country %}info-empty{% endif %}">{{ product.country or '未设置' }}</p></div>
+                    <div class="info-card"><h6>行程天数</h6><p class="{% if not product.duration_days %}info-empty{% endif %}">{% if product.duration_days %}{{ product.duration_days }}天{% else %}未设置{% endif %}</p></div>
+                    <div class="info-card"><h6>人数</h6><p>{{ product.min_pax or 1 }}{% if product.max_pax %} ~ {{ product.max_pax }}{% endif %} 人</p></div>
+                    <div class="info-card"><h6>状态</h6><p>
+                        {% if product.product_status == 'active' %}<span class="inline-flex px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">激活</span>
+                        {% elif product.product_status == 'inactive' %}<span class="inline-flex px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">停用</span>
+                        {% else %}<span class="inline-flex px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">草稿</span>{% endif %}
+                    </p></div>
+                    <div class="info-card"><h6>有效期</h6><p class="{% if not product.valid_from and not product.valid_until %}info-empty{% endif %}">{% if product.valid_from or product.valid_until %}{{ product.valid_from or '?' }} ~ {{ product.valid_until or '?' }}{% else %}不限{% endif %}</p></div>
+                    <div class="info-card" style="grid-column: span 2;"><h6>标签</h6><p class="{% if not product.tags %}info-empty{% endif %}">{% if product.tags %}{{ product.tags|replace('[','')|replace(']','')|replace('"','') }}{% else %}未设置{% endif %}</p></div>
                 </div>
 
-                <!-- 其他设置区域 -->
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
-                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
-                        <i class="fas fa-cog"></i> 其他设置
-                    </h4>
-                    <div class="visa-grid-4">
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">产品状态</label>
-                            <select name="product_status" class="visa-form-select">
-                                <option value="draft" {% if product and product.product_status == 'draft' %}selected{% endif %}>草稿</option>
-                                <option value="active" {% if not product or product.product_status == 'active' %}selected{% endif %}>激活</option>
-                                <option value="inactive" {% if product and product.product_status == 'inactive' %}selected{% endif %}>停用</option>
-                            </select>
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">有效开始</label>
-                            <input type="date" name="valid_from" value="{{ product.valid_from if product and product.valid_from else '' }}"
-                                   class="visa-form-control">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">有效结束</label>
-                            <input type="date" name="valid_until" value="{{ product.valid_until if product and product.valid_until else '' }}"
-                                   class="visa-form-control">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label">标签</label>
-                            <input type="text" name="tags" id="tagsInput" value="{% if product and product.tags %}{{ product.tags|replace('[', '')|replace(']', '')|replace('"', '') }}{% endif %}"
-                                   class="visa-form-control" placeholder="蜜月,豪华,亲子">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 产品内容区域 -->
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
-                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
-                        <i class="fas fa-file-alt"></i> 产品内容
-                    </h4>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">产品描述</label>
-                        <textarea name="product_description" rows="6" class="visa-form-control"
-                                  placeholder="简要描述产品特色...">{{ product.product_description if product and product.product_description else '' }}</textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">包含服务</label>
-                        <textarea name="included_services" rows="8" class="visa-form-control"
-                                  placeholder="列出包含的服务项目，每行一项...">{{ product.included_services if product and product.included_services else '' }}</textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">不包含服务</label>
-                        <textarea name="excluded_services" rows="8" class="visa-form-control"
-                                  placeholder="列出不包含的服务项目，每行一项...">{{ product.excluded_services if product and product.excluded_services else '' }}</textarea>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">重要提示</label>
-                        <textarea name="important_notes" rows="5" class="visa-form-control"
-                                  placeholder="列出重要的注意事项...">{{ product.important_notes if product and product.important_notes else '' }}</textarea>
-                    </div>
+                <!-- 产品内容 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                    <div><div class="text-block-label"><i class="fas fa-align-left"></i> 产品描述</div><div class="text-block {% if not product.product_description %}info-empty{% endif %}">{{ product.product_description or '未填写' }}</div></div>
+                    <div><div class="text-block-label"><i class="fas fa-check text-green-500"></i> 包含服务</div><div class="text-block {% if not product.included_services %}info-empty{% endif %}">{{ product.included_services or '未填写' }}</div></div>
+                    <div><div class="text-block-label"><i class="fas fa-times text-red-500"></i> 不包含服务</div><div class="text-block {% if not product.excluded_services %}info-empty{% endif %}">{{ product.excluded_services or '未填写' }}</div></div>
+                    <div><div class="text-block-label"><i class="fas fa-exclamation-triangle text-yellow-500"></i> 重要提示</div><div class="text-block {% if not product.important_notes %}info-empty{% endif %}">{{ product.important_notes or '未填写' }}</div></div>
                 </div>
             </div>
+        </div>
 
-            <!-- Tab 4: 图片资源 -->
-            <div id="tab-media" class="tab-content">
-                <h3 style="color: var(--visa-success); margin-bottom: 1.5rem;">
-                    <i class="fas fa-images"></i> 产品图片
-                </h3>
-                <div class="visa-grid-2">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">封面图</label>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                            <input type="file" name="cover_image" accept="image/*" class="visa-form-control" style="flex: 1;">
-                            <button type="button" onclick="openImageLibrary('cover')" 
-                                    class="visa-btn visa-btn-info" style="white-space: nowrap;">
-                                <i class="fas fa-images mr-1"></i>从图片库选择
-                            </button>
-                        </div>
-                        <small style="color: var(--visa-text-secondary); font-size: 0.75rem; display: block; margin-bottom: 0.5rem;">
-                            <i class="fas fa-info-circle"></i> 建议尺寸：1200 × 800 像素（宽 × 高），支持 JPG、PNG 格式
-                        </small>
-                        <input type="hidden" id="selectedCoverImage" name="selected_cover_image">
-                        {% if product and product.cover_image %}
-                        <div class="visa-mt-2" id="coverImagePreview" style="position: relative; display: inline-block;">
-                            <img src="{{ product.cover_image|image_url }}" 
-                                 style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);"
-                                 onerror="this.style.display='none'">
-                            <button type="button" onclick="deleteProductFile('cover_image')" 
-                                    style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;"
-                                    title="删除封面图">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">产品图片库（可选择多张）</label>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                            <input type="file" name="gallery_images" accept="image/*" multiple class="visa-form-control" style="flex: 1;">
-                            <button type="button" onclick="openImageLibrary('gallery')"
-                                    class="visa-btn visa-btn-info" style="white-space: nowrap;">
-                                <i class="fas fa-images mr-1"></i>从图片库选择
-                            </button>
-                            {% if product and product.gallery_images %}
-                            <button type="button" onclick="clearAllGalleryImages()"
-                                    class="visa-btn visa-btn-danger" style="white-space: nowrap;" id="clearAllGalleryBtn">
-                                <i class="fas fa-trash-alt mr-1"></i>清除全部
-                            </button>
-                            {% endif %}
-                        </div>
-                        <input type="hidden" id="selectedGalleryImages" name="selected_gallery_images">
-                        <small style="color: var(--visa-text-secondary); font-size: 0.75rem; display: block; margin-bottom: 0.5rem;">
-                            <i class="fas fa-info-circle"></i> 建议尺寸：1200 × 800 像素（宽 × 高），支持 JPG、PNG 格式。可以选择多张图片一次上传，或从图片库选择已有图片
-                        </small>
-                        {% if product and product.gallery_images %}
-                        <div class="visa-flex visa-gap-2 visa-mt-2" style="flex-wrap: wrap;" id="galleryImagesContainer">
-                            {% set images = product.gallery_images|fromjson if product.gallery_images else [] %}
-                            {% for image in images %}
-                            <div style="position: relative; display: inline-block;" id="galleryImage{{ loop.index0 }}">
-                                <img src="{{ image|image_url }}" 
-                                     style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);"
-                                     onerror="this.style.display='none'">
-                                <button type="button" onclick="deleteProductFile('gallery_image', {{ loop.index0 }})" 
-                                        style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
-                                        title="删除图片">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <!-- 供应商文件上传 -->
-                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--visa-border);">
-                    <h4 style="color: var(--visa-primary); margin-bottom: 1rem;">
-                        <i class="fas fa-file-alt"></i> 供应商产品说明文件
-                    </h4>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">上传文件（PDF / Word）</label>
-                        <input type="file" name="supplier_document" accept=".pdf,.doc,.docx" class="visa-form-control">
-                        <small style="color: var(--visa-text-secondary); font-size: 0.75rem;">
-                            支持 PDF、Word 格式，供应商提供的详细产品说明
-                        </small>
-                        {% if product and product.supplier_document %}
-                        <div class="visa-mt-2" id="supplierDocPreview" style="padding: 0.75rem; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd;">
-                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <i class="fas fa-file-pdf" style="font-size: 1.5rem; color: #dc2626;"></i>
-                                <div style="flex: 1;">
-                                    <div style="font-weight: 500; color: #0c4a6e;">{{ product.supplier_document_name or '供应商文件' }}</div>
-                                    <small style="color: #64748b;">已上传</small>
-                                </div>
-                                <a href="{{ product.supplier_document|image_url }}" target="_blank" class="visa-btn visa-btn-info visa-btn-sm">
-                                    <i class="fas fa-eye"></i> 查看
-                                </a>
-                                <a href="{{ product.supplier_document|image_url }}" download class="visa-btn visa-btn-success visa-btn-sm">
-                                    <i class="fas fa-download"></i> 下载
-                                </a>
-                                <button type="button" onclick="deleteProductFile('supplier_document')" class="visa-btn visa-btn-danger visa-btn-sm">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            {% if product %}
-            <!-- Tab 6: 每日行程 -->
-            <div id="tab-itinerary" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="color: var(--visa-success); margin: 0;">
-                        <i class="fas fa-route"></i> 每日行程安排
-                    </h3>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <a href="{{ url_for('tour_products.download_itinerary_template') }}" class="visa-btn visa-btn-info">
-                            <i class="fas fa-download"></i> 下载模板
-                        </a>
-                        <button type="button" onclick="document.getElementById('itineraryExcelUpload').click()" class="visa-btn visa-btn-warning">
-                            <i class="fas fa-file-excel"></i> 导入Excel
-                        </button>
-                        <button type="button" onclick="addAllDaysItinerary()" class="visa-btn visa-btn-primary">
-                            <i class="fas fa-calendar-plus"></i> 一键添加全部 ({{ product.duration_days }}天)
-                        </button>
-                        <button type="button" onclick="showAddItineraryModal()" class="visa-btn visa-btn-success">
-                            <i class="fas fa-plus"></i> 添加行程
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- 自动分配图片提示 -->
-                <div style="background: linear-gradient(135deg, #dbeafe, #ede9fe); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                    <div style="flex: 1; min-width: 200px;">
-                        <div style="font-weight: 600; color: #1e40af; margin-bottom: 0.25rem;">
-                            <i class="fas fa-magic" style="color: #7c3aed;"></i> 自动分配行程图片
-                        </div>
-                        <div style="font-size: 0.85rem; color: #4b5563;">
-                            从"产品图片库"按顺序为每日行程分配图片（每天最多3张）。如4天行程需12张图片，不足时优先分配给前面日期。
-                        </div>
-                    </div>
-                    <button type="button" onclick="autoAssignItineraryImages()" class="visa-btn" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; white-space: nowrap;">
-                        <i class="fas fa-images"></i> 自动分配图片
+        <!-- 价格 -->
+        <div class="section-card">
+            <div class="section-header">
+                <h4><i class="fas fa-tags text-amber-500"></i> 价格</h4>
+                <div class="flex gap-2">
+                    <button type="button" onclick="editPrice()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
+                        <i class="fas fa-edit"></i> 编辑基础价格
                     </button>
-                </div>
-                
-                <!-- 隐藏的行程Excel上传表单 -->
-                <form id="itineraryExcelForm" style="display: none;">
-                    <input type="file" id="itineraryExcelUpload" accept=".xlsx,.xls" onchange="handleItineraryExcelUpload(this)">
-                </form>
-            {% if itineraries %}
-            <div style="overflow-x: auto;">
-                <table class="visa-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">天数</th>
-                            <th style="width: 150px;">标题</th>
-                            <th>行程正文</th>
-                            <th style="width: 300px;">图片</th>
-                            <th style="width: 150px;">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for itinerary in itineraries %}
-                        <tr>
-                            <td class="visa-text-center"><strong>第{{ itinerary.day_number }}天</strong></td>
-                            <td>{{ itinerary.day_title or '-' }}</td>
-                            <td style="white-space: pre-wrap; max-width: 400px; overflow: hidden; text-overflow: ellipsis;">{{ (itinerary.content[:100] ~ '...') if itinerary.content and itinerary.content|length > 100 else (itinerary.content or '-') }}</td>
-                            <td>
-                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    {% for img_path in [itinerary.image1, itinerary.image2, itinerary.image3] %}
-                                    {% if img_path %}
-                                    {% set lib_info = image_lib_map.get(img_path, {}) %}
-                                    <div style="text-align: center; max-width: 80px;">
-                                        <img src="{{ url_for('static', filename=img_path) }}" alt="" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="viewImage('{{ url_for('static', filename=img_path) }}')">
-                                        {% if lib_info.get('title') %}
-                                        <div style="font-size: 0.65rem; color: #334155; margin-top: 2px; line-height: 1.2; word-break: break-all;" title="{{ lib_info.get('title') }}">{{ lib_info.get('title')[:12] }}{{ '...' if lib_info.get('title')|length > 12 else '' }}</div>
-                                        {% endif %}
-                                        {% if lib_info.get('tags') %}
-                                        <div style="font-size: 0.6rem; color: #0ea5e9; margin-top: 1px;">{{ lib_info.get('tags') }}</div>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-                                    {% endfor %}
-                                    {% if not itinerary.image1 and not itinerary.image2 and not itinerary.image3 %}
-                                    <span style="color: var(--visa-text-muted); font-size: 0.875rem;">无图片</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td>
-                                <div class="visa-flex visa-gap-1">
-                                    <button type="button" onclick="editItinerary({{ itinerary.id }})" class="visa-btn visa-btn-primary visa-btn-sm">
-                                        <i class="fas fa-edit"></i> 编辑
-                                    </button>
-                                    <button type="button" onclick="deleteItinerary({{ itinerary.id }})" class="visa-btn visa-btn-danger visa-btn-sm">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="visa-text-center" style="padding: 2rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-md);">
-                <i class="fas fa-route" style="font-size: 2.5rem; color: var(--visa-text-muted); margin-bottom: 0.75rem;"></i>
-                <p style="color: var(--visa-text-secondary); margin-bottom: 1rem;">暂无行程安排</p>
-                <button type="button" onclick="showAddItineraryModal()" class="visa-btn visa-btn-success">
-                    <i class="fas fa-plus"></i> 添加第一个行程
-                </button>
-            </div>
-            {% endif %}
-            </div>
-            
-            <!-- Tab 7: 价格设置 -->
-            <div id="tab-variants" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h3 style="color: #f59e0b; margin: 0;">
-                        <i class="fas fa-tags"></i> 价格设置管理（条件价格）
-                    </h3>
-                    <button type="button" onclick="showAddPriceVariantModal()" class="visa-btn" style="background: #f59e0b; color: white;">
+                    <button type="button" onclick="showAddPriceVariantModal()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-xs font-medium">
                         <i class="fas fa-plus"></i> 添加价格设置
                     </button>
                 </div>
-            <div style="background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fas fa-lightbulb" style="color: #0ea5e9;"></i>
-                    <strong style="color: #0c4a6e;">使用场景：</strong>
+            </div>
+            <div class="section-body">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
+                    <div class="info-card"><h6>基础价(成人)</h6><p class="text-green-600">{% if product.base_price %}{{ product.currency or 'SGD' }} {{ "%.0f"|format(product.base_price) }}{% else %}<span class="info-empty">未设置</span>{% endif %}</p></div>
+                    <div class="info-card"><h6>儿童价</h6><p class="{% if not product.child_price %}info-empty{% endif %}">{% if product.child_price %}{{ product.currency or 'SGD' }} {{ "%.0f"|format(product.child_price) }}{% else %}未设置{% endif %}</p></div>
+                    <div class="info-card"><h6>婴儿价</h6><p class="{% if not product.infant_price %}info-empty{% endif %}">{% if product.infant_price %}{{ product.currency or 'SGD' }} {{ "%.0f"|format(product.infant_price) }}{% else %}未设置{% endif %}</p></div>
+                    <div class="info-card"><h6>单房差</h6><p class="{% if not product.single_room_supplement %}info-empty{% endif %}">{% if product.single_room_supplement %}{{ product.currency or 'SGD' }} {{ "%.0f"|format(product.single_room_supplement) }}{% else %}未设置{% endif %}</p></div>
+                    <div class="info-card"><h6>货币</h6><p>{{ product.currency or 'SGD' }}</p></div>
                 </div>
-                <ul style="margin: 0.5rem 0 0 1.5rem; color: #0c4a6e; font-size: 0.9rem; padding-left: 1rem;">
-                    <li><strong>淡旺季价格：</strong>如淡季（1-3月）SGD 800，旺季（10-12月）SGD 1200</li>
-                    <li><strong>团队优惠：</strong>如2-5人 SGD 1000/人，6-10人 SGD 900/人</li>
-                    <li><strong>早鸟优惠：</strong>如提前30天预订优惠价格</li>
-                </ul>
-                <p style="margin: 0.75rem 0 0 0; color: #075985; font-size: 0.85rem;">
-                    💡 <strong>提示：</strong>所有价格通过价格设置统一管理，请在此添加不同场景的价格方案。
-                </p>
-            </div>
-            {% if price_variants %}
-            <div style="overflow-x: auto;">
-                <table class="visa-table" style="font-size: 0.85rem;">
-                    <thead>
-                        <tr>
-                            <th rowspan="2" style="vertical-align:middle;">变体名称</th>
-                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">Single</th>
-                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">Twin</th>
-                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">3rd Pax</th>
-                            <th colspan="2" style="text-align:center; border-bottom:1px solid #e2e8f0;">Child no Bed</th>
-                            <th rowspan="2" style="text-align:right; vertical-align:middle;">利润/人</th>
-                            <th rowspan="2" style="vertical-align:middle;">状态</th>
-                            <th rowspan="2" style="width:100px; vertical-align:middle;">操作</th>
-                        </tr>
-                        <tr>
-                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
-                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
-                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
-                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
-                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
-                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
-                            <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.75rem;">成本</th>
-                            <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.75rem;">售价</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for variant in price_variants %}
-                        <tr{% if variant.is_primary %} style="background: #fffbeb;"{% endif %}>
-                            <td>
-                                <strong>{{ variant.variant_name }}</strong>
-                                {% if variant.is_primary %}
-                                <span class="visa-badge visa-badge-warning" style="margin-left: 4px;">主要</span>
-                                {% endif %}
-                                <br><small style="color:#888;">{{ variant.currency }}{% if variant.is_primary %} · ★主要{% endif %}</small>
-                            </td>
-                            <!-- Single -->
-                            <td style="text-align:right;">
-                                {% if variant.cost_single_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_single_price) }}</span>{% else %}-{% endif %}
-                            </td>
-                            <td style="text-align:right;">
-                                {% if variant.single_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.single_price) }}</strong>{% else %}-{% endif %}
-                            </td>
-                            <!-- Twin -->
-                            <td style="text-align:right;">
-                                {% if variant.cost_twin_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_twin_price) }}</span>{% else %}-{% endif %}
-                            </td>
-                            <td style="text-align:right;">
-                                {% if variant.twin_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.twin_price) }}</strong>{% else %}-{% endif %}
-                            </td>
-                            <!-- 3rd Pax -->
-                            <td style="text-align:right;">
-                                {% if variant.cost_third_pax_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_third_pax_price) }}</span>{% else %}-{% endif %}
-                            </td>
-                            <td style="text-align:right;">
-                                {% if variant.third_pax_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.third_pax_price) }}</strong>{% else %}-{% endif %}
-                            </td>
-                            <!-- Child no Bed -->
-                            <td style="text-align:right;">
-                                {% if variant.cost_child_no_bed_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_child_no_bed_price) }}</span>{% else %}-{% endif %}
-                            </td>
-                            <td style="text-align:right;">
-                                {% if variant.child_no_bed_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.child_no_bed_price) }}</strong>{% else %}-{% endif %}
-                            </td>
-                            <!-- 利润 -->
-                            <td style="text-align:right;">
-                                {% if variant.profit_per_person %}
-                                <span style="color: #059669;">+{{ "%.0f"|format(variant.profit_per_person) }}</span>
-                                {% else %}-{% endif %}
-                            </td>
-                            <!-- 状态 -->
-                            <td>
-                                {% if variant.is_active %}
-                                <span class="visa-badge visa-badge-success">启用</span>
-                                {% else %}
-                                <span class="visa-badge visa-badge-secondary">禁用</span>
-                                {% endif %}
-                            </td>
-                            <!-- 操作 -->
-                            <td>
-                                <div class="visa-flex visa-gap-1">
-                                    <button type="button" onclick="editPriceVariant({{ variant.id }})" class="visa-btn visa-btn-primary visa-btn-sm" title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button type="button" onclick="deletePriceVariant({{ variant.id }})" class="visa-btn visa-btn-danger visa-btn-sm" title="删除">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="visa-text-center" style="padding: 2rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-md);">
-                <i class="fas fa-tags" style="font-size: 2.5rem; color: var(--visa-text-muted); margin-bottom: 0.75rem;"></i>
-                <p style="color: var(--visa-text-secondary); margin-bottom: 1rem;">暂无价格设置</p>
-                <button type="button" onclick="showAddPriceVariantModal()" class="visa-btn" style="background: #f59e0b; color: white;">
-                    <i class="fas fa-plus"></i> 添加第一个价格设置
-                </button>
-            </div>
-            {% endif %}
-            </div>
-            {% endif %}
-            
-        </div>
-        
-    </form>
 
-        <!-- 操作按钮（底部固定） -->
-        <div class="bg-white rounded-2xl shadow-md p-6">
-            <div class="flex flex-col sm:flex-row justify-center gap-4">
-                <a href="{{ url_for('tour_products.product_list') }}" 
-                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
-                    <i class="fas fa-arrow-left"></i> 返回列表
-                </a>
-                <button type="submit" form="productForm" 
-                        class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium">
-                    <i class="fas fa-save"></i> {{ '保存修改' if product else '创建产品' }}
-                </button>
+                <!-- 价格设置（条件价格）表格 -->
+                {% if price_variants %}
+                <div style="overflow-x: auto;">
+                    <table class="visa-table" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="vertical-align:middle;">变体名称</th>
+                                <th colspan="2" style="text-align:center;">Single</th>
+                                <th colspan="2" style="text-align:center;">Twin</th>
+                                <th colspan="2" style="text-align:center;">3rd Pax</th>
+                                <th colspan="2" style="text-align:center;">Child no Bed</th>
+                                <th rowspan="2" style="text-align:right; vertical-align:middle;">利润/人</th>
+                                <th rowspan="2" style="vertical-align:middle;">状态</th>
+                                <th rowspan="2" style="width:90px; vertical-align:middle;">操作</th>
+                            </tr>
+                            <tr>
+                                <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.72rem;">成本</th>
+                                <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.72rem;">售价</th>
+                                <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.72rem;">成本</th>
+                                <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.72rem;">售价</th>
+                                <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.72rem;">成本</th>
+                                <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.72rem;">售价</th>
+                                <th style="text-align:right; color:#dc2626; font-weight:normal; font-size:0.72rem;">成本</th>
+                                <th style="text-align:right; color:#2563eb; font-weight:normal; font-size:0.72rem;">售价</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for variant in price_variants %}
+                            <tr{% if variant.is_primary %} style="background: #fffbeb;"{% endif %}>
+                                <td><strong>{{ variant.variant_name }}</strong>{% if variant.is_primary %} <span class="visa-badge visa-badge-warning">主要</span>{% endif %}<br><small style="color:#888;">{{ variant.currency }}</small></td>
+                                <td style="text-align:right;">{% if variant.cost_single_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_single_price) }}</span>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.single_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.single_price) }}</strong>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.cost_twin_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_twin_price) }}</span>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.twin_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.twin_price) }}</strong>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.cost_third_pax_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_third_pax_price) }}</span>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.third_pax_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.third_pax_price) }}</strong>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.cost_child_no_bed_price %}<span style="color:#dc2626;">{{ "%.0f"|format(variant.cost_child_no_bed_price) }}</span>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.child_no_bed_price %}<strong style="color:#2563eb;">{{ "%.0f"|format(variant.child_no_bed_price) }}</strong>{% else %}-{% endif %}</td>
+                                <td style="text-align:right;">{% if variant.profit_per_person %}<span style="color:#059669;">+{{ "%.0f"|format(variant.profit_per_person) }}</span>{% else %}-{% endif %}</td>
+                                <td>{% if variant.is_active %}<span class="visa-badge visa-badge-success">启用</span>{% else %}<span class="visa-badge visa-badge-secondary">禁用</span>{% endif %}</td>
+                                <td><div class="visa-flex visa-gap-1">
+                                    <button type="button" onclick="editPriceVariant({{ variant.id }})" class="visa-btn visa-btn-primary visa-btn-sm" title="编辑"><i class="fas fa-edit"></i></button>
+                                    <button type="button" onclick="deletePriceVariant({{ variant.id }})" class="visa-btn visa-btn-danger visa-btn-sm" title="删除"><i class="fas fa-trash"></i></button>
+                                </div></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400"><i class="fas fa-info-circle"></i> 暂无条件价格设置（淡旺季/团队优惠等），可点击右上"添加价格设置"。</p>
+                {% endif %}
             </div>
+        </div>
+
+        <!-- 每日行程 -->
+        <div class="section-card">
+            <div class="section-header">
+                <h4><i class="fas fa-route text-blue-500"></i> 每日行程安排 <span class="visa-badge visa-badge-info">{{ itineraries|length if itineraries else 0 }}</span></h4>
+                <div class="flex gap-2 flex-wrap">
+                    <a href="{{ url_for('tour_products.download_itinerary_template') }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-sky-500 text-white rounded-lg hover:bg-sky-600 text-xs font-medium"><i class="fas fa-download"></i> 模板</a>
+                    <button type="button" onclick="document.getElementById('itineraryExcelUpload').click()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-xs font-medium"><i class="fas fa-file-excel"></i> 导入Excel</button>
+                    <button type="button" onclick="autoAssignItineraryImages()" class="inline-flex items-center gap-1 px-3 py-1.5 text-white rounded-lg text-xs font-medium" style="background:#7c3aed;"><i class="fas fa-images"></i> 自动配图</button>
+                    <button type="button" onclick="addAllDaysItinerary()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs font-medium"><i class="fas fa-calendar-plus"></i> 一键全部({{ product.duration_days }}天)</button>
+                    <button type="button" onclick="showAddItineraryModal()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-medium"><i class="fas fa-plus"></i> 添加行程</button>
+                </div>
+            </div>
+            <div class="section-body">
+                <form id="itineraryExcelForm" style="display: none;">
+                    <input type="file" id="itineraryExcelUpload" accept=".xlsx,.xls" onchange="handleItineraryExcelUpload(this)">
+                </form>
+                {% if itineraries %}
+                <div style="overflow-x: auto;">
+                    <table class="visa-table">
+                        <thead>
+                            <tr><th style="width: 90px;">天数</th><th style="width: 150px;">标题</th><th>行程正文</th><th style="width: 260px;">图片</th><th style="width: 130px;">操作</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for itinerary in itineraries %}
+                            <tr>
+                                <td class="visa-text-center"><strong>第{{ itinerary.day_number }}天</strong></td>
+                                <td>{{ itinerary.day_title or '-' }}</td>
+                                <td style="white-space: pre-wrap; max-width: 400px; overflow: hidden; text-overflow: ellipsis;">{{ (itinerary.content[:100] ~ '...') if itinerary.content and itinerary.content|length > 100 else (itinerary.content or '-') }}</td>
+                                <td>
+                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                        {% for img_path in [itinerary.image1, itinerary.image2, itinerary.image3] %}
+                                        {% if img_path %}
+                                        {% set lib_info = image_lib_map.get(img_path, {}) %}
+                                        <div style="text-align: center; max-width: 80px;">
+                                            <img src="{{ url_for('static', filename=img_path) }}" alt="" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="viewImage('{{ url_for('static', filename=img_path) }}')">
+                                            {% if lib_info.get('title') %}<div style="font-size: 0.65rem; color: #334155; margin-top: 2px;" title="{{ lib_info.get('title') }}">{{ lib_info.get('title')[:12] }}{{ '...' if lib_info.get('title')|length > 12 else '' }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% if not itinerary.image1 and not itinerary.image2 and not itinerary.image3 %}<span style="color: var(--visa-text-muted); font-size: 0.875rem;">无图片</span>{% endif %}
+                                    </div>
+                                </td>
+                                <td><div class="visa-flex visa-gap-1">
+                                    <button type="button" onclick="editItinerary({{ itinerary.id }})" class="visa-btn visa-btn-primary visa-btn-sm"><i class="fas fa-edit"></i> 编辑</button>
+                                    <button type="button" onclick="deleteItinerary({{ itinerary.id }})" class="visa-btn visa-btn-danger visa-btn-sm"><i class="fas fa-trash"></i></button>
+                                </div></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="visa-text-center" style="padding: 2rem; background: var(--visa-bg-light); border-radius: var(--visa-radius-md);">
+                    <i class="fas fa-route" style="font-size: 2.5rem; color: var(--visa-text-muted); margin-bottom: 0.75rem;"></i>
+                    <p style="color: var(--visa-text-secondary); margin-bottom: 1rem;">暂无行程安排</p>
+                    <button type="button" onclick="showAddItineraryModal()" class="visa-btn visa-btn-success"><i class="fas fa-plus"></i> 添加第一个行程</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 图片资源 -->
+        <div class="section-card">
+            <div class="section-header"><h4><i class="fas fa-images text-purple-500"></i> 图片资源</h4></div>
+            <div class="section-body">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 封面 -->
+                    <div>
+                        <div class="text-block-label">封面图</div>
+                        {% if product.cover_image %}
+                        <div id="coverImagePreview" style="position: relative; display: inline-block; margin-bottom: 0.5rem;">
+                            <img src="{{ product.cover_image|image_url }}" style="max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid #e2e8f0;" onerror="this.style.display='none'">
+                            <button type="button" onclick="deleteProductFile('cover_image')" style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;" title="删除封面图"><i class="fas fa-times"></i></button>
+                        </div>
+                        {% endif %}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="file" id="coverFileInput" accept="image/*" class="visa-form-control" style="flex: 1;">
+                            <button type="button" onclick="uploadProductImage('cover')" class="visa-btn visa-btn-success" style="white-space: nowrap;"><i class="fas fa-upload"></i> 上传</button>
+                            <button type="button" onclick="openImageLibrary('cover')" class="visa-btn visa-btn-info" style="white-space: nowrap;"><i class="fas fa-images"></i> 图片库</button>
+                        </div>
+                        <small style="color: #94a3b8; font-size: 0.72rem;">建议 1200 × 800，JPG/PNG</small>
+                    </div>
+                    <!-- 图库 -->
+                    <div>
+                        <div class="text-block-label">产品图片库{% if product.gallery_images %} <button type="button" onclick="clearAllGalleryImages()" id="clearAllGalleryBtn" class="visa-btn visa-btn-danger visa-btn-sm" style="margin-left:.5rem;"><i class="fas fa-trash-alt"></i> 清除全部</button>{% endif %}</div>
+                        {% if product.gallery_images %}
+                        <div class="visa-flex visa-gap-2" style="flex-wrap: wrap; margin-bottom: 0.5rem;" id="galleryImagesContainer">
+                            {% set images = product.gallery_images|fromjson if product.gallery_images else [] %}
+                            {% for image in images %}
+                            <div style="position: relative; display: inline-block;" id="galleryImage{{ loop.index0 }}">
+                                <img src="{{ image|image_url }}" style="max-width: 100px; max-height: 80px; border-radius: 6px; border: 1px solid #e2e8f0;" onerror="this.style.display='none'">
+                                <button type="button" onclick="deleteProductFile('gallery_image', {{ loop.index0 }})" style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;" title="删除图片"><i class="fas fa-times"></i></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="file" id="galleryFileInput" accept="image/*" multiple class="visa-form-control" style="flex: 1;">
+                            <button type="button" onclick="uploadProductImage('gallery')" class="visa-btn visa-btn-success" style="white-space: nowrap;"><i class="fas fa-upload"></i> 上传</button>
+                            <button type="button" onclick="openImageLibrary('gallery')" class="visa-btn visa-btn-info" style="white-space: nowrap;"><i class="fas fa-images"></i> 图片库</button>
+                        </div>
+                        <small style="color: #94a3b8; font-size: 0.72rem;">可多选，建议 1200 × 800</small>
+                    </div>
+                </div>
+
+                <!-- 供应商文件 -->
+                <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #e5e7eb;">
+                    <div class="text-block-label"><i class="fas fa-file-alt"></i> 供应商产品说明文件（PDF/Word）</div>
+                    {% if product.supplier_document %}
+                    <div id="supplierDocPreview" style="padding: 0.75rem; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd; margin-bottom: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-file-pdf" style="font-size: 1.5rem; color: #dc2626;"></i>
+                            <div style="flex: 1;"><div style="font-weight: 500; color: #0c4a6e;">{{ product.supplier_document_name or '供应商文件' }}</div><small style="color: #64748b;">已上传</small></div>
+                            <a href="{{ product.supplier_document|image_url }}" target="_blank" class="visa-btn visa-btn-info visa-btn-sm"><i class="fas fa-eye"></i> 查看</a>
+                            <button type="button" onclick="deleteProductFile('supplier_document')" class="visa-btn visa-btn-danger visa-btn-sm"><i class="fas fa-trash"></i> 删除</button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="file" id="supplierDocInput" accept=".pdf,.doc,.docx" class="visa-form-control" style="flex: 1;">
+                        <button type="button" onclick="uploadProductImage('supplier_doc')" class="visa-btn visa-btn-success" style="white-space: nowrap;"><i class="fas fa-upload"></i> 上传</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+    {# ==================== 新建模式：传统表单 ==================== #}
+        <div class="section-card">
+            <div class="section-header"><h4><i class="fas fa-plus-circle text-green-500"></i> 新建产品</h4></div>
+            <div class="section-body">
+                <form method="POST" id="productForm" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="country_name" id="countryName" value="">
+                    <div class="visa-grid-2">
+                        <div class="visa-form-group" style="grid-column: 1 / -1;">
+                            <label class="visa-form-label">产品名称 <span style="color: red;">*</span></label>
+                            <input type="text" name="product_name" class="visa-form-control" required placeholder="如：新加坡3天2晚自由行">
+                        </div>
+                        <div class="visa-form-group" style="grid-column: 1 / -1;" id="supplierSelectWrapper">
+                            <label class="visa-form-label">供应商 <span style="color: red;">*</span></label>
+                            <div style="position: relative;">
+                                <input type="hidden" name="supplier_id" id="supplierId" value="" required>
+                                <input type="text" id="supplierSearch" class="visa-form-select" placeholder="-- 搜索或选择供应商 --" autocomplete="off">
+                                <div id="supplierDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:0 0 6px 6px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100;">
+                                    <div class="supplier-option" data-id="" data-name="" data-type="" data-country="" data-city="" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; color:#94a3b8;">-- 清除选择 --</div>
+                                    {% for supplier in suppliers %}
+                                    <div class="supplier-option" data-id="{{ supplier.id }}" data-name="{{ supplier.company_name }}" data-type="{{ supplier.supplier_type.name if supplier.supplier_type else '' }}" data-country="{{ supplier.country or '' }}" data-city="{{ supplier.city or '' }}" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem;">
+                                        <span>{{ supplier.company_name }}</span><small style="color:#94a3b8; margin-left:0.5rem;">{% if supplier.supplier_type %}{{ supplier.supplier_type.name }}{% endif %}{% if supplier.country %} · {{ supplier.country }}{% endif %}</small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <select id="supplierFilterType" style="display:none;"></select><select id="supplierFilterCountry" style="display:none;"></select><select id="supplierFilterCity" style="display:none;"></select>
+                            </div>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">产品类型</label>
+                            <select name="product_type" class="visa-form-select"><option value="">-- 选择类型 --</option><option value="跟团游">跟团游</option><option value="自由行">自由行</option><option value="定制游">定制游</option><option value="当地游">当地游</option></select>
+                        </div>
+                        <div class="visa-form-group">
+                            <label class="visa-form-label">城市 <span style="color: red;">*</span></label>
+                            <select name="city_name" id="citySelect" class="visa-form-select" required onchange="updateCountry()"><option value="">-- 选择城市 --</option>{% for city in cities %}<option value="{{ city.city_name }}" data-country="{{ city.country_name }}">{{ city.city_name }} ({{ city.country_name }})</option>{% endfor %}</select>
+                        </div>
+                        <div class="visa-form-group"><label class="visa-form-label">行程天数 <span style="color: red;">*</span></label><input type="number" name="duration_days" class="visa-form-control" required min="1" placeholder="如：3"></div>
+                        <div class="visa-form-group"><label class="visa-form-label">最少人数</label><input type="number" name="min_pax" class="visa-form-control" min="1" value="1"></div>
+                        <div class="visa-form-group"><label class="visa-form-label">产品状态</label><select name="product_status" class="visa-form-select"><option value="active">激活</option><option value="draft">草稿</option><option value="inactive">停用</option></select></div>
+                        <div class="visa-form-group"><label class="visa-form-label">标签</label><input type="text" name="tags" class="visa-form-control" placeholder="蜜月,豪华,亲子"></div>
+                    </div>
+                    <div class="visa-form-group"><label class="visa-form-label">产品描述</label><textarea name="product_description" rows="4" class="visa-form-control"></textarea></div>
+                    <div class="visa-grid-2">
+                        <div class="visa-form-group"><label class="visa-form-label">包含服务</label><textarea name="included_services" rows="5" class="visa-form-control" placeholder="每行一项"></textarea></div>
+                        <div class="visa-form-group"><label class="visa-form-label">不包含服务</label><textarea name="excluded_services" rows="5" class="visa-form-control" placeholder="每行一项"></textarea></div>
+                    </div>
+                    <div class="visa-form-group"><label class="visa-form-label">重要提示</label><textarea name="important_notes" rows="3" class="visa-form-control"></textarea></div>
+                    <div class="visa-form-group"><label class="visa-form-label">封面图</label><input type="file" name="cover_image" accept="image/*" class="visa-form-control"></div>
+                    <div style="text-align: right; margin-top: 1rem;"><button type="submit" class="visa-btn visa-btn-success"><i class="fas fa-save"></i> 创建产品</button></div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    </div>
+</div>
+
+{% if product %}
+<!-- 编辑基本信息 弹窗 -->
+<div id="editBasicInfoModal" class="visa-modal" style="display:none;">
+    <div class="visa-modal-dialog visa-modal-dialog-lg">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑基本信息</h3>
+            <button class="visa-modal-close" onclick="closeModal('editBasicInfoModal')" style="color: white; font-size: 1.5rem;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <input type="hidden" name="country_name" id="countryName" value="{{ product.country or '' }}">
+            <div class="visa-grid-2">
+                <div class="visa-form-group" style="grid-column: 1 / -1;">
+                    <label class="visa-form-label">产品名称 <span style="color: red;">*</span></label>
+                    <input type="text" id="bi_product_name" class="visa-form-control" value="{{ product.product_name }}">
+                </div>
+                <!-- 供应商 类型/国家/城市 筛选 + 搜索 -->
+                <div class="visa-form-group" style="grid-column: 1 / -1;" id="supplierSelectWrapper">
+                    <label class="visa-form-label">供应商 <span style="color: red;">*</span></label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <select id="supplierFilterType" class="visa-form-select" style="flex:1;"><option value="">全部类型</option>{% set type_set = [] %}{% for s in suppliers %}{% if s.supplier_type and s.supplier_type.name not in type_set %}{% if type_set.append(s.supplier_type.name) %}{% endif %}<option value="{{ s.supplier_type.name }}">{{ s.supplier_type.name }}</option>{% endif %}{% endfor %}</select>
+                        <select id="supplierFilterCountry" class="visa-form-select" style="flex:1;"><option value="">全部国家</option>{% set country_set = [] %}{% for s in suppliers %}{% if s.country and s.country not in country_set %}{% if country_set.append(s.country) %}{% endif %}<option value="{{ s.country }}">{{ s.country }}</option>{% endif %}{% endfor %}</select>
+                        <select id="supplierFilterCity" class="visa-form-select" style="flex:1;"><option value="">全部城市</option>{% set city_set = [] %}{% for s in suppliers %}{% if s.city and s.city not in city_set %}{% if city_set.append(s.city) %}{% endif %}<option value="{{ s.city }}">{{ s.city }}</option>{% endif %}{% endfor %}</select>
+                        <div style="position: relative; flex: 2;">
+                            <input type="hidden" id="supplierId" value="{{ product.supplier_id or '' }}">
+                            <input type="text" id="supplierSearch" class="visa-form-select" style="cursor:text;" placeholder="-- 搜索或选择供应商 --" autocomplete="off" value="{% if product.supplier_id %}{% for s in suppliers %}{% if s.id == product.supplier_id %}{{ s.company_name }}{% endif %}{% endfor %}{% endif %}">
+                            <div id="supplierDropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-top:none; border-radius:0 0 6px 6px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100;">
+                                <div class="supplier-option" data-id="" data-name="" data-type="" data-country="" data-city="" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; color:#94a3b8; border-bottom:1px solid #f1f5f9;">-- 清除选择 --</div>
+                                {% for supplier in suppliers %}
+                                <div class="supplier-option" data-id="{{ supplier.id }}" data-name="{{ supplier.company_name }}" data-type="{{ supplier.supplier_type.name if supplier.supplier_type else '' }}" data-country="{{ supplier.country or '' }}" data-city="{{ supplier.city or '' }}" style="padding:0.45rem 0.75rem; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f1f5f9;">
+                                    <span>{{ supplier.company_name }}</span><small style="color:#94a3b8; margin-left:0.5rem;">{% if supplier.supplier_type %}{{ supplier.supplier_type.name }}{% endif %}{% if supplier.country %} · {{ supplier.country }}{% endif %}{% if supplier.city %} · {{ supplier.city }}{% endif %}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="visa-form-group"><label class="visa-form-label">产品类型</label><select id="bi_product_type" class="visa-form-select"><option value="">-- 选择类型 --</option><option value="跟团游">跟团游</option><option value="自由行">自由行</option><option value="定制游">定制游</option><option value="当地游">当地游</option></select></div>
+                <div class="visa-form-group"><label class="visa-form-label">城市 <span style="color: red;">*</span></label><select id="citySelect" class="visa-form-select" onchange="updateCountry()"><option value="">-- 选择城市 --</option>{% for city in cities %}<option value="{{ city.city_name }}" data-country="{{ city.country_name }}" {% if product.city_name == city.city_name %}selected{% endif %}>{{ city.city_name }} ({{ city.country_name }})</option>{% endfor %}</select></div>
+                <div class="visa-form-group"><label class="visa-form-label">行程天数 <span style="color: red;">*</span></label><input type="number" id="bi_duration_days" class="visa-form-control" min="1" value="{{ product.duration_days or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">最少人数</label><input type="number" id="bi_min_pax" class="visa-form-control" min="1" value="{{ product.min_pax or 1 }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">最多人数</label><input type="number" id="bi_max_pax" class="visa-form-control" min="1" value="{{ product.max_pax or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">产品状态</label><select id="bi_product_status" class="visa-form-select"><option value="draft">草稿</option><option value="active">激活</option><option value="inactive">停用</option></select></div>
+                <div class="visa-form-group"><label class="visa-form-label">有效开始</label><input type="date" id="bi_valid_from" class="visa-form-control" value="{{ product.valid_from or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">有效结束</label><input type="date" id="bi_valid_until" class="visa-form-control" value="{{ product.valid_until or '' }}"></div>
+                <div class="visa-form-group" style="grid-column: 1 / -1;"><label class="visa-form-label">标签</label><input type="text" id="tagsInput" class="visa-form-control" value="{% if product.tags %}{{ product.tags|replace('[','')|replace(']','')|replace('"','') }}{% endif %}" placeholder="蜜月,豪华,亲子"></div>
+            </div>
+            <div class="visa-form-group"><label class="visa-form-label">产品描述</label><textarea id="bi_product_description" rows="4" class="visa-form-control">{{ product.product_description or '' }}</textarea></div>
+            <div class="visa-grid-2">
+                <div class="visa-form-group"><label class="visa-form-label">包含服务</label><textarea id="bi_included_services" rows="5" class="visa-form-control" placeholder="每行一项">{{ product.included_services or '' }}</textarea></div>
+                <div class="visa-form-group"><label class="visa-form-label">不包含服务</label><textarea id="bi_excluded_services" rows="5" class="visa-form-control" placeholder="每行一项">{{ product.excluded_services or '' }}</textarea></div>
+            </div>
+            <div class="visa-form-group"><label class="visa-form-label">重要提示</label><textarea id="bi_important_notes" rows="3" class="visa-form-control">{{ product.important_notes or '' }}</textarea></div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editBasicInfoModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="updateBasicInfo()">保存</button>
         </div>
     </div>
 </div>
 
-<!-- 添加/编辑价格设置模态框 -->
+<!-- 编辑基础价格 弹窗 -->
+<div id="editPriceModal" class="visa-modal" style="display:none;">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑基础价格</h3>
+            <button class="visa-modal-close" onclick="closeModal('editPriceModal')" style="color: white; font-size: 1.5rem;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <div class="visa-grid-2">
+                <div class="visa-form-group"><label class="visa-form-label">基础价(成人)</label><input type="number" step="0.01" id="pr_base_price" class="visa-form-control" value="{{ product.base_price or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">儿童价</label><input type="number" step="0.01" id="pr_child_price" class="visa-form-control" value="{{ product.child_price or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">婴儿价</label><input type="number" step="0.01" id="pr_infant_price" class="visa-form-control" value="{{ product.infant_price or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">单房差</label><input type="number" step="0.01" id="pr_single_room_supplement" class="visa-form-control" value="{{ product.single_room_supplement or '' }}"></div>
+                <div class="visa-form-group"><label class="visa-form-label">货币</label><select id="pr_currency" class="visa-form-select"><option value="SGD">SGD</option><option value="CNY">CNY</option><option value="USD">USD</option><option value="MYR">MYR</option><option value="THB">THB</option></select></div>
+            </div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editPriceModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="updatePrice()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑价格设置模态框（沿用） -->
 <div id="priceVariantModal" class="visa-modal" style="display: none;">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
             <h3 class="visa-modal-title" style="color: white;" id="priceModalTitle">添加价格设置</h3>
-            <button class="visa-modal-close" onclick="closePriceVariantModal()" style="color: white; font-size: 1.5rem;" title="关闭">&times;</button>
+            <button class="visa-modal-close" onclick="closePriceVariantModal()" style="color: white; font-size: 1.5rem;">&times;</button>
         </div>
         <div class="visa-modal-body">
             <form id="priceVariantForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" id="variantId" value="">
-                
-                <div class="visa-form-group">
-                    <label class="visa-form-label">变体名称 <span style="color: red;">*</span></label>
-                    <input type="text" id="variantName" name="variant_name" class="visa-form-control" required placeholder="如：淡季价格 / 旺季价格 / 团队优惠">
-                </div>
-                
+                <div class="visa-form-group"><label class="visa-form-label">变体名称 <span style="color: red;">*</span></label><input type="text" id="variantName" name="variant_name" class="visa-form-control" required placeholder="如：淡季价格 / 旺季价格"></div>
                 <div class="visa-grid-2">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">开始日期</label>
-                        <input type="date" id="startDate" name="start_date" class="visa-form-control">
-                        <small style="color: var(--visa-text-muted);">留空表示不限</small>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">结束日期</label>
-                        <input type="date" id="endDate" name="end_date" class="visa-form-control">
-                        <small style="color: var(--visa-text-muted);">留空表示不限</small>
-                    </div>
+                    <div class="visa-form-group"><label class="visa-form-label">开始日期</label><input type="date" id="startDate" name="start_date" class="visa-form-control"></div>
+                    <div class="visa-form-group"><label class="visa-form-label">结束日期</label><input type="date" id="endDate" name="end_date" class="visa-form-control"></div>
                 </div>
-                
                 <div class="visa-grid-2">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">最少人数</label>
-                        <input type="number" id="minPax" name="min_pax" class="visa-form-control" min="1" placeholder="如：2">
-                        <small style="color: var(--visa-text-muted);">留空表示不限</small>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">最多人数</label>
-                        <input type="number" id="maxPax" name="max_pax" class="visa-form-control" min="1" placeholder="如：5">
-                        <small style="color: var(--visa-text-muted);">留空表示不限</small>
-                    </div>
+                    <div class="visa-form-group"><label class="visa-form-label">最少人数</label><input type="number" id="minPax" name="min_pax" class="visa-form-control" min="1"></div>
+                    <div class="visa-form-group"><label class="visa-form-label">最多人数</label><input type="number" id="maxPax" name="max_pax" class="visa-form-control" min="1"></div>
                 </div>
-                
-                <!-- 房型成本 -->
                 <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                    <label class="visa-form-label" style="margin-bottom: 0.75rem; display: block;">
-                        <i class="fas fa-file-invoice-dollar" style="color: #dc2626;"></i> 房型成本（供应商价格）
-                    </label>
+                    <label class="visa-form-label" style="margin-bottom: 0.75rem; display: block;"><i class="fas fa-file-invoice-dollar" style="color: #dc2626;"></i> 房型成本</label>
                     <div class="visa-grid-4">
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Single 成本</label>
-                            <input type="number" step="0.01" id="costSinglePrice" name="cost_single_price" class="visa-form-control cost-input" placeholder="300">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Twin 成本</label>
-                            <input type="number" step="0.01" id="costTwinPrice" name="cost_twin_price" class="visa-form-control cost-input" placeholder="250">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">3rd Pax 成本</label>
-                            <input type="number" step="0.01" id="costThirdPaxPrice" name="cost_third_pax_price" class="visa-form-control cost-input" placeholder="250">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Child no Bed 成本</label>
-                            <input type="number" step="0.01" id="costChildNoBedPrice" name="cost_child_no_bed_price" class="visa-form-control cost-input" placeholder="180">
-                        </div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">Single 成本</label><input type="number" step="0.01" id="costSinglePrice" name="cost_single_price" class="visa-form-control cost-input"></div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">Twin 成本</label><input type="number" step="0.01" id="costTwinPrice" name="cost_twin_price" class="visa-form-control cost-input"></div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">3rd Pax 成本</label><input type="number" step="0.01" id="costThirdPaxPrice" name="cost_third_pax_price" class="visa-form-control cost-input"></div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">Child no Bed 成本</label><input type="number" step="0.01" id="costChildNoBedPrice" name="cost_child_no_bed_price" class="visa-form-control cost-input"></div>
                     </div>
                 </div>
-
-                <!-- 每人利润 -->
                 <div style="background: #ecfdf5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
                     <div class="visa-grid-2" style="align-items: end;">
-                        <div class="visa-form-group" style="margin-bottom: 0;">
-                            <label class="visa-form-label">
-                                <i class="fas fa-chart-line" style="color: #059669;"></i> 每人利润
-                            </label>
-                            <input type="number" step="0.01" id="profitPerPerson" name="profit_per_person" class="visa-form-control" placeholder="50" style="max-width: 200px;">
-                            <small style="color: var(--visa-text-muted);">填入后自动计算售价 = 成本 + 利润</small>
-                        </div>
-                        <div style="margin-bottom: 0.5rem;">
-                            <button type="button" class="visa-btn visa-btn-sm" style="background: #059669; color: white;" onclick="calculateSellingPrices()">
-                                <i class="fas fa-calculator"></i> 计算售价
-                            </button>
-                        </div>
+                        <div class="visa-form-group" style="margin-bottom: 0;"><label class="visa-form-label"><i class="fas fa-chart-line" style="color:#059669;"></i> 每人利润</label><input type="number" step="0.01" id="profitPerPerson" name="profit_per_person" class="visa-form-control" style="max-width:200px;"></div>
+                        <div style="margin-bottom: 0.5rem;"><button type="button" class="visa-btn visa-btn-sm" style="background:#059669; color:white;" onclick="calculateSellingPrices()"><i class="fas fa-calculator"></i> 计算售价</button></div>
                     </div>
                 </div>
-
-                <!-- 房型售价 -->
                 <div style="background: #eff6ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                    <label class="visa-form-label" style="margin-bottom: 0.75rem; display: block;">
-                        <i class="fas fa-tag" style="color: #2563eb;"></i> 房型售价（可手动修改）
-                    </label>
+                    <label class="visa-form-label" style="margin-bottom: 0.75rem; display: block;"><i class="fas fa-tag" style="color:#2563eb;"></i> 房型售价</label>
                     <div class="visa-grid-4">
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Single 售价</label>
-                            <input type="number" step="0.01" id="singlePrice" name="single_price" class="visa-form-control selling-input" placeholder="378">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Twin 售价</label>
-                            <input type="number" step="0.01" id="twinPrice" name="twin_price" class="visa-form-control selling-input" placeholder="304">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">3rd Pax 售价</label>
-                            <input type="number" step="0.01" id="thirdPaxPrice" name="third_pax_price" class="visa-form-control selling-input" placeholder="304">
-                        </div>
-                        <div class="visa-form-group">
-                            <label class="visa-form-label" style="font-size: 0.8rem;">Child no Bed 售价</label>
-                            <input type="number" step="0.01" id="childNoBedPrice" name="child_no_bed_price" class="visa-form-control selling-input" placeholder="239">
-                        </div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">Single 售价</label><input type="number" step="0.01" id="singlePrice" name="single_price" class="visa-form-control selling-input"></div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">Twin 售价</label><input type="number" step="0.01" id="twinPrice" name="twin_price" class="visa-form-control selling-input"></div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">3rd Pax 售价</label><input type="number" step="0.01" id="thirdPaxPrice" name="third_pax_price" class="visa-form-control selling-input"></div>
+                        <div class="visa-form-group"><label class="visa-form-label" style="font-size:0.8rem;">Child no Bed 售价</label><input type="number" step="0.01" id="childNoBedPrice" name="child_no_bed_price" class="visa-form-control selling-input"></div>
                     </div>
                 </div>
-                
                 <div class="visa-grid-3">
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">货币</label>
-                        <select id="variantCurrency" name="currency" class="visa-form-select">
-                            <option value="SGD">SGD</option>
-                            <option value="CNY">CNY</option>
-                            <option value="USD">USD</option>
-                            <option value="MYR">MYR</option>
-                            <option value="THB">THB</option>
-                        </select>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">主要价格</label>
-                        <select id="isPrimary" name="is_primary" class="visa-form-select">
-                            <option value="0">否</option>
-                            <option value="1">是</option>
-                        </select>
-                        <small style="color: var(--visa-text-muted);">设为主要价格后，其他页面引用此价格</small>
-                    </div>
-                    <div class="visa-form-group">
-                        <label class="visa-form-label">状态</label>
-                        <select id="isActive" name="is_active" class="visa-form-select">
-                            <option value="1">启用</option>
-                            <option value="0">禁用</option>
-                        </select>
-                    </div>
+                    <div class="visa-form-group"><label class="visa-form-label">货币</label><select id="variantCurrency" name="currency" class="visa-form-select"><option value="SGD">SGD</option><option value="CNY">CNY</option><option value="USD">USD</option><option value="MYR">MYR</option><option value="THB">THB</option></select></div>
+                    <div class="visa-form-group"><label class="visa-form-label">主要价格</label><select id="isPrimary" name="is_primary" class="visa-form-select"><option value="0">否</option><option value="1">是</option></select></div>
+                    <div class="visa-form-group"><label class="visa-form-label">状态</label><select id="isActive" name="is_active" class="visa-form-select"><option value="1">启用</option><option value="0">禁用</option></select></div>
                 </div>
             </form>
         </div>
@@ -797,59 +520,34 @@
     </div>
 </div>
 
-<!-- 添加/编辑行程模态框 -->
+<!-- 添加/编辑行程模态框（沿用） -->
 <div id="itineraryModal" class="visa-modal" style="display: none;">
     <div class="visa-modal-dialog visa-modal-dialog-lg">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, var(--visa-success), #059669); color: white;">
             <h3 class="visa-modal-title" style="color: white;" id="modalTitle">添加行程</h3>
-            <button class="visa-modal-close" onclick="closeItineraryModal()" style="color: white; font-size: 1.5rem;" title="关闭">&times;</button>
+            <button class="visa-modal-close" onclick="closeItineraryModal()" style="color: white; font-size: 1.5rem;">&times;</button>
         </div>
         <div class="visa-modal-body">
             <form id="itineraryForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" id="itineraryId" value="">
-                
-                <div class="visa-form-group">
-                    <label class="visa-form-label">第几天 <span style="color: red;">*</span></label>
-                    <input type="number" id="dayNumber" name="day_number" class="visa-form-control" required min="1" placeholder="如：1">
-                </div>
-                
-                <div class="visa-form-group">
-                    <label class="visa-form-label">当日标题</label>
-                    <input type="text" id="dayTitle" name="day_title" class="visa-form-control" placeholder="如：抵达新加坡、自由活动日、返程">
-                </div>
-                
-                <div class="visa-form-group">
-                    <label class="visa-form-label">行程正文</label>
-                    <textarea id="dayContent" name="content" rows="6" class="visa-form-control" placeholder="描述当天的行程安排...&#10;&#10;示例：&#10;上午：参观鱼尾狮公园&#10;下午：游览圣淘沙岛&#10;晚上：夜游滨海湾"></textarea>
-                </div>
-                
+                <div class="visa-form-group"><label class="visa-form-label">第几天 <span style="color: red;">*</span></label><input type="number" id="dayNumber" name="day_number" class="visa-form-control" required min="1"></div>
+                <div class="visa-form-group"><label class="visa-form-label">当日标题</label><input type="text" id="dayTitle" name="day_title" class="visa-form-control" placeholder="如：抵达新加坡"></div>
+                <div class="visa-form-group"><label class="visa-form-label">行程正文</label><textarea id="dayContent" name="content" rows="6" class="visa-form-control" placeholder="描述当天的行程安排..."></textarea></div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">行程图片（可选）</label>
                     <div class="visa-grid-3">
                         {% for i in range(1, 4) %}
                         <div>
                             <label class="visa-form-label" style="font-size: 0.875rem;">图片{{ i }}</label>
-                            <!-- 已选图片预览 -->
                             <img id="image{{ i }}Preview" src="" alt="" style="display: none; margin-bottom: 0.5rem; max-width: 100%; max-height: 150px; border-radius: 4px; cursor: pointer;" onclick="viewImage(this.src)">
-                            <!-- 隐藏字段：图片库选中的路径 -->
                             <input type="hidden" id="libraryImage{{ i }}" name="library_image{{ i }}" value="">
-                            <!-- 本地上传 -->
                             <input type="file" id="image{{ i }}" name="image{{ i }}" class="visa-form-control" accept="image/*" style="font-size: 0.8rem;">
-                            <!-- 从图片库选择按钮 -->
-                            <button type="button" class="visa-btn visa-btn-info" style="width: 100%; margin-top: 0.35rem; font-size: 0.8rem; padding: 0.3rem 0.5rem;" onclick="openImageLibraryPicker({{ i }})">
-                                <i class="fas fa-images"></i> 从图片库选择
-                            </button>
-                            <!-- 清除按钮 -->
-                            <button type="button" id="clearImage{{ i }}Btn" class="visa-btn visa-btn-secondary" style="width: 100%; margin-top: 0.25rem; font-size: 0.75rem; padding: 0.2rem 0.5rem; display: none;" onclick="clearItineraryImage({{ i }})">
-                                <i class="fas fa-times"></i> 清除图片
-                            </button>
+                            <button type="button" class="visa-btn visa-btn-info" style="width: 100%; margin-top: 0.35rem; font-size: 0.8rem; padding: 0.3rem 0.5rem;" onclick="openImageLibraryPicker({{ i }})"><i class="fas fa-images"></i> 从图片库选择</button>
+                            <button type="button" id="clearImage{{ i }}Btn" class="visa-btn visa-btn-secondary" style="width: 100%; margin-top: 0.25rem; font-size: 0.75rem; padding: 0.2rem 0.5rem; display: none;" onclick="clearItineraryImage({{ i }})"><i class="fas fa-times"></i> 清除图片</button>
                         </div>
                         {% endfor %}
                     </div>
-                    <small style="color: var(--visa-text-muted); display: block; margin-top: 0.5rem;">
-                        <i class="fas fa-info-circle"></i> 支持本地上传或从图片库选择，建议尺寸：1200 × 800 像素
-                    </small>
                 </div>
             </form>
         </div>
@@ -860,7 +558,7 @@
     </div>
 </div>
 
-<!-- 图片库选择弹窗 -->
+<!-- 图片库选择弹窗（行程配图，沿用） -->
 <div id="imageLibraryModal" class="visa-modal" style="display: none;">
     <div class="visa-modal-dialog" style="max-width: 900px;">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
@@ -868,66 +566,55 @@
             <button class="visa-modal-close" onclick="closeImageLibraryPicker()" style="color: white; font-size: 1.5rem;">&times;</button>
         </div>
         <div class="visa-modal-body" style="padding: 1rem;">
-            <!-- 搜索栏 -->
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                 <input type="text" id="libSearchInput" class="visa-form-control" placeholder="搜索标题或标签..." style="flex: 1;" onkeyup="if(event.key==='Enter') searchLibraryImages()">
-                <select id="libCategoryFilter" class="visa-form-control" style="width: 130px;" onchange="searchLibraryImages()">
-                    <option value="">全部分类</option>
-                    <option value="tour">旅游</option>
-                    <option value="product">产品</option>
-                    <option value="destination">目的地</option>
-                    <option value="other">其他</option>
-                </select>
-                <button type="button" class="visa-btn visa-btn-primary" onclick="searchLibraryImages()" style="white-space: nowrap;">
-                    <i class="fas fa-search"></i> 搜索
-                </button>
+                <select id="libCategoryFilter" class="visa-form-control" style="width: 130px;" onchange="searchLibraryImages()"><option value="">全部分类</option><option value="tour">旅游</option><option value="product">产品</option><option value="destination">目的地</option><option value="other">其他</option></select>
+                <button type="button" class="visa-btn visa-btn-primary" onclick="searchLibraryImages()" style="white-space: nowrap;"><i class="fas fa-search"></i> 搜索</button>
             </div>
-            <!-- 图片网格 -->
-            <div id="libImageGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; max-height: 450px; overflow-y: auto; padding: 0.25rem;">
-                <div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 2rem;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
-                    <p>加载中...</p>
-                </div>
-            </div>
-            <!-- 分页 -->
+            <div id="libImageGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; max-height: 450px; overflow-y: auto; padding: 0.25rem;"></div>
             <div id="libPagination" style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1rem;"></div>
         </div>
     </div>
 </div>
+{% endif %}
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// 供应商搜索下拉（支持类型/国家/城市筛选）
+// ========== 通用：模态框 / 提示 ==========
+function showModal(modalId) { const m = document.getElementById(modalId); if (m) m.style.display = 'flex'; }
+function closeModal(modalId) { const m = document.getElementById(modalId); if (m) m.style.display = 'none'; }
+function _val(id) { const e = document.getElementById(id); return e ? e.value : ''; }
+function showAlert(message, type) {
+    const bg = type === 'success' ? '#10b981' : type === 'danger' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6';
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;padding:1rem 2rem;border-radius:12px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);color:#fff;background:' + bg;
+    d.textContent = message;
+    document.body.appendChild(d);
+    setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 2500);
+}
+
+// 供应商搜索下拉（类型/国家/城市筛选）—— 编辑弹窗与新建表单共用
 (function() {
     const searchInput = document.getElementById('supplierSearch');
     const dropdown = document.getElementById('supplierDropdown');
     const hiddenInput = document.getElementById('supplierId');
+    if (!searchInput || !dropdown || !hiddenInput) return;
     const options = dropdown.querySelectorAll('.supplier-option');
     const filterType = document.getElementById('supplierFilterType');
     const filterCountry = document.getElementById('supplierFilterCountry');
     const filterCity = document.getElementById('supplierFilterCity');
 
-    searchInput.addEventListener('focus', function() {
-        dropdown.style.display = 'block';
-        filterOptions();
-    });
+    searchInput.addEventListener('focus', function() { dropdown.style.display = 'block'; filterOptions(); });
+    searchInput.addEventListener('input', function() { dropdown.style.display = 'block'; filterOptions(); });
+    if (filterType) filterType.addEventListener('change', function() { updateCityOptions(); filterOptions(); });
+    if (filterCountry) filterCountry.addEventListener('change', function() { updateCityOptions(); filterOptions(); });
+    if (filterCity) filterCity.addEventListener('change', filterOptions);
 
-    searchInput.addEventListener('input', function() {
-        dropdown.style.display = 'block';
-        filterOptions();
-    });
-
-    // 筛选条件变化时重新过滤，并联动更新城市下拉
-    filterType.addEventListener('change', function() { updateCityOptions(); filterOptions(); });
-    filterCountry.addEventListener('change', function() { updateCityOptions(); filterOptions(); });
-    filterCity.addEventListener('change', filterOptions);
-
-    // 根据类型和国家联动更新城市选项
     function updateCityOptions() {
-        const selType = filterType.value;
-        const selCountry = filterCountry.value;
+        if (!filterType || !filterCountry || !filterCity) return;
+        const selType = filterType.value, selCountry = filterCountry.value;
         const cities = new Set();
         options.forEach(function(opt) {
             if (!opt.dataset.id) return;
@@ -937,231 +624,197 @@
         });
         const curCity = filterCity.value;
         filterCity.innerHTML = '<option value="">全部城市</option>';
-        cities.forEach(function(c) {
-            const o = document.createElement('option');
-            o.value = c; o.textContent = c;
-            if (c === curCity) o.selected = true;
-            filterCity.appendChild(o);
-        });
+        cities.forEach(function(c) { const o = document.createElement('option'); o.value = c; o.textContent = c; if (c === curCity) o.selected = true; filterCity.appendChild(o); });
     }
-
     function filterOptions() {
         const keyword = searchInput.value.trim().toLowerCase();
-        const selType = filterType.value;
-        const selCountry = filterCountry.value;
-        const selCity = filterCity.value;
-        let visibleCount = 0;
-
+        const selType = filterType ? filterType.value : '';
+        const selCountry = filterCountry ? filterCountry.value : '';
+        const selCity = filterCity ? filterCity.value : '';
         options.forEach(function(opt) {
-            // "清除选择" 项
-            if (!opt.dataset.id) {
-                opt.style.display = (!keyword && !selType && !selCountry && !selCity) ? '' : 'none';
-                return;
-            }
+            if (!opt.dataset.id) { opt.style.display = (!keyword && !selType && !selCountry && !selCity) ? '' : 'none'; return; }
             const name = (opt.dataset.name || '').toLowerCase();
-            const matchKeyword = !keyword || name.includes(keyword);
-            const matchType = !selType || opt.dataset.type === selType;
-            const matchCountry = !selCountry || opt.dataset.country === selCountry;
-            const matchCity = !selCity || opt.dataset.city === selCity;
-
-            if (matchKeyword && matchType && matchCountry && matchCity) {
-                opt.style.display = '';
-                visibleCount++;
-            } else {
-                opt.style.display = 'none';
-            }
+            const ok = (!keyword || name.includes(keyword)) && (!selType || opt.dataset.type === selType) && (!selCountry || opt.dataset.country === selCountry) && (!selCity || opt.dataset.city === selCity);
+            opt.style.display = ok ? '' : 'none';
         });
-
-        // 自动显示下拉
-        if (document.activeElement === searchInput) {
-            dropdown.style.display = 'block';
-        }
+        if (document.activeElement === searchInput) dropdown.style.display = 'block';
     }
-
     options.forEach(function(opt) {
-        opt.addEventListener('click', function() {
-            hiddenInput.value = this.dataset.id;
-            searchInput.value = this.dataset.name;
-            dropdown.style.display = 'none';
-        });
-        opt.addEventListener('mouseover', function() { this.style.background = '#e0f2fe'; });
-        opt.addEventListener('mouseout', function() { this.style.background = ''; });
+        opt.addEventListener('click', function() { hiddenInput.value = this.dataset.id; searchInput.value = this.dataset.name; dropdown.style.display = 'none'; });
     });
-
-    // 点击外部关闭
     document.addEventListener('click', function(e) {
         const wrapper = document.getElementById('supplierSelectWrapper');
-        if (!wrapper.contains(e.target) && e.target !== filterType && e.target !== filterCountry && e.target !== filterCity) {
+        if (wrapper && !wrapper.contains(e.target)) {
             dropdown.style.display = 'none';
-            if (hiddenInput.value) {
-                const selected = dropdown.querySelector('[data-id="' + hiddenInput.value + '"]');
-                if (selected) searchInput.value = selected.dataset.name;
-            } else {
-                searchInput.value = '';
-            }
+            if (hiddenInput.value) { const sel = dropdown.querySelector('[data-id="' + hiddenInput.value + '"]'); if (sel) searchInput.value = sel.dataset.name; }
         }
     });
 })();
 
-// 删除产品文件
-function deleteProductFile(fileType, fileIndex = null) {
-    const confirmMsg = {
-        'cover_image': '确定要删除封面图吗？',
-        'gallery_image': '确定要删除这张图片吗？',
-        'supplier_document': '确定要删除供应商文件吗？'
-    };
-    
-    if (!confirm(confirmMsg[fileType] || '确定要删除吗？')) {
-        return;
-    }
-    
-    const productId = {{ product.id if product else 0 }};
-    if (!productId) {
-        alert('产品ID无效');
-        return;
-    }
-    
-    fetch(`/tour/products/${productId}/delete-file`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify({
-            file_type: fileType,
-            file_index: fileIndex
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // 移除对应的预览元素
-            if (fileType === 'cover_image') {
-                document.getElementById('coverImagePreview')?.remove();
-            } else if (fileType === 'gallery_image') {
-                document.getElementById('galleryImage' + fileIndex)?.remove();
-            } else if (fileType === 'supplier_document') {
-                document.getElementById('supplierDocPreview')?.remove();
-            }
-            // 显示成功提示（可选）
-        } else {
-            alert(data.message || '删除失败');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('删除时发生错误');
-    });
-}
-
-// 清除全部图片库图片
-function clearAllGalleryImages() {
-    const container = document.getElementById('galleryImagesContainer');
-    if (!container) {
-        alert('没有可清除的图片');
-        return;
-    }
-
-    const images = container.querySelectorAll('[id^="galleryImage"]');
-    if (images.length === 0) {
-        alert('没有可清除的图片');
-        return;
-    }
-
-    if (!confirm(`确定要清除全部 ${images.length} 张图片吗？此操作不可撤销！`)) {
-        return;
-    }
-
-    const productId = {{ product.id if product else 0 }};
-    if (!productId) {
-        alert('产品ID无效');
-        return;
-    }
-
-    // 发送清除全部请求
-    fetch(`/tour/products/${productId}/clear-gallery`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // 清除所有图片预览
-            container.innerHTML = '';
-            // 隐藏清除按钮
-            const clearBtn = document.getElementById('clearAllGalleryBtn');
-            if (clearBtn) {
-                clearBtn.style.display = 'none';
-            }
-            alert('已清除全部图片');
-        } else {
-            alert(data.message || '清除失败');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('清除时发生错误');
-    });
-}
-
-// 表单提交处理
-document.getElementById('productForm').addEventListener('submit', function(e) {
-    // 可以在这里添加表单验证逻辑
-    console.log('提交产品表单...');
-});
-
-// 更新国家字段（隐藏域）
+// 更新国家隐藏域
 function updateCountry() {
     const citySelect = document.getElementById('citySelect');
     const countryName = document.getElementById('countryName');
-    const selectedOption = citySelect.options[citySelect.selectedIndex];
-
-    if (selectedOption && selectedOption.dataset.country) {
-        countryName.value = selectedOption.dataset.country;
-    } else {
-        countryName.value = '';
-    }
+    if (!citySelect || !countryName) return;
+    const opt = citySelect.options[citySelect.selectedIndex];
+    countryName.value = (opt && opt.dataset.country) ? opt.dataset.country : '';
 }
-
-// 页面加载时初始化国家
-document.addEventListener('DOMContentLoaded', function() {
-    updateCountry();
-});
-
+document.addEventListener('DOMContentLoaded', updateCountry);
 
 {% if product %}
-// ========================================
-// 价格设置管理功能
-// ========================================
-
-// 日期格式化辅助函数
-function formatDate(dateString) {
-    if (!dateString) return '';
-    
-    // 如果已经是 YYYY-MM-DD 格式，直接返回
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        return dateString;
-    }
-    
-    // 尝试解析日期
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return '';
-        
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    } catch (e) {
-        console.error('日期格式化错误:', e);
-        return '';
-    }
+// ========== 基本信息 / 价格：卡片弹窗编辑（走 /patch） ==========
+function _postPatch(payload, label) {
+    fetch('{{ url_for("tour_products.patch_product", product_id=product.id) }}', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { showAlert((label || '') + '保存成功', 'success'); setTimeout(function(){ location.reload(); }, 700); }
+        else showAlert('保存失败：' + (d.message || ''), 'danger');
+    })
+    .catch(e => { console.error(e); showAlert('保存出错', 'danger'); });
 }
 
-// 显示添加价格设置模态框
+function editBasicInfo() { showModal('editBasicInfoModal'); }
+
+function updateBasicInfo() {
+    const name = _val('bi_product_name').trim();
+    if (!name) { showAlert('产品名称必填', 'warning'); return; }
+    const payload = {
+        product_name: name,
+        supplier_id: _val('supplierId'),
+        product_type: _val('bi_product_type'),
+        city_name: _val('citySelect'),
+        country_name: _val('countryName'),
+        duration_days: _val('bi_duration_days'),
+        min_pax: _val('bi_min_pax'),
+        max_pax: _val('bi_max_pax'),
+        product_status: _val('bi_product_status'),
+        valid_from: _val('bi_valid_from'),
+        valid_until: _val('bi_valid_until'),
+        tags: _val('tagsInput'),
+        product_description: _val('bi_product_description'),
+        included_services: _val('bi_included_services'),
+        excluded_services: _val('bi_excluded_services'),
+        important_notes: _val('bi_important_notes')
+    };
+    _postPatch(payload, '基本信息');
+}
+
+function editPrice() { showModal('editPriceModal'); }
+function updatePrice() {
+    _postPatch({
+        base_price: _val('pr_base_price'),
+        child_price: _val('pr_child_price'),
+        infant_price: _val('pr_infant_price'),
+        single_room_supplement: _val('pr_single_room_supplement'),
+        currency: _val('pr_currency')
+    }, '价格');
+}
+
+// 预设弹窗内下拉的当前值
+document.addEventListener('DOMContentLoaded', function() {
+    const pt = document.getElementById('bi_product_type'); if (pt) pt.value = {{ (product.product_type or '') | tojson }};
+    const ps = document.getElementById('bi_product_status'); if (ps) ps.value = {{ (product.product_status or 'active') | tojson }};
+    const cur = document.getElementById('pr_currency'); if (cur) cur.value = {{ (product.currency or 'SGD') | tojson }};
+});
+
+// ========== 图片：AJAX 上传 / 图片库选择 ==========
+function uploadProductImage(kind) {
+    const inputId = kind === 'cover' ? 'coverFileInput' : (kind === 'gallery' ? 'galleryFileInput' : 'supplierDocInput');
+    const input = document.getElementById(inputId);
+    if (!input || !input.files || input.files.length === 0) { showAlert('请先选择文件', 'warning'); return; }
+    const fd = new FormData();
+    fd.append('kind', kind);
+    for (let i = 0; i < input.files.length; i++) fd.append('image', input.files[i]);
+    showAlert('上传中...', 'info');
+    fetch('{{ url_for("tour_products.upload_product_image", product_id=product.id) }}', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => { if (d.success) { showAlert('上传成功', 'success'); setTimeout(function(){ location.reload(); }, 600); } else showAlert('上传失败：' + (d.message || ''), 'danger'); })
+        .catch(e => { console.error(e); showAlert('上传出错', 'danger'); });
+}
+
+function _uploadLibraryPath(kind, imagePath) {
+    const fd = new FormData();
+    fd.append('kind', kind);
+    fd.append('image_path', imagePath);
+    fetch('{{ url_for("tour_products.upload_product_image", product_id=product.id) }}', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => { if (d.success) { showAlert('已添加', 'success'); setTimeout(function(){ location.reload(); }, 600); } else showAlert('失败：' + (d.message || ''), 'danger'); })
+        .catch(e => { console.error(e); showAlert('出错', 'danger'); });
+}
+
+// 打开图片库窗口（封面/图库）
+let _productImageKind = 'cover';
+function openImageLibrary(kind) {
+    _productImageKind = kind;
+    const isMulti = (kind === 'gallery');
+    const baseUrl = '{{ url_for("staff.image_library") }}';
+    const url = isMulti ? (baseUrl + '?multi=true&type=' + kind) : (baseUrl + '?type=' + kind);
+    window.open(url, 'ImageLibrary', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+}
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'image_selected') {
+        _uploadLibraryPath(_productImageKind, event.data.image_path);
+    }
+    if (event.data && event.data.type === 'images_multi_selected') {
+        const imgs = event.data.images || [];
+        if (imgs.length > 0) {
+            // 逐张追加（gallery）
+            const fd = new FormData();
+            fd.append('kind', 'gallery');
+            // 后端一次一张 path，这里顺序提交后 reload
+            let i = 0;
+            function next() {
+                if (i >= imgs.length) { showAlert('已添加 ' + imgs.length + ' 张', 'success'); setTimeout(function(){ location.reload(); }, 500); return; }
+                const f = new FormData(); f.append('kind', 'gallery'); f.append('image_path', imgs[i].path);
+                fetch('{{ url_for("tour_products.upload_product_image", product_id=product.id) }}', { method: 'POST', body: f })
+                    .then(r => r.json()).then(function(){ i++; next(); }).catch(function(){ i++; next(); });
+            }
+            next();
+        }
+    }
+});
+
+// 删除产品文件
+function deleteProductFile(fileType, fileIndex) {
+    if (fileIndex === undefined) fileIndex = null;
+    const msg = { 'cover_image': '确定要删除封面图吗？', 'gallery_image': '确定要删除这张图片吗？', 'supplier_document': '确定要删除供应商文件吗？' };
+    if (!confirm(msg[fileType] || '确定要删除吗？')) return;
+    fetch('/tour/products/{{ product.id }}/delete-file', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_type: fileType, file_index: fileIndex })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            if (fileType === 'cover_image') { const e = document.getElementById('coverImagePreview'); if (e) e.remove(); }
+            else if (fileType === 'gallery_image') { const e = document.getElementById('galleryImage' + fileIndex); if (e) e.remove(); }
+            else if (fileType === 'supplier_document') { const e = document.getElementById('supplierDocPreview'); if (e) e.remove(); }
+            showAlert('已删除', 'success');
+        } else alert(d.message || '删除失败');
+    })
+    .catch(e => { console.error(e); alert('删除时发生错误'); });
+}
+
+function clearAllGalleryImages() {
+    const container = document.getElementById('galleryImagesContainer');
+    if (!container) { alert('没有可清除的图片'); return; }
+    const images = container.querySelectorAll('[id^="galleryImage"]');
+    if (images.length === 0) { alert('没有可清除的图片'); return; }
+    if (!confirm('确定要清除全部 ' + images.length + ' 张图片吗？此操作不可撤销！')) return;
+    fetch('/tour/products/{{ product.id }}/clear-gallery', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(d => { if (d.success) { container.innerHTML = ''; const b = document.getElementById('clearAllGalleryBtn'); if (b) b.style.display = 'none'; showAlert('已清除全部图片', 'success'); } else alert(d.message || '清除失败'); })
+        .catch(e => { console.error(e); alert('清除时发生错误'); });
+}
+
+// ========== 价格设置（条件价格）管理 ==========
+function formatDate(dateString) {
+    if (!dateString) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    try { const d = new Date(dateString); if (isNaN(d.getTime())) return ''; return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); } catch (e) { return ''; }
+}
 function showAddPriceVariantModal() {
     document.getElementById('priceModalTitle').textContent = '添加价格设置';
     document.getElementById('variantId').value = '';
@@ -1171,16 +824,11 @@ function showAddPriceVariantModal() {
     document.getElementById('isActive').value = '1';
     showModal('priceVariantModal');
 }
-
-// 编辑价格设置
 function editPriceVariant(id) {
     document.getElementById('priceModalTitle').textContent = '编辑价格设置';
     document.getElementById('variantId').value = id;
-    
-    fetch(`{{ url_for('tour_products.get_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${id}`), {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
+    fetch('{{ url_for("tour_products.get_price_variant", product_id=product.id, variant_id=0) }}'.replace('/0', '/' + id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
             const v = data.variant;
@@ -1189,14 +837,11 @@ function editPriceVariant(id) {
             document.getElementById('endDate').value = formatDate(v.end_date);
             document.getElementById('minPax').value = v.min_pax || '';
             document.getElementById('maxPax').value = v.max_pax || '';
-            // 成本价格
             document.getElementById('costSinglePrice').value = v.cost_single_price || '';
             document.getElementById('costTwinPrice').value = v.cost_twin_price || '';
             document.getElementById('costThirdPaxPrice').value = v.cost_third_pax_price || '';
             document.getElementById('costChildNoBedPrice').value = v.cost_child_no_bed_price || '';
-            // 利润
             document.getElementById('profitPerPerson').value = v.profit_per_person || '';
-            // 房型售价
             document.getElementById('singlePrice').value = v.single_price || '';
             document.getElementById('twinPrice').value = v.twin_price || '';
             document.getElementById('thirdPaxPrice').value = v.third_pax_price || '';
@@ -1205,902 +850,193 @@ function editPriceVariant(id) {
             document.getElementById('isPrimary').value = v.is_primary ? '1' : '0';
             document.getElementById('isActive').value = v.is_active ? '1' : '0';
             showModal('priceVariantModal');
-        } else {
-            alert('获取价格设置失败：' + data.message);
-        }
+        } else alert('获取价格设置失败：' + data.message);
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('获取价格设置时发生错误');
-    });
+    .catch(e => { console.error(e); alert('获取价格设置时发生错误'); });
 }
-
-// 复制价格设置
-function copyPriceVariant(id) {
-    document.getElementById('priceModalTitle').textContent = '复制价格设置';
-    document.getElementById('variantId').value = ''; // 清空ID，创建新变体
-    
-    fetch(`{{ url_for('tour_products.get_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${id}`), {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const v = data.variant;
-            console.log('复制变体数据:', v); // 调试信息
-            console.log('开始日期:', v.start_date, '格式化后:', formatDate(v.start_date));
-            console.log('结束日期:', v.end_date, '格式化后:', formatDate(v.end_date));
-            
-            // 在名称后添加"（副本）"标识
-            document.getElementById('variantName').value = v.variant_name + '（副本）';
-            document.getElementById('startDate').value = formatDate(v.start_date);
-            document.getElementById('endDate').value = formatDate(v.end_date);
-            document.getElementById('minPax').value = v.min_pax || '';
-            document.getElementById('maxPax').value = v.max_pax || '';
-            // 成本价格
-            document.getElementById('costSinglePrice').value = v.cost_single_price || '';
-            document.getElementById('costTwinPrice').value = v.cost_twin_price || '';
-            document.getElementById('costThirdPaxPrice').value = v.cost_third_pax_price || '';
-            document.getElementById('costChildNoBedPrice').value = v.cost_child_no_bed_price || '';
-            // 利润
-            document.getElementById('profitPerPerson').value = v.profit_per_person || '';
-            // 售价
-            document.getElementById('singlePrice').value = v.single_price || '';
-            document.getElementById('twinPrice').value = v.twin_price || '';
-            document.getElementById('thirdPaxPrice').value = v.third_pax_price || '';
-            document.getElementById('childNoBedPrice').value = v.child_no_bed_price || '';
-            document.getElementById('variantCurrency').value = v.currency || 'SGD';
-            document.getElementById('isActive').value = v.is_active ? '1' : '0';
-            showModal('priceVariantModal');
-        } else {
-            alert('获取价格设置失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('复制价格设置时发生错误');
-    });
-}
-
-// 保存价格设置
 function savePriceVariant() {
     const variantId = document.getElementById('variantId').value;
     const formData = new FormData(document.getElementById('priceVariantForm'));
-    
-    const url = variantId 
-        ? `{{ url_for('tour_products.update_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${variantId}`)
-        : `{{ url_for('tour_products.add_price_variant', product_id=product.id) }}`;
-    
-    fetch(url, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            // 保存当前活动标签到 sessionStorage
-            sessionStorage.setItem('activeTab', 'variants');
-            location.reload();
-        } else {
-            alert('保存失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('保存价格设置时发生错误');
-    });
+    const url = variantId
+        ? '{{ url_for("tour_products.update_price_variant", product_id=product.id, variant_id=0) }}'.replace('/0', '/' + variantId)
+        : '{{ url_for("tour_products.add_price_variant", product_id=product.id) }}';
+    fetch(url, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(d => { if (d.success) { alert(d.message); location.reload(); } else alert('保存失败：' + d.message); })
+    .catch(e => { console.error(e); alert('保存价格设置时发生错误'); });
 }
-
-// 删除价格设置
 function deletePriceVariant(id) {
-    if (confirm('确定要删除这个价格设置吗？')) {
-        const formData = new FormData();
-        formData.append('csrf_token', '{{ csrf_token() }}');
-        
-        fetch(`{{ url_for('tour_products.delete_price_variant', product_id=product.id, variant_id=0) }}`.replace('/0', `/${id}`), {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('删除成功！');
-                // 保存当前活动标签到 sessionStorage
-                sessionStorage.setItem('activeTab', 'variants');
-                location.reload();
-            } else {
-                alert('删除失败：' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除价格设置时发生错误');
-        });
-    }
+    if (!confirm('确定要删除这个价格设置吗？')) return;
+    const fd = new FormData(); fd.append('csrf_token', '{{ csrf_token() }}');
+    fetch('{{ url_for("tour_products.delete_price_variant", product_id=product.id, variant_id=0) }}'.replace('/0', '/' + id), { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(d => { if (d.success) { alert('删除成功！'); location.reload(); } else alert('删除失败：' + d.message); })
+    .catch(e => { console.error(e); alert('删除价格设置时发生错误'); });
 }
-
-// 关闭价格设置模态框
 function closePriceVariantModal() {
-    const variantName = document.getElementById('variantName').value;
-    const singlePrice = document.getElementById('singlePrice').value;
-
-    if (variantName || singlePrice) {
-        if (!confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) {
-            return;
-        }
-    }
-
+    const n = document.getElementById('variantName').value, s = document.getElementById('singlePrice').value;
+    if ((n || s) && !confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) return;
     document.getElementById('priceVariantModal').style.display = 'none';
 }
-
-// 计算售价 = 成本 + 每人利润
 function calculateSellingPrices() {
     const profit = parseFloat(document.getElementById('profitPerPerson').value) || 0;
-    if (profit === 0) {
-        alert('请先填写每人利润');
-        return;
-    }
-
-    const costFields = [
-        { cost: 'costSinglePrice', sell: 'singlePrice' },
-        { cost: 'costTwinPrice', sell: 'twinPrice' },
-        { cost: 'costThirdPaxPrice', sell: 'thirdPaxPrice' },
-        { cost: 'costChildNoBedPrice', sell: 'childNoBedPrice' },
-    ];
-
+    if (profit === 0) { alert('请先填写每人利润'); return; }
+    const pairs = [['costSinglePrice','singlePrice'],['costTwinPrice','twinPrice'],['costThirdPaxPrice','thirdPaxPrice'],['costChildNoBedPrice','childNoBedPrice']];
     let updated = 0;
-    costFields.forEach(({ cost, sell }) => {
-        const costVal = parseFloat(document.getElementById(cost).value);
-        if (costVal) {
-            document.getElementById(sell).value = (costVal + profit).toFixed(2);
-            updated++;
-        }
-    });
-
-    if (updated === 0) {
-        alert('请先填写至少一个成本价格');
-    }
+    pairs.forEach(function(p){ const c = parseFloat(document.getElementById(p[0]).value); if (c) { document.getElementById(p[1]).value = (c + profit).toFixed(2); updated++; } });
+    if (updated === 0) alert('请先填写至少一个成本价格');
 }
-
-// 成本或利润变化时，自动计算售价（仅当售价为空时）
 function autoCalcIfEmpty() {
     const profit = parseFloat(document.getElementById('profitPerPerson').value) || 0;
     if (profit === 0) return;
-
-    const costFields = [
-        { cost: 'costSinglePrice', sell: 'singlePrice' },
-        { cost: 'costTwinPrice', sell: 'twinPrice' },
-        { cost: 'costThirdPaxPrice', sell: 'thirdPaxPrice' },
-        { cost: 'costChildNoBedPrice', sell: 'childNoBedPrice' },
-    ];
-
-    costFields.forEach(({ cost, sell }) => {
-        const costVal = parseFloat(document.getElementById(cost).value);
-        const sellEl = document.getElementById(sell);
-        // 仅当售价为空时自动填充
-        if (costVal && !sellEl.value) {
-            sellEl.value = (costVal + profit).toFixed(2);
-        }
-    });
+    const pairs = [['costSinglePrice','singlePrice'],['costTwinPrice','twinPrice'],['costThirdPaxPrice','thirdPaxPrice'],['costChildNoBedPrice','childNoBedPrice']];
+    pairs.forEach(function(p){ const c = parseFloat(document.getElementById(p[0]).value); const el = document.getElementById(p[1]); if (c && el && !el.value) el.value = (c + profit).toFixed(2); });
 }
-
-// 绑定自动计算事件
 document.addEventListener('DOMContentLoaded', function() {
-    const costIds = ['costSinglePrice', 'costTwinPrice', 'costThirdPaxPrice', 'costChildNoBedPrice', 'profitPerPerson'];
-    costIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', autoCalcIfEmpty);
-    });
+    ['costSinglePrice','costTwinPrice','costThirdPaxPrice','costChildNoBedPrice','profitPerPerson'].forEach(function(id){ const el = document.getElementById(id); if (el) el.addEventListener('input', autoCalcIfEmpty); });
 });
 
-// ========================================
-// 行程管理功能
-// ========================================
-
-// 显示添加行程模态框
+// ========== 行程管理 ==========
 function showAddItineraryModal() {
     document.getElementById('modalTitle').textContent = '添加行程';
     document.getElementById('itineraryId').value = '';
     document.getElementById('itineraryForm').reset();
-
-    // 重置图片相关状态
-    [1, 2, 3].forEach(idx => {
-        document.getElementById('libraryImage' + idx).value = '';
-        document.getElementById('image' + idx + 'Preview').style.display = 'none';
-        document.getElementById('image' + idx + 'Preview').src = '';
-        document.getElementById('clearImage' + idx + 'Btn').style.display = 'none';
-    });
-
-    // 自动填充天数（基于已有行程数量）
-    const currentDays = {{ itineraries|length if itineraries else 0 }};
-    document.getElementById('dayNumber').value = currentDays + 1;
-
+    [1,2,3].forEach(function(idx){ document.getElementById('libraryImage'+idx).value=''; document.getElementById('image'+idx+'Preview').style.display='none'; document.getElementById('image'+idx+'Preview').src=''; document.getElementById('clearImage'+idx+'Btn').style.display='none'; });
+    document.getElementById('dayNumber').value = {{ itineraries|length if itineraries else 0 }} + 1;
     showModal('itineraryModal');
 }
-
-// 一键添加全部日期行程
 async function addAllDaysItinerary() {
     const totalDays = {{ product.duration_days if product and product.duration_days else 0 }};
     const existingDays = [{% for it in itineraries %}{{ it.day_number }},{% endfor %}];
-
-    if (totalDays <= 0) {
-        alert('请先设置产品的行程天数');
-        return;
-    }
-
-    // 找出缺失的天数
-    const missingDays = [];
-    for (let day = 1; day <= totalDays; day++) {
-        if (!existingDays.includes(day)) {
-            missingDays.push(day);
-        }
-    }
-
-    if (missingDays.length === 0) {
-        alert('所有日期的行程已添加完成');
-        return;
-    }
-
-    if (!confirm(`将添加第 ${missingDays.join(', ')} 天的行程，共 ${missingDays.length} 天，确定吗？`)) {
-        return;
-    }
-
-    // 批量添加
-    let successCount = 0;
-    let failedDays = [];
-
-    for (const day of missingDays) {
+    if (totalDays <= 0) { alert('请先设置产品的行程天数'); return; }
+    const missing = [];
+    for (let d = 1; d <= totalDays; d++) if (!existingDays.includes(d)) missing.push(d);
+    if (missing.length === 0) { alert('所有日期的行程已添加完成'); return; }
+    if (!confirm('将添加第 ' + missing.join(', ') + ' 天的行程，共 ' + missing.length + ' 天，确定吗？')) return;
+    let ok = 0, failed = [];
+    for (const day of missing) {
         try {
-            const formData = new FormData();
-            formData.append('day_number', day);
-            formData.append('day_title', `第${day}天`);
-            formData.append('content', '');
-
-            const response = await fetch('{{ url_for("tour_products.add_itinerary", product_id=product.id) }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                },
-                body: formData
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                successCount++;
-            } else {
-                failedDays.push(day);
-            }
-        } catch (error) {
-            console.error(`添加第${day}天失败:`, error);
-            failedDays.push(day);
-        }
+            const fd = new FormData(); fd.append('day_number', day); fd.append('day_title', '第' + day + '天'); fd.append('content', '');
+            const r = await fetch('{{ url_for("tour_products.add_itinerary", product_id=product.id) }}', { method: 'POST', body: fd });
+            const res = await r.json(); if (res.success) ok++; else failed.push(day);
+        } catch (e) { failed.push(day); }
     }
-
-    if (successCount > 0) {
-        alert(`成功添加 ${successCount} 天行程` + (failedDays.length > 0 ? `，${failedDays.length} 天失败` : ''));
-        location.reload();
-    } else {
-        alert('添加失败，请重试');
-    }
+    if (ok > 0) { alert('成功添加 ' + ok + ' 天行程' + (failed.length ? '，' + failed.length + ' 天失败' : '')); location.reload(); }
+    else alert('添加失败，请重试');
 }
-
-// 编辑行程
 function editItinerary(id) {
     document.getElementById('modalTitle').textContent = '编辑行程';
     document.getElementById('itineraryId').value = id;
-    
-    // 获取行程数据
-    fetch(`{{ url_for('tour_products.get_itinerary', product_id=product.id, itinerary_id=0) }}`.replace('/0', `/${id}`), {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
+    fetch('{{ url_for("tour_products.get_itinerary", product_id=product.id, itinerary_id=0) }}'.replace('/0', '/' + id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            const itinerary = data.itinerary;
-            document.getElementById('dayNumber').value = itinerary.day_number;
-            document.getElementById('dayTitle').value = itinerary.day_title || '';
-            document.getElementById('dayContent').value = itinerary.content || '';
-            
-            // 显示现有图片预览
-            [1, 2, 3].forEach(idx => {
-                const imgField = 'image' + idx;
-                const preview = document.getElementById(imgField + 'Preview');
-                const clearBtn = document.getElementById('clearImage' + idx + 'Btn');
-                document.getElementById('libraryImage' + idx).value = '';
-                document.getElementById(imgField).value = '';
-                if (itinerary[imgField]) {
-                    preview.src = `/static/${itinerary[imgField]}`;
-                    preview.style.display = 'block';
-                    clearBtn.style.display = 'block';
-                } else {
-                    preview.src = '';
-                    preview.style.display = 'none';
-                    clearBtn.style.display = 'none';
-                }
+            const it = data.itinerary;
+            document.getElementById('dayNumber').value = it.day_number;
+            document.getElementById('dayTitle').value = it.day_title || '';
+            document.getElementById('dayContent').value = it.content || '';
+            [1,2,3].forEach(function(idx){
+                const f = 'image' + idx, preview = document.getElementById(f + 'Preview'), clearBtn = document.getElementById('clearImage' + idx + 'Btn');
+                document.getElementById('libraryImage' + idx).value = ''; document.getElementById(f).value = '';
+                if (it[f]) { preview.src = '/static/' + it[f]; preview.style.display = 'block'; clearBtn.style.display = 'block'; }
+                else { preview.src = ''; preview.style.display = 'none'; clearBtn.style.display = 'none'; }
             });
-            
             showModal('itineraryModal');
-        } else {
-            alert('获取行程信息失败：' + data.message);
-        }
+        } else alert('获取行程信息失败：' + data.message);
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('获取行程信息时发生错误');
-    });
+    .catch(e => { console.error(e); alert('获取行程信息时发生错误'); });
 }
-
-// 图片预览功能（本地上传时清除图片库选择）
-['image1', 'image2', 'image3'].forEach(imgId => {
+['image1','image2','image3'].forEach(function(imgId){
     const input = document.getElementById(imgId);
-    if (input) {
-        input.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const preview = document.getElementById(imgId + 'Preview');
-            const idx = imgId.replace('image', '');
-            const clearBtn = document.getElementById('clearImage' + idx + 'Btn');
-
-            if (file) {
-                // 本地上传了文件，清除图片库选择
-                document.getElementById('libraryImage' + idx).value = '';
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-                clearBtn.style.display = 'block';
-            } else {
-                // 如果没有图片库选择，也隐藏预览
-                if (!document.getElementById('libraryImage' + idx).value) {
-                    preview.src = '';
-                    preview.style.display = 'none';
-                    clearBtn.style.display = 'none';
-                }
-            }
-        });
-    }
+    if (input) input.addEventListener('change', function(e){
+        const file = e.target.files[0], preview = document.getElementById(imgId + 'Preview'), idx = imgId.replace('image',''), clearBtn = document.getElementById('clearImage' + idx + 'Btn');
+        if (file) { document.getElementById('libraryImage' + idx).value = ''; const rd = new FileReader(); rd.onload = function(ev){ preview.src = ev.target.result; preview.style.display = 'block'; }; rd.readAsDataURL(file); clearBtn.style.display = 'block'; }
+        else if (!document.getElementById('libraryImage' + idx).value) { preview.src=''; preview.style.display='none'; clearBtn.style.display='none'; }
+    });
 });
+function viewImage(url) { window.open(url, '_blank'); }
 
-// 查看大图
-function viewImage(url) {
-    window.open(url, '_blank');
-}
-
-// ========================================
-// 图片库选择器
-// ========================================
-let _libPickerSlot = 1;  // 当前选择的图片插槽（1/2/3）
-let _libCurrentPage = 1;
-
-function openImageLibraryPicker(slot) {
-    _libPickerSlot = slot;
-    _libCurrentPage = 1;
-    document.getElementById('libSearchInput').value = '';
-    document.getElementById('libCategoryFilter').value = '';
-    showModal('imageLibraryModal');
-    searchLibraryImages();
-}
-
-function closeImageLibraryPicker() {
-    document.getElementById('imageLibraryModal').style.display = 'none';
-}
-
+// 行程配图：图片库选择器
+let _libPickerSlot = 1, _libCurrentPage = 1;
+function openImageLibraryPicker(slot) { _libPickerSlot = slot; _libCurrentPage = 1; document.getElementById('libSearchInput').value = ''; document.getElementById('libCategoryFilter').value = ''; showModal('imageLibraryModal'); searchLibraryImages(); }
+function closeImageLibraryPicker() { document.getElementById('imageLibraryModal').style.display = 'none'; }
 function searchLibraryImages(page) {
     _libCurrentPage = page || 1;
-    const search = document.getElementById('libSearchInput').value.trim();
-    const category = document.getElementById('libCategoryFilter').value;
-    const grid = document.getElementById('libImageGrid');
-
-    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#9ca3af; padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i><p>加载中...</p></div>';
-
-    let url = `/staff/image-library/list?page=${_libCurrentPage}&per_page=20`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    if (category) url += `&category=${encodeURIComponent(category)}`;
-
+    const search = document.getElementById('libSearchInput').value.trim(), category = document.getElementById('libCategoryFilter').value, grid = document.getElementById('libImageGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9ca3af;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i><p>加载中...</p></div>';
+    let url = '/staff/image-library/list?page=' + _libCurrentPage + '&per_page=20';
+    if (search) url += '&search=' + encodeURIComponent(search);
+    if (category) url += '&category=' + encodeURIComponent(category);
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
-        if (!data.success) {
-            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#ef4444; padding:2rem;">加载失败</div>';
-            return;
-        }
-        if (data.images.length === 0) {
-            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#9ca3af; padding:2rem;"><i class="fas fa-image" style="font-size:2rem;"></i><p>没有找到图片</p></div>';
-            document.getElementById('libPagination').innerHTML = '';
-            return;
-        }
-        grid.innerHTML = data.images.map(img => `
-            <div style="border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; cursor:pointer; transition:all 0.2s;"
-                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)';"
-                 onmouseout="this.style.boxShadow=''; this.style.transform='';"
-                 onclick="selectLibraryImage('${img.image_path}', '${(img.title || '').replace(/'/g, "\\'")}')">
-                <div style="width:100%; height:120px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                    <img src="/static/${img.image_path}" alt="${img.title || ''}" style="max-width:100%; max-height:100%; object-fit:cover;">
-                </div>
-                <div style="padding:0.4rem 0.5rem; font-size:0.75rem;">
-                    <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${img.title || ''}">${img.title || '无标题'}</div>
-                    <div style="color:#9ca3af; font-size:0.7rem; margin-top:2px;">${img.tags || ''}</div>
-                </div>
-            </div>
-        `).join('');
-
-        // 分页
-        const pg = data.pagination;
-        let pgHtml = '';
-        if (pg.pages > 1) {
-            pgHtml += `<button class="visa-btn visa-btn-secondary" style="font-size:0.8rem; padding:0.25rem 0.6rem;" ${pg.page <= 1 ? 'disabled' : ''} onclick="searchLibraryImages(${pg.page - 1})"><i class="fas fa-chevron-left"></i></button>`;
-            pgHtml += `<span style="font-size:0.85rem; color:#6b7280;">${pg.page} / ${pg.pages}（共${pg.total}张）</span>`;
-            pgHtml += `<button class="visa-btn visa-btn-secondary" style="font-size:0.8rem; padding:0.25rem 0.6rem;" ${pg.page >= pg.pages ? 'disabled' : ''} onclick="searchLibraryImages(${pg.page + 1})"><i class="fas fa-chevron-right"></i></button>`;
-        }
-        document.getElementById('libPagination').innerHTML = pgHtml;
+        if (!data.success) { grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#ef4444;padding:2rem;">加载失败</div>'; return; }
+        if (data.images.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#9ca3af;padding:2rem;"><i class="fas fa-image" style="font-size:2rem;"></i><p>没有找到图片</p></div>'; document.getElementById('libPagination').innerHTML = ''; return; }
+        grid.innerHTML = data.images.map(function(img){ return '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="selectLibraryImage(\'' + img.image_path + '\')"><div style="width:100%;height:120px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="/static/' + img.image_path + '" style="max-width:100%;max-height:100%;object-fit:cover;"></div><div style="padding:0.4rem 0.5rem;font-size:0.75rem;"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (img.title || '无标题') + '</div><div style="color:#9ca3af;font-size:0.7rem;">' + (img.tags || '') + '</div></div></div>'; }).join('');
+        const pg = data.pagination; let h = '';
+        if (pg.pages > 1) { h += '<button class="visa-btn visa-btn-secondary" style="font-size:0.8rem;padding:0.25rem 0.6rem;" ' + (pg.page<=1?'disabled':'') + ' onclick="searchLibraryImages(' + (pg.page-1) + ')"><i class="fas fa-chevron-left"></i></button>'; h += '<span style="font-size:0.85rem;color:#6b7280;">' + pg.page + ' / ' + pg.pages + '（共' + pg.total + '张）</span>'; h += '<button class="visa-btn visa-btn-secondary" style="font-size:0.8rem;padding:0.25rem 0.6rem;" ' + (pg.page>=pg.pages?'disabled':'') + ' onclick="searchLibraryImages(' + (pg.page+1) + ')"><i class="fas fa-chevron-right"></i></button>'; }
+        document.getElementById('libPagination').innerHTML = h;
     })
-    .catch(err => {
-        console.error(err);
-        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#ef4444; padding:2rem;">网络错误</div>';
-    });
+    .catch(function(err){ console.error(err); grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#ef4444;padding:2rem;">网络错误</div>'; });
 }
-
-function selectLibraryImage(imagePath, title) {
+function selectLibraryImage(imagePath) {
     const slot = _libPickerSlot;
-    // 设置隐藏字段
     document.getElementById('libraryImage' + slot).value = imagePath;
-    // 清除本地文件选择
     document.getElementById('image' + slot).value = '';
-    // 显示预览
     const preview = document.getElementById('image' + slot + 'Preview');
-    preview.src = '/static/' + imagePath;
-    preview.style.display = 'block';
-    // 显示清除按钮
+    preview.src = '/static/' + imagePath; preview.style.display = 'block';
     document.getElementById('clearImage' + slot + 'Btn').style.display = 'block';
     closeImageLibraryPicker();
 }
-
 function clearItineraryImage(slot) {
-    document.getElementById('libraryImage' + slot).value = '';
-    document.getElementById('image' + slot).value = '';
-    const preview = document.getElementById('image' + slot + 'Preview');
-    preview.src = '';
-    preview.style.display = 'none';
+    document.getElementById('libraryImage' + slot).value = ''; document.getElementById('image' + slot).value = '';
+    const preview = document.getElementById('image' + slot + 'Preview'); preview.src = ''; preview.style.display = 'none';
     document.getElementById('clearImage' + slot + 'Btn').style.display = 'none';
 }
-
-// 保存行程
 function saveItinerary() {
-    const itineraryId = document.getElementById('itineraryId').value;
-    const formData = new FormData(document.getElementById('itineraryForm'));
-    
-    // 打印调试信息
-    console.log('=== 保存行程 ===');
-    console.log('行程ID:', itineraryId || '新增');
-    console.log('天数:', formData.get('day_number'));
-    console.log('标题:', formData.get('day_title'));
-    console.log('正文长度:', formData.get('content')?.length || 0);
-    
-    const url = itineraryId 
-        ? `{{ url_for('tour_products.update_itinerary', product_id=product.id, itinerary_id=0) }}`.replace('/0', `/${itineraryId}`)
-        : `{{ url_for('tour_products.add_itinerary', product_id=product.id) }}`;
-    
-    console.log('请求URL:', url);
-    
-    fetch(url, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => {
-        console.log('响应状态:', response.status);
-        if (!response.ok) {
-            return response.json().then(data => {
-                throw new Error(data.message || `服务器错误 ${response.status}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('响应数据:', data);
-        if (data.success) {
-            alert(data.message);
-            // 保存当前活动标签到 sessionStorage
-            sessionStorage.setItem('activeTab', 'itinerary');
-            location.reload();
-        } else {
-            alert('保存失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('保存行程时发生错误：' + error.message);
-    });
+    const id = document.getElementById('itineraryId').value;
+    const fd = new FormData(document.getElementById('itineraryForm'));
+    const url = id ? '{{ url_for("tour_products.update_itinerary", product_id=product.id, itinerary_id=0) }}'.replace('/0', '/' + id) : '{{ url_for("tour_products.add_itinerary", product_id=product.id) }}';
+    fetch(url, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => { if (!r.ok) return r.json().then(function(d){ throw new Error(d.message || '服务器错误 ' + r.status); }); return r.json(); })
+    .then(d => { if (d.success) { alert(d.message); location.reload(); } else alert('保存失败：' + d.message); })
+    .catch(e => { console.error(e); alert('保存行程时发生错误：' + e.message); });
 }
-
-// 删除行程
 function deleteItinerary(id) {
-    if (confirm('确定要删除这个行程吗？')) {
-        const formData = new FormData();
-        formData.append('csrf_token', '{{ csrf_token() }}');
-        
-        fetch(`{{ url_for('tour_products.delete_itinerary', product_id=product.id, itinerary_id=0) }}`.replace('/0', `/${id}`), {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('删除成功！');
-                // 保存当前活动标签到 sessionStorage
-                sessionStorage.setItem('activeTab', 'itinerary');
-                location.reload();
-            } else {
-                alert('删除失败：' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除行程时发生错误');
-        });
-    }
+    if (!confirm('确定要删除这个行程吗？')) return;
+    const fd = new FormData(); fd.append('csrf_token', '{{ csrf_token() }}');
+    fetch('{{ url_for("tour_products.delete_itinerary", product_id=product.id, itinerary_id=0) }}'.replace('/0', '/' + id), { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(d => { if (d.success) { alert('删除成功！'); location.reload(); } else alert('删除失败：' + d.message); })
+    .catch(e => { console.error(e); alert('删除行程时发生错误'); });
 }
-
-// 模态框控制
-function showModal(modalId) {
-    document.getElementById(modalId).style.display = 'flex';
-}
-
 function closeItineraryModal() {
-    // 检查表单是否有数据，提示用户确认关闭
-    const dayNumber = document.getElementById('dayNumber').value;
-    const dayTitle = document.getElementById('dayTitle').value;
-    const dayContent = document.getElementById('dayContent').value;
-    
-    if (dayNumber || dayTitle || dayContent) {
-        if (!confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) {
-            return;
-        }
-    }
-    
+    const n = document.getElementById('dayNumber').value, t = document.getElementById('dayTitle').value, c = document.getElementById('dayContent').value;
+    if ((n || t || c) && !confirm('关闭弹窗将丢失未保存的数据，确定要关闭吗？')) return;
     document.getElementById('itineraryModal').style.display = 'none';
 }
-
-// 移除点击模态框外部关闭功能，防止意外关闭
-// 用户必须点击关闭按钮或取消按钮才能关闭
-
-// 自动分配行程图片
 function autoAssignItineraryImages() {
     const galleryCount = {% if product and product.gallery_images %}{{ (product.gallery_images|fromjson)|length if product.gallery_images else 0 }}{% else %}0{% endif %};
     const itineraryCount = {{ itineraries|length if itineraries else 0 }};
-    
-    if (galleryCount === 0) {
-        alert('产品图片库为空！\n\n请先在"图片资源"标签页中上传产品图片，然后再使用自动分配功能。');
-        return;
-    }
-    
-    if (itineraryCount === 0) {
-        alert('暂无行程！\n\n请先添加行程，然后再使用自动分配功能。');
-        return;
-    }
-    
-    const maxNeeded = itineraryCount * 3;
-    let confirmMsg = `确定要自动分配图片吗？\n\n`;
-    confirmMsg += `• 产品图片库：${galleryCount} 张\n`;
-    confirmMsg += `• 行程天数：${itineraryCount} 天\n`;
-    confirmMsg += `• 最多需要：${maxNeeded} 张图片\n\n`;
-    
-    if (galleryCount < maxNeeded) {
-        confirmMsg += `⚠️ 图片数量不足，将优先分配给前面的日期。\n\n`;
-    }
-    
-    confirmMsg += `此操作将覆盖现有行程图片，是否继续？`;
-    
-    if (!confirm(confirmMsg)) {
-        return;
-    }
-    
-    // 显示加载提示
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'assignLoading';
-    loadingDiv.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-            <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; color: #7c3aed; margin-bottom: 1rem;"></i>
-                <h4>正在分配图片...</h4>
-                <p style="color: #64748b; margin: 0;">请稍候</p>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(loadingDiv);
-    
-    fetch(`/tour/products/{{ product.id }}/itinerary/auto-assign-images`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('assignLoading')?.remove();
-        if (data.success) {
-            alert(data.message);
-            // 保存当前活动标签
-            sessionStorage.setItem('activeTab', 'itinerary');
-            location.reload();
-        } else {
-            alert('分配失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        document.getElementById('assignLoading')?.remove();
-        console.error('Error:', error);
-        alert('分配图片时发生错误');
-    });
+    if (galleryCount === 0) { alert('产品图片库为空！请先在"图片资源"上传产品图片。'); return; }
+    if (itineraryCount === 0) { alert('暂无行程！请先添加行程。'); return; }
+    if (!confirm('确定要自动分配图片吗？此操作将覆盖现有行程图片。')) return;
+    fetch('/tour/products/{{ product.id }}/itinerary/auto-assign-images', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(d => { if (d.success) { alert(d.message); location.reload(); } else alert('分配失败：' + d.message); })
+    .catch(e => { console.error(e); alert('分配图片时发生错误'); });
 }
-
-// 处理行程Excel导入
 function handleItineraryExcelUpload(input) {
-    const file = input.files[0];
-    if (!file) return;
-    
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        alert('请选择Excel文件（.xlsx或.xls）');
-        input.value = '';
-        return;
-    }
-    
-    const existingCount = {{ itineraries|length if itineraries else 0 }};
-    let confirmMsg = `确定要导入行程文件 "${file.name}" 吗？`;
-    if (existingCount > 0) {
-        confirmMsg += `\n\n注意：当前已有 ${existingCount} 个行程，导入后将追加新行程。`;
-    }
-    
-    if (!confirm(confirmMsg)) {
-        input.value = '';
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    // 显示加载提示
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'importLoading';
-    loadingDiv.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-            <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--visa-primary); margin-bottom: 1rem;"></i>
-                <h4>正在导入行程...</h4>
-                <p style="color: #64748b; margin: 0;">请稍候，不要关闭页面</p>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(loadingDiv);
-    
-    fetch(`/tour/products/{{ product.id }}/itinerary/import-excel`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('importLoading')?.remove();
-        if (data.success) {
-            alert(`导入成功！\n新增 ${data.imported_count} 个行程`);
-            location.reload();
-        } else {
-            alert('导入失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        document.getElementById('importLoading')?.remove();
-        console.error('Error:', error);
-        alert('导入时发生错误');
-    })
-    .finally(() => {
-        input.value = '';
-    });
+    const file = input.files[0]; if (!file) return;
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) { alert('请选择Excel文件（.xlsx或.xls）'); input.value = ''; return; }
+    if (!confirm('确定要导入行程文件 "' + file.name + '" 吗？导入后将追加新行程。')) { input.value = ''; return; }
+    const fd = new FormData(); fd.append('file', file);
+    fetch('/tour/products/{{ product.id }}/itinerary/import-excel', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(d => { if (d.success) { alert('导入成功！新增 ' + d.imported_count + ' 个行程'); location.reload(); } else alert('导入失败：' + d.message); })
+    .catch(e => { console.error(e); alert('导入时发生错误'); })
+    .finally(function(){ input.value = ''; });
 }
 {% endif %}
-
-// ========================================
-// 图片库选择功能
-// ========================================
-let currentImageType = 'cover'; // 'cover' 或 'gallery'
-let selectedGalleryImages = []; // 存储选中的图片库图片
-
-function openImageLibrary(type) {
-    currentImageType = type;
-    // 产品图片库使用多选模式，封面图使用单选模式
-    const isMulti = (type === 'gallery');
-    const baseUrl = '{{ url_for("staff.image_library") }}';
-    const url = isMulti ? `${baseUrl}?multi=true&type=${type}` : `${baseUrl}?type=${type}`;
-    const windowName = 'ImageLibrary';
-    const windowFeatures = 'width=1200,height=800,scrollbars=yes,resizable=yes';
-    window.open(url, windowName, windowFeatures);
-}
-
-// 监听来自图片库窗口的消息
-window.addEventListener('message', function(event) {
-    // 单选模式：选择单张图片
-    if (event.data && event.data.type === 'image_selected') {
-        const { image_id, image_path, image_title } = event.data;
-
-        if (currentImageType === 'cover') {
-            // 设置封面图
-            document.getElementById('selectedCoverImage').value = image_path;
-            // 显示预览
-            const previewDiv = document.getElementById('coverImagePreview') || createPreviewDiv('coverImagePreview');
-            previewDiv.innerHTML = `
-                <img src="{{ url_for('static', filename='') }}${image_path}"
-                     style="max-width: 200px; max-height: 150px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
-                <button type="button" onclick="clearCoverImage()"
-                        style="position: absolute; top: -8px; right: -8px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;"
-                        title="清除封面图">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-
-            // 清除文件输入
-            const fileInput = document.querySelector('input[name="cover_image"]');
-            if (fileInput) fileInput.value = '';
-        } else if (currentImageType === 'gallery') {
-            // 添加到图片库（单张）
-            if (!selectedGalleryImages.includes(image_path)) {
-                selectedGalleryImages.push(image_path);
-                document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
-                updateGalleryPreview();
-            }
-        }
-    }
-
-    // 多选模式：批量选择图片
-    if (event.data && event.data.type === 'images_multi_selected') {
-        const { selectType, images } = event.data;
-
-        if (selectType === 'gallery' && images && images.length > 0) {
-            // 批量添加到产品图片库
-            let addedCount = 0;
-            images.forEach(img => {
-                if (!selectedGalleryImages.includes(img.path)) {
-                    selectedGalleryImages.push(img.path);
-                    addedCount++;
-                }
-            });
-
-            if (addedCount > 0) {
-                document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
-                updateGalleryPreview();
-            }
-        }
-    }
-});
-
-function createPreviewDiv(id) {
-    const div = document.createElement('div');
-    div.id = id;
-    div.className = 'visa-mt-2';
-    div.style.cssText = 'position: relative; display: inline-block;';
-    const formGroup = document.querySelector('input[name="cover_image"]').closest('.visa-form-group');
-    formGroup.appendChild(div);
-    return div;
-}
-
-function updateGalleryPreview() {
-    let container = document.getElementById('galleryImagesContainer');
-    if (!container) {
-        const formGroup = document.querySelector('input[name="gallery_images"]').closest('.visa-form-group');
-        container = document.createElement('div');
-        container.id = 'galleryImagesContainer';
-        container.className = 'visa-flex visa-gap-2 visa-mt-2';
-        container.style.cssText = 'flex-wrap: wrap;';
-        formGroup.appendChild(container);
-    }
-    
-    container.innerHTML = '';
-    selectedGalleryImages.forEach((imagePath, index) => {
-        const div = document.createElement('div');
-        div.style.cssText = 'position: relative; display: inline-block;';
-        div.innerHTML = `
-            <img src="{{ url_for('static', filename='') }}${imagePath}" 
-                 style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
-            <button type="button" onclick="removeGalleryImage(${index})" 
-                    style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
-                    title="删除图片">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        container.appendChild(div);
-    });
-    
-    // 也添加原有的图片库图片
-    {% if product and product.gallery_images %}
-    {% set existing_images = product.gallery_images|fromjson if product.gallery_images else [] %}
-    {% for image in existing_images %}
-    if (!selectedGalleryImages.includes('{{ image }}')) {
-        const div = document.createElement('div');
-        div.style.cssText = 'position: relative; display: inline-block;';
-        div.id = 'galleryImage{{ loop.index0 }}';
-        div.innerHTML = `
-            <img src="{{ url_for('static', filename=image) }}" 
-                 style="max-width: 100px; max-height: 80px; border-radius: var(--visa-radius-sm); border: 1px solid var(--visa-border);">
-            <button type="button" onclick="deleteProductFile('gallery_image', {{ loop.index0 }})" 
-                    style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 10px;"
-                    title="删除图片">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        container.appendChild(div);
-    }
-    {% endfor %}
-    {% endif %}
-}
-
-function removeGalleryImage(index) {
-    selectedGalleryImages.splice(index, 1);
-    document.getElementById('selectedGalleryImages').value = JSON.stringify(selectedGalleryImages);
-    updateGalleryPreview();
-}
-
-function clearCoverImage() {
-    document.getElementById('selectedCoverImage').value = '';
-    const preview = document.getElementById('coverImagePreview');
-    if (preview) preview.innerHTML = '';
-}
-
-// ========================================
-// 标签页切换功能
-// ========================================
-document.addEventListener('DOMContentLoaded', function() {
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    // 标签切换函数
-    function switchTab(targetTab) {
-        // 移除所有活动状态
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-        
-        // 添加活动状态到目标标签
-        const targetButton = document.querySelector(`.tab-button[data-tab="${targetTab}"]`);
-        const targetContent = document.getElementById('tab-' + targetTab);
-        
-        if (targetButton && targetContent) {
-            targetButton.classList.add('active');
-            targetContent.classList.add('active');
-        }
-    }
-    
-    // 绑定点击事件
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetTab = this.getAttribute('data-tab');
-            switchTab(targetTab);
-            // 保存当前标签到 sessionStorage
-            sessionStorage.setItem('activeTab', targetTab);
-        });
-    });
-    
-    // 页面加载时恢复活动标签
-    const savedTab = sessionStorage.getItem('activeTab');
-    if (savedTab) {
-        // 恢复保存的标签
-        switchTab(savedTab);
-        // 清除保存的标签（避免下次进入时自动跳转）
-        sessionStorage.removeItem('activeTab');
-    }
-});
-
 </script>
 {% endblock %}
-
