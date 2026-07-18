@@ -56,8 +56,19 @@ class MyPdfFile:
                 except Exception:
                     continue
 
-            # 无法读取任何宽度时回退到 A4 宽度（210mm）
-            target_width = max(widths) if widths else 595.276
+            # 统一目标宽度：取“最常见宽度”（众数），避免个别超大/超小的 PDF 把整份文档带偏
+            # （例如 3 个 A4 + 1 个大图，应统一到 A4 而不是被大图放大）；
+            # 若宽度各不相同、无明显众数，则取中位数。无法读取时回退 A4 宽度（210mm）。
+            if widths:
+                from collections import Counter
+                import statistics
+                rounded = [round(w) for w in widths]  # 归并不同扫描造成的细微差异
+                counter = Counter(rounded)
+                top = max(counter.values())
+                modes = [w for w, c in counter.items() if c == top]
+                target_width = float(modes[0]) if len(modes) == 1 else float(statistics.median(rounded))
+            else:
+                target_width = 595.276
 
             writer = PdfWriter()
             total_pages_added = 0
