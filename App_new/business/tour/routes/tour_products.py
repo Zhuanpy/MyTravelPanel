@@ -1758,6 +1758,167 @@ def add_price_variant(product_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+# 价格变体 Excel 列名（下载模板 / 导入 共用）
+_PV_COLUMNS = [
+    '变体名称', '开始日期', '结束日期', '最少人数', '最多人数',
+    'Single售价', 'Single成本', 'Twin售价', 'Twin成本',
+    '3rdPax售价', '3rdPax成本', 'ChildNoBed售价', 'ChildNoBed成本',
+    '利润/人', '货币', '主要价格', '启用',
+]
+
+
+@tour_products_bp.route('/<int:product_id>/price-variants/template')
+@login_required
+@staff_only
+def price_variant_template(product_id):
+    """下载价格设置 Excel（含现有数据，改完可直接导入）"""
+    try:
+        product = Product.query.get_or_404(product_id)
+        variants = ProductPriceVariant.query.filter_by(product_id=product_id).all()
+
+        def _d(v):
+            return v.strftime('%Y-%m-%d') if v else ''
+
+        rows = []
+        for v in variants:
+            rows.append({
+                '变体名称': v.variant_name, '开始日期': _d(v.start_date), '结束日期': _d(v.end_date),
+                '最少人数': v.min_pax, '最多人数': v.max_pax,
+                'Single售价': v.single_price, 'Single成本': v.cost_single_price,
+                'Twin售价': v.twin_price, 'Twin成本': v.cost_twin_price,
+                '3rdPax售价': v.third_pax_price, '3rdPax成本': v.cost_third_pax_price,
+                'ChildNoBed售价': v.child_no_bed_price, 'ChildNoBed成本': v.cost_child_no_bed_price,
+                '利润/人': v.profit_per_person, '货币': v.currency or 'SGD',
+                '主要价格': 1 if v.is_primary else 0, '启用': 1 if v.is_active else 0,
+            })
+        if not rows:
+            # 无数据时给一行示例
+            rows.append({
+                '变体名称': 'Promo', '开始日期': '2026-01-01', '结束日期': '2026-03-31',
+                '最少人数': 2, '最多人数': '', 'Single售价': 1200, 'Single成本': 900,
+                'Twin售价': 800, 'Twin成本': 600, '3rdPax售价': 700, '3rdPax成本': 500,
+                'ChildNoBed售价': 500, 'ChildNoBed成本': 350, '利润/人': '', '货币': 'SGD',
+                '主要价格': 1, '启用': 1,
+            })
+
+        df = pd.DataFrame(rows, columns=_PV_COLUMNS)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='价格设置')
+        output.seek(0)
+        fname = f'价格设置_{product.product_code or product.id}.xlsx'
+        return send_file(output,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                         as_attachment=True, download_name=fname)
+    except Exception as e:
+        flash(f'下载失败：{str(e)}', 'danger')
+        return redirect(request.referrer or url_for('tour_products.product_list'))
+
+
+@tour_products_bp.route('/<int:product_id>/price-variants/import-excel', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def import_price_variants_excel(product_id):
+    """从 Excel 导入价格变体：按“变体名称”存在则更新、否则新建"""
+    try:
+        Product.query.get_or_404(product_id)
+        if 'file' not in request.files or request.files['file'].filename == '':
+            return jsonify({'success': False, 'message': '请选择要上传的文件'}), 400
+        file = request.files['file']
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({'success': False, 'message': '只支持Excel文件'}), 400
+
+        df = pd.read_excel(file, engine='openpyxl')
+        if '变体名称' not in df.columns:
+            return jsonify({'success': False, 'message': '缺少必需列：变体名称'}), 400
+
+        def _f(row, key):
+            v = row.get(key)
+            if pd.isna(v) or v == '':
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+        def _i(row, key):
+            v = row.get(key)
+            if pd.isna(v) or v == '':
+                return None
+            try:
+                return int(float(v))
+            except Exception:
+                return None
+
+        def _date(row, key):
+            v = row.get(key)
+            if v is None or pd.isna(v) or v == '':
+                return None
+            try:
+                if hasattr(v, 'date'):
+                    return v.date()
+                return datetime.strptime(str(v)[:10], '%Y-%m-%d').date()
+            except Exception:
+                return None
+
+        def _bool(row, key, default=1):
+            v = row.get(key)
+            if pd.isna(v) or v == '':
+                return bool(default)
+            try:
+                return bool(int(float(v)))
+            except Exception:
+                return str(v).strip() in ('1', 'true', 'True', '是', 'Y', 'y')
+
+        created = updated = 0
+        for _, row in df.iterrows():
+            name = row.get('变体名称')
+            if pd.isna(name) or str(name).strip() == '':
+                continue
+            name = str(name).strip()
+            v = ProductPriceVariant.query.filter_by(product_id=product_id, variant_name=name).first()
+            is_new = v is None
+            if is_new:
+                v = ProductPriceVariant(product_id=product_id, variant_name=name)
+                db.session.add(v)
+            v.start_date = _date(row, '开始日期')
+            v.end_date = _date(row, '结束日期')
+            v.min_pax = _i(row, '最少人数')
+            v.max_pax = _i(row, '最多人数')
+            v.single_price = _f(row, 'Single售价')
+            v.cost_single_price = _f(row, 'Single成本')
+            v.twin_price = _f(row, 'Twin售价')
+            v.cost_twin_price = _f(row, 'Twin成本')
+            v.third_pax_price = _f(row, '3rdPax售价')
+            v.cost_third_pax_price = _f(row, '3rdPax成本')
+            v.child_no_bed_price = _f(row, 'ChildNoBed售价')
+            v.cost_child_no_bed_price = _f(row, 'ChildNoBed成本')
+            v.profit_per_person = _f(row, '利润/人')
+            cur = row.get('货币')
+            v.currency = str(cur).strip() if pd.notna(cur) and str(cur).strip() else 'SGD'
+            v.is_primary = _bool(row, '主要价格', 0)
+            v.is_active = _bool(row, '启用', 1)
+            if is_new:
+                created += 1
+            else:
+                updated += 1
+
+        # 保证只有一个主要价格：若多行标了主要，只保留最后一个
+        primaries = ProductPriceVariant.query.filter_by(product_id=product_id, is_primary=True).all()
+        if len(primaries) > 1:
+            for v in primaries[:-1]:
+                v.is_primary = False
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'导入完成：新增 {created}、更新 {updated}'})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @tour_products_bp.route('/<int:product_id>/price-variants/<int:variant_id>/update', methods=['POST'])
 @csrf.exempt
 @login_required

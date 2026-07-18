@@ -126,6 +126,15 @@
                     <button type="button" onclick="showAddPriceVariantModal()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-xs font-medium">
                         <i class="fas fa-plus"></i> 添加价格设置
                     </button>
+                    <a href="{{ url_for('tour_products.price_variant_template', product_id=product.id) }}"
+                       class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs font-medium" title="下载当前价格设置（含数据），改完可直接导入">
+                        <i class="fas fa-file-excel"></i> 下载Excel
+                    </a>
+                    <button type="button" onclick="document.getElementById('pvExcelInput').click()"
+                       class="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors text-xs font-medium" title="按变体名称导入/更新价格设置">
+                        <i class="fas fa-file-import"></i> 导入Excel
+                    </button>
+                    <input type="file" id="pvExcelInput" accept=".xlsx,.xls" style="display:none;" onchange="importPriceVariantsExcel(this)">
                 </div>
             </div>
             <div class="section-body">
@@ -876,6 +885,20 @@ function formatDate(dateString) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
     try { const d = new Date(dateString); if (isNaN(d.getTime())) return ''; return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); } catch (e) { return ''; }
 }
+function importPriceVariantsExcel(input) {
+    if (!input.files || !input.files[0]) return;
+    var fd = new FormData();
+    fd.append('file', input.files[0]);
+    fetch('{{ url_for("tour_products.import_price_variants_excel", product_id=product.id) }}', { method: 'POST', body: fd })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+            if (d.success) { showAlert(d.message || '导入成功', 'success'); setTimeout(function(){ location.reload(); }, 900); }
+            else { showAlert('导入失败：' + (d.message || ''), 'danger'); }
+        })
+        .catch(function(){ showAlert('导入出错', 'danger'); })
+        .finally(function(){ input.value = ''; });
+}
+
 function showAddPriceVariantModal() {
     document.getElementById('priceModalTitle').textContent = '添加价格设置';
     document.getElementById('variantId').value = '';
