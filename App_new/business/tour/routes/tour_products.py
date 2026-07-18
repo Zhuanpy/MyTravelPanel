@@ -1996,23 +1996,32 @@ def delete_price_variant(product_id, variant_id):
 def export_excel():
     """导出产品Excel - 只导出选中的产品"""
     try:
-        # 获取选中的产品ID列表
-        ids_str = request.args.get('ids', '')
-        if not ids_str:
-            flash('请先选择要导出的产品', 'warning')
-            return redirect(url_for('tour_products.product_list'))
+        # 优先按公司(供应商)导出：?supplier_id=<id> 导出该公司全部产品
+        supplier_id = request.args.get('supplier_id', type=int)
+        if supplier_id:
+            products = Product.query.filter_by(supplier_id=supplier_id)\
+                .order_by(Product.created_at.desc()).all()
+            if not products:
+                flash('该公司下没有产品', 'warning')
+                return redirect(url_for('tour_products.product_list'))
+        else:
+            # 否则按选中的产品ID列表 ?ids=1,2,3
+            ids_str = request.args.get('ids', '')
+            if not ids_str:
+                flash('请先选择要导出的产品，或指定公司 supplier_id', 'warning')
+                return redirect(url_for('tour_products.product_list'))
 
-        try:
-            product_ids = [int(x) for x in ids_str.split(',') if x.strip()]
-        except ValueError:
-            flash('产品ID参数无效', 'danger')
-            return redirect(url_for('tour_products.product_list'))
+            try:
+                product_ids = [int(x) for x in ids_str.split(',') if x.strip()]
+            except ValueError:
+                flash('产品ID参数无效', 'danger')
+                return redirect(url_for('tour_products.product_list'))
 
-        if not product_ids:
-            flash('请先选择要导出的产品', 'warning')
-            return redirect(url_for('tour_products.product_list'))
+            if not product_ids:
+                flash('请先选择要导出的产品', 'warning')
+                return redirect(url_for('tour_products.product_list'))
 
-        products = Product.query.filter(Product.id.in_(product_ids)).order_by(Product.created_at.desc()).all()
+            products = Product.query.filter(Product.id.in_(product_ids)).order_by(Product.created_at.desc()).all()
         data = []
         for product in products:
             data.append({
@@ -2134,8 +2143,16 @@ def export_excel():
 @login_required
 @staff_only
 def import_excel():
+    # Hermes/agent 用 token 调用时带 X-Requested-With / Accept: application/json → 返回 JSON
+    wants_json = (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                  or 'application/json' in (request.headers.get('Accept') or '')
+                  or request.form.get('format') == 'json')
+    # 可选：指定公司，当某行"供应商"列为空或按名没匹配到时兜底赋给该产品
+    override_supplier_id = request.form.get('supplier_id', type=int)
     try:
         if 'file' not in request.files:
+            if wants_json:
+                return jsonify({'success': False, 'message': '请选择要上传的文件'}), 400
             flash('请选择要上传的文件', 'danger')
             return redirect(url_for('tour_products.product_list'))
 
@@ -2174,6 +2191,9 @@ def import_excel():
                         CustomerCompany.company_name == str(row['供应商']).strip(),
                         CustomerCompany.is_supplier == True
                     ).first()
+                # 供应商列为空或没匹配到 → 用请求指定的 supplier_id 兜底
+                if supplier is None and override_supplier_id:
+                    supplier = CustomerCompany.query.get(override_supplier_id)
 
                 product = None
                 if pd.notna(row.get('ID')):
@@ -2399,11 +2419,125 @@ def import_excel():
             if len(errors) > 5:
                 flash(f'还有 {len(errors) - 5} 个错误未显示', 'warning')
 
+        if wants_json:
+            return jsonify({
+                'success': True,
+                'imported': imported_count, 'updated': updated_count,
+                'price_imported': price_imported, 'price_updated': price_updated,
+                'itinerary_imported': itinerary_imported, 'itinerary_updated': itinerary_updated,
+                'errors': errors[:20],
+            })
+
     except Exception as e:
         db.session.rollback()
+        if wants_json:
+            return jsonify({'success': False, 'message': f'导入失败：{str(e)}'}), 500
         flash(f'导入失败：{str(e)}', 'danger')
 
     return redirect(url_for('tour_products.product_list'))
+
+
+@tour_products_bp.route('/<int:product_id>/itinerary/bulk', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def bulk_itinerary(product_id):
+    """批量写入产品每日行程（供 Hermes：读 txt/Word → 拆成天 → 传 JSON）
+
+    body: {"replace": true, "days": [{"day_number":1,"day_title":"...","content":"..."}, ...]}
+    - replace=true(默认): 先清空该产品全部行程再按 days 建
+    - replace=false: 按 day_number upsert（存在则更新）
+    返回 {success, created, updated, deleted}
+    """
+    try:
+        Product.query.get_or_404(product_id)
+        data = request.get_json(silent=True) or {}
+        days = data.get('days')
+        if not isinstance(days, list) or not days:
+            return jsonify({'success': False, 'message': 'days 需为非空数组'}), 400
+        replace = data.get('replace', True)
+
+        created = updated = deleted = 0
+        if replace:
+            deleted = ProductItinerary.query.filter_by(product_id=product_id).delete()
+
+        for d in days:
+            if not isinstance(d, dict):
+                continue
+            try:
+                day_number = d.get('day_number')
+                if day_number in (None, ''):
+                    continue
+                day_number = int(day_number)
+            except (ValueError, TypeError):
+                continue
+            day_title = (str(d.get('day_title')).strip() if d.get('day_title') else None)
+            content = d.get('content')
+            content = content.strip() if isinstance(content, str) else content
+
+            it = None
+            if not replace:
+                it = ProductItinerary.query.filter_by(product_id=product_id, day_number=day_number).first()
+            if it:
+                it.day_title = day_title
+                it.content = content
+                it.updated_at = datetime.utcnow()
+                updated += 1
+            else:
+                db.session.add(ProductItinerary(
+                    product_id=product_id, day_number=day_number,
+                    day_title=day_title, content=content))
+                created += 1
+
+        db.session.commit()
+        return jsonify({'success': True, 'created': created, 'updated': updated, 'deleted': deleted})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tour_products_bp.route('/lookup')
+@login_required
+@staff_only
+def lookup_products():
+    """产品查找（供 Hermes 把"文件名"对应到产品 id）
+
+    ?supplier_id=<id> 该公司全部；?code=<产品编号> 精确；?q=<关键词> 名称模糊
+    返回 {success, count, products:[{id, product_code, product_name, supplier_id, supplier_name, city_name, country, itinerary_count}]}
+    """
+    try:
+        supplier_id = request.args.get('supplier_id', type=int)
+        code = (request.args.get('code') or '').strip()
+        q = (request.args.get('q') or '').strip()
+
+        query = Product.query
+        if code:
+            query = query.filter(Product.product_code == code)
+        elif supplier_id:
+            query = query.filter(Product.supplier_id == supplier_id)
+        elif q:
+            query = query.filter(Product.product_name.ilike(f'%{q}%'))
+        else:
+            return jsonify({'success': False, 'message': '请提供 supplier_id / code / q 之一'}), 400
+
+        products = query.order_by(Product.product_name).limit(500).all()
+        result = []
+        for p in products:
+            result.append({
+                'id': p.id,
+                'product_code': p.product_code,
+                'product_name': p.product_name,
+                'supplier_id': p.supplier_id,
+                'supplier_name': p.supplier.company_name if p.supplier else None,
+                'city_name': p.city_name,
+                'country': p.country,
+                'itinerary_count': ProductItinerary.query.filter_by(product_id=p.id).count(),
+            })
+        return jsonify({'success': True, 'count': len(result), 'products': result})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @tour_products_bp.route('/download/template')

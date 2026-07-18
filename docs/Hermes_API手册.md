@@ -483,6 +483,35 @@ POST /tour/products/<pid>/patch          // Content-Type: application/json
 > ⚠️ **主体走 JSON body，逐日行程走 form-data 字段**——两者格式不同别混。
 > 逐日行程图片 `library_imageN` 只接路径字符串，上传新文件用 `imageN`（multipart）。
 
+### 按公司批量维护产品（Hermes 主力入口）
+
+> Hermes 用 token 调用时 **CSRF 自动豁免**；写接口带 `X-Requested-With: XMLHttpRequest` 或 `Accept: application/json`（或表单 `format=json`）即返回 JSON。
+
+| 用途 | 方法 & URL | 说明 |
+|---|---|---|
+| **查产品**（文件名→id） | `GET /tour/products/lookup?supplier_id=<id>` | 该公司全部产品；也支持 `?code=<产品编号>` 精确、`?q=<关键词>` 名称模糊。返回 `{products:[{id, product_code, product_name, supplier_id, supplier_name, city_name, country, itinerary_count}]}` |
+| **按公司导出** | `GET /tour/products/export/excel?supplier_id=<id>` | 导出该公司全部产品的 xlsx（也支持 `?ids=1,2,3`）。含 3 个 sheet |
+| **批量导入/更新** | `POST /tour/products/import/excel` | multipart：`file`=xlsx，可选 `supplier_id`（供应商列空/没匹配时兜底赋给该公司），`format=json`。返回 `{imported, updated, price_imported, price_updated, itinerary_imported, itinerary_updated, errors}` |
+| **灌逐日行程**（txt/Word 流） | `POST /tour/products/<pid>/itinerary/bulk` | JSON body，见下 |
+
+**导入 Excel 三个 sheet**（导出的格式即导入模板，改完直接传回）：
+- `产品数据`：`ID`(留空=新建) `供应商` `产品编号`(**upsert 主键**，空则自动生成) `产品名称`(必填) `产品类型` `国家` `城市` `出发城市` `目的地城市` `行程天数` `最少人数` `最多人数` `产品描述` `包含服务` `不包含服务` `重要提示` `标签` `产品状态` `有效期从` `有效期至`
+- `价格方案`：按 `产品编号`+`方案名称` upsert（各房型售价/成本/货币/主要/启用）
+- `每日行程`：按 `产品编号`+`天数` upsert（`标题`/`行程内容`）
+
+**逐日行程 bulk（推荐给 txt/Word 流：Hermes 读文件→自己拆天→传结构化 JSON，服务端不硬解析 Word）**：
+```json
+POST /tour/products/<pid>/itinerary/bulk
+{"replace": true, "days": [
+  {"day_number": 1, "day_title": "抵达", "content": "专车接机…"},
+  {"day_number": 2, "day_title": "游览", "content": "…"}
+]}
+```
+- `replace: true`（默认）先清空该产品全部行程再建；`false` 按 `day_number` upsert
+- 返回 `{success, created, updated, deleted}`
+
+**典型批量流程**：`lookup?supplier_id` 拿到公司产品清单 → 用文件名/编号对应到 `product_id` → 主体信息走 `export→改→import/excel`（或逐条 `/patch`）→ 每个产品的 txt/Word 行程 `itinerary/bulk` 灌入。
+
 ---
 
 ## 尚不可用（当前只有 HTML/表单，需另补 JSON 接口才能给 Hermes）
