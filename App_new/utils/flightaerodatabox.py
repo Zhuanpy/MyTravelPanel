@@ -21,6 +21,7 @@ Aerodatabox 航班数据获取模块（轻量封装）
 - 返回字段不足时，统一回退为 'Unknown'。
 """
 
+import os
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 import requests
@@ -32,7 +33,7 @@ AERODATABOX_API_KEY: str = ""  # 如直连使用，填入 X-Api-Key
 AERODATABOX_BASE_URL: str = "https://aerodatabox.com/api/v1"
 
 # RapidAPI 模式（如使用 RapidAPI）
-RAPIDAPI_KEY: str = "***REMOVED***"
+RAPIDAPI_KEY: str = os.environ.get("RAPIDAPI_KEY", "")  # 走环境变量，不硬编码
 RAPIDAPI_HOST: str = "aerodatabox.p.rapidapi.com"
 RAPIDAPI_BASE_URL: str = f"https://{RAPIDAPI_HOST}"
 

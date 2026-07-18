@@ -3,12 +3,13 @@
 Aerodatabox 简化版本 - 只获取最近一次航班信息
 """
 
+import os
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 import requests
 
-# RapidAPI 配置
-RAPIDAPI_KEY = "***REMOVED***"
+# RapidAPI 配置（密钥走环境变量，不硬编码）
+RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = "aerodatabox.p.rapidapi.com"
 
 def get_latest_flight_info(flight_number: str, days_back: int = 7) -> Optional[Dict]:

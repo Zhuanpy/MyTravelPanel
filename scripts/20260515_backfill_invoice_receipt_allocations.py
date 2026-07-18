@@ -49,7 +49,7 @@ def get_db_config():
         'host': 'localhost',
         'port': 3306,
         'user': 'root',
-        'password': '***REMOVED***',
+        'password': os.environ.get('DB_PASSWORD', ''),
         'database': 'travelindustry',
         'charset': 'utf8mb4'
     }

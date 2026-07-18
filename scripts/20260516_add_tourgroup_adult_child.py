@@ -30,7 +30,7 @@ def get_db_config():
     except Exception as e:
         print(f"警告: 无法从 Flask 配置读取: {e}")
     return {'host': 'localhost', 'port': 3306, 'user': 'root',
-            'password': '***REMOVED***', 'database': 'travelindustry', 'charset': 'utf8mb4'}
+            'password': os.environ.get('DB_PASSWORD', ''), 'database': 'travelindustry', 'charset': 'utf8mb4'}
 
 
 def get_connection():

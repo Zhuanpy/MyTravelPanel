@@ -39,7 +39,7 @@ def get_db_config():
         print(f"警告: 无法从 Flask 配置读取数据库信息: {e}")
     return {
         'host': 'localhost', 'port': 3306, 'user': 'root',
-        'password': '***REMOVED***', 'database': 'travelindustry',
+        'password': os.environ.get('DB_PASSWORD', ''), 'database': 'travelindustry',
         'charset': 'utf8mb4'
     }
 

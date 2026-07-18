@@ -35,13 +35,14 @@ if flight_info:
 
 """
 
+import os
 import requests
 import json
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 
-# Aviationstack API配置
-AVIATIONSTACK_API_KEY = '***REMOVED***'
+# Aviationstack API配置（密钥走环境变量，不硬编码）
+AVIATIONSTACK_API_KEY = os.environ.get('AVIATIONSTACK_API_KEY', '')
 AVIATIONSTACK_BASE_URL = 'http://api.aviationstack.com/v1/flights'
 
 def get_flight_from_aviationstack(
