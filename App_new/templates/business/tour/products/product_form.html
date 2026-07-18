@@ -423,14 +423,14 @@
 {% if product %}
 <!-- 编辑基本信息 弹窗 -->
 <div id="editBasicInfoModal" class="visa-modal" style="display:none;">
-    <div class="visa-modal-dialog visa-modal-dialog-lg">
+    <div class="visa-modal-dialog visa-modal-dialog-lg" style="max-width: 1000px;">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
             <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑基本信息</h3>
             <button class="visa-modal-close" onclick="closeModal('editBasicInfoModal')" style="color: white; font-size: 1.5rem;">&times;</button>
         </div>
         <div class="visa-modal-body">
             <input type="hidden" name="country_name" id="countryName" value="{{ product.country or '' }}">
-            <div class="visa-grid-2">
+            <div class="visa-grid-4">
                 <div class="visa-form-group" style="grid-column: 1 / -1;">
                     <label class="visa-form-label">产品名称 <span style="color: red;">*</span></label>
                     <input type="text" id="bi_product_name" class="visa-form-control" value="{{ product.product_name }}">
