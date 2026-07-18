@@ -253,19 +253,35 @@
             </div>
         </div>
 
-        <!-- 服务与须知（包含 / 不包含 / 重要提示，放在行程之后） -->
+        <!-- 服务与须知（包含 / 不包含 / 重要提示，各项分别点击编辑，放在行程之后） -->
         <div class="section-card">
             <div class="section-header">
                 <h4><i class="fas fa-clipboard-list text-teal-500"></i> 服务与须知</h4>
-                <button type="button" onclick="showModal('editServiceModal')" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-xs font-medium">
-                    <i class="fas fa-edit"></i> 编辑
-                </button>
+                <span class="text-xs text-gray-400">分项点击「编辑」，弹窗保存即生效</span>
             </div>
             <div class="section-body">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div><div class="text-block-label"><i class="fas fa-check text-green-500"></i> 包含服务</div><div class="text-block {% if not product.included_services %}info-empty{% endif %}">{{ product.included_services or '未填写' }}</div></div>
-                    <div><div class="text-block-label"><i class="fas fa-times text-red-500"></i> 不包含服务</div><div class="text-block {% if not product.excluded_services %}info-empty{% endif %}">{{ product.excluded_services or '未填写' }}</div></div>
-                    <div><div class="text-block-label"><i class="fas fa-exclamation-triangle text-yellow-500"></i> 重要提示</div><div class="text-block {% if not product.important_notes %}info-empty{% endif %}">{{ product.important_notes or '未填写' }}</div></div>
+                    <div>
+                        <div class="text-block-label" style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><i class="fas fa-check text-green-500"></i> 包含服务</span>
+                            <button type="button" onclick="openServiceField('included_services','包含服务')" class="text-xs text-green-600 hover:underline" style="background:none;border:none;cursor:pointer;"><i class="fas fa-edit"></i> 编辑</button>
+                        </div>
+                        <div class="text-block {% if not product.included_services %}info-empty{% endif %}">{{ product.included_services or '未填写' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-block-label" style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><i class="fas fa-times text-red-500"></i> 不包含服务</span>
+                            <button type="button" onclick="openServiceField('excluded_services','不包含服务')" class="text-xs text-red-600 hover:underline" style="background:none;border:none;cursor:pointer;"><i class="fas fa-edit"></i> 编辑</button>
+                        </div>
+                        <div class="text-block {% if not product.excluded_services %}info-empty{% endif %}">{{ product.excluded_services or '未填写' }}</div>
+                    </div>
+                    <div>
+                        <div class="text-block-label" style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><i class="fas fa-exclamation-triangle text-yellow-500"></i> 重要提示</span>
+                            <button type="button" onclick="openServiceField('important_notes','重要提示')" class="text-xs text-yellow-600 hover:underline" style="background:none;border:none;cursor:pointer;"><i class="fas fa-edit"></i> 编辑</button>
+                        </div>
+                        <div class="text-block {% if not product.important_notes %}info-empty{% endif %}">{{ product.important_notes or '未填写' }}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -448,23 +464,20 @@
     </div>
 </div>
 
-<!-- 编辑服务与须知 弹窗 -->
-<div id="editServiceModal" class="visa-modal" style="display:none;">
-    <div class="visa-modal-dialog visa-modal-dialog-lg">
+<!-- 编辑单项服务/须知 弹窗（包含 / 不包含 / 重要提示 共用） -->
+<div id="editServiceFieldModal" class="visa-modal" style="display:none;">
+    <div class="visa-modal-dialog">
         <div class="visa-modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
-            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑服务与须知</h3>
-            <button class="visa-modal-close" onclick="closeModal('editServiceModal')" style="color: white;">&times;</button>
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-edit mr-2"></i>编辑 <span id="sf_label"></span></h3>
+            <button class="visa-modal-close" onclick="closeModal('editServiceFieldModal')" style="color: white;">&times;</button>
         </div>
         <div class="visa-modal-body">
-            <div class="visa-grid-2">
-                <div class="visa-form-group"><label class="visa-form-label">包含服务</label><textarea id="sv_included_services" rows="6" class="visa-form-control" placeholder="每行一项">{{ product.included_services or '' }}</textarea></div>
-                <div class="visa-form-group"><label class="visa-form-label">不包含服务</label><textarea id="sv_excluded_services" rows="6" class="visa-form-control" placeholder="每行一项">{{ product.excluded_services or '' }}</textarea></div>
-            </div>
-            <div class="visa-form-group"><label class="visa-form-label">重要提示</label><textarea id="sv_important_notes" rows="4" class="visa-form-control" placeholder="每行一项">{{ product.important_notes or '' }}</textarea></div>
+            <input type="hidden" id="sf_field">
+            <div class="visa-form-group"><textarea id="sf_value" rows="8" class="visa-form-control" placeholder="每行一项"></textarea></div>
         </div>
         <div class="visa-modal-footer">
-            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editServiceModal')">取消</button>
-            <button type="button" class="visa-btn visa-btn-primary" onclick="updateServiceInfo()">保存</button>
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editServiceFieldModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="updateServiceField()">保存</button>
         </div>
     </div>
 </div>
@@ -728,13 +741,23 @@ function updateBasicInfo() {
     _postPatch(payload, '基本信息');
 }
 
-// 服务与须知：包含/不包含/重要提示 局部保存
-function updateServiceInfo() {
-    _postPatch({
-        included_services: _val('sv_included_services'),
-        excluded_services: _val('sv_excluded_services'),
-        important_notes: _val('sv_important_notes')
-    }, '服务与须知');
+// 服务与须知：三项各自点击、各自弹窗、单字段局部保存
+var SERVICE_VALUES = {
+    included_services: {{ (product.included_services if product else '') | tojson }},
+    excluded_services: {{ (product.excluded_services if product else '') | tojson }},
+    important_notes: {{ (product.important_notes if product else '') | tojson }}
+};
+function openServiceField(field, label) {
+    document.getElementById('sf_label').textContent = label;
+    document.getElementById('sf_field').value = field;
+    document.getElementById('sf_value').value = SERVICE_VALUES[field] || '';
+    showModal('editServiceFieldModal');
+}
+function updateServiceField() {
+    var field = document.getElementById('sf_field').value;
+    var payload = {};
+    payload[field] = document.getElementById('sf_value').value;
+    _postPatch(payload, document.getElementById('sf_label').textContent);
 }
 
 function editPrice() { showModal('editPriceModal'); }
