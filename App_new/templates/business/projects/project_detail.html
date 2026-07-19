@@ -756,6 +756,47 @@ function openFrequentTravelerEdit() {
     window.open('/projects/frequent_traveler/?edit=' + id, '_blank');
 }
 
+// 复制乘客字段值到剪贴板，并在按钮上给出短暂视觉反馈
+function copyMemberField(fieldId, btn) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    const text = (el.value || '').trim();
+    if (!text) {
+        alert('该字段为空，无内容可复制');
+        return;
+    }
+    const done = () => {
+        if (!btn) return;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-outline-secondary');
+        setTimeout(() => {
+            btn.innerHTML = original;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-secondary');
+        }, 1000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(el, done));
+    } else {
+        fallbackCopy(el, done);
+    }
+}
+
+// 降级方案：http(非https)或旧浏览器无 clipboard API 时用 execCommand 复制
+function fallbackCopy(inputEl, onDone) {
+    try {
+        inputEl.focus();
+        inputEl.select();
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        if (onDone) onDone();
+    } catch (e) {
+        alert('复制失败，请手动选择复制');
+    }
+}
+
 function openMemberModal(member = null) {
     if (window.isSettled) {
         alert('该项目已结算，无法进行编辑操作。如需修改，请先取消结算。');
@@ -1498,7 +1539,10 @@ function deleteMember(memberId, memberName) {
                         </div>
                         <div class="col-6" id="memberNameWrap">
                             <label class="form-label">姓名 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
+                                <button type="button" class="btn btn-outline-secondary" title="复制姓名" onclick="copyMemberField('memberName', this)"><i class="fas fa-copy"></i></button>
+                            </div>
                         </div>
                         <div class="col-3" id="memberGenderWrap" style="display: none;">
                             <label class="form-label">性别</label>
@@ -1522,45 +1566,69 @@ function deleteMember(memberId, memberName) {
                         <div class="row g-2">
                             <div class="col-3">
                                 <label class="form-label">护照号码</label>
-                                <input type="text" class="form-control form-control-sm" id="memberIdNumber" placeholder="E12345678">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm" id="memberIdNumber" placeholder="E12345678">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制护照号码" onclick="copyMemberField('memberIdNumber', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                             <div class="col-2">
                                 <label class="form-label">国籍</label>
-                                <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制国籍" onclick="copyMemberField('memberNationality', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                             <div class="col-3">
                                 <label class="form-label">出生日期</label>
-                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberDob"
-                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
-                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 15-01-1990">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberDob"
+                                           placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
+                                           pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 15-01-1990">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制出生日期" onclick="copyMemberField('memberDob', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                             <div class="col-2">
                                 <label class="form-label">护照有效期</label>
-                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberPassportExpiry"
-                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
-                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 25-12-2030">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberPassportExpiry"
+                                           placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
+                                           pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 25-12-2030">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制护照有效期" onclick="copyMemberField('memberPassportExpiry', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                             <div class="col-2">
                                 <label class="form-label">签发国</label>
-                                <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制签发国" onclick="copyMemberField('memberPassportCountry', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                         </div>
                         <!-- 身份证号 一行 -->
                         <div class="row g-2 mt-0">
                             <div class="col-6">
                                 <label class="form-label">身份证号</label>
-                                <input type="text" class="form-control form-control-sm" id="memberIdCardNumber" placeholder="可留空">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm" id="memberIdCardNumber" placeholder="可留空">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制身份证号" onclick="copyMemberField('memberIdCardNumber', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                         </div>
                         <!-- 联系方式 一行 -->
                         <div class="row g-2 mt-0">
                             <div class="col-5">
                                 <label class="form-label">联系电话</label>
-                                <input type="text" class="form-control form-control-sm" id="memberPhone" placeholder="+65 ...">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control form-control-sm" id="memberPhone" placeholder="+65 ...">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制联系电话" onclick="copyMemberField('memberPhone', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                             <div class="col-7">
                                 <label class="form-label">邮箱</label>
-                                <input type="email" class="form-control form-control-sm" id="memberEmail" placeholder="email@example.com">
+                                <div class="input-group input-group-sm">
+                                    <input type="email" class="form-control form-control-sm" id="memberEmail" placeholder="email@example.com">
+                                    <button type="button" class="btn btn-outline-secondary" title="复制邮箱" onclick="copyMemberField('memberEmail', this)"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                         </div>
                     </div>
