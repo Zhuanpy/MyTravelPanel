@@ -1094,36 +1094,75 @@ function copyFileName(inputId) {
 // 页面加载时初始化文件名
 document.addEventListener('DOMContentLoaded', initFileNameInputs);
 
+// 把已加载的图片转成 base64 data URI，避免打印/另存PDF时浏览器再发网络请求
+function imgToDataUrl(img) {
+    try {
+        if (!img.complete || !img.naturalWidth) return null;
+        var canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        return canvas.toDataURL('image/png');
+    } catch (e) {
+        return null; // 转换失败则保留原始 src，走网络加载兜底
+    }
+}
+
 function printInvoice() {
     // 独立打印：新开一个干净的窗口，只放发票内容 + 视觉样式
     // 规避 Edge 在主页面打印预览中的渲染异常（白块遮挡金额）
-    var content = document.getElementById('printInvoice').innerHTML;
+    var srcEl = document.getElementById('printInvoice');
     var css = document.getElementById('invoicePrintCss').innerHTML;
 
-    var win = window.open('', '_blank', 'width=900,height=1200');
-    if (!win) {
-        alert('打印窗口被浏览器拦截，请允许本站弹出窗口后重试。');
-        return;
+    // 关键：把 logo / 电子章内嵌为 base64。
+    // 否则弹窗打印时图片是 /static 网络地址，浏览器“另存为 PDF”会在
+    // 独立渲染环境里重新拉取这些图片，网络等待导致保存极慢（约30秒）。
+    // #printInvoice 平时 display:none 但图片已随页面加载完成，可直接转换。
+    var clone = srcEl.cloneNode(true);
+    var srcImgs = srcEl.querySelectorAll('img');
+    var cloneImgs = clone.querySelectorAll('img');
+    for (var k = 0; k < srcImgs.length; k++) {
+        var dataUrl = imgToDataUrl(srcImgs[k]);
+        if (dataUrl && cloneImgs[k]) {
+            cloneImgs[k].setAttribute('src', dataUrl);
+            cloneImgs[k].removeAttribute('onerror'); // 已内嵌，无需 onerror 兜底
+        }
     }
-    win.document.open();
-    win.document.write(
+    var content = clone.innerHTML;
+
+    // 用隐藏 iframe 打印，而不是 window.open 弹窗。
+    // 原因：Chrome 从 about:blank 弹窗生成的“另存为 PDF”下载会卡在
+    // “Saving…”（Edge 无此问题）；改在主页面上下文里打印可规避。
+    // iframe 内容仍是隔离的纯发票，保留了规避 Edge 白块渲染异常的效果。
+    var old = document.getElementById('invoicePrintFrame');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    var iframe = document.createElement('iframe');
+    iframe.id = 'invoicePrintFrame';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+    document.body.appendChild(iframe);
+
+    var doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(
         '<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>' +
         '<base href="' + window.location.origin + '/">' +
         '<style>' + css + ' body{margin:0;}</style>' +
         '</head><body><div class="print-invoice">' + content + '</div></body></html>'
     );
-    win.document.close();
-    win.focus();
+    doc.close();
 
-    // 等待图片（Logo/电子章）加载完成再打印，避免空白
     function doPrint() {
-        win.focus();
-        win.print();
-        // 打印对话框关闭后关闭窗口
-        win.onafterprint = function() { win.close(); };
-        setTimeout(function() { try { win.close(); } catch (e) {} }, 60000);
+        try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        } catch (e) {
+            alert('打印失败：' + e.message);
+        }
+        // 保存/打印期间不要移除 iframe，避免打断 PDF 写出；下次打印会先清理旧的。
     }
-    var imgs = win.document.images;
+    var imgs = doc.images;
     if (imgs.length === 0) {
         setTimeout(doPrint, 200);
         return;
