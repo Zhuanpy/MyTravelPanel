@@ -38,6 +38,23 @@ class ProjectRefund(db.Model):
     status = db.Column(db.Enum('confirmed', 'cancelled'),
                        default='confirmed', nullable=False, comment='退款状态')
 
+    # ===== 跟踪线1：供应商退款（航司/地接等是否已把钱退给我们）=====
+    supplier_name = db.Column(db.String(100), nullable=True, comment='供应商名称')
+    supplier_refund_status = db.Column(db.Enum('pending', 'partial', 'received', 'na'),
+                                       default='pending', nullable=False,
+                                       comment='供应商退款状态: 未收到/部分收到/已收到/不涉及')
+    supplier_refund_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='已收到的供应商退款金额')
+    supplier_refund_date = db.Column(db.Date, nullable=True, comment='收到供应商退款日期')
+    supplier_refund_remarks = db.Column(db.String(255), nullable=True, comment='供应商退款备注')
+
+    # ===== 跟踪线2：退给客户（我们是否已把钱退还给客户）=====
+    customer_refund_status = db.Column(db.Enum('pending', 'partial', 'paid'),
+                                       default='pending', nullable=False,
+                                       comment='退客户状态: 未退款/部分退款/已退款')
+    customer_refund_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='已退给客户的金额')
+    customer_refund_date = db.Column(db.Date, nullable=True, comment='退给客户日期')
+    customer_refund_remarks = db.Column(db.String(255), nullable=True, comment='退客户备注')
+
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -65,6 +82,15 @@ class ProjectRefund(db.Model):
             'reason': self.reason,
             'remarks': self.remarks,
             'status': self.status,
+            'supplier_name': self.supplier_name,
+            'supplier_refund_status': self.supplier_refund_status,
+            'supplier_refund_amount': float(self.supplier_refund_amount) if self.supplier_refund_amount else 0,
+            'supplier_refund_date': self.supplier_refund_date.isoformat() if self.supplier_refund_date else None,
+            'supplier_refund_remarks': self.supplier_refund_remarks,
+            'customer_refund_status': self.customer_refund_status,
+            'customer_refund_amount': float(self.customer_refund_amount) if self.customer_refund_amount else 0,
+            'customer_refund_date': self.customer_refund_date.isoformat() if self.customer_refund_date else None,
+            'customer_refund_remarks': self.customer_refund_remarks,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
@@ -121,6 +147,79 @@ class ProjectRefund(db.Model):
     def status_display(self):
         """状态中文显示"""
         return {'confirmed': '已确认', 'cancelled': '已取消'}.get(self.status, self.status)
+
+    # ---------- 供应商退款（收）----------
+    @property
+    def supplier_refund_status_display(self):
+        """供应商退款状态中文显示"""
+        return {
+            'pending': '未收到',
+            'partial': '部分收到',
+            'received': '已收到',
+            'na': '不涉及',
+        }.get(self.supplier_refund_status, self.supplier_refund_status)
+
+    @property
+    def supplier_refund_badge(self):
+        """供应商退款状态对应的 Bootstrap 徽章样式"""
+        return {
+            'pending': 'bg-warning text-dark',
+            'partial': 'bg-info text-dark',
+            'received': 'bg-success',
+            'na': 'bg-light text-muted border',
+        }.get(self.supplier_refund_status, 'bg-secondary')
+
+    # ---------- 退给客户（付）----------
+    @property
+    def customer_refund_status_display(self):
+        """退客户状态中文显示"""
+        return {
+            'pending': '未退款',
+            'partial': '部分退款',
+            'paid': '已退款',
+        }.get(self.customer_refund_status, self.customer_refund_status)
+
+    @property
+    def customer_refund_badge(self):
+        """退客户状态对应的 Bootstrap 徽章样式"""
+        return {
+            'pending': 'bg-danger',
+            'partial': 'bg-info text-dark',
+            'paid': 'bg-success',
+        }.get(self.customer_refund_status, 'bg-secondary')
+
+    @property
+    def customer_refund_outstanding(self):
+        """还欠客户多少（退款总额 - 已退给客户金额），仅对已确认退款有意义"""
+        if self.status != 'confirmed':
+            return 0.0
+        return round(float(self.amount or 0) - float(self.customer_refund_amount or 0), 2)
+
+    @property
+    def delete_block_reason(self):
+        """已发生实际收付的退款不允许删除，返回原因（可删除时返回 None）
+
+        供应商已退款给我们、或已退款给客户（含部分），都意味着钱已动，
+        删除会造成账目丢失；需先把对应状态改回「未收到 / 未退款」再删。
+        """
+        reasons = []
+        if self.supplier_refund_status in ('received', 'partial'):
+            reasons.append(f'供应商退款：{self.supplier_refund_status_display}')
+        if self.customer_refund_status in ('paid', 'partial'):
+            reasons.append(f'退客户：{self.customer_refund_status_display}')
+        return '、'.join(reasons) if reasons else None
+
+    @property
+    def can_delete(self):
+        """是否允许删除"""
+        return self.delete_block_reason is None
+
+    @property
+    def supplier_refund_outstanding(self):
+        """供应商还差多少没退给我们（退款总额 - 已收金额）；不涉及供应商时为 0"""
+        if self.status != 'confirmed' or self.supplier_refund_status == 'na':
+            return 0.0
+        return round(float(self.amount or 0) - float(self.supplier_refund_amount or 0), 2)
 
 
 class ProjectRefundItem(db.Model):

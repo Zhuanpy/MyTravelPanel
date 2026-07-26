@@ -9,38 +9,34 @@
     <div class="row justify-content-center">
         <div class="col-lg-11 col-md-12">
             <!-- 页面头部 -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 class="mb-1">
-                        <i class="fas fa-rotate-left text-danger"></i>
-                        {{ '编辑退款' if refund else '退款处理' }}
-                    </h2>
-                    <p class="text-muted mb-0">
-                        项目: <strong>{{ header.hid }}</strong> | {{ header.desc or '' }}
-                        {% if refund %} | 退款单号: <strong>{{ refund.refund_number }}</strong>{% endif %}
-                    </p>
-                </div>
-                <div>
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}"
-                       class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> 返回项目详情
-                    </a>
-                </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">
+                    <i class="fas fa-rotate-left text-danger"></i>
+                    {{ '编辑退款' if refund else '退款处理' }}
+                    <span class="text-muted fw-normal small ms-2">
+                        {{ header.hid }} | {{ header.desc or '' }}
+                        {% if refund %} | {{ refund.refund_number }}{% endif %}
+                    </span>
+                </h5>
+                <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}"
+                   class="btn btn-sm btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回项目详情
+                </a>
             </div>
 
-            <div class="alert alert-info py-2">
+            <div class="small text-muted mb-2">
                 <i class="fas fa-info-circle"></i>
-                勾选需要退款的发票，填写各自退款金额（默认=可退余额）。退款金额可填 <strong>0</strong>，表示该发票不可退款，但仍会列示在凭证上。一次生成一张包含多条明细的英文退款凭证；该凭证仅作客户退款证明，不会自动冲减收款或修改结算状态。
+                勾选发票并填退款金额（默认=可退余额）；填 <strong>0</strong> 表示该发票不可退但仍列示在凭证上。凭证仅作客户退款证明，不冲减收款、不改结算状态。
             </div>
 
             <form method="POST" action="{{ form_action }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <!-- 发票选择 -->
-                <div class="card mb-3">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-file-invoice"></i> 选择退款发票</h5>
-                        <div class="form-check mb-0">
+                <div class="card mb-2">
+                    <div class="card-header bg-light py-1 d-flex justify-content-between align-items-center">
+                        <strong class="small"><i class="fas fa-file-invoice"></i> 选择退款发票</strong>
+                        <div class="form-check mb-0 small">
                             <input class="form-check-input" type="checkbox" id="checkAll" onclick="toggleAll(this)">
                             <label class="form-check-label" for="checkAll">全选</label>
                         </div>
@@ -99,65 +95,156 @@
                 </div>
 
                 <!-- 退款公共信息 -->
-                <div class="card mb-3">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> 退款信息</h5>
+                <div class="card mb-2">
+                    <div class="card-header bg-light py-1">
+                        <strong class="small"><i class="fas fa-file-invoice-dollar"></i> 退款信息</strong>
                     </div>
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">退款单号</label>
-                                <input type="text" class="form-control" value="{{ defaults.refund_number }}" readonly>
-                                <small class="text-muted">系统自动生成</small>
+                    <div class="card-body p-2">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">退款单号</label>
+                                <input type="text" class="form-control form-control-sm" value="{{ defaults.refund_number }}"
+                                       title="系统自动生成" readonly>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">退款日期 <span class="text-danger">*</span></label>
-                                <input type="date" name="refund_date" class="form-control" value="{{ defaults.refund_date }}" required>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">退款日期 <span class="text-danger">*</span></label>
+                                <input type="date" name="refund_date" class="form-control form-control-sm" value="{{ defaults.refund_date }}" required>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">退款方式</label>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">退款方式</label>
                                 {% set m = refund.refund_method if refund else 'bank_transfer' %}
-                                <select name="refund_method" class="form-select">
-                                    <option value="bank_transfer" {{ 'selected' if m == 'bank_transfer' }}>银行转账 Bank Transfer</option>
-                                    <option value="credit_card" {{ 'selected' if m == 'credit_card' }}>信用卡 Credit Card</option>
-                                    <option value="cash" {{ 'selected' if m == 'cash' }}>现金 Cash</option>
-                                    <option value="cheque" {{ 'selected' if m == 'cheque' }}>支票 Cheque</option>
+                                <select name="refund_method" class="form-select form-select-sm">
+                                    <option value="bank_transfer" {{ 'selected' if m == 'bank_transfer' }}>银行转账</option>
+                                    <option value="credit_card" {{ 'selected' if m == 'credit_card' }}>信用卡</option>
+                                    <option value="cash" {{ 'selected' if m == 'cash' }}>现金</option>
+                                    <option value="cheque" {{ 'selected' if m == 'cheque' }}>支票</option>
                                     <option value="wechat" {{ 'selected' if m == 'wechat' }}>WeChat</option>
-                                    <option value="other" {{ 'selected' if m == 'other' }}>其他 Other</option>
+                                    <option value="other" {{ 'selected' if m == 'other' }}>其他</option>
                                 </select>
                             </div>
+                            <div class="col-md-1">
+                                <label class="form-label small mb-1">货币</label>
+                                <input type="text" name="currency" class="form-control form-control-sm" value="{{ defaults.currency }}" maxlength="3">
+                            </div>
                             <div class="col-md-3">
-                                <label class="form-label">货币</label>
-                                <input type="text" name="currency" class="form-control" value="{{ defaults.currency }}" maxlength="3">
+                                <label class="form-label small mb-1">收款人 / 客户</label>
+                                <input type="text" name="payee_name" class="form-control form-control-sm" value="{{ refund.payee_name if refund else '' }}"
+                                       placeholder="{{ defaults.payee_auto }}"
+                                       title="留空自动按规则取值：公司客户→公司名，个人/现金→联系人（当前：{{ defaults.payee_auto }}）">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">联系方式</label>
+                                <input type="text" name="payee_contact" class="form-control form-control-sm" value="{{ refund.payee_contact if refund else '' }}" placeholder="电话 / 邮箱">
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label">退款收款人 / 客户</label>
-                                <input type="text" name="payee_name" class="form-control" value="{{ refund.payee_name if refund else '' }}"
-                                       placeholder="{{ defaults.payee_auto }}">
-                                <small class="text-muted">留空则自动按规则：公司客户→公司名，个人/现金→联系人（当前：<strong>{{ defaults.payee_auto }}</strong>）</small>
+                                <label class="form-label small mb-1">退款原因 (Reason)</label>
+                                <input type="text" name="reason" class="form-control form-control-sm" value="{{ refund.reason if refund else '' }}" placeholder="如 客户取消行程 / 航班取消等">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">联系方式</label>
-                                <input type="text" name="payee_contact" class="form-control" value="{{ refund.payee_contact if refund else '' }}" placeholder="电话 / 邮箱（可选）">
-                            </div>
-
-                            <div class="col-md-12">
-                                <label class="form-label">退款原因 (Reason)</label>
-                                <input type="text" name="reason" class="form-control" value="{{ refund.reason if refund else '' }}" placeholder="如 客户取消行程 / 航班取消等">
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label">备注 (Remarks)</label>
-                                <textarea name="remarks" class="form-control" rows="2" placeholder="可选">{{ refund.remarks if refund else '' }}</textarea>
+                                <label class="form-label small mb-1">备注 (Remarks)</label>
+                                <input type="text" name="remarks" class="form-control form-control-sm" value="{{ refund.remarks if refund else '' }}" placeholder="可选">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2">
-                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-secondary">取消</a>
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-save"></i> 保存并打印退款凭证
+                <!-- 收退款跟踪：供应商是否已退给我们 / 是否已退给客户 -->
+                <div class="card mb-2">
+                    <div class="card-header bg-light py-1">
+                        <strong class="small"><i class="fas fa-money-check-dollar"></i> 收退款跟踪</strong>
+                        <span class="text-muted small ms-2">两条线各自独立，也可在退款列表一键更新</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <!-- 供应商侧：钱有没有退给我们 -->
+                        <div class="row g-2 align-items-end mb-2">
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1 fw-bold text-warning">
+                                    <i class="fas fa-arrow-down"></i> 供应商退款（收）
+                                </label>
+                                {% set ss = refund.supplier_refund_status if refund else 'pending' %}
+                                <select name="supplier_refund_status" class="form-select form-select-sm">
+                                    <option value="pending" {{ 'selected' if ss == 'pending' }}>未收到</option>
+                                    <option value="partial" {{ 'selected' if ss == 'partial' }}>部分收到</option>
+                                    <option value="received" {{ 'selected' if ss == 'received' }}>已收到</option>
+                                    <option value="na" {{ 'selected' if ss == 'na' }}>不涉及</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">供应商</label>
+                                <input type="text" name="supplier_name" class="form-control form-control-sm"
+                                       value="{{ refund.supplier_name if refund and refund.supplier_name else '' }}"
+                                       placeholder="航司 / 地接 / 酒店等">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">已收金额</label>
+                                <input type="number" step="0.01" min="0" name="supplier_refund_amount" class="form-control form-control-sm"
+                                       value="{% if refund and refund.supplier_refund_amount %}{{ '%.2f'|format(refund.supplier_refund_amount) }}{% endif %}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">到账日期</label>
+                                <input type="date" name="supplier_refund_date" class="form-control form-control-sm"
+                                       value="{{ refund.supplier_refund_date.strftime('%Y-%m-%d') if refund and refund.supplier_refund_date else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">备注</label>
+                                <input type="text" name="supplier_refund_remarks" class="form-control form-control-sm"
+                                       value="{{ refund.supplier_refund_remarks if refund and refund.supplier_refund_remarks else '' }}"
+                                       placeholder="如 已提交退票申请">
+                            </div>
+                        </div>
+                        <!-- 客户侧：钱有没有退给客户 -->
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1 fw-bold text-danger">
+                                    <i class="fas fa-arrow-up"></i> 退给客户（付）
+                                </label>
+                                {% set cs = refund.customer_refund_status if refund else 'pending' %}
+                                <select name="customer_refund_status" class="form-select form-select-sm">
+                                    <option value="pending" {{ 'selected' if cs == 'pending' }}>未退款</option>
+                                    <option value="partial" {{ 'selected' if cs == 'partial' }}>部分退款</option>
+                                    <option value="paid" {{ 'selected' if cs == 'paid' }}>已退款</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1 text-muted">&nbsp;</label>
+                                <div class="form-control form-control-sm bg-light border-0 text-muted small">
+                                    退给：{{ defaults.payee_auto }}
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">已退金额</label>
+                                <input type="number" step="0.01" min="0" name="customer_refund_amount" class="form-control form-control-sm"
+                                       value="{% if refund and refund.customer_refund_amount %}{{ '%.2f'|format(refund.customer_refund_amount) }}{% endif %}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">退款日期</label>
+                                <input type="date" name="customer_refund_date" class="form-control form-control-sm"
+                                       value="{{ refund.customer_refund_date.strftime('%Y-%m-%d') if refund and refund.customer_refund_date else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">备注</label>
+                                <input type="text" name="customer_refund_remarks" class="form-control form-control-sm"
+                                       value="{{ refund.customer_refund_remarks if refund and refund.customer_refund_remarks else '' }}"
+                                       placeholder="如 已转账 尾号1234">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-sm btn-secondary">取消</a>
+                    {% if refund %}
+                    <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=refund.id) }}"
+                       target="_blank" class="btn btn-sm btn-outline-primary" title="打印当前已保存的内容（不含未保存的修改）">
+                        <i class="fas fa-print"></i> 打印凭证
+                    </a>
+                    {% endif %}
+                    <button type="submit" name="action" value="save_print" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-print"></i> 保存并打印
+                    </button>
+                    <button type="submit" name="action" value="save" class="btn btn-sm btn-danger">
+                        <i class="fas fa-save"></i> 保存
                     </button>
                 </div>
             </form>

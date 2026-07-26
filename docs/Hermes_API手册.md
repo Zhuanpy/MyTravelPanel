@@ -203,6 +203,36 @@ POST /projects/ref/flight/<rid>/ticketing
 
 ---
 
+## 6.5 退款收退跟踪（Refund Tracking）
+
+> 退款单的「创建」仍是表单（见文末缺口），但两条跟踪线已是 JSON：
+> 供应商有没有把钱退给我们、我们有没有把钱退给客户。
+
+| 接口 | 方法 | 入参 | 说明 |
+|---|---|---|---|
+| `/projects/refund/<refund_id>/tracking` | POST | JSON（局部更新） | 更新收退款跟踪状态 |
+
+只传需要改的字段即可，未传字段保持原值：
+
+```json
+{
+  "supplier_name": "Scoot",
+  "supplier_refund_status": "received",   // pending / partial / received / na
+  "supplier_refund_amount": "1200.00",
+  "supplier_refund_date": "2026-07-20",
+  "supplier_refund_remarks": "已到账",
+  "customer_refund_status": "paid",       // pending / partial / paid
+  "customer_refund_amount": "1200.00",
+  "customer_refund_date": "2026-07-22",
+  "customer_refund_remarks": "转账尾号1234"
+}
+```
+
+返回 `{success, message, refund}`，`refund` 为整单 JSON（含明细）。
+列表页可用 `?supplier_status=pending` / `?customer_status=pending` 筛出待办。
+
+---
+
 ## 7. 结算 / 利润分配
 
 | 接口 | 方法 | 入参 | 说明 |

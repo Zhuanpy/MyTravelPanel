@@ -5,6 +5,12 @@
 {% block page_title %}退款列表{% endblock %}
 
 {% block content %}
+<style>
+/* 筛选栏：宽屏按固定宽度横排，窄屏自动铺满换行 */
+@media (max-width: 767.98px) {
+    .refund-filter > div { width: 100% !important; max-width: none !important; flex: 1 1 100% !important; }
+}
+</style>
 <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-lg-11 col-md-12">
@@ -27,16 +33,46 @@
                 </div>
             </div>
 
+            <!-- 待办统计：供应商还没退给我们的 / 我们还没退给客户的 -->
+            {% if stats %}
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-lg-3">
+                    <a class="card text-decoration-none h-100 {% if filters.supplier_status in ['pending','partial'] %}border-warning{% endif %}"
+                       href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, customer_status=filters.customer_status, supplier_status='pending') }}"
+                       title="只看未收到供应商退款的记录">
+                        <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                            <span class="text-muted small"><i class="fas fa-arrow-down text-warning"></i> 待收供应商退款</span>
+                            <span><strong class="text-warning">{{ stats.supplier_pending.count }}</strong> 笔
+                                <span class="text-muted small ms-2">约 {{ "%.2f"|format(stats.supplier_pending.amount) }}</span>
+                            </span>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a class="card text-decoration-none h-100 {% if filters.customer_status in ['pending','partial'] %}border-danger{% endif %}"
+                       href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, supplier_status=filters.supplier_status, customer_status='pending') }}"
+                       title="只看还没退给客户的记录">
+                        <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                            <span class="text-muted small"><i class="fas fa-arrow-up text-danger"></i> 待退客户</span>
+                            <span><strong class="text-danger">{{ stats.customer_pending.count }}</strong> 笔
+                                <span class="text-muted small ms-2">约 {{ "%.2f"|format(stats.customer_pending.amount) }}</span>
+                            </span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- 筛选栏 -->
             <div class="card mb-3">
                 <div class="card-body py-2">
-                    <form method="get" class="row g-2 align-items-end">
-                        <div class="col-md-4">
+                    <form method="get" class="d-flex flex-wrap align-items-end gap-2 refund-filter">
+                        <div style="flex:1 1 200px; min-width:170px; max-width:280px;">
                             <label class="form-label mb-1 small text-muted">关键词</label>
                             <input type="text" name="keyword" class="form-control form-control-sm"
-                                   value="{{ filters.keyword }}" placeholder="退款单号 / 项目HID / 项目名 / 公司 / 收款人">
+                                   value="{{ filters.keyword }}" placeholder="单号 / 项目 / 公司 / 收款人">
                         </div>
-                        <div class="col-md-2">
+                        <div style="width:100px;">
                             <label class="form-label mb-1 small text-muted">状态</label>
                             <select name="status" class="form-select form-select-sm">
                                 <option value="">全部</option>
@@ -44,7 +80,7 @@
                                 <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>已取消</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div style="width:85px;">
                             <label class="form-label mb-1 small text-muted">货币</label>
                             <select name="currency" class="form-select form-select-sm">
                                 <option value="">全部</option>
@@ -53,15 +89,34 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label mb-1 small text-muted">退款日期(起)</label>
+                        <div style="width:140px;">
+                            <label class="form-label mb-1 small text-muted">日期(起)</label>
                             <input type="date" name="start_date" class="form-control form-control-sm" value="{{ filters.start_date }}">
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label mb-1 small text-muted">退款日期(止)</label>
+                        <div style="width:140px;">
+                            <label class="form-label mb-1 small text-muted">日期(止)</label>
                             <input type="date" name="end_date" class="form-control form-control-sm" value="{{ filters.end_date }}">
                         </div>
-                        <div class="col-12 d-flex gap-2 mt-2">
+                        <div style="width:115px;">
+                            <label class="form-label mb-1 small text-muted">供应商退款</label>
+                            <select name="supplier_status" class="form-select form-select-sm">
+                                <option value="">全部</option>
+                                <option value="pending" {% if filters.supplier_status == 'pending' %}selected{% endif %}>未收到</option>
+                                <option value="partial" {% if filters.supplier_status == 'partial' %}selected{% endif %}>部分收到</option>
+                                <option value="received" {% if filters.supplier_status == 'received' %}selected{% endif %}>已收到</option>
+                                <option value="na" {% if filters.supplier_status == 'na' %}selected{% endif %}>不涉及</option>
+                            </select>
+                        </div>
+                        <div style="width:105px;">
+                            <label class="form-label mb-1 small text-muted">退客户</label>
+                            <select name="customer_status" class="form-select form-select-sm">
+                                <option value="">全部</option>
+                                <option value="pending" {% if filters.customer_status == 'pending' %}selected{% endif %}>未退款</option>
+                                <option value="partial" {% if filters.customer_status == 'partial' %}selected{% endif %}>部分退款</option>
+                                <option value="paid" {% if filters.customer_status == 'paid' %}selected{% endif %}>已退款</option>
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> 搜索</button>
                             <a href="{{ url_for('business_projects.project_refund.refund_list') }}" class="btn btn-sm btn-outline-secondary">重置</a>
                         </div>
@@ -72,19 +127,28 @@
             <div class="card">
                 <div class="card-body p-0">
                     {% if refunds %}
-                    <table class="table table-hover mb-0 align-middle">
+                    <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle text-nowrap">
                         <thead class="table-light">
                             <tr>
                                 <th>退款单号</th>
                                 <th>退款日期</th>
-                                <th>项目</th>
-                                <th>客户 / 公司</th>
+                                <th>项目HID</th>
+                                <th>项目名称</th>
+                                <th>客户公司</th>
                                 <th>方式</th>
                                 <th>收款人</th>
                                 <th>明细 (发票)</th>
                                 <th class="text-end">金额</th>
                                 <th>状态</th>
-                                <th class="text-center" style="width:140px;">操作</th>
+                                <th>供应商</th>
+                                <th>供应商退款</th>
+                                <th class="text-end">已收金额</th>
+                                <th>到账日期</th>
+                                <th>退客户</th>
+                                <th class="text-end">已退金额</th>
+                                <th>退客户日期</th>
+                                <th class="text-center" style="width:170px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -96,9 +160,9 @@
                                 <td>
                                     <a href="{{ url_for('business_projects.project_refund.header_refunds', header_id=r.header_id) }}"
                                        title="查看该项目退款">{{ row.project_hid or ('#' ~ r.header_id) }}</a>
-                                    {% if row.project_name %}<div class="small text-muted text-truncate" style="max-width:220px;" title="{{ row.project_name }}">{{ row.project_name }}</div>{% endif %}
                                 </td>
-                                <td class="small">{{ row.company_name or '-' }}</td>
+                                <td class="small text-truncate" style="max-width:180px;" title="{{ row.project_name or '' }}">{{ row.project_name or '-' }}</td>
+                                <td class="small text-truncate" style="max-width:160px;" title="{{ row.company_name or '' }}">{{ row.company_name or '-' }}</td>
                                 <td>{{ r.refund_method_display }}</td>
                                 <td>{{ r.payee_name or '-' }}</td>
                                 <td>
@@ -110,15 +174,44 @@
                                 <td>
                                     <span class="badge {% if r.status == 'confirmed' %}bg-success{% else %}bg-secondary{% endif %}">{{ r.status_display }}</span>
                                 </td>
+                                <td class="small text-truncate" style="max-width:120px;" title="{{ r.supplier_name or '' }}">{{ r.supplier_name or '-' }}</td>
+                                <td><span class="badge {{ r.supplier_refund_badge }}">{{ r.supplier_refund_status_display }}</span></td>
+                                <td class="text-end small">{{ "%.2f"|format(r.supplier_refund_amount) if r.supplier_refund_amount else '-' }}</td>
+                                <td class="small">{{ r.supplier_refund_date.strftime('%Y-%m-%d') if r.supplier_refund_date else '-' }}</td>
+                                <td><span class="badge {{ r.customer_refund_badge }}">{{ r.customer_refund_status_display }}</span></td>
+                                <td class="text-end small">{{ "%.2f"|format(r.customer_refund_amount) if r.customer_refund_amount else '-' }}</td>
+                                <td class="small">{{ r.customer_refund_date.strftime('%Y-%m-%d') if r.customer_refund_date else '-' }}</td>
                                 <td class="text-center text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-success" title="更新收退款状态"
+                                            onclick='openTracking({{ {
+                                                "id": r.id,
+                                                "refund_number": r.refund_number,
+                                                "currency": r.currency,
+                                                "amount": "%.2f"|format(r.amount),
+                                                "supplier_name": r.supplier_name or "",
+                                                "supplier_refund_status": r.supplier_refund_status,
+                                                "supplier_refund_amount": "%.2f"|format(r.supplier_refund_amount or 0),
+                                                "supplier_refund_date": r.supplier_refund_date.strftime("%Y-%m-%d") if r.supplier_refund_date else "",
+                                                "supplier_refund_remarks": r.supplier_refund_remarks or "",
+                                                "customer_refund_status": r.customer_refund_status,
+                                                "customer_refund_amount": "%.2f"|format(r.customer_refund_amount or 0),
+                                                "customer_refund_date": r.customer_refund_date.strftime("%Y-%m-%d") if r.customer_refund_date else "",
+                                                "customer_refund_remarks": r.customer_refund_remarks or ""
+                                            }|tojson }})'><i class="fas fa-money-check-dollar"></i></button>
                                     <a href="{{ url_for('business_projects.project_refund.edit_refund', refund_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="编辑"><i class="fas fa-edit"></i></a>
                                     <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="打印凭证"><i class="fas fa-print"></i></a>
+                                    {% if r.can_delete %}
                                     <button type="button" class="btn btn-sm btn-outline-danger" title="删除" onclick="deleteRefund({{ r.id }})"><i class="fas fa-trash"></i></button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                                            title="已发生实际收付（{{ r.delete_block_reason }}），不能删除"><i class="fas fa-lock"></i></button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                     {% else %}
                     <div class="p-4 text-center text-muted">
                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
@@ -131,7 +224,7 @@
                     <small class="text-muted">共 {{ pagination.total }} 条，第 {{ pagination.page }} / {{ pagination.pages }} 页</small>
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
-                            {% set args = {'keyword': filters.keyword, 'status': filters.status, 'currency': filters.currency, 'start_date': filters.start_date, 'end_date': filters.end_date} %}
+                            {% set args = {'keyword': filters.keyword, 'status': filters.status, 'currency': filters.currency, 'start_date': filters.start_date, 'end_date': filters.end_date, 'supplier_status': filters.supplier_status, 'customer_status': filters.customer_status} %}
                             <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('business_projects.project_refund.refund_list', page=pagination.prev_num, **args) }}">&laquo;</a>
                             </li>
@@ -156,7 +249,165 @@
     </div>
 </div>
 
+<!-- 收退款状态更新弹窗 -->
+<div class="modal fade" id="trackingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title"><i class="fas fa-money-check-dollar text-success"></i> 收退款状态 - <span id="tkNumber"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">退款总额：<strong id="tkTotal"></strong>（点「与总额一致」可快速填满）</p>
+                <input type="hidden" id="tkId">
+                <div class="row g-3">
+                    <!-- 供应商侧 -->
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-light py-2"><strong><i class="fas fa-arrow-down text-warning"></i> 供应商退款（收）</strong></div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">供应商</label>
+                                    <input type="text" id="tkSupplierName" class="form-control form-control-sm" placeholder="航司 / 地接 / 酒店等">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">状态</label>
+                                    <select id="tkSupplierStatus" class="form-select form-select-sm">
+                                        <option value="pending">未收到</option>
+                                        <option value="partial">部分收到</option>
+                                        <option value="received">已收到</option>
+                                        <option value="na">不涉及</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">已收金额
+                                        <a href="javascript:;" class="small ms-1" onclick="fillTotal('tkSupplierAmount')">与总额一致</a>
+                                    </label>
+                                    <input type="number" step="0.01" min="0" id="tkSupplierAmount" class="form-control form-control-sm">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">到账日期</label>
+                                    <input type="date" id="tkSupplierDate" class="form-control form-control-sm">
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1">备注</label>
+                                    <input type="text" id="tkSupplierRemarks" class="form-control form-control-sm" placeholder="如 已提交退票申请 / 预计30天">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 客户侧 -->
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-light py-2"><strong><i class="fas fa-arrow-up text-danger"></i> 退给客户（付）</strong></div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">状态</label>
+                                    <select id="tkCustomerStatus" class="form-select form-select-sm">
+                                        <option value="pending">未退款</option>
+                                        <option value="partial">部分退款</option>
+                                        <option value="paid">已退款</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">已退金额
+                                        <a href="javascript:;" class="small ms-1" onclick="fillTotal('tkCustomerAmount')">与总额一致</a>
+                                    </label>
+                                    <input type="number" step="0.01" min="0" id="tkCustomerAmount" class="form-control form-control-sm">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">退款日期</label>
+                                    <input type="date" id="tkCustomerDate" class="form-control form-control-sm">
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1">备注</label>
+                                    <input type="text" id="tkCustomerRemarks" class="form-control form-control-sm" placeholder="如 已转账 尾号1234">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-sm btn-success" onclick="saveTracking()"><i class="fas fa-save"></i> 保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let trackingModal = null;
+
+// 打开弹窗并回填当前记录的跟踪信息
+function openTracking(data) {
+    document.getElementById('tkId').value = data.id;
+    document.getElementById('tkNumber').textContent = data.refund_number;
+    document.getElementById('tkTotal').textContent = data.currency + ' ' + data.amount;
+    document.getElementById('tkTotal').dataset.amount = data.amount;
+
+    document.getElementById('tkSupplierName').value = data.supplier_name;
+    document.getElementById('tkSupplierStatus').value = data.supplier_refund_status;
+    document.getElementById('tkSupplierAmount').value = parseFloat(data.supplier_refund_amount) ? data.supplier_refund_amount : '';
+    document.getElementById('tkSupplierDate').value = data.supplier_refund_date;
+    document.getElementById('tkSupplierRemarks').value = data.supplier_refund_remarks;
+
+    document.getElementById('tkCustomerStatus').value = data.customer_refund_status;
+    document.getElementById('tkCustomerAmount').value = parseFloat(data.customer_refund_amount) ? data.customer_refund_amount : '';
+    document.getElementById('tkCustomerDate').value = data.customer_refund_date;
+    document.getElementById('tkCustomerRemarks').value = data.customer_refund_remarks;
+
+    if (!trackingModal) trackingModal = new bootstrap.Modal(document.getElementById('trackingModal'));
+    trackingModal.show();
+}
+
+// 金额一键填成退款总额
+function fillTotal(inputId) {
+    document.getElementById(inputId).value = document.getElementById('tkTotal').dataset.amount;
+}
+
+function saveTracking() {
+    const id = document.getElementById('tkId').value;
+    const payload = {
+        supplier_name: document.getElementById('tkSupplierName').value,
+        supplier_refund_status: document.getElementById('tkSupplierStatus').value,
+        supplier_refund_amount: document.getElementById('tkSupplierAmount').value,
+        supplier_refund_date: document.getElementById('tkSupplierDate').value,
+        supplier_refund_remarks: document.getElementById('tkSupplierRemarks').value,
+        customer_refund_status: document.getElementById('tkCustomerStatus').value,
+        customer_refund_amount: document.getElementById('tkCustomerAmount').value,
+        customer_refund_date: document.getElementById('tkCustomerDate').value,
+        customer_refund_remarks: document.getElementById('tkCustomerRemarks').value
+    };
+    fetch(`/projects/refund/${id}/tracking`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { window.location.reload(); }
+        else { alert('保存失败: ' + d.message); }
+    })
+    .catch(e => alert('保存出错: ' + e.message));
+}
+
+// 选择「已收到 / 已退款」时，金额为空则自动带出退款总额
+document.addEventListener('DOMContentLoaded', function() {
+    const pairs = [['tkSupplierStatus', 'tkSupplierAmount', 'received'], ['tkCustomerStatus', 'tkCustomerAmount', 'paid']];
+    pairs.forEach(([selId, amtId, doneValue]) => {
+        const sel = document.getElementById(selId);
+        if (!sel) return;
+        sel.addEventListener('change', function() {
+            const amt = document.getElementById(amtId);
+            if (this.value === doneValue && !parseFloat(amt.value)) fillTotal(amtId);
+        });
+    });
+});
+
 function deleteRefund(id) {
     if (!confirm('确定删除该退款记录及其明细吗？')) return;
     fetch(`/projects/refund/${id}/delete`, {

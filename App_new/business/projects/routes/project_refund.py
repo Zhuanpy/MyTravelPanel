@@ -36,6 +36,47 @@ def customer_display_name(header):
     return ''
 
 
+def _parse_date(value):
+    """解析 YYYY-MM-DD 字符串，无效返回 None"""
+    value = (value or '').strip()
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _parse_amount(value):
+    """解析金额，无效或负数返回 0"""
+    try:
+        amount = float((value or '').strip() or 0)
+    except (ValueError, AttributeError):
+        return 0.0
+    return amount if amount > 0 else 0.0
+
+
+def _apply_tracking_fields(refund, form):
+    """从表单写入两条跟踪线（供应商是否已退款给我们 / 是否已退给客户）"""
+    supplier_status = (form.get('supplier_refund_status') or 'pending').strip()
+    if supplier_status not in ('pending', 'partial', 'received', 'na'):
+        supplier_status = 'pending'
+    customer_status = (form.get('customer_refund_status') or 'pending').strip()
+    if customer_status not in ('pending', 'partial', 'paid'):
+        customer_status = 'pending'
+
+    refund.supplier_name = (form.get('supplier_name') or '').strip() or None
+    refund.supplier_refund_status = supplier_status
+    refund.supplier_refund_amount = _parse_amount(form.get('supplier_refund_amount'))
+    refund.supplier_refund_date = _parse_date(form.get('supplier_refund_date'))
+    refund.supplier_refund_remarks = (form.get('supplier_refund_remarks') or '').strip() or None
+
+    refund.customer_refund_status = customer_status
+    refund.customer_refund_amount = _parse_amount(form.get('customer_refund_amount'))
+    refund.customer_refund_date = _parse_date(form.get('customer_refund_date'))
+    refund.customer_refund_remarks = (form.get('customer_refund_remarks') or '').strip() or None
+
+
 def _build_invoice_rows(header, current_refund=None):
     """构建退款表单的发票行：原金额、已退（可排除当前退款）、可退余额，以及当前退款已选信息。
 
@@ -104,6 +145,8 @@ def refund_list():
     start_date = (request.args.get('start_date') or '').strip()
     end_date = (request.args.get('end_date') or '').strip()
     keyword = (request.args.get('keyword') or '').strip()
+    supplier_status = (request.args.get('supplier_status') or '').strip()
+    customer_status = (request.args.get('customer_status') or '').strip()
 
     base = db.session.query(
         ProjectRefund,
@@ -121,6 +164,10 @@ def refund_list():
         filters.append(ProjectRefund.status == status)
     if currency:
         filters.append(ProjectRefund.currency == currency)
+    if supplier_status:
+        filters.append(ProjectRefund.supplier_refund_status == supplier_status)
+    if customer_status:
+        filters.append(ProjectRefund.customer_refund_status == customer_status)
     if start_date:
         try:
             filters.append(ProjectRefund.refund_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
@@ -165,6 +212,26 @@ def refund_list():
     ).filter(and_(*(filters + [ProjectRefund.status == 'confirmed']))).group_by(ProjectRefund.currency)
     totals = [(cur or 'SGD', float(amt or 0)) for cur, amt in totals_q.all() if (amt or 0)]
 
+    def _pending_stat(*extra_filters):
+        """当前筛选条件下某种待办的笔数与金额（仅统计已确认退款）"""
+        q = db.session.query(
+            func.count(ProjectRefund.id), func.sum(ProjectRefund.amount)
+        ).join(
+            ProjectHeader, ProjectRefund.header_id == ProjectHeader.id, isouter=True
+        ).join(
+            CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
+        ).filter(and_(*(filters + [ProjectRefund.status == 'confirmed'] + list(extra_filters))))
+        cnt, amt = q.one()
+        return {'count': int(cnt or 0), 'amount': float(amt or 0)}
+
+    # 待办统计：供应商还没退给我们的 / 还没退给客户的
+    stats = {
+        'supplier_pending': _pending_stat(
+            ProjectRefund.supplier_refund_status.in_(['pending', 'partial'])),
+        'customer_pending': _pending_stat(
+            ProjectRefund.customer_refund_status.in_(['pending', 'partial'])),
+    }
+
     # 货币下拉选项（去重）
     currencies = [c[0] for c in db.session.query(ProjectRefund.currency)
                   .filter(ProjectRefund.currency.isnot(None))
@@ -172,10 +239,12 @@ def refund_list():
 
     return render_template('business/projects/project_refund/refund_list.html',
                            refunds=refunds, pagination=pagination, totals=totals,
-                           currencies=currencies,
+                           currencies=currencies, stats=stats,
                            filters={'status': status, 'currency': currency,
                                     'start_date': start_date, 'end_date': end_date,
-                                    'keyword': keyword})
+                                    'keyword': keyword,
+                                    'supplier_status': supplier_status,
+                                    'customer_status': customer_status})
 
 
 @project_refund.route('/create/<int:header_id>', methods=['GET', 'POST'])
@@ -211,6 +280,8 @@ def create_refund(header_id):
                 status='confirmed',
                 created_by=current_user.username if current_user.is_authenticated else None,
             )
+            # 两条跟踪线：供应商退款到账 / 已退给客户
+            _apply_tracking_fields(refund, request.form)
             db.session.add(refund)
             db.session.flush()  # 获取 refund.id
 
@@ -244,7 +315,11 @@ def create_refund(header_id):
             refund.amount = total
             db.session.commit()
 
-            return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+            # 「保存并打印」跳打印页；「保存」回项目退款管理页
+            if (request.form.get('action') or '').strip() == 'save_print':
+                return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+            flash(f'退款记录 {refund.refund_number} 已保存', 'success')
+            return redirect(url_for('business_projects.project_refund.header_refunds', header_id=header.id))
 
         except Exception as e:
             db.session.rollback()
@@ -291,6 +366,8 @@ def edit_refund(refund_id):
             refund.payee_contact = (request.form.get('payee_contact') or '').strip() or None
             refund.reason = (request.form.get('reason') or '').strip() or None
             refund.remarks = (request.form.get('remarks') or '').strip() or None
+            # 两条跟踪线：供应商退款到账 / 已退给客户
+            _apply_tracking_fields(refund, request.form)
 
             # 重建明细：先删后增
             for it in list(refund.items):
@@ -326,7 +403,11 @@ def edit_refund(refund_id):
             refund.amount = total
             db.session.commit()
 
-            return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+            # 「保存并打印」跳打印页；「保存」回项目退款管理页
+            if (request.form.get('action') or '').strip() == 'save_print':
+                return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+            flash(f'退款记录 {refund.refund_number} 已保存', 'success')
+            return redirect(url_for('business_projects.project_refund.header_refunds', header_id=header.id))
 
         except Exception as e:
             db.session.rollback()
@@ -397,14 +478,72 @@ def print_refund(refund_id):
                            descriptions=descriptions)
 
 
+@project_refund.route('/<int:refund_id>/tracking', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def update_tracking(refund_id):
+    """快捷更新退款跟踪状态（供应商是否已退款给我们 / 是否已退给客户）
+
+    接受 JSON 或表单，只更新传入的字段，便于列表页弹窗与 API 调用：
+    supplier_name / supplier_refund_status / supplier_refund_amount /
+    supplier_refund_date / supplier_refund_remarks，以及对应的 customer_* 字段。
+    """
+    try:
+        refund = ProjectRefund.query.get_or_404(refund_id)
+        data = request.get_json(silent=True) or request.form
+
+        if 'supplier_name' in data:
+            refund.supplier_name = (data.get('supplier_name') or '').strip() or None
+        if 'supplier_refund_status' in data:
+            value = (data.get('supplier_refund_status') or '').strip()
+            if value not in ('pending', 'partial', 'received', 'na'):
+                return jsonify({'success': False, 'message': '无效的供应商退款状态'}), 400
+            refund.supplier_refund_status = value
+        if 'supplier_refund_amount' in data:
+            refund.supplier_refund_amount = _parse_amount(str(data.get('supplier_refund_amount') or ''))
+        if 'supplier_refund_date' in data:
+            refund.supplier_refund_date = _parse_date(str(data.get('supplier_refund_date') or ''))
+        if 'supplier_refund_remarks' in data:
+            refund.supplier_refund_remarks = (data.get('supplier_refund_remarks') or '').strip() or None
+
+        if 'customer_refund_status' in data:
+            value = (data.get('customer_refund_status') or '').strip()
+            if value not in ('pending', 'partial', 'paid'):
+                return jsonify({'success': False, 'message': '无效的退客户状态'}), 400
+            refund.customer_refund_status = value
+        if 'customer_refund_amount' in data:
+            refund.customer_refund_amount = _parse_amount(str(data.get('customer_refund_amount') or ''))
+        if 'customer_refund_date' in data:
+            refund.customer_refund_date = _parse_date(str(data.get('customer_refund_date') or ''))
+        if 'customer_refund_remarks' in data:
+            refund.customer_refund_remarks = (data.get('customer_refund_remarks') or '').strip() or None
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': '退款跟踪状态已更新', 'refund': refund.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
 @project_refund.route('/<int:refund_id>/delete', methods=['POST'])
 @login_required
 @staff_only
 @csrf.exempt
 def delete_refund(refund_id):
-    """删除退款记录（连同明细）"""
+    """删除退款记录（连同明细）
+
+    已发生实际收付（供应商已退给我们 / 已退给客户，含部分）的退款不允许删除，
+    需先把对应跟踪状态改回「未收到 / 未退款」。
+    """
     try:
         refund = ProjectRefund.query.get_or_404(refund_id)
+        if not refund.can_delete:
+            return jsonify({
+                'success': False,
+                'message': f'该退款已发生实际收付（{refund.delete_block_reason}），不能删除；'
+                           f'如确需删除，请先把对应状态改回「未收到 / 未退款」。'
+            }), 400
         header_id = refund.header_id
         db.session.delete(refund)
         db.session.commit()

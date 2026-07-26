@@ -33,7 +33,8 @@
             <div class="card">
                 <div class="card-body p-0">
                     {% if refunds %}
-                    <table class="table table-hover mb-0 align-middle">
+                    <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle text-nowrap">
                         <thead class="table-light">
                             <tr>
                                 <th>退款单号</th>
@@ -43,6 +44,13 @@
                                 <th>明细 (发票)</th>
                                 <th class="text-end">金额</th>
                                 <th>状态</th>
+                                <th>供应商</th>
+                                <th>供应商退款</th>
+                                <th class="text-end">已收金额</th>
+                                <th>到账日期</th>
+                                <th>退客户</th>
+                                <th class="text-end">已退金额</th>
+                                <th>退客户日期</th>
                                 <th class="text-center" style="width:140px;">操作</th>
                             </tr>
                         </thead>
@@ -62,15 +70,28 @@
                                 <td>
                                     <span class="badge {% if r.status == 'confirmed' %}bg-success{% else %}bg-secondary{% endif %}">{{ r.status_display }}</span>
                                 </td>
+                                <td class="small text-truncate" style="max-width:120px;" title="{{ r.supplier_name or '' }}">{{ r.supplier_name or '-' }}</td>
+                                <td><span class="badge {{ r.supplier_refund_badge }}">{{ r.supplier_refund_status_display }}</span></td>
+                                <td class="text-end small">{{ "%.2f"|format(r.supplier_refund_amount) if r.supplier_refund_amount else '-' }}</td>
+                                <td class="small">{{ r.supplier_refund_date.strftime('%Y-%m-%d') if r.supplier_refund_date else '-' }}</td>
+                                <td><span class="badge {{ r.customer_refund_badge }}">{{ r.customer_refund_status_display }}</span></td>
+                                <td class="text-end small">{{ "%.2f"|format(r.customer_refund_amount) if r.customer_refund_amount else '-' }}</td>
+                                <td class="small">{{ r.customer_refund_date.strftime('%Y-%m-%d') if r.customer_refund_date else '-' }}</td>
                                 <td class="text-center">
                                     <a href="{{ url_for('business_projects.project_refund.edit_refund', refund_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="编辑"><i class="fas fa-edit"></i></a>
                                     <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="打印凭证"><i class="fas fa-print"></i></a>
+                                    {% if r.can_delete %}
                                     <button type="button" class="btn btn-sm btn-outline-danger" title="删除" onclick="deleteRefund({{ r.id }})"><i class="fas fa-trash"></i></button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                                            title="已发生实际收付（{{ r.delete_block_reason }}），不能删除"><i class="fas fa-lock"></i></button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                     {% else %}
                     <div class="p-4 text-center text-muted">
                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
