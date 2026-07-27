@@ -1222,6 +1222,21 @@ def copy_project(project_id):
         if isinstance(with_refs, str):
             with_refs = with_refs.strip().lower() not in ('false', '0', 'no', '')
 
+        # 项目头覆盖：模板项目多半属于别的客户，复制后必须改成本单的客户。
+        # 支持在复制时一次改掉，省去「复制完再调编辑接口改头」这一步。
+        _OVERRIDABLE = ('company_id', 'contact', 'desc', 'currency', 'leader_name', 'dept')
+        overrides = {k: payload[k] for k in _OVERRIDABLE if k in payload}
+
+        # 换客户公司时先校验存在，避免建出挂着无效 company_id 的项目
+        if 'company_id' in overrides and overrides['company_id']:
+            from App_new.business.projects.models.project import CustomerCompany
+            if not CustomerCompany.query.get(overrides['company_id']):
+                return jsonify({
+                    'success': False,
+                    'message': f"company_id={overrides['company_id']} 不存在，"
+                               f"请先用 /api/hermes/companies/search 查到正确的 id"
+                }), 400
+
         # 生成新的HID
         new_hid = ProjectHeader.generate_hid()
 
@@ -1252,6 +1267,10 @@ def copy_project(project_id):
             created_at=now,
             updated_at=now,
         )
+        # 应用项目头覆盖（在 flush 前，直接落到新项目上）
+        for field, value in overrides.items():
+            setattr(new_header, field, value)
+
         db.session.add(new_header)
         db.session.flush()  # 获取新项目ID
 
@@ -1352,6 +1371,8 @@ def copy_project(project_id):
             msg += f'，{segment_count} 个航段，{passenger_count} 个乘客'
         if not with_refs:
             msg += '（with_refs=false，未复制REF）'
+        if overrides:
+            msg += f"（已覆盖项目头: {', '.join(overrides.keys())}）"
 
         return jsonify({
             'success': True,
@@ -1359,6 +1380,11 @@ def copy_project(project_id):
             'new_project_id': new_header.id,
             'new_hid': new_hid,
             'with_refs': bool(with_refs),
+            # 回显最终的项目头归属，供调用方直接断言，不必再 GET 一次
+            'company_id': new_header.company_id,
+            'company_name': new_header.company.company_name if new_header.company else None,
+            'contact': new_header.contact,
+            'applied_overrides': list(overrides.keys()),
             'ref_id_map': ref_id_map,                        # [{old_id, new_id}]
             'new_ref_ids': [m['new_id'] for m in ref_id_map]  # 复制来的新REF ID（可按需删除）
         })

@@ -83,23 +83,40 @@
 | 步骤 | 接口 | 方法 | 入参 | 说明 |
 |---|---|---|---|---|
 | 0. 查公司 | `/api/hermes/companies/search?q=` | GET | — | 拿 `company_id` + 联系人 |
-| 1. 复制项目 | `/projects/detail/<source_id>/copy` | POST | `{"with_refs": false}` | **务必传 `with_refs:false`**，见下 |
+| 1. 复制项目 | `/projects/detail/<source_id>/copy` | POST | `{with_refs:false, company_id, contact}` | **三个参数一起传**，见下 |
 | 2. 读成员 | `/projects/<pid>/members` | GET | — | 返回 `data[]`（含 id） |
 | 3. 删成员 | `/projects/<pid>/members/<mid>` | DELETE | — | 逐个删 |
 | 4. 批量加成员 | `/projects/<pid>/members/batch` | POST | JSON | 首个自动设 Leader |
-| 5. **一键建单** | `/projects/ref/flight/quick-create/<pid>` | POST | JSON | 建机票 REF + EO + 发票 |
+| 5. **一键建单** | `/projects/ref/flight/quick-create/<pid>` | POST | JSON | 建 REF + EO + 发票，**行李一起传** |
 | 6. **验收** | `/api/hermes/order/<hid>/summary` | GET | — | 逐项比对，见 §1.1 |
 
-**关于 `with_refs:false`（2026-07-27 新增）**
+**复制这一步要一次做完三件事（2026-07-27 更新）**
 
-`copy` 默认会连模板项目的 REF/航段/乘客一起复制过来，这些模板 REF 对新订单毫无用处，
-过去要靠「建完新单再回头删」收场——顺序颠倒，中途失败就留下脏数据。
+```json
+POST /projects/detail/<模板项目id>/copy
+{
+  "with_refs": false,        // 不复制模板 REF/航段/乘客
+  "company_id": 69,          // 改成本单客户（模板多半属于别的客户！）
+  "contact": "ZHENXIANG"     // 本单联系人
+}
+```
 
-传 `{"with_refs": false}` 后只复制项目头 + 成员，**根本不产生模板 REF**，
-上表里原来的「删旧REF」一步整个消失。
+三件事缺一不可：
 
-> 老流程（先复制REF再删）仍然可用：不传该参数即保持原行为，返回的 `new_ref_ids`
-> 就是复制来的 REF。但自动化下单一律用 `with_refs:false`。
+1. **`with_refs: false`** —— 模板 REF 对新订单毫无用处。不传的话会复制过来，
+   得靠「建完新单再回头删」收场，顺序颠倒且中途失败会留脏数据。
+2. **`company_id`** —— **模板项目属于哪个客户，复制出来就还是哪个客户**。
+   不覆盖的话，给 SIONG 下的单会挂在 KATONG 名下。这是最容易漏的一步。
+3. **`contact`** —— 同理，联系人也会跟着模板走。
+
+其它可覆盖字段：`desc` / `currency` / `leader_name` / `dept`。
+`company_id` 不存在时接口直接返回 400，不会建出挂错公司的项目。
+
+返回体回显 `company_id` / `company_name` / `contact` / `applied_overrides`，
+**复制完就能立刻断言客户对不对**，不用再 GET 一次。
+
+> 老流程仍然可用：不传这些参数即保持原行为（复制 REF、沿用模板客户），
+> 返回的 `new_ref_ids` 就是复制来的 REF。但自动化下单一律传全三个参数。
 
 **一键建单请求体**：
 ```json
@@ -109,7 +126,8 @@
   "leader_name": "ZHOU YONGFA",
   "passengers": [
     {"name": "ZHOU YONGFA", "type": "adult", "selling_price": 255, "cost_price": 224.2,
-     "passport_number": "E12345678"}
+     "passport_number": "E12345678",
+     "baggage": "40KG"}
   ],
   "segments": [
     {"flight_number": "HU448", "cabin_code": "Y",
@@ -123,6 +141,16 @@
 }
 ```
 返回：`{ref_id, ref_number, eo_number, invoice_number, eo_error?, invoice_error?}`。
+
+**行李在这里一次传完，不要事后补**
+
+`passengers[].baggage` 就是行李额（写入乘客级默认值，所有航段共用）。
+建单时一起传即可，**不需要**建完再调 `ticketing` / `passenger/update` 补一遍。
+
+只有「同一乘客不同航段行李额不同」时，才需要用 `passengers[].segments[].baggage`
+分航段覆盖——那也是同一个请求里传完。
+
+> 事后补行李 = 多一次请求 + 多一个失败点 + 中间态数据不完整。
 
 **`idempotency_key`（2026-07-27 新增，强烈建议必传）**
 
@@ -143,6 +171,14 @@
 返回顶层：`hid / company_id / company_name / contact / leader_name / currency / status /
 ref_count / refs[]`；每个 ref 含 `ref_number / supplier_id / supplier_name /
 selling_price / cost_price / eo_number / invoice_number / passengers[] / segments[]`。
+
+**字段形态与 `quick-create` 入参一致，可直接比对**（2026-07-27 调整）：
+`segments[]` 里给的是 `departure_date: "2026-07-29"` + `departure_time: "18:40"`
+**分离字段**，和下单入参同形；完整 ISO 值另存在 `departure_datetime_iso`。
+
+> ⚠️ 早期版本这里返回的是 ISO 全量 `departure_time: "2026-07-29T18:40:00"`，
+> 断言时得自己拆——那本身就是出错来源。已改为分离字段。
+> 如果你的断言按 ISO 写的，**要跟着改**。
 
 **验收规则**：拿它与**解析阶段得到的原始订单要素**逐项比对——
 乘客姓名、护照号、航班号、起降机场、日期时间、售价、成本、供应商 ID、行李。

@@ -10,11 +10,13 @@ API Token 管理：为用户创建 / 查看 / 撤销 API 访问令牌
     或 Authorization: Bearer <token>
 
 运行方式:
-    python scripts/20260622_manage_api_token.py create <email> [名称]
-    python scripts/20260622_manage_api_token.py list   <email>
-    python scripts/20260622_manage_api_token.py revoke <token_id>
+    python scripts/20260622_manage_api_token.py create   <email> [名称]
+    python scripts/20260622_manage_api_token.py list     <email>
+    python scripts/20260622_manage_api_token.py revoke   <token_id>
+    python scripts/20260622_manage_api_token.py activate <token_id>   # 撤销后重新启用
 
 注意: 明文令牌只在创建时显示一次，请立即保存。
+      诊断某个令牌为何失效: python scripts/tools/diagnose_api_token.py <明文token>
 """
 
 import sys
@@ -79,6 +81,28 @@ def cmd_revoke(token_id):
     print(f"✅ 令牌 #{token.id}（{token.name}）已撤销")
 
 
+def cmd_activate(token_id):
+    """重新启用被撤销的令牌（撤销原本是单向的，误撤销后只能改库，故补此命令）
+
+    注意：明文令牌不入库，所以重新启用的是**原来那个明文令牌**，
+    调用方不需要换 token，直接继续用即可。
+    """
+    token = ApiToken.query.get(int(token_id))
+    if not token:
+        print(f"❌ 未找到 ID 为 {token_id} 的令牌")
+        sys.exit(1)
+    if token.is_active:
+        print(f"令牌 #{token.id}（{token.name}）本来就是启用状态，无需操作")
+        return
+    token.is_active = True
+    db.session.commit()
+    user = token.user
+    print(f"✅ 令牌 #{token.id}（{token.name}）已重新启用")
+    print(f"   用户: {user.email if user else '(已删除)'}")
+    print(f"   前缀: {token.prefix}")
+    print("   原明文令牌继续有效，调用方无需更换。")
+
+
 def main():
     args = sys.argv[1:]
     # server_update.sh 会用 --execute 跑所有 scripts/日期_*.py。
@@ -98,6 +122,8 @@ def main():
         cmd_list(args[1])
     elif action == 'revoke' and len(args) >= 2:
         cmd_revoke(args[1])
+    elif action == 'activate' and len(args) >= 2:
+        cmd_activate(args[1])
     else:
         print(__doc__)
         sys.exit(1)

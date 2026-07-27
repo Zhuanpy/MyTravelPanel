@@ -92,10 +92,12 @@ _CATALOG = {
             'name': '机票下单（闭环）',
             'endpoints': [
                 {'method': 'POST', 'path': '/projects/detail/<source_id>/copy',
-                 'input': 'JSON {with_refs?:bool}',
-                 'desc': '复制项目。★下单请传 {"with_refs": false}：只复制项目头+成员，'
-                         '不复制模板 REF/航段/乘客，省掉「先建后删」和脏数据窗口。'
-                         '返回 new_project_id/new_hid/new_ref_ids'},
+                 'input': 'JSON {with_refs?:bool, company_id?, contact?, desc?, '
+                          'currency?, leader_name?, dept?}',
+                 'desc': '复制项目。★下单一次传全：{"with_refs":false, "company_id":<本单客户>, '
+                         '"contact":"<联系人>"} —— with_refs:false 不复制模板REF；'
+                         'company_id/contact 覆盖项目头归属（模板多半属于别的客户，'
+                         '不覆盖就会挂错客户）。返回回显 company_id/company_name/contact 供断言'},
                 {'method': 'POST', 'path': '/projects/<pid>/members/batch',
                  'input': 'JSON {members:[{member_name,member_name_en}]}',
                  'desc': '批量加成员（首个自动 Leader）'},
@@ -369,14 +371,21 @@ def order_summary(key):
                 'pnr': p.pnr,
                 'passport_number': p.passport_number,
             } for p in passengers],
+            # 字段形态与 quick-create 的入参**保持一致**（date/time 分离），
+            # 这样断言可以直接比对，不必在 agent 侧做 ISO 拆分（那本身就是出错来源）。
             'segments': [{
                 'id': s.id,
                 'flight_number': s.flight_number,
                 'airline_name': s.airline_name,
                 'departure_airport': s.departure_airport,
                 'arrival_airport': s.arrival_airport,
-                'departure_time': s.departure_time.isoformat() if s.departure_time else None,
-                'arrival_time': s.arrival_time.isoformat() if s.arrival_time else None,
+                'departure_date': s.departure_time.strftime('%Y-%m-%d') if s.departure_time else None,
+                'departure_time': s.departure_time.strftime('%H:%M') if s.departure_time else None,
+                'arrival_date': s.arrival_time.strftime('%Y-%m-%d') if s.arrival_time else None,
+                'arrival_time': s.arrival_time.strftime('%H:%M') if s.arrival_time else None,
+                # 完整 ISO 值另存，供排序/时区等用途
+                'departure_datetime_iso': s.departure_time.isoformat() if s.departure_time else None,
+                'arrival_datetime_iso': s.arrival_time.isoformat() if s.arrival_time else None,
                 'cabin_class': s.cabin_class,
             } for s in segments],
         })
