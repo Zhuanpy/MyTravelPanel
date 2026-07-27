@@ -1215,6 +1215,13 @@ def copy_project(project_id):
         # 获取原项目
         original = ProjectHeader.query.get_or_404(project_id)
 
+        # with_refs=false：只复制项目头 + 人员，不带模板 REF/航段/乘客。
+        # 自动化下单用这个，省掉「先复制出模板REF、建完新单再回头删」的脏数据窗口。
+        payload = request.get_json(silent=True) or {}
+        with_refs = payload.get('with_refs', True)
+        if isinstance(with_refs, str):
+            with_refs = with_refs.strip().lower() not in ('false', '0', 'no', '')
+
         # 生成新的HID
         new_hid = ProjectHeader.generate_hid()
 
@@ -1254,7 +1261,7 @@ def copy_project(project_id):
         passenger_count = 0
         ref_id_map = []  # [{old_id, new_id}]，方便调用方清理复制来的旧REF
 
-        for ref in original.refs:
+        for ref in (original.refs if with_refs else []):
             new_ref = ProjectRef(
                 header_id=new_header.id,
                 ref_number=ProjectRef.generate_ref_number(),
@@ -1343,12 +1350,15 @@ def copy_project(project_id):
         msg = f'项目复制成功！新项目编号: {new_hid}，包含 {ref_count} 个REF，{member_count} 个人员'
         if segment_count > 0:
             msg += f'，{segment_count} 个航段，{passenger_count} 个乘客'
+        if not with_refs:
+            msg += '（with_refs=false，未复制REF）'
 
         return jsonify({
             'success': True,
             'message': msg,
             'new_project_id': new_header.id,
             'new_hid': new_hid,
+            'with_refs': bool(with_refs),
             'ref_id_map': ref_id_map,                        # [{old_id, new_id}]
             'new_ref_ids': [m['new_id'] for m in ref_id_map]  # 复制来的新REF ID（可按需删除）
         })

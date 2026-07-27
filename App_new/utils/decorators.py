@@ -5,8 +5,20 @@
 """
 
 from functools import wraps
-from flask import request, redirect, url_for, flash, current_app
+from flask import request, redirect, url_for, flash, current_app, jsonify
 from flask_login import current_user
+
+
+def _json_error(message, status, error):
+    """给 API 客户端返回明确的 JSON 错误（而不是 302 到登录页/首页）。
+
+    AI agent / 脚本被重定向后只能拿到 HTML，无法区分「没登录」「角色不对」
+    「接口不存在」，容易误判成 token 失效并错误降级。
+    """
+    from App_new.auth.token_auth import wants_json_response
+    if not wants_json_response(request):
+        return None
+    return jsonify({'success': False, 'error': error, 'message': message}), status
 
 
 def guest_only(f):
@@ -54,10 +66,18 @@ def role_required(role_name):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
+                resp = _json_error('token 缺失/无效/已停用。请调用 GET /api/hermes/whoami 自检，'
+                                   '不要改用账号密码登录。', 401, 'unauthorized')
+                if resp:
+                    return resp
                 flash('请先登录', 'warning')
                 return redirect(url_for('auth_profile.member_login', next=request.url))
 
             if not hasattr(current_user, 'role') or current_user.role.name != role_name:
+                resp = _json_error(f'当前账号角色不是 {role_name}，无权访问此接口。'
+                                   f'这不是 token 过期，换 token 也无用。', 403, 'forbidden_role')
+                if resp:
+                    return resp
                 flash('您没有权限访问此页面', 'error')
                 return redirect(url_for('public.index'))
 

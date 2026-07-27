@@ -28,6 +28,22 @@ def extract_request_token(request):
     return token or None
 
 
+def wants_json_response(request):
+    """判断该请求是否应该收到 JSON 错误，而不是被 302 重定向到登录页/首页。
+
+    AI agent / 脚本被重定向后拿到的是 HTML 页面，极易误判成「token 过期」而
+    错误降级（例如改用账号密码登录浏览器），因此这类请求必须收到明确的
+    401/403 JSON。
+    """
+    return bool(
+        extract_request_token(request)
+        or request.path.startswith('/api/')
+        or request.is_json
+        or request.accept_mimetypes.best == 'application/json'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
+
+
 def authenticate_request_token(request):
     """校验请求中的令牌，返回对应的 AuthUser 或 None。
 

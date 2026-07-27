@@ -39,6 +39,12 @@ class ProjectRef(db.Model):
     payment_status = db.Column(db.Enum('unpaid', 'partial', 'paid', 'refunded'),
                                default='unpaid', nullable=False, comment='支付状态')
 
+    # 幂等键：agent/脚本重试或超时重发时防止重复建单。
+    # 由调用方生成、同一笔订单固定不变（如 hermes-<来源消息ID>）；命中已存在的键则原样
+    # 返回首次创建的 REF，不再新建。人工表单创建时为空。
+    idempotency_key = db.Column(db.String(64), nullable=True, unique=True,
+                                comment='幂等键(agent重试防重复建单)')
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

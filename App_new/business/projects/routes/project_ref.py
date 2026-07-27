@@ -741,6 +741,48 @@ def submit_flight_ref():
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
 
 
+def _idempotent_replay_result(ref):
+    """幂等命中：把首次创建的结果原样重建出来返回。
+
+    带 idempotent_replay=true，让调用方能区分「这次真的建了」和「上次就建好了」。
+    """
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    import json
+
+    result = {
+        'success': True,
+        'idempotent_replay': True,
+        'message': '该 idempotency_key 已创建过 REF，返回首次结果，未重复建单',
+        'project_id': ref.header_id,
+        'ref_id': ref.id,
+        'ref_number': ref.ref_number,
+        'description': ref.description,
+        'selling_price': float(ref.selling_price) if ref.selling_price else None,
+        'cost_price': float(ref.cost_price) if ref.cost_price else None,
+    }
+
+    header = ProjectHeader.query.get(ref.header_id)
+    if header:
+        result['hid'] = header.hid
+
+    eo = ref.eos  # uselist=False
+    if eo:
+        result['eo_id'] = eo.id
+        result['eo_number'] = eo.eo_number
+
+    # 发票的 ref_ids 是 JSON 文本，找出覆盖了本 REF 的那张
+    for inv in ProjectInvoice.query.filter_by(header_id=ref.header_id).all():
+        try:
+            if ref.id in [int(r) for r in (json.loads(inv.ref_ids) if inv.ref_ids else [])]:
+                result['invoice_id'] = inv.id
+                result['invoice_number'] = inv.invoice_number
+                break
+        except (ValueError, TypeError):
+            continue
+
+    return result
+
+
 @project_ref.route('/flight/quick-create/<int:header_id>', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -796,6 +838,13 @@ def quick_create_flight_ref(header_id):
         return jsonify({'success': False, 'error': 'passengers 不能为空'}), 400
     if not segments:
         return jsonify({'success': False, 'error': 'segments 不能为空'}), 400
+
+    # 幂等：同一 idempotency_key 已建过就原样返回首次结果，防止 agent 重试/超时重发建出重复订单
+    idem_key = (data.get('idempotency_key') or '').strip()[:64] or None
+    if idem_key:
+        existed = ProjectRef.query.filter_by(idempotency_key=idem_key).first()
+        if existed:
+            return jsonify(_idempotent_replay_result(existed))
 
     # 把干净的嵌套JSON转成与表单一致的 MultiDict（键名带 []），从而复用 _persist_flight_ref
     from werkzeug.datastructures import MultiDict
@@ -857,6 +906,24 @@ def quick_create_flight_ref(header_id):
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': f'创建失败：{str(e)}'}), 500
+
+    # 落幂等键。并发下同 key 可能已被另一个请求抢先写入（唯一索引冲突），
+    # 此时删掉本次多建的 REF，返回先到者的结果，保证「同 key 只有一个 REF」。
+    if idem_key:
+        from sqlalchemy.exc import IntegrityError
+        try:
+            ref.idempotency_key = idem_key
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            winner = ProjectRef.query.filter_by(idempotency_key=idem_key).first()
+            if winner and winner.id != ref.id:
+                try:
+                    db.session.delete(ref)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                return jsonify(_idempotent_replay_result(winner))
 
     result = {
         'success': True,

@@ -204,7 +204,19 @@ def init_exts(app):
     # 未授权处理器
     @login_manager.unauthorized_handler
     def unauthorized():
-        from flask import request, redirect, url_for, flash
+        from flask import request, redirect, url_for, flash, jsonify
+        from .auth.token_auth import wants_json_response
+
+        # API 客户端（AI agent / 脚本）必须收到 401 JSON，不能被 302 到登录页：
+        # 否则拿到的是登录页 HTML，会被误判成「token 过期」而错误降级到浏览器模式。
+        if wants_json_response(request):
+            return jsonify({
+                'success': False,
+                'error': 'unauthorized',
+                'message': 'token 缺失/无效/已停用，或该账号无权限。'
+                           '请调用 GET /api/hermes/whoami 自检，不要改用账号密码登录。',
+            }), 401
+
         flash('请先登录', 'warning')
         return redirect(url_for('auth_profile.staff_login', next=request.url))
 

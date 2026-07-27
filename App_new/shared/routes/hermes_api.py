@@ -11,9 +11,10 @@
 """
 
 from pathlib import Path
-from flask import Blueprint, jsonify, Response, current_app
-from flask_login import login_required
+from flask import Blueprint, jsonify, Response, current_app, request
+from flask_login import login_required, current_user
 
+from App_new.exts import db
 from App_new.utils.decorators import staff_only
 
 hermes_api = Blueprint('hermes_api', __name__, url_prefix='/api/hermes')
@@ -32,6 +33,24 @@ _CATALOG = {
     },
     'manual': '/api/hermes/manual',
     'groups': [
+        {
+            'name': '自检 / 查公司（下单前先用）',
+            'endpoints': [
+                {'method': 'GET', 'path': '/api/hermes/whoami',
+                 'input': '-',
+                 'desc': '★token 自检。任何请求返回 401/403 时先打这里：200=token 有效，'
+                         '问题在那个请求本身，原样报错误不要降级；401=token 失效，停止并报告；'
+                         '403=角色不对。**任何情况下都不要改用账号密码登录浏览器**'},
+                {'method': 'GET', 'path': '/api/hermes/companies/search',
+                 'input': 'query q, limit?, role?(customer|supplier|any)',
+                 'desc': '按公司名/简称/代码搜客户，返回 company_id + 联系人列表。'
+                         '替代开浏览器搜公司'},
+                {'method': 'GET', 'path': '/api/hermes/order/<hid|pid>/summary',
+                 'input': '-',
+                 'desc': '★下单后验收：一次返回项目全部关键事实（REF/供应商/售价/成本/'
+                         'EO号/发票号/乘客/航段/ref_count），逐项与原始订单要素比对'},
+            ],
+        },
         {
             'name': '机票行程工具 (Athina)',
             'endpoints': [
@@ -73,13 +92,19 @@ _CATALOG = {
             'name': '机票下单（闭环）',
             'endpoints': [
                 {'method': 'POST', 'path': '/projects/detail/<source_id>/copy',
-                 'input': '-', 'desc': '复制项目，返回 new_project_id/new_hid/new_ref_ids'},
+                 'input': 'JSON {with_refs?:bool}',
+                 'desc': '复制项目。★下单请传 {"with_refs": false}：只复制项目头+成员，'
+                         '不复制模板 REF/航段/乘客，省掉「先建后删」和脏数据窗口。'
+                         '返回 new_project_id/new_hid/new_ref_ids'},
                 {'method': 'POST', 'path': '/projects/<pid>/members/batch',
                  'input': 'JSON {members:[{member_name,member_name_en}]}',
                  'desc': '批量加成员（首个自动 Leader）'},
                 {'method': 'POST', 'path': '/projects/ref/flight/quick-create/<pid>',
-                 'input': 'JSON {supplier_id,leader_name,passengers,segments,auto_eo,auto_invoice}',
-                 'desc': '一键建 机票REF + EO + 发票'},
+                 'input': 'JSON {supplier_id,leader_name,passengers,segments,auto_eo,'
+                          'auto_invoice,idempotency_key?}',
+                 'desc': '一键建 机票REF + EO + 发票。★务必传 idempotency_key（同一订单固定不变，'
+                         '如 hermes-<消息ID>）：重试/超时重发会原样返回首次结果并带 '
+                         'idempotent_replay=true，不会重复建单'},
                 {'method': 'GET', 'path': '/projects/ref/flight/<rid>/segments',
                  'input': '-', 'desc': '航段列表（改单前先拿 segment_id）'},
                 {'method': 'GET', 'path': '/projects/ref/flight/<rid>/passengers',
@@ -152,11 +177,21 @@ _CATALOG = {
             ],
         },
     ],
+    # 鉴权失败的语义（2026-07-27 起不再 302 到登录页）
+    'auth_errors': {
+        '401': 'token 缺失/无效/已停用 → 停止并报告，等人换 token',
+        '403': 'token 有效但角色不是 staff → 停止并报告，换 token 也没用',
+        'other': '与鉴权无关（路径/参数/数据权限）→ 原样报出状态码和响应体',
+        'probe': 'GET /api/hermes/whoami',
+        'note': 'ApiToken 没有过期时间（只有 is_active 开关），所以「token 过期」这个判断'
+                '永远是错的。任何情况下都不要降级到账号密码登录浏览器。',
+    },
     # 尚未 JSON 化、Hermes 暂时调不了的动作，避免它误以为存在
     'not_available_yet': [
         '非机票 REF 下单（hotel/visa/tour/insurance/transport 无 quick-create）',
         '签证建项目 + 申请人填表数据 JSON 写入口',
-        '非机票 REF 改单、单笔收款/退款/预付创建、项目从零创建',
+        '非机票 REF 改单、单笔收款/退款/预付创建',
+        '项目从零创建（但可用 copy + with_refs:false 得到一个不含模板REF的干净项目）',
     ],
 }
 
@@ -172,6 +207,194 @@ def _manual_path() -> Path:
 def catalog():
     """结构化 JSON 接口目录，供 Hermes 程序化读取。"""
     return jsonify({'success': True, 'source': 'docs/Hermes_API手册.md', **_CATALOG})
+
+
+@hermes_api.route('/whoami', methods=['GET'])
+@login_required
+@staff_only
+def whoami():
+    """token 自检探针（最便宜的一次调用）。
+
+    Hermes 遇到任何疑似鉴权失败时**先打这里**再决定下一步：
+      - 200 → token 有效。故障出在刚才那个请求本身（路径/参数/数据权限），
+              把状态码与响应体原文报出来，**不要**降级到浏览器账号密码登录。
+      - 401 → token 确实无效/被停用，停止并报告，等人换 token。
+      - 403 → token 有效但角色不是 staff，换 token 也没用。
+    """
+    return jsonify({
+        'success': True,
+        'user_id': current_user.id,
+        'email': getattr(current_user, 'email', None),
+        'username': getattr(current_user, 'username', None),
+        'role': current_user.role.name if getattr(current_user, 'role', None) else None,
+        'note': 'token 有效。若业务接口仍失败，原因不是鉴权，请勿改用账号密码登录。',
+    })
+
+
+@hermes_api.route('/companies/search', methods=['GET'])
+@login_required
+@staff_only
+def search_companies():
+    """按公司名 / 简称 / 公司代码模糊搜索客户公司，返回公司 + 联系人。
+
+    下单前用它一次拿到 company_id 与联系人，替代「开浏览器搜公司」。
+    query: q（必填）, limit（默认 20，上限 50）, role（customer|supplier|any，默认 customer）
+    """
+    from App_new.business.projects.models.project import CustomerCompany
+
+    q = (request.args.get('q') or '').strip()
+    if not q:
+        return jsonify({'success': False, 'error': 'q 不能为空'}), 400
+
+    try:
+        limit = min(int(request.args.get('limit', 20)), 50)
+    except (TypeError, ValueError):
+        limit = 20
+
+    like = f'%{q}%'
+    query = CustomerCompany.query.filter(
+        CustomerCompany.status == 'active',
+        db.or_(
+            CustomerCompany.company_name.like(like),
+            CustomerCompany.alias.like(like),
+            CustomerCompany.company_code.like(like),
+        ),
+    )
+
+    # 默认只搜客户；供应商用 role=supplier（下单选供应商时用）
+    role = (request.args.get('role') or 'customer').lower()
+    if role == 'customer':
+        query = query.filter(CustomerCompany.is_customer.is_(True))
+    elif role == 'supplier':
+        query = query.filter(CustomerCompany.is_supplier.is_(True))
+
+    # 常用的排前面（click_count 是既有的使用热度字段）
+    rows = query.order_by(CustomerCompany.click_count.desc(),
+                          CustomerCompany.company_name).limit(limit).all()
+
+    return jsonify({
+        'success': True,
+        'count': len(rows),
+        'data': [{
+            'id': c.id,
+            'company_name': c.company_name,
+            'alias': c.alias,
+            'company_code': c.company_code,
+            'currency': c.currency,
+            'is_customer': c.is_customer,
+            'is_supplier': c.is_supplier,
+            # 公司表上的主联系人（旧字段，可能为空）
+            'contact_person': c.contact_person,
+            'contact_phone': c.contact_phone,
+            'contact_email': c.contact_email,
+            # 联系人表（推荐用这个）
+            'contacts': [ct.to_dict() for ct in c.contacts],
+        } for c in rows],
+    })
+
+
+@hermes_api.route('/order/<key>/summary', methods=['GET'])
+@login_required
+@staff_only
+def order_summary(key):
+    """下单验收专用：一次返回项目的全部关键事实，供 agent 逐项比对。
+
+    key 可以是 HID（如 H2601234）或项目主表 id。
+    返回 refs（含 ref_number/供应商/售价/成本/EO号/发票号/乘客/航段），
+    agent 应拿它与「解析阶段得到的原始订单要素」逐项断言，并校验 ref_count。
+    """
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    from App_new.business.flight.models.flight import (
+        ProjectFlightSegment, ProjectFlightPassenger,
+    )
+    from App_new.utils.permissions import can_access_project
+
+    # 先按 HID 查，查不到再按主键 id 查
+    header = ProjectHeader.query.filter_by(hid=key).first()
+    if not header and str(key).isdigit():
+        header = ProjectHeader.query.get(int(key))
+    if not header:
+        return jsonify({'success': False, 'error': f'项目不存在: {key}'}), 404
+    if not can_access_project(header, current_user):
+        return jsonify({'success': False, 'error': '无权访问此项目'}), 403
+
+    # 该项目下的发票：ref_ids 是 JSON 文本，逐张解析出它覆盖的 REF
+    import json
+    invoices = ProjectInvoice.query.filter_by(header_id=header.id).all()
+    ref_to_invoice = {}
+    for inv in invoices:
+        try:
+            for rid in (json.loads(inv.ref_ids) if inv.ref_ids else []):
+                ref_to_invoice[int(rid)] = inv
+        except (ValueError, TypeError):
+            continue
+
+    def _money(v):
+        return float(v) if v is not None else None
+
+    refs = []
+    for ref in header.refs:
+        eo = ref.eos  # uselist=False，单个或 None
+        inv = ref_to_invoice.get(ref.id)
+        segments = ProjectFlightSegment.query.filter_by(ref_id=ref.id) \
+            .order_by(ProjectFlightSegment.departure_time).all()
+        passengers = ProjectFlightPassenger.query.filter_by(ref_id=ref.id).all()
+
+        refs.append({
+            'ref_id': ref.id,
+            'ref_number': ref.ref_number,
+            'description': ref.description,
+            'ref_type': ref.ref_type.name if ref.ref_type else None,
+            'supplier_id': ref.supplier_id,
+            'supplier_name': ref.supplier.company_name if ref.supplier else None,
+            'selling_price': _money(ref.selling_price),
+            'cost_price': _money(ref.cost_price),
+            'currency': ref.currency,
+            'status': ref.status,
+            'payment_status': ref.payment_status,
+            'eo_number': eo.eo_number if eo else None,
+            'eo_status': eo.status if eo else None,
+            'invoice_number': inv.invoice_number if inv else None,
+            'invoice_amount': _money(inv.amount) if inv else None,
+            'invoice_status': inv.status if inv else None,
+            'passengers': [{
+                'id': p.id,
+                'name': p.name,
+                'passenger_type': p.passenger_type,
+                'selling_price': _money(p.selling_price),
+                'cost_price': _money(p.cost_price),
+                'baggage': p.baggage,
+                'ticket_number': p.ticket_number,
+                'pnr': p.pnr,
+                'passport_number': p.passport_number,
+            } for p in passengers],
+            'segments': [{
+                'id': s.id,
+                'flight_number': s.flight_number,
+                'airline_name': s.airline_name,
+                'departure_airport': s.departure_airport,
+                'arrival_airport': s.arrival_airport,
+                'departure_time': s.departure_time.isoformat() if s.departure_time else None,
+                'arrival_time': s.arrival_time.isoformat() if s.arrival_time else None,
+                'cabin_class': s.cabin_class,
+            } for s in segments],
+        })
+
+    return jsonify({
+        'success': True,
+        'project_id': header.id,
+        'hid': header.hid,
+        'company_id': header.company_id,
+        'company_name': header.company.company_name if header.company else None,
+        'contact': header.contact,
+        'leader_name': header.leader_name,
+        'currency': header.currency,
+        'status': header.status,
+        # ★ 验收必查：多出来的 REF 通常是复制来的模板 REF 没删，或重复建单
+        'ref_count': len(refs),
+        'refs': refs,
+    })
 
 
 @hermes_api.route('/manual', methods=['GET'])

@@ -5,7 +5,10 @@
 文末「尚不可用」列出还停留在表单/HTML、需要另补 JSON 接口的动作，供边界参考。
 
 > 初版为盘点整理，生成日期 2026-07-02。
-> 最后更新 2026-07-06：新增「按姓名反查项目」接口 `/projects/list/api/search-by-person`（见 §8）。
+> 2026-07-06：新增「按姓名反查项目」接口 `/projects/list/api/search-by-person`（见 §8）。
+> **最后更新 2026-07-27**：鉴权失败改返回 401/403 JSON（不再 302 到登录页）；
+> 新增 `whoami` 自检、`companies/search` 查公司、`order/<hid>/summary` 验收；
+> `copy` 支持 `with_refs:false`；`quick-create` 支持 `idempotency_key`。见 §0.1 与 §1。
 
 ---
 
@@ -27,18 +30,76 @@
 
 ---
 
+## 0.1 鉴权失败怎么办（**必读，不要猜**）
+
+**2026-07-27 起**：带 token / `/api/` 路径 / `Accept: application/json` 的请求，
+鉴权失败会返回明确的 **401 / 403 JSON**，不会再 302 到登录页。
+（此前一律 302，agent 拿到登录页 HTML 只能靠猜，容易误判成「token 过期」。）
+
+| 状态码 | 含义 | 正确动作 |
+|---|---|---|
+| **401** `unauthorized` | token 缺失 / 无效 / 已停用 | **停止并报告**，等人换 token |
+| **403** `forbidden_role` | token 有效，但账号角色不是 staff | **停止并报告**，换 token 也没用 |
+| 其它 4xx/5xx | 与鉴权无关（路径、参数、数据权限） | 原样报出状态码 + 响应体，**不要**当成鉴权问题 |
+
+**自检探针**：`GET /api/hermes/whoami`
+
+遇到任何疑似鉴权失败，先打这里，再决定下一步：
+
+- **200** → token 有效。故障在刚才那个请求本身，把状态码和响应体原文报出来。
+- **401 / 403** → 按上表处理。
+
+> ⚠️ **`ApiToken` 没有过期时间**（模型只有 `is_active` 开关）。
+> 所以「token 过期了」这个判断**永远是错的**。token 失效只可能是被停用、
+> 账号被禁用，或请求根本没带上 header。
+>
+> ⚠️ **任何情况下都不要降级到「用账号密码登录浏览器」**。
+> 那会把凭证写进日志，且掩盖真实故障。宁可停下来报错。
+
+---
+
+## 0.2 查公司（下单前第一步）
+
+`GET /api/hermes/companies/search?q=LEZE`
+
+| 参数 | 说明 |
+|---|---|
+| `q` | 必填。匹配公司名 / 简称 `alias` / 公司代码 `company_code` |
+| `limit` | 默认 20，上限 50 |
+| `role` | `customer`（默认）/ `supplier` / `any` |
+
+返回 `data[]`，每项含 `id`（即下单要用的 `company_id`）、`company_name`、`alias`、
+`currency`，以及 `contacts[]` 联系人列表（含姓名/职位/电话/邮箱/是否主要联系人）。
+按使用热度排序，常用公司排前面。
+
+> 用它替代「开浏览器搜公司」——一次请求拿到公司 ID 和联系人。
+
+---
+
 ## 1. 机票下单（核心闭环，已打通）
 
 标准流水线：**复制项目 → 重建人员 → 删旧REF → 一键建 REF+EO+发票**。
 
 | 步骤 | 接口 | 方法 | 入参 | 说明 |
 |---|---|---|---|---|
-| 复制项目 | `/projects/detail/<source_id>/copy` | POST | JSON/空 | 返回 `new_project_id / new_hid / new_ref_ids` |
-| 读成员 | `/projects/<pid>/members` | GET | — | 返回 `data[]`（含 id） |
-| 删成员 | `/projects/<pid>/members/<mid>` | DELETE | — | 逐个删 |
-| 批量加成员 | `/projects/<pid>/members/batch` | POST | JSON | 首个自动设 Leader |
-| 删旧REF | `/projects/ref/delete/<rid>?format=json` | POST | — | 删复制来的旧 REF |
-| **一键建单** | `/projects/ref/flight/quick-create/<pid>` | POST | JSON | 建机票 REF + EO + 发票 |
+| 0. 查公司 | `/api/hermes/companies/search?q=` | GET | — | 拿 `company_id` + 联系人 |
+| 1. 复制项目 | `/projects/detail/<source_id>/copy` | POST | `{"with_refs": false}` | **务必传 `with_refs:false`**，见下 |
+| 2. 读成员 | `/projects/<pid>/members` | GET | — | 返回 `data[]`（含 id） |
+| 3. 删成员 | `/projects/<pid>/members/<mid>` | DELETE | — | 逐个删 |
+| 4. 批量加成员 | `/projects/<pid>/members/batch` | POST | JSON | 首个自动设 Leader |
+| 5. **一键建单** | `/projects/ref/flight/quick-create/<pid>` | POST | JSON | 建机票 REF + EO + 发票 |
+| 6. **验收** | `/api/hermes/order/<hid>/summary` | GET | — | 逐项比对，见 §1.1 |
+
+**关于 `with_refs:false`（2026-07-27 新增）**
+
+`copy` 默认会连模板项目的 REF/航段/乘客一起复制过来，这些模板 REF 对新订单毫无用处，
+过去要靠「建完新单再回头删」收场——顺序颠倒，中途失败就留下脏数据。
+
+传 `{"with_refs": false}` 后只复制项目头 + 成员，**根本不产生模板 REF**，
+上表里原来的「删旧REF」一步整个消失。
+
+> 老流程（先复制REF再删）仍然可用：不传该参数即保持原行为，返回的 `new_ref_ids`
+> 就是复制来的 REF。但自动化下单一律用 `with_refs:false`。
 
 **一键建单请求体**：
 ```json
@@ -57,10 +118,38 @@
      "arrival_date": "2026-07-03", "arrival_time": "08:25"}
   ],
   "auto_eo": true,
-  "auto_invoice": true
+  "auto_invoice": true,
+  "idempotency_key": "hermes-<订单来源消息ID>"
 }
 ```
 返回：`{ref_id, ref_number, eo_number, invoice_number, eo_error?, invoice_error?}`。
+
+**`idempotency_key`（2026-07-27 新增，强烈建议必传）**
+
+同一笔订单**固定不变**的字符串（≤64 字符），例如 `hermes-<来源消息ID>`，
+或 `<hid>-<乘客名>-<航班号>-<日期>` 的哈希。
+
+- 首次请求正常建单，并把 key 记在 REF 上。
+- 重试 / 超时重发 / 网络抖动导致的重复请求，**原样返回首次结果**，
+  额外带 `"idempotent_replay": true`，不会再建一个 REF。
+- 不传则无保护——重复 POST 会实打实建出两个 REF（各带一份 EO + 发票）。
+
+> 重试时必须复用**同一个 key**。每次重试都换新 key = 没有幂等保护。
+
+### 1.1 下单验收（`GET /api/hermes/order/<hid|pid>/summary`）
+
+一次返回项目的全部关键事实，供逐项断言，不必自己调 4 个接口拼装。
+
+返回顶层：`hid / company_id / company_name / contact / leader_name / currency / status /
+ref_count / refs[]`；每个 ref 含 `ref_number / supplier_id / supplier_name /
+selling_price / cost_price / eo_number / invoice_number / passengers[] / segments[]`。
+
+**验收规则**：拿它与**解析阶段得到的原始订单要素**逐项比对——
+乘客姓名、护照号、航班号、起降机场、日期时间、售价、成本、供应商 ID、行李。
+全部一致才算成功；任何一项不符，原样列出「期望 vs 实际」，**不要自行修补**。
+
+> ⚠️ 必查 `ref_count`：正常单 REF 订单应为 **1**。多出来说明重复建单，
+> 或模板 REF 没清干净（这正是 `with_refs:false` 要解决的问题）。
 
 **批量加成员请求体**：
 ```json
