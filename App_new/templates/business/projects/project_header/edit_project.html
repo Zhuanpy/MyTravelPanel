@@ -104,13 +104,13 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>最后更�?/label>
+                            <label>最后更新</label>
                             <input type="text" class="form-control" value="{{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}" readonly>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>项目状�?/label>
+                            <label>项目状态</label>
                             <select class="form-control" name="project_status">
                                 <option value="active" {% if project.status in ('active', 'draft') %}selected{% endif %}>进行中</option>
                                 <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>已完成</option>

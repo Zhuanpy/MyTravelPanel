@@ -46,7 +46,7 @@
                             <strong>REF编号:</strong> {{ ref.ref_number }}
                         </div>
                         <div class="col-md-3">
-                            <strong>类型:</strong> {{ ref.ref_type.name if ref.ref_type else '未分�? }}
+                            <strong>类型:</strong> {{ ref.ref_type.name if ref.ref_type else '未分类' }}
                         </div>
                         <div class="col-md-3">
                             <strong>售价:</strong> 
@@ -55,11 +55,11 @@
                             </span>
                         </div>
                         <div class="col-md-3">
-                            <strong>付款状�?</strong> 
+                            <strong>付款状态:</strong> 
                             <span class="badge {% if ref.payment_status == 'paid' %}bg-success{% elif ref.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %}">
-                                {% if ref.payment_status == 'paid' %}已付�?
+                                {% if ref.payment_status == 'paid' %}已付款
                                 {% elif ref.payment_status == 'partial' %}部分付款
-                                {% else %}未付�?
+                                {% else %}未付款
                                 {% endif %}
                             </span>
                         </div>
@@ -67,13 +67,13 @@
                     
                     <div class="row mt-3">
                         <div class="col-md-3">
-                            <strong>已收�?</strong> 
+                            <strong>已收款:</strong> 
                             <span class="text-primary">
                                 {{ ref.currency }} {{ "%.2f"|format(total_received) }}
                             </span>
                         </div>
                         <div class="col-md-3">
-                            <strong>未收�?</strong> 
+                            <strong>未收款:</strong> 
                             <span class="text-danger">
                                 {{ ref.currency }} {{ "%.2f"|format(unpaid_amount) }}
                             </span>
@@ -89,7 +89,7 @@
                             </span>
                         </div>
                         <div class="col-md-3">
-                            <strong>收款记录�?</strong> 
+                            <strong>收款记录数:</strong> 
                             <span class="text-secondary">{{ receipts|length }}</span>
                         </div>
                     </div>
@@ -113,8 +113,8 @@
                                     <th>收款金额</th>
                                     <th>付款方式</th>
                                     <th>收款日期</th>
-                                    <th>付款�?/th>
-                                    <th>状�?/th>
+                                    <th>付款方</th>
+                                    <th>状态</th>
                                     <th>创建时间</th>
                                     <th>操作</th>
                                 </tr>
@@ -189,7 +189,7 @@
 
 <script>
 function deleteReceipt(receiptId) {
-    if (confirm('确定要删除这条收款记录吗？此操作不可恢复�?)) {
+    if (confirm('确定要删除这条收款记录吗？此操作不可恢复。')) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/projects/receipt/${receiptId}/delete`;
