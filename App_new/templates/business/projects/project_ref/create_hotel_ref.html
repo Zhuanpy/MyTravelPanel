@@ -146,11 +146,52 @@
 
         <!-- Pax Selection -->
         <div class="form-section">
-            <div class="section-title"><i class="fas fa-users me-2"></i>住客选择</div>
-            {% if members and members|length > 0 %}
+            <div class="section-title d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-2"></i>住客选择</span>
+                {# 住客不在项目人员名单里时，直接在这里补录，落到 ProjectMember（其它REF也能共用） #}
+                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 11px;" onclick="toggleAddGuest()">
+                    <i class="fas fa-plus me-1"></i>手动添加住客
+                </button>
+            </div>
             {% set selected_pax = extra_info.pax_names if extra_info and extra_info.pax_names else [] %}
             {% set leader_id = extra_info.leader_id if extra_info and extra_info.leader_id else '' %}
             <input type="hidden" name="leader_id" id="leader_id" value="{{ leader_id }}">
+
+            <!-- 手动添加住客表单（默认收起） -->
+            <div id="addGuestBox" class="border rounded p-2 mb-2" style="display: none; background: #F7FAFC;">
+                <div class="row g-2 align-items-end">
+                    <div class="col-2">
+                        <label class="form-label small mb-1">称谓</label>
+                        <select id="new_guest_title" class="form-select form-select-sm">
+                            <option value="">--</option>
+                            <option value="MR">MR</option>
+                            <option value="MS">MS</option>
+                            <option value="MRS">MRS</option>
+                            <option value="MISS">MISS</option>
+                            <option value="MASTER">MASTER</option>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small mb-1">姓名 <span class="text-danger">*</span></label>
+                        <input type="text" id="new_guest_name" class="form-control form-control-sm" placeholder="如: ZHANG SAN">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label small mb-1">护照号</label>
+                        <input type="text" id="new_guest_passport" class="form-control form-control-sm font-monospace" maxlength="50">
+                    </div>
+                    <div class="col-3 d-flex gap-1">
+                        <button type="button" class="btn btn-primary btn-sm flex-fill" onclick="addGuest()" id="addGuestBtn">添加</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAddGuest()">取消</button>
+                    </div>
+                </div>
+                <div class="small text-muted mt-1" style="font-size: 11px;">
+                    添加后会成为本项目的人员，其它REF也能选到；添加即自动勾选为本次住客。
+                </div>
+            </div>
+
+            <div id="noMemberHint" class="alert alert-info py-2 mb-2" style="font-size: 12px; {% if members and members|length > 0 %}display: none;{% endif %}">
+                <i class="fas fa-info-circle me-2"></i>项目中没有成员，可用上方「手动添加住客」补录。
+            </div>
             <div style="max-height: 200px; overflow-y: auto;">
                 <table class="table table-sm table-hover pax-table mb-0">
                     <thead style="position: sticky; top: 0;">
@@ -162,7 +203,7 @@
                             <th style="width: 50px;">主住客</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="paxTableBody">
                         {% for member in members %}
                         <tr class="{% if member.id|string == leader_id|string %}table-warning{% endif %}">
                             <td><input type="checkbox" name="pax_names" value="{{ member.id }}" {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %} onchange="updateDescription()"></td>
@@ -183,9 +224,6 @@
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <div class="alert alert-info py-2 mb-0" style="font-size: 12px;"><i class="fas fa-info-circle me-2"></i>项目中没有成员。</div>
-            {% endif %}
         </div>
 
         <!-- Pricing -->
@@ -380,18 +418,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('selectAllPax');
     if (selectAllCheckbox) selectAllCheckbox.addEventListener('change', function() { document.querySelectorAll('input[name="pax_names"]').forEach(cb => cb.checked = this.checked); updateDescription(); });
 
-    document.querySelectorAll('.set-leader-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const memberId = this.dataset.memberId;
-            document.getElementById('leader_id').value = memberId;
-            document.querySelectorAll('.set-leader-btn').forEach(b => { b.classList.remove('btn-warning'); b.classList.add('btn-outline-secondary'); });
-            document.querySelectorAll('.pax-table tbody tr').forEach(row => row.classList.remove('table-warning'));
-            this.classList.remove('btn-outline-secondary'); this.classList.add('btn-warning');
-            this.closest('tr').classList.add('table-warning');
-            const checkbox = this.closest('tr').querySelector('input[name="pax_names"]');
-            if (checkbox) checkbox.checked = true;
-            updateDescription();
-        });
+    // 事件委托：手动添加的住客行是后插进来的，逐个绑定会漏掉
+    document.getElementById('paxTableBody').addEventListener('click', function(e) {
+        const btn = e.target.closest('.set-leader-btn');
+        if (!btn) return;
+        document.getElementById('leader_id').value = btn.dataset.memberId;
+        document.querySelectorAll('.set-leader-btn').forEach(b => { b.classList.remove('btn-warning'); b.classList.add('btn-outline-secondary'); });
+        document.querySelectorAll('.pax-table tbody tr').forEach(row => row.classList.remove('table-warning'));
+        btn.classList.remove('btn-outline-secondary'); btn.classList.add('btn-warning');
+        btn.closest('tr').classList.add('table-warning');
+        const checkbox = btn.closest('tr').querySelector('input[name="pax_names"]');
+        if (checkbox) checkbox.checked = true;
+        updateDescription();
     });
 
     document.getElementById('hotelRefForm').addEventListener('submit', function(e) { calculateTotals(); document.getElementById('extra_info_json').value = JSON.stringify(buildExtraInfo()); });
@@ -401,6 +439,70 @@ document.addEventListener('DOMContentLoaded', function() {
     if (supplierOption && supplierOption.dataset.type) { document.getElementById('supplier_type_filter').value = supplierOption.dataset.type; filterSuppliers(); }
     {% endif %}
 });
+
+// ---- 手动添加住客 ----
+// 住客不在项目人员名单里时用。直接建 ProjectMember（护照存 id_number），
+// 这样其它REF也能选到，护照/打印链路复用现有逻辑，不另开一套临时住客数据。
+function _esc(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function toggleAddGuest() {
+    const box = document.getElementById('addGuestBox');
+    const show = box.style.display === 'none';
+    box.style.display = show ? '' : 'none';
+    if (show) document.getElementById('new_guest_name').focus();
+}
+
+function addGuest() {
+    const nameInput = document.getElementById('new_guest_name');
+    const name = (nameInput.value || '').trim();
+    if (!name) { alert('请填写住客姓名'); nameInput.focus(); return; }
+
+    const btn = document.getElementById('addGuestBtn');
+    btn.disabled = true; btn.textContent = '添加中...';
+
+    const payload = {
+        member_name: name,
+        title: document.getElementById('new_guest_title').value || null,
+        id_number: (document.getElementById('new_guest_passport').value || '').trim() || null
+    };
+    if (payload.id_number) payload.id_type = 'passport';
+
+    fetch(`/projects/{{ header_id }}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) { alert('添加失败: ' + (data.message || '未知错误')); return; }
+        appendGuestRow(data.data);
+        // 清空表单，留着框继续加下一位
+        nameInput.value = '';
+        document.getElementById('new_guest_passport').value = '';
+        document.getElementById('new_guest_title').value = '';
+        nameInput.focus();
+    })
+    .catch(err => { console.error(err); alert('添加住客失败'); })
+    .finally(() => { btn.disabled = false; btn.textContent = '添加'; });
+}
+
+function appendGuestRow(m) {
+    const tbody = document.getElementById('paxTableBody');
+    const tr = document.createElement('tr');
+    const label = (m.title ? m.title + ' ' : '') + (m.member_name || '');
+    tr.innerHTML =
+        `<td><input type="checkbox" name="pax_names" value="${m.id}" checked onchange="updateDescription()"></td>` +
+        `<td>${_esc(label)}</td>` +
+        `<td><input type="text" class="form-control form-control-sm font-monospace passport-input" ` +
+            `name="guest_passport_${m.id}" value="${_esc(m.id_number || '')}" maxlength="50"></td>` +
+        `<td><span class="type-badge type-adt">成人</span></td>` +
+        `<td class="text-center"><button type="button" class="btn btn-sm py-0 px-1 btn-outline-secondary set-leader-btn" ` +
+            `data-member-id="${m.id}" title="设为主住客"><i class="fas fa-star" style="font-size: 10px;"></i></button></td>`;
+    tbody.appendChild(tr);
+    const hint = document.getElementById('noMemberHint');
+    if (hint) hint.style.display = 'none';
+    updateDescription();
+}
 
 function quickCreateEO(refId) {
     if (confirm('确定要为此酒店REF生成EO吗？')) {
