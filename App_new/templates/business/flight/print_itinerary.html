@@ -71,6 +71,8 @@
         body.hide-passport .col-passport { display: none !important; }
         body.hide-seat .field-seat { display: none !important; }
         body.hide-ticket .field-ticket { display: none !important; }
+        body.hide-letterhead .company-header { display: none !important; }
+        body.hide-stamp .stamp-row { display: none !important; }
 
         /* 主体 */
         .print-page {
@@ -102,6 +104,25 @@
         .company-info { text-align: right; font-size: 11px; }
         .company-info .company-name-container h1 { font-size: 14px; margin: 0; line-height: 1.3; }
         .company-info .company-details-container p { margin: 1px 0; font-size: 10px; color: #555; }
+        .company-info .company-name-cn { font-size: 13px; font-weight: bold; }
+        .company-info .company-name-en { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
+        .company-info div { line-height: 1.5; }
+
+        /* 电子章 */
+        .stamp-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            page-break-inside: avoid;
+        }
+        .company-stamp {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .company-stamp img { max-width: 80px; height: auto; }
+        .company-stamp p { margin: -15px 0 0 0; font-size: 10px; white-space: nowrap; }
 
         /* 标题 */
         .itinerary-title { text-align: center; margin: 15px 0; }
@@ -288,6 +309,8 @@
         <label><input type="checkbox" id="toggle-passport" checked onchange="toggleField('passport', this.checked)"> 护照号码</label>
         <label><input type="checkbox" id="toggle-seat" checked onchange="toggleField('seat', this.checked)"> 座位</label>
         <label><input type="checkbox" id="toggle-ticket" checked onchange="toggleField('ticket', this.checked)"> 票号</label>
+        <label><input type="checkbox" id="toggle-letterhead" checked onchange="toggleField('letterhead', this.checked)"> 公司抬头</label>
+        <label><input type="checkbox" id="toggle-stamp" checked onchange="toggleField('stamp', this.checked)"> 公司盖章</label>
     </div>
 </div>
 <script>
@@ -297,7 +320,39 @@
     }
 </script>
 
+{% set company = get_company_info() %}
 <div class="print-page">
+    <!-- 公司抬头（可勾选打印） -->
+    <div class="company-header">
+        <div class="company-logo">
+            {% if '192.168' in request.host or 'localhost' in request.host %}
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+            {% elif company and company.logo_path %}
+                <img src="{{ url_for('static', filename=company.logo_path) }}"
+                     alt="{{ company.company_name }}"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
+            {% else %}
+                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
+            {% endif %}
+            {% if company and company.company_short_name %}
+            <div class="logo-text-section">
+                <div class="company-abbrev-en">{{ company.company_short_name }}</div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="company-info">
+            {% if company %}
+            {% if company.company_name_cn %}<div class="company-name-cn">{{ company.company_name_cn }}</div>{% endif %}
+            <div class="company-name-en">{{ company.company_name or 'JOYFUL ESCAPES PTE. LTD' }}</div>
+            {% if company.ta_license %}<div>TA License No.: {{ company.ta_license }}</div>{% endif %}
+            {% if company.email %}<div>Email: {{ company.email }}</div>{% endif %}
+            {% if company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
+            {% else %}
+            <div class="company-name-en">JOYFUL ESCAPES PTE. LTD</div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- 标题 -->
     <div class="itinerary-title">
         <h2>Electronic Ticket Itinerary</h2>
@@ -441,6 +496,22 @@
     {% else %}
     <div class="seg-no-data">No flight data / 暂无航班数据</div>
     {% endfor %}
+
+    <!-- 公司盖章（可勾选打印） -->
+    <div class="stamp-row">
+        <div class="company-stamp">
+            {% if '192.168' in request.host or 'localhost' in request.host %}
+            <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" alt="Company Stamp">
+            {% elif company and company.stamp_path %}
+            <img src="{{ url_for('static', filename=company.stamp_path) }}"
+                 alt="Company Stamp"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/company digital stamp.png') }}';">
+            {% else %}
+            <img src="{{ url_for('static', filename='JE/company digital stamp.png') }}" alt="Company Stamp">
+            {% endif %}
+            <p>For and on behalf of<br><strong>{{ company.company_name if company and company.company_name else 'JOYFUL ESCAPES PTE. LTD' }}</strong></p>
+        </div>
+    </div>
 
     <!-- 底部说明 -->
     <div class="footer-note">
