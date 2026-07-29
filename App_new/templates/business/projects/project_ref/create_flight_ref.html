@@ -76,7 +76,7 @@
         <input type="hidden" name="header_id" value="{{ header_id }}">
         <input type="hidden" name="ref_id" value="{{ ref_id or '' }}">
         <input type="hidden" name="name" value="{{ ref.name if ref is defined and ref else '机票订单' }}">
-        <input type="hidden" name="leader_name" id="leader_name" value="{{ ref.leader_name if ref is defined and ref else '' }}">
+        <input type="hidden" name="leader_name" id="leader_name" value="{{ ref.leader_name if ref and ref.leader_name is not none else '' }}">
         <input type="hidden" name="description" value="{{ ref.description if ref is defined and ref else '机票订单' }}">
 
         <!-- 航段解析 - 隐藏 -->
@@ -196,7 +196,7 @@
         <!-- Remarks -->
         <div class="form-section project-only">
             <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
-            <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref is defined and ref else '' }}</textarea>
+            <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref and ref.remarks is not none else '' }}</textarea>
         </div>
 
         <!-- Actions -->

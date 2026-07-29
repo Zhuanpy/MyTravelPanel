@@ -44,7 +44,7 @@
                 <div class="mb-3">
                     <label class="form-label">模板名称 <span class="text-danger">*</span></label>
                     <input type="text" name="name" class="form-control" 
-                           value="{{ template.name if template else '' }}" 
+                           value="{{ template.name if template and template.name is not none else '' }}" 
                            placeholder="如：机票确认邮件" required>
                 </div>
 
@@ -72,7 +72,7 @@
                 <div class="mb-3">
                     <label class="form-label">邮件主题 <span class="text-danger">*</span></label>
                     <input type="text" name="subject" class="form-control"
-                           value="{{ template.subject if template else '' }}"
+                           value="{{ template.subject if template and template.subject is not none else '' }}"
                            placeholder="如：[{hid}] 机票确认 或 [{invoice_number}] Invoice" required>
                     <small class="text-muted">变量按「发送页面」生效，详见下方说明。请让分类与发送页面对应。</small>
                 </div>
@@ -80,7 +80,7 @@
                 <div class="mb-3">
                     <label class="form-label">邮件正文 <span class="text-danger">*</span></label>
                     <div id="emailBodyQuill"></div>
-                    <textarea name="body" id="emailBody" class="form-control d-none">{{ template.body if template else '' }}</textarea>
+                    <textarea name="body" id="emailBody" class="form-control d-none">{{ template.body if template and template.body is not none else '' }}</textarea>
                     <small class="text-muted">支持字体样式（加粗 / 颜色 / 字号 / 对齐等），可使用下方列出的变量</small>
                 </div>
 

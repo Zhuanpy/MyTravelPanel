@@ -45,7 +45,7 @@
                             <div class="col-md-6">
                                 <label for="package_name" class="form-label">套餐名称 <span class="text-danger">*</span></label>
                                 <input type="text" id="package_name" name="package_name" class="form-control" required 
-                                       placeholder="请输入套餐名称" value="{{ form.package_name if form else '' }}">
+                                       placeholder="请输入套餐名称" value="{{ form.package_name if form and form.package_name is not none else '' }}">
                             </div>
                             <div class="col-md-6">
                                 <label for="currency" class="form-label">币种</label>
@@ -63,7 +63,7 @@
                             <div class="col-md-6">
                                 <label for="adult_count" class="form-label">成人数量 <span class="text-danger">*</span></label>
                                 <input type="number" id="adult_count" name="adult_count" class="form-control" required
-                                       min="0" max="100" placeholder="成人数量" value="{{ form.adult_count if form else '' }}">
+                                       min="0" max="100" placeholder="成人数量" value="{{ form.adult_count if form and form.adult_count is not none else '' }}">
                             </div>
                             <div class="col-md-6">
                                 <label for="child_count" class="form-label">儿童数量</label>
@@ -96,7 +96,7 @@
                         <div class="mb-3">
                             <label for="remarks" class="form-label">备注</label>
                             <textarea id="remarks" name="remarks" class="form-control" rows="3" 
-                                      placeholder="请输入备注信息">{{ form.remarks if form else '' }}</textarea>
+                                      placeholder="请输入备注信息">{{ form.remarks if form and form.remarks is not none else '' }}</textarea>
                         </div>
                     </div>
 

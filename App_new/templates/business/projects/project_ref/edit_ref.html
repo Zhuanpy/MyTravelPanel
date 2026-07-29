@@ -50,7 +50,7 @@
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>酒店名称 <span class="text-danger">*</span></label>
-                                    <input type="text" name="hotel_name" class="form-control" required value="{{ hotel_info.hotel_name if hotel_info else '' }}">
+                                    <input type="text" name="hotel_name" class="form-control" required value="{{ hotel_info.hotel_name if hotel_info and hotel_info.hotel_name is not none else '' }}">
                                     <div class="invalid-feedback">请输入酒店名�?/div>
                                 </div>
                             </div>
@@ -60,7 +60,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>房型</label>
-                                    <input type="text" name="room_type" class="form-control" value="{{ hotel_info.room_type if hotel_info else '' }}">
+                                    <input type="text" name="room_type" class="form-control" value="{{ hotel_info.room_type if hotel_info and hotel_info.room_type is not none else '' }}">
                                 </div>
                             </div>
                         </div>
@@ -69,14 +69,14 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>入住日期 <span class="text-danger">*</span></label>
-                                    <input type="date" name="checkin_date" class="form-control" required max="2050-12-31" value="{{ hotel_info.checkin_date if hotel_info else '' }}">
+                                    <input type="date" name="checkin_date" class="form-control" required max="2050-12-31" value="{{ hotel_info.checkin_date if hotel_info and hotel_info.checkin_date is not none else '' }}">
                                     <div class="invalid-feedback">请选择入住日期</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>退房日�?<span class="text-danger">*</span></label>
-                                    <input type="date" name="checkout_date" class="form-control" required max="2050-12-31" value="{{ hotel_info.checkout_date if hotel_info else '' }}">
+                                    <input type="date" name="checkout_date" class="form-control" required max="2050-12-31" value="{{ hotel_info.checkout_date if hotel_info and hotel_info.checkout_date is not none else '' }}">
                                     <div class="invalid-feedback">请选择退房日�?/div>
                                 </div>
                             </div>
@@ -150,7 +150,7 @@
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>备注信息</label>
-                                    <textarea name="guest_info" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、客人信息等">{{ hotel_info.guest_info if hotel_info else '' }}</textarea>
+                                    <textarea name="guest_info" class="form-control" rows="3" placeholder="请输入备注信息，如特殊要求、客人信息等">{{ hotel_info.guest_info if hotel_info and hotel_info.guest_info is not none else '' }}</textarea>
                                 </div>
                             </div>
                         </div>

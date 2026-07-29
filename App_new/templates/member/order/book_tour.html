@@ -342,18 +342,18 @@
                         <div class="col-md-6 mb-3">
                             <label for="contact_name" class="form-label">联系人姓名 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="contact_name" name="contact_name"
-                                   value="{{ current_user.username if current_user else '' }}" required>
+                                   value="{{ current_user.username if current_user and current_user.username is not none else '' }}" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="contact_phone" class="form-label">联系电话 <span class="text-danger">*</span></label>
                             <input type="tel" class="form-control" id="contact_phone" name="contact_phone"
-                                   value="{{ user_profile.phone if user_profile else '' }}" required>
+                                   value="{{ user_profile.phone if user_profile and user_profile.phone is not none else '' }}" required>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label for="contact_email" class="form-label">电子邮箱 <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="contact_email" name="contact_email"
-                               value="{{ current_user.email if current_user else '' }}" required>
+                               value="{{ current_user.email if current_user and current_user.email is not none else '' }}" required>
                     </div>
                 </div>
 

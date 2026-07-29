@@ -77,13 +77,13 @@
                     <label class="form-label">Amount 金额 <span class="text-danger">*</span></label>
                     <input type="number" class="form-control" name="amount" id="amount"
                            step="0.01" min="0" placeholder="0.00"
-                           value="{{ expense.amount if expense else '' }}" required>
+                           value="{{ expense.amount if expense and expense.amount is not none else '' }}" required>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Description 费用描述 <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="description" id="description"
                            placeholder="e.g. Office rent for January 一月份办公室租金"
-                           value="{{ expense.description if expense else '' }}" required>
+                           value="{{ expense.description if expense and expense.description is not none else '' }}" required>
                 </div>
             </div>
 
@@ -119,7 +119,7 @@
                     <label class="form-label">Payment Reference 付款参考号</label>
                     <input type="text" class="form-control" name="payment_reference" id="payment_reference"
                            placeholder="e.g. TT-202601100001"
-                           value="{{ expense.payment_reference if expense else '' }}">
+                           value="{{ expense.payment_reference if expense and expense.payment_reference is not none else '' }}">
                 </div>
             </div>
 
@@ -133,13 +133,13 @@
                     <label class="form-label">Payee Name 收款方名称</label>
                     <input type="text" class="form-control" name="payee_name" id="payee_name"
                            placeholder="e.g. ABC Property Pte Ltd"
-                           value="{{ expense.payee_name if expense else '' }}">
+                           value="{{ expense.payee_name if expense and expense.payee_name is not none else '' }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Payee Account 收款方账号</label>
                     <input type="text" class="form-control" name="payee_account" id="payee_account"
                            placeholder="e.g. 123-456-789"
-                           value="{{ expense.payee_account if expense else '' }}">
+                           value="{{ expense.payee_account if expense and expense.payee_account is not none else '' }}">
                 </div>
             </div>
 
@@ -151,7 +151,7 @@
             <div class="row mb-4">
                 <div class="col-12">
                     <textarea class="form-control" name="remarks" id="remarks" rows="3"
-                              placeholder="Optional remarks 可选备注...">{{ expense.remarks if expense else '' }}</textarea>
+                              placeholder="Optional remarks 可选备注...">{{ expense.remarks if expense and expense.remarks is not none else '' }}</textarea>
                 </div>
             </div>
 

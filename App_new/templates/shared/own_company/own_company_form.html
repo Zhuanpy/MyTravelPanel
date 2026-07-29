@@ -22,7 +22,7 @@
                         <i class="fas fa-building"></i> 公司英文名/全称 <span style="color: red;">*</span>
                     </label>
                     <input type="text" class="visa-form-control" id="company_name" name="company_name" 
-                           value="{{ company.company_name if company else '' }}" required 
+                           value="{{ company.company_name if company and company.company_name is not none else '' }}" required 
                            placeholder="如：JOYFUL ESCAPES PTE LTD">
                 </div>
                 
@@ -32,7 +32,7 @@
                             <i class="fas fa-language"></i> 公司中文名
                         </label>
                         <input type="text" class="visa-form-control" id="company_name_cn" name="company_name_cn" 
-                               value="{{ company.company_name_cn if company else '' }}" 
+                               value="{{ company.company_name_cn if company and company.company_name_cn is not none else '' }}" 
                                placeholder="如：悦行假期有限公司">
                     </div>
                     
@@ -41,7 +41,7 @@
                             <i class="fas fa-signature"></i> 公司简称
                         </label>
                         <input type="text" class="visa-form-control" id="company_short_name" name="company_short_name" 
-                               value="{{ company.company_short_name if company else '' }}" 
+                               value="{{ company.company_short_name if company and company.company_short_name is not none else '' }}" 
                                placeholder="如：悦行假期">
                     </div>
                 </div>
@@ -52,7 +52,7 @@
                             <i class="fas fa-phone"></i> 联系电话
                         </label>
                         <input type="text" class="visa-form-control" id="phone" name="phone"
-                               value="{{ company.phone if company else '' }}" required>
+                               value="{{ company.phone if company and company.phone is not none else '' }}" required>
                     </div>
 
                     <div class="visa-form-group">
@@ -60,7 +60,7 @@
                             <i class="fas fa-envelope"></i> 电子邮箱
                         </label>
                         <input type="email" class="visa-form-control" id="email" name="email"
-                               value="{{ company.email if company else '' }}" required>
+                               value="{{ company.email if company and company.email is not none else '' }}" required>
                     </div>
                 </div>
 
@@ -69,7 +69,7 @@
                         <i class="fas fa-globe"></i> 公司网址
                     </label>
                     <input type="text" class="visa-form-control" id="website" name="website"
-                           value="{{ company.website if company else '' }}"
+                           value="{{ company.website if company and company.website is not none else '' }}"
                            placeholder="如：https://www.example.com">
                 </div>
 
@@ -78,7 +78,7 @@
                         <i class="fas fa-map-marker-alt"></i> 公司地址
                     </label>
                     <input type="text" class="visa-form-control" id="address" name="address"
-                           value="{{ company.address if company else '' }}" required>
+                           value="{{ company.address if company and company.address is not none else '' }}" required>
                 </div>
 
                 <div class="visa-grid-2">
@@ -87,7 +87,7 @@
                             <i class="fas fa-id-card"></i> TA License Number
                         </label>
                         <input type="text" class="visa-form-control" id="ta_license" name="ta_license"
-                               value="{{ company.ta_license if company else '' }}"
+                               value="{{ company.ta_license if company and company.ta_license is not none else '' }}"
                                placeholder="如：TA03652">
                     </div>
 
@@ -96,7 +96,7 @@
                             <i class="fas fa-fingerprint"></i> UEN
                         </label>
                         <input type="text" class="visa-form-control" id="uen" name="uen"
-                               value="{{ company.uen if company else '' }}"
+                               value="{{ company.uen if company and company.uen is not none else '' }}"
                                placeholder="如：202012345A">
                     </div>
                 </div>
@@ -106,7 +106,7 @@
                         <i class="fas fa-align-left"></i> 公司简介
                     </label>
                     <textarea class="visa-form-control" id="company_description" name="company_description"
-                              rows="3" required>{{ company.company_description if company else '' }}</textarea>
+                              rows="3" required>{{ company.company_description if company and company.company_description is not none else '' }}</textarea>
                 </div>
                 
                 <div class="visa-grid-2">

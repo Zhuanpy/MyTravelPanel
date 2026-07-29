@@ -97,7 +97,7 @@
                     </select>
                 </div>
             </div>
-            <input type="hidden" name="description" id="description" value="{{ ref.description if ref else '' }}">
+            <input type="hidden" name="description" id="description" value="{{ ref.description if ref and ref.description is not none else '' }}">
             <input type="hidden" name="detailed_description" id="detailed_description">
         </div>
 
@@ -206,7 +206,7 @@
         <!-- Remarks -->
         <div class="form-section">
             <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
-            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref else '' }}</textarea>
+            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref and ref.remarks is not none else '' }}</textarea>
         </div>
 
         <!-- Actions -->

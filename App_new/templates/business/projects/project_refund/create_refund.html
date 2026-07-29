@@ -128,22 +128,22 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small mb-1">收款人 / 客户</label>
-                                <input type="text" name="payee_name" class="form-control form-control-sm" value="{{ refund.payee_name if refund else '' }}"
+                                <input type="text" name="payee_name" class="form-control form-control-sm" value="{{ refund.payee_name if refund and refund.payee_name is not none else '' }}"
                                        placeholder="{{ defaults.payee_auto }}"
                                        title="留空自动按规则取值：公司客户→公司名，个人/现金→联系人（当前：{{ defaults.payee_auto }}）">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small mb-1">联系方式</label>
-                                <input type="text" name="payee_contact" class="form-control form-control-sm" value="{{ refund.payee_contact if refund else '' }}" placeholder="电话 / 邮箱">
+                                <input type="text" name="payee_contact" class="form-control form-control-sm" value="{{ refund.payee_contact if refund and refund.payee_contact is not none else '' }}" placeholder="电话 / 邮箱">
                             </div>
 
                             <div class="col-md-6">
                                 <label class="form-label small mb-1">退款原因 (Reason)</label>
-                                <input type="text" name="reason" class="form-control form-control-sm" value="{{ refund.reason if refund else '' }}" placeholder="如 客户取消行程 / 航班取消等">
+                                <input type="text" name="reason" class="form-control form-control-sm" value="{{ refund.reason if refund and refund.reason is not none else '' }}" placeholder="如 客户取消行程 / 航班取消等">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small mb-1">备注 (Remarks)</label>
-                                <input type="text" name="remarks" class="form-control form-control-sm" value="{{ refund.remarks if refund else '' }}" placeholder="可选">
+                                <input type="text" name="remarks" class="form-control form-control-sm" value="{{ refund.remarks if refund and refund.remarks is not none else '' }}" placeholder="可选">
                             </div>
                         </div>
                     </div>

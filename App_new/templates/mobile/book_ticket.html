@@ -197,7 +197,7 @@
             <div class="form-card-title"><i class="fas fa-calendar-alt"></i> 日期与人数</div>
             <div class="form-group">
                 <label class="form-label">游玩日期</label>
-                <input type="date" name="visit_date" class="form-input" value="{{ prefill.visit_date if prefill else '' }}">
+                <input type="date" name="visit_date" class="form-input" value="{{ prefill.visit_date if prefill and prefill.visit_date is not none else '' }}">
             </div>
             <div class="pax-row">
                 <div class="pax-label">成人 <small id="adultPriceLabel"></small></div>
@@ -241,7 +241,7 @@
             <div class="form-group">
                 <label class="form-label">邮箱</label>
                 <input type="email" name="contact_email" class="form-input"
-                       value="{{ current_user.email if current_user else '' }}" placeholder="请输入邮箱">
+                       value="{{ current_user.email if current_user and current_user.email is not none else '' }}" placeholder="请输入邮箱">
             </div>
             <div class="form-group">
                 <label class="form-label">备注</label>

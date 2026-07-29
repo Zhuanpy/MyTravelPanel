@@ -24,19 +24,19 @@
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">景点名称（中文） <span class="text-danger">*</span></label>
                         <input type="text" name="product_name" class="form-control form-control-sm" required
-                               value="{{ product.product_name if product else '' }}"
+                               value="{{ product.product_name if product and product.product_name is not none else '' }}"
                                placeholder="例如：新加坡环球影城">
                     </div>
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">景点名称（英文）</label>
                         <input type="text" name="product_name_en" class="form-control form-control-sm"
-                               value="{{ product.product_name_en if product else '' }}"
+                               value="{{ product.product_name_en if product and product.product_name_en is not none else '' }}"
                                placeholder="例如：Universal Studios Singapore">
                     </div>
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">景点简称</label>
                         <input type="text" name="product_short_name" class="form-control form-control-sm"
-                               value="{{ product.product_short_name if product else '' }}"
+                               value="{{ product.product_short_name if product and product.product_short_name is not none else '' }}"
                                placeholder="例如：USS环球影城">
                     </div>
                     <div class="col">
@@ -51,13 +51,13 @@
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">国家/地区</label>
                         <input type="text" name="country" class="form-control form-control-sm"
-                               value="{{ product.country if product else '' }}"
+                               value="{{ product.country if product and product.country is not none else '' }}"
                                placeholder="例如：Singapore">
                     </div>
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">城市</label>
                         <input type="text" name="city" class="form-control form-control-sm"
-                               value="{{ product.city if product else '' }}"
+                               value="{{ product.city if product and product.city is not none else '' }}"
                                placeholder="例如：Singapore">
                     </div>
                     <div class="col">
@@ -70,7 +70,7 @@
                     <div class="col-12">
                         <label class="form-label" style="font-size: 13px;">封面图片</label>
                         <input type="hidden" name="cover_image" id="coverImagePath"
-                               value="{{ product.cover_image if product else '' }}">
+                               value="{{ product.cover_image if product and product.cover_image is not none else '' }}">
                         <div class="d-flex align-items-start gap-3">
                             <div id="coverImagePreview" style="position: relative; display: inline-block;">
                                 {% if product and product.cover_image %}
@@ -112,19 +112,19 @@
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">场馆名称</label>
                         <input type="text" name="venue_name" class="form-control form-control-sm"
-                               value="{{ ticket_ext.venue_name if ticket_ext else '' }}"
+                               value="{{ ticket_ext.venue_name if ticket_ext and ticket_ext.venue_name is not none else '' }}"
                                placeholder="例如：Universal Studios Singapore">
                     </div>
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">场馆地址</label>
                         <input type="text" name="venue_address" class="form-control form-control-sm"
-                               value="{{ ticket_ext.venue_address if ticket_ext else '' }}"
+                               value="{{ ticket_ext.venue_address if ticket_ext and ticket_ext.venue_address is not none else '' }}"
                                placeholder="例如：8 Sentosa Gateway, Singapore 098269">
                     </div>
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">开放时间</label>
                         <input type="text" name="opening_hours" class="form-control form-control-sm"
-                               value="{{ ticket_ext.opening_hours if ticket_ext else '' }}"
+                               value="{{ ticket_ext.opening_hours if ticket_ext and ticket_ext.opening_hours is not none else '' }}"
                                placeholder="例如：10:00 - 19:00">
                     </div>
                     <div class="col">
@@ -136,7 +136,7 @@
                     <div class="col">
                         <label class="form-label" style="font-size: 13px;">入园方式</label>
                         <input type="text" name="entry_method" class="form-control form-control-sm"
-                               value="{{ ticket_ext.entry_method if ticket_ext else '' }}"
+                               value="{{ ticket_ext.entry_method if ticket_ext and ticket_ext.entry_method is not none else '' }}"
                                placeholder="例如：扫码入园、换票入园">
                     </div>
                 </div>
@@ -153,12 +153,12 @@
                     <div class="col-md-6">
                         <label class="form-label" style="font-size: 13px;">产品描述</label>
                         <textarea name="description" class="form-control form-control-sm" rows="3"
-                                  placeholder="景点介绍、特色亮点等">{{ product.description if product else '' }}</textarea>
+                                  placeholder="景点介绍、特色亮点等">{{ product.description if product and product.description is not none else '' }}</textarea>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" style="font-size: 13px;">游玩攻略</label>
                         <textarea name="tips" class="form-control form-control-sm" rows="3"
-                                  placeholder="推荐路线、最佳游玩时间等">{{ ticket_ext.tips if ticket_ext else '' }}</textarea>
+                                  placeholder="推荐路线、最佳游玩时间等">{{ ticket_ext.tips if ticket_ext and ticket_ext.tips is not none else '' }}</textarea>
                     </div>
                 </div>
             </div>
@@ -174,19 +174,19 @@
                     <div class="col-md-3">
                         <label class="form-label" style="font-size: 13px;">年龄限制</label>
                         <input type="text" name="age_limit" class="form-control form-control-sm"
-                               value="{{ ticket_ext.age_limit if ticket_ext else '' }}"
+                               value="{{ ticket_ext.age_limit if ticket_ext and ticket_ext.age_limit is not none else '' }}"
                                placeholder="例如：4岁以上">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" style="font-size: 13px;">身高限制</label>
                         <input type="text" name="height_limit" class="form-control form-control-sm"
-                               value="{{ ticket_ext.height_limit if ticket_ext else '' }}"
+                               value="{{ ticket_ext.height_limit if ticket_ext and ticket_ext.height_limit is not none else '' }}"
                                placeholder="例如：1.2m以上">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" style="font-size: 13px;">健康要求</label>
                         <input type="text" name="health_requirement" class="form-control form-control-sm"
-                               value="{{ ticket_ext.health_requirement if ticket_ext else '' }}"
+                               value="{{ ticket_ext.health_requirement if ticket_ext and ticket_ext.health_requirement is not none else '' }}"
                                placeholder="例如：心脏病患者不宜参加">
                     </div>
                     <div class="col-md-3">

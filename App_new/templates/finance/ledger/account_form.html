@@ -51,7 +51,7 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Account Code 科目代码 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="code" id="code"
-                               value="{{ account.code if account else '' }}"
+                               value="{{ account.code if account and account.code is not none else '' }}"
                                {% if account and account.is_system %}readonly{% endif %}
                                required placeholder="e.g., 1001">
                         <small class="text-muted">Unique code for this account 科目唯一代码</small>
@@ -59,13 +59,13 @@
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Name 名称 <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="name" id="name"
-                               value="{{ account.name if account else '' }}" required
+                               value="{{ account.name if account and account.name is not none else '' }}" required
                                placeholder="e.g., Cash">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Chinese Name 中文名</label>
                         <input type="text" class="form-control" name="name_cn" id="name_cn"
-                               value="{{ account.name_cn if account else '' }}"
+                               value="{{ account.name_cn if account and account.name_cn is not none else '' }}"
                                placeholder="e.g., 现金">
                     </div>
                 </div>
@@ -152,7 +152,7 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Description 描述</label>
                         <textarea class="form-control" name="description" id="description" rows="2"
-                                  placeholder="Optional description 可选描述...">{{ account.description if account else '' }}</textarea>
+                                  placeholder="Optional description 可选描述...">{{ account.description if account and account.description is not none else '' }}</textarea>
                     </div>
                 </div>
             </div>

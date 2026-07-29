@@ -62,7 +62,7 @@
                    <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo" height="40">
                    {% endif %}
                    <div class="logo-text">
-                       <div class="logo-chinese">{{ own_company.company_name_cn if own_company else '' }}</div>
+                       <div class="logo-chinese">{{ own_company.company_name_cn if own_company and own_company.company_name_cn is not none else '' }}</div>
                        <div class="logo-english">{{ own_company.company_short_name.upper() if own_company and own_company.company_short_name else '' }}</div>
                    </div>
                 </div>

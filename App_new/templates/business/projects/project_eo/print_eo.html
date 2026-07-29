@@ -193,13 +193,13 @@
                 {% else %}
                 <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
                 {% endif %}
-                <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name if company else '' }}</div>
+                <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name if company and company.company_short_name is not none else '' }}</div>
             </div>
             <div class="company-info">
-                <div class="company-name-cn">{{ company.company_name_cn if company else '' }}</div>
+                <div class="company-name-cn">{{ company.company_name_cn if company and company.company_name_cn is not none else '' }}</div>
                 <div class="company-name-en">{{ company.company_name if company else 'Company Name' }}</div>
-                <div>TA License No.: {{ company.ta_license if company else '' }}</div>
-                <div>Email: {{ company.email if company else '' }}</div>
+                <div>TA License No.: {{ company.ta_license if company and company.ta_license is not none else '' }}</div>
+                <div>Email: {{ company.email if company and company.email is not none else '' }}</div>
                 {% if company and company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
             </div>
         </div>

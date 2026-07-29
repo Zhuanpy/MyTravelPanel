@@ -1320,7 +1320,7 @@ function syncRefPrices() {
             <!-- 主题 -->
             <div class="mb-3">
                 <label class="form-label"><i class="fas fa-heading"></i> 主题 <span class="text-danger">*</span></label>
-                <input type="text" id="emailSubject" class="form-control" placeholder="邮件主题" value="[{{ invoice.invoice_number }}] Invoice from {{ company.company_name if company else '' }}">
+                <input type="text" id="emailSubject" class="form-control" placeholder="邮件主题" value="[{{ invoice.invoice_number }}] Invoice from {{ company.company_name if company and company.company_name is not none else '' }}">
             </div>
 
             <!-- 正文 -->

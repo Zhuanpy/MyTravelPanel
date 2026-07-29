@@ -314,7 +314,7 @@
                         </div>
                     </div>
                     <div class="mc-bottom">
-                        <span class="mc-company-name">{{ company.company_name if company else '' }}</span>
+                        <span class="mc-company-name">{{ company.company_name if company and company.company_name is not none else '' }}</span>
                         <span class="mc-more">查看完整名片 <i class="fas fa-arrow-right" style="font-size:0.58rem;"></i></span>
                     </div>
                 </a>

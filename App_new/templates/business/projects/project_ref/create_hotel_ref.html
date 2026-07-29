@@ -98,7 +98,7 @@
                     <input type="text" name="hotel_address" id="hotel_address" class="form-control form-control-sm" placeholder="如: 10 Bayfront Ave, Singapore 018956" maxlength="255" value="{{ extra_info.hotel_address if extra_info and extra_info.hotel_address else '' }}">
                 </div>
             </div>
-            <input type="hidden" name="description" id="description" value="{{ ref.description if ref else '' }}">
+            <input type="hidden" name="description" id="description" value="{{ ref.description if ref and ref.description is not none else '' }}">
             <input type="hidden" name="detailed_description" id="detailed_description">
         </div>
 

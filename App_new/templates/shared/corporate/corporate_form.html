@@ -282,13 +282,13 @@
                                         <label class="visa-form-label">城市</label>
                                         <input type="text" name="city" class="visa-form-control"
                                                placeholder="如: Singapore"
-                                               value="{{ company.city if company else '' }}">
+                                               value="{{ company.city if company and company.city is not none else '' }}">
                                     </div>
                                     <div class="visa-form-group">
                                         <label class="visa-form-label">地区</label>
                                         <input type="text" name="region" class="visa-form-control"
                                                placeholder="如: Southeast Asia"
-                                               value="{{ company.region if company else '' }}">
+                                               value="{{ company.region if company and company.region is not none else '' }}">
                                     </div>
                                 </div>
                             </div>

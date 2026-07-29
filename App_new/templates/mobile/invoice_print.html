@@ -175,7 +175,7 @@
     {% endif %}
 
     <div class="inv-footer">
-        Thank you for your business. | {{ company.company_name if company else '' }}
+        Thank you for your business. | {{ company.company_name if company and company.company_name is not none else '' }}
     </div>
 </div>
 

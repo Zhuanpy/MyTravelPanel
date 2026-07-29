@@ -76,7 +76,7 @@
                         <a href="{{ url_for('visa_links.edit_visa_link', link_id=link.id) }}" class="visa-btn-link visa-btn-link-primary">编辑</a>
                         <button type="button" class="visa-btn-link visa-btn-link-info"
                                 data-visa-type-id="{{ visa_type.id }}"
-                                data-country-id="{{ country.id if country else '' }}"
+                                data-country-id="{{ country.id if country and country.id is not none else '' }}"
                                 data-name="{{ link.name }}"
                                 data-link="{{ link.link }}"
                                 onclick="copyLinkToAdd(this)">复制</button>

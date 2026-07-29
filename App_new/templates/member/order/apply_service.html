@@ -154,8 +154,8 @@
         <!-- 隐藏字段：自动填充会员信息 -->
         <input type="hidden" name="customer_name" value="{{ user_profile.first_name + ' ' + user_profile.last_name if user_profile else current_user.username }}">
         <input type="hidden" name="customer_email" value="{{ current_user.email }}">
-        <input type="hidden" name="customer_phone" value="{{ user_profile.phone if user_profile else '' }}">
-        <input type="hidden" name="customer_address" value="{{ user_profile.address if user_profile else '' }}">
+        <input type="hidden" name="customer_phone" value="{{ user_profile.phone if user_profile and user_profile.phone is not none else '' }}">
+        <input type="hidden" name="customer_address" value="{{ user_profile.address if user_profile and user_profile.address is not none else '' }}">
 
         <div class="row">
             <!-- 左侧：表单 -->

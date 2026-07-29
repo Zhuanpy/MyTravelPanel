@@ -102,7 +102,7 @@
                 <div class="mb-3">
                     <label class="form-label">关键词内容 <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="keyword" 
-                           value="{{ keyword.keyword if keyword else '' }}" 
+                           value="{{ keyword.keyword if keyword and keyword.keyword is not none else '' }}" 
                            placeholder="输入关键词，如：PAYNOW-FAST" required>
                     <div class="form-text">关键词用于匹配交易描述，区分大小写</div>
                 </div>
@@ -110,7 +110,7 @@
                 <div class="mb-3">
                     <label class="form-label">描述</label>
                     <textarea class="form-control" name="description" rows="3" 
-                              placeholder="可选，描述该关键词的用途">{{ keyword.description if keyword else '' }}</textarea>
+                              placeholder="可选，描述该关键词的用途">{{ keyword.description if keyword and keyword.description is not none else '' }}</textarea>
                 </div>
                 
                 <div class="mb-3">

@@ -45,7 +45,7 @@
                         <div class="input-group">
                             <input type="number" name="amount" class="form-control"
                                    step="0.01" min="0.01" placeholder="0.00"
-                                   value="{{ copy_data.amount if copy_data else '' }}" required>
+                                   value="{{ copy_data.amount if copy_data and copy_data.amount is not none else '' }}" required>
                             <select name="currency" class="form-select" style="max-width: 100px;">
                                 <option value="SGD" {% if not copy_data or copy_data.currency == 'SGD' %}selected{% endif %}>SGD</option>
                                 <option value="USD" {% if copy_data and copy_data.currency == 'USD' %}selected{% endif %}>USD</option>
@@ -120,7 +120,7 @@
                 <div class="mb-3">
                     <label class="form-label">备注</label>
                     <textarea name="remarks" class="form-control" rows="2"
-                              placeholder="可填写充值说明等信息">{{ copy_data.remarks if copy_data else '' }}</textarea>
+                              placeholder="可填写充值说明等信息">{{ copy_data.remarks if copy_data and copy_data.remarks is not none else '' }}</textarea>
                 </div>
 
                 <!-- 提交按钮 -->

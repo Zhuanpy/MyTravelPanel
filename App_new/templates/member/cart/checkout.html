@@ -83,12 +83,12 @@
                                 <div class="col">
                                     <label for="contact_phone" class="form-label small fw-semibold">电话 <span class="text-danger">*</span></label>
                                     <input type="tel" class="form-control" id="contact_phone" name="contact_phone"
-                                           value="{{ user_profile.phone if user_profile else '' }}" required>
+                                           value="{{ user_profile.phone if user_profile and user_profile.phone is not none else '' }}" required>
                                 </div>
                                 <div class="col">
                                     <label for="contact_email" class="form-label small fw-semibold">邮箱 <span class="text-danger">*</span></label>
                                     <input type="email" class="form-control" id="contact_email" name="contact_email"
-                                           value="{{ current_user.email if current_user else '' }}" required>
+                                           value="{{ current_user.email if current_user and current_user.email is not none else '' }}" required>
                                 </div>
                                 <div class="col-12">
                                     <label for="special_requirements" class="form-label small fw-semibold">备注说明</label>

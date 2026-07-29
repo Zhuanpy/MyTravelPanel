@@ -86,32 +86,32 @@
                             <div class="col-md-4">
                                 <label class="form-label">产品简称</label>
                                 <input type="text" name="product_short_name" class="form-control"
-                                       value="{{ product.product_short_name if product else '' }}" placeholder="可选">
+                                       value="{{ product.product_short_name if product and product.product_short_name is not none else '' }}" placeholder="可选">
                             </div>
                             <div class="col-12">
                                 <label class="form-label">产品名称 <span class="text-danger">*</span></label>
                                 <input type="text" name="product_name" class="form-control"
-                                       value="{{ product.product_name if product else '' }}" required placeholder="请输入产品名称">
+                                       value="{{ product.product_name if product and product.product_name is not none else '' }}" required placeholder="请输入产品名称">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">国家</label>
                                 <input type="text" name="country" class="form-control"
-                                       value="{{ product.country if product else '' }}" placeholder="如：新加坡">
+                                       value="{{ product.country if product and product.country is not none else '' }}" placeholder="如：新加坡">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">城市</label>
                                 <input type="text" name="city" class="form-control"
-                                       value="{{ product.city if product else '' }}" placeholder="如：吉隆坡">
+                                       value="{{ product.city if product and product.city is not none else '' }}" placeholder="如：吉隆坡">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">出发城市</label>
                                 <input type="text" name="departure_city" class="form-control"
-                                       value="{{ product.departure_city if product else '' }}" placeholder="出发地">
+                                       value="{{ product.departure_city if product and product.departure_city is not none else '' }}" placeholder="出发地">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">目的地</label>
                                 <input type="text" name="destination" class="form-control"
-                                       value="{{ product.destination if product else '' }}" placeholder="目的地">
+                                       value="{{ product.destination if product and product.destination is not none else '' }}" placeholder="目的地">
                             </div>
                         </div>
                     </div>
@@ -127,22 +127,22 @@
                             <div class="col-12">
                                 <label class="form-label">产品描述</label>
                                 <textarea name="description" class="form-control" rows="4"
-                                          placeholder="产品介绍（建议第一行写亮点/特色）">{{ product.description if product else '' }}</textarea>
+                                          placeholder="产品介绍（建议第一行写亮点/特色）">{{ product.description if product and product.description is not none else '' }}</textarea>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">费用包含</label>
                                 <textarea name="includes" class="form-control" rows="3"
-                                          placeholder="价格中包含的服务和项目">{{ product.includes if product else '' }}</textarea>
+                                          placeholder="价格中包含的服务和项目">{{ product.includes if product and product.includes is not none else '' }}</textarea>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">费用不含</label>
                                 <textarea name="excludes" class="form-control" rows="3"
-                                          placeholder="需要额外支付的费用">{{ product.excludes if product else '' }}</textarea>
+                                          placeholder="需要额外支付的费用">{{ product.excludes if product and product.excludes is not none else '' }}</textarea>
                             </div>
                             <div class="col-12">
                                 <label class="form-label">重要提示</label>
                                 <textarea name="important_notes" class="form-control" rows="2"
-                                          placeholder="预订前需要注意的重要事项">{{ product.important_notes if product else '' }}</textarea>
+                                          placeholder="预订前需要注意的重要事项">{{ product.important_notes if product and product.important_notes is not none else '' }}</textarea>
                             </div>
                         </div>
                     </div>
