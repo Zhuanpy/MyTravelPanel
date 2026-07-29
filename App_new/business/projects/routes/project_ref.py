@@ -974,6 +974,70 @@ def quick_create_flight_ref(header_id):
 
 
 # 酒店REF相关函数
+def _clean_remarks(value):
+    """备注归一化：空串和历史遗留的字符串 "None" 一律当空。
+
+    早期模板用 `{{ ref.remarks if ref else '' }}`，remarks 为 None 时会渲染出
+    字面量 "None" 填进 textarea，再保存就把 "None" 存回了库。
+    """
+    text = (value or '').strip()
+    return None if text in ('', 'None', 'none') else text
+
+
+def _member_passport_map(members):
+    """住客护照号：成员自身没填时按姓名回退常用旅客库，用于预填输入框。
+
+    返回 (passports, from_ft)：passports 是 {member_id: 护照号}，
+    from_ft 是护照号来自常用旅客库（成员本身未存）的 member_id 集合。
+    """
+    passports = {}
+    from_ft = set()
+    for m in members:
+        number = (m.id_number or '').strip()
+        if not number:
+            traveler = FrequentTraveler.match_by_name(m.member_name)
+            if traveler and traveler.passport_number:
+                number = traveler.passport_number.strip()
+                from_ft.add(m.id)
+        passports[m.id] = number
+    return passports, from_ft
+
+
+def _save_member_passports(header_id):
+    """把住客表里填的护照号写回 ProjectMember.id_number（表单字段 guest_passport_<member_id>）。
+
+    护照是项目人员级数据（酒店 REF 只在 extra_info 里存成员 id），
+    所以统一落到成员记录上，机票/签证等其它 REF 也能共用。不 commit，由调用方提交。
+    """
+    from App_new.business.projects.models.project_member import ProjectMember
+
+    if not header_id:
+        return
+    prefix = 'guest_passport_'
+    submitted = {}
+    for key, value in request.form.items():
+        if not key.startswith(prefix):
+            continue
+        try:
+            submitted[int(key[len(prefix):])] = (value or '').strip()
+        except (TypeError, ValueError):
+            continue
+    if not submitted:
+        return
+
+    members = ProjectMember.query.filter(
+        ProjectMember.header_id == header_id,
+        ProjectMember.id.in_(list(submitted.keys()))
+    ).all()
+    for m in members:
+        new_value = submitted.get(m.id, '')
+        if (m.id_number or '').strip() != new_value:
+            m.id_number = new_value or None
+            # 只填了号码没选证件类型时，默认按护照处理
+            if new_value and not m.id_type:
+                m.id_type = 'passport'
+
+
 @project_ref.route('/hotel/create/<int:header_id>', methods=['GET'])
 @login_required
 @staff_only
@@ -1003,13 +1067,16 @@ def create_hotel_ref(header_id):
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
         members = ProjectMember.query.filter_by(header_id=header_id).order_by(ProjectMember.id).all()
-    
-        return render_template('business/projects/project_ref/create_hotel_ref.html', 
+        member_passports, passport_from_ft = _member_passport_map(members)
+
+        return render_template('business/projects/project_ref/create_hotel_ref.html',
                         header_id=header_id,
                         header=header,
                         suppliers=suppliers,
                         supplier_types=supplier_types,
                         members=members,
+                        member_passports=member_passports,
+                        passport_from_ft=passport_from_ft,
                         has_invoice=False)
     except Exception as e:
         import traceback
@@ -1051,6 +1118,7 @@ def submit_hotel_ref():
 
             extra_info = {
                 'hotel_name': request.form.get('hotel_name', ''),
+                'hotel_address': request.form.get('hotel_address', ''),
                 'checkin_date': request.form.get('checkin_date', ''),
                 'checkout_date': request.form.get('checkout_date', ''),
                 'room_type': request.form.get('room_type', ''),
@@ -1073,7 +1141,7 @@ def submit_hotel_ref():
             ref.detailed_description = request.form.get('detailed_description', '酒店订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                 'supplier_id') != '0' else None
-            ref.remarks = request.form.get('remarks')
+            ref.remarks = _clean_remarks(request.form.get('remarks'))
             ref.status = request.form.get('status', 'confirmed')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = selling_price
@@ -1104,7 +1172,7 @@ def submit_hotel_ref():
                 detailed_description=request.form.get('detailed_description', '酒店订单'),
                 supplier_id=request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get(
                     'supplier_id') != '0' else None,
-                remarks=request.form.get('remarks'),
+                remarks=_clean_remarks(request.form.get('remarks')),
                 status=request.form.get('status', 'confirmed'),
                 payment_status=request.form.get('payment_status', 'unpaid'),
                 selling_price=selling_price,
@@ -1113,6 +1181,9 @@ def submit_hotel_ref():
             )
             db.session.add(ref)
             db.session.flush()  # 获取ref.id
+
+        # 住客表里填的护照号写回项目人员
+        _save_member_passports(ref.header_id)
 
         db.session.commit()
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -1174,16 +1245,19 @@ def edit_hotel_ref(ref_id):
             ref.description = request.form.get('description', '酒店订单')
             ref.detailed_description = request.form.get('detailed_description', '酒店订单')
             ref.supplier_id = request.form.get('supplier_id') if request.form.get('supplier_id') and request.form.get('supplier_id') != '0' else None
-            ref.remarks = request.form.get('remarks')
+            ref.remarks = _clean_remarks(request.form.get('remarks'))
             ref.status = request.form.get('status', 'confirmed')
             ref.payment_status = request.form.get('payment_status', 'unpaid')
             ref.selling_price = selling_price
             ref.cost_price = cost_price
             ref.extra_info = json.dumps(extra_info)
-            
+
+            # 住客表里填的护照号写回项目人员
+            _save_member_passports(ref.header_id)
+
             db.session.commit()
             return redirect(url_for('business_projects.detail.project_detail', project_id=ref.header_id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
@@ -1196,7 +1270,8 @@ def edit_hotel_ref(ref_id):
     # 获取项目人员列表
     from App_new.business.projects.models.project_member import ProjectMember
     members = ProjectMember.query.filter_by(header_id=ref.header_id).order_by(ProjectMember.id).all()
-    
+    member_passports, passport_from_ft = _member_passport_map(members)
+
     # 解析extra_info
     extra_info = None
     if ref.extra_info:
@@ -1224,10 +1299,118 @@ def edit_hotel_ref(ref_id):
                          suppliers=suppliers,
                          supplier_types=supplier_types,
                          members=members,
+                         member_passports=member_passports,
+                         passport_from_ft=passport_from_ft,
+                         remarks_text=_clean_remarks(ref.remarks),
                          extra_info=extra_info,
                          is_create=False,
                          has_invoice=has_invoice,
                          eo_paid=eo_paid)
+
+
+@project_ref.route('/hotel/voucher/<int:ref_id>', methods=['GET'])
+@login_required
+@staff_only
+def print_hotel_voucher(ref_id):
+    """打印酒店订房凭证（Hotel Voucher）"""
+    from App_new.business.projects.models.project_member import ProjectMember
+
+    ref = ProjectRef.query.get_or_404(ref_id)
+    header = ProjectHeader.query.get(ref.header_id) if ref.header_id else None
+
+    # 酒店信息全部存在 extra_info JSON 里（见 create_hotel_ref.html buildExtraInfo）
+    info = {}
+    if ref.extra_info:
+        try:
+            info = json.loads(ref.extra_info) or {}
+        except (json.JSONDecodeError, TypeError):
+            info = {}
+
+    # 住客：extra_info.pax_names 存的是 ProjectMember.id 列表
+    pax_ids = []
+    for raw in (info.get('pax_names') or []):
+        try:
+            pax_ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    guests = []
+    if pax_ids:
+        rows = ProjectMember.query.filter(ProjectMember.id.in_(pax_ids)).all()
+        # 按 extra_info 里的顺序排列，主住客排最前
+        by_id = {m.id: m for m in rows}
+        guests = [by_id[i] for i in pax_ids if i in by_id]
+
+    leader_id = None
+    try:
+        leader_id = int(info.get('leader_id')) if info.get('leader_id') else None
+    except (TypeError, ValueError):
+        leader_id = None
+    if leader_id:
+        guests.sort(key=lambda m: 0 if m.id == leader_id else 1)
+
+    # 护照号：成员没填时按姓名回退到常用旅客库（不落库，仅用于打印展示）
+    guest_passports = {}
+    for m in guests:
+        number = (m.id_number or '').strip()
+        if not number:
+            traveler = FrequentTraveler.match_by_name(m.member_name)
+            if traveler and traveler.passport_number:
+                number = traveler.passport_number.strip()
+        guest_passports[m.id] = number
+
+    # 入住/退房日期转成 date 对象，方便模板格式化
+    def _to_date(value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(str(value)[:10], '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    checkin = _to_date(info.get('checkin_date'))
+    checkout = _to_date(info.get('checkout_date'))
+
+    nights = info.get('nights') or 0
+    if not nights and checkin and checkout:
+        nights = max((checkout - checkin).days, 0)
+
+    # 住客类型：ProjectMember 没有 member_type 字段，按出生日期相对入住日推算；
+    # 没填生日时按成人处理（酒店计房的默认口径）
+    guest_types = {}
+    for m in guests:
+        label = 'Adult / 成人'
+        if m.date_of_birth and checkin:
+            years = checkin.year - m.date_of_birth.year - (
+                (checkin.month, checkin.day) < (m.date_of_birth.month, m.date_of_birth.day)
+            )
+            if years < 2:
+                label = 'Infant / 婴儿'
+            elif years < 12:
+                label = 'Child / 儿童'
+        guest_types[m.id] = label
+
+    meal_plans = {
+        'RO': 'Room Only / 不含餐',
+        'BB': 'Breakfast Included / 含早餐',
+        'HB': 'Half Board / 半餐',
+        'FB': 'Full Board / 全餐',
+        'AI': 'All Inclusive / 全包',
+    }
+
+    return render_template('business/projects/project_ref/print_hotel_voucher.html',
+                           ref=ref,
+                           header=header,
+                           remarks=_clean_remarks(ref.remarks),
+                           info=info,
+                           guests=guests,
+                           guest_passports=guest_passports,
+                           guest_types=guest_types,
+                           leader_id=leader_id,
+                           checkin=checkin,
+                           checkout=checkout,
+                           nights=nights,
+                           meal_plan_text=meal_plans.get(info.get('meal_plan') or '', ''))
 
 
 # 签证REF相关函数

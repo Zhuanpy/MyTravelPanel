@@ -21,6 +21,17 @@
     .type-chd { background: #FEF3C7; color: #92400E; }
     .type-inf { background: #FED7E2; color: #97266D; }
     .nights-badge { background: linear-gradient(135deg, #2B6CB0 0%, #4299E1 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    /* 护照输入框压扁到与表格行等高：form-control-sm 自带 min-height(约31px)，
+       只写 height 会被它顶住，必须一起覆盖 min-height */
+    .passport-input {
+        height: 22px;
+        min-height: 22px;
+        padding: 0 5px;
+        font-size: 11px;
+        line-height: 20px;
+        border-radius: 3px;
+    }
+    .ft-filled { background: #FFFBEB; border-color: #FBBF24; }
     .profit-positive { color: #38A169; font-weight: 600; }
     .profit-negative { color: #E53E3E; font-weight: 600; }
 </style>
@@ -79,6 +90,12 @@
                         <option value="confirmed" {% if not (ref is defined and ref) or ref.status == 'confirmed' %}selected{% endif %}>已确认</option>
                         <option value="cancelled" {% if ref is defined and ref and ref.status == 'cancelled' %}selected{% endif %}>已取消</option>
                     </select>
+                </div>
+            </div>
+            <div class="row g-2 mt-1">
+                <div class="col-12">
+                    <label class="form-label small mb-1">酒店地址</label>
+                    <input type="text" name="hotel_address" id="hotel_address" class="form-control form-control-sm" placeholder="如: 10 Bayfront Ave, Singapore 018956" maxlength="255" value="{{ extra_info.hotel_address if extra_info and extra_info.hotel_address else '' }}">
                 </div>
             </div>
             <input type="hidden" name="description" id="description" value="{{ ref.description if ref else '' }}">
@@ -140,6 +157,7 @@
                         <tr>
                             <th style="width: 30px;"><input type="checkbox" id="selectAllPax" title="全选"></th>
                             <th>姓名</th>
+                            <th style="width: 130px;">护照号</th>
                             <th style="width: 50px;">类型</th>
                             <th style="width: 50px;">主住客</th>
                         </tr>
@@ -149,6 +167,15 @@
                         <tr class="{% if member.id|string == leader_id|string %}table-warning{% endif %}">
                             <td><input type="checkbox" name="pax_names" value="{{ member.id }}" {% if member.id in selected_pax or member.id|string in selected_pax %}checked{% endif %} onchange="updateDescription()"></td>
                             <td>{{ member.title }} {{ member.member_name }}</td>
+                            {# 护照号存在 ProjectMember.id_number 上（项目人员级，其它REF共用），保存时随本表单一起写回 #}
+                            {% set pp = member_passports.get(member.id, '') if member_passports else '' %}
+                            {% set from_ft = passport_from_ft and member.id in passport_from_ft %}
+                            <td>
+                                <input type="text" class="form-control form-control-sm font-monospace passport-input{% if from_ft %} ft-filled{% endif %}"
+                                       {# 不放 placeholder：表头已经写了「护照号」，框里再来一遍显得又满又大 #}
+                                       name="guest_passport_{{ member.id }}" value="{{ pp }}" maxlength="50"
+                                       {% if from_ft %}title="来自常用旅客库，保存后写入本项目人员"{% endif %}>
+                            </td>
                             <td>{% if member.member_type == 'child' %}<span class="type-badge type-chd">儿童</span>{% elif member.member_type == 'infant' %}<span class="type-badge type-inf">婴儿</span>{% else %}<span class="type-badge type-adt">成人</span>{% endif %}</td>
                             <td class="text-center"><button type="button" class="btn btn-sm py-0 px-1 {% if member.id|string == leader_id|string %}btn-warning{% else %}btn-outline-secondary{% endif %} set-leader-btn" data-member-id="{{ member.id }}" title="设为主住客"><i class="fas fa-star" style="font-size: 10px;"></i></button></td>
                         </tr>
@@ -221,7 +248,8 @@
         <!-- Remarks -->
         <div class="form-section">
             <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
-            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ ref.remarks if ref else '' }}</textarea>
+            {# remarks_text 已由路由归一化：早期模板把 None 渲染成字面量 "None" 存回了库，这里一并当空处理 #}
+            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ remarks_text or '' }}</textarea>
         </div>
 
         <!-- Actions -->
@@ -230,6 +258,7 @@
             <div class="d-flex justify-content-center gap-3">
                 <button type="submit" class="btn btn-success btn-sm" style="width: 120px;"><i class="fas fa-save me-1"></i>{% if ref %}更新{% else %}保存{% endif %}</button>
                 <a href="{{ url_for('business_projects.detail.project_detail', project_id=header_id) }}" class="btn btn-secondary btn-sm" style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>返回</a>
+                {% if ref and not is_create %}<a href="{{ url_for('business_projects.project_ref.print_hotel_voucher', ref_id=ref.id) }}" target="_blank" class="btn btn-info btn-sm" style="width: 120px;"><i class="fas fa-print me-1"></i>打印Voucher</a>{% endif %}
                 {% if ref and ref.eos %}<span class="btn btn-outline-info btn-sm" style="width: 120px; cursor: default;"><i class="fas fa-check me-1"></i>{{ ref.eos.eo_number }}</span>
                 {% elif ref %}<button type="button" class="btn btn-primary btn-sm" style="width: 120px;" onclick="quickCreateEO({{ ref.id }})"><i class="fas fa-plus me-1"></i>创建EO</button>{% endif %}
             </div>
@@ -330,6 +359,7 @@ function buildExtraInfo() {
     document.querySelectorAll('input[name="pax_names"]:checked').forEach(cb => paxNames.push(parseInt(cb.value)));
     return {
         hotel_name: document.getElementById('hotel_name').value,
+        hotel_address: document.getElementById('hotel_address').value,
         room_type: document.getElementById('room_type').value,
         room_count: parseInt(document.getElementById('room_count').value) || 1,
         meal_plan: document.getElementById('meal_plan').value,
