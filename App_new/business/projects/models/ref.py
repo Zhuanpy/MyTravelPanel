@@ -61,9 +61,19 @@ class ProjectRef(db.Model):
             return self.supplier.company_name
         return None
 
-    # 机票相关关联关系
-    # flight_passengers = db.relationship('ProjectFlightPassenger', backref='ref', cascade='all, delete-orphan')  # 暂时注释掉
-    # flight_segments = db.relationship('ProjectFlightSegment', backref='ref', cascade='all, delete-orphan')  # 暂时注释掉
+    # 机票子表的 ORM 级联关系（仅供删除级联使用，业务代码请继续用下面的
+    # flight_passengers / flight_segments 属性，它们是即时查询、不受会话缓存影响）。
+    # 没有这几条关系时，删除 REF（含走 ProjectHeader.refs 级联删项目）会被外键挡住报 1451。
+    # 删除顺序由 SQLAlchemy 按依赖关系决定：格子(4级) → 乘客/航段(3级) → REF。
+    flight_passenger_cells = db.relationship(
+        'ProjectFlightPassengerSegment', backref='ref',
+        cascade='all, delete-orphan', lazy='select')
+    flight_passenger_rows = db.relationship(
+        'ProjectFlightPassenger', backref='ref',
+        cascade='all, delete-orphan', lazy='select')
+    flight_segment_rows = db.relationship(
+        'ProjectFlightSegment', backref='ref',
+        cascade='all, delete-orphan', lazy='select')
 
     def __repr__(self):
         return f'<ProjectRef {self.ref_number}>'

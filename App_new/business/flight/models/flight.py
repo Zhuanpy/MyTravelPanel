@@ -162,6 +162,14 @@ class ProjectFlightSegment(db.Model):
     departure_terminal = db.Column(db.String(50), comment='出发航站楼')
     arrival_terminal = db.Column(db.String(50), comment='到达航站楼')
 
+    # 该航段上的 乘客×航段 格子（删除航段时一并删除，否则外键会挡住）
+    segment_cells = db.relationship(
+        'ProjectFlightPassengerSegment',
+        backref='segment',
+        lazy='select',
+        cascade='all, delete-orphan'
+    )
+
     # 舱位信息
     cabin_class = db.Column(db.String(20), nullable=False, comment='舱位等级')
     cabin_code = db.Column(db.String(2), nullable=False, comment='舱位代码')
