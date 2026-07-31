@@ -299,6 +299,66 @@ class FlightRefError(Exception):
     pass
 
 
+# 重复建单判定窗口：同项目内同描述同售价的 REF，多久之内算重复
+# 实测 agent 重跑流程的间隔在 40~95 秒，取 10 分钟留足余量；
+# 正常业务里"同项目同航线同价"的两个 REF 在 10 分钟内出现的概率极低，
+# 真需要（例如两位客人分开建单）可传 force=true 绕过。
+_DUPLICATE_REF_WINDOW_MINUTES = 10
+
+
+class DuplicateFlightRefError(FlightRefError):
+    """疑似重复建单：同项目短时间内已有同描述同售价的 REF
+
+    继承 FlightRefError，让表单入口的既有 except 分支直接把提示 flash 出来；
+    JSON API 单独捕获它，返回已存在的 REF（success=true + duplicate=true），
+    这样 agent 重跑时拿到的是「上次那一单」，而不是一个报错。
+    """
+
+    def __init__(self, existing_ref_id, ref_number, description):
+        # 只存普通值：抛出前会 rollback，ORM 对象此时已过期，不能带着走
+        self.existing_ref_id = existing_ref_id
+        self.ref_number = ref_number
+        super().__init__(
+            '疑似重复建单：%s（%s）在 %s 分钟内已创建，本次未重复生成。'
+            '确需再建一单请传 force=true'
+            % (ref_number, description, _DUPLICATE_REF_WINDOW_MINUTES)
+        )
+
+
+def _as_bool_force(value):
+    """force 标记：表单传字符串、JSON 传布尔，统一成 bool"""
+    if isinstance(value, bool):
+        return value
+    return str(value or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _find_duplicate_flight_ref(ref, header_id):
+    """在同项目里找出与 ref 疑似重复的既有 REF，没有则返回 None
+
+    判据：同 header + 同 description（航段自动生成，同航班必然相同）+ 同 selling_price
+         + 未作废 + 创建时间在窗口内。description 为空不判重（判不了）。
+    """
+    from datetime import timedelta
+
+    if not ref.description or ref.description == '机票订单':
+        return None
+
+    since = datetime.utcnow() - timedelta(minutes=_DUPLICATE_REF_WINDOW_MINUTES)
+    query = ProjectRef.query.filter(
+        ProjectRef.header_id == header_id,
+        ProjectRef.id != ref.id,
+        ProjectRef.description == ref.description,
+        ProjectRef.status != 'cancelled',
+        ProjectRef.created_at >= since,
+    )
+    if ref.selling_price is None:
+        query = query.filter(ProjectRef.selling_price.is_(None))
+    else:
+        query = query.filter(ProjectRef.selling_price == ref.selling_price)
+
+    return query.order_by(ProjectRef.id).first()
+
+
 def _persist_flight_ref(src):
     """把机票REF数据（乘客+航段+描述+extra_info）落库，成功后 commit。
 
@@ -703,6 +763,18 @@ def _persist_flight_ref(src):
         }
         ref.extra_info = json.dumps(extra_info)
 
+        # 新建时查重（描述和售价此时才算出来）：命中就整单回滚，把已存在的 REF 抛给调用方。
+        # agent 重跑流程、页面连点两次都会撞到这里；不做拦截就会一单变两单，
+        # 各自再生成发票，最后删掉多余 REF 时发票被落下变成孤儿（2026-07 已发生 9 次）。
+        if not ref_id and not _as_bool_force(src.get('force')):
+            duplicate = _find_duplicate_flight_ref(ref, header_id)
+            if duplicate:
+                # 先把要用的字段取出来，rollback 之后 ORM 对象会过期
+                dup_id, dup_number, dup_desc = (
+                    duplicate.id, duplicate.ref_number, duplicate.description)
+                db.session.rollback()
+                raise DuplicateFlightRefError(dup_id, dup_number, dup_desc)
+
         # 如果是编辑，调整预付账款（如果cost_price变化）
         prepayment_msg = ''
         if ref_id:
@@ -732,6 +804,10 @@ def submit_flight_ref():
         ref, header_id, prepayment_msg = _persist_flight_ref(request.form)
         if prepayment_msg:
             flash(f'机票REF保存成功！{prepayment_msg}', 'success')
+        return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+    except DuplicateFlightRefError as e:
+        # 没建成，但也不是错误：提示已有那一单（必须排在 FlightRefError 前面）
+        flash(str(e), 'warning')
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
     except FlightRefError as e:
         flash(str(e), 'error')
@@ -856,6 +932,9 @@ def quick_create_flight_ref(header_id):
     src = MultiDict()
     src.add('header_id', str(header_id))
     # 不设置 ref_id -> 走"新建"分支
+    # force=true 时跳过「同项目短时间内同描述同售价」的重复建单拦截
+    if _as_bool_force(data.get('force')):
+        src.add('force', 'true')
     supplier_id = data.get('supplier_id')
     if supplier_id not in (None, '', 0, '0'):
         src.add('supplier_id', str(supplier_id))
@@ -902,6 +981,17 @@ def quick_create_flight_ref(header_id):
 
     try:
         ref, _hid, prepayment_msg = _persist_flight_ref(src)
+    except DuplicateFlightRefError as e:
+        # 疑似重复建单 -> 当成「上次那一单」原样返回，agent 重跑不会多建
+        # （必须排在 FlightRefError 前面捕获，它是 FlightRefError 的子类）
+        existing = ProjectRef.query.get(e.existing_ref_id)
+        if not existing:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        result = _idempotent_replay_result(existing)
+        result['idempotent_replay'] = False  # 不是幂等键命中，是内容判重
+        result['duplicate'] = True
+        result['message'] = str(e)
+        return jsonify(result)
     except FlightRefError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
@@ -3313,6 +3403,38 @@ def generate_ref_number():
             'details': error_details
         }), 400
 
+def _invoices_referencing_ref(ref):
+    """返回引用该 REF 的、未作废的发票列表
+
+    两条关联路径都要查，历史数据两种都有：
+    - invoice_items.ref_id（真外键，但是 ON DELETE SET NULL，删 REF 时会被悄悄置空）
+    - project_invoices.ref_ids（JSON 数组，元素可能是 int 也可能是字符串）
+    """
+    from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
+
+    found = {}
+
+    for inv in (ProjectInvoice.query
+                .join(InvoiceItem, InvoiceItem.invoice_id == ProjectInvoice.id)
+                .filter(InvoiceItem.ref_id == ref.id,
+                        ProjectInvoice.status != 'cancelled').all()):
+        found[inv.id] = inv
+
+    for inv in (ProjectInvoice.query
+                .filter(ProjectInvoice.header_id == ref.header_id,
+                        ProjectInvoice.status != 'cancelled').all()):
+        if inv.id in found or not inv.ref_ids:
+            continue
+        try:
+            ref_id_list = json.loads(inv.ref_ids)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if ref.id in ref_id_list or str(ref.id) in ref_id_list:
+            found[inv.id] = inv
+
+    return list(found.values())
+
+
 @project_ref.route('/delete/<int:ref_id>', methods=['POST', 'GET'])
 @login_required
 @staff_only
@@ -3325,6 +3447,7 @@ def delete_ref(ref_id):
     """
     from sqlalchemy.exc import IntegrityError
     from flask import current_app
+    from App_new.shared.audit_log import audit
 
     ref = ProjectRef.query.get_or_404(ref_id)
     header_id = ref.header_id
@@ -3340,6 +3463,24 @@ def delete_ref(ref_id):
         if not ok:
             flash(error, 'error')
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
+
+    # 有未作废的发票指向这个 REF 就不许删。
+    # invoice_items.ref_id 是 ON DELETE SET NULL，数据库不会拦，发票会变成挂不到 REF 的
+    # 孤儿：详情页看不见它，SOA 和总账里却照算应收（2026-07 已因此产生 9 张孤儿发票）。
+    # 与项目删除的 get_delete_blockers 保持同一套策略：先作废发票，再删 REF。
+    blocking_invoices = _invoices_referencing_ref(ref)
+    if blocking_invoices:
+        numbers = '、'.join(inv.invoice_number for inv in blocking_invoices)
+        return _back(False, f'REF {ref_number} 已开发票（{numbers}），无法删除。'
+                            f'请先作废这些发票，或改用编辑修改 REF 内容')
+
+    # 删除前留快照，事后可查「删掉的到底是什么」
+    snapshot = {
+        'id': ref.id, 'ref_number': ref_number, 'header_id': header_id,
+        'description': ref.description, 'selling_price': str(ref.selling_price),
+        'cost_price': str(ref.cost_price), 'status': ref.status,
+        'supplier_id': ref.supplier_id, 'created_at': ref.created_at,
+    }
 
     try:
         # 机票子表未配置 ORM 级联，必须按「格子 → 乘客/航段」顺序先手动清理，
@@ -3359,6 +3500,10 @@ def delete_ref(ref_id):
         db.session.rollback()
         current_app.logger.error('删除REF %s 异常', ref_id, exc_info=True)
         return _back(False, f'删除失败：{str(e)}')
+
+    # 删除成功 -> 落审计（logs/audit.log），记录谁在什么时候删了什么
+    audit('delete_ref', snapshot=snapshot, ref_id=ref_id,
+          ref_number=ref_number, header_id=header_id)
 
     return _back(True)
 

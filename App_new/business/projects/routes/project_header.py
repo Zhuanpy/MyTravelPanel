@@ -331,8 +331,16 @@ def delete_header(header_id):
             db.session.execute(text(sql), {'h': header_id})
 
         # 删除项目主表（project_members / reminders / emails / files 等为 CASCADE，随主表自动删除）
+        snapshot = {'id': header.id, 'hid': header.hid, 'desc': header.desc,
+                    'ref_ids': ref_ids, 'eo_ids': eo_ids,
+                    'invoice_ids': invoice_ids, 'receipt_ids': receipt_ids}
         db.session.execute(text('DELETE FROM project_headers WHERE id = :h'), {'h': header_id})
         db.session.commit()
+
+        # 落审计（logs/audit.log）：项目删除是不可逆操作，记录谁在什么时候删了什么
+        # 注意用 snapshot 里的值，header 对象此时已被删除，再访问属性会触发刷新报错
+        from App_new.shared.audit_log import audit
+        audit('delete_header', snapshot=snapshot, header_id=header_id, hid=snapshot['hid'])
 
         # 检查是否是AJAX请求
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
