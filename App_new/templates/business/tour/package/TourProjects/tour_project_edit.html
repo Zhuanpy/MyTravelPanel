@@ -908,12 +908,11 @@
                     </div>
                     <div class="visa-form-group">
                         <label class="visa-form-label">项目状态</label>
-                        <select name="project_status" id="editProjectStatus" class="visa-form-select">
-                            <option value="计划中">计划中</option>
+                        <!-- 选项必须与创建页/列表筛选保持一致，否则回填时选不中会提交空值 -->
+                        <select name="project_status" id="editProjectStatus" class="visa-form-select" required>
                             <option value="处理中">处理中</option>
-                            <option value="进行中">进行中</option>
+                            <option value="待出行">待出行</option>
                             <option value="已完成">已完成</option>
-                            <option value="已取消">已取消</option>
                             <option value="忽略单">忽略单</option>
                         </select>
                     </div>
@@ -1103,12 +1102,29 @@ function onEditItineraryFileChange(slot) {
     }
 }
 
+// 回填下拉框：库里的值不在选项里时补一个选项，避免 selectedIndex=-1 导致该字段不被提交
+function setSelectValue(select, value) {
+    if (!select) return;
+    const val = (value == null ? '' : String(value));
+    if (val && !Array.from(select.options).some(o => o.value === val)) {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val + '（旧数据）';
+        select.appendChild(opt);
+    }
+    select.value = val;
+    // 兜底：仍然选不中（例如值为空）时，选第一个选项
+    if (select.selectedIndex === -1 && select.options.length > 0) {
+        select.selectedIndex = 0;
+    }
+}
+
 // 编辑项目信息
 function editProjectInfo() {
     document.getElementById('editProjectName').value = {{ project.project_name | tojson }};
     document.getElementById('editProjectHid').value = {{ (project.project_hid or "") | tojson }};
     document.getElementById('editProjectType').value = {{ (project.project_type or "") | tojson }};
-    document.getElementById('editProjectStatus').value = {{ (project.project_status or "计划中") | tojson }};
+    setSelectValue(document.getElementById('editProjectStatus'), {{ (project.project_status or "处理中") | tojson }});
     document.getElementById('editContactPerson').value = {{ (project.contact_person or "") | tojson }};
     document.getElementById('editContactInfo').value = {{ (project.contact_info or "") | tojson }};
     var budgetValue = {% if project.budget %}{{ project.budget }}{% else %}null{% endif %};
@@ -1225,7 +1241,7 @@ function editGroup(groupId) {
             document.getElementById('editGroupAgency').value = group.agency || '';
             document.getElementById('editGroupOperator').value = group.operator || '';
             document.getElementById('editGroupCode').value = group.group_code || '';
-            document.getElementById('editGroupStatus').value = group.group_status || '计划中';
+            setSelectValue(document.getElementById('editGroupStatus'), group.group_status || '计划中');
             showModal('editGroupModal');
         } else {
             alert('获取团队信息失败: ' + data.message);

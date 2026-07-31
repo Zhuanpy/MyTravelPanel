@@ -241,8 +241,11 @@ def manage_tour_projects():
 
     # 筛选旅游项目状态
     if travel_status == 'all':
-        # 排除忽略单
-        query = query.filter(TourProject.project_status != '忽略单')
+        # 排除忽略单；状态为 NULL 的历史数据也要显示（NULL != '忽略单' 在 SQL 里为 NULL，会被过滤掉）
+        query = query.filter(db.or_(
+            TourProject.project_status.is_(None),
+            TourProject.project_status != '忽略单'
+        ))
     elif travel_status:
         query = query.filter(TourProject.project_status == travel_status)
 
@@ -293,8 +296,11 @@ def update_tour_project(project_id):
             flash('项目不存在', 'error')
             return redirect(url_for('tour_projects.manage_tour_projects'))
 
-        project.project_status = request.form.get("project_status")
-        
+        # project_status 是 NOT NULL 字段，表单没传时保留原值
+        new_status = (request.form.get("project_status") or "").strip()
+        if new_status:
+            project.project_status = new_status
+
         # 处理预算字段
         budget_value = request.form.get("budget", "").strip()
         if budget_value:
@@ -1178,10 +1184,18 @@ def edit_tour_project(project_id):
             print(f"是否是AJAX请求: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
             
             # 更新项目基本信息
-            project.project_name = request.form.get('project_name', '').strip()
+            # 注意：project_name / project_status 是 NOT NULL 字段，表单没传时保留原值，
+            # 不能写成 None（否则数据库报 Column cannot be null）
+            project_name = request.form.get('project_name', '').strip()
+            if project_name:
+                project.project_name = project_name
+
+            project_status = request.form.get('project_status', '').strip()
+            if project_status:
+                project.project_status = project_status
+
             project.project_hid = request.form.get('project_hid', '').strip() or None
             project.project_type = request.form.get('project_type', '').strip() or None
-            project.project_status = request.form.get('project_status', '').strip() or None
             project.contact_person = request.form.get('contact_person', '').strip() or ''
             project.contact_info = request.form.get('contact_info', '').strip() or ''
             project.remarks = request.form.get('remarks', '').strip() or None
