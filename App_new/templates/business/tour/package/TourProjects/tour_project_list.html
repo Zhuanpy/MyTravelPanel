@@ -59,7 +59,8 @@
         <div class="visa-card-body" style="padding: 0; overflow-x: auto;">
             <table class="visa-table">
                 <thead>
-                    <tr>    
+                    <tr>
+                        <th>项目编号</th>
                         <th>项目名称</th>
                         <th>项目HID</th>
                         <th>团编号</th>
@@ -84,6 +85,8 @@
                             <input type="hidden" name="current_order" value="{{ order }}">
                             <input type="hidden" name="current_page" value="{{ pagination.page if pagination else 1 }}">
                             <input type="hidden" name="folder_name" value="{{ project.folder_name }}">
+                            <!-- 项目编号：tour_project 自增主键 -->
+                            <td style="white-space: nowrap; font-family: monospace;">{{ project.id }}</td>
                             <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 <a href="{{ url_for('tour_projects.edit_tour_project', project_id=project.id) }}" class="text-primary" style="text-decoration: underline;" title="{{ project.project_name }}">{{ project.project_name }}</a>
                             </td>
