@@ -34,6 +34,16 @@ class BudgetHeader(db.Model):
     items = db.relationship("BudgetItem", backref="header", cascade="all, delete-orphan")
 
     @property
+    def active_items(self):
+        """参与费用计算的明细（被临时禁用的不算）"""
+        return [item for item in self.items if item.is_active]
+
+    @property
+    def disabled_item_count(self):
+        """被临时禁用的明细条数"""
+        return sum(1 for item in self.items if not item.is_active)
+
+    @property
     def total_price(self):
         return sum(item.subtotal for item in self.items)
 
@@ -162,10 +172,31 @@ class BudgetItem(db.Model):
     tax_rate = db.Column(db.Float, default=0)
     tax_amount = db.Column(db.Numeric(10, 2), nullable=True)
     is_optional = db.Column(db.Boolean, default=False)
+    # 临时不计入费用：价格原样保留，只是暂时不参与任何合计，随时可以开回来
+    is_enabled = db.Column(db.Boolean, default=True, nullable=False, comment='是否计入费用计算')
     remarks = db.Column(db.Text)
 
     @property
+    def is_active(self):
+        """是否计入计算。老数据 is_enabled 为 NULL（迁移脚本没跑）时按启用处理，避免整单价格归零。"""
+        return self.is_enabled is not False
+
+    # ===== 对外的计算值：禁用的项目一律返回 0，让所有合计自动把它排除 =====
+    @property
     def subtotal(self):
+        return self.subtotal_raw if self.is_active else 0
+
+    @property
+    def adult_unit_price(self):
+        return self.adult_unit_price_raw if self.is_active else 0
+
+    @property
+    def child_unit_price(self):
+        return self.child_unit_price_raw if self.is_active else 0
+
+    # ===== 原始计算值：不受禁用影响，页面上用来显示"停用前是多少钱" =====
+    @property
+    def subtotal_raw(self):
         if self.total_override is not None:
             return float(self.total_override)
         
@@ -188,7 +219,7 @@ class BudgetItem(db.Model):
             return subtotal
 
     @property
-    def adult_unit_price(self):
+    def adult_unit_price_raw(self):
         """计算成人人均单价"""
         if self.total_override is not None:
             adult_count = self.adult_count_override if self.adult_count_override is not None else (self.header.adult_count if self.header else 0)
@@ -218,7 +249,7 @@ class BudgetItem(db.Model):
             return float(self.adult_price or 0)
 
     @property
-    def child_unit_price(self):
+    def child_unit_price_raw(self):
         """计算儿童人均单价"""
         if self.total_override is not None:
             child_count = self.child_count_override if self.child_count_override is not None else (self.header.child_count if self.header else 0)

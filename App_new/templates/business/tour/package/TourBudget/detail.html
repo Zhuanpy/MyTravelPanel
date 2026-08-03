@@ -86,6 +86,13 @@
     /* 操作按钮 */
     .btn-action { padding: 2px 3px; font-size: 0.75rem; }
 
+    /* 已禁用的明细：整行淡化，价格划掉，一眼看出没参与计算 */
+    tr.item-disabled { background: #fafafa; }
+    tr.item-disabled td { opacity: 0.55; }
+    tr.item-disabled td:last-child { opacity: 1; }   /* 操作列保持可读，方便点回来 */
+    tr.item-disabled .item-name { text-decoration: line-through; }
+    .price-parked { color: #adb5bd; text-decoration: line-through; }
+
     /* 添加表单紧凑 */
     .add-form-compact .form-label { font-size: 0.8rem; margin-bottom: 0.25rem; }
     .add-form-compact .form-control { font-size: 0.85rem; }
@@ -293,7 +300,9 @@
     <!-- 明细项目表格 -->
     <div class="card card-compact">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <span class="card-title"><i class="fas fa-list text-primary"></i> 明细项目 (<span id="itemVisibleCount">{{ budget.items|length }}</span>)</span>
+            <span class="card-title"><i class="fas fa-list text-primary"></i> 明细项目 (<span id="itemVisibleCount">{{ budget.items|length }}</span>)
+                {% if budget.disabled_item_count %}<span class="badge bg-secondary ms-1" style="font-size:0.7rem" title="这些项目暂不计入任何合计">{{ budget.disabled_item_count }} 项未计入</span>{% endif %}
+            </span>
             <div class="d-flex align-items-center gap-2">
                 {% set categories = budget.items | map(attribute='category') | unique | list %}
                 <select id="categoryFilter" class="form-select form-select-sm" style="width:auto;" onchange="filterByCategory()" title="按分类筛选">
@@ -345,7 +354,8 @@
                         {% set ns.adult_total = ns.adult_total + adult_up %}
                         {% set ns.child_total = ns.child_total + child_up %}
                         {# data-cat-order：类别的排序权重（业务类型的既定顺序）；不在业务类型表里的排到最后 #}
-                        <tr data-category="{{ item.category or '未分类' }}"
+                        <tr class="{% if not item.is_active %}item-disabled{% endif %}"
+                            data-category="{{ item.category or '未分类' }}"
                             data-cat-order="{{ category_order.get(item.category, 9999) }}"
                             data-adult="{{ '%.6f'|format(adult_up) }}" data-child="{{ '%.6f'|format(child_up) }}">
                             <td><span class="badge bg-secondary">{{ item.category or '未分类' }}</span></td>
@@ -354,6 +364,7 @@
                                 <span class="item-name item-name-link" title="点击编辑「{{ item.item_name }}」"
                                       onclick="editItem({{ item.id }})">{{ item.item_name }}</span>
                                 {% if item.is_optional %}<span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem">可选</span>{% endif %}
+                                {% if not item.is_active %}<span class="badge bg-secondary ms-1" style="font-size:0.65rem">未计入</span>{% endif %}
                             </td>
                             <td>
                                 {% if item.item_details %}
@@ -371,15 +382,30 @@
                                 {% if item.count_adult_apply %}<span class="badge bg-info" style="font-size:0.7rem">成{{ item.adult_count_override or budget.adult_count }}</span>{% endif %}
                                 {% if item.count_child_apply and (budget.child_count > 0 or item.child_count_override) %}<span class="badge bg-warning text-dark" style="font-size:0.7rem">儿{{ item.child_count_override or budget.child_count }}</span>{% endif %}
                             </td>
+                            {# 禁用的项目按 0 计入合计，但仍把原价划掉显示，方便判断要不要开回来 #}
                             <td>
-                                {% if item.count_adult_apply %}<span class="price-adult">{{ "%.2f"|format(item.adult_unit_price) }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
+                                {% if not item.count_adult_apply %}<span class="text-muted">-</span>
+                                {% elif item.is_active %}<span class="price-adult">{{ "%.2f"|format(item.adult_unit_price) }}</span>
+                                {% else %}<span class="price-parked" title="已禁用，未计入合计">{{ "%.2f"|format(item.adult_unit_price_raw) }}</span>{% endif %}
                             </td>
                             <td>
-                                {% if item.count_child_apply %}<span class="price-child">{{ "%.2f"|format(item.child_unit_price) }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
+                                {% if not item.count_child_apply %}<span class="text-muted">-</span>
+                                {% elif item.is_active %}<span class="price-child">{{ "%.2f"|format(item.child_unit_price) }}</span>
+                                {% else %}<span class="price-parked" title="已禁用，未计入合计">{{ "%.2f"|format(item.child_unit_price_raw) }}</span>{% endif %}
                             </td>
                             <td>
                                 {# 编辑改为点击项目名称，这里只留复制和删除 #}
                                 <div class="btn-group btn-group-sm">
+                                    {# 禁用/启用：只切开关，价格保留在库里 #}
+                                    {% if item.is_active %}
+                                    <button class="btn btn-outline-warning btn-action" onclick="toggleItem({{ item.id }}, false)" title="禁用此项（暂不计入费用，价格保留）">
+                                        <i class="fas fa-toggle-on"></i>
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-outline-success btn-action" onclick="toggleItem({{ item.id }}, true)" title="启用此项（重新计入费用）">
+                                        <i class="fas fa-toggle-off"></i>
+                                    </button>
+                                    {% endif %}
                                     <button class="btn btn-outline-secondary btn-action" onclick="copyItem({{ item.id }})" title="复制">
                                         <i class="fas fa-copy"></i>
                                     </button>
@@ -828,6 +854,29 @@ function deleteItem(itemId) {
             body: JSON.stringify({ csrf_token: csrfToken })
         }).then(r => r.ok ? location.reload() : alert('删除失败'));
     }
+}
+
+// 禁用/启用一条明细：只切"计不计入费用"，价格留在库里，随时可以切回来。
+// 合计、人均、分类统计都在后端按启用项重算，所以直接刷新页面拿最新数字。
+function toggleItem(itemId, enable) {
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    fetch(`/package_budget/{{ budget.id }}/item/${itemId}/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ csrf_token: csrfToken })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || (enable ? '启用失败' : '禁用失败'));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('操作失败，请稍后重试');
+    });
 }
 
 // 把一条明细的数据回填到弹窗表单（复制和编辑共用）

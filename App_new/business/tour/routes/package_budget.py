@@ -768,6 +768,36 @@ def delete_item(budget_id, item_id):
         return jsonify({'success': False, 'error': '删除失败'}), 500
 
 
+@package_budget.route('/<int:budget_id>/item/<int:item_id>/toggle', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def toggle_item(budget_id, item_id):
+    """启用/禁用某条明细：只改是否计入计算，价格原样保留，随时可以切回来"""
+    try:
+        item = BudgetItem.query.filter_by(id=item_id, header_id=budget_id).first()
+        if item is None:
+            return jsonify({'success': False, 'message': '明细不存在或不属于此预算单'}), 404
+
+        item.is_enabled = not item.is_active
+        db.session.commit()
+
+        budget = BudgetHeader.query.get(budget_id)
+        return jsonify({
+            'success': True,
+            'is_enabled': item.is_enabled,
+            'message': ('已启用「%s」，重新计入费用' % item.item_name) if item.is_enabled
+                       else ('已禁用「%s」，暂不计入费用' % item.item_name),
+            'adult_unit_price_final': round(budget.adult_unit_price_final or 0, 2),
+            'child_unit_price_final': round(budget.child_unit_price_final or 0, 2),
+            'total_price_final': round(budget.total_price_final or 0, 2),
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"toggle_item failed for item {item_id}: {e}")
+        return jsonify({'success': False, 'message': f'操作失败：{e}'}), 500
+
+
 @package_budget.route('/<int:budget_id>/item/<int:item_id>/copy', methods=['POST'])
 @login_required
 @staff_only
@@ -804,6 +834,7 @@ def copy_item(budget_id, item_id):
             tax_rate=item.tax_rate,
             tax_amount=item.tax_amount,
             is_optional=item.is_optional,
+            is_enabled=item.is_active,
             remarks=item.remarks,
         )
 
@@ -888,6 +919,7 @@ def copy_items_from(budget_id, source_id):
                 tax_rate=src.tax_rate,
                 tax_amount=src.tax_amount,
                 is_optional=src.is_optional,
+                is_enabled=src.is_active,
                 remarks=src.remarks,
             ))
             copied += 1
@@ -953,6 +985,7 @@ def duplicate(budget_id):
                 tax_rate=original_item.tax_rate,
                 tax_amount=original_item.tax_amount,
                 is_optional=original_item.is_optional,
+                is_enabled=original_item.is_active,
                 remarks=original_item.remarks
             )
             db.session.add(new_item)
@@ -1017,6 +1050,7 @@ def export_budget(budget_id):
                 'tax_rate': float(item.tax_rate) if item.tax_rate else None,
                 'tax_amount': float(item.tax_amount) if item.tax_amount else None,
                 'is_optional': item.is_optional,
+                'is_enabled': bool(item.is_active),
                 'remarks': item.remarks,
                 'subtotal': float(item.subtotal)
             })
@@ -1113,7 +1147,8 @@ def download_budget_txt(budget_id):
         total_price = 0
         price_lines = []  # 每项详细价格，单独成段放到文件后面
 
-        for i, item in enumerate(budget.items, 1):
+        # 被禁用的明细不出现在报价单里（价格还在库里，启用后自动回来）
+        for i, item in enumerate(budget.active_items, 1):
             # 项目标题
             content.append(f"{i:2d}. {item.item_name}")
 
@@ -1286,6 +1321,7 @@ EXCEL_ITEM_COLUMNS = [
     ('adult_count_override', '成人人数(可空)', 14),
     ('child_count_override', '儿童人数(可空)', 14),
     ('is_optional', '可选(是/否)', 12),
+    ('is_enabled', '计入费用(是/否)', 14),
     ('remarks', '备注', 20),
 ]
 
@@ -1343,6 +1379,7 @@ def export_items(budget_id):
             item.adult_count_override if item.adult_count_override is not None else '',
             item.child_count_override if item.child_count_override is not None else '',
             b2s(item.is_optional),
+            b2s(item.is_active),
             item.remarks or '',
             round(item.subtotal or 0, 2),
         ]
@@ -1466,6 +1503,7 @@ def import_items(budget_id):
             item.adult_count_override = to_int(cell_val(row, 'adult_count_override'))
             item.child_count_override = to_int(cell_val(row, 'child_count_override'))
             item.is_optional = to_bool(cell_val(row, 'is_optional'), False)
+            item.is_enabled = to_bool(cell_val(row, 'is_enabled'), True)
             item.remarks = (str(cell_val(row, 'remarks') or '').strip()) or None
 
         db.session.commit()
@@ -1586,12 +1624,18 @@ def _item_to_dict(item):
         'total_override': float(item.total_override) if item.total_override is not None else None,
         'tax_rate': item.tax_rate,
         'is_optional': bool(item.is_optional),
+        # False = 临时禁用，价格还在但不计入任何合计
+        'is_enabled': bool(item.is_active),
         'sort_order': item.sort_order,
         'remarks': item.remarks,
-        # 以下为算出来的值，只读
+        # 以下为算出来的值，只读；禁用的项目这三个都是 0
         'subtotal': float(item.subtotal),
         'adult_unit_price': float(item.adult_unit_price),
         'child_unit_price': float(item.child_unit_price),
+        # 不受禁用影响的原始计算值（用于显示"启用后是多少钱"）
+        'subtotal_raw': float(item.subtotal_raw),
+        'adult_unit_price_raw': float(item.adult_unit_price_raw),
+        'child_unit_price_raw': float(item.child_unit_price_raw),
     }
 
 
@@ -1696,6 +1740,9 @@ def _apply_item_payload(item, data, partial=False):
         item.count_child_apply = _as_bool(data.get('count_child_apply'), True)
     if not partial or 'is_optional' in data:
         item.is_optional = _as_bool(data.get('is_optional'), False)
+    # 临时不计入费用（价格保留），不传时默认启用
+    if not partial or 'is_enabled' in data:
+        item.is_enabled = _as_bool(data.get('is_enabled'), True)
 
     # 这项单独用不同人数（不传/传 null = 跟随预算单表头的人数）
     if not partial or 'adult_count_override' in data:
