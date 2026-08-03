@@ -229,12 +229,22 @@ def create_tour_project():
 def manage_tour_projects():
     """管理旅游项目页面"""
     # 获取表单参数（如果没有则使用默认值）
-    travel_status = request.args.get('travel_status', '处理中')  # 默认显示"处理中"状态
+    # 默认显示"全部追中单"：只按单一状态过滤时，改过状态的项目会从常看的那一屏消失
+    travel_status = request.args.get('travel_status', 'all')
     # 默认按创建时间倒序排列（最新在前）
     sort_by = request.args.get('sort_by', 'created_date')
     order = request.args.get('order', 'desc')
     page = request.args.get('page', 1, type=int)
     per_page = 15
+
+    # 各状态项目数量（供筛选下拉显示，避免项目"改了状态就消失"却无处可寻）
+    status_rows = db.session.query(
+        TourProject.project_status,
+        db.func.count(TourProject.id)
+    ).group_by(TourProject.project_status).all()
+    status_counts = {status: count for status, count in status_rows}
+    # "全部追中单" = 排除忽略单（状态为 NULL 的历史数据计入）
+    status_counts['all'] = sum(count for status, count in status_rows if status != '忽略单')
 
     # 构建查询条件
     query = TourProject.query
@@ -280,8 +290,9 @@ def manage_tour_projects():
                          projects=tour_projects,
                          pagination=pagination,
                          travel_status=travel_status, 
-                         sort_by=sort_by, 
+                         sort_by=sort_by,
                          order=order,
+                         status_counts=status_counts,
                          hid_to_project_id=hid_to_project_id)
 
 @tour_projects.route('/update/<int:project_id>', methods=['POST'])

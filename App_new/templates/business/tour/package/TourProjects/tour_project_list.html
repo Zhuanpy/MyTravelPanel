@@ -23,12 +23,14 @@
         <form method="GET" action="{{ url_for('tour_projects.manage_tour_projects') }}" style="display: flex; align-items: flex-end; gap: 1rem; margin: 0; flex: 1;">
             <div class="visa-filter-item">
                 <label for="travel_status" class="visa-form-label">旅游项目状态</label>
+                {# 选项带数量：改过状态的项目不会在别的标签下"人间蒸发" #}
+                {% set counts = status_counts or {} %}
                 <select name="travel_status" id="travel_status" class="visa-form-select" onchange="this.form.submit()">
-                    <option value="all" {% if travel_status == 'all' %}selected{% endif %}>全部追中单</option>
-                    <option value="处理中" {% if travel_status == '处理中' %}selected{% endif %}>处理中</option>
-                    <option value="待出行" {% if travel_status == '待出行' %}selected{% endif %}>待出行</option>
-                    <option value="已完成" {% if travel_status == '已完成' %}selected{% endif %}>已完成</option>
-                    <option value="忽略单" {% if travel_status == '忽略单' %}selected{% endif %}>忽略单</option>
+                    <option value="all" {% if travel_status == 'all' %}selected{% endif %}>全部追中单 ({{ counts.get('all', 0) }})</option>
+                    <option value="处理中" {% if travel_status == '处理中' %}selected{% endif %}>处理中 ({{ counts.get('处理中', 0) }})</option>
+                    <option value="待出行" {% if travel_status == '待出行' %}selected{% endif %}>待出行 ({{ counts.get('待出行', 0) }})</option>
+                    <option value="已完成" {% if travel_status == '已完成' %}selected{% endif %}>已完成 ({{ counts.get('已完成', 0) }})</option>
+                    <option value="忽略单" {% if travel_status == '忽略单' %}selected{% endif %}>忽略单 ({{ counts.get('忽略单', 0) }})</option>
                 </select>
             </div>
             <div class="visa-filter-item">
