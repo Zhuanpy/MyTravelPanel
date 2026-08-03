@@ -97,6 +97,56 @@ show_recent() {
     echo -e "想实时抓下一次报错: ${YELLOW}./show_errors.sh -f${NC}"
 }
 
+# 把时间戳换算成「多久之前」
+ago() {
+    local ts_epoch now_epoch diff
+    ts_epoch=$(date -d "$1" +%s 2>/dev/null) || { echo "时间无法解析"; return; }
+    now_epoch=$(date +%s)
+    diff=$(( now_epoch - ts_epoch ))
+
+    if   [ "$diff" -lt 0 ];     then echo "时间在未来（服务器时钟对不上？）"
+    elif [ "$diff" -lt 60 ];    then echo "${diff} 秒前"
+    elif [ "$diff" -lt 3600 ];  then echo "$(( diff / 60 )) 分钟前"
+    elif [ "$diff" -lt 86400 ]; then echo "$(( diff / 3600 )) 小时前"
+    else echo "$(( diff / 86400 )) 天前"
+    fi
+}
+
+# 报错时间概览
+# tail 经常正好切在 traceback 中间，满屏堆栈却看不到时间戳，不知道是哪次的报错，
+# 所以这里单独把「最近一条报错发生在什么时候、距今多久」摆出来。
+show_time_summary() {
+    echo -e "${BLUE}=== 时间信息 ===${NC}"
+    echo -e "${YELLOW}当前服务器时间:${NC} $(date '+%Y-%m-%d %H:%M:%S') ($(date '+%Z %z'))"
+
+    if [ ! -f "$ERROR_LOG" ]; then
+        echo "  （还没有日志文件）"
+        echo ""
+        return
+    fi
+
+    echo -e "${YELLOW}日志文件大小:${NC} $(du -h "$ERROR_LOG" 2>/dev/null | cut -f1)"
+    echo -e "${YELLOW}文件最后写入:${NC} $(date -r "$ERROR_LOG" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '未知')"
+
+    # 报错首行形如：2026-08-03 15:04:05 | ERROR | Exception on /xxx [GET]
+    # 堆栈行没有时间戳，所以只认这种带时间戳的行
+    local ts_re='^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} \|'
+    local count first last
+    count=$(grep -cE "$ts_re" "$ERROR_LOG" 2>/dev/null || true)
+    count=${count:-0}
+
+    if [ "$count" -gt 0 ]; then
+        first=$(grep -E "$ts_re" "$ERROR_LOG" | head -1 | cut -c1-19)
+        last=$(grep -E "$ts_re" "$ERROR_LOG" | tail -1 | cut -c1-19)
+        echo -e "${YELLOW}报错条数:${NC} $count 条（仅本文件，轮转出去的在 ${ERROR_LOG}.1 ...）"
+        echo -e "${YELLOW}最早一条:${NC} $first"
+        echo -e "${RED}最近一条:${NC} $last  ($(ago "$last"))"
+    else
+        echo "  文件里没有带时间戳的报错行"
+    fi
+    echo ""
+}
+
 # 主流程
 main() {
     echo "=========================================="
@@ -106,6 +156,8 @@ main() {
 
     if [ "$FOLLOW" = true ]; then
         check_log_exists || { echo ""; echo "先跑 -f 也行，等报错发生就会自动出现："; }
+        # 跟踪模式下 tail 会一直占着终端，时间信息必须先打
+        show_time_summary
         follow_errors
         return
     fi
@@ -114,6 +166,8 @@ main() {
     if check_log_exists; then
         show_recent
     fi
+    # 放最后：翻完堆栈一眼就知道这批报错是什么时候的
+    show_time_summary
 }
 
 main
