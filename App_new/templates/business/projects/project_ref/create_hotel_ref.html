@@ -287,7 +287,7 @@
         <div class="form-section">
             <div class="section-title"><i class="fas fa-sticky-note me-2"></i>备注</div>
             {# remarks_text 已由路由归一化：早期模板把 None 渲染成字面量 "None" 存回了库，这里一并当空处理 #}
-            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="2" placeholder="输入备注...">{{ remarks_text or '' }}</textarea>
+            <textarea name="remarks" id="remarks" class="form-control form-control-sm" rows="6" style="resize: vertical;" placeholder="输入备注...">{{ remarks_text or '' }}</textarea>
         </div>
 
         <!-- Actions -->
