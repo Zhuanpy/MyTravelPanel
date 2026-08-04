@@ -206,7 +206,7 @@
         </a>
         {% endif %}
         {% if eo.ref %}
-        <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=eo.ref_id) }}" class="quick-nav-item">
+        <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=eo.ref_id) }}" class="quick-nav-item" title="编辑REF">
             <i class="fas fa-file-alt"></i> REF <strong>{{ eo.ref.ref_number }}</strong>
         </a>
         {% endif %}

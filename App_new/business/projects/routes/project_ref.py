@@ -2830,8 +2830,8 @@ def hotel_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
-    supplier_name = supplier.name if supplier else None
+    supplier = CustomerCompany.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier_name = supplier.company_name if supplier else None
     
     return render_template('business/projects/project_ref/hotel_ref_detail.html', 
                          ref=ref, 
@@ -2867,8 +2867,8 @@ def visa_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
 
     # 获取供应商名称
-    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
-    supplier_name = supplier.name if supplier else None
+    supplier = CustomerCompany.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier_name = supplier.company_name if supplier else None
 
     return render_template('business/projects/project_ref/visa_ref_detail.html',
                          ref=ref,
@@ -3057,8 +3057,8 @@ def tour_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
-    supplier_name = supplier.name if supplier else None
+    supplier = CustomerCompany.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier_name = supplier.company_name if supplier else None
     
     return render_template('business/projects/project_ref/tour_ref_detail.html', 
                          ref=ref, 
@@ -3075,8 +3075,8 @@ def insurance_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
-    supplier_name = supplier.name if supplier else None
+    supplier = CustomerCompany.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier_name = supplier.company_name if supplier else None
     
     return render_template('business/projects/project_ref/insurance_ref_detail.html', 
                          ref=ref, 
@@ -3093,8 +3093,8 @@ def transport_ref_detail(ref_id):
     ref_type_name = business_type.name if business_type else None
     
     # 获取供应商名称
-    supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id) if ref.supplier_id else None
-    supplier_name = supplier.name if supplier else None
+    supplier = CustomerCompany.query.get(ref.supplier_id) if ref.supplier_id else None
+    supplier_name = supplier.company_name if supplier else None
     
     return render_template('business/projects/project_ref/transport_ref_detail.html', 
                          ref=ref,
@@ -3380,9 +3380,9 @@ def attraction_ref_detail(ref_id):
     # 获取供应商名称
     supplier_name = ''
     if ref.supplier_id:
-        supplier = CustomerCompany.query.get(ref.company_id or ref.supplier_id)
+        supplier = CustomerCompany.query.get(ref.supplier_id)
         if supplier:
-            supplier_name = supplier.name
+            supplier_name = supplier.company_name
 
     return render_template('business/projects/project_ref/ref_detail.html',
                          ref=ref,
@@ -4580,10 +4580,8 @@ def edit_ref(ref_id):
         return redirect(url_for('business_projects.project_ref.edit_tour_ref', ref_id=ref.id))
     elif ref_type_name == '保险':
         return redirect(url_for('business_projects.project_ref.edit_insurance_ref', ref_id=ref.id))
-    # elif ref_type_name == '交通':
-    #     # Transport ref编辑通过submit路由处理，暂时注释
-    #     # return redirect(url_for('business_projects.project_ref.edit_transport_ref', ref_id=ref.id))
-    #     pass
+    elif ref_type_name == '交通' or (business_type and business_type.code in ('transport', 'transfer')):
+        return redirect(url_for('business_projects.project_ref.edit_transport_ref', ref_id=ref.id))
     elif ref_type_name == '其他' or ref_type_name == 'Miscellanous':
         return redirect(url_for('business_projects.project_ref.edit_other_ref', ref_id=ref.id))
     
