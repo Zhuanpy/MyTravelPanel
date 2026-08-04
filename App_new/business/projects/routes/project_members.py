@@ -241,36 +241,49 @@ def batch_add_members(project_id):
         # 检查是否已有人员，如果没有，则第一个添加的人员自动成为leader
         existing_members_count = ProjectMember.query.filter_by(header_id=project_id).count()
         is_first_batch = existing_members_count == 0
-        
+
         added_members = []
-        for idx, m_data in enumerate(members_data):
+        for m_data in members_data:
             if not m_data.get('member_name'):
                 continue
-            
-            # 如果是第一批且是第一个人员，自动设为leader
-            is_first_member = is_first_batch and idx == 0
-            
+
+            # 第一批时，第一个「真正建出来」的人员自动设为leader。
+            # 不能按下标判定：数组首项若缺 member_name 会被上面跳过，
+            # 按 idx==0 判定就会导致整批都没有 leader（项目列表显示空/旧名字）。
+            is_first_member = is_first_batch and not added_members
+
+            # 处理航空会员信息
+            memberships = m_data.get('airline_memberships')
+            memberships_json = json.dumps(memberships, ensure_ascii=False) if memberships else None
+
             member = ProjectMember(
                 header_id=project_id,
                 title=m_data.get('title'),
                 member_name=m_data.get('member_name'),
                 member_name_en=m_data.get('member_name_en'),
                 member_role=m_data.get('member_role'),
+                gender=m_data.get('gender'),
+                date_of_birth=m_data.get('date_of_birth') or None,
+                nationality=m_data.get('nationality'),
                 member_phone=m_data.get('member_phone'),
                 member_email=m_data.get('member_email'),
                 id_type=m_data.get('id_type'),
                 id_number=m_data.get('id_number'),
+                passport_issuing_country=m_data.get('passport_issuing_country'),
+                passport_expiry_date=m_data.get('passport_expiry_date') or None,
+                airline_memberships=memberships_json,
                 remarks=m_data.get('remarks'),
                 is_leader=is_first_member  # 第一个人员自动设为leader
             )
             db.session.add(member)
-            added_members.append(member)
-            
+
             # 如果是第一个人员，同时更新项目Header的leader_name字段
             if is_first_member:
                 leader_name = f"{member.title} {member.member_name}" if member.title else member.member_name
                 header.leader_name = leader_name
-        
+
+            added_members.append(member)
+
         db.session.commit()
         
         message = f'成功添加 {len(added_members)} 名人员'

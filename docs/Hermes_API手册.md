@@ -221,6 +221,17 @@ selling_price / cost_price / eo_number / invoice_number / passengers[] / segment
 {"members": [{"member_name": "ZHOU YONGFA", "member_name_en": "ZHOU YONGFA"}]}
 ```
 
+支持字段（与单条 `POST /members` 完全一致，2026-08-04 对齐）：
+`title` / `member_name`（**必填**）/ `member_name_en` / `member_role` /
+`gender` / `date_of_birth` / `nationality` / `member_phone` / `member_email` /
+`id_type` / `id_number`（护照号）/ `passport_issuing_country` /
+`passport_expiry_date` / `airline_memberships` / `remarks`。
+
+> Leader 规则：**项目当前成员数为 0 时**，本批第一个「成功建出来」的成员
+> 自动 `is_leader=true` 并同步 `header.leader_name`。
+> 缺 `member_name` 的条目会被静默跳过（不报错），跳过的不参与 Leader 判定。
+> 项目里已有成员时整批都不会自动设 Leader —— 所以务必**先删空再加**。
+
 ### 机票改单（字段级，无需删重建）
 | 接口 | 方法 | 入参 | 说明 |
 |---|---|---|---|
