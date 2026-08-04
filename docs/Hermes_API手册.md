@@ -85,8 +85,8 @@
 | 0. 查公司 | `/api/hermes/companies/search?q=` | GET | — | 拿 `company_id` + 联系人 |
 | 1. 复制项目 | `/projects/detail/<source_id>/copy` | POST | `{with_refs:false, company_id, contact}` | **三个参数一起传**，见下 |
 | 2. 读成员 | `/projects/<pid>/members` | GET | — | 返回 `data[]`（含 id） |
-| 3. 删成员 | `/projects/<pid>/members/<mid>` | DELETE | — | 逐个删 |
-| 4. 批量加成员 | `/projects/<pid>/members/batch` | POST | JSON | 首个自动设 Leader |
+| 3. 删成员 | `/projects/<pid>/members/<mid>` | DELETE | — | **先删干净**，逐个删 |
+| 4. 批量加成员 | `/projects/<pid>/members/batch` | POST | JSON | **删空后再加**，首个自动设 Leader |
 | 5. **一键建单** | `/projects/ref/flight/quick-create/<pid>` | POST | JSON | 建 REF + EO + 发票，**行李一起传** |
 | 6. **验收** | `/api/hermes/order/<hid>/summary` | GET | — | 逐项比对，见 §1.1 |
 
@@ -117,6 +117,30 @@ POST /projects/detail/<模板项目id>/copy
 
 > 老流程仍然可用：不传这些参数即保持原行为（复制 REF、沿用模板客户），
 > 返回的 `new_ref_ids` 就是复制来的 REF。但自动化下单一律传全三个参数。
+
+**换乘客必须「先删后加」，顺序反了会留旧 Leader（2026-08-04 新增）**
+
+copy 会把模板项目的 `header.leader_name` 和成员的 `is_leader` **一起抄到新项目**。
+所以第 3 步（删）必须排在第 4 步（加）**前面**：
+
+- ✅ 先 `DELETE` 掉所有旧成员 → 再 `POST /members/batch` 加新人。
+  项目此刻为空，新成员天然是首个成员，`is_leader` 与 `header.leader_name` 一并自动写好，
+  **零额外请求**。
+- ❌ 先加后删：`add_member` 只在项目**一个成员都没有**时才自动设 Leader，
+  而 `DELETE` 既不改选 Leader 也不动 `header.leader_name` →
+  新项目挂着上一单的人名，项目列表 / 详情 / summary 显示的全是错的。
+  （2026-08-04 H2163、H2164 连续两单因此显示 "UDDIN MD MAIN"。）
+
+**兜底：`POST /projects/<pid>/members/<mid>/set-leader`** —— 纯 JSON 接口，
+`@csrf.exempt` + token 直通，会同时设 `is_leader` 并同步 `header.leader_name`。
+
+> ⚠️ **这个接口一直存在，不要以为「没有成员更新 API」就降级去开浏览器点按钮。**
+> 成员的增删改查全是 JSON（见 §附录 `/projects/<pid>/members`）。
+> 任何时候都不要在自动化流程里输入账号密码 —— 密码会被打进日志。
+> 怀疑鉴权有问题，先调 `GET /api/hermes/whoami` 自检，200 就说明 token 没事。
+
+> `quick-create` 里的 `leader_name` 只写进 `ref.extra_info` 供**发票打印**用，
+> **设计上不回写项目头**，指望它纠正 Leader 是无效的。
 
 **一键建单请求体**：
 ```json
@@ -181,8 +205,13 @@ selling_price / cost_price / eo_number / invoice_number / passengers[] / segment
 > 如果你的断言按 ISO 写的，**要跟着改**。
 
 **验收规则**：拿它与**解析阶段得到的原始订单要素**逐项比对——
-乘客姓名、护照号、航班号、起降机场、日期时间、售价、成本、供应商 ID、行李。
+乘客姓名、护照号、航班号、起降机场、日期时间、售价、成本、供应商 ID、行李，
+以及项目头三项：**`leader_name`**、`company_name`、`contact`。
 全部一致才算成功；任何一项不符，原样列出「期望 vs 实际」，**不要自行修补**。
+
+> ⚠️ **`leader_name` 必查**：它是项目列表/详情实际显示的那个名字，
+> 复制模板时会带着旧人名过来，REF 乘客对不代表它对。
+> 断言它 == 本单乘客（多人时为 leader），不等就是第 3/4 步顺序反了，见上文。
 
 > ⚠️ 必查 `ref_count`：正常单 REF 订单应为 **1**。多出来说明重复建单，
 > 或模板 REF 没清干净（这正是 `with_refs:false` 要解决的问题）。
