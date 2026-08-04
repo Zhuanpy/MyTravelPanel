@@ -309,11 +309,36 @@ def company_detail(company_id):
     from App_new.shared.models.account import Account
     linked_accounts = Account.query.filter_by(supplier_id=company_id).order_by(Account.platform).all()
 
+    # 作为供应商的相关EO：最近的排前面，页面上最多显示10条
+    supplier_eos = []
+    supplier_eo_total = 0
+    if company.is_supplier:
+        from App_new.business.projects.models.eo import ProjectEO
+        from App_new.business.projects.models.ref import ProjectRef
+        from App_new.business.projects.models.project import ProjectHeader
+
+        eo_query = ProjectEO.query.join(
+            ProjectRef, ProjectEO.ref_id == ProjectRef.id
+        ).filter(ProjectRef.supplier_id == company_id)
+
+        # 1级员工只看自己项目下的EO（与EO列表页口径一致）
+        if _current_staff_level() < 2:
+            eo_query = eo_query.join(
+                ProjectHeader, ProjectRef.header_id == ProjectHeader.id
+            ).filter(ProjectHeader.staff_id == current_user.id)
+
+        supplier_eo_total = eo_query.count()
+        supplier_eos = eo_query.order_by(
+            ProjectEO.created_at.desc(), ProjectEO.id.desc()
+        ).limit(10).all()
+
     return render_template('shared/corporate/corporate_detail.html',
                            company=company,
                            prepayment_stats=prepayment_stats,
                            prepayment_records=prepayment_records,
-                           linked_accounts=linked_accounts)
+                           linked_accounts=linked_accounts,
+                           supplier_eos=supplier_eos,
+                           supplier_eo_total=supplier_eo_total)
 
 
 @corporate.route('/<int:company_id>/initial-balance', methods=['POST'])

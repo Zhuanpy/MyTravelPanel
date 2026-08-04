@@ -399,6 +399,76 @@
             {% endif %}
             </div>
         </div>
+
+        <!-- 相关EO卡片（仅供应商） -->
+        {% if company.is_supplier %}
+        <div class="visa-card visa-mt-3">
+            <div class="visa-card-header">
+                <h3><i class="fas fa-file-invoice"></i> 相关EO</h3>
+                <div>
+                    <span class="visa-badge visa-badge-primary">{{ supplier_eo_total }}</span>
+                    {% if supplier_eo_total > 10 %}
+                    <a href="{{ url_for('business_projects.project_eo.eo_list', supplier=company.id) }}"
+                       class="visa-btn visa-btn-sm visa-btn-primary" style="margin-left: 0.5rem;">
+                        <i class="fas fa-external-link-alt"></i> 查看全部
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="visa-card-body" {% if supplier_eos %}style="padding: 0;"{% endif %}>
+                {% if supplier_eos %}
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <th style="padding: 0.4rem 0.5rem; text-align: left; color: #64748b; font-weight: 500;">EO编号</th>
+                            <th style="padding: 0.4rem 0.5rem; text-align: left; color: #64748b; font-weight: 500;">项目 / 内容</th>
+                            <th style="padding: 0.4rem 0.5rem; text-align: left; color: #64748b; font-weight: 500;">日期</th>
+                            <th style="padding: 0.4rem 0.5rem; text-align: right; color: #64748b; font-weight: 500;">金额</th>
+                            <th style="padding: 0.4rem 0.5rem; text-align: center; color: #64748b; font-weight: 500;">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eo in supplier_eos %}
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 0.4rem 0.5rem;">
+                                <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=eo.id) }}"
+                                   class="visa-btn-link visa-btn-link-primary" style="font-weight: 600;">{{ eo.eo_number }}</a>
+                            </td>
+                            <td style="padding: 0.4rem 0.5rem; color: #334155; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                title="{{ eo.ref.description if eo.ref else '' }}">
+                                {% if eo.ref and eo.ref.header %}<span style="color: #94a3b8;">{{ eo.ref.header.hid }}</span> {% endif %}{{ eo.ref.description if eo.ref else '-' }}
+                            </td>
+                            <td style="padding: 0.4rem 0.5rem; color: #64748b;">
+                                {{ eo.eo_date.strftime('%Y-%m-%d') if eo.eo_date else (eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-') }}
+                            </td>
+                            <td style="padding: 0.4rem 0.5rem; text-align: right; font-weight: 600; color: #334155;">{{ eo.formatted_amount }}</td>
+                            <td style="padding: 0.4rem 0.5rem; text-align: center;">
+                                {% if eo.status == 'void' %}
+                                <span class="visa-badge visa-badge-secondary" style="font-size: 0.7rem;">已作废</span>
+                                {% elif eo.is_paid %}
+                                <span class="visa-badge visa-badge-success" style="font-size: 0.7rem;">已付款</span>
+                                {% else %}
+                                <span class="visa-badge visa-badge-warning" style="font-size: 0.7rem;">未付款</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if supplier_eo_total > 10 %}
+                <div class="visa-text-center" style="padding: 0.5rem;">
+                    <small style="color: #94a3b8;">仅显示最近 10 个，还有 {{ supplier_eo_total - 10 }} 个未显示</small>
+                </div>
+                {% endif %}
+                {% else %}
+                <div style="text-align: center; padding: 1.5rem; color: #94a3b8;">
+                    <i class="fas fa-file-invoice" style="font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                    <p style="margin: 0; font-size: 0.85rem;">暂无相关EO</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 

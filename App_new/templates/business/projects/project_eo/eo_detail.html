@@ -194,7 +194,9 @@
         </a>
         {% endif %}
         {% if eo.ref and eo.ref.supplier %}
-        <span class="quick-nav-item"><i class="fas fa-building"></i> {{ eo.ref.supplier.company_name }}</span>
+        <a href="{{ url_for('corporate.company_detail', company_id=eo.ref.supplier.id) }}" class="quick-nav-item" title="查看供应商详情">
+            <i class="fas fa-building"></i> {{ eo.ref.supplier.company_name }}
+        </a>
         {% endif %}
         {% if eo.ref and eo.ref.ref_type %}
         <span class="quick-nav-item"><span class="tag tag-blue">{{ eo.ref.ref_type.name }}</span></span>
