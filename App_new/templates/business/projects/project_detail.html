@@ -731,10 +731,15 @@ function setMemberModalMode(mode) {
     document.getElementById('memberFrequentDetails').style.display = isFreq ? '' : 'none';
     document.getElementById('memberRegularHint').style.display = isFreq ? 'none' : '';
     document.getElementById('memberFormSectionTitle').textContent = isFreq ? '常用乘客信息' : '普通乘客信息';
-    // 常用乘客：性别与姓名同一行（姓名占 6 列）；普通乘客：仅称谓+姓名（姓名占 9 列）
+    // 常用乘客：称谓2 + 姓名5 + 性别2 + 生日3 = 12 列一行
+    // 普通乘客：只有称谓3 + 姓名9，性别/生日隐藏
     document.getElementById('memberGenderWrap').style.display = isFreq ? '' : 'none';
+    document.getElementById('memberDobWrap').style.display = isFreq ? '' : 'none';
+    const titleWrap = document.getElementById('memberTitleWrap');
+    titleWrap.classList.toggle('col-2', isFreq);
+    titleWrap.classList.toggle('col-3', !isFreq);
     const nameWrap = document.getElementById('memberNameWrap');
-    nameWrap.classList.toggle('col-6', isFreq);
+    nameWrap.classList.toggle('col-5', isFreq);
     nameWrap.classList.toggle('col-9', !isFreq);
 }
 
@@ -756,11 +761,9 @@ function openFrequentTravelerEdit() {
     window.open('/projects/frequent_traveler/?edit=' + id, '_blank');
 }
 
-// 复制乘客字段值到剪贴板，并在按钮上给出短暂视觉反馈
-function copyMemberField(fieldId, btn) {
-    const el = document.getElementById(fieldId);
-    if (!el) return;
-    const text = (el.value || '').trim();
+// 复制任意文本到剪贴板，并在按钮上给出短暂视觉反馈
+function copyMemberText(text, btn) {
+    text = (text || '').trim();
     if (!text) {
         alert('该字段为空，无内容可复制');
         return;
@@ -778,19 +781,40 @@ function copyMemberField(fieldId, btn) {
         }, 1000);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(el, done));
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
     } else {
-        fallbackCopy(el, done);
+        fallbackCopy(text, done);
     }
 }
 
+// 按 id 复制乘客字段值
+function copyMemberField(fieldId, btn) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    copyMemberText(el.value, btn);
+}
+
+// 复制同一个 input-group 内的输入框值（用于航空会员这类动态生成、没有固定 id 的行）
+function copyMemberRowField(btn) {
+    const input = btn.closest('.input-group')?.querySelector('input');
+    if (!input) return;
+    copyMemberText(input.value, btn);
+}
+
 // 降级方案：http(非https)或旧浏览器无 clipboard API 时用 execCommand 复制
-function fallbackCopy(inputEl, onDone) {
+// 历史教训：不能对原输入框 select()——只读模式下输入框是 disabled 的，选不中，
+// 所以统一走临时 textarea 复制文本。
+function fallbackCopy(text, onDone) {
     try {
-        inputEl.focus();
-        inputEl.select();
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
         document.execCommand('copy');
-        window.getSelection().removeAllRanges();
+        document.body.removeChild(ta);
         if (onDone) onDone();
     } catch (e) {
         alert('复制失败，请手动选择复制');
@@ -1073,7 +1097,7 @@ function saveMember() {
         }
         return iso;
     }
-    const dobIso = pickDate('memberDob', '出生日期');
+    const dobIso = pickDate('memberDob', '生日');
     if (dobIso === false) return;
     const expIso = pickDate('memberPassportExpiry', '护照有效期');
     if (expIso === false) return;
@@ -1308,9 +1332,16 @@ function addMemberMembershipRow(data) {
     const readonly = document.getElementById('memberForm').classList.contains('member-readonly');
     const row = document.createElement('div');
     row.className = 'mm-row';
+    // 航空公司/会员号码各带一个复制按钮（只读模式下也保留，查看常用乘客时最需要复制）
     row.innerHTML = `
-        <input type="text" class="form-control form-control-sm mm-airline" placeholder="航空公司" value="${data ? (data.airline || '') : ''}" style="flex:2;" ${readonly ? 'disabled' : ''}>
-        <input type="text" class="form-control form-control-sm mm-number" placeholder="会员号码" value="${data ? (data.number || '') : ''}" style="flex:3;" ${readonly ? 'disabled' : ''}>
+        <div class="input-group input-group-sm" style="flex:2;">
+            <input type="text" class="form-control form-control-sm mm-airline" placeholder="航空公司" value="${data ? (data.airline || '') : ''}" ${readonly ? 'disabled' : ''}>
+            <button type="button" class="btn btn-outline-secondary" title="复制航空公司" onclick="copyMemberRowField(this)"><i class="fas fa-copy"></i></button>
+        </div>
+        <div class="input-group input-group-sm" style="flex:3;">
+            <input type="text" class="form-control form-control-sm mm-number" placeholder="会员号码" value="${data ? (data.number || '') : ''}" ${readonly ? 'disabled' : ''}>
+            <button type="button" class="btn btn-outline-secondary" title="复制会员号码" onclick="copyMemberRowField(this)"><i class="fas fa-copy"></i></button>
+        </div>
         <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" onclick="this.closest('.mm-row').remove(); updateMemberMembershipEmpty()" style="font-size:0.75rem;">
             <i class="fas fa-times"></i>
         </button>`;
@@ -1461,6 +1492,18 @@ function deleteMember(memberId, memberName) {
     #memberModal .section-title i { color: #198754; font-size: 0.82rem; }
     #memberModal .form-label { font-size: 0.78rem; color: #6b7280; margin-bottom: 2px; font-weight: 500; }
     #memberModal .form-control-sm, #memberModal .form-select-sm { font-size: 0.85rem; border-radius: 6px; }
+    /* 历史教训：本文件末尾有个全局 .form-control{padding:.5rem .75rem}，写在 Bootstrap 之后、
+       特异性又相同，会把 .form-control-sm 的内边距顶掉；而 .form-select 没有同样的覆盖，
+       于是输入框比下拉框高一截。这里把两者的内边距/行高统一回 sm 尺寸。 */
+    #memberModal .form-control-sm,
+    #memberModal .form-select-sm,
+    #memberModal .input-group-sm > .form-control,
+    #memberModal .input-group-sm > .btn {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+        line-height: 1.5;
+    }
+    #memberModal .input-group-sm > .form-control { padding-left: 0.5rem; padding-right: 0.5rem; }
     #memberModal .modal-header {
         background: linear-gradient(135deg, #198754 0%, #0f5132 100%);
         color: #fff; border-radius: 8px 8px 0 0; padding: 12px 18px;
@@ -1477,6 +1520,12 @@ function deleteMember(memberId, memberName) {
         display: flex; gap: 6px; align-items: center; margin-bottom: 5px;
     }
     #memberModal .mm-row input { font-size: 0.82rem; border-radius: 5px; }
+    /* 会员行的输入框现在包在 input-group 里（带复制按钮），右侧圆角要抹平才能和按钮拼接。
+       上面那条 #memberModal .mm-row input 是 id 特异性，会盖掉 Bootstrap 的默认处理，故在此显式修正。 */
+    #memberModal .mm-row .input-group input {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
     /* 只读模式（常用乘客查看）：隐藏所有编辑/删除/上传等操作控件 */
     #memberModal .member-readonly #addMemberMembershipBtn,
     #memberModal .member-readonly #memberMembershipEmpty,
@@ -1526,8 +1575,9 @@ function deleteMember(memberId, memberName) {
                         <i class="fas fa-user"></i>
                         <span id="memberFormSectionTitle">普通乘客信息</span>
                     </div>
+                    <!-- 第一行：称谓、姓名、性别、生日（性别/生日仅常用乘客模式显示） -->
                     <div class="row g-2">
-                        <div class="col-3">
+                        <div class="col-3" id="memberTitleWrap">
                             <label class="form-label">称谓</label>
                             <select class="form-select form-select-sm" id="memberTitle">
                                 <option value="">-</option>
@@ -1537,20 +1587,29 @@ function deleteMember(memberId, memberName) {
                                 <option value="MASTER">MASTER</option>
                             </select>
                         </div>
-                        <div class="col-6" id="memberNameWrap">
+                        <div class="col-9" id="memberNameWrap">
                             <label class="form-label">姓名 <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm">
                                 <input type="text" class="form-control form-control-sm" id="memberName" placeholder="请输入姓名" required>
                                 <button type="button" class="btn btn-outline-secondary" title="复制姓名" onclick="copyMemberField('memberName', this)"><i class="fas fa-copy"></i></button>
                             </div>
                         </div>
-                        <div class="col-3" id="memberGenderWrap" style="display: none;">
+                        <div class="col-2" id="memberGenderWrap" style="display: none;">
                             <label class="form-label">性别</label>
                             <select class="form-select form-select-sm" id="memberGender">
                                 <option value="">-</option>
                                 <option value="male">男 Male</option>
                                 <option value="female">女 Female</option>
                             </select>
+                        </div>
+                        <div class="col-3" id="memberDobWrap" style="display: none;">
+                            <label class="form-label">生日</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberDob"
+                                       placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
+                                       pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 15-01-1990">
+                                <button type="button" class="btn btn-outline-secondary" title="复制生日" onclick="copyMemberField('memberDob', this)"><i class="fas fa-copy"></i></button>
+                            </div>
                         </div>
                     </div>
                     <div id="memberRegularHint" class="text-muted mt-2" style="font-size: 0.75rem;">
@@ -1562,7 +1621,7 @@ function deleteMember(memberId, memberName) {
                 <div id="memberFrequentDetails" style="display: none;">
                     <div class="section-card">
                         <div class="section-title"><i class="fas fa-passport"></i> 护照 / 证件 / 联系方式</div>
-                        <!-- 护照信息：护照号码、国籍、出生日期、护照有效期、签发国 一行 -->
+                        <!-- 第二行：护照号码、国籍、护照有效期、签发国家（生日已移到上方姓名行） -->
                         <div class="row g-2">
                             <div class="col-3">
                                 <label class="form-label">护照号码</label>
@@ -1571,7 +1630,7 @@ function deleteMember(memberId, memberName) {
                                     <button type="button" class="btn btn-outline-secondary" title="复制护照号码" onclick="copyMemberField('memberIdNumber', this)"><i class="fas fa-copy"></i></button>
                                 </div>
                             </div>
-                            <div class="col-2">
+                            <div class="col-3">
                                 <label class="form-label">国籍</label>
                                 <div class="input-group input-group-sm">
                                     <input type="text" class="form-control form-control-sm" id="memberNationality" placeholder="如 CHINA">
@@ -1579,15 +1638,6 @@ function deleteMember(memberId, memberName) {
                                 </div>
                             </div>
                             <div class="col-3">
-                                <label class="form-label">出生日期</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberDob"
-                                           placeholder="DD-MM-YYYY" maxlength="10" inputmode="numeric"
-                                           pattern="\d{2}-\d{2}-\d{4}" title="请按 日-月-年 格式输入，例如 15-01-1990">
-                                    <button type="button" class="btn btn-outline-secondary" title="复制出生日期" onclick="copyMemberField('memberDob', this)"><i class="fas fa-copy"></i></button>
-                                </div>
-                            </div>
-                            <div class="col-2">
                                 <label class="form-label">护照有效期</label>
                                 <div class="input-group input-group-sm">
                                     <input type="text" class="form-control form-control-sm date-ddmmyyyy" id="memberPassportExpiry"
@@ -1596,11 +1646,11 @@ function deleteMember(memberId, memberName) {
                                     <button type="button" class="btn btn-outline-secondary" title="复制护照有效期" onclick="copyMemberField('memberPassportExpiry', this)"><i class="fas fa-copy"></i></button>
                                 </div>
                             </div>
-                            <div class="col-2">
-                                <label class="form-label">签发国</label>
+                            <div class="col-3">
+                                <label class="form-label">签发国家</label>
                                 <div class="input-group input-group-sm">
                                     <input type="text" class="form-control form-control-sm" id="memberPassportCountry" placeholder="如 CHINA">
-                                    <button type="button" class="btn btn-outline-secondary" title="复制签发国" onclick="copyMemberField('memberPassportCountry', this)"><i class="fas fa-copy"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary" title="复制签发国家" onclick="copyMemberField('memberPassportCountry', this)"><i class="fas fa-copy"></i></button>
                                 </div>
                             </div>
                         </div>
