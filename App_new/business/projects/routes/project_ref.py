@@ -33,16 +33,6 @@ project_ref = Blueprint('project_ref', __name__)
 _VISA_SHARED_EXTRA_KEYS = ()
 
 
-def _parse_departure_date(value):
-    """把表单/JSON 里的 departure_date 转成 date 对象，失败返回 None"""
-    if not value:
-        return None
-    try:
-        return datetime.strptime(value, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return None
-
-
 def _normalize_country_for_display(raw_value, countries):
     """把 extra_info['country'] 的各种历史格式统一成 country_name_EN.upper()
 
@@ -85,37 +75,25 @@ def _build_pax_names_display(pax_name_ids):
         return ''
 
 
-def _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date_str):
-    """为签证 REF 创建或（谨慎地）更新关联的 VisaProject
+def _sync_visa_project_for_ref(ref):
+    """同步签证 REF 关联的 VisaProject 的结构关联字段
 
-    目的：解决"新建签证 REF 时没有对应 VisaProject，需用户手工双线维护"的问题。
-    关联方式：`VisaProject.ref_id` 指向 `ProjectRef.id`（已有的反向 FK）。
+    历史教训：这里**绝不能新建 VisaProject**。
+    实际业务流程是「先在签证管理模块建签证项目 → 再建做账 HID/REF」，
+    早期版本在保存签证 REF 时自动 create 一条 VisaProject，会在签证项目列表里
+    生成重复的 `REF-xxx` 幽灵项目。REF 的业务字段全部保存在 extra_info 里
+    （_VISA_SHARED_EXTRA_KEYS 为空，不再剔除任何键），不依赖 VisaProject 存在。
 
     规则：
-    - 不存在则 create，并用 REF 的数据作为初始值（粗粒度 enum，用户之后可在签证管理模块细化）。
-    - 已存在则**只更新 header_id**（保持结构关联），不覆盖任何业务字段。
-      因为 VisaProject.visa_type（"韩国单次签证"）与 REF.extra_info.visa_type（"TOURIST" enum）
-      语义不同；applicant_name 可能已被签证管理模块细化过；estimated_date 同理。
-      这些字段由签证管理模块独立维护，REF 这边只做首次创建。
+    - 没有关联的 VisaProject → 什么都不做（由签证管理模块负责创建并关联）。
+    - 已有关联 → 只同步 header_id，不覆盖任何业务字段
+      （VisaProject.visa_type 是"韩国单次签证"这类具体产品名，与 REF 的粗粒度
+       enum 'TOURIST' 语义不同；applicant_name / estimated_date 同理，
+       由签证管理模块独立维护）。
     """
     visa_project = VisaProject.query.filter_by(ref_id=ref.id).first()
-    if visa_project is None:
-        folder_name = f'REF-{ref.ref_number}'
-        visa_project = VisaProject(name=folder_name, visa_status='待递交')
-        visa_project.project_folder_name = folder_name
-        visa_project.ref_id = ref.id
+    if visa_project is not None and visa_project.header_id != ref.header_id:
         visa_project.header_id = ref.header_id
-        visa_project.country = country or None
-        visa_project.visa_type = visa_type or None
-        visa_project.applicant_name = applicant_display or None
-        dep_date = _parse_departure_date(departure_date_str)
-        if dep_date is not None:
-            visa_project.estimated_date = dep_date
-        db.session.add(visa_project)
-    else:
-        # 只同步结构关联字段，业务字段不覆盖
-        if visa_project.header_id != ref.header_id:
-            visa_project.header_id = ref.header_id
     return visa_project
 
 
@@ -1536,6 +1514,8 @@ def create_visa_ref(header_id):
         countries = VisaCountries.query.order_by(VisaCountries.country_name_CN).all()
 
         # 加载 VisaTypes 按归一化国家 key 分组（供前端切国家时动态填充签证类型）
+        # 每项必须是 {value, display}：模板 JS 读 o.value / o.display，
+        # 只塞字符串的话切国家后下拉全变 undefined（与 edit_visa_ref 保持一致）
         from App_new.business.visa.models.Visamodels import VisaTypes
         all_types = VisaTypes.query.join(VisaCountries).order_by(
             VisaCountries.country_name_CN, VisaTypes.visa_type
@@ -1543,7 +1523,10 @@ def create_visa_ref(header_id):
         visa_types_by_country = {}
         for vt in all_types:
             key = (vt.country.country_name_EN or '').upper()
-            visa_types_by_country.setdefault(key, []).append(vt.visa_type)
+            visa_types_by_country.setdefault(key, []).append({
+                'value': vt.visa_type,
+                'display': vt.visa_type_en or vt.visa_type,
+            })
 
         # 获取项目人员列表
         from App_new.business.projects.models.project_member import ProjectMember
@@ -1686,8 +1669,8 @@ def submit_visa_ref():
         # flush 以保证新 REF 拿到 id，供 VisaProject.ref_id 引用
         db.session.flush()
 
-        # 同步到签证管理模块（VisaProject）
-        _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date)
+        # 同步已关联的签证项目（不会新建；签证项目由签证管理模块创建）
+        _sync_visa_project_for_ref(ref)
 
         db.session.commit()
         return redirect(url_for('business_projects.detail.project_detail', project_id=header_id))
@@ -2927,10 +2910,7 @@ def edit_visa_ref(ref_id):
             description = request.form.get('description') or 'Visa Application'
             detailed_description = request.form.get('detailed_description', description)
 
-            # 共享字段（仅在新建 VisaProject 时作为初值，不覆盖已存在记录）
-            country = (extra_info.get('country') or '').strip()
-            visa_type = (extra_info.get('visa_type') or '').strip()
-            departure_date = extra_info.get('departure_date', '')
+            # 申请人显示串写回 extra_info（REF 自己持有全部业务字段）
             applicant_display = _build_pax_names_display(extra_info.get('pax_names', []))
             if applicant_display:
                 extra_info['pax_names_display'] = applicant_display
@@ -2948,8 +2928,8 @@ def edit_visa_ref(ref_id):
             ref.remarks = request.form.get('remarks', '')
             ref.extra_info = json.dumps(extra_info_for_ref, ensure_ascii=False)
 
-            # 同步到签证管理模块（VisaProject）
-            _upsert_visa_project_for_ref(ref, country, visa_type, applicant_display, departure_date)
+            # 同步已关联的签证项目（不会新建；签证项目由签证管理模块创建）
+            _sync_visa_project_for_ref(ref)
 
             # 提交数据库更改
             db.session.commit()
