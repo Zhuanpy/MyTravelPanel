@@ -139,9 +139,39 @@ class ProjectRef(db.Model):
         return 0
 
     @property
+    def is_invoiced(self):
+        """是否已开票（存在关联本REF的未作废发票）
+
+        未开票的REF不产生应收款，不计入未收款统计。
+        兼容旧数据：发票未记录 ref_ids 明细时，无法判断归属，保守视为覆盖项目下所有REF。
+        """
+        from .invoice import ProjectInvoice  # 避免循环导入
+        import json
+
+        invoices = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id == self.header_id,
+            ProjectInvoice.status != 'cancelled'
+        ).all()
+
+        for inv in invoices:
+            if not inv.ref_ids:
+                return True
+            try:
+                ref_id_list = json.loads(inv.ref_ids)
+            except (json.JSONDecodeError, TypeError):
+                return True
+            if self.id in ref_id_list or str(self.id) in ref_id_list:
+                return True
+        return False
+
+    @property
     def unpaid_amount(self):
-        """计算REF未付款金额"""
+        """计算REF未付款金额（未开票的REF不产生应收，返回0）"""
         if not self.selling_price:
+            return 0
+
+        # 未生成发票 = 尚未形成应收款，不计入未收款
+        if not self.is_invoiced:
             return 0
 
         # 使用辅助方法计算已确认的收款总额（包括项目级别收款记录的分配）

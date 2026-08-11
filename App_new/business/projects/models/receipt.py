@@ -278,8 +278,10 @@ class ProjectReceipt(db.Model):
         if not header:
             return 0
 
-        # 计算项目总销售额
-        total_selling = sum(float(ref.selling_price or 0) for ref in header.refs)
+        # 计算项目总销售额（只统计已开票的REF，未开票不形成应收款）
+        total_selling = sum(
+            float(ref.selling_price or 0) for ref in header.refs if ref.is_invoiced
+        )
 
         # 计算项目总收款额（直接统计所有已确认收款）
         total_received = sum(
@@ -504,6 +506,10 @@ class ProjectReceipt(db.Model):
 
         project_ref = ProjectRef.query.get(ref_id)
         if not project_ref:
+            return None
+
+        # 未开票的REF没有应收款，unpaid恒为0，不能据此判为已收款
+        if not project_ref.is_invoiced:
             return None
 
         # 计算未付金额

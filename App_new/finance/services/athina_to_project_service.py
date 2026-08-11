@@ -2093,8 +2093,8 @@ class AthinaToProjectService:
         for ref_id in refs_to_update_status:
             try:
                 project_ref = ProjectRef.query.get(ref_id)
-                if project_ref:
-                    # 计算未付金额
+                if project_ref and project_ref.is_invoiced:
+                    # 计算未付金额（未开票的REF没有应收款，跳过不判为已收款）
                     unpaid = project_ref.unpaid_amount
                     if unpaid <= 0:
                         # 已全额付款

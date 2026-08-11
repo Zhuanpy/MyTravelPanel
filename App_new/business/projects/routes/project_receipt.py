@@ -481,7 +481,8 @@ def header_receipts(header_id):
     for ref in header.refs:
         if ref.selling_price:
             total_received += ProjectReceipt.get_ref_total_received(ref.id, header_id)
-    unpaid_amount = float(header.total_selling_amount or 0) - total_received
+    # 未收款金额：只统计已开票的REF（未开票不形成应收款）
+    unpaid_amount = header.total_unpaid_amount
 
     # 准备新增收款弹窗的表单数据
     form = ProjectLevelReceiptForm()
@@ -519,6 +520,7 @@ def header_receipts(header_id):
                          unpaid_amount=unpaid_amount,
                          form=form,
                          receipt_number=receipt_number,
+                         invoice_count=invoice_count,
                          can_create_receipt=can_create_receipt)
 
 @project_receipt.route('/header/<int:header_id>/receipt/create', methods=['GET', 'POST'])
@@ -1204,7 +1206,8 @@ def get_header_unpaid_refs(header_id):
     total_unpaid = 0
     
     for ref in header.refs:
-        if ref.selling_price:
+        # 未开票的REF不产生应收款，不列入未收款清单
+        if ref.selling_price and ref.is_invoiced:
             # 使用辅助方法计算该REF的已收款总额
             ref_received = ProjectReceipt.get_ref_total_received(ref.id, header_id)
             ref_unpaid = float(ref.selling_price) - ref_received

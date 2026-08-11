@@ -623,6 +623,20 @@ class ProjectHeader(db.Model):
         return self.total_selling_amount - self.total_cost_amount
 
     @property
+    def total_invoiced_selling_amount(self):
+        """已开票的销售金额（只有开了发票的REF才形成应收款）"""
+        total = 0
+        for ref in self.refs:
+            if ref.selling_price and ref.is_invoiced:
+                total += float(ref.selling_price)
+        return total
+
+    @property
+    def uninvoiced_selling_amount(self):
+        """未开票的销售金额（不计入应收款）"""
+        return self.total_selling_amount - self.total_invoiced_selling_amount
+
+    @property
     def total_paid_amount(self):
         """总已付款金额"""
         from .receipt import ProjectReceipt  # 避免循环导入
@@ -636,8 +650,8 @@ class ProjectHeader(db.Model):
 
     @property
     def total_unpaid_amount(self):
-        """总未付款金额"""
-        return self.total_selling_amount - self.total_paid_amount
+        """总未付款金额（仅统计已开票的REF，未开票不产生应收）"""
+        return sum(ref.unpaid_amount for ref in self.refs)
 
     @property
     def payment_status_summary(self):

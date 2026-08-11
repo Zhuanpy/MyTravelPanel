@@ -413,7 +413,9 @@
                         </td>
                         <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {% if ref.selling_price %}
-                                {% if ref.unpaid_amount <= 0 %}
+                                {% if not ref.is_invoiced %}
+                                    <span class="text-muted" title="未生成发票，不计入应收款">未开票</span>
+                                {% elif ref.unpaid_amount <= 0 %}
                                     <span class="text-success">{{ ref.currency }} 0.00</span>
                                 {% elif ref.unpaid_amount < ref.selling_price %}
                                     <span class="text-warning">{{ ref.currency }} {{ "%.2f"|format(ref.unpaid_amount) }}</span>
