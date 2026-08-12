@@ -898,6 +898,79 @@
                 }, delay);
             });
         });
+
+        // ===== 必填项校验提示：接管浏览器自带的气泡 =====
+        // WTForms 的 DataRequired 会渲染成 HTML required 属性，任一必填项没填时，
+        // 浏览器弹一个自带小气泡、几秒后自动消失，而且**表单根本不会提交** ——
+        // 后端因此没有任何请求、没有任何日志，用户看到的就是"报错闪一下然后没反应"。
+        // 这里关掉原生气泡，改成常驻提示（点击才关闭）+ 自动定位到第一个没填的字段。
+        (function () {
+            function ensureContainer() {
+                var box = document.getElementById('flashToastContainer');
+                if (!box) {
+                    box = document.createElement('div');
+                    box.id = 'flashToastContainer';
+                    box.style.cssText = 'position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999;';
+                    document.body.appendChild(box);
+                }
+                return box;
+            }
+
+            function fieldLabel(el) {
+                if (el.labels && el.labels.length) {
+                    return el.labels[0].textContent.replace(/[\s*]+$/, '').trim();
+                }
+                return el.getAttribute('placeholder') || el.getAttribute('name') || '必填项';
+            }
+
+            function showHint(fields) {
+                var box = ensureContainer();
+                var old = box.querySelector('.form-invalid-hint');
+                if (old) { old.remove(); }
+
+                var names = [];
+                fields.forEach(function (f) {
+                    var n = fieldLabel(f);
+                    if (names.indexOf(n) === -1) { names.push(n); }
+                });
+
+                var tip = document.createElement('div');
+                tip.className = 'flash-toast form-invalid-hint';
+                tip.style.cssText = 'background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;' +
+                    'padding:0.5rem 1.25rem; border-radius:8px; font-size:0.85rem; font-weight:500;' +
+                    'margin-bottom:0.5rem; box-shadow:0 2px 12px rgba(0,0,0,0.12);' +
+                    'max-width:min(90vw,720px); word-break:break-word; text-align:left; cursor:pointer;';
+                tip.textContent = '还有必填项没填：' + names.join('、') + '（点击关闭）';
+                tip.addEventListener('click', function () { tip.remove(); });
+                box.appendChild(tip);
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                // 关掉原生气泡，交给下面的 submit 处理；弹窗里的表单此时已在 DOM 中
+                document.querySelectorAll('form').forEach(function (form) {
+                    form.setAttribute('novalidate', '');
+                });
+            });
+
+            // 捕获阶段：校验不通过就拦下来，不让 AJAX/其它 submit 处理器继续跑
+            document.addEventListener('submit', function (e) {
+                var form = e.target;
+                if (!(form instanceof HTMLFormElement)) { return; }
+                if (form.checkValidity()) { return; }
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                var bad = Array.prototype.slice.call(form.querySelectorAll(':invalid'))
+                    .filter(function (el) { return el.willValidate; });
+                if (!bad.length) { return; }
+
+                showHint(bad);
+                var first = bad[0];
+                first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                try { first.focus({ preventScroll: true }); } catch (err) { first.focus(); }
+            }, true);
+        })();
     </script>
     
     <!-- 文件夹快捷打开 -->
