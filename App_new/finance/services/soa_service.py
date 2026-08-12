@@ -326,14 +326,57 @@ class SOAService:
 
         return rows
 
-    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None, start_date=None, end_date=None):
-        """获取可生成SOA的发票列表（每张 confirmed 发票一行）"""
+    # 可排序的列 -> 行字典里的键
+    SORTABLE_FIELDS = {
+        'invoice_number': 'invoice_number',  # INV NO
+        'hid': 'hid',                        # HID
+    }
+
+    @staticmethod
+    def _alnum_sort_key(value):
+        """字母前缀 + 数字的编号排序键
+
+        INV NO 是纯数字字符串（'12017'），HID 形如 'H2181'。直接按字符串排会得到
+        H999 > H2181 这种结果，所以拆成 (前缀, 数字, 原串) 让数字部分按数值比较。
+        """
+        import re
+        s = str(value or '')
+        m = re.search(r'\d+', s)
+        if m:
+            return (s[:m.start()].upper(), int(m.group()), s.upper())
+        return (s.upper(), 0, s.upper())
+
+    @classmethod
+    def _apply_sort(cls, rows, sort_by, sort_dir='asc'):
+        """按 INV NO / HID 就地排序（列表页、Excel、PDF 共用同一套口径）
+
+        Excel/PDF 之后还会按公司名做**稳定**排序来分组加小计，
+        所以这里排完，公司组内部就是用户选的顺序，分组结构不受影响。
+        """
+        field = cls.SORTABLE_FIELDS.get(sort_by)
+        if not field:
+            return rows
+        rows.sort(
+            key=lambda r: cls._alnum_sort_key(r.get(field)),
+            reverse=(str(sort_dir).lower() == 'desc')
+        )
+        return rows
+
+    def get_soa_list(self, page=1, per_page=20, search=None, month=None, company=None, group=None, balance_positive=False, profit_loss=None, start_date=None, end_date=None, sort_by=None, sort_dir='asc'):
+        """获取可生成SOA的发票列表（每张 confirmed 发票一行）
+
+        sort_by: 'invoice_number' / 'hid'，为空则保持原有默认排序
+        sort_dir: 'asc' 正序 / 'desc' 倒序
+        """
         try:
             rows = self._query_invoice_rows(
                 search=search, month=month, company=company, group=group,
                 balance_positive=balance_positive, profit_loss=profit_loss,
                 start_date=start_date, end_date=end_date
             )
+
+            # 分页在内存里做，排序也放在切片之前，保证是"全量排序后再翻页"
+            self._apply_sort(rows, sort_by, sort_dir)
 
             total_amount = sum(r['amount'] for r in rows)
             total_balance = sum(r['unpaid_amount'] for r in rows)
@@ -417,7 +460,7 @@ class SOAService:
                 'message': f'获取集团列表失败: {str(e)}'
             }
 
-    def batch_download_soa(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel', start_date=None, end_date=None):
+    def batch_download_soa(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, format='excel', start_date=None, end_date=None, sort_by=None, sort_dir='asc'):
         """批量下载SOA - 生成Excel表格（每张 confirmed 发票一行）"""
         try:
             import pandas as pd
@@ -430,6 +473,9 @@ class SOAService:
 
             if not invoice_rows:
                 return None, "没有找到符合条件的SOA数据"
+
+            # 与列表页同一套排序（下面按公司分组是稳定排序，组内即此顺序）
+            self._apply_sort(invoice_rows, sort_by, sort_dir)
 
             # 准备 Excel 行：列顺序固定为 INV NO / HID / COMPANY / INV.DATE / CLIENT / DP.DATE / ITIN / CCY / AMOUNT / BAL
             def _data_row(r):
@@ -606,7 +652,7 @@ class SOAService:
             traceback.print_exc()
             return None, f"生成Excel文件时出错: {str(e)}"
 
-    def batch_download_soa_pdf(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, start_date=None, end_date=None):
+    def batch_download_soa_pdf(self, group=None, company=None, month=None, search=None, balance_positive=None, profit_loss=None, start_date=None, end_date=None, sort_by=None, sort_dir='asc'):
         """批量下载SOA - 生成PDF文件（每张 confirmed 发票一行）"""
         try:
             invoice_rows = self._query_invoice_rows(
@@ -617,6 +663,9 @@ class SOAService:
 
             if not invoice_rows:
                 return None, "没有找到符合条件的SOA数据"
+
+            # 与列表页同一套排序（下面按公司分组是稳定排序，组内即此顺序）
+            self._apply_sort(invoice_rows, sort_by, sort_dir)
 
             # 创建批量PDF换行样式
             batch_wrap_style = ParagraphStyle(

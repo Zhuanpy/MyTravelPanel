@@ -40,9 +40,12 @@ def soa_data():
         group = request.args.get('group', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         profit_loss = request.args.get('profit_loss', '')  # profit, loss, even
+        # 排序：sort_by 取 invoice_number / hid，其余值忽略；sort_dir 取 asc / desc
+        sort_by = request.args.get('sort_by', '')
+        sort_dir = request.args.get('sort_dir', 'asc')
 
         soa_service = SOAService()
-        result = soa_service.get_soa_list(page=page, per_page=per_page, search=search, month=month, company=company, group=group, balance_positive=balance_positive, profit_loss=profit_loss, start_date=start_date, end_date=end_date)
+        result = soa_service.get_soa_list(page=page, per_page=per_page, search=search, month=month, company=company, group=group, balance_positive=balance_positive, profit_loss=profit_loss, start_date=start_date, end_date=end_date, sort_by=sort_by, sort_dir=sort_dir)
 
         return jsonify(result)
 
@@ -96,6 +99,8 @@ def soa_batch_download():
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         profit_loss = request.args.get('profit_loss', '')  # profit, loss, even
         format_type = request.args.get('format', 'excel')
+        sort_by = request.args.get('sort_by', '')
+        sort_dir = request.args.get('sort_dir', 'asc')
 
         # 记录请求参数用于调试
         current_app.logger.info(f"SOA批量下载请求 - 集团: {group}, 公司: {company}, 月份: {month}, 区间: {start_date}~{end_date}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}, 格式: {format_type}")
@@ -110,7 +115,9 @@ def soa_batch_download():
             search=search if search else None,
             balance_positive=balance_positive,
             profit_loss=profit_loss if profit_loss else None,
-            format=format_type
+            format=format_type,
+            sort_by=sort_by,
+            sort_dir=sort_dir
         )
         
         if error or excel_content is None:
@@ -165,9 +172,11 @@ def soa_batch_download_pdf():
         search = request.args.get('search', '')
         balance_positive = request.args.get('balance_positive', 'false').lower() == 'true'
         profit_loss = request.args.get('profit_loss', '')  # profit, loss, even
+        sort_by = request.args.get('sort_by', '')
+        sort_dir = request.args.get('sort_dir', 'asc')
 
         # 记录请求参数用于调试
-        current_app.logger.info(f"SOA批量下载PDF请求 - 集团: {group}, 公司: {company}, 月份: {month}, 区间: {start_date}~{end_date}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}")
+        current_app.logger.info(f"SOA批量下载PDF请求 - 集团: {group}, 公司: {company}, 月份: {month}, 区间: {start_date}~{end_date}, 搜索: {search}, 余额正: {balance_positive}, 盈亏: {profit_loss}, 排序: {sort_by} {sort_dir}")
 
         soa_service = SOAService()
         pdf_content, error = soa_service.batch_download_soa_pdf(
@@ -178,9 +187,11 @@ def soa_batch_download_pdf():
             end_date=end_date if end_date else None,
             search=search if search else None,
             balance_positive=balance_positive,
-            profit_loss=profit_loss if profit_loss else None
+            profit_loss=profit_loss if profit_loss else None,
+            sort_by=sort_by,
+            sort_dir=sort_dir
         )
-        
+
         if error or pdf_content is None:
             # 返回错误信息而不是重定向
             error_msg = error or "没有找到匹配的SOA数据"

@@ -74,6 +74,13 @@
     /* 列宽设置 - 固定布局 */
     .col-inv { width: 80px; }
     .col-hid { width: 60px; }
+
+    /* 可排序表头 */
+    th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    th.sortable:hover { background-color: #eef4ff; }
+    th.sortable .sort-icon { color: #adb5bd; font-size: 0.75em; }
+    th.sortable.sort-active { color: #0d6efd; }
+    th.sortable.sort-active .sort-icon { color: #0d6efd; }
     /* COMPANY 与 ITIN DESCRIPTION 两列共享剩余宽度，等宽显示 */
     .col-company { width: auto; }
     .col-itin { width: auto; }
@@ -217,8 +224,8 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th class="col-inv">INV NO</th>
-                        <th class="col-hid">HID</th>
+                        <th class="col-inv sortable" data-sort="invoice_number" title="点击按 INV NO 排序">INV NO <span class="sort-icon"></span></th>
+                        <th class="col-hid sortable" data-sort="hid" title="点击按 HID 排序">HID <span class="sort-icon"></span></th>
                         <th class="col-company">COMPANY</th>
                         <th class="col-date">INV.DATE</th>
                         <th class="col-client">CLIENT NAME</th>
@@ -273,7 +280,9 @@ class SOAManager {
             group: '',
             company: '',
             balance_positive: false,
-            profit_loss: ''
+            profit_loss: '',
+            sort_by: '',      // 空 = 后端默认排序（按发票日期倒序）
+            sort_dir: 'asc'
         };
 
         // 从 URL 读取初始筛选状态，无参数则使用默认值
@@ -287,6 +296,8 @@ class SOAManager {
         this.companyFilter = params.get('company') ?? this.defaults.company;
         this.balanceFilter = params.get('balance_positive') === 'true';
         this.profitLossFilter = params.get('profit_loss') ?? this.defaults.profit_loss;
+        this.sortBy = params.get('sort_by') ?? this.defaults.sort_by;
+        this.sortDir = params.get('sort_dir') ?? this.defaults.sort_dir;
 
         this.init();
     }
@@ -325,6 +336,35 @@ class SOAManager {
         document.getElementById('searchInput').value = this.searchTerm;
         document.getElementById('balanceFilter').checked = this.balanceFilter;
         document.getElementById('profitLossFilter').value = this.profitLossFilter;
+        this.updateSortIndicators();
+    }
+
+    // 表头箭头：当前排序列显示 ▲/▼，其余列显示灰色 ⇅ 提示可点
+    updateSortIndicators() {
+        document.querySelectorAll('th.sortable').forEach(th => {
+            const icon = th.querySelector('.sort-icon');
+            const isActive = th.dataset.sort === this.sortBy;
+            th.classList.toggle('sort-active', isActive);
+            if (icon) {
+                icon.textContent = isActive ? (this.sortDir === 'desc' ? '▼' : '▲') : '⇅';
+            }
+            th.title = isActive
+                ? `当前按 ${th.dataset.sort === 'hid' ? 'HID' : 'INV NO'} ${this.sortDir === 'desc' ? '倒序' : '正序'}，点击切换`
+                : '点击排序';
+        });
+    }
+
+    // 点同一列切换正/倒序，点另一列则从正序开始
+    toggleSort(field) {
+        if (this.sortBy === field) {
+            this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortBy = field;
+            this.sortDir = 'asc';
+        }
+        this.currentPage = 1;  // 换排序必须回到第一页，否则看到的是中间某页
+        this.updateSortIndicators();
+        this.loadData();
     }
 
     // 把当前筛选状态写入 URL（仅写非默认值，保持 URL 干净）
@@ -348,6 +388,9 @@ class SOAManager {
         set('company', this.companyFilter, this.defaults.company);
         set('balance_positive', this.balanceFilter, this.defaults.balance_positive);
         set('profit_loss', this.profitLossFilter, this.defaults.profit_loss);
+        set('sort_by', this.sortBy, this.defaults.sort_by);
+        // 没选排序列时不写 sort_dir，避免 URL 里留一个孤零零的参数
+        set('sort_dir', this.sortBy ? this.sortDir : '', this.defaults.sort_dir);
         history.replaceState(null, '', url);
     }
 
@@ -364,6 +407,8 @@ class SOAManager {
         this.companyFilter = params.get('company') ?? this.defaults.company;
         this.balanceFilter = params.get('balance_positive') === 'true';
         this.profitLossFilter = params.get('profit_loss') ?? this.defaults.profit_loss;
+        this.sortBy = params.get('sort_by') ?? this.defaults.sort_by;
+        this.sortDir = params.get('sort_dir') ?? this.defaults.sort_dir;
 
         if (groupChanged) {
             await this.populateCompanyFilter(this.groupFilter);
@@ -445,6 +490,11 @@ class SOAManager {
     }
 
     bindEvents() {
+        // 表头排序（INV NO / HID）
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', () => this.toggleSort(th.dataset.sort));
+        });
+
         // 搜索按钮
         const searchBtn = document.getElementById('searchBtn');
         if (searchBtn) {
@@ -581,6 +631,8 @@ class SOAManager {
         this.companyFilter = this.defaults.company;
         this.balanceFilter = this.defaults.balance_positive;
         this.profitLossFilter = this.defaults.profit_loss;
+        this.sortBy = this.defaults.sort_by;
+        this.sortDir = this.defaults.sort_dir;
         this.currentPage = this.defaults.page;
 
         this.applyFiltersToUi();
@@ -604,7 +656,9 @@ class SOAManager {
                 group: this.groupFilter,
                 company: this.companyFilter,
                 balance_positive: this.balanceFilter,
-                profit_loss: this.profitLossFilter
+                profit_loss: this.profitLossFilter,
+                sort_by: this.sortBy,
+                sort_dir: this.sortDir
             });
 
             const response = await fetch(`/statement/soa_data?${params}`);
@@ -731,7 +785,9 @@ class SOAManager {
                     search: this.searchTerm,
                     balance_positive: this.balanceFilter,
                     profit_loss: this.profitLossFilter,
-                    format: 'excel'
+                    format: 'excel',
+                    sort_by: this.sortBy,
+                    sort_dir: this.sortDir
                 });
 
                 const response = await fetch(`/statement/soa_batch_download?${params}`);
@@ -784,7 +840,9 @@ class SOAManager {
                     end_date: this.endDateFilter,
                     search: this.searchTerm,
                     balance_positive: this.balanceFilter,
-                    profit_loss: this.profitLossFilter
+                    profit_loss: this.profitLossFilter,
+                    sort_by: this.sortBy,
+                    sort_dir: this.sortDir
                 });
 
                 const response = await fetch(`/statement/soa_batch_download_pdf?${params}`);
