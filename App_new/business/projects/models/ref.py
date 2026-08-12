@@ -143,7 +143,10 @@ class ProjectRef(db.Model):
         """是否已开票（存在关联本REF的未作废发票）
 
         未开票的REF不产生应收款，不计入未收款统计。
-        兼容旧数据：发票未记录 ref_ids 明细时，无法判断归属，保守视为覆盖项目下所有REF。
+
+        兼容旧数据：只有当项目下**所有**未作废发票都没记 REF 明细时，才无从判断归属、
+        保守视为全部已开票。只要有一张发票记了明细，就说明该项目走的是新流程，
+        以明细为准 —— 否则一张遗留的空明细发票会把同项目里真正未开票的REF一起连坐。
         """
         from .invoice import ProjectInvoice  # 避免循环导入
         import json
@@ -153,16 +156,25 @@ class ProjectRef(db.Model):
             ProjectInvoice.status != 'cancelled'
         ).all()
 
+        if not invoices:
+            return False
+
+        matched_any_detail = False
         for inv in invoices:
             if not inv.ref_ids:
-                return True
+                continue
             try:
                 ref_id_list = json.loads(inv.ref_ids)
             except (json.JSONDecodeError, TypeError):
-                return True
+                continue
+            if not ref_id_list:
+                continue
+            matched_any_detail = True
             if self.id in ref_id_list or str(self.id) in ref_id_list:
                 return True
-        return False
+
+        # 全项目都没有可用的REF明细 → 旧数据，保守视为已开票
+        return not matched_any_detail
 
     @property
     def unpaid_amount(self):

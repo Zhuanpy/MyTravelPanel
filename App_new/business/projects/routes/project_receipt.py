@@ -537,12 +537,16 @@ def create_header_receipt(header_id):
     ).count()
     if invoice_count == 0:
         flash('请先生成发票后再创建收款记录', 'warning')
+        log_error(f'项目收款被拦（无可用发票）H{header.hid}(id={header_id})')
         return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
     # 检查是否还有未收款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
     if unpaid_amount <= 0:
         flash('该项目已无未收款金额，无法创建新收款记录', 'warning')
+        # 这两条 warning 会直接 redirect，页面上看起来只是"闪了一下"，必须留痕
+        log_error(f'项目收款被拦（发票未收合计为0）H{header.hid}(id={header_id})：'
+                  f'发票口径未收={unpaid_amount:.2f}，页面口径未收={header.total_unpaid_amount:.2f}')
         return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
     form = ProjectLevelReceiptForm()
@@ -699,6 +703,19 @@ def create_header_receipt(header_id):
                 alloc_amount = dist_item.get('amount', 0)
                 if inv_id and alloc_amount > 0:
                     allocations[inv_id] = alloc_amount
+
+            # 一分钱都分配不出去时不能建记录：这种"孤儿收款"没有任何分配明细，
+            # 各REF的已收算不到它头上（页面照旧显示未收款），却会被按原始金额计入
+            # 项目已收，把后续收款全部挡在门外。
+            if not allocations:
+                flash('没有可分配的发票（发票可能已作废或已收满），收款记录未创建', 'error')
+                log_error(f'项目收款被拒 H{header.hid}(id={header_id})：分配结果为空，'
+                          f'金额={amount:.2f}，分配方式={distribution_method}')
+                return render_template('business/projects/project_receipt/create_header_receipt.html',
+                                     form=form,
+                                     header=header,
+                                     receipt_number=receipt_number,
+                                     unpaid_amount=unpaid_amount)
 
             # 创建项目级别收款记录（不再设置 invoice_id）
             project_receipt = ProjectReceipt(

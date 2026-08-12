@@ -272,26 +272,28 @@ class ProjectReceipt(db.Model):
 
     @classmethod
     def get_project_unpaid_amount(cls, header_id):
-        """获取项目的总未收款金额"""
-        from .project import ProjectHeader  # 避免循环导入
-        header = ProjectHeader.query.get(header_id)
-        if not header:
-            return 0
+        """项目未收款金额 = 所有未作废发票的未收金额合计
 
-        # 计算项目总销售额（只统计已开票的REF，未开票不形成应收款）
-        total_selling = sum(
-            float(ref.selling_price or 0) for ref in header.refs if ref.is_invoiced
+        口径必须与收款分配保持一致：收款只能分配到发票，能收的上限就是发票未收合计。
+
+        原实现是「已开票REF售价合计 − 所有已确认收款的原始金额」，与页面显示的
+        「Σ各REF未付款」是两套账：收款记录若没有分配明细，或分配到了后来被作废的发票，
+        其原始金额照样被减掉，于是出现「页面显示还有未收款、提交时闸门却算成 0」，
+        弹一句黄色的「已无未收款金额」就跳回列表。
+        未开票的REF天然不在任何发票里，因此「未开票不计应收」的口径同样成立。
+        """
+        from .invoice import ProjectInvoice  # 避免循环导入
+
+        invoices = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id == header_id,
+            ProjectInvoice.status != 'cancelled'
+        ).all()
+
+        unpaid = sum(
+            max(0.0, float(inv.amount or 0) - float(inv.paid_amount or 0))
+            for inv in invoices
         )
-
-        # 计算项目总收款额（直接统计所有已确认收款）
-        total_received = sum(
-            float(r.amount or 0)
-            for r in cls.query.filter_by(header_id=header_id, status='confirmed').all()
-        )
-
-        # 未收款 = 总销售 - 总收款
-        unpaid = total_selling - total_received
-        return max(0, unpaid)  # 不返回负数
+        return max(0.0, unpaid)
 
     @classmethod
     def can_create_project_receipt(cls, header_id, amount):
