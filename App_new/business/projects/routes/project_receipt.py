@@ -7,6 +7,7 @@ from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.receipt_forms import ProjectReceiptForm, ProjectLevelReceiptForm
 from App_new.utils.decorators import staff_only, admin_only
+from App_new.shared.error_logging import log_error
 import json
 
 
@@ -258,8 +259,7 @@ def delete_receipt(receipt_id):
                     db.session.add(reversal)
                     print(f"[DEBUG] 冲销成功 - 原分录状态: {journal_entry.status}, 冲销分录: {reversal.entry_number}")
             except Exception as je_err:
-                import logging
-                logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
+                log_error(f'冲销收款日记账失败 receipt_id={receipt_id}', je_err)
                 print(f"[DEBUG] 冲销失败: {str(je_err)}")
         else:
             print(f"[DEBUG] 未找到对应的日记账分录")
@@ -580,6 +580,7 @@ def create_header_receipt(header_id):
             unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
             if amount > unpaid_amount + 0.01:  # 允许0.01的浮点数误差
                 flash(f'收款金额({amount:.2f})不能超过未收款总额({unpaid_amount:.2f})', 'error')
+                log_error(f'项目收款被拒 H{header.hid}(id={header_id})：收款金额 {amount:.2f} > 未收款总额 {unpaid_amount:.2f}')
                 return render_template('business/projects/project_receipt/create_header_receipt.html',
                                      form=form,
                                      header=header,
@@ -594,6 +595,7 @@ def create_header_receipt(header_id):
                 selected_invoice_ids = form.selected_invoices.data
                 if not selected_invoice_ids or (len(selected_invoice_ids) == 1 and selected_invoice_ids[0] == 0):
                     flash('请选择要分配的发票', 'error')
+                    log_error(f'项目收款被拒 H{header.hid}(id={header_id})：手动分配但未选择发票')
                     return render_template('business/projects/project_receipt/create_header_receipt.html',
                                          form=form,
                                          header=header,
@@ -613,6 +615,7 @@ def create_header_receipt(header_id):
 
                 if amount > selected_unpaid_total + 0.01:
                     flash(f'收款金额不能超过选中发票的未收款总额：{header.currency or "SGD"} {selected_unpaid_total:.2f}', 'error')
+                    log_error(f'项目收款被拒 H{header.hid}(id={header_id})：收款金额 {amount:.2f} > 选中发票未收款合计 {selected_unpaid_total:.2f}，选中发票 {selected_invoice_ids}')
                     return render_template('business/projects/project_receipt/create_header_receipt.html',
                                          form=form,
                                          header=header,
@@ -741,20 +744,23 @@ def create_header_receipt(header_id):
             db.session.flush()
 
             # 自动创建日记账分录（借：银行存款，贷：应收账款）
+            # 用 SAVEPOINT 隔离：日记账失败只回滚这一小段，不会让整笔收款在最后 commit 时炸掉
             try:
                 from App_new.finance.models.journal_entry import JournalEntry
-                journal_entry = JournalEntry.create_from_receipt(
-                    project_receipt,
-                    user=current_user.username if current_user else None
-                )
-                if journal_entry and journal_entry.lines:
-                    db.session.add(journal_entry)
-                    # 自动过账
-                    journal_entry.post(user=current_user.username if current_user else None)
+                with db.session.begin_nested():
+                    journal_entry = JournalEntry.create_from_receipt(
+                        project_receipt,
+                        user=current_user.username if current_user else None
+                    )
+                    if journal_entry and journal_entry.lines:
+                        db.session.add(journal_entry)
+                        # create_from_receipt 已置为 posted，只有还是草稿时才需要过账
+                        # （原来无条件调用 post()，必定抛 "Only draft entries can be posted"）
+                        if journal_entry.status == 'draft':
+                            journal_entry.post(user=current_user.username if current_user else None)
             except Exception as je_error:
-                # 日记账创建失败不影响收款记录
-                import logging
-                logging.getLogger(__name__).warning(f"创建项目收款日记账失败: {str(je_error)}")
+                # 日记账创建失败不影响收款记录，但必须留痕
+                log_error(f'创建项目收款日记账失败 {receipt_number} H{header.hid}(id={header_id})', je_error)
 
             # 更新分配到的每张发票的已付金额
             for inv_id in allocations.keys():
@@ -773,15 +779,28 @@ def create_header_receipt(header_id):
 
             db.session.commit()
 
+            flash(f'收款记录 {receipt_number} 创建成功：{form.currency.data} {amount:.2f}', 'success')
             return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header.id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'创建失败：{str(e)}', 'error')
-    
+            log_error(f'创建项目收款失败 {receipt_number} H{header.hid}(id={header_id})', e)
+
+    elif request.method == 'POST':
+        # 表单校验没过：原来这里什么都不提示，页面静默重新渲染，用户以为"点了没反应"
+        error_items = []
+        for field_name, messages in form.errors.items():
+            field = getattr(form, field_name, None)
+            label = field.label.text if field is not None and field.label else field_name
+            error_items.append(f'{label}: {"; ".join(messages)}')
+        detail = ' | '.join(error_items) if error_items else '未知校验错误'
+        flash(f'表单校验未通过 —— {detail}', 'error')
+        log_error(f'项目收款表单校验未通过 H{header.hid}(id={header_id})：{detail}')
+
     # 获取项目的未付款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
-    
+
     return render_template('business/projects/project_receipt/create_header_receipt.html',
                           form=form,
                           header=header,
@@ -855,6 +874,7 @@ def edit_header_receipt(header_id, receipt_id):
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
+            log_error(f'更新项目收款失败 {receipt.receipt_number}(id={receipt_id}) H{header.hid}(id={header_id})', e)
 
     # 获取项目的未付款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
@@ -900,8 +920,7 @@ def delete_header_receipt(header_id, receipt_id):
                 if reversal:
                     db.session.add(reversal)
             except Exception as je_err:
-                import logging
-                logging.getLogger(__name__).warning(f"冲销收款日记账失败: {str(je_err)}")
+                log_error(f'冲销收款日记账失败 receipt_id={receipt_id}', je_err)
 
         # 删除分配记录
         ReceiptInvoiceAllocation.query.filter_by(receipt_id=receipt.id).delete()
@@ -933,6 +952,7 @@ def delete_header_receipt(header_id, receipt_id):
     except Exception as e:
         db.session.rollback()
         flash(f'删除失败：{str(e)}', 'error')
+        log_error(f'删除项目收款失败 receipt_id={receipt_id} header_id={header_id}', e)
 
     # 如果指定了next参数，跳转到指定页面；否则返回项目收款列表
     if next_url:

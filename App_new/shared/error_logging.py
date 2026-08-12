@@ -50,6 +50,25 @@ def _get_error_logger():
     return logger
 
 
+def log_error(message, exc=None):
+    """把「被 try/except 吞掉的异常」和「业务校验失败」写进同一个 logs/error.log
+
+    背景：路由里大量 `except Exception as e: flash(...)` 的失败属于「已处理异常」，
+    不会触发 got_request_exception，show_errors.sh 因此一条都看不到，
+    线上只能靠用户复述弹窗内容排查。凡是会让用户看到「XX失败」的分支都应调用本函数。
+
+    Args:
+        message: 人话描述，尽量带上单号/项目ID等定位信息
+        exc: 异常实例（有则自动追加完整 traceback）
+    """
+    logger = _get_error_logger()
+    try:
+        path, method = request.path, request.method
+    except Exception:  # 请求上下文外调用（脚本、定时任务）
+        path, method = '-', '-'
+    logger.error('%s | %s [%s]' % (message, path, method), exc_info=exc)
+
+
 def init_error_logging(app):
     """挂 got_request_exception 信号，把未捕获异常堆栈写入 logs/error.log"""
     logger = _get_error_logger()

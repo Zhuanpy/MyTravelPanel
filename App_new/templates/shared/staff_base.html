@@ -887,11 +887,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             new SidebarController();
             
-            // 自动关闭 Flash 消息（success/info 2秒，warning/error 5秒）
+            // 自动关闭 Flash 消息（success/info 5秒，warning/error 20秒，与 _flash_toast.html 口径一致）
             const alerts = document.querySelectorAll('.alert-dismissible');
             alerts.forEach(function(alert) {
                 var isLong = alert.classList.contains('alert-warning') || alert.classList.contains('alert-danger');
-                var delay = isLong ? 5000 : 2000;
+                var delay = isLong ? 20000 : 5000;
                 setTimeout(function() {
                     const bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();

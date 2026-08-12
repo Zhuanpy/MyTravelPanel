@@ -1,4 +1,6 @@
-{# 通用 Flash Toast 弹窗 - success 2秒，warning 8秒，error 15秒，点击可关闭 #}
+{# 通用 Flash Toast 弹窗
+   停留时长：success/info 5秒，warning 10秒，error 20秒；鼠标悬停时暂停倒计时，点击立即关闭。
+   长报错（如数据库异常原文）会自动换行，不再被 nowrap 截断到屏幕外。 #}
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div id="flashToastContainer" style="position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:9999;">
@@ -8,7 +10,8 @@
             color: {{ '#155724' if category == 'success' else '#721c24' if category in ('error','danger') else '#0c5460' if category == 'info' else '#856404' }};
             border: 1px solid {{ '#c3e6cb' if category == 'success' else '#f5c6cb' if category in ('error','danger') else '#bee5eb' if category == 'info' else '#ffeeba' }};
             padding: 0.5rem 1.25rem; padding-right: 2rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500;
-            margin-bottom: 0.5rem; white-space: nowrap; box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+            margin-bottom: 0.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+            max-width: min(90vw, 720px); white-space: pre-wrap; word-break: break-word; text-align: left;
             animation: flashToastIn 0.2s ease; cursor: pointer; position: relative;
         ">{{ message }}<span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:1rem; opacity:0.6;">&times;</span></div>
         {% endfor %}
@@ -26,9 +29,14 @@
         var toasts = document.querySelectorAll('.flash-toast');
         toasts.forEach(function(t){
             var cat = t.getAttribute('data-category') || '';
-            // success/info 2秒，warning 8秒，error 15秒
-            var delay = (cat === 'success' || cat === 'info') ? 2000 : (cat === 'warning' ? 8000 : 15000);
+            // success/info 5秒，warning 10秒，error 20秒（报错要留足看清和截图的时间）
+            var delay = (cat === 'success' || cat === 'info') ? 5000 : (cat === 'warning' ? 10000 : 20000);
             var timer = setTimeout(function(){ dismissToast(t); }, delay);
+            // 鼠标悬停时暂停倒计时，移开后重新给满时长
+            t.addEventListener('mouseenter', function(){ clearTimeout(timer); });
+            t.addEventListener('mouseleave', function(){
+                timer = setTimeout(function(){ dismissToast(t); }, delay);
+            });
             // 点击立即关闭
             t.addEventListener('click', function(){
                 clearTimeout(timer);
