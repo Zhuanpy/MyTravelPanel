@@ -63,6 +63,10 @@ def create_app(config_name=None):
     from .shared.error_logging import init_error_logging
     init_error_logging(app)
 
+    # 全局异常处理器（4xx/5xx 统一错误页 + CSRF 失效提示，同样写入 logs/error.log）
+    from .utils.exceptions import register_error_handlers
+    register_error_handlers(app)
+
     # 性能监控（慢请求 + 慢 SQL 日志，写入 logs/slow_request.log 与 logs/slow_query.log）
     from .shared.monitoring import init_monitoring
     init_monitoring(app)
