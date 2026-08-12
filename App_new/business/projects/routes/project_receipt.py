@@ -537,7 +537,7 @@ def create_header_receipt(header_id):
     ).count()
     if invoice_count == 0:
         flash('请先生成发票后再创建收款记录', 'warning')
-        log_error(f'项目收款被拦（无可用发票）H{header.hid}(id={header_id})')
+        log_error(f'项目收款被拦（无可用发票）{header.hid}(id={header_id})')
         return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
     # 检查是否还有未收款金额
@@ -545,7 +545,7 @@ def create_header_receipt(header_id):
     if unpaid_amount <= 0:
         flash('该项目已无未收款金额，无法创建新收款记录', 'warning')
         # 这两条 warning 会直接 redirect，页面上看起来只是"闪了一下"，必须留痕
-        log_error(f'项目收款被拦（发票未收合计为0）H{header.hid}(id={header_id})：'
+        log_error(f'项目收款被拦（发票未收合计为0）{header.hid}(id={header_id})：'
                   f'发票口径未收={unpaid_amount:.2f}，页面口径未收={header.total_unpaid_amount:.2f}')
         return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
@@ -584,7 +584,7 @@ def create_header_receipt(header_id):
             unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
             if amount > unpaid_amount + 0.01:  # 允许0.01的浮点数误差
                 flash(f'收款金额({amount:.2f})不能超过未收款总额({unpaid_amount:.2f})', 'error')
-                log_error(f'项目收款被拒 H{header.hid}(id={header_id})：收款金额 {amount:.2f} > 未收款总额 {unpaid_amount:.2f}')
+                log_error(f'项目收款被拒 {header.hid}(id={header_id})：收款金额 {amount:.2f} > 未收款总额 {unpaid_amount:.2f}')
                 return render_template('business/projects/project_receipt/create_header_receipt.html',
                                      form=form,
                                      header=header,
@@ -599,7 +599,7 @@ def create_header_receipt(header_id):
                 selected_invoice_ids = form.selected_invoices.data
                 if not selected_invoice_ids or (len(selected_invoice_ids) == 1 and selected_invoice_ids[0] == 0):
                     flash('请选择要分配的发票', 'error')
-                    log_error(f'项目收款被拒 H{header.hid}(id={header_id})：手动分配但未选择发票')
+                    log_error(f'项目收款被拒 {header.hid}(id={header_id})：手动分配但未选择发票')
                     return render_template('business/projects/project_receipt/create_header_receipt.html',
                                          form=form,
                                          header=header,
@@ -619,7 +619,7 @@ def create_header_receipt(header_id):
 
                 if amount > selected_unpaid_total + 0.01:
                     flash(f'收款金额不能超过选中发票的未收款总额：{header.currency or "SGD"} {selected_unpaid_total:.2f}', 'error')
-                    log_error(f'项目收款被拒 H{header.hid}(id={header_id})：收款金额 {amount:.2f} > 选中发票未收款合计 {selected_unpaid_total:.2f}，选中发票 {selected_invoice_ids}')
+                    log_error(f'项目收款被拒 {header.hid}(id={header_id})：收款金额 {amount:.2f} > 选中发票未收款合计 {selected_unpaid_total:.2f}，选中发票 {selected_invoice_ids}')
                     return render_template('business/projects/project_receipt/create_header_receipt.html',
                                          form=form,
                                          header=header,
@@ -709,7 +709,7 @@ def create_header_receipt(header_id):
             # 项目已收，把后续收款全部挡在门外。
             if not allocations:
                 flash('没有可分配的发票（发票可能已作废或已收满），收款记录未创建', 'error')
-                log_error(f'项目收款被拒 H{header.hid}(id={header_id})：分配结果为空，'
+                log_error(f'项目收款被拒 {header.hid}(id={header_id})：分配结果为空，'
                           f'金额={amount:.2f}，分配方式={distribution_method}')
                 return render_template('business/projects/project_receipt/create_header_receipt.html',
                                      form=form,
@@ -777,7 +777,7 @@ def create_header_receipt(header_id):
                             journal_entry.post(user=current_user.username if current_user else None)
             except Exception as je_error:
                 # 日记账创建失败不影响收款记录，但必须留痕
-                log_error(f'创建项目收款日记账失败 {receipt_number} H{header.hid}(id={header_id})', je_error)
+                log_error(f'创建项目收款日记账失败 {receipt_number} {header.hid}(id={header_id})', je_error)
 
             # 更新分配到的每张发票的已付金额
             for inv_id in allocations.keys():
@@ -802,7 +802,7 @@ def create_header_receipt(header_id):
         except Exception as e:
             db.session.rollback()
             flash(f'创建失败：{str(e)}', 'error')
-            log_error(f'创建项目收款失败 {receipt_number} H{header.hid}(id={header_id})', e)
+            log_error(f'创建项目收款失败 {receipt_number} {header.hid}(id={header_id})', e)
 
     elif request.method == 'POST':
         # 表单校验没过：原来这里什么都不提示，页面静默重新渲染，用户以为"点了没反应"
@@ -813,7 +813,7 @@ def create_header_receipt(header_id):
             error_items.append(f'{label}: {"; ".join(messages)}')
         detail = ' | '.join(error_items) if error_items else '未知校验错误'
         flash(f'表单校验未通过 —— {detail}', 'error')
-        log_error(f'项目收款表单校验未通过 H{header.hid}(id={header_id})：{detail}')
+        log_error(f'项目收款表单校验未通过 {header.hid}(id={header_id})：{detail}')
 
     # 获取项目的未付款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
@@ -891,7 +891,7 @@ def edit_header_receipt(header_id, receipt_id):
         except Exception as e:
             db.session.rollback()
             flash(f'更新失败：{str(e)}', 'error')
-            log_error(f'更新项目收款失败 {receipt.receipt_number}(id={receipt_id}) H{header.hid}(id={header_id})', e)
+            log_error(f'更新项目收款失败 {receipt.receipt_number}(id={receipt_id}) {header.hid}(id={header_id})', e)
 
     # 获取项目的未付款金额
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)

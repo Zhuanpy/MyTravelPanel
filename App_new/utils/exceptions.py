@@ -135,8 +135,9 @@ def register_error_handlers(app):
         if isinstance(error, RequestRedirect) or (error.code and 300 <= error.code < 400):
             return error
 
-        # 401 由登录流程自己处理，不算异常；其余 4xx/5xx 都留痕
-        if error.code != 401:
+        # 401 由登录流程自己处理；405 绝大多数是扫描器往 / 发 POST/PROPFIND，
+        # 两者都不写 error.log，免得把真正的报错淹掉（nginx access log 里仍有记录）
+        if error.code not in (401, 405):
             log_error(f'HTTP {error.code}：{error.description}')
 
         title = '服务器开小差了' if (error.code or 500) >= 500 else '请求无法处理'
