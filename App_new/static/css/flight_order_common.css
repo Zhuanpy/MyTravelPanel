@@ -654,12 +654,53 @@ input[type="number"].order-input {
     border: 1px solid #cbd5e1;
 }
 
-/* 常用旅客只读字段（姓名/护照）：灰底 + 禁止编辑光标 */
+/* 常用旅客只读字段（姓名）：灰底 + 禁止编辑光标 */
 .order-input.ft-locked,
 input.ft-locked {
     background-color: #f1f5f9 !important;
     color: #475569;
     cursor: not-allowed;
+}
+
+/* 护照与常旅客库不一致：徽章转红并加感叹号（项目录入标签看不到护照框，靠它提示） */
+.passenger-vip-badge.is-drift {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    cursor: pointer;
+}
+.passenger-vip-badge.is-drift::after {
+    content: '!';
+    font-weight: 700;
+    margin-left: 2px;
+}
+
+/* 行程单补充：护照漂移提示条 + 「用库中值」按钮 */
+.pax-passport-drift {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: #b91c1c;
+    white-space: nowrap;
+}
+.pax-passport-drift b {
+    font-family: monospace;
+    font-weight: 700;
+}
+.pax-passport-apply {
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    color: #fff;
+    background: #dc2626;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.pax-passport-apply:hover {
+    background: #b91c1c;
 }
 
 /* ===== 乘客表头行 ===== */

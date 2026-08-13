@@ -625,6 +625,64 @@ function _escHtml(v) { return (v == null ? '' : String(v)).replace(/&/g, '&amp;'
 function syncPaxPassport(el, i) {
     const inputs = document.querySelectorAll('#passengersContainer input[name="passport_number[]"]');
     if (inputs[i]) inputs[i].value = el.value;
+    // 手填成库中的新号后，漂移提示应立即消失
+    const card = document.querySelectorAll('#passengersContainer .passenger-card')[i];
+    if (card) refreshPassportDriftHint(card);
+}
+
+// 乘客卡片在容器中的序号（票务表按同一顺序渲染，用它对齐两边的护照框）
+function passengerCardIndex(card) {
+    return Array.from(document.querySelectorAll('#passengersContainer .passenger-card')).indexOf(card);
+}
+
+// 该乘客当前填写的护照号（以隐藏字段为准，提交的也是它）
+function currentPassportOf(card) {
+    const hidden = card ? card.querySelector('input[name="passport_number[]"]') : null;
+    return hidden ? (hidden.value || '').trim() : '';
+}
+
+// 常旅客库里的护照 与 本单已存护照 不一致时，在票务表该行给出提示 + 「用库中值」按钮。
+// 刻意不自动覆盖：已出票的行程是按旧护照开的票，是否跟进换号由操作人判断。
+function refreshPassportDriftHint(card) {
+    const idx = passengerCardIndex(card);
+    if (idx < 0) return;
+
+    const lib = (card.dataset.libPassport || '').trim();
+    const cur = currentPassportOf(card);
+    const drifted = !!(lib && cur && lib.toUpperCase() !== cur.toUpperCase());
+
+    // 项目录入标签看不到护照框，用徽章变红提示到「行程单补充」去处理
+    const badge = card.querySelector('.passenger-vip-badge');
+    if (badge) {
+        badge.classList.toggle('is-drift', drifted);
+        if (drifted) badge.title = `常旅客库护照已变更：${cur} → ${lib}，请到「行程单补充」标签确认是否更新`;
+    }
+
+    const hint = document.querySelectorAll('#paxTicketingBody .pax-passport-drift')[idx];
+    if (!hint) return;
+    if (!drifted) { hint.innerHTML = ''; hint.style.display = 'none'; return; }
+    hint.style.display = '';
+    hint.innerHTML = `<i class="fas fa-exclamation-triangle"></i> 库中为 <b>${_escHtml(lib)}</b>`
+        + `<button type="button" class="pax-passport-apply" onclick="applyLibPassport(${idx})">用库中值</button>`;
+}
+
+// 手动把常旅客库里的护照号写入该乘客（隐藏字段 + 票务表可见框）
+function applyLibPassport(idx) {
+    const card = document.querySelectorAll('#passengersContainer .passenger-card')[idx];
+    if (!card) return;
+    const lib = (card.dataset.libPassport || '').trim();
+    if (!lib) return;
+
+    const hidden = card.querySelector('input[name="passport_number[]"]');
+    if (hidden) hidden.value = lib;
+    const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input')[idx];
+    if (visible) {
+        visible.value = lib;
+        visible.style.transition = 'background-color .3s';
+        visible.style.backgroundColor = '#e6fffa';
+        setTimeout(() => { visible.style.backgroundColor = ''; }, 1200);
+    }
+    refreshPassportDriftHint(card);
 }
 
 // 设置乘客行的「常用旅客」标识（样式与项目人员名单一致：星标 + 常用/普通）
@@ -645,7 +703,8 @@ function setPassengerVipBadge(card, state, titleText) {
     badge.title = titleText || '';
 }
 
-// 锁定常用旅客行：姓名与护照在本页只读（如需修改请到「常用旅客管理」页），徽章可点击跳转编辑
+// 锁定常用旅客行：仅姓名只读（姓名是常旅客的匹配键，改名会脱钩；如需改名请到「常用旅客管理」页），
+// 徽章可点击跳转编辑。护照号保持可编辑——常旅客换发护照后，本单需要能直接改或一键取库中新号。
 function lockFrequentTravelerRow(card, nameInput, travelerId) {
     if (!card) return;
     card.dataset.isFrequent = '1';
@@ -653,14 +712,7 @@ function lockFrequentTravelerRow(card, nameInput, travelerId) {
     if (nameInput) {
         nameInput.readOnly = true;
         nameInput.classList.add('ft-locked');
-        nameInput.title = '常用旅客信息只读，如需修改请到「常用旅客管理」页编辑';
-    }
-    // 票务表里对应的可见护照框设为只读
-    const cards = Array.from(document.querySelectorAll('.passenger-card'));
-    const idx = cards.indexOf(card);
-    if (idx >= 0) {
-        const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input');
-        if (visible[idx]) { visible[idx].readOnly = true; visible[idx].classList.add('ft-locked'); }
+        nameInput.title = '常用旅客姓名只读，如需修改请到「常用旅客管理」页编辑';
     }
     // 徽章可点击 → 新标签打开常用旅客编辑页
     const badge = card.querySelector('.passenger-vip-badge');
@@ -670,28 +722,31 @@ function lockFrequentTravelerRow(card, nameInput, travelerId) {
     }
 }
 
-// 解除锁定（普通旅客或姓名清空时）：姓名与护照恢复可编辑
+// 解除锁定（普通旅客或姓名清空时）：姓名恢复可编辑，清掉与常旅客库的护照比对基准
 function unlockFrequentTravelerRow(card, nameInput) {
     if (!card) return;
     card.dataset.isFrequent = '';
     card.dataset.frequentTravelerId = '';
+    card.dataset.libPassport = '';
     if (nameInput) {
         nameInput.readOnly = false;
         nameInput.classList.remove('ft-locked');
         nameInput.title = '';
     }
-    const cards = Array.from(document.querySelectorAll('.passenger-card'));
-    const idx = cards.indexOf(card);
+    // 清掉票务表该行可能残留的只读态（上一次匹配留下的）与漂移提示
+    const idx = passengerCardIndex(card);
     if (idx >= 0) {
-        const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input');
-        if (visible[idx]) { visible[idx].readOnly = false; visible[idx].classList.remove('ft-locked'); }
+        const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input')[idx];
+        if (visible) { visible.readOnly = false; visible.classList.remove('ft-locked'); }
     }
+    refreshPassportDriftHint(card);
     const badge = card.querySelector('.passenger-vip-badge');
     if (badge) { badge.style.cursor = ''; badge.onclick = null; }
 }
 
-// 检查乘客是否为常用旅客：标记 VIP 标识；是常旅客则锁定姓名/护照并自动带出护照号。
-// 精确匹配中文名或英文名（归一化空格与大小写），不覆盖已保存/手填的护照号。
+// 检查乘客是否为常用旅客：标记 VIP 标识；是常旅客则锁定姓名并在护照为空时自动带出。
+// 精确匹配中文名或英文名（归一化空格与大小写），不覆盖已保存/手填的护照号；
+// 已填值与库中不一致时只提示不改，由操作人点「用库中值」决定。
 function checkFrequentTraveler(nameInput) {
     if (!nameInput) return;
     const card = nameInput.closest('.passenger-card');
@@ -723,26 +778,30 @@ function checkFrequentTraveler(nameInput) {
             return;
         }
 
-        // 是常用旅客：打标识 + 锁定姓名/护照（只读，编辑请到常用旅客管理页）
+        // 是常用旅客：打标识 + 锁定姓名（护照仍可编辑）
         setPassengerVipBadge(card, 'vip',
             '常用旅客 ' + (match.traveler_code || '') + (match.passport_number ? '' : '（库中无护照号）'));
         lockFrequentTravelerRow(card, nameInput, match.id);
+        // 记录库中护照，作为漂移比对的基准
+        card.dataset.libPassport = match.passport_number || '';
 
         // 护照为空且常旅客有护照 → 自动带出（不覆盖已填）
         if (hidden && !(hidden.value && hidden.value.trim()) && match.passport_number) {
             hidden.value = match.passport_number;
             // 若票务表已构建并显示，按行序同步可见护照输入框
-            const cards = Array.from(document.querySelectorAll('.passenger-card'));
-            const idx = cards.indexOf(card);
+            const idx = passengerCardIndex(card);
             if (idx >= 0) {
-                const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input');
-                if (visible[idx]) visible[idx].value = match.passport_number;
+                const visible = document.querySelectorAll('#paxTicketingBody .pax-passport-input')[idx];
+                if (visible) visible.value = match.passport_number;
             }
             // 轻量提示：姓名框短暂高亮
             nameInput.style.transition = 'background-color .3s';
             nameInput.style.backgroundColor = '#e6fffa';
             setTimeout(() => { nameInput.style.backgroundColor = ''; }, 1200);
         }
+
+        // 已填护照与库中不一致 → 提示可一键更新（不自动覆盖）
+        refreshPassportDriftHint(card);
     })
     .catch(() => {});
 }
@@ -815,14 +874,11 @@ function buildPaxTicketingTable() {
     });
 
     const passportInputs = document.querySelectorAll('#passengersContainer input[name="passport_number[]"]');
-    // 常用旅客的护照号在本页只读（编辑请到常用旅客管理页）
-    const paxCards = document.querySelectorAll('#passengersContainer .passenger-card');
 
     let html = '';
     names.forEach((nm, i) => {
         const v = paxTicketingValues[i] || { ticket: '', pnr: '', baggage: '', cells: [] };
         const pv = passportInputs[i] ? passportInputs[i].value : '';
-        const ftLock = paxCards[i] && paxCards[i].dataset.isFrequent === '1';
 
         // 航段行：字段名 cell_{乘客序号}_{航段序号}_{字段}，与后端解析口径一致
         let segRows = '';
@@ -855,7 +911,8 @@ function buildPaxTicketingTable() {
             <div class="pax-tk-head">
                 <span class="pax-tk-name">${i + 1}. ${nm ? _escHtml(nm) : '<span style="color:#a0aec0;">(未填姓名)</span>'}</span>
                 <span class="pax-tk-field">护照号
-                    <input type="text" class="order-input pax-passport-input${ftLock ? ' ft-locked' : ''}" value="${_escAttr(pv)}" placeholder="护照号" maxlength="20" oninput="syncPaxPassport(this, ${i})" ${ftLock ? 'readonly title="常用旅客护照只读，编辑请到常用旅客管理页"' : ''}>
+                    <input type="text" class="order-input pax-passport-input" value="${_escAttr(pv)}" placeholder="护照号" maxlength="20" oninput="syncPaxPassport(this, ${i})">
+                    <span class="pax-passport-drift" style="display:none;"></span>
                 </span>
                 <span class="pax-tk-field">默认 PNR
                     <input type="text" class="order-input narrow pax-pnr-input" name="pax_pnr[]" value="${_escAttr(v.pnr)}" placeholder="PNR" maxlength="10" oninput="refreshCellPlaceholders(this.closest('.pax-tk-card'))">
@@ -873,6 +930,10 @@ function buildPaxTicketingTable() {
 
     body.innerHTML = html;
     body.querySelectorAll('.pax-tk-card').forEach(refreshCellPlaceholders);
+    // 表刚重建，护照漂移提示要按各乘客当前状态重新渲染一遍
+    document.querySelectorAll('#passengersContainer .passenger-card').forEach(function (card) {
+        refreshPassportDriftHint(card);
+    });
     document.getElementById('paxTicketingEmpty').style.display = names.length ? 'none' : 'block';
 }
 
