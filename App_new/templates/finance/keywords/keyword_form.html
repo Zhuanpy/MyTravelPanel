@@ -38,6 +38,7 @@
         margin-right: 5px;
     }
     
+    .badge-bank_charge { background-color: #6f42c1; color: white; }
     .badge-personal_business { background-color: #17a2b8; color: white; }
     .badge-business { background-color: #28a745; color: white; }
     .badge-personal { background-color: #ffc107; color: #212529; }
@@ -91,6 +92,9 @@
                                 <option value="personal" {% if keyword and keyword.keyword_type == 'personal' %}selected{% endif %}>
                                     个人消费
                                 </option>
+                                <option value="bank_charge" {% if keyword and keyword.keyword_type == 'bank_charge' %}selected{% endif %}>
+                                    银行费用（自动确认）
+                                </option>
                                 <option value="other" {% if keyword and keyword.keyword_type == 'other' %}selected{% endif %}>
                                     其他
                                 </option>
@@ -133,6 +137,8 @@
                     </div>
                     <div class="col-md-6">
                         <p><span class="keyword-badge badge-personal">个人消费</span> 纯个人生活消费</p>
+                        <p><span class="keyword-badge badge-bank_charge">银行费用</span>
+                           银行手续费/返现等，没有对手方，导入时自动确认并标记已核对</p>
                         <p><span class="keyword-badge badge-other">其他</span> 其他分类</p>
                     </div>
                 </div>

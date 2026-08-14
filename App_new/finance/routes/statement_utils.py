@@ -281,7 +281,13 @@ def analyze_excel_structure(df):
 
 
 def apply_keyword_matching(description, bank_name='UOB'):
-    """根据交易描述应用关键字匹配，设置owner标签和关键词"""
+    """根据交易描述应用关键字匹配，设置owner标签和关键词
+
+    返回的 auto_confirm 为 True 表示命中了 bank_charge（银行费用）类关键字：
+    手续费、TRANS CHARGE、CASH REBATE 这类流水是银行自身产生的，没有对手方，
+    永远匹配不到 REF/EO/收款单，需要在导入时直接确认，否则每期都会挂着未确认
+    把对账单一直摁在「进行中」。
+    """
     try:
         # 从数据库获取关键字
         keywords = BankStatementKeyword.query.filter(
@@ -297,7 +303,9 @@ def apply_keyword_matching(description, bank_name='UOB'):
         
         matched_keywords = []
         owner_label = ''
-        
+        auto_confirm = False      # 命中银行费用类关键字 → 导入时直接确认
+        charge_keywords = []      # 命中的银行费用关键字（写入备注便于追溯）
+
         description_lower = str(description).lower()
         
         for keyword in keywords:
@@ -320,17 +328,22 @@ def apply_keyword_matching(description, bank_name='UOB'):
                 elif keyword.keyword_type == 'je':
                     owner_label = 'JE'
                     print(f"警告: 匹配到 'je' 类型关键字，设置 owner_label 为 'JE'")
+                elif keyword.keyword_type == 'bank_charge':
+                    # 银行费用/返现：不动归属标签（沿用其他关键字或默认值），只标记可自动确认
+                    auto_confirm = True
+                    charge_keywords.append(keyword.keyword)
+                    print(f"匹配到银行费用关键字: {keyword.keyword}，该笔导入后自动确认")
                 else:
                     owner_label = 'Business'  # 默认
         
-        # 如果没有匹配到关键字，设置默认值
-        if not matched_keywords:
+        # 没匹配到关键字，或只匹配到不设归属的 bank_charge → 用默认归属，避免留空
+        if not matched_keywords or not owner_label:
             # 为不同银行设置不同的默认值
             if bank_name == 'OCBC':
                 owner_label = 'JE'  # OCBC 是公司账户，默认使用 JE
             else:
                 owner_label = 'Business'
-            print(f"无关键字匹配，使用默认值: {owner_label}")
+            print(f"无归属类关键字匹配，使用默认值: {owner_label}")
         else:
             print(f"匹配到关键字，设置owner_label: {owner_label}")
             
@@ -342,15 +355,19 @@ def apply_keyword_matching(description, bank_name='UOB'):
         return {
             'owner_label': owner_label,
             'matched_keywords': ','.join(matched_keywords) if matched_keywords else '',
-            'keyword_count': len(matched_keywords)
+            'keyword_count': len(matched_keywords),
+            'auto_confirm': auto_confirm,
+            'charge_keywords': ','.join(charge_keywords) if charge_keywords else ''
         }
-        
+
     except Exception as e:
         print(f"关键字匹配错误: {e}")
         return {
             'owner_label': 'Business',
             'matched_keywords': '',
-            'keyword_count': 0
+            'keyword_count': 0,
+            'auto_confirm': False,
+            'charge_keywords': ''
         }
 
 
@@ -368,7 +385,8 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
         'business': 0,
         'personal_business': 0,
         'no_match': 0,
-        'total_keywords_matched': 0
+        'total_keywords_matched': 0,
+        'auto_confirmed': 0
     }
     
     print(f"开始处理月份 {month} 的交易记录，共 {len(month_data)} 条")
@@ -519,7 +537,11 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
             keyword_result = apply_keyword_matching(row['Description'], bank_name)
             owner_label = keyword_result['owner_label']
             matched_keywords = keyword_result['matched_keywords']
-            
+            # 银行费用/返现类流水没有对手方，导入即确认并标记已核对，
+            # 否则每期都会剩几笔未确认，把对账单永远摁在「进行中」
+            auto_confirm = keyword_result.get('auto_confirm', False)
+            now = datetime.utcnow()
+
             # 统计关键字匹配结果
             if matched_keywords:
                 keyword_stats['total_keywords_matched'] += keyword_result['keyword_count']
@@ -544,17 +566,24 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
                 description=str(row['Description']),
                 counterparty_name='',
                 reconciliation_status='unmatched',
-                is_confirmed=False,
+                is_confirmed=auto_confirm,
+                confirmed_at=now if auto_confirm else None,
+                confirmed_by='auto' if auto_confirm else None,
+                is_reconciled=auto_confirm,
+                reconciled_at=now if auto_confirm else None,
+                reconciled_by='auto' if auto_confirm else None,
                 owner_label=owner_label,
                 accounting_ref='',
-                remarks='',
+                remarks=f"银行费用自动确认（{keyword_result.get('charge_keywords', '')}）" if auto_confirm else '',
                 keyword=matched_keywords,
                 tx_fingerprint=row['Id'],
-                created_at=datetime.utcnow()
+                created_at=now
             )
-            
+
             db.session.add(transaction)
             processed_count += 1
+            if auto_confirm:
+                keyword_stats['auto_confirmed'] += 1
             
         except Exception as e:
             error_count += 1
@@ -573,6 +602,7 @@ def process_monthly_transactions(month_data, statement_id, month, bank_name='UOB
     print(f"  - 个人商用: {keyword_stats['personal_business']} 条")
     print(f"  - 无匹配: {keyword_stats['no_match']} 条")
     print(f"  - 总匹配关键字: {keyword_stats['total_keywords_matched']} 个")
+    print(f"  - 银行费用自动确认: {keyword_stats['auto_confirmed']} 条")
     
     return {
         'processed_count': processed_count,
