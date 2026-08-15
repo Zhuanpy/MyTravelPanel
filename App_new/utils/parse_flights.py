@@ -14,8 +14,29 @@ from datetime import datetime
 DAY_ABBR = {0: "MO", 1: "TU", 2: "WE", 3: "TH", 4: "FR", 5: "SA", 6: "SU"}
 
 
+def _find_iata_near(block, airport_name):
+    """在文本里找机场名旁边的三字码，找不到返回 '???'
+
+    同一套无障碍文本，不同网站把三字码放在机场名的不同侧：
+        Trip.com     "SIN Singapore Changi"   -> 码在前
+        Skyscanner   "Singapore Changi SIN"   -> 码在后
+    先按码在前匹配（保持原有 Trip.com 行为），没命中再试码在后。
+    """
+    if not airport_name:
+        return "???"
+
+    name = re.escape(airport_name)
+    m = re.search(r"\b([A-Z]{3})\s+" + name + r"\b", block)
+    if m:
+        return m.group(1)
+    m = re.search(name + r"\s+([A-Z]{3})\b", block)
+    if m:
+        return m.group(1)
+    return "???"
+
+
 def parse_format_trip(text):
-    """解析 Trip.com 格式"""
+    """解析 Trip.com / Skyscanner 格式（两者的无障碍文本结构相同，只是三字码位置不同）"""
     flights = []
     flight_blocks = re.split(
         r"Leg \d+ flight with [^.]+\. Flight number ", text
@@ -48,14 +69,9 @@ def parse_format_trip(text):
         arr_date = datetime.strptime(m.group(3), "%d %B %Y")
         flight["next_day"] = arr_date.date() > dep_date.date()
 
-        dep_code = re.search(
-            r"\b([A-Z]{3})\s+" + re.escape(flight["dep_airport_name"]), block
-        )
-        arr_code = re.search(
-            r"\b([A-Z]{3})\s+" + re.escape(m.group(1).strip()), block
-        )
-        flight["dep_code"] = dep_code.group(1) if dep_code else "???"
-        flight["arr_code"] = arr_code.group(1) if arr_code else "???"
+        flight["arr_airport_name"] = m.group(1).strip()
+        flight["dep_code"] = _find_iata_near(block, flight["dep_airport_name"])
+        flight["arr_code"] = _find_iata_near(block, flight["arr_airport_name"])
         flights.append(flight)
     return flights
 
