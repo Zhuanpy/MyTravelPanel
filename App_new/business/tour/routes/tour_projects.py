@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from App_new.utils.decorators import staff_only
 from App_new.exts import db, csrf
 from App_new.business.tour.models.TourProject import TourGroup, TourItinerary, TourProject, TourProjectAttachment
+from App_new.business.tour.models.ItineraryTemplate import TourItineraryTemplate
 from flask import send_file
 from App_new.business.tour.models.Packagemodels import CompanyInfo
 from datetime import datetime, timedelta
@@ -2312,6 +2313,71 @@ def api_export_itinerary_template(group_id):
     return response
 
 
+def _apply_template_to_group(group, template, overwrite_notes=True):
+    """把模板套到团组上（文件导入与模板库调用共用这一套）
+
+    行为：
+      - 每日行程整份覆盖（先清空旧的），日期按团组出发日重排（第 N 天 = 出发日 + day_offset）
+      - 团组返回日期改成最后一天
+      - overwrite_notes 为真时一并覆盖 包含/不包含/注意事项
+      - 人数、价格、标题、旅行社/地接社一律不动
+
+    不做 commit / rollback，由调用方负责。返回 (replaced, created_list)。
+    入参有问题抛 _TourApiError。
+    """
+    days = template.get('days')
+    if not isinstance(days, list) or not days:
+        raise _TourApiError('模板里没有 days（每日行程）')
+
+    if not group.departure_date:
+        raise _TourApiError('当前团组没有出发日期，无法按模板排日期')
+
+    old = TourItinerary.query.filter_by(tour_id=group.id).all()
+    replaced = len(old)
+    for row in old:
+        db.session.delete(row)
+    db.session.flush()
+
+    created = []
+    max_offset = 0
+    for index, day in enumerate(days):
+        if not isinstance(day, dict):
+            raise _TourApiError('days[%d] 必须是对象' % index)
+
+        day_title = (day.get('day_title') or '').strip()
+        content = day.get('content')
+        if not day_title or content is None or not str(content).strip():
+            raise _TourApiError('days[%d] 缺少 day_title 或 content' % index)
+
+        # 日期平移：模板里存的是相对出发日的偏移，没有就按顺序当天序
+        offset = day.get('day_offset')
+        offset = index if offset is None else _parse_int(offset, 'days[%d].day_offset' % index)
+        max_offset = max(max_offset, offset)
+
+        itinerary = TourItinerary(
+            tour_id=group.id,
+            day_title=day_title,
+            date=group.departure_date + timedelta(days=offset),
+            content=str(content),
+            image1=(day.get('image1') or '').strip() or None,
+            image2=(day.get('image2') or '').strip() or None,
+            image3=(day.get('image3') or '').strip() or None,
+        )
+        db.session.add(itinerary)
+        created.append(itinerary)
+
+    # 返回日期跟着最后一天走
+    group.return_date = group.departure_date + timedelta(days=max_offset)
+
+    # 包含/不包含/注意事项随模板走（人数、价格、标题、供应商一律不动）
+    if overwrite_notes:
+        for field in ('included_items', 'excluded_items', 'important_notes'):
+            if template.get(field):
+                setattr(group, field, template[field])
+
+    return replaced, created
+
+
 @tour_projects.route('/api/groups/<int:group_id>/import', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -2348,58 +2414,13 @@ def api_import_itinerary_template(group_id):
     if isinstance(template.get('template'), dict):
         template = template['template']
 
-    days = template.get('days')
-    if not isinstance(days, list) or not days:
-        return jsonify({'success': False, 'error': '模板里没有 days（每日行程）'}), 400
-
-    if not group.departure_date:
-        return jsonify({'success': False, 'error': '当前团组没有出发日期，无法按模板排日期'}), 400
+    overwrite_notes = _as_bool_tour(
+        request.args.get('overwrite_notes', template.get('overwrite_notes', True)), True)
 
     replaced = 0
     created = []
     try:
-        old = TourItinerary.query.filter_by(tour_id=group_id).all()
-        replaced = len(old)
-        for row in old:
-            db.session.delete(row)
-        db.session.flush()
-
-        max_offset = 0
-        for index, day in enumerate(days):
-            if not isinstance(day, dict):
-                raise _TourApiError('days[%d] 必须是对象' % index)
-
-            day_title = (day.get('day_title') or '').strip()
-            content = day.get('content')
-            if not day_title or content is None or not str(content).strip():
-                raise _TourApiError('days[%d] 缺少 day_title 或 content' % index)
-
-            # 日期平移：模板里存的是相对出发日的偏移，没有就按顺序当天序
-            offset = day.get('day_offset')
-            offset = index if offset is None else _parse_int(offset, 'days[%d].day_offset' % index)
-            max_offset = max(max_offset, offset)
-
-            itinerary = TourItinerary(
-                tour_id=group_id,
-                day_title=day_title,
-                date=group.departure_date + timedelta(days=offset),
-                content=str(content),
-                image1=(day.get('image1') or '').strip() or None,
-                image2=(day.get('image2') or '').strip() or None,
-                image3=(day.get('image3') or '').strip() or None,
-            )
-            db.session.add(itinerary)
-            created.append(itinerary)
-
-        # 返回日期跟着最后一天走
-        group.return_date = group.departure_date + timedelta(days=max_offset)
-
-        # 包含/不包含/注意事项随模板走（人数、价格、标题、供应商一律不动）
-        if _as_bool_tour(request.args.get('overwrite_notes', template.get('overwrite_notes', True)), True):
-            for field in ('included_items', 'excluded_items', 'important_notes'):
-                if template.get(field):
-                    setattr(group, field, template[field])
-
+        replaced, created = _apply_template_to_group(group, template, overwrite_notes)
         db.session.commit()
     except _TourApiError as e:
         db.session.rollback()
@@ -2418,6 +2439,252 @@ def api_import_itinerary_template(group_id):
         'return_date': group.return_date.strftime('%Y-%m-%d'),
         'itineraries': [_itinerary_to_dict(i) for i in created],
     })
+
+
+# ============================================================================
+# 行程模板库（存库版）
+#
+# 与上面的 JSON 文件导出/导入是同一份模板结构（_group_to_template 的产物），
+# 区别只是存在 tour_itinerary_templates 表里，可以在页面上直接挑选调用，
+# 不用自己管理 .json 文件。
+#
+# 权限：全员共享可查看/调用；仅创建人与管理员可改名、覆盖、删除。
+# ============================================================================
+
+
+def _current_user_display_name():
+    """当前登录人的显示名，用于模板列表展示"""
+    prof = getattr(current_user, 'profile', None)
+    if prof and hasattr(prof, 'get_full_name'):
+        name = prof.get_full_name()
+        if name:
+            return name
+    return getattr(current_user, 'username', None)
+
+
+def _require_template_edit(tpl):
+    """无权修改则抛 403"""
+    if not tpl.can_edit(current_user):
+        raise _TourApiError('只有模板创建人或管理员可以修改/删除该模板', 403)
+
+
+@tour_projects.route('/api/itinerary-templates', methods=['GET'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_list_itinerary_templates():
+    """模板库列表
+
+    ?q= 按名称/目的地/备注模糊搜索；?days= 按天数筛选。
+    按最近使用时间倒序（没用过的按创建时间），常用的排前面。
+    """
+    query = TourItineraryTemplate.query
+
+    keyword = (request.args.get('q') or '').strip()
+    if keyword:
+        like = f'%{keyword}%'
+        query = query.filter(db.or_(
+            TourItineraryTemplate.name.ilike(like),
+            TourItineraryTemplate.destination.ilike(like),
+            TourItineraryTemplate.remarks.ilike(like),
+        ))
+
+    try:
+        days = _parse_int(request.args.get('days'), 'days')
+    except _TourApiError as e:
+        return jsonify({'success': False, 'error': e.message}), e.status
+    if days:
+        query = query.filter(TourItineraryTemplate.duration_days == days)
+
+    templates = query.order_by(
+        db.func.coalesce(TourItineraryTemplate.last_used_at,
+                         TourItineraryTemplate.created_at).desc()
+    ).limit(200).all()
+
+    return jsonify({
+        'success': True,
+        'templates': [t.to_dict(current_user) for t in templates],
+    })
+
+
+@tour_projects.route('/api/itinerary-templates', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_save_itinerary_template():
+    """把某个团组的当前行程存进模板库
+
+    入参：{group_id, name, destination?, remarks?, overwrite_id?}
+    带 overwrite_id 表示覆盖已有模板（需有修改权限），否则新建。
+    """
+    data = request.get_json(silent=True) or request.form or {}
+
+    try:
+        group_id = _parse_int(data.get('group_id'), 'group_id')
+        if not group_id:
+            raise _TourApiError('缺少 group_id')
+
+        group = TourGroup.query.get(group_id)
+        if not group:
+            raise _TourApiError('团组不存在：%s' % group_id, 404)
+
+        if not group.itineraries.first():
+            raise _TourApiError('该团组还没有每日行程，没什么可存的')
+
+        name = (data.get('name') or '').strip()
+        if not name:
+            raise _TourApiError('请填写模板名称')
+
+        payload = _group_to_template(group)
+
+        overwrite_id = _parse_int(data.get('overwrite_id'), 'overwrite_id')
+        if overwrite_id:
+            tpl = TourItineraryTemplate.query.get(overwrite_id)
+            if not tpl:
+                raise _TourApiError('要覆盖的模板不存在：%s' % overwrite_id, 404)
+            _require_template_edit(tpl)
+            created_new = False
+        else:
+            tpl = TourItineraryTemplate()
+            tpl.created_by_id = getattr(current_user, 'id', None)
+            tpl.created_by_name = _current_user_display_name()
+            db.session.add(tpl)
+            created_new = True
+
+        tpl.name = name
+        tpl.destination = (data.get('destination') or '').strip() or None
+        tpl.remarks = (data.get('remarks') or '').strip() or None
+        tpl.payload = json.dumps(payload, ensure_ascii=False)
+        tpl.duration_days = len(payload.get('days') or []) or group.duration_days
+        tpl.source_group_id = group.id
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_save_itinerary_template failed: {e}")
+        return jsonify({'success': False, 'error': '保存失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'created': created_new,
+        'template': tpl.to_dict(current_user),
+    })
+
+
+@tour_projects.route('/api/itinerary-templates/<int:template_id>/apply', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_apply_itinerary_template(template_id):
+    """把模板库里的模板套到指定团组
+
+    入参：{group_id, overwrite_notes?}
+    行为与「导入模板」完全一致：整份覆盖每日行程，日期按团组出发日平移。
+    """
+    tpl = TourItineraryTemplate.query.get_or_404(template_id)
+    data = request.get_json(silent=True) or request.form or {}
+
+    replaced = 0
+    created = []
+    try:
+        group_id = _parse_int(data.get('group_id'), 'group_id')
+        if not group_id:
+            raise _TourApiError('缺少 group_id')
+
+        group = TourGroup.query.get(group_id)
+        if not group:
+            raise _TourApiError('团组不存在：%s' % group_id, 404)
+
+        template = tpl.template_data
+        if not template:
+            raise _TourApiError('模板内容已损坏，无法解析')
+
+        overwrite_notes = _as_bool_tour(data.get('overwrite_notes', True), True)
+        replaced, created = _apply_template_to_group(group, template, overwrite_notes)
+
+        # 使用统计：让常用模板排到列表前面
+        tpl.use_count = (tpl.use_count or 0) + 1
+        tpl.last_used_at = datetime.utcnow()
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_apply_itinerary_template failed: {e}")
+        return jsonify({'success': False, 'error': '调用模板失败：%s' % str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'template_id': tpl.id,
+        'template_name': tpl.name,
+        'group_id': group.id,
+        'replaced': replaced,
+        'created': len(created),
+        'departure_date': group.departure_date.strftime('%Y-%m-%d'),
+        'return_date': group.return_date.strftime('%Y-%m-%d'),
+    })
+
+
+@tour_projects.route('/api/itinerary-templates/<int:template_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_update_itinerary_template(template_id):
+    """改模板的名称/目的地/备注（不动行程正文，正文靠「覆盖」更新）"""
+    tpl = TourItineraryTemplate.query.get_or_404(template_id)
+    data = request.get_json(silent=True) or request.form or {}
+
+    try:
+        _require_template_edit(tpl)
+
+        if 'name' in data:
+            name = (data.get('name') or '').strip()
+            if not name:
+                raise _TourApiError('模板名称不能为空')
+            tpl.name = name
+        if 'destination' in data:
+            tpl.destination = (data.get('destination') or '').strip() or None
+        if 'remarks' in data:
+            tpl.remarks = (data.get('remarks') or '').strip() or None
+
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_update_itinerary_template failed: {e}")
+        return jsonify({'success': False, 'error': '更新失败：%s' % str(e)}), 500
+
+    return jsonify({'success': True, 'template': tpl.to_dict(current_user)})
+
+
+@tour_projects.route('/api/itinerary-templates/<int:template_id>/delete', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_delete_itinerary_template(template_id):
+    """删除模板（仅创建人与管理员）"""
+    tpl = TourItineraryTemplate.query.get_or_404(template_id)
+    name = tpl.name
+    try:
+        _require_template_edit(tpl)
+        db.session.delete(tpl)
+        db.session.commit()
+    except _TourApiError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': e.message}), e.status
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"api_delete_itinerary_template failed: {e}")
+        return jsonify({'success': False, 'error': '删除失败：%s' % str(e)}), 500
+
+    return jsonify({'success': True, 'deleted_id': template_id, 'name': name})
 
 
 @tour_projects.route('/api/itinerary/<int:itinerary_id>', methods=['POST'])

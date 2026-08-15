@@ -411,13 +411,28 @@
                         <button type="button" onclick="autoGenerateItineraries({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-xs font-medium">
                             <i class="fas fa-magic"></i> 自动生成
                         </button>
-                        {# 行程模板：导出成 JSON 存下来，下次类似线路直接导入，日期按出发日自动平移 #}
-                        <button type="button" onclick="exportItineraryTemplate({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-xs font-medium" title="把当前行程存成 JSON 模板">
-                            <i class="fas fa-download"></i> 导出模板
-                        </button>
-                        <button type="button" onclick="pickItineraryTemplate({{ group.id }})" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-xs font-medium" title="导入 JSON 模板，覆盖当前行程">
-                            <i class="fas fa-upload"></i> 导入模板
-                        </button>
+                        {# 行程模板：存进模板库供下次调用；也保留 JSON 文件导入导出。
+                           模板里每天记的是相对出发日的偏移，所以套到任何出发日期都能自动排好。 #}
+                        <div class="itinerary-tpl-menu relative inline-block">
+                            <button type="button" onclick="toggleItineraryTplMenu(this)" class="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-xs font-medium">
+                                <i class="fas fa-layer-group"></i> 行程模板 <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div class="itinerary-tpl-dropdown hidden absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1 text-left">
+                                <button type="button" onclick="openSaveTemplateModal({{ group.id }})" class="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                                    <i class="fas fa-save w-4 text-teal-600"></i> 存入模板库
+                                </button>
+                                <button type="button" onclick="openTemplateLibrary({{ group.id }})" class="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                                    <i class="fas fa-book-open w-4 text-amber-600"></i> 从模板库调用
+                                </button>
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <button type="button" onclick="exportItineraryTemplate({{ group.id }})" class="w-full text-left px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 flex items-center gap-2">
+                                    <i class="fas fa-download w-4"></i> 导出 JSON 文件
+                                </button>
+                                <button type="button" onclick="pickItineraryTemplate({{ group.id }})" class="w-full text-left px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 flex items-center gap-2">
+                                    <i class="fas fa-upload w-4"></i> 导入 JSON 文件
+                                </button>
+                            </div>
+                        </div>
                         <input type="file" id="itineraryTemplateFile" accept=".json,application/json" style="display:none;" onchange="importItineraryTemplate({{ group.id }}, this)">
                     </div>
                 </div>
@@ -661,6 +676,84 @@
         <div class="visa-modal-footer">
             <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('editGroupModal')">取消</button>
             <button type="button" class="visa-btn visa-btn-primary" onclick="updateGroup()">更新团队</button>
+        </div>
+    </div>
+</div>
+
+<!-- 存入模板库 -->
+<div id="saveTemplateModal" class="visa-modal" data-backdrop-close="false">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-save mr-2"></i>存入行程模板库</h3>
+            <button class="visa-modal-close" onclick="closeModal('saveTemplateModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <input type="hidden" id="saveTemplateGroupId">
+            <input type="hidden" id="saveTemplateOverwriteId">
+            <div class="visa-form-group">
+                <label class="visa-form-label">模板名称 <span style="color: red;">*</span></label>
+                <input type="text" id="saveTemplateName" class="visa-form-control" placeholder="例如：新加坡经典5天4晚">
+            </div>
+            <div class="visa-grid-2">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">目的地 / 线路标签</label>
+                    <input type="text" id="saveTemplateDestination" class="visa-form-control" placeholder="例如：新加坡">
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">天数</label>
+                    <input type="text" id="saveTemplateDays" class="visa-form-control" readonly style="background:#f1f5f9;">
+                </div>
+            </div>
+            <div class="visa-form-group">
+                <label class="visa-form-label">备注</label>
+                <textarea id="saveTemplateRemarks" class="visa-form-control" rows="2" placeholder="可选，例如适用季节、客群、注意点"></textarea>
+            </div>
+            <div id="saveTemplateOverwriteHint" class="hidden" style="padding:10px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
+                <i class="fas fa-exclamation-triangle"></i>
+                将<strong>覆盖</strong>已有模板「<span id="saveTemplateOverwriteName"></span>」的行程正文，原内容不可恢复。
+            </div>
+            <p style="font-size:12px;color:#64748b;margin-top:8px;">
+                模板会记录每天相对出发日的偏移，下次调用时按新团组的出发日自动排期。
+                包含 / 不包含 / 注意事项也会一并存入。
+            </p>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('saveTemplateModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="submitSaveTemplate()">保存模板</button>
+        </div>
+    </div>
+</div>
+
+<!-- 模板库：挑选并调用 -->
+<div id="templateLibraryModal" class="visa-modal" data-backdrop-close="false">
+    <div class="visa-modal-dialog visa-modal-dialog-lg">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #d97706, #b45309); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-book-open mr-2"></i>行程模板库</h3>
+            <button class="visa-modal-close" onclick="closeModal('templateLibraryModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <input type="hidden" id="templateLibraryGroupId">
+            <div class="flex gap-2 items-center mb-3">
+                <input type="text" id="templateSearchInput" class="visa-form-control" style="flex:1;" placeholder="搜索模板名称 / 目的地 / 备注" onkeyup="if(event.key==='Enter') loadTemplateLibrary()">
+                <button type="button" class="visa-btn visa-btn-secondary" onclick="loadTemplateLibrary()">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
+            <label class="flex items-center gap-2 mb-3" style="font-size:12px;color:#475569;">
+                <input type="checkbox" id="templateOverwriteNotes" checked>
+                同时覆盖「包含 / 不包含 / 注意事项」
+            </label>
+            <div style="padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#991b1b;margin-bottom:12px;">
+                <i class="fas fa-exclamation-triangle"></i>
+                调用模板会<strong>清空并替换</strong>当前团组的全部每日行程，返回日期跟着模板最后一天走。
+                人数、价格、团队标题、旅行社不受影响。
+            </div>
+            <div id="templateLibraryList" style="max-height:52vh;overflow-y:auto;">
+                <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin"></i> 加载中…</div>
+            </div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('templateLibraryModal')">关闭</button>
         </div>
     </div>
 </div>
@@ -1466,6 +1559,207 @@ function addItinerary(groupId) {
 // ===== 行程模板：导出 / 导入 =====
 // 模板存的是 day_offset（相对出发日的偏移）而非绝对日期，
 // 所以同一份模板套到任何出发日期上都能自动排好。
+
+// ---- 「行程模板」下拉菜单 ----
+function toggleItineraryTplMenu(btn) {
+    const dropdown = btn.parentElement.querySelector('.itinerary-tpl-dropdown');
+    const wasHidden = dropdown.classList.contains('hidden');
+    // 先收起页面上所有的，避免多个团组的菜单同时展开
+    document.querySelectorAll('.itinerary-tpl-dropdown').forEach(d => d.classList.add('hidden'));
+    if (wasHidden) dropdown.classList.remove('hidden');
+}
+
+// 点空白处收起菜单
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.itinerary-tpl-menu')) {
+        document.querySelectorAll('.itinerary-tpl-dropdown').forEach(d => d.classList.add('hidden'));
+    }
+});
+
+function _escTplHtml(v) {
+    return (v == null ? '' : String(v))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ---- 存入模板库 ----
+function openSaveTemplateModal(groupId) {
+    const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+    const dayCount = groupCard ? groupCard.querySelectorAll('.itinerary-table tbody tr').length : 0;
+    if (!dayCount) {
+        showAlert('该团组还没有每日行程，没什么可存的', 'warning');
+        return;
+    }
+
+    document.getElementById('saveTemplateGroupId').value = groupId;
+    document.getElementById('saveTemplateOverwriteId').value = '';
+    document.getElementById('saveTemplateName').value = '';
+    document.getElementById('saveTemplateDestination').value = '';
+    document.getElementById('saveTemplateRemarks').value = '';
+    document.getElementById('saveTemplateDays').value = `${dayCount} 天`;
+    document.getElementById('saveTemplateOverwriteHint').classList.add('hidden');
+    showModal('saveTemplateModal');
+}
+
+function submitSaveTemplate() {
+    const name = document.getElementById('saveTemplateName').value.trim();
+    if (!name) {
+        showAlert('请填写模板名称', 'warning');
+        return;
+    }
+
+    const overwriteId = document.getElementById('saveTemplateOverwriteId').value;
+    const body = {
+        group_id: parseInt(document.getElementById('saveTemplateGroupId').value, 10),
+        name: name,
+        destination: document.getElementById('saveTemplateDestination').value.trim(),
+        remarks: document.getElementById('saveTemplateRemarks').value.trim()
+    };
+    if (overwriteId) body.overwrite_id = parseInt(overwriteId, 10);
+
+    fetch('/tour/projects/api/itinerary-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('saveTemplateModal');
+                showAlert(data.created ? `模板「${name}」已存入模板库` : `模板「${name}」已覆盖更新`, 'success');
+            } else {
+                showAlert('保存失败：' + (data.error || '未知错误'), 'danger');
+            }
+        })
+        .catch(err => showAlert('保存失败：' + err, 'danger'));
+}
+
+// ---- 从模板库调用 ----
+function openTemplateLibrary(groupId) {
+    document.getElementById('templateLibraryGroupId').value = groupId;
+    document.getElementById('templateSearchInput').value = '';
+    document.getElementById('templateOverwriteNotes').checked = true;
+    showModal('templateLibraryModal');
+    loadTemplateLibrary();
+}
+
+function loadTemplateLibrary() {
+    const listEl = document.getElementById('templateLibraryList');
+    const q = document.getElementById('templateSearchInput').value.trim();
+    listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin"></i> 加载中…</div>';
+
+    fetch(`/tour/projects/api/itinerary-templates?q=${encodeURIComponent(q)}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                listEl.innerHTML = `<div class="text-center py-8 text-red-500">加载失败：${_escTplHtml(data.error || '未知错误')}</div>`;
+                return;
+            }
+            const templates = data.templates || [];
+            if (!templates.length) {
+                listEl.innerHTML = q
+                    ? '<div class="text-center py-8 text-gray-400">没有匹配的模板</div>'
+                    : '<div class="text-center py-8 text-gray-400">模板库还是空的，先用「存入模板库」保存一条行程吧</div>';
+                return;
+            }
+
+            listEl.innerHTML = templates.map(t => `
+                <div class="border border-gray-200 rounded-lg p-3 mb-2 hover:border-amber-400 transition-colors">
+                    <div class="flex justify-between items-start gap-3">
+                        <div style="min-width:0;">
+                            <div class="font-semibold text-gray-800 text-sm">${_escTplHtml(t.name)}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                ${t.destination ? `<span class="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded mr-1">${_escTplHtml(t.destination)}</span>` : ''}
+                                <span class="inline-block px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded mr-1">${t.day_count} 天</span>
+                                <span>${_escTplHtml(t.created_by_name || '未知')} 创建于 ${t.created_at || '-'}</span>
+                                ${t.use_count ? `<span class="ml-1">· 已用 ${t.use_count} 次</span>` : ''}
+                            </div>
+                            ${t.remarks ? `<div class="text-xs text-gray-500 mt-1">${_escTplHtml(t.remarks)}</div>` : ''}
+                        </div>
+                        <div class="flex gap-1 shrink-0">
+                            <button type="button" onclick="applyTemplate(${t.id}, '${_escTplHtml(t.name).replace(/'/g, "\\'")}')"
+                                    class="px-2 py-1 bg-amber-600 text-white rounded text-xs hover:bg-amber-700 whitespace-nowrap">
+                                <i class="fas fa-check"></i> 调用
+                            </button>
+                            ${t.can_edit ? `
+                            <button type="button" onclick="overwriteTemplate(${t.id}, '${_escTplHtml(t.name).replace(/'/g, "\\'")}')"
+                                    class="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 whitespace-nowrap" title="用当前行程覆盖此模板">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                            <button type="button" onclick="deleteTemplate(${t.id}, '${_escTplHtml(t.name).replace(/'/g, "\\'")}')"
+                                    class="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 whitespace-nowrap">
+                                <i class="fas fa-trash"></i>
+                            </button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(err => {
+            listEl.innerHTML = `<div class="text-center py-8 text-red-500">加载失败：${_escTplHtml(err)}</div>`;
+        });
+}
+
+function applyTemplate(templateId, templateName) {
+    const groupId = document.getElementById('templateLibraryGroupId').value;
+    const overwriteNotes = document.getElementById('templateOverwriteNotes').checked;
+
+    if (!confirm(
+        `用模板「${templateName}」替换当前行程？\n\n` +
+        '· 当前的每日行程会被全部清空替换\n' +
+        '· 日期按本团组的出发日自动重排\n' +
+        (overwriteNotes ? '· 包含/不包含/注意事项也会被覆盖\n' : '· 包含/不包含/注意事项保持不变\n') +
+        '· 人数、价格、团队标题不受影响'
+    )) return;
+
+    fetch(`/tour/projects/api/itinerary-templates/${templateId}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: parseInt(groupId, 10), overwrite_notes: overwriteNotes })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(
+                    `调用成功！\n\n` +
+                    `替换了 ${data.replaced} 天，写入 ${data.created} 天\n` +
+                    `行程日期：${data.departure_date} ~ ${data.return_date}`
+                );
+                location.reload();
+            } else {
+                showAlert('调用失败：' + (data.error || '未知错误'), 'danger');
+            }
+        })
+        .catch(err => showAlert('调用失败：' + err, 'danger'));
+}
+
+// 用当前团组的行程覆盖已有模板：复用保存弹窗，带上 overwrite_id
+function overwriteTemplate(templateId, templateName) {
+    const groupId = document.getElementById('templateLibraryGroupId').value;
+    closeModal('templateLibraryModal');
+    openSaveTemplateModal(parseInt(groupId, 10));
+    document.getElementById('saveTemplateOverwriteId').value = templateId;
+    document.getElementById('saveTemplateName').value = templateName;
+    document.getElementById('saveTemplateOverwriteName').textContent = templateName;
+    document.getElementById('saveTemplateOverwriteHint').classList.remove('hidden');
+}
+
+function deleteTemplate(templateId, templateName) {
+    if (!confirm(`确定删除模板「${templateName}」？此操作不可恢复。`)) return;
+
+    fetch(`/tour/projects/api/itinerary-templates/${templateId}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(`模板「${templateName}」已删除`, 'success');
+                loadTemplateLibrary();
+            } else {
+                showAlert('删除失败：' + (data.error || '未知错误'), 'danger');
+            }
+        })
+        .catch(err => showAlert('删除失败：' + err, 'danger'));
+}
 
 function exportItineraryTemplate(groupId) {
     // 直接走浏览器下载（后端带 Content-Disposition）

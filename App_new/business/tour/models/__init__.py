@@ -1,5 +1,6 @@
 from .Packagemodels import Product, ProductCity, ProductItinerary, ProductPriceVariant
 from .TourProject import TourProject
+from .ItineraryTemplate import TourItineraryTemplate
 
 __all__ = [
     'Product',
@@ -7,5 +8,6 @@ __all__ = [
     'ProductItinerary',
     'ProductPriceVariant',
     'TourProject',
+    'TourItineraryTemplate',
 ]
 
