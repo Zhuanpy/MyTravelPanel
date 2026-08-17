@@ -1,4 +1,5 @@
 {% extends "shared/staff_base.html" %}
+{% from 'business/projects/_flight_ref_detail.html' import flight_ref_detail %}
 
 {% block page_title %}Invoice Detail{% endblock %}
 
@@ -563,44 +564,8 @@
                                 {% endif %}
                             </table>
                             {% elif type_code == 'flight' or type_name == '机票' %}
-                            {# 机票类型专用显示 #}
-                            {% set segments = item.ref.flight_segments %}
-                            {% set passengers = item.ref.flight_passengers %}
-                            {% set first_pnr = passengers[0].pnr if passengers else '' %}
-                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
-                                <tr>
-                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Pax</td>
-                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">
-                                        {% if extra_data.pax_names_display is defined and extra_data.pax_names_display %}
-                                            {% set pax_list = extra_data.pax_names_display.split(', ') %}
-                                            {% if pax_list|length > 1 %}
-                                                {% for pax in pax_list %}{{ loop.index }}. {{ pax }}{% if not loop.last %}, {% endif %}{% endfor %}
-                                            {% else %}
-                                                {{ extra_data.pax_names_display }}
-                                            {% endif %}
-                                        {% else %}-{% endif %}
-                                    </td>
-                                </tr>
-                                {% if segments %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Itin</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">
-                                        {% for seg in segments %}
-                                        {{ loop.index }}.{{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }} {{ seg.departure_airport }}-{{ seg.arrival_airport }} {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }} {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}{% if not loop.last %}<br>{% endif %}
-                                        {% endfor %}
-                                    </td>
-                                </tr>
-                                {% endif %}
-                                {% if item.ref.remarks %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ item.ref.remarks | replace('\n', '<br>') | safe }}</td>
-                                </tr>
-                                {% endif %}
-                            </table>
+                            {# 机票明细走共用宏：含每位乘客票价，与项目价格单一致 #}
+                            {{ flight_ref_detail(item.ref) }}
                             {% else %}
                             {# 其他类型通用显示 #}
                             <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
@@ -690,61 +655,8 @@
                         {% set type_code = ref.ref_type.code|default('') if ref.ref_type else '' %}
                         {% set type_name = ref.ref_type.name|default('') if ref.ref_type else '' %}
                         {% if type_code == 'flight' or type_name == '机票' %}
-                            {# 机票类型详细显示 #}
-                            {% set segments = ref.flight_segments %}
-                            {% set passengers = ref.flight_passengers %}
-                            {% set first_pnr = passengers[0].pnr if passengers else '' %}
-                            
-                            <table style="border: none; font-size: 11px; width: 100%;">
-                                <tr>
-                                    <td style="width: 60px; border: none;">Detail</td>
-                                    <td style="width: 10px; border: none;">:</td>
-                                    <td style="border: none;"></td>
-                                </tr>
-                                <tr>
-                                    <td colspan="3" style="border: none; padding-left: 20px;">
-                                        Air ticket details -- {% if first_pnr %}(PNR:{{ first_pnr }}){% endif %}
-                                    </td>
-                                </tr>
-                                {% for pax in passengers %}
-                                <tr>
-                                    <td style="border: none;">Pax</td>
-                                    <td style="border: none;">:</td>
-                                    <td style="border: none;">
-                                        <table style="width: 100%; border: none;">
-                                            <tr>
-                                                <td style="border: none;">{{ loop.index }}. {{ pax.name }}</td>
-                                                <td style="border: none; text-align: right; width: 120px;">Airfare :</td>
-                                                <td style="border: none; text-align: right; width: 60px;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="border: none; padding-left: 20px;">TKT: {{ pax.ticket_number or 'T.B.A' }}</td>
-                                                <td style="border: none; text-align: right;">Tax :</td>
-                                                <td style="border: none; text-align: right;">0.00</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
-                                {% if segments %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top;">Itin</td>
-                                    <td style="border: none; vertical-align: top;">:</td>
-                                    <td style="border: none;">
-                                        {% for seg in segments %}
-                                        {{ loop.index }}.{{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }} {{ seg.departure_airport }}-{{ seg.arrival_airport }} {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }} {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}{% if not loop.last %}<br>{% endif %}
-                                        {% endfor %}
-                                    </td>
-                                </tr>
-                                {% endif %}
-                                <tr><td colspan="3" style="border: none; height: 10px;"></td></tr>
-                                <tr>
-                                    <td style="border: none;">Note</td>
-                                    <td style="border: none;">:</td>
-                                    <td style="border: none;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
-                                </tr>
-                            </table>
+                            {# 机票明细走共用宏：与上面 items 路径、项目价格单三处一致 #}
+                            {{ flight_ref_detail(ref) }}
                         {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
                             {# Tour 类型专用显示 #}
                             {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}

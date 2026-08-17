@@ -1,3 +1,4 @@
+{% from 'business/projects/_flight_ref_detail.html' import flight_ref_detail %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -209,53 +210,8 @@
                         {% set type_code = ref.ref_type.code|default('') if ref.ref_type else '' %}
                         {% set type_name = ref.ref_type.name|default('') if ref.ref_type else '' %}
                         {% if type_code == 'flight' or type_name == '机票' %}
-                            {# 机票类型详细显示 #}
-                            {% set segments = ref.flight_segments %}
-                            {% set passengers = ref.flight_passengers %}
-                            {% set first_pnr = passengers[0].pnr if passengers else '' %}
-
-                            <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
-                                <tr>
-                                    <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Itin</td>
-                                    <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ ref.description or '-' }}{% if first_pnr %} &nbsp;(PNR: {{ first_pnr }}){% endif %}</td>
-                                </tr>
-                                {% for pax in passengers %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}Pax{% endif %}</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}:{% endif %}</td>
-                                    <td style="border: none; padding: 1px 0;">
-                                        <table style="width: 100%; border: none; line-height: 1.2;">
-                                            <tr>
-                                                <td style="border: none; padding: 1px 0;">{{ loop.index }}. {{ pax.name }}{% if pax.ticket_number %} &nbsp;(TKT: {{ pax.ticket_number }}){% endif %}</td>
-                                                <td style="border: none; text-align: right; width: 80px; padding: 1px 0;">Airfare :</td>
-                                                <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% for seg in segments %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}Flight{% endif %}</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}:{% endif %}</td>
-                                    <td style="border: none; padding: 1px 0;">
-                                        {{ seg.flight_number }} {{ seg.departure_time.strftime('%d/%m/%Y') if seg.departure_time else '' }}
-                                        {{ seg.departure_airport }}-{{ seg.arrival_airport }}
-                                        {{ seg.cabin_code }} {{ 'HK' if not seg.status or seg.status == 'pending' else seg.status }}
-                                        {{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '' }}
-                                        {{ seg.arrival_time.strftime('%H:%M') if seg.arrival_time else '' }}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% if ref.remarks %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
-                                </tr>
-                                {% endif %}
-                            </table>
+                            {# 机票明细走共用宏，与发票详情页保持一致 #}
+                            {{ flight_ref_detail(ref) }}
                         {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
                             {# Tour类型 #}
                             {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}
