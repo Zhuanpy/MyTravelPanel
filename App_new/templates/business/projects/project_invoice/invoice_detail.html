@@ -66,10 +66,14 @@
 }
 .print-invoice .invoice-info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
 .print-invoice .customer-info { width: 55%; }
+/* 右侧发票元信息：五行标签值，原来每格上下各 2px 内边距 + 1.3 行高，
+   12px 的字撑出近 20px 行高，五行下来很散。这里单独收紧行距，
+   并把标签列从 80px 收到 66px，让「标签 : 值」读成一组而不是三块 */
 .print-invoice .invoice-meta { width: 40%; }
-.print-invoice .invoice-meta table { width: 100%; }
-.print-invoice .invoice-meta td { padding: 2px 5px; }
-.print-invoice .invoice-meta td:first-child { width: 80px; }
+.print-invoice .invoice-meta table { width: 100%; border-collapse: collapse; }
+.print-invoice .invoice-meta td { padding: 0; line-height: 1.35; vertical-align: top; }
+.print-invoice .invoice-meta td:first-child { width: 66px; }
+.print-invoice .invoice-meta td:nth-child(2) { width: 10px; padding-right: 4px; }
 .print-invoice .detail-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
 .print-invoice .detail-table th { 
     border-top: 2px solid #333; border-bottom: 1px solid #333; 
