@@ -1,0 +1,570 @@
+{% extends "shared/staff_base.html" %}
+
+{% block title %}行程模板库 - MyTravelPanel{% endblock %}
+{% block page_title %}行程模板库{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i>旅游项目列表
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+    /* 整页不要拉满 visa-container-lg 的 1800px：六列内容都不长，
+       拉满的话多出来的宽度全堆进模板名那一列，看着就是一大片空白 */
+    .tpl-wrap { max-width: 1180px; }
+    /* 列宽用百分比 + fixed：剩余宽度按比例摊到每一列，而不是全给第一列 */
+    .tpl-table { table-layout: fixed; }
+    .tpl-table th, .tpl-table td { vertical-align: middle; }
+    .tpl-table th:nth-child(1), .tpl-table td:nth-child(1) { width: 32%; }
+    .tpl-table th:nth-child(2), .tpl-table td:nth-child(2) { width: 20%; }
+    .tpl-table th:nth-child(3), .tpl-table td:nth-child(3) { width: 8%; }
+    .tpl-table th:nth-child(4), .tpl-table td:nth-child(4) { width: 13%; }
+    .tpl-table th:nth-child(5), .tpl-table td:nth-child(5) { width: 17%; }
+    .tpl-table th:nth-child(6), .tpl-table td:nth-child(6) { width: 10%; }
+
+    /* 模板名本身就是预览入口，蓝色标明可点 */
+    .tpl-name {
+        font-weight: 600;
+        color: #2563eb;
+        background: none;
+        border: none;
+        padding: 0;
+        text-align: left;
+        cursor: pointer;
+        font-size: inherit;
+        font-family: inherit;
+    }
+    .tpl-name:hover { text-decoration: underline; }
+    .tpl-remarks {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    /* 图标按钮：操作列只留编辑和删除，方形小按钮不撑列宽 */
+    .tpl-icon-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        color: #475569;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .tpl-icon-btn:hover { background: #f1f5f9; color: #0f172a; }
+    .tpl-icon-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    .tpl-tag {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 12px;
+        background: #e0f2fe;
+        color: #0369a1;
+        margin-right: 3px;
+    }
+    /* 城市换一档颜色，一眼看出「国家 + 城市」两级而不是两个平级标签 */
+    .tpl-tag-city { background: #ede9fe; color: #6d28d9; }
+    .tpl-days {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 12px;
+        background: #f1f5f9;
+        color: #475569;
+    }
+    .tpl-muted { color: #94a3b8; }
+    /* 预览：每天一块，标题和正文分层 */
+    .tpl-day {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+    }
+    .tpl-day-head {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+    .tpl-day-offset {
+        display: inline-block;
+        min-width: 46px;
+        margin-right: 6px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 12px;
+        text-align: center;
+    }
+    .tpl-day-body {
+        font-size: 12px;
+        color: #475569;
+        white-space: pre-wrap;
+        line-height: 1.5;
+    }
+    .tpl-notes-block { margin-top: 12px; }
+    .tpl-notes-title { font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 3px; }
+    .tpl-notes-body {
+        font-size: 12px;
+        color: #475569;
+        white-space: pre-wrap;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="visa-container-lg tpl-wrap">
+
+    <div class="visa-info-box" style="margin-bottom: 1rem;">
+        <i class="fas fa-info-circle"></i>
+        模板库全员共享，任何人都能调用；改名、覆盖正文、删除只有<strong>创建人和管理员</strong>可以做。
+        <strong>调用模板</strong>要到具体团组的编辑页操作（行程模板 → 从模板库调用），因为需要一个目标团组来排日期。
+        本页负责的是整理：改名、补国家城市和备注、清掉不用的模板。
+        国家城市取值与配套产品共用 <code>travel_products_city</code>，所以两处筛选用的是同一套词。
+    </div>
+
+    <!-- 筛选 -->
+    <div class="visa-filter-bar" style="justify-content: space-between;">
+        <div style="display: flex; align-items: flex-end; gap: 1rem; flex: 1; flex-wrap: wrap;">
+            <div class="visa-filter-item" style="flex: 1; min-width: 220px; max-width: 320px;">
+                <label class="visa-form-label" for="searchInput">搜索</label>
+                <input type="text" id="searchInput" class="visa-form-control"
+                       placeholder="模板名称 / 国家城市 / 线路 / 备注"
+                       onkeyup="if(event.key==='Enter') loadTemplates()">
+            </div>
+            <div class="visa-filter-item" style="width: 150px;">
+                <label class="visa-form-label" for="countrySelect">国家</label>
+                <select id="countrySelect" class="visa-form-select" onchange="onFilterCountryChange()">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="visa-filter-item" style="width: 150px;">
+                <label class="visa-form-label" for="citySelect">城市</label>
+                <select id="citySelect" class="visa-form-select" onchange="loadTemplates()">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="visa-filter-item" style="width: 110px;">
+                <label class="visa-form-label" for="daysInput">天数</label>
+                <input type="number" id="daysInput" class="visa-form-control" min="1" placeholder="不限"
+                       onkeyup="if(event.key==='Enter') loadTemplates()">
+            </div>
+            <div class="visa-filter-item">
+                <button type="button" class="visa-btn visa-btn-primary" onclick="loadTemplates()">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
+            <div class="visa-filter-item">
+                <button type="button" class="visa-btn visa-btn-secondary" onclick="resetFilters()">
+                    <i class="fas fa-undo"></i> 重置
+                </button>
+            </div>
+        </div>
+        <div style="align-self: flex-end; color: #64748b; font-size: 13px;" id="tplCount"></div>
+    </div>
+
+    <!-- 列表 -->
+    <div class="visa-card">
+        <div class="visa-card-body" style="padding: 0;">
+            <table class="visa-table tpl-table">
+                <thead>
+                    <tr>
+                        <th>模板名称 <span style="font-weight:400;color:#94a3b8;font-size:12px;">（点击预览）</span></th>
+                        <th>国家 / 城市</th>
+                        <th>天数</th>
+                        <th>创建人</th>
+                        <th>调用情况</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tplTableBody">
+                    <tr><td colspan="6" class="visa-text-center" style="padding: 2rem; color: #94a3b8;">
+                        <i class="fas fa-spinner fa-spin"></i> 加载中…
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 预览模板正文 -->
+<div id="tplPreviewModal" class="visa-modal">
+    <div class="visa-modal-dialog visa-modal-dialog-lg">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #d97706, #b45309); color: white;">
+            <h3 class="visa-modal-title" style="color: white;">
+                <i class="fas fa-book-open mr-2"></i><span id="previewTitle">行程模板</span>
+            </h3>
+            <button class="visa-modal-close" onclick="closeModal('tplPreviewModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <div id="previewMeta" style="font-size: 12px; color: #64748b; margin-bottom: 10px;"></div>
+            <div id="previewBody" style="max-height: 58vh; overflow-y: auto;"></div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('tplPreviewModal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑模板信息（名称 / 目的地 / 备注，不动行程正文） -->
+<div id="tplEditModal" class="visa-modal">
+    <div class="visa-modal-dialog">
+        <div class="visa-modal-header" style="background: linear-gradient(135deg, #0891b2, #0e7490); color: white;">
+            <h3 class="visa-modal-title" style="color: white;"><i class="fas fa-pen mr-2"></i>编辑模板信息</h3>
+            <button class="visa-modal-close" onclick="closeModal('tplEditModal')" style="color: white;">&times;</button>
+        </div>
+        <div class="visa-modal-body">
+            <input type="hidden" id="editTplId">
+            <div class="visa-form-group">
+                <label class="visa-form-label">模板名称 <span style="color: red;">*</span></label>
+                <input type="text" id="editTplName" class="visa-form-control" maxlength="200">
+            </div>
+            <div class="visa-form-group">
+                <label class="visa-form-label">国家</label>
+                <select id="editTplCountry" class="visa-form-select" onchange="onEditCountryChange()">
+                    <option value="">未设置</option>
+                </select>
+            </div>
+            <div class="visa-form-group">
+                <label class="visa-form-label">城市</label>
+                <select id="editTplCity" class="visa-form-select">
+                    <option value="">未设置</option>
+                </select>
+            </div>
+            <div class="visa-form-group">
+                <label class="visa-form-label">线路标签</label>
+                <input type="text" id="editTplDestination" class="visa-form-control" maxlength="100"
+                       placeholder="如：北海道深度游、新马泰联游">
+            </div>
+            <div class="visa-form-group">
+                <label class="visa-form-label">备注</label>
+                <textarea id="editTplRemarks" class="visa-form-textarea" rows="3"
+                          placeholder="适用季节、客群、注意事项等"></textarea>
+            </div>
+            <div style="font-size: 12px; color: #64748b;">
+                <i class="fas fa-info-circle"></i>
+                这里只改模板的标签信息。要更新每日行程正文，请到团组编辑页用「覆盖此模板」。
+            </div>
+        </div>
+        <div class="visa-modal-footer">
+            <button type="button" class="visa-btn visa-btn-secondary" onclick="closeModal('tplEditModal')">取消</button>
+            <button type="button" class="visa-btn visa-btn-primary" onclick="submitEditTemplate()">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 模态框开关：与团组编辑页保持同一套写法（visa-modal 用 display 控制）
+function showModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) el.style.display = 'flex';
+}
+function closeModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) el.style.display = 'none';
+}
+
+function esc(v) {
+    return String(v === null || v === undefined ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// 列表数据留一份，编辑弹窗直接取，省一次请求
+var templateCache = {};
+
+// 国家城市取值表：
+//   locAll  = travel_products_city 全量，编辑弹窗用（和配套产品同一套词）
+//   locUsed = 模板库里实际出现过的，筛选下拉用（不挂必然 0 条的选项）
+var locAll = {};
+var locUsed = {};
+
+function loadLocations() {
+    return fetch('/tour/projects/api/itinerary-templates/locations', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            locAll = data.all || {};
+            locUsed = data.used || {};
+            fillOptions(document.getElementById('countrySelect'), Object.keys(locUsed).sort(), '全部');
+            fillOptions(document.getElementById('editTplCountry'), Object.keys(locAll).sort(), '未设置');
+        })
+        .catch(() => {});
+}
+
+// 往 select 里灌选项，保留当前选中值（重新加载后不跳回默认）
+function fillOptions(sel, values, placeholder) {
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">' + placeholder + '</option>'
+                  + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if (current && values.indexOf(current) !== -1) sel.value = current;
+}
+
+// 筛选区：换国家时把城市下拉换成该国家下的城市，并清掉旧的城市选择
+function onFilterCountryChange() {
+    const country = document.getElementById('countrySelect').value;
+    const citySel = document.getElementById('citySelect');
+    citySel.value = '';
+    fillOptions(citySel, country ? (locUsed[country] || []) : [], '全部');
+    loadTemplates();
+}
+
+// 编辑弹窗：同上，但取全量表，因为要能设成库里还没人用过的国家城市
+function onEditCountryChange() {
+    const country = document.getElementById('editTplCountry').value;
+    const citySel = document.getElementById('editTplCity');
+    citySel.value = '';
+    fillOptions(citySel, country ? (locAll[country] || []) : [], '未设置');
+}
+
+function loadTemplates() {
+    const body = document.getElementById('tplTableBody');
+    const q = document.getElementById('searchInput').value.trim();
+    const days = document.getElementById('daysInput').value.trim();
+    body.innerHTML = '<tr><td colspan="6" class="visa-text-center" style="padding:2rem;color:#94a3b8;">'
+                   + '<i class="fas fa-spinner fa-spin"></i> 加载中…</td></tr>';
+
+    const country = document.getElementById('countrySelect').value;
+    const city = document.getElementById('citySelect').value;
+
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (days) params.set('days', days);
+    if (country) params.set('country', country);
+    if (city) params.set('city', city);
+
+    fetch('/tour/projects/api/itinerary-templates?' + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                body.innerHTML = '<tr><td colspan="6" class="visa-text-center" style="padding:2rem;color:#dc2626;">'
+                               + '加载失败：' + esc(data.error || '未知错误') + '</td></tr>';
+                return;
+            }
+            const list = data.templates || [];
+            document.getElementById('tplCount').textContent = '共 ' + list.length + ' 个模板';
+
+            templateCache = {};
+            list.forEach(t => { templateCache[t.id] = t; });
+
+            if (!list.length) {
+                body.innerHTML = '<tr><td colspan="6" class="visa-text-center" style="padding:2rem;color:#94a3b8;">'
+                               + ((q || days || country || city)
+                                    ? '没有匹配的模板'
+                                    : '模板库还是空的。到任一团组的编辑页，用「行程模板 → 存入模板库」保存一份行程。')
+                               + '</td></tr>';
+                return;
+            }
+
+            body.innerHTML = list.map(t => {
+                // 线路标签和备注合成一行副标题：两者都是可选的，各占一行会让没填的模板显得空
+                const sub = [t.destination, t.remarks].filter(Boolean).join(' · ');
+                // 次数和最近时间是同一件事的两面，并成一列
+                const usage = t.use_count
+                    ? `${t.use_count} 次${t.last_used_at ? ` <span class="tpl-muted">· ${esc(t.last_used_at)}</span>` : ''}`
+                    : '<span class="tpl-muted">未用过</span>';
+                return `
+                <tr>
+                    <td>
+                        <button type="button" class="tpl-name" onclick="previewTemplate(${t.id})" title="预览行程正文">${esc(t.name)}</button>
+                        ${sub ? `<div class="tpl-remarks" title="${esc(sub)}">${esc(sub)}</div>` : ''}
+                    </td>
+                    <td>
+                        ${t.country ? `<span class="tpl-tag">${esc(t.country)}</span>` : ''}
+                        ${t.city ? `<span class="tpl-tag tpl-tag-city">${esc(t.city)}</span>` : ''}
+                        ${(!t.country && !t.city) ? '<span class="tpl-muted">未设置</span>' : ''}
+                    </td>
+                    <td><span class="tpl-days">${t.day_count} 天</span></td>
+                    <td>${esc(t.created_by_name || '-')}</td>
+                    <td>${usage}</td>
+                    <td>
+                        ${t.can_edit ? `
+                        <button type="button" class="tpl-icon-btn" onclick="openEditTemplate(${t.id})" title="编辑模板信息">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="tpl-icon-btn danger" onclick="deleteTemplate(${t.id})" title="删除模板">
+                            <i class="fas fa-trash"></i>
+                        </button>` : '<span class="tpl-muted">-</span>'}
+                    </td>
+                </tr>`;
+            }).join('');
+        })
+        .catch(err => {
+            body.innerHTML = '<tr><td colspan="6" class="visa-text-center" style="padding:2rem;color:#dc2626;">'
+                           + '加载失败：' + esc(err) + '</td></tr>';
+        });
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('daysInput').value = '';
+    document.getElementById('countrySelect').value = '';
+    fillOptions(document.getElementById('citySelect'), [], '全部');
+    loadTemplates();
+}
+
+function previewTemplate(id) {
+    const meta = document.getElementById('previewMeta');
+    const bodyEl = document.getElementById('previewBody');
+    document.getElementById('previewTitle').textContent = (templateCache[id] || {}).name || '行程模板';
+    meta.textContent = '';
+    bodyEl.innerHTML = '<div class="visa-text-center" style="padding:2rem;color:#94a3b8;">'
+                     + '<i class="fas fa-spinner fa-spin"></i> 加载中…</div>';
+    showModal('tplPreviewModal');
+
+    fetch(`/tour/projects/api/itinerary-templates/${id}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                bodyEl.innerHTML = '<div class="visa-text-center" style="padding:2rem;color:#dc2626;">'
+                                 + '加载失败：' + esc(data.error || '未知错误') + '</div>';
+                return;
+            }
+            const t = data.template;
+            document.getElementById('previewTitle').textContent = t.name;
+
+            const metaParts = [];
+            if (t.country) metaParts.push(esc(t.country));
+            if (t.city) metaParts.push(esc(t.city));
+            if (t.destination) metaParts.push(esc(t.destination));
+            metaParts.push(t.day_count + ' 天');
+            metaParts.push('创建人 ' + esc(t.created_by_name || '未知'));
+            if (t.created_at) metaParts.push('创建于 ' + esc(t.created_at));
+            if (t.use_count) metaParts.push('已调用 ' + t.use_count + ' 次');
+            meta.innerHTML = metaParts.join(' · ');
+
+            const days = t.days || [];
+            let html = days.length
+                ? days.map(d => `
+                    <div class="tpl-day">
+                        <div class="tpl-day-head">
+                            <span class="tpl-day-offset">第 ${(d.day_offset || 0) + 1} 天</span>${esc(d.day_title || '')}
+                        </div>
+                        ${d.content ? `<div class="tpl-day-body">${esc(d.content)}</div>` : '<div class="tpl-day-body tpl-muted">（无正文）</div>'}
+                    </div>`).join('')
+                : '<div class="visa-text-center" style="padding:1.5rem;color:#94a3b8;">这份模板没有每日行程</div>';
+
+            // 包含 / 不包含 / 注意事项：调用模板时可选择一起覆盖，所以一并展示
+            [['包含项目', t.included_items], ['不包含项目', t.excluded_items], ['注意事项', t.important_notes]]
+                .forEach(([label, value]) => {
+                    if (!value) return;
+                    html += `<div class="tpl-notes-block">
+                        <div class="tpl-notes-title">${label}</div>
+                        <div class="tpl-notes-body">${esc(value)}</div>
+                    </div>`;
+                });
+
+            bodyEl.innerHTML = html;
+        })
+        .catch(err => {
+            bodyEl.innerHTML = '<div class="visa-text-center" style="padding:2rem;color:#dc2626;">'
+                             + '加载失败：' + esc(err) + '</div>';
+        });
+}
+
+function openEditTemplate(id) {
+    const t = templateCache[id];
+    if (!t) return;
+    document.getElementById('editTplId').value = id;
+    document.getElementById('editTplName').value = t.name || '';
+    document.getElementById('editTplDestination').value = t.destination || '';
+    document.getElementById('editTplRemarks').value = t.remarks || '';
+
+    // 先按已存的国家灌城市下拉，再回填城市；
+    // 国家/城市可能是 ProductCity 里已经没有的历史值，缺了就补个选项，
+    // 否则下拉选不中，一保存就把原值悄悄清空了
+    const countrySel = document.getElementById('editTplCountry');
+    const citySel = document.getElementById('editTplCity');
+    const countries = Object.keys(locAll).sort();
+    if (t.country && countries.indexOf(t.country) === -1) countries.push(t.country);
+    fillOptions(countrySel, countries, '未设置');
+    countrySel.value = t.country || '';
+    const cities = (t.country && locAll[t.country]) ? locAll[t.country].slice() : [];
+    if (t.city && cities.indexOf(t.city) === -1) cities.push(t.city);
+    fillOptions(citySel, cities, '未设置');
+    citySel.value = t.city || '';
+
+    showModal('tplEditModal');
+}
+
+function submitEditTemplate() {
+    const id = document.getElementById('editTplId').value;
+    const name = document.getElementById('editTplName').value.trim();
+    if (!name) {
+        alert('模板名称不能为空');
+        return;
+    }
+
+    fetch(`/tour/projects/api/itinerary-templates/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: name,
+            country: document.getElementById('editTplCountry').value,
+            city: document.getElementById('editTplCity').value,
+            destination: document.getElementById('editTplDestination').value.trim(),
+            remarks: document.getElementById('editTplRemarks').value.trim()
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('tplEditModal');
+                // 改了国家城市，筛选下拉的可选项跟着变
+                loadLocations().then(loadTemplates);
+            } else {
+                alert('保存失败：' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => alert('保存失败：' + err));
+}
+
+function deleteTemplate(id) {
+    const t = templateCache[id] || {};
+    if (!confirm(`确定删除模板「${t.name || id}」？此操作不可恢复。`)) return;
+
+    fetch(`/tour/projects/api/itinerary-templates/${id}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadTemplates();
+            } else {
+                alert('删除失败：' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => alert('删除失败：' + err));
+}
+
+// 点弹窗外部关闭
+document.addEventListener('click', function (e) {
+    if (e.target.classList && e.target.classList.contains('visa-modal')) {
+        e.target.style.display = 'none';
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    loadLocations().then(loadTemplates);
+});
+</script>
+{% endblock %}

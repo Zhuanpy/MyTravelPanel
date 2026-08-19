@@ -2468,6 +2468,19 @@ def _require_template_edit(tpl):
         raise _TourApiError('只有模板创建人或管理员可以修改/删除该模板', 403)
 
 
+@tour_projects.route('/itinerary-templates', methods=['GET'])
+@login_required
+@staff_only
+def itinerary_template_list():
+    """行程模板库管理页
+
+    团组编辑页里的模板弹窗只解决「用」的问题（调用/覆盖/删除），且必须先进
+    某个团组才够得着。改名、补目的地和备注、或者只想翻一遍库里有什么，需要
+    一个独立入口。
+    """
+    return render_template('business/tour/package/TourProjects/itinerary_template_list.html')
+
+
 @tour_projects.route('/api/itinerary-templates', methods=['GET'])
 @csrf.exempt
 @login_required
@@ -2475,7 +2488,8 @@ def _require_template_edit(tpl):
 def api_list_itinerary_templates():
     """模板库列表
 
-    ?q= 按名称/目的地/备注模糊搜索；?days= 按天数筛选。
+    ?q= 按名称/国家/城市/线路标签/备注模糊搜索；?days= 按天数筛选；
+    ?country= / ?city= 按国家城市精确筛选（取值同 travel_products_city）。
     按最近使用时间倒序（没用过的按创建时间），常用的排前面。
     """
     query = TourItineraryTemplate.query
@@ -2485,9 +2499,19 @@ def api_list_itinerary_templates():
         like = f'%{keyword}%'
         query = query.filter(db.or_(
             TourItineraryTemplate.name.ilike(like),
+            TourItineraryTemplate.country.ilike(like),
+            TourItineraryTemplate.city.ilike(like),
             TourItineraryTemplate.destination.ilike(like),
             TourItineraryTemplate.remarks.ilike(like),
         ))
+
+    country = (request.args.get('country') or '').strip()
+    if country:
+        query = query.filter(TourItineraryTemplate.country == country)
+
+    city = (request.args.get('city') or '').strip()
+    if city:
+        query = query.filter(TourItineraryTemplate.city == city)
 
     try:
         days = _parse_int(request.args.get('days'), 'days')
@@ -2507,6 +2531,50 @@ def api_list_itinerary_templates():
     })
 
 
+@tour_projects.route('/api/itinerary-templates/locations', methods=['GET'])
+@login_required
+@staff_only
+def api_itinerary_template_locations():
+    """国家/城市取值表
+
+    all  —— travel_products_city 全量，供「保存模板」「编辑模板」的下拉选择，
+            保证模板的国家城市和配套产品用同一套词。
+    used —— 模板库里实际出现过的组合，供筛选下拉；这样筛选框里不会挂着
+            一堆选了必然 0 条的国家。
+    """
+    from App_new.business.tour.models.Packagemodels import ProductCity
+
+    all_map = {}
+    rows = ProductCity.query.filter(
+        ProductCity.country_name.isnot(None)
+    ).order_by(ProductCity.country_name, ProductCity.city_name).all()
+    for row in rows:
+        country = (row.country_name or '').strip()
+        if not country:
+            continue
+        cities = all_map.setdefault(country, [])
+        city = (row.city_name or '').strip()
+        if city and city not in cities:
+            cities.append(city)
+
+    used_map = {}
+    used_rows = db.session.query(
+        TourItineraryTemplate.country, TourItineraryTemplate.city
+    ).filter(TourItineraryTemplate.country.isnot(None)).distinct().all()
+    for country, city in used_rows:
+        country = (country or '').strip()
+        if not country:
+            continue
+        cities = used_map.setdefault(country, [])
+        city = (city or '').strip()
+        if city and city not in cities:
+            cities.append(city)
+    for cities in used_map.values():
+        cities.sort()
+
+    return jsonify({'success': True, 'all': all_map, 'used': used_map})
+
+
 @tour_projects.route('/api/itinerary-templates', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -2514,7 +2582,7 @@ def api_list_itinerary_templates():
 def api_save_itinerary_template():
     """把某个团组的当前行程存进模板库
 
-    入参：{group_id, name, destination?, remarks?, overwrite_id?}
+    入参：{group_id, name, country?, city?, destination?, remarks?, overwrite_id?}
     带 overwrite_id 表示覆盖已有模板（需有修改权限），否则新建。
     """
     data = request.get_json(silent=True) or request.form or {}
@@ -2552,6 +2620,8 @@ def api_save_itinerary_template():
             created_new = True
 
         tpl.name = name
+        tpl.country = (data.get('country') or '').strip() or None
+        tpl.city = (data.get('city') or '').strip() or None
         tpl.destination = (data.get('destination') or '').strip() or None
         tpl.remarks = (data.get('remarks') or '').strip() or None
         tpl.payload = json.dumps(payload, ensure_ascii=False)
@@ -2630,12 +2700,34 @@ def api_apply_itinerary_template(template_id):
     })
 
 
+@tour_projects.route('/api/itinerary-templates/<int:template_id>', methods=['GET'])
+@login_required
+@staff_only
+def api_get_itinerary_template(template_id):
+    """模板详情：列表字段 + 行程正文，供管理页展开预览
+
+    列表接口为了轻只给 day_count，要看每天写了什么得走这里。
+    """
+    tpl = TourItineraryTemplate.query.get_or_404(template_id)
+    body = tpl.template_data
+
+    data = tpl.to_dict(current_user)
+    data.update({
+        'title': body.get('title'),
+        'days': body.get('days') or [],
+        'included_items': body.get('included_items'),
+        'excluded_items': body.get('excluded_items'),
+        'important_notes': body.get('important_notes'),
+    })
+    return jsonify({'success': True, 'template': data})
+
+
 @tour_projects.route('/api/itinerary-templates/<int:template_id>', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
 def api_update_itinerary_template(template_id):
-    """改模板的名称/目的地/备注（不动行程正文，正文靠「覆盖」更新）"""
+    """改模板的名称/国家/城市/线路标签/备注（不动行程正文，正文靠「覆盖」更新）"""
     tpl = TourItineraryTemplate.query.get_or_404(template_id)
     data = request.get_json(silent=True) or request.form or {}
 
@@ -2647,6 +2739,10 @@ def api_update_itinerary_template(template_id):
             if not name:
                 raise _TourApiError('模板名称不能为空')
             tpl.name = name
+        if 'country' in data:
+            tpl.country = (data.get('country') or '').strip() or None
+        if 'city' in data:
+            tpl.city = (data.get('city') or '').strip() or None
         if 'destination' in data:
             tpl.destination = (data.get('destination') or '').strip() or None
         if 'remarks' in data:

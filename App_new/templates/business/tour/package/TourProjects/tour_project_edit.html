@@ -431,6 +431,11 @@
                                 <button type="button" onclick="pickItineraryTemplate({{ group.id }})" class="w-full text-left px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 flex items-center gap-2">
                                     <i class="fas fa-upload w-4"></i> 导入 JSON 文件
                                 </button>
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <a href="{{ url_for('tour_projects.itinerary_template_list') }}" target="_blank"
+                                   class="w-full text-left px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 flex items-center gap-2">
+                                    <i class="fas fa-cog w-4"></i> 管理模板库
+                                </a>
                             </div>
                         </div>
                         <input type="file" id="itineraryTemplateFile" accept=".json,application/json" style="display:none;" onchange="importItineraryTemplate({{ group.id }}, this)">
@@ -694,10 +699,25 @@
                 <label class="visa-form-label">模板名称 <span style="color: red;">*</span></label>
                 <input type="text" id="saveTemplateName" class="visa-form-control" placeholder="例如：新加坡经典5天4晚">
             </div>
+            {# 国家/城市取 travel_products_city，与配套产品同一套词，模板库才筛得准 #}
             <div class="visa-grid-2">
                 <div class="visa-form-group">
-                    <label class="visa-form-label">目的地 / 线路标签</label>
-                    <input type="text" id="saveTemplateDestination" class="visa-form-control" placeholder="例如：新加坡">
+                    <label class="visa-form-label">国家</label>
+                    <select id="saveTemplateCountry" class="visa-form-select" onchange="onSaveTemplateCountryChange()">
+                        <option value="">未设置</option>
+                    </select>
+                </div>
+                <div class="visa-form-group">
+                    <label class="visa-form-label">城市</label>
+                    <select id="saveTemplateCity" class="visa-form-select">
+                        <option value="">未设置</option>
+                    </select>
+                </div>
+            </div>
+            <div class="visa-grid-2">
+                <div class="visa-form-group">
+                    <label class="visa-form-label">线路标签</label>
+                    <input type="text" id="saveTemplateDestination" class="visa-form-control" placeholder="例如：新加坡环球影城亲子线">
                 </div>
                 <div class="visa-form-group">
                     <label class="visa-form-label">天数</label>
@@ -1582,6 +1602,34 @@ function _escTplHtml(v) {
 }
 
 // ---- 存入模板库 ----
+// 国家城市取值表（travel_products_city），第一次打开保存弹窗时才拉，页面加载不多一个请求
+var tplLocations = null;
+
+function ensureTplLocations() {
+    if (tplLocations) return Promise.resolve(tplLocations);
+    return fetch('/tour/projects/api/itinerary-templates/locations', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(r => r.json())
+        .then(data => {
+            tplLocations = (data && data.success) ? (data.all || {}) : {};
+            const sel = document.getElementById('saveTemplateCountry');
+            sel.innerHTML = '<option value="">未设置</option>'
+                + Object.keys(tplLocations).sort()
+                    .map(c => `<option value="${_escTplHtml(c)}">${_escTplHtml(c)}</option>`).join('');
+            return tplLocations;
+        })
+        .catch(() => { tplLocations = {}; return tplLocations; });
+}
+
+function onSaveTemplateCountryChange() {
+    const country = document.getElementById('saveTemplateCountry').value;
+    const citySel = document.getElementById('saveTemplateCity');
+    const cities = (tplLocations && tplLocations[country]) ? tplLocations[country] : [];
+    citySel.innerHTML = '<option value="">未设置</option>'
+        + cities.map(c => `<option value="${_escTplHtml(c)}">${_escTplHtml(c)}</option>`).join('');
+}
+
 function openSaveTemplateModal(groupId) {
     const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
     const dayCount = groupCard ? groupCard.querySelectorAll('.itinerary-table tbody tr').length : 0;
@@ -1597,6 +1645,9 @@ function openSaveTemplateModal(groupId) {
     document.getElementById('saveTemplateRemarks').value = '';
     document.getElementById('saveTemplateDays').value = `${dayCount} 天`;
     document.getElementById('saveTemplateOverwriteHint').classList.add('hidden');
+    document.getElementById('saveTemplateCountry').value = '';
+    document.getElementById('saveTemplateCity').innerHTML = '<option value="">未设置</option>';
+    ensureTplLocations();
     showModal('saveTemplateModal');
 }
 
@@ -1611,6 +1662,8 @@ function submitSaveTemplate() {
     const body = {
         group_id: parseInt(document.getElementById('saveTemplateGroupId').value, 10),
         name: name,
+        country: document.getElementById('saveTemplateCountry').value,
+        city: document.getElementById('saveTemplateCity').value,
         destination: document.getElementById('saveTemplateDestination').value.trim(),
         remarks: document.getElementById('saveTemplateRemarks').value.trim()
     };
@@ -1642,6 +1695,8 @@ function openTemplateLibrary(groupId) {
     loadTemplateLibrary();
 }
 
+var tplLibraryCache = {};
+
 function loadTemplateLibrary() {
     const listEl = document.getElementById('templateLibraryList');
     const q = document.getElementById('templateSearchInput').value.trim();
@@ -1657,6 +1712,11 @@ function loadTemplateLibrary() {
                 return;
             }
             const templates = data.templates || [];
+            // 留一份：覆盖模板时要把原有的国家/城市/线路/备注带回保存弹窗，
+            // 否则保存接口会用空值把这些标签整片清掉
+            tplLibraryCache = {};
+            templates.forEach(t => { tplLibraryCache[t.id] = t; });
+
             if (!templates.length) {
                 listEl.innerHTML = q
                     ? '<div class="text-center py-8 text-gray-400">没有匹配的模板</div>'
@@ -1670,6 +1730,8 @@ function loadTemplateLibrary() {
                         <div style="min-width:0;">
                             <div class="font-semibold text-gray-800 text-sm">${_escTplHtml(t.name)}</div>
                             <div class="text-xs text-gray-500 mt-1">
+                                ${t.country ? `<span class="inline-block px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded mr-1">${_escTplHtml(t.country)}</span>` : ''}
+                                ${t.city ? `<span class="inline-block px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded mr-1">${_escTplHtml(t.city)}</span>` : ''}
                                 ${t.destination ? `<span class="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded mr-1">${_escTplHtml(t.destination)}</span>` : ''}
                                 <span class="inline-block px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded mr-1">${t.day_count} 天</span>
                                 <span>${_escTplHtml(t.created_by_name || '未知')} 创建于 ${t.created_at || '-'}</span>
@@ -1735,14 +1797,33 @@ function applyTemplate(templateId, templateName) {
 }
 
 // 用当前团组的行程覆盖已有模板：复用保存弹窗，带上 overwrite_id
+// 保存接口是整条写，所以这里要把原模板的标签字段全部回填，只留行程正文被替换
 function overwriteTemplate(templateId, templateName) {
     const groupId = document.getElementById('templateLibraryGroupId').value;
+    const tpl = tplLibraryCache[templateId] || {};
     closeModal('templateLibraryModal');
     openSaveTemplateModal(parseInt(groupId, 10));
     document.getElementById('saveTemplateOverwriteId').value = templateId;
     document.getElementById('saveTemplateName').value = templateName;
+    document.getElementById('saveTemplateDestination').value = tpl.destination || '';
+    document.getElementById('saveTemplateRemarks').value = tpl.remarks || '';
     document.getElementById('saveTemplateOverwriteName').textContent = templateName;
     document.getElementById('saveTemplateOverwriteHint').classList.remove('hidden');
+
+    // 国家城市下拉可能还没加载完，等取值表回来再回填
+    ensureTplLocations().then(function () {
+        const countrySel = document.getElementById('saveTemplateCountry');
+        if (tpl.country && !Array.from(countrySel.options).some(o => o.value === tpl.country)) {
+            countrySel.add(new Option(tpl.country, tpl.country));
+        }
+        countrySel.value = tpl.country || '';
+        onSaveTemplateCountryChange();
+        const citySel = document.getElementById('saveTemplateCity');
+        if (tpl.city && !Array.from(citySel.options).some(o => o.value === tpl.city)) {
+            citySel.add(new Option(tpl.city, tpl.city));
+        }
+        citySel.value = tpl.city || '';
+    });
 }
 
 function deleteTemplate(templateId, templateName) {

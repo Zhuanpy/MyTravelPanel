@@ -18,7 +18,11 @@ class TourItineraryTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
     name = db.Column(db.String(200), nullable=False, comment='模板名称')
-    destination = db.Column(db.String(100), nullable=True, comment='目的地/线路标签，便于筛选')
+    # country / city 取值来自 travel_products_city（ProductCity），与配套产品同一套口径，
+    # 这样"日本 / 东京"在两处筛选里是同一个词，不会出现日本、Japan、日本国各写各的
+    country = db.Column(db.String(100), nullable=True, index=True, comment='国家（对齐 travel_products_city.country_name）')
+    city = db.Column(db.String(100), nullable=True, index=True, comment='城市（对齐 travel_products_city.city_name）')
+    destination = db.Column(db.String(100), nullable=True, comment='线路标签，自由填写（如"北海道深度游"），与 country/city 互补不重复')
     duration_days = db.Column(db.Integer, nullable=True, comment='行程天数，由 payload 算出并冗余，便于列表展示与筛选')
     remarks = db.Column(db.Text, nullable=True, comment='备注')
 
@@ -76,6 +80,8 @@ class TourItineraryTemplate(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'country': self.country,
+            'city': self.city,
             'destination': self.destination,
             'duration_days': self.duration_days,
             'remarks': self.remarks,
