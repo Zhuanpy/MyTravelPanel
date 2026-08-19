@@ -3,6 +3,92 @@
 {% block page_title %}预付账款详情{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+<style>
+    /* ── 全页配色约定 ──────────────────────────────
+       蓝色 = 可点击（链接、单据跳转）
+       实心 badge = 状态，不可点
+       金额用绿/红表示方向，不占用蓝色，免得跟"能点"混淆
+       ──────────────────────────────────────────── */
+
+    /* 订单号是这页最常被抄走的信息，放大 + 拉开字距，方便核对和截图 */
+    .prepayment-number {
+        font-size: 1.75rem;
+        letter-spacing: 1px;
+        line-height: 1.2;
+        word-break: break-all;
+    }
+
+    /* 供应商行：跟订单号拉开距离，别贴成一坨 */
+    .identity-block { min-width: 0; }
+    .supplier-row { font-size: 1rem; }
+
+    /* 状态徽章放大一档，才压得住卡片右侧 */
+    .status-badge {
+        font-size: .8rem;
+        font-weight: 500;
+        padding: .45rem .85rem;
+        letter-spacing: .5px;
+        flex-shrink: 0;
+    }
+
+    /* 复制按钮：Bootstrap 5.1 还没有 --bs-btn-* 变量，只能直接写 padding */
+    .btn-copy {
+        padding: .15rem .45rem;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    /* 文字型链接：蓝字 + 外链小箭头，悬停出下划线 */
+    .link-cell {
+        color: var(--bs-primary);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .link-cell:hover { text-decoration: underline; }
+    .link-cell .fa-arrow-up-right-from-square {
+        font-size: .7em;
+        opacity: .6;
+        margin-left: .3rem;
+    }
+
+    /* 关联单据：浅蓝底 + 蓝框 + 蓝字，明确区别于同一行里实心的状态 badge */
+    .doc-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        padding: .15rem .5rem;
+        border: 1px solid rgba(13, 110, 253, .35);
+        border-radius: .25rem;
+        background: rgba(13, 110, 253, .08);
+        color: var(--bs-primary);
+        font-size: .8rem;
+        font-family: var(--bs-font-monospace);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .doc-link:hover {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: #fff;
+    }
+    .doc-link i { font-size: .75em; opacity: .7; }
+    .doc-link:hover i { opacity: 1; }
+
+    /* 金额板：进度条贴在三联块底边当作整块的底线，不再单占一行 */
+    .amount-board .progress {
+        height: 4px;
+        border-radius: 0;
+    }
+    .amount-value {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    .meta-label {
+        font-size: .75rem;
+        margin-bottom: .1rem;
+    }
+</style>
 {% endblock %}
 {% block page_actions %}
 <div class="d-flex gap-2">
@@ -16,11 +102,8 @@
     <button class="btn btn-outline-danger btn-sm" onclick="cancelPrepayment()">
         <i class="fas fa-times me-1"></i>取消
     </button>
-    {% elif prepayment.status in ['confirmed', 'partial_used'] %}
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#useModal">
-        <i class="fas fa-minus-circle me-1"></i>使用预付款
-    </button>
     {% endif %}
+    {# 不放"使用预付款"按钮：预付款由 EO 付款时自动核销，手工录入会和自动核销打架 #}
     {% if prepayment.status != 'cancelled' %}
     <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#emailModal">
         <i class="fas fa-envelope me-1"></i>发送邮件
@@ -39,71 +122,99 @@
     <!-- 基本信息 + 金额概览 -->
     <div class="card mb-3">
         <div class="card-body">
-            <!-- 头部：编号 + 状态（左）/ 充值日期（右） -->
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <h4 class="mb-0 font-monospace">{{ prepayment.prepayment_number }}</h4>
-                        <span class="badge bg-{{ st[0] }}">{{ st[1] }}</span>
+            <!-- ① 身份：编号 + 供应商（左） / 状态（右）
+                 状态挂到右边撑住这一行，否则编号、按钮、状态、供应商四样全挤在左上角 -->
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
+                <div class="identity-block">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h2 class="mb-0 font-monospace fw-bold prepayment-number" id="prepaymentNumber">{{ prepayment.prepayment_number }}</h2>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-copy"
+                                title="复制订单号"
+                                onclick="copyText({{ (prepayment.prepayment_number or '') | tojson }}, this)">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
-                    <div class="text-muted">
-                        <i class="fas fa-building me-1"></i>{{ prepayment.supplier.company_name if prepayment.supplier else '-' }}
+                    <div class="supplier-row mt-2">
+                        <i class="fas fa-building me-2 text-muted"></i>
+                        {% if prepayment.supplier %}
+                        <a href="{{ url_for('corporate.company_detail', company_id=prepayment.supplier.id) }}"
+                           class="link-cell" title="查看供应商详情">{{ prepayment.supplier.company_name }}<i class="fas fa-arrow-up-right-from-square"></i></a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="text-end">
-                    <div class="small text-muted">充值日期</div>
+                <span class="badge bg-{{ st[0] }} status-badge">{{ st[1] }}</span>
+            </div>
+
+            <!-- ② 金额：三联块 + 底边进度条（进度条原本单占一行，说的是同一件事） -->
+            <div class="amount-board border rounded overflow-hidden mb-3">
+                <div class="row text-center g-0">
+                    <div class="col py-3 border-end">
+                        <div class="small text-muted mb-1">充值金额</div>
+                        <p class="amount-value">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.amount) }}</p>
+                    </div>
+                    <div class="col py-3 border-end">
+                        <div class="small text-muted mb-1">已使用 {{ prepayment.usage_percentage }}%</div>
+                        <p class="amount-value text-danger">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.used_amount) }}</p>
+                    </div>
+                    <div class="col py-3">
+                        <div class="small text-muted mb-1">剩余可用</div>
+                        <p class="amount-value text-success">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.balance_amount) }}</p>
+                    </div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar bg-danger" style="width: {{ prepayment.usage_percentage }}%"></div>
+                </div>
+            </div>
+
+            <!-- ③ 付款事实：日期 / 方式 / 参考号 并成一排，原来日期在右上角、方式和参考号在最底下，同一件事被拆两处 -->
+            <div class="row g-3">
+                <div class="col-sm-4">
+                    <div class="text-muted meta-label">充值日期</div>
                     <div class="fw-semibold">{{ prepayment.payment_date.strftime('%Y-%m-%d') if prepayment.payment_date else '-' }}</div>
                 </div>
-            </div>
-
-            <!-- 金额三联块 -->
-            <div class="row text-center g-0 border rounded overflow-hidden mb-3">
-                <div class="col py-3 border-end">
-                    <div class="small text-muted mb-1">充值金额</div>
-                    <h5 class="mb-0">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.amount) }}</h5>
+                <div class="col-sm-4">
+                    <div class="text-muted meta-label">付款方式</div>
+                    <div class="fw-semibold">{{ prepayment.payment_method_display or '-' }}</div>
                 </div>
-                <div class="col py-3 border-end">
-                    <div class="small text-muted mb-1">已使用</div>
-                    <h5 class="mb-0 text-danger">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.used_amount) }}</h5>
-                </div>
-                <div class="col py-3">
-                    <div class="small text-muted mb-1">剩余可用</div>
-                    <h5 class="mb-0 text-primary">{{ prepayment.currency }} {{ "%.2f"|format(prepayment.balance_amount) }}</h5>
-                </div>
-            </div>
-
-            <!-- 进度条 -->
-            <div class="d-flex align-items-center gap-3 mb-3">
-                <div class="flex-grow-1">
-                    <div class="progress" style="height: 6px;">
-                        <div class="progress-bar bg-primary" style="width: {{ prepayment.usage_percentage }}%"></div>
+                <div class="col-sm-4">
+                    <div class="text-muted meta-label">参考号</div>
+                    {% if prepayment.reference %}
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-semibold font-monospace text-break">{{ prepayment.reference }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-copy"
+                                title="复制参考号"
+                                onclick="copyText({{ prepayment.reference | tojson }}, this)">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
+                    {% else %}
+                    <div class="text-muted">-</div>
+                    {% endif %}
                 </div>
-                <div class="text-muted small">已用 {{ prepayment.usage_percentage }}%</div>
             </div>
 
-            <!-- 元信息：付款方式 / 参考号 / 备注 -->
-            <dl class="row mb-0 small">
-                <dt class="col-sm-3 text-muted fw-normal">付款方式</dt>
-                <dd class="col-sm-9 mb-1">{{ prepayment.payment_method_display }}</dd>
-
-                {% if prepayment.reference %}
-                <dt class="col-sm-3 text-muted fw-normal">参考号</dt>
-                <dd class="col-sm-9 mb-1 font-monospace">{{ prepayment.reference }}</dd>
-                {% endif %}
-
-                {% if prepayment.remarks %}
-                <dt class="col-sm-3 text-muted fw-normal">备注</dt>
-                <dd class="col-sm-9 mb-0">{{ prepayment.remarks }}</dd>
-                {% endif %}
-            </dl>
+            {% if prepayment.remarks %}
+            <div class="mt-3">
+                <div class="text-muted meta-label">备注</div>
+                <div>{{ prepayment.remarks }}</div>
+            </div>
+            {% endif %}
+        </div>
+        <!-- 创建时间原本孤零零挂在页面最底下，收进卡片页脚 -->
+        <div class="card-footer bg-transparent py-1 text-muted small text-end">
+            创建：{{ prepayment.created_at.strftime('%Y-%m-%d %H:%M') if prepayment.created_at else '-' }}
         </div>
     </div>
 
     <!-- 使用记录 -->
     <div class="card">
         <div class="card-header py-2 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">使用记录</h6>
+            <div class="d-flex align-items-baseline gap-2">
+                <h6 class="mb-0">使用记录</h6>
+                <span class="text-muted small">由 EO 付款时自动核销</span>
+            </div>
             <span class="badge bg-secondary">{{ usages|length }}</span>
         </div>
         <div class="card-body p-0">
@@ -126,12 +237,12 @@
                         <td>
                             {% if usage.eo_id and usage.eo %}
                             <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=usage.eo_id) }}"
-                               class="badge bg-info text-decoration-none">{{ usage.eo.eo_number }}</a>
+                               class="doc-link" title="查看 EO 详情">{{ usage.eo.eo_number }}<i class="fas fa-arrow-up-right-from-square"></i></a>
                             {% elif usage.ref_id and usage.ref %}
                             <a href="{{ url_for('business_projects.project_ref.ref_detail', ref_id=usage.ref_id) }}"
-                               class="badge bg-primary text-decoration-none">{{ usage.ref.ref_number }}</a>
+                               class="doc-link" title="查看 REF 详情">{{ usage.ref.ref_number }}<i class="fas fa-arrow-up-right-from-square"></i></a>
                             {% else %}
-                            -
+                            <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
@@ -152,49 +263,8 @@
         </div>
     </div>
 
-    <!-- 审计信息 -->
-    <div class="text-muted small mt-2 text-end">
-        创建：{{ prepayment.created_at.strftime('%Y-%m-%d %H:%M') if prepayment.created_at else '-' }}
-    </div>
 </div>
 
-<!-- 使用预付款模态框 -->
-<div class="modal fade" id="useModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-            <div class="modal-header py-2">
-                <h6 class="modal-title">使用预付款</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="useForm">
-                    <div class="mb-3">
-                        <label class="form-label small">可用余额</label>
-                        <div class="fw-bold text-primary">{{ "%.2f"|format(prepayment.balance_amount) }} {{ prepayment.currency }}</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small">使用金额 <span class="text-danger">*</span></label>
-                        <input type="number" name="amount" class="form-control form-control-sm" step="0.01"
-                               min="0.01" max="{{ prepayment.balance_amount }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small">使用日期</label>
-                        <input type="date" name="usage_date" class="form-control form-control-sm">
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label small">说明</label>
-                        <input type="text" name="description" class="form-control form-control-sm"
-                               placeholder="如：出票 PNR XXX">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="usePrepayment()">确认使用</button>
-            </div>
-        </div>
-    </div>
-</div>
 <!-- 发送邮件模态框 -->
 <div class="modal fade" id="emailModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
@@ -289,12 +359,50 @@ const prepaymentId = {{ prepayment.id }};
 const supplierId = {{ prepayment.supplier_id or 'null' }};
 var emailQuill = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    const dateInput = document.querySelector('input[name="usage_date"]');
-    if (dateInput && !dateInput.value) {
-        dateInput.value = new Date().toISOString().split('T')[0];
-    }
+// 复制文本到剪贴板，按钮上给 1 秒的打勾反馈
+// 内网 http 访问时没有 navigator.clipboard，降级走临时 textarea + execCommand
+function copyText(text, btn) {
+    text = (text || '').trim();
+    if (!text) return;
 
+    const done = function() {
+        if (!btn) return;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-outline-secondary');
+        setTimeout(function() {
+            btn.innerHTML = original;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-secondary');
+        }, 1000);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function() { fallbackCopy(text, done); });
+    } else {
+        fallbackCopy(text, done);
+    }
+}
+
+function fallbackCopy(text, onDone) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (onDone) onDone();
+    } catch (e) {
+        alert('复制失败，请手动选中复制');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
     // 打开邮件弹窗时加载供应商联系人和邮件模板，并初始化富文本编辑器
     var emailModal = document.getElementById('emailModal');
     if (emailModal) {
@@ -441,22 +549,6 @@ function cancelPrepayment() {
     fetch(`/projects/prepayment/${prepaymentId}/cancel`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) { alert(data.message); location.reload(); }
-        else { alert('操作失败: ' + data.message); }
-    })
-    .catch(err => alert('请求失败: ' + err));
-}
-
-function usePrepayment() {
-    const form = document.getElementById('useForm');
-    const formData = new FormData(form);
-    formData.append('prepayment_id', prepaymentId);
-    fetch('/projects/prepayment/use', {
-        method: 'POST',
-        body: formData
     })
     .then(res => res.json())
     .then(data => {
