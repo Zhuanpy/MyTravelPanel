@@ -200,6 +200,9 @@
         .seg-point-right { min-width: 0; }
         .seg-point-code { font-size: 22px; font-weight: bold; color: #1a365d; letter-spacing: 1px; }
         .seg-point-city { font-size: 11px; color: #555; margin-top: 2px; }
+        /* 机场全称：同一城市多机场（如北京 PEK/PKX）时靠三字码不够明确，必须写清是哪个机场 */
+        .seg-point-airport { font-size: 9px; color: #777; margin-top: 1px; line-height: 1.3; }
+        .seg-point-airport-cn { display: block; font-size: 9px; color: #777; }
         .seg-point-terminal { font-size: 10px; color: #777; margin-top: 2px; }
         .seg-point-time { font-size: 15px; font-weight: bold; }
         .seg-point-date { font-size: 10px; color: #666; margin-top: 2px; }
@@ -410,6 +413,16 @@
     <!-- 航班信息 -->
     <div class="section-title">Flight Information / 航班信息</div>
 
+    {# 宏：渲染机场全称（中英双语）。北京 PEK/PKX、上海 PVG/SHA 这类一城多场，
+       只给三字码和城市名不够明确，必须写清具体机场；库里没有机场名时不渲染 #}
+    {% macro airport_name(iata, info) %}
+    {% set name_en = info.get('airport_en', '') %}
+    {% set name_cn = info.get('airport_cn', '') %}
+    {% if (name_en and name_en != iata|upper) or name_cn %}
+    <div class="seg-point-airport">{% if name_en and name_en != iata|upper %}{{ name_en }}{% endif %}{% if name_cn %}<span class="seg-point-airport-cn">{{ name_cn }}</span>{% endif %}</div>
+    {% endif %}
+    {% endmacro %}
+
     {# 宏：渲染航段卡片。pax_rows = 该航段下每位乘客的 PNR/票号/座位/行李 #}
     {% macro segment_card(seg, pax_rows) %}
     {% set dep_info = airport_map.get(seg.departure_airport.upper().strip(), {}) %}
@@ -429,6 +442,7 @@
                     <div class="seg-point-left">
                         <div class="seg-point-code">{{ seg.departure_airport }}</div>
                         <div class="seg-point-city">{{ dep_info.get('city_en', '') }}{% if dep_info.get('city_cn') %} {{ dep_info.get('city_cn') }}{% endif %}</div>
+                        {{ airport_name(seg.departure_airport, dep_info) }}
                     </div>
                     <div class="seg-point-right">
                         <div class="seg-point-time">{{ seg.departure_time.strftime('%H:%M') if seg.departure_time else '-' }}</div>
@@ -448,6 +462,7 @@
                     <div class="seg-point-right">
                         <div class="seg-point-code">{{ seg.arrival_airport }}</div>
                         <div class="seg-point-city">{{ arr_info.get('city_en', '') }}{% if arr_info.get('city_cn') %} {{ arr_info.get('city_cn') }}{% endif %}</div>
+                        {{ airport_name(seg.arrival_airport, arr_info) }}
                     </div>
                 </div>
             </div>
