@@ -10,25 +10,38 @@
 {% macro flight_ref_detail(ref) %}
     {% set segments = ref.flight_segments %}
     {% set passengers = ref.flight_passengers %}
-    {% set first_pnr = passengers[0].pnr if passengers else '' %}
+
+    {# PNR 取全体乘客去重后的集合：同一 REF 里乘客分开订座时 PNR 会不一样，
+       只显示第一个乘客的会让其余乘客拿着错的编号去值机 #}
+    {% set pnr_list = [] %}
+    {% for p in passengers %}
+        {% if p.pnr and p.pnr not in pnr_list %}{% set _ = pnr_list.append(p.pnr) %}{% endif %}
+    {% endfor %}
 
     <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
         <tr>
             <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Itin</td>
             <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
-            <td style="border: none; padding: 1px 0;">{{ ref.description or '-' }}{% if first_pnr %} &nbsp;(PNR: {{ first_pnr }}){% endif %}</td>
+            <td style="border: none; padding: 1px 0;">{{ ref.description or '-' }}{% if pnr_list %} &nbsp;(PNR: {{ pnr_list|join(' / ') }}){% endif %}</td>
         </tr>
         {% for pax in passengers %}
         <tr>
             <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}Pax{% endif %}</td>
             <td style="border: none; vertical-align: top; padding: 1px 0;">{% if loop.first %}:{% endif %}</td>
             <td style="border: none; padding: 1px 0;">
+                {# 姓名一行、票号另起一行：姓名和票号挤在一行时列宽不够，
+                   票号会从中间断开（784- / 5234881620），发票上很难看 #}
                 <table style="width: 100%; border: none; line-height: 1.2;">
                     <tr>
-                        <td style="border: none; padding: 1px 0;">{{ loop.index }}. {{ pax.name }}{% if pax.ticket_number %} &nbsp;(TKT: {{ pax.ticket_number }}){% endif %}</td>
+                        <td style="border: none; padding: 1px 0;">{{ loop.index }}. {{ pax.name }}</td>
                         <td style="border: none; text-align: right; width: 80px; padding: 1px 0;">Airfare :</td>
                         <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
                     </tr>
+                    {% if pax.ticket_number %}
+                    <tr>
+                        <td colspan="3" style="border: none; padding: 0 0 1px 14px; white-space: nowrap;">TKT: {{ pax.ticket_number }}</td>
+                    </tr>
+                    {% endif %}
                 </table>
             </td>
         </tr>
