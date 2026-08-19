@@ -21,7 +21,6 @@ def get_local_ip():
     except Exception:
         return '127.0.0.1'
 
-
 if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 5000
