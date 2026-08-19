@@ -1094,7 +1094,7 @@ def receipt_list():
                 # 已匹配但未核对：有关联银行流水但 is_reconciled = False
                 matched_receipt_ids = db.session.query(BankTransaction.matched_receipt_id).filter(
                     BankTransaction.matched_receipt_id.isnot(None)
-                ).distinct().subquery()
+                ).distinct().scalar_subquery()
                 filters.append(and_(
                     or_(ProjectReceipt.is_reconciled == False, ProjectReceipt.is_reconciled.is_(None)),
                     ProjectReceipt.id.in_(matched_receipt_ids)
@@ -1103,7 +1103,7 @@ def receipt_list():
                 # 待匹配：无关联银行流水且未核对
                 matched_receipt_ids = db.session.query(BankTransaction.matched_receipt_id).filter(
                     BankTransaction.matched_receipt_id.isnot(None)
-                ).distinct().subquery()
+                ).distinct().scalar_subquery()
                 filters.append(and_(
                     or_(ProjectReceipt.is_reconciled == False, ProjectReceipt.is_reconciled.is_(None)),
                     ~ProjectReceipt.id.in_(matched_receipt_ids)

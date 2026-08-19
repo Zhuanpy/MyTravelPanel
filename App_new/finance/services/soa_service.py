@@ -96,7 +96,7 @@ class SOAService:
             # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）
             old_receipts_subq = db.session.query(
                 ReceiptInvoiceAllocation.receipt_id
-            ).distinct().subquery()
+            ).distinct().scalar_subquery()
 
             old_receipt_total = db.session.query(
                 db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)

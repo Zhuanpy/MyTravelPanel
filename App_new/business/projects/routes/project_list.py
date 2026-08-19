@@ -576,7 +576,7 @@ def list_projects():
             # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
             old_receipts_subq = db.session.query(
                 ReceiptInvoiceAllocation.receipt_id
-            ).distinct().subquery()
+            ).distinct().scalar_subquery()
 
             old_project_receipt_filter = db.session.query(
                 ProjectReceipt.header_id.label('hid'),
@@ -705,7 +705,7 @@ def list_projects():
                 # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）
                 old_receipts_subq = db.session.query(
                     ReceiptInvoiceAllocation.receipt_id
-                ).distinct().subquery()
+                ).distinct().scalar_subquery()
 
                 old_receipt_by_project = db.session.query(
                     ProjectReceipt.header_id.label('hid'),
@@ -813,7 +813,7 @@ def list_projects():
                 # 这些收款没有通过分配表关联到发票，需要直接按header_id计入
                 old_project_receipts_subq = db.session.query(
                     ReceiptInvoiceAllocation.receipt_id
-                ).distinct().subquery()
+                ).distinct().scalar_subquery()
 
                 old_project_receipts = db.session.query(
                     ProjectReceipt.header_id,
@@ -1151,7 +1151,7 @@ def list_projects():
                     # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
                     old_receipts_subq = db.session.query(
                         ReceiptInvoiceAllocation.receipt_id
-                    ).distinct().subquery()
+                    ).distinct().scalar_subquery()
 
                     old_project_receipts = db.session.query(
                         ProjectReceipt.header_id,
@@ -1773,7 +1773,7 @@ def export_excel():
             # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
             old_receipts_export_subq = db.session.query(
                 ReceiptInvoiceAllocation.receipt_id
-            ).distinct().subquery()
+            ).distinct().scalar_subquery()
 
             old_project_receipt_export = db.session.query(
                 ProjectReceipt.header_id.label('hid'),
@@ -1946,7 +1946,7 @@ def export_excel():
             # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
             old_receipts_subq = db.session.query(
                 ReceiptInvoiceAllocation.receipt_id
-            ).distinct().subquery()
+            ).distinct().scalar_subquery()
 
             old_project_receipts = db.session.query(
                 ProjectReceipt.header_id,
