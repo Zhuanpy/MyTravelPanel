@@ -301,7 +301,8 @@
         }
     </style>
 </head>
-<body>
+{# 公司抬头、公司盖章默认不打印，需要时在上方开关里勾选 #}
+<body class="hide-letterhead hide-stamp">
 
 <!-- 操作按钮 -->
 <div class="no-print">
@@ -312,8 +313,8 @@
         <label><input type="checkbox" id="toggle-passport" checked onchange="toggleField('passport', this.checked)"> 护照号码</label>
         <label><input type="checkbox" id="toggle-seat" checked onchange="toggleField('seat', this.checked)"> 座位</label>
         <label><input type="checkbox" id="toggle-ticket" checked onchange="toggleField('ticket', this.checked)"> 票号</label>
-        <label><input type="checkbox" id="toggle-letterhead" checked onchange="toggleField('letterhead', this.checked)"> 公司抬头</label>
-        <label><input type="checkbox" id="toggle-stamp" checked onchange="toggleField('stamp', this.checked)"> 公司盖章</label>
+        <label><input type="checkbox" id="toggle-letterhead" onchange="toggleField('letterhead', this.checked)"> 公司抬头</label>
+        <label><input type="checkbox" id="toggle-stamp" onchange="toggleField('stamp', this.checked)"> 公司盖章</label>
     </div>
 </div>
 <script>
@@ -321,6 +322,15 @@
     function toggleField(name, show) {
         document.body.classList.toggle('hide-' + name, !show);
     }
+
+    // 刷新时浏览器会恢复上次的勾选状态，这里按勾选框重新同步一次 body 类，
+    // 避免出现"框没勾但抬头还在"的错位
+    document.addEventListener('DOMContentLoaded', function () {
+        ['passport', 'seat', 'ticket', 'letterhead', 'stamp'].forEach(function (name) {
+            var box = document.getElementById('toggle-' + name);
+            if (box) { toggleField(name, box.checked); }
+        });
+    });
 </script>
 
 {% set company = get_company_info() %}
