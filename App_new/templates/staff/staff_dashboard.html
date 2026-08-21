@@ -270,7 +270,7 @@
         <!-- 待开发票 REF -->
         <div class="dash-panel">
             <div class="dash-panel-head">
-                <span><i class="fas fa-file-invoice me-1" style="color:#d97706;"></i>待开发票 REF <span class="dash-count">{{ pending_invoice_refs|length if pending_invoice_refs else 0 }}</span></span>
+                <span><i class="fas fa-file-invoice me-1" style="color:#d97706;"></i>待开发票 REF <span class="dash-count">{{ pending_invoice_count if pending_invoice_count is defined else (pending_invoice_refs|length if pending_invoice_refs else 0) }}</span></span>
                 <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}">发票列表 →</a>
             </div>
             <div class="dash-panel-body">
@@ -284,6 +284,9 @@
                         <span class="dash-todo-amount sell">{{ ref.currency }} {{ "%.2f"|format(ref.amount) }}</span>
                     </div>
                     {% endfor %}
+                    {% if pending_invoice_count is defined and pending_invoice_count > pending_invoice_refs|length %}
+                    <div class="text-center text-muted small py-2">另有 {{ pending_invoice_count - pending_invoice_refs|length }} 条未显示</div>
+                    {% endif %}
                 {% else %}
                     <div class="dash-panel-empty">
                         <i class="fas fa-check-circle"></i>所有 REF 都已开票

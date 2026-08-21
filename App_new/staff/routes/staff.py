@@ -489,30 +489,37 @@ def dashboard():
                     'created_at': eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '',
                 })
 
-        # ========== 待开发票的 REF（优化查询）==========
-        # 获取所有已有发票的 REF ID
-        invoiced_ref_ids = db.session.query(
-            func.distinct(func.json_extract(ProjectInvoice.ref_ids, '$[*]'))
-        ).filter(ProjectInvoice.status != 'cancelled').all()
+        # ========== 待开发票的 REF ==========
+        # 一次性取出所有有效发票的 ref_ids 并解析成集合
+        # （不能用 LIKE 子串匹配：REF 454 会命中 [4544] 造成漏统计）
+        invoiced_ref_ids = set()
+        for (ref_ids_json,) in db.session.query(ProjectInvoice.ref_ids).filter(
+            ProjectInvoice.status != 'cancelled',
+            ProjectInvoice.ref_ids.isnot(None)
+        ).all():
+            try:
+                for rid in json.loads(ref_ids_json):
+                    invoiced_ref_ids.add(int(rid))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
 
-        # 简化：直接查询有销售金额但没有EO发票关联的REF
-        pending_invoice_refs = []
+        # 未结算项目下所有有销售金额的 REF（不能先 limit 再过滤，否则老项目统计不到）
         refs_query = ProjectRef.query.options(
             joinedload(ProjectRef.header)
         ).join(ProjectHeader).filter(
             ProjectHeader.is_settled == False,
+            ProjectRef.status != 'cancelled',
             ProjectRef.selling_price > 0
-        ).order_by(ProjectRef.created_at.desc()).limit(50).all()
+        ).order_by(ProjectRef.created_at.desc()).all()
 
+        pending_invoice_refs = []
+        pending_invoice_count = 0
         for ref in refs_query:
-            # 快速检查是否有发票（通过查询而不是调用方法）
-            has_invoice = ProjectInvoice.query.filter(
-                ProjectInvoice.header_id == ref.header_id,
-                ProjectInvoice.status != 'cancelled',
-                ProjectInvoice.ref_ids.like(f'%{ref.id}%')
-            ).first() is not None
-
-            if not has_invoice:
+            if ref.id in invoiced_ref_ids:
+                continue
+            pending_invoice_count += 1
+            # 列表只展示前 10 条，计数取全量
+            if len(pending_invoice_refs) < 10:
                 pending_invoice_refs.append({
                     'id': ref.id,
                     'ref_number': ref.ref_number,
@@ -522,8 +529,6 @@ def dashboard():
                     'amount': float(ref.selling_price),
                     'currency': ref.currency or 'SGD',
                 })
-                if len(pending_invoice_refs) >= 10:
-                    break
 
         # ========== 数据可视化（最近12个月统计）==========
         from sqlalchemy import extract
@@ -610,6 +615,7 @@ def dashboard():
                              stats=stats,
                              pending_eo_list=pending_eo_list,
                              pending_invoice_refs=pending_invoice_refs,
+                             pending_invoice_count=pending_invoice_count,
                              chart_data=chart_data)
 
     except Exception as e:
@@ -629,6 +635,7 @@ def dashboard():
                              },
                              pending_eo_list=[],
                              pending_invoice_refs=[],
+                             pending_invoice_count=0,
                              chart_data={
                                  'monthly_labels': [], 'monthly_selling': [],
                                  'monthly_cost': [], 'monthly_profit': [],
