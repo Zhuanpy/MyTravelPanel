@@ -489,6 +489,36 @@ def dashboard():
                     'created_at': eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '',
                 })
 
+        # ========== 待开 EO 的 REF ==========
+        # 有成本但还没生成 EO（或 EO 已作废）的 REF
+        from sqlalchemy import or_
+        pending_eo_refs_query = ProjectRef.query.options(
+            joinedload(ProjectRef.header),
+            joinedload(ProjectRef.supplier)
+        ).join(ProjectHeader).outerjoin(
+            ProjectEO, ProjectEO.ref_id == ProjectRef.id
+        ).filter(
+            ProjectHeader.is_settled == False,
+            ProjectRef.status != 'cancelled',
+            ProjectRef.cost_price > 0,
+            or_(ProjectEO.id.is_(None), ProjectEO.status == 'void')
+        ).order_by(ProjectRef.created_at.desc()).all()
+
+        pending_eo_ref_count = len(pending_eo_refs_query)
+        pending_eo_refs = []
+        # 列表只展示前 10 条，计数取全量
+        for ref in pending_eo_refs_query[:10]:
+            pending_eo_refs.append({
+                'id': ref.id,
+                'ref_number': ref.ref_number,
+                'hid': ref.header.hid if ref.header else '-',
+                'project_id': ref.header.id if ref.header else 0,
+                'description': ref.description or ref.detailed_description or '-',
+                'supplier': ref.supplier.company_name if ref.supplier else '-',
+                'amount': float(ref.cost_price),
+                'currency': ref.currency or 'SGD',
+            })
+
         # ========== 待开发票的 REF ==========
         # 一次性取出所有有效发票的 ref_ids 并解析成集合
         # （不能用 LIKE 子串匹配：REF 454 会命中 [4544] 造成漏统计）
@@ -614,6 +644,8 @@ def dashboard():
         return render_template('staff/staff_dashboard.html',
                              stats=stats,
                              pending_eo_list=pending_eo_list,
+                             pending_eo_refs=pending_eo_refs,
+                             pending_eo_ref_count=pending_eo_ref_count,
                              pending_invoice_refs=pending_invoice_refs,
                              pending_invoice_count=pending_invoice_count,
                              chart_data=chart_data)
@@ -634,6 +666,8 @@ def dashboard():
                                  'pending_eo_amount': 0,
                              },
                              pending_eo_list=[],
+                             pending_eo_refs=[],
+                             pending_eo_ref_count=0,
                              pending_invoice_refs=[],
                              pending_invoice_count=0,
                              chart_data={

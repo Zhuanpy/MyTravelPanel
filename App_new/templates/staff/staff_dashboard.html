@@ -71,7 +71,7 @@
     /* 待办面板 */
     .dash-panels {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         gap: 0.75rem;
         margin-bottom: 1.25rem;
     }
@@ -202,6 +202,10 @@
         max-height: 300px;
     }
 
+    @media (max-width: 1100px) {
+        .dash-panels { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @media (max-width: 768px) {
         .dash-stats { grid-template-columns: repeat(2, 1fr); }
         .dash-panels { grid-template-columns: 1fr; }
@@ -215,6 +219,7 @@
     <!-- 快捷操作 -->
     <div class="dash-actions">
         <a href="{{ url_for('business_projects.project_create.create_header') }}"><i class="fas fa-plus-circle"></i>创建项目</a>
+        <a href="{{ url_for('flights_booking.create_order') }}"><i class="fas fa-plane-departure"></i>创建订单</a>
         <a href="{{ url_for('business_projects.project_eo.batch_pay') }}"><i class="fas fa-money-check-alt"></i>批量付款</a>
         <a href="{{ url_for('business_projects.project_invoice.invoice_list') }}"><i class="fas fa-file-invoice"></i>发票列表</a>
         <a href="{{ url_for('business_projects.project_receipt.receipt_list') }}"><i class="fas fa-receipt"></i>收款记录</a>
@@ -262,6 +267,34 @@
                 {% else %}
                     <div class="dash-panel-empty">
                         <i class="fas fa-check-circle"></i>暂无待付款 EO
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 待开 EO REF -->
+        <div class="dash-panel">
+            <div class="dash-panel-head">
+                <span><i class="fas fa-file-signature me-1" style="color:#dc2626;"></i>待开 EO REF <span class="dash-count">{{ pending_eo_ref_count if pending_eo_ref_count is defined else (pending_eo_refs|length if pending_eo_refs else 0) }}</span></span>
+                <a href="{{ url_for('business_projects.project_eo.eo_list') }}">EO 列表 →</a>
+            </div>
+            <div class="dash-panel-body">
+                {% if pending_eo_refs %}
+                    {% for ref in pending_eo_refs %}
+                    <div class="dash-todo" onclick="window.location.href='/projects/detail/{{ ref.project_id }}'">
+                        <div class="dash-todo-left">
+                            <span class="dash-todo-tag ref">{{ ref.ref_number[-6:] if ref.ref_number|length > 6 else ref.ref_number }}</span>
+                            <span class="dash-todo-text" title="{{ ref.supplier }} · {{ ref.description }}">{{ ref.hid }} · {{ ref.description }}</span>
+                        </div>
+                        <span class="dash-todo-amount cost">{{ ref.currency }} {{ "%.2f"|format(ref.amount) }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if pending_eo_ref_count is defined and pending_eo_ref_count > pending_eo_refs|length %}
+                    <div class="text-center text-muted small py-2">另有 {{ pending_eo_ref_count - pending_eo_refs|length }} 条未显示</div>
+                    {% endif %}
+                {% else %}
+                    <div class="dash-panel-empty">
+                        <i class="fas fa-check-circle"></i>所有 REF 都已开 EO
                     </div>
                 {% endif %}
             </div>
