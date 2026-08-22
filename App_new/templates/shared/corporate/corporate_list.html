@@ -25,6 +25,15 @@
         white-space: nowrap;
         text-align: center;
     }
+    /* 业务量列：有数值的加粗醒目，0/不适用的淡化，一眼能扫出哪些公司是死数据 */
+    .company-table .biz-count {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+    .company-table .biz-count .biz-zero {
+        color: #cbd5e1;
+        font-weight: 400;
+    }
     /* 筛选栏紧凑 */
     .visa-filter-bar {
         padding: 0.75rem 1rem;
@@ -108,6 +117,29 @@
                 </select>
             </div>
 
+            <div class="visa-filter-item">
+                <label class="visa-form-label">
+                    <i class="fas fa-link"></i> 业务往来
+                </label>
+                <select class="visa-form-select" name="has_business">
+                    <option value="">全部</option>
+                    <option value="yes" {{ 'selected' if current_has_business == 'yes' }}>有业务往来</option>
+                    <option value="no" {{ 'selected' if current_has_business == 'no' }}>无业务往来</option>
+                </select>
+            </div>
+
+            <div class="visa-filter-item">
+                <label class="visa-form-label">
+                    <i class="fas fa-sort-amount-down"></i> 排序
+                </label>
+                <select class="visa-form-select" name="sort">
+                    <option value="business" {{ 'selected' if current_sort == 'business' }}>业务量</option>
+                    <option value="click" {{ 'selected' if current_sort == 'click' }}>点击次数</option>
+                    <option value="created" {{ 'selected' if current_sort == 'created' }}>创建时间</option>
+                    <option value="name" {{ 'selected' if current_sort == 'name' }}>公司名称</option>
+                </select>
+            </div>
+
             <div class="visa-filter-item" style="flex: 1; max-width: 400px;">
                 <label class="visa-form-label">
                     <i class="fas fa-search"></i> 搜索
@@ -142,18 +174,20 @@
                     <table class="visa-table company-table" style="table-layout: fixed; width: 100%;">
                         <thead>
                             <tr>
-                                <th style="width: 24%;">公司名称</th>
-                                <th style="width: 7%;" class="col-narrow">角色</th>
-                                <th style="width: 10%;">集团/关联</th>
-                                <th style="width: 9%;">公司代码</th>
-                                <th style="width: 8%;">国家</th>
-                                <th style="width: 8%;">地区</th>
-                                <th style="width: 9%;">联系人</th>
-                                <th style="width: 10%;">联系电话</th>
-                                <th style="width: 7%;" class="col-narrow">所属</th>
-                                <th style="width: 6%;" class="col-narrow">状态</th>
+                                <th style="width: 22%;">公司名称</th>
+                                <th style="width: 6%;" class="col-narrow">角色</th>
+                                <th style="width: 5%;" class="col-narrow" title="作为客户被项目引用的 HID 数量">HID</th>
+                                <th style="width: 5%;" class="col-narrow" title="作为供应商被引用的 EO 数量">EO</th>
+                                <th style="width: 9%;">集团/关联</th>
+                                <th style="width: 8%;">公司代码</th>
+                                <th style="width: 7%;">国家</th>
+                                <th style="width: 7%;">地区</th>
+                                <th style="width: 8%;">联系人</th>
+                                <th style="width: 9%;">联系电话</th>
+                                <th style="width: 6%;" class="col-narrow">所属</th>
+                                <th style="width: 5%;" class="col-narrow">状态</th>
                                 <th style="width: 5%;" class="col-narrow">点击</th>
-                                <th style="width: 8%;" class="col-narrow">创建时间</th>
+                                <th style="width: 7%;" class="col-narrow">创建时间</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -182,6 +216,32 @@
                                         <span class="visa-badge" style="background: #fef3c7; color: #d97706;">供应商</span>
                                     {% else %}
                                         <span class="visa-badge" style="background: #dbeafe; color: #2563eb;">客户</span>
+                                    {% endif %}
+                                </td>
+                                {% set bc = business_counts.get(company.id, {'hid': 0, 'eo': 0}) %}
+                                <td class="col-narrow biz-count">
+                                    {# 只有客户角色才谈 HID 数，纯供应商这一格没有意义 #}
+                                    {% if company.is_customer %}
+                                        {% if bc.hid %}
+                                        <a href="{{ url_for('business_projects.list.list_projects', company=company.company_name) }}"
+                                           class="text-decoration-none" title="查看该公司的 {{ bc.hid }} 个项目">{{ bc.hid }}</a>
+                                        {% else %}
+                                        <span class="biz-zero">0</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="biz-zero">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="col-narrow biz-count">
+                                    {% if company.is_supplier %}
+                                        {% if bc.eo %}
+                                        <a href="{{ url_for('business_projects.project_eo.eo_list', supplier=company.id) }}"
+                                           class="text-decoration-none" title="查看该供应商的 {{ bc.eo }} 个 EO">{{ bc.eo }}</a>
+                                        {% else %}
+                                        <span class="biz-zero">0</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="biz-zero">-</span>
                                     {% endif %}
                                 </td>
                                 <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ company.group_name or '' }}">
@@ -230,7 +290,7 @@
                 {% if companies.pages > 1 %}
                 <div class="visa-pagination">
                     {% if companies.has_prev %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.prev_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country'), has_business=request.args.get('has_business'), sort=request.args.get('sort')) }}">
                             <i class="fas fa-chevron-left"></i> 上一页
                         </a>
                     {% endif %}
@@ -238,7 +298,7 @@
                     {% for page_num in companies.iter_pages() %}
                         {% if page_num %}
                             {% if page_num != companies.page %}
-                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country')) }}">
+                                <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=page_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country'), has_business=request.args.get('has_business'), sort=request.args.get('sort')) }}">
                                     {{ page_num }}
                                 </a>
                             {% else %}
@@ -250,7 +310,7 @@
                     {% endfor %}
 
                     {% if companies.has_next %}
-                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country')) }}">
+                        <a class="visa-pagination-btn" href="{{ url_for('corporate.list_companies', page=companies.next_num, search=request.args.get('search'), status=request.args.get('status'), group_name=request.args.get('group_name'), role=request.args.get('role'), country=request.args.get('country'), has_business=request.args.get('has_business'), sort=request.args.get('sort')) }}">
                             下一页 <i class="fas fa-chevron-right"></i>
                         </a>
                     {% endif %}

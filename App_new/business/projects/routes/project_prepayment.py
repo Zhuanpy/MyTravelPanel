@@ -102,11 +102,14 @@ def list_prepayments():
                 'tx_account': tx.statement.account_name if tx.statement else '',
             }
 
-    # 获取供应商列表（用于筛选）
+    # 获取供应商列表（用于筛选）：只列真有预付记录的。
+    # 注意新增/编辑页的下拉不能这么过滤，否则新供应商第一笔充值就没得选。
+    prepaid_ids = [r[0] for r in db.session.query(SupplierPrepayment.supplier_id).filter(
+        SupplierPrepayment.supplier_id.isnot(None)
+    ).distinct().all()]
     suppliers = CustomerCompany.query.filter(
-        CustomerCompany.is_supplier == True,
-        CustomerCompany.status == 'active'
-    ).order_by(CustomerCompany.company_name).all()
+        CustomerCompany.id.in_(prepaid_ids)
+    ).order_by(CustomerCompany.company_name).all() if prepaid_ids else []
 
     # 计算当前页汇总
     total_amount = sum(float(p.amount or 0) for p in prepayment_records)

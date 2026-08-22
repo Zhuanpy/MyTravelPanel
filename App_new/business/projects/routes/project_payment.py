@@ -79,11 +79,15 @@ def list_payments():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     payment_records = pagination.items
 
-    # 获取供应商列表（用于筛选）
+    # 获取供应商列表（用于筛选）：只列真有付款记录的，
+    # 否则一堆从没付过款的公司挤在下拉里，选中只会筛出 0 条。
+    # 不按 status='active' 过滤——供应商停用后旧付款记录还得能筛。
+    payer_ids = [r[0] for r in db.session.query(SupplierPayment.supplier_id).filter(
+        SupplierPayment.supplier_id.isnot(None)
+    ).distinct().all()]
     suppliers = CustomerCompany.query.filter(
-        CustomerCompany.is_supplier == True,
-        CustomerCompany.status == 'active'
-    ).order_by(CustomerCompany.company_name).all()
+        CustomerCompany.id.in_(payer_ids)
+    ).order_by(CustomerCompany.company_name).all() if payer_ids else []
 
     # 批量获取匹配信息
     payment_ids = [p.id for p in payment_records]

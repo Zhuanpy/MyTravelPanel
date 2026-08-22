@@ -7,7 +7,7 @@ import uuid
 from App_new.shared.forms.company_forms import CustomerCompanyForm
 from App_new.utils.decorators import staff_only
 from App_new.shared.constants import COUNTRIES_EN
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 import pandas as pd
 import io
 import os
@@ -54,6 +54,54 @@ def _can_access_company(company):
     return company.staff_id == current_user.id
 
 
+def _business_count_subqueries():
+    """
+    公司业务量统计子查询。
+
+    客户维度看 HID 数（project_headers.company_id），
+    供应商维度看 EO 数（project_eos -> project_refs.supplier_id）。
+    不落库成冗余字段：数量随业务实时变化，缓存计数迟早和明细对不上
+    （参考预付款 balance_amount 的漂移），这里数据量小，实时算更可靠。
+    """
+    from App_new.business.projects.models.project import ProjectHeader
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.eo import ProjectEO
+
+    hid_sq = db.session.query(
+        ProjectHeader.company_id.label('cid'),
+        func.count(ProjectHeader.id).label('cnt')
+    ).filter(
+        ProjectHeader.company_id.isnot(None)
+    ).group_by(ProjectHeader.company_id).subquery()
+
+    eo_sq = db.session.query(
+        ProjectRef.supplier_id.label('cid'),
+        func.count(ProjectEO.id).label('cnt')
+    ).join(
+        ProjectEO, ProjectEO.ref_id == ProjectRef.id
+    ).filter(
+        ProjectRef.supplier_id.isnot(None)
+    ).group_by(ProjectRef.supplier_id).subquery()
+
+    return hid_sq, eo_sq
+
+
+def get_company_business_counts(company_ids):
+    """批量取指定公司的 HID 数 / EO 数，返回 {company_id: {'hid': n, 'eo': n}}"""
+    result = {cid: {'hid': 0, 'eo': 0} for cid in company_ids}
+    if not company_ids:
+        return result
+
+    hid_sq, eo_sq = _business_count_subqueries()
+
+    for cid, cnt in db.session.query(hid_sq.c.cid, hid_sq.c.cnt).filter(hid_sq.c.cid.in_(company_ids)):
+        result[cid]['hid'] = int(cnt or 0)
+    for cid, cnt in db.session.query(eo_sq.c.cid, eo_sq.c.cnt).filter(eo_sq.c.cid.in_(company_ids)):
+        result[cid]['eo'] = int(cnt or 0)
+
+    return result
+
+
 @corporate.route('/')
 @login_required
 @staff_only
@@ -65,8 +113,19 @@ def list_companies():
     group_name_filter = request.args.get('group_name', '')
     role = request.args.get('role', '')  # customer, supplier, all
     country = request.args.get('country', '')  # 国家/地区筛选
+    has_business = request.args.get('has_business', '')  # 业务往来筛选：yes/no
+    sort = request.args.get('sort', 'business')  # business/click/created/name
 
-    query = CustomerCompany.query
+    # 业务量（HID 数 / EO 数）子查询，用于排序和"有无业务往来"筛选
+    hid_sq, eo_sq = _business_count_subqueries()
+    hid_cnt = func.coalesce(hid_sq.c.cnt, 0)
+    eo_cnt = func.coalesce(eo_sq.c.cnt, 0)
+
+    query = CustomerCompany.query.outerjoin(
+        hid_sq, hid_sq.c.cid == CustomerCompany.id
+    ).outerjoin(
+        eo_sq, eo_sq.c.cid == CustomerCompany.id
+    )
 
     # 归属过滤：1级员工只能看到自己归属 + 无归属(共享)的客户；2级/管理员看全部
     if _current_staff_level() < 2:
@@ -117,11 +176,33 @@ def list_companies():
         else:
             query = query.filter(CustomerCompany.group_name == group_name_filter)
 
-    # 按点击次数降序排列，点击次数相同时按创建时间降序排列
-    companies = query.order_by(
-        CustomerCompany.click_count.desc(),
-        CustomerCompany.created_at.desc()
-    ).paginate(page=page, per_page=20, error_out=False)
+    # 业务往来筛选：从未被 HID/EO 引用过的公司多是导入的无效数据
+    if has_business == 'yes':
+        query = query.filter((hid_cnt + eo_cnt) > 0)
+    elif has_business == 'no':
+        query = query.filter((hid_cnt + eo_cnt) == 0)
+
+    # 排序：默认按业务量降序（客户看 HID 数，供应商看 EO 数，全部则看两者之和）
+    if sort == 'click':
+        order_by = [CustomerCompany.click_count.desc()]
+    elif sort == 'created':
+        order_by = [CustomerCompany.created_at.desc()]
+    elif sort == 'name':
+        order_by = [CustomerCompany.company_name.asc()]
+    else:
+        if role == 'customer':
+            primary = hid_cnt
+        elif role == 'supplier':
+            primary = eo_cnt
+        else:
+            primary = hid_cnt + eo_cnt
+        order_by = [primary.desc(), CustomerCompany.click_count.desc()]
+
+    order_by.append(CustomerCompany.created_at.desc())
+    companies = query.order_by(*order_by).paginate(page=page, per_page=20, error_out=False)
+
+    # 当前页的业务量，挂到对象上供模板显示
+    business_counts = get_company_business_counts([c.id for c in companies.items])
 
     # 获取所有已使用的集团/关联标签，用于筛选下拉列表
     group_names = get_existing_group_names()
@@ -147,7 +228,10 @@ def list_companies():
                            supplier_types=supplier_types,
                            countries=countries,
                            current_role=role,
-                           current_country=country)
+                           current_country=country,
+                           business_counts=business_counts,
+                           current_has_business=has_business,
+                           current_sort=sort)
 
 
 # 客户归属：无权访问时的统一处理

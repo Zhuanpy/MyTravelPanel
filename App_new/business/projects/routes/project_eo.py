@@ -517,16 +517,25 @@ def batch_pay():
                 'created_at': eo.created_at
             })
         
-        # 获取所有供应商列表（按名称排序，不区分大小写）
-        # 前端使用JavaScript按类型筛选
+        # 获取供应商列表（按名称排序，不区分大小写），前端使用JavaScript按类型筛选。
+        # 口径与本页数据一致：只列还有「已确认且未付款」EO 的供应商，
+        # 其余选了也是筛出 0 条待付 EO。付完款后该供应商自然从下拉里消失。
         from sqlalchemy import func
+        pending_supplier_ids = db.session.query(ProjectRef.supplier_id).join(
+            ProjectEO, ProjectEO.ref_id == ProjectRef.id
+        ).filter(
+            ProjectRef.supplier_id.isnot(None),
+            ProjectEO.status == 'confirmed',
+            ProjectEO.is_paid == False
+        ).distinct().subquery()
+
         suppliers_with_type = db.session.query(
             CustomerCompany,
             BusinessType.code.label('supplier_type_code')
         ).outerjoin(
             BusinessType, CustomerCompany.supplier_type_id == BusinessType.id
         ).filter(
-            CustomerCompany.is_supplier == True
+            CustomerCompany.id.in_(db.session.query(pending_supplier_ids))
         ).order_by(func.lower(CustomerCompany.company_name)).all()
 
         suppliers = [{
@@ -2016,14 +2025,19 @@ def eo_list():
             eos.append(eo_dict)
         
         # 获取筛选选项数据（供应商列表带类型代码，用于前端JavaScript筛选）
+        # 只列真有 EO 的供应商：没有 EO 的选了也是筛出 0 条，纯噪音
         from sqlalchemy import func
+        eo_supplier_ids = db.session.query(ProjectRef.supplier_id).join(
+            ProjectEO, ProjectEO.ref_id == ProjectRef.id
+        ).filter(ProjectRef.supplier_id.isnot(None)).distinct().subquery()
+
         suppliers_with_type = db.session.query(
             CustomerCompany,
             BusinessType.code.label('supplier_type_code')
         ).outerjoin(
             BusinessType, CustomerCompany.supplier_type_id == BusinessType.id
         ).filter(
-            CustomerCompany.is_supplier == True
+            CustomerCompany.id.in_(db.session.query(eo_supplier_ids))
         ).order_by(func.lower(CustomerCompany.company_name)).all()
 
         suppliers = [{
