@@ -379,15 +379,12 @@ function batchConfirm() {
 
     const ids = checked.map(b => parseInt(b.value, 10));
     const nos = checked.map(b => b.dataset.paymentNo);
-    const preview = nos.slice(0, 10).join('
-') + (nos.length > 10 ? `
-... 等 ${nos.length} 条` : '');
+    let preview = nos.slice(0, 10).join('\n');
+    if (nos.length > 10) {
+        preview += '\n... 等 ' + nos.length + ' 条';
+    }
 
-    if (!confirm(`确定要确认以下 ${ids.length} 条付款记录吗？
-
-${preview}
-
-确认后将不可取消和编辑。`)) return;
+    if (!confirm('确定要确认以下 ' + ids.length + ' 条付款记录吗？\n\n' + preview + '\n\n确认后将不可取消和编辑。')) return;
 
     const btn = document.getElementById('btnBatchConfirm');
     btn.disabled = true;
