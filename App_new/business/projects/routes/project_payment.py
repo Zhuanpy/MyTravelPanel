@@ -333,6 +333,74 @@ def toggle_reconcile(payment_id):
         return jsonify({'success': False, 'message': str(e)})
 
 
+@project_payment.route('/batch-reconcile', methods=['POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def batch_reconcile():
+    """批量确认（多选一键标记已核对）"""
+    try:
+        data = request.get_json() or {}
+        raw_ids = data.get('payment_ids') or []
+
+        # 去重并转成 int，忽略非法值
+        payment_ids = []
+        for pid in raw_ids:
+            try:
+                pid = int(pid)
+            except (TypeError, ValueError):
+                continue
+            if pid not in payment_ids:
+                payment_ids.append(pid)
+
+        if not payment_ids:
+            return jsonify({'success': False, 'message': '请先勾选要确认的付款记录'})
+
+        payments = SupplierPayment.query.filter(SupplierPayment.id.in_(payment_ids)).all()
+        found_ids = {p.id for p in payments}
+
+        confirmed_count = 0
+        skipped = []  # 被跳过的记录及原因
+
+        for payment in payments:
+            if payment.is_reconciled:
+                skipped.append(f'{payment.payment_no}（已核对）')
+                continue
+            # 已取消的付款不应再确认
+            if payment.status == 'cancelled':
+                skipped.append(f'{payment.payment_no}（已取消）')
+                continue
+
+            payment.is_reconciled = True
+            payment.reconciled_at = datetime.utcnow()
+            payment.reconciled_by = current_user.username if current_user else None
+            confirmed_count += 1
+
+        for pid in payment_ids:
+            if pid not in found_ids:
+                skipped.append(f'ID {pid}（记录不存在）')
+
+        db.session.commit()
+
+        message = f'已确认 {confirmed_count} 条付款记录'
+        if skipped:
+            message += f'，跳过 {len(skipped)} 条：' + '、'.join(skipped[:5])
+            if len(skipped) > 5:
+                message += f' 等 {len(skipped)} 条'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'confirmed_count': confirmed_count,
+            'skipped_count': len(skipped),
+            'skipped': skipped
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
 @project_payment.route('/<int:payment_id>/unmatch', methods=['POST'])
 @login_required
 @staff_only
