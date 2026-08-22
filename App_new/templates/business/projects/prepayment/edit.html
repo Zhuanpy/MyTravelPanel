@@ -1,0 +1,155 @@
+{% extends 'staff_base.html' %}
+{% block title %}编辑预付充值{% endblock %}
+{% block page_title %}编辑预付充值{% endblock %}
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=prepayment.id) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>返回详情
+    </a>
+</div>
+{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/project_detail.css') }}">
+<style>
+    .form-card {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- 表单卡片 -->
+    <div class="card form-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">充值信息</h5>
+            <span class="badge bg-secondary">{{ prepayment.prepayment_number }} · 草稿</span>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('business_projects.project_prepayment.edit_prepayment', prepayment_id=prepayment.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <!-- 供应商选择 -->
+                <div class="mb-3">
+                    <label class="form-label">供应商 <span class="text-danger">*</span></label>
+                    <select name="supplier_id" class="form-select" required>
+                        <option value="">-- 请选择供应商 --</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}" {% if prepayment.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.company_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">选择要充值的航司或供应商账户</div>
+                </div>
+
+                <div class="row">
+                    <!-- 充值金额 -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">充值金额 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" name="amount" class="form-control"
+                                   step="0.01" min="0.01" placeholder="0.00"
+                                   value="{{ "%.2f"|format(prepayment.amount) }}" required>
+                            <select name="currency" class="form-select" style="max-width: 100px;">
+                                {% for cur in ['SGD', 'USD', 'CNY'] %}
+                                <option value="{{ cur }}" {% if prepayment.currency == cur %}selected{% endif %}>{{ cur }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-text">草稿未使用，修改金额会同步更新剩余余额</div>
+                    </div>
+
+                    <!-- 充值日期 -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">充值日期 <span class="text-danger">*</span></label>
+                        <input type="date" name="payment_date" class="form-control"
+                               value="{{ prepayment.payment_date.strftime('%Y-%m-%d') if prepayment.payment_date else '' }}" required>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- 支付方式 -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">支付方式</label>
+                        <select name="payment_method" class="form-select">
+                            {% set method_options = [('bank_transfer', '银行转账'), ('credit_card', '信用卡'), ('paynow', 'PayNow'), ('cash', '现金'), ('other', '其他')] %}
+                            {% for value, label in method_options %}
+                            <option value="{{ value }}" {% if prepayment.payment_method == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 参考号 -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">参考号/交易号</label>
+                        <input type="text" name="reference" class="form-control"
+                               placeholder="银行交易参考号"
+                               value="{{ prepayment.reference or '' }}">
+                    </div>
+                </div>
+
+                <hr>
+                <h6 class="mb-3">会计科目设置</h6>
+
+                <div class="row">
+                    <!-- 银行账户 -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">付款银行账户</label>
+                        <select name="bank_account_id" class="form-select">
+                            <option value="">-- 选择银行账户 --</option>
+                            {% for account in bank_accounts %}
+                            <option value="{{ account.id }}" {% if prepayment.bank_account_id == account.id %}selected{% endif %}>
+                                {{ account.code }} - {{ account.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">贷方：资金来源账户</div>
+                    </div>
+
+                    <!-- 预付科目 -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">预付账款科目</label>
+                        <select name="prepayment_account_id" class="form-select">
+                            <option value="">-- 选择预付科目 --</option>
+                            {% for account in prepayment_accounts %}
+                            <option value="{{ account.id }}" {% if prepayment.prepayment_account_id == account.id %}selected{% endif %}>
+                                {{ account.code }} - {{ account.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">借方：预付账款科目（默认1201）</div>
+                    </div>
+                </div>
+
+                <!-- 备注 -->
+                <div class="mb-3">
+                    <label class="form-label">备注</label>
+                    <textarea name="remarks" class="form-control" rows="2"
+                              placeholder="可填写充值说明等信息">{{ prepayment.remarks or '' }}</textarea>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('business_projects.project_prepayment.prepayment_detail', prepayment_id=prepayment.id) }}" class="btn btn-outline-secondary">
+                        取消
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>保存修改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 提示信息 -->
+    <div class="card form-card mt-4">
+        <div class="card-body">
+            <h6><i class="fas fa-info-circle text-info me-2"></i>操作说明</h6>
+            <ul class="mb-0 text-muted small">
+                <li>只有"草稿"状态的预付充值可以编辑</li>
+                <li>确认后会生成会计分录并可被 EO 核销，届时不能再修改</li>
+                <li>如需修改已确认的记录，请先取消该记录再复制新增</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

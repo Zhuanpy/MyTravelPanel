@@ -234,6 +234,99 @@ def create_prepayment():
         return redirect(url_for('business_projects.project_prepayment.create_prepayment'))
 
 
+@project_prepayment.route('/<int:prepayment_id>/edit', methods=['GET', 'POST'])
+@login_required
+@staff_only
+@csrf.exempt
+def edit_prepayment(prepayment_id):
+    """编辑预付账款（仅草稿状态可编辑，已确认的单据只读）"""
+    prepayment = SupplierPrepayment.query.get_or_404(prepayment_id)
+
+    detail_url = url_for('business_projects.project_prepayment.prepayment_detail',
+                         prepayment_id=prepayment_id)
+
+    # 确认后已生成会计分录、可被 EO 核销，一律不允许再改
+    if prepayment.status != 'draft':
+        flash(f'只有草稿状态的预付账款可以编辑（当前状态：{prepayment.status_display}）', 'error')
+        return redirect(detail_url)
+
+    if request.method == 'GET':
+        # 获取供应商列表
+        suppliers = CustomerCompany.query.filter(
+            CustomerCompany.is_supplier == True,
+            CustomerCompany.status == 'active'
+        ).order_by(CustomerCompany.company_name).all()
+
+        # 获取银行账户科目（1000-1099）
+        bank_accounts = ChartOfAccount.query.filter(
+            ChartOfAccount.code.between('1000', '1099'),
+            ChartOfAccount.is_active == True
+        ).order_by(ChartOfAccount.code).all()
+
+        # 获取预付账款科目（1200-1299）
+        prepayment_accounts = ChartOfAccount.query.filter(
+            ChartOfAccount.code.between('1200', '1299'),
+            ChartOfAccount.is_active == True
+        ).order_by(ChartOfAccount.code).all()
+
+        return render_template('business/projects/prepayment/edit.html',
+                               prepayment=prepayment,
+                               suppliers=suppliers,
+                               bank_accounts=bank_accounts,
+                               prepayment_accounts=prepayment_accounts)
+
+    # POST 处理
+    edit_url = url_for('business_projects.project_prepayment.edit_prepayment',
+                       prepayment_id=prepayment_id)
+    try:
+        supplier_id = request.form.get('supplier_id', type=int)
+        amount = request.form.get('amount', type=float)
+        currency = request.form.get('currency', 'SGD')
+        payment_date_str = request.form.get('payment_date')
+        payment_method = request.form.get('payment_method', 'bank_transfer')
+        bank_account_id = request.form.get('bank_account_id', type=int)
+        prepayment_account_id = request.form.get('prepayment_account_id', type=int)
+        remarks = request.form.get('remarks', '')
+        reference = request.form.get('reference', '')
+
+        # 验证
+        if not supplier_id:
+            flash('请选择供应商', 'error')
+            return redirect(edit_url)
+        if not amount or amount <= 0:
+            flash('请输入有效的充值金额', 'error')
+            return redirect(edit_url)
+
+        # 草稿理论上不会有使用记录，兜底防止改金额把余额算错
+        if prepayment.used_amount > 0:
+            flash('该预付账款已有使用记录，无法编辑', 'error')
+            return redirect(detail_url)
+
+        # 解析日期
+        payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date() if payment_date_str else prepayment.payment_date
+
+        prepayment.supplier_id = supplier_id
+        prepayment.amount = Decimal(str(amount))
+        prepayment.balance_amount = Decimal(str(amount))  # 草稿未使用，余额跟随充值金额
+        prepayment.currency = currency
+        prepayment.payment_date = payment_date
+        prepayment.payment_method = payment_method
+        prepayment.bank_account_id = bank_account_id if bank_account_id else None
+        prepayment.prepayment_account_id = prepayment_account_id if prepayment_account_id else None
+        prepayment.remarks = remarks
+        prepayment.reference = reference
+
+        db.session.commit()
+
+        flash('预付款修改成功', 'success')
+        return redirect(detail_url)
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'修改失败：{str(e)}', 'error')
+        return redirect(edit_url)
+
+
 @project_prepayment.route('/<int:prepayment_id>')
 @login_required
 @staff_only

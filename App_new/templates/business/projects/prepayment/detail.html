@@ -96,6 +96,10 @@
         <i class="fas fa-arrow-left me-1"></i>返回列表
     </a>
     {% if prepayment.status == 'draft' %}
+    <a href="{{ url_for('business_projects.project_prepayment.edit_prepayment', prepayment_id=prepayment.id) }}"
+       class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-edit me-1"></i>编辑
+    </a>
     <button class="btn btn-success btn-sm" onclick="confirmPrepayment()">
         <i class="fas fa-check me-1"></i>确认充值
     </button>
