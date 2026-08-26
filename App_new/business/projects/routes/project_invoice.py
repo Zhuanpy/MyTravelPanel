@@ -1140,6 +1140,7 @@ def invoice_list():
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
         company_id = request.args.get('company_id', None, type=int)
+        group = request.args.get('group', '').strip()  # 集团/关联标签
         contact = request.args.get('contact', '').strip()  # 项目联系人
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
@@ -1172,6 +1173,9 @@ def invoice_list():
         # 公司筛选
         if company_id:
             filters.append(ProjectHeader.company_id == company_id)
+        # 集团筛选（按项目所属公司的集团标签）
+        if group:
+            filters.append(CustomerCompany.group_name == group)
         # 联系人筛选
         if contact:
             filters.append(ProjectHeader.contact == contact)
@@ -1349,8 +1353,29 @@ def invoice_list():
             'total_balance': total_gross_all - total_paid_all
         }
 
-        # 获取公司列表（按名称排序）
-        companies = CustomerCompany.query.order_by(func.lower(CustomerCompany.company_name)).all()
+        # 客户下拉：只列真开过发票的项目所属公司。
+        # 发票只对客户开，供应商不该出现在这里；再按「有发票」过滤，
+        # 选任何一项都不会筛出空结果，也自然排除了从没业务往来的无效公司。
+        invoiced_company_ids = [r[0] for r in db.session.query(ProjectHeader.company_id).join(
+            ProjectInvoice, ProjectInvoice.header_id == ProjectHeader.id
+        ).filter(ProjectHeader.company_id.isnot(None)).distinct().all()]
+
+        if invoiced_company_ids:
+            company_q = CustomerCompany.query.filter(CustomerCompany.id.in_(invoiced_company_ids))
+            # 集团下拉：同样只取有发票的客户的集团标签
+            groups = [r[0] for r in db.session.query(CustomerCompany.group_name).filter(
+                CustomerCompany.id.in_(invoiced_company_ids),
+                CustomerCompany.group_name.isnot(None),
+                CustomerCompany.group_name != ''
+            ).distinct().order_by(CustomerCompany.group_name).all()]
+        else:
+            company_q = CustomerCompany.query.filter(db.false())
+            groups = []
+
+        # 选了集团时，公司下拉收窄到该集团，方便二级筛选
+        if group:
+            company_q = company_q.filter(CustomerCompany.group_name == group)
+        companies = company_q.order_by(func.lower(CustomerCompany.company_name)).all()
 
         # 获取联系人列表（去重，按名称排序）
         contact_rows = db.session.query(ProjectHeader.contact).filter(
@@ -1382,6 +1407,7 @@ def invoice_list():
                              payment_statuses=payment_statuses,
                              invoice_types=invoice_types,
                              companies=companies,
+                             groups=groups,
                              contacts=contacts,
                              all_tags=all_tags,
                              summary=summary,
@@ -1391,6 +1417,7 @@ def invoice_list():
                                  'invoice_type': invoice_type,
                                  'currency': currency,
                                  'company_id': company_id,
+                                 'group': group,
                                  'contact': contact,
                                  'date_range': date_range,
                                  'start_date': start_date,
@@ -1431,6 +1458,7 @@ def invoice_list_all_ids():
         invoice_type = request.args.get('invoice_type', '').strip()
         currency = request.args.get('currency', '').strip()
         company_id = request.args.get('company_id', None, type=int)
+        group = request.args.get('group', '').strip()
         contact = request.args.get('contact', '').strip()
         date_range = request.args.get('date_range', '').strip()
         start_date = request.args.get('start_date', '').strip()
@@ -1455,6 +1483,8 @@ def invoice_list_all_ids():
             filters.append(ProjectInvoice.status == status)
         if company_id:
             filters.append(ProjectHeader.company_id == company_id)
+        if group:
+            filters.append(CustomerCompany.group_name == group)
         if contact:
             filters.append(ProjectHeader.contact == contact)
         if payment_status:
