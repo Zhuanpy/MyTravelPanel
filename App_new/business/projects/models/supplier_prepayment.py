@@ -23,7 +23,7 @@ class SupplierPrepayment(db.Model):
     amount = db.Column(db.Numeric(12, 2), nullable=False, comment='充值金额')
     currency = db.Column(db.String(3), default='SGD', nullable=False, comment='货币')
     payment_date = db.Column(db.Date, nullable=False, comment='充值日期')
-    payment_method = db.Column(db.Enum('bank_transfer', 'credit_card', 'cash', 'paynow', 'other'),
+    payment_method = db.Column(db.Enum('bank_transfer', 'credit_card', 'cash', 'paynow', 'refund', 'other'),
                                default='bank_transfer', nullable=False, comment='支付方式')
 
     # 余额信息
@@ -49,6 +49,12 @@ class SupplierPrepayment(db.Model):
     is_reconciled = db.Column(db.Boolean, default=False, comment='是否已核对')
     reconciled_at = db.Column(db.DateTime, nullable=True, comment='核对时间')
     reconciled_by = db.Column(db.String(50), nullable=True, comment='核对人')
+
+    # 来源退款单：payment_method='refund' 时指回是哪张退款单退回来的余额。
+    # 这类记录没有对应的银行流水（钱没动，只是供应商把额度挂回来），
+    # 所以不参与银行对账，统计"本期给供应商充值多少现金"时也要排除。
+    source_refund_id = db.Column(db.Integer, db.ForeignKey('project_refunds.id'), nullable=True,
+                                 comment='来源退款单ID(payment_method=refund 时)')
 
     # 备注
     remarks = db.Column(db.Text, nullable=True, comment='备注')
@@ -148,6 +154,7 @@ class SupplierPrepayment(db.Model):
             'credit_card': '信用卡',
             'cash': '现金',
             'paynow': 'PayNow',
+            'refund': '供应商退款',
             'other': '其他'
         }
         return method_map.get(self.payment_method, self.payment_method)
@@ -200,6 +207,8 @@ class SupplierPrepayment(db.Model):
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,
             'payment_method': self.payment_method,
             'payment_method_display': self.payment_method_display,
+            'source_refund_id': self.source_refund_id,
+            'is_cash_topup': self.payment_method != 'refund',
             'status': self.status,
             'status_display': self.status_display,
             'remarks': self.remarks,

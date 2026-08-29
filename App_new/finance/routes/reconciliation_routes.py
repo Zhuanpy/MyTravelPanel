@@ -1745,8 +1745,12 @@ def get_eo_compare_data():
         elif status == 'matched':
             prepay_query = prepay_query.filter(SupplierPrepayment.id.in_(matched_prepayment_ids))
         elif status == 'reconciled':
+            # 这里是重建查询，要把上面的 payment_method 条件一起带上，
+            # 否则供应商退回预付余额的记录（payment_method='refund'，没有对应银行流水）
+            # 会漏进对账列表
             prepay_query = SupplierPrepayment.query.filter(
                 SupplierPrepayment.status.in_(['confirmed', 'partial_used', 'consumed']),
+                SupplierPrepayment.payment_method == 'bank_transfer',
                 SupplierPrepayment.is_reconciled == True
             )
             if supplier_id:

@@ -694,7 +694,8 @@ def export_excel():
 def calculate_profit_distribution():
     """计算并更新利润分配（仅可结算项目）"""
     try:
-        from App_new.finance.utils.profit_distribution import calculate_profit_distribution as calc_profit, get_order_type
+        from App_new.finance.utils.profit_distribution import (
+            calculate_profit_distribution as calc_profit, get_order_type, get_ratio_basis)
         from decimal import Decimal
 
         data = request.get_json()
@@ -731,8 +732,10 @@ def calculate_profit_distribution():
                 total_cost = sum(float(r.cost_price or 0) for r in refs)
                 profit = Decimal(str(total_selling - total_cost))
 
-                # 获取订单类型
-                order_type = get_order_type(profit)
+                # 退款/调整单沿用主单档位：金额按本单利润分，比例取主单所在档位。
+                # 普通订单 ratio_basis 为 None，行为与原来完全一致。
+                ratio_basis = get_ratio_basis(project)
+                order_type = get_order_type(profit, ratio_basis)
 
                 # 计算利润分配
                 if profit == 0:
@@ -741,7 +744,7 @@ def calculate_profit_distribution():
                     project.company_profit = Decimal('0')
                     project.order_type = order_type
                 else:
-                    operator_profit, sales_profit, company_profit = calc_profit(profit)
+                    operator_profit, sales_profit, company_profit = calc_profit(profit, ratio_basis)
                     project.operator_profit = operator_profit
                     project.sales_profit = sales_profit
                     project.company_profit = company_profit
@@ -783,7 +786,8 @@ def calculate_profit_distribution():
 def calculate_all_unsettled_profit_distribution():
     """计算全部可结算的未结算项目的利润分配"""
     try:
-        from App_new.finance.utils.profit_distribution import calculate_profit_distribution as calc_profit, get_order_type
+        from App_new.finance.utils.profit_distribution import (
+            calculate_profit_distribution as calc_profit, get_order_type, get_ratio_basis)
         from decimal import Decimal
 
         # 查询所有未结算项目
@@ -812,8 +816,10 @@ def calculate_all_unsettled_profit_distribution():
                 total_cost = sum(float(r.cost_price or 0) for r in refs)
                 profit = Decimal(str(total_selling - total_cost))
 
-                # 获取订单类型
-                order_type = get_order_type(profit)
+                # 退款/调整单沿用主单档位：金额按本单利润分，比例取主单所在档位。
+                # 普通订单 ratio_basis 为 None，行为与原来完全一致。
+                ratio_basis = get_ratio_basis(project)
+                order_type = get_order_type(profit, ratio_basis)
 
                 # 计算利润分配
                 if profit == 0:
@@ -822,7 +828,7 @@ def calculate_all_unsettled_profit_distribution():
                     project.company_profit = Decimal('0')
                     project.order_type = order_type
                 else:
-                    operator_profit, sales_profit, company_profit = calc_profit(profit)
+                    operator_profit, sales_profit, company_profit = calc_profit(profit, ratio_basis)
                     project.operator_profit = operator_profit
                     project.sales_profit = sales_profit
                     project.company_profit = company_profit

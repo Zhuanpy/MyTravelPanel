@@ -1551,7 +1551,8 @@ def athina_batch_settle_all_filtered():
 def athina_calculate_profit_distribution():
     """计算并更新利润分配（仅可结算项目）"""
     try:
-        from App_new.finance.utils.profit_distribution import calculate_profit_distribution, get_order_type
+        from App_new.finance.utils.profit_distribution import (
+            calculate_profit_distribution, get_order_type, get_ratio_basis)
         from App_new.business.projects.models.project import ProjectHeader
         from decimal import Decimal
 
@@ -1585,7 +1586,9 @@ def athina_calculate_profit_distribution():
                 # 从REF聚合计算利润
                 profit = Decimal(str(project.total_profit))
 
-                order_type = get_order_type(profit)
+                # 退款/调整单沿用主单档位（与结算页同一口径）
+                ratio_basis = get_ratio_basis(project)
+                order_type = get_order_type(profit, ratio_basis)
 
                 if profit == 0:
                     project.operator_profit = Decimal('0')
@@ -1593,7 +1596,7 @@ def athina_calculate_profit_distribution():
                     project.company_profit = Decimal('0')
                     project.order_type = order_type
                 else:
-                    operator_profit, sales_profit, company_profit = calculate_profit_distribution(profit)
+                    operator_profit, sales_profit, company_profit = calculate_profit_distribution(profit, ratio_basis)
                     project.operator_profit = operator_profit
                     project.sales_profit = sales_profit
                     project.company_profit = company_profit
@@ -1641,7 +1644,8 @@ def athina_calculate_profit_distribution():
 def athina_calculate_all_unsettled_profit_distribution():
     """计算全部可结算的未结算单的利润分配（基于ProjectHeader）"""
     try:
-        from App_new.finance.utils.profit_distribution import calculate_profit_distribution, get_order_type
+        from App_new.finance.utils.profit_distribution import (
+            calculate_profit_distribution, get_order_type, get_ratio_basis)
         from App_new.business.projects.models.project import ProjectHeader
         from decimal import Decimal
 
@@ -1669,7 +1673,9 @@ def athina_calculate_all_unsettled_profit_distribution():
         for project in projects:
             try:
                 profit = Decimal(str(project.total_profit))
-                order_type = get_order_type(profit)
+                # 退款/调整单沿用主单档位（与结算页同一口径）
+                ratio_basis = get_ratio_basis(project)
+                order_type = get_order_type(profit, ratio_basis)
 
                 if profit == 0:
                     project.operator_profit = Decimal('0')
@@ -1677,7 +1683,7 @@ def athina_calculate_all_unsettled_profit_distribution():
                     project.company_profit = Decimal('0')
                     project.order_type = order_type
                 else:
-                    operator_profit, sales_profit, company_profit = calculate_profit_distribution(profit)
+                    operator_profit, sales_profit, company_profit = calculate_profit_distribution(profit, ratio_basis)
                     project.operator_profit = operator_profit
                     project.sales_profit = sales_profit
                     project.company_profit = company_profit

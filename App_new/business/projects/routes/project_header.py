@@ -142,6 +142,29 @@ def edit_header(header_id):
             header.status = form.status.data
             header.remarks = form.remarks.data
 
+            # 关联主单：退款/调整单指回被调整的原始订单。
+            # 结算时用主单的利润决定分成档位——这套规则按总利润分档而非按增量分档，
+            # 10 块单独成单落到小单档(40/30/30)，挂到 2000 的大单则是(20/40/40)。
+            # 接受 HID(如 H1144) 或数字ID，留空表示清除关联。
+            if 'related_header_id' in request.form:
+                raw_related = (request.form.get('related_header_id') or '').strip()
+                if not raw_related:
+                    header.related_header_id = None
+                else:
+                    related = None
+                    if raw_related.isdigit():
+                        related = ProjectHeader.query.get(int(raw_related))
+                    if related is None:
+                        related = ProjectHeader.query.filter_by(hid=raw_related).first()
+                    if related is None:
+                        raise ValueError(f'关联主单 {raw_related} 不存在')
+                    if related.id == header.id:
+                        raise ValueError('关联主单不能是本单自己')
+                    if related.related_header_id:
+                        # 只允许一层，避免调整单挂调整单导致档位追溯不明
+                        raise ValueError(f'{related.hid} 本身是调整单，不能作为主单')
+                    header.related_header_id = related.id
+
             # 处理操作员和业务员多选
             operator_ids = request.form.getlist('operator_ids')
             salesperson_ids = request.form.getlist('salesperson_ids')
