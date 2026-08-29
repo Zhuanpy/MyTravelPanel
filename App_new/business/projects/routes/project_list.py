@@ -2071,6 +2071,25 @@ def export_excel():
         return redirect(url_for('business_projects.list.list_projects'))
 
 
+@bp.route('/api/settle-blockers/<int:project_id>')
+@login_required
+@staff_only
+def settle_blockers(project_id):
+    """查询项目为什么不能结算（按需调用，避免列表页逐行查库）
+
+    页面上的「可结算」只是个是/否，卡住时看不出缺哪一步——
+    建了退款调整单却忘了开 EO 或没记收款，就会静默卡死。
+    """
+    project = ProjectHeader.query.get_or_404(project_id)
+    blockers = project.settle_blockers
+    return jsonify({
+        'success': True,
+        'hid': project.hid,
+        'can_settle': len(blockers) == 0,
+        'blockers': blockers
+    })
+
+
 @bp.route('/api/settle/<int:project_id>', methods=['POST'])
 @login_required
 @staff_only
@@ -2082,60 +2101,14 @@ def settle_project(project_id):
     try:
         project = ProjectHeader.query.get_or_404(project_id)
 
-        # 检查是否已结算
-        if project.is_settled:
-            return jsonify({'success': False, 'message': '该项目已结算'})
-
-        # 验证结算条件
-        from App_new.business.projects.models.eo import ProjectEO
-        from App_new.business.projects.models.invoice import InvoiceItem
-
-        # 1. 获取项目的所有 REF
-        refs = ProjectRef.query.filter_by(header_id=project_id).all()
-        ref_count = len(refs)
-
-        if ref_count == 0:
-            return jsonify({'success': False, 'message': '该项目没有 REF 记录，无法结算'})
-
-        # 2. 检查所有 REF 是否都有发票
-        ref_ids = [r.id for r in refs]
-        invoiced_ref_count = db.session.query(db.func.count(db.distinct(InvoiceItem.ref_id))).filter(
-            InvoiceItem.ref_id.in_(ref_ids)
-        ).scalar()
-
-        if invoiced_ref_count != ref_count:
+        # 验证结算条件：统一走 ProjectHeader.settle_blockers，
+        # 保证「拦下来的规则」和「页面上告诉用户的原因」永远是同一套。
+        blockers = project.settle_blockers
+        if blockers:
             return jsonify({
                 'success': False,
-                'message': f'有 {ref_count - invoiced_ref_count} 个 REF 未开发票'
-            })
-
-        # 3. 检查所有 EO 是否都已付款
-        eos = db.session.query(ProjectEO).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(
-            ProjectRef.header_id == project_id
-        ).all()
-
-        unpaid_eos = [eo for eo in eos if not eo.pay_amount or float(eo.pay_amount) <= 0]
-        if unpaid_eos:
-            return jsonify({
-                'success': False,
-                'message': f'有 {len(unpaid_eos)} 个 EO 未付款'
-            })
-
-        # 4. 检查 Balance 是否为 0
-        total_selling = sum(float(r.selling_price or 0) for r in refs)
-
-        # 计算已收款（简化版，与列表页一致）
-        receipts = ProjectReceipt.query.filter_by(
-            header_id=project_id,
-            status='confirmed'
-        ).all()
-        total_received = sum(float(r.amount or 0) for r in receipts)
-
-        balance = total_selling - total_received
-        if abs(balance) > 0.01:  # 考虑浮点精度
-            return jsonify({
-                'success': False,
-                'message': f'项目余额未清零，当前余额: S${balance:.2f}'
+                'message': '；'.join(blockers),
+                'blockers': blockers
             })
 
         # 执行结算

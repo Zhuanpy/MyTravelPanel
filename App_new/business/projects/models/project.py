@@ -468,6 +468,13 @@ class ProjectHeader(db.Model):
     sales_profit = db.Column(db.Numeric(12, 2), nullable=True, comment='业务员利润')
     company_profit = db.Column(db.Numeric(12, 2), nullable=True, comment='公司利润')
 
+    # 关联主单：退款/调整单指回它调整的原始订单。
+    # 分成规则是按**总利润**分档的，不是按增量分档：10 块单独成单落到小单档(40/30/30)，
+    # 并进 2000 的大单则是(20/40/40)，同一笔钱分成差一倍。结算时若本单挂了主单，
+    # 就用主单的利润决定档位，金额仍按本单利润分。
+    related_header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=True,
+                                  comment='关联主单ID(退款/调整单指回原订单)')
+
     # 操作员和业务员字段（利润分配关联人员，支持多选，逗号分隔）
     operator_ids = db.Column(db.String(200), nullable=True, comment='操作员ID列表(逗号分隔)')
     operator_names = db.Column(db.String(500), nullable=True, comment='操作员姓名列表(逗号分隔)')
@@ -484,6 +491,11 @@ class ProjectHeader(db.Model):
 
     # 经办人关联
     staff = db.relationship('AuthUser', foreign_keys=[staff_id])
+
+    # 关联主单（自关联）：related.adjustments 可拿到该主单下的所有调整单
+    related_header = db.relationship('ProjectHeader', remote_side=[id],
+                                     foreign_keys=[related_header_id],
+                                     backref='adjustments')
 
     @property
     def staff_display_name(self):
@@ -557,6 +569,7 @@ class ProjectHeader(db.Model):
             'operator_profit': float(self.operator_profit) if self.operator_profit else None,
             'sales_profit': float(self.sales_profit) if self.sales_profit else None,
             'company_profit': float(self.company_profit) if self.company_profit else None,
+            'related_header_id': self.related_header_id,
             'operator_ids': self.operator_ids,
             'operator_names': self.operator_names,
             'salesperson_ids': self.salesperson_ids,
@@ -706,6 +719,83 @@ class ProjectHeader(db.Model):
         # 混合类型
         else:
             self.type = 'package'
+
+    # 退款调整类型的 REF 不要求开发票：它记的是「供应商退回额(sell) / 退客户额(cost)」，
+    # 不产生对客户的应收，开不出发票。没有这条豁免，退款调整单永远结算不了。
+    REFUND_REF_TYPE_CODE = 'refund'
+
+    @property
+    def settle_blockers(self):
+        """列出阻止本项目结算的具体原因，空列表表示可以结算
+
+        口径与真正执行结算的 settle_project 保持一致——那里才是闸门。
+        原先各处 can_settle 只返回 True/False，卡住时页面不说是哪一步没做完，
+        建了退款调整单却忘了开 EO/收款就会静默卡死。
+        """
+        from .ref import ProjectRef
+        from .eo import ProjectEO
+        from .invoice import InvoiceItem
+        from .receipt import ProjectReceipt
+        from App_new.shared.models.business_types import BusinessType
+        from App_new.exts import db
+
+        if self.is_settled:
+            return ['项目已结算']
+
+        refs = ProjectRef.query.filter_by(header_id=self.id).all()
+        if not refs:
+            return ['项目没有 REF 记录']
+
+        blockers = []
+
+        # 1. 发票：退款调整类型豁免
+        refund_type_ids = {
+            t.id for t in BusinessType.query.filter_by(code=self.REFUND_REF_TYPE_CODE).all()
+        }
+        need_invoice = [r for r in refs if r.ref_type_id not in refund_type_ids]
+        if need_invoice:
+            invoiced_ids = {
+                row[0] for row in db.session.query(InvoiceItem.ref_id).filter(
+                    InvoiceItem.ref_id.in_([r.id for r in need_invoice])
+                ).distinct().all()
+            }
+            missing = [r for r in need_invoice if r.id not in invoiced_ids]
+            if missing:
+                names = ', '.join(r.ref_number for r in missing[:5])
+                more = '...' if len(missing) > 5 else ''
+                blockers.append(f'有 {len(missing)} 个 REF 未开发票：{names}{more}')
+
+        # 2. EO：每条 REF 都要有 EO，且都已付款
+        eos = ProjectEO.query.filter(ProjectEO.ref_id.in_([r.id for r in refs])).all()
+        eo_by_ref = {eo.ref_id: eo for eo in eos}
+        no_eo = [r for r in refs if r.id not in eo_by_ref]
+        if no_eo:
+            names = ', '.join(r.ref_number for r in no_eo[:5])
+            more = '...' if len(no_eo) > 5 else ''
+            blockers.append(f'有 {len(no_eo)} 个 REF 未生成 EO：{names}{more}')
+
+        unpaid_eos = [eo for eo in eos if not eo.pay_amount or float(eo.pay_amount) <= 0]
+        if unpaid_eos:
+            names = ', '.join(eo.eo_number for eo in unpaid_eos[:5])
+            more = '...' if len(unpaid_eos) > 5 else ''
+            blockers.append(f'有 {len(unpaid_eos)} 个 EO 未付款：{names}{more}')
+
+        # 3. 余额：售价合计 − 已确认收款
+        total_selling = sum(float(r.selling_price or 0) for r in refs)
+        total_received = float(
+            db.session.query(db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)).filter(
+                ProjectReceipt.header_id == self.id,
+                ProjectReceipt.status == 'confirmed'
+            ).scalar() or 0
+        )
+        balance = total_selling - total_received
+        if abs(balance) > 0.01:
+            if balance > 0:
+                blockers.append(f'还有 S${balance:.2f} 未收款（售价 {total_selling:.2f} / 已收 {total_received:.2f}）')
+            else:
+                blockers.append(f'收款超出售价 S${-balance:.2f}（售价 {total_selling:.2f} / 已收 {total_received:.2f}）')
+
+        return blockers
 
     @property
     def can_settle(self):

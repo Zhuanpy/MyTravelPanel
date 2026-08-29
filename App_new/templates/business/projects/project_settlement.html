@@ -409,6 +409,10 @@
                         <span class="badge badge-warning">可结算</span>
                     {% else %}
                         <span class="badge badge-secondary">未结算</span>
+                        <br>
+                        <a href="javascript:void(0)" class="why-blocked"
+                           onclick="showSettleBlockers({{ project.id }}, '{{ project.hid }}')"
+                           style="font-size: 0.75rem; color: #1976D2;">为什么？</a>
                     {% endif %}
                 </td>
             </tr>
@@ -568,6 +572,25 @@
 
 {% block extra_js %}
 <script>
+    // 查项目为什么不能结算。按需请求，不在列表渲染时逐行查库。
+    function showSettleBlockers(projectId, hid) {
+        fetch(`/projects/list/api/settle-blockers/${projectId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.message || '查询失败');
+                    return;
+                }
+                if (data.can_settle) {
+                    alert(`${hid} 已满足结算条件，可以结算。`);
+                    return;
+                }
+                alert(`${hid} 暂时不能结算，还差：\n\n` +
+                      data.blockers.map((b, i) => `${i + 1}. ${b}`).join('\n'));
+            })
+            .catch(() => alert('网络错误，查询失败'));
+    }
+
     function toggleSelectAll() {
         const selectAll = document.getElementById('selectAll');
         const checkboxes = document.querySelectorAll('.record-checkbox');
