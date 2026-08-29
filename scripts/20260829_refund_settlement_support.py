@@ -104,6 +104,19 @@ def main():
                 )).scalar()
                 if exists:
                     print('[SKIP] business_types 已有 refund (id=%s)' % exists)
+                    # 补 sort_order：留空的话 MySQL 升序排序把 NULL 排最前，
+                    # 「退款调整」会跑到业务类型下拉的第一个
+                    if 'sort_order' in _columns(conn, 'business_types'):
+                        null_sort = conn.execute(text(
+                            "SELECT sort_order IS NULL FROM business_types WHERE code = 'refund'"
+                        )).scalar()
+                        if null_sort:
+                            conn.execute(text(
+                                "UPDATE business_types SET sort_order = "
+                                "(SELECT * FROM (SELECT COALESCE(MAX(sort_order), 0) + 10 "
+                                " FROM business_types) AS t) WHERE code = 'refund'"
+                            ))
+                            print('[OK] 已补 business_types.refund 的 sort_order')
                 else:
                     cols = _columns(conn, 'business_types')
                     fields = ['code', 'name']
@@ -115,6 +128,12 @@ def main():
                     if 'is_active' in cols:
                         fields.append('is_active')
                         values['is_active'] = 1
+                    if 'sort_order' in cols:
+                        # 排在现有类型最后；留空的话 NULL 会被排到下拉最前面
+                        fields.append('sort_order')
+                        values['sort_order'] = (conn.execute(text(
+                            "SELECT COALESCE(MAX(sort_order), 0) + 10 FROM business_types"
+                        )).scalar())
                     col_sql = ', '.join(fields)
                     val_sql = ', '.join(':' + f for f in fields)
                     conn.execute(text(

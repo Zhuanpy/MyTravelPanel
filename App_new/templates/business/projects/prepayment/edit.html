@@ -71,7 +71,8 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label">支付方式</label>
                         <select name="payment_method" class="form-select">
-                            {% set method_options = [('bank_transfer', '银行转账'), ('credit_card', '信用卡'), ('paynow', 'PayNow'), ('cash', '现金'), ('other', '其他')] %}
+                            {# 供应商退款：钱没实际动，只是供应商把额度挂回来，不参与银行对账 #}
+                            {% set method_options = [('bank_transfer', '银行转账'), ('credit_card', '信用卡'), ('paynow', 'PayNow'), ('cash', '现金'), ('refund', '供应商退款'), ('other', '其他')] %}
                             {% for value, label in method_options %}
                             <option value="{{ value }}" {% if prepayment.payment_method == value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}

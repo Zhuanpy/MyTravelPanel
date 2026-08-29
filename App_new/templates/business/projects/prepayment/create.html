@@ -71,6 +71,9 @@
                             <option value="credit_card" {% if copy_data and copy_data.payment_method == 'credit_card' %}selected{% endif %}>信用卡</option>
                             <option value="paynow" {% if copy_data and copy_data.payment_method == 'paynow' %}selected{% endif %}>PayNow</option>
                             <option value="cash" {% if copy_data and copy_data.payment_method == 'cash' %}selected{% endif %}>现金</option>
+                            {# 供应商退款：钱没实际动，只是供应商把额度挂回来。
+                               这类记录不参与银行对账，统计现金充值时也应排除 #}
+                            <option value="refund" {% if copy_data and copy_data.payment_method == 'refund' %}selected{% endif %}>供应商退款（非现金充值）</option>
                             <option value="other" {% if copy_data and copy_data.payment_method == 'other' %}selected{% endif %}>其他</option>
                         </select>
                     </div>
