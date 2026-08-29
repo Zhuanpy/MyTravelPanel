@@ -11,161 +11,131 @@
 {% endblock %}
 
 {% block header_actions %}
-<div style="display: flex; gap: 12px;">
+<div style="display: flex; gap: 14px; align-items: center;">
+    <a href="{{ url_for('mobile.edit_project', project_id=project.id) }}" title="编辑项目"><i class="fas fa-pen"></i></a>
     {% if prev_project %}
-    <a href="{{ url_for('mobile.project_detail', project_id=prev_project.id) }}" style="color: white; font-size: 18px;" title="上一个">
-        <i class="fas fa-chevron-left"></i>
-    </a>
+    <a href="{{ url_for('mobile.project_detail', project_id=prev_project.id) }}" title="上一个"><i class="fas fa-chevron-left"></i></a>
     {% endif %}
     {% if next_project %}
-    <a href="{{ url_for('mobile.project_detail', project_id=next_project.id) }}" style="color: white; font-size: 18px;" title="下一个">
-        <i class="fas fa-chevron-right"></i>
-    </a>
+    <a href="{{ url_for('mobile.project_detail', project_id=next_project.id) }}" title="下一个"><i class="fas fa-chevron-right"></i></a>
     {% endif %}
 </div>
 {% endblock %}
 
 {% block content %}
-<!-- 项目信息 + 财务 -->
-<div class="mobile-card" style="padding-bottom:0;">
-    <div style="display:flex; align-items:center; gap:6px; font-size:13px; color:#64748b; flex-wrap:nowrap; overflow:hidden;">
-        <span style="color:#1e293b; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:40%;">{{ project.display_desc or '无描述' }}</span>
-        <span style="color:#d1d5db;">·</span>
-        <span><i class="fas fa-building" style="font-size:11px; color:#94a3b8; margin-right:3px;"></i>{{ project.company.company_name if project.company else '个人' }}</span>
-        <span style="color:#d1d5db;">·</span>
-        <span><i class="fas fa-user" style="font-size:11px; color:#94a3b8; margin-right:3px;"></i>{{ project.contact or project.staff_display_name }}</span>
+<!-- 项目概要 -->
+<div class="mobile-card summary-card">
+    <div class="summary-top">
+        <div class="summary-desc">{{ project.display_desc or '无描述' }}</div>
+        <button type="button" class="status-badge status-{{ project.status }}" id="statusBadge" onclick="openStatusSheet()">
+            {% if project.status == 'completed' %}已完成
+            {% elif project.status == 'cancelled' %}已取消
+            {% elif project.status == 'draft' %}草稿
+            {% else %}进行中{% endif %}
+            <i class="fas fa-caret-down"></i>
+        </button>
     </div>
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <a href="{{ url_for('mobile.edit_project', project_id=project.id) }}" style="font-size:12px; color:#94a3b8; text-decoration:none;"><i class="fas fa-edit" style="margin-right:3px;"></i>编辑项目</a>
-            <span style="font-size:11px; color:#d1d5db;">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</span>
-        </div>
-        <div>
-            <span class="status-badge status-{{ project.status }}">
-                {% if project.status == 'completed' %}已完成
-                {% elif project.status == 'cancelled' %}已取消
-                {% elif project.status == 'draft' %}草稿
-                {% else %}进行中{% endif %}
-            </span>
-            {% if project.is_settled %}
-            <span class="status-badge" style="background:#f0fdf4; color:#16a34a;">已结算</span>
-            {% endif %}
-        </div>
-    </div>
-</div>
 
-<!-- 人员名单 -->
-{% if members %}
-<div class="mobile-card" style="padding:8px 12px;">
-    <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
-        <span style="font-size:12px; color:#94a3b8; margin-right:4px;"><i class="fas fa-users"></i> 人员:</span>
-        {% for member in members %}
-        <span style="font-size:12px; {% if member.is_leader %}color:#16a34a; font-weight:600;{% else %}color:#475569;{% endif %}">
-            {% if member.title %}{{ member.title }} {% endif %}{{ member.member_name }}{% if not loop.last %}、{% endif %}
-        </span>
-        {% endfor %}
+    <div class="summary-meta">
+        <span class="meta-item"><i class="fas fa-building"></i>{{ project.company.company_name if project.company else '个人' }}</span>
+        <span class="meta-item"><i class="fas fa-user"></i>{{ project.contact or project.staff_display_name }}</span>
+        <span class="meta-item"><i class="fas fa-calendar"></i>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}</span>
+        {% if project.is_settled %}
+        <span class="meta-item settled"><i class="fas fa-check-circle"></i>已结算</span>
+        {% endif %}
     </div>
+
+    {% if members %}
+    <div class="summary-members">
+        <i class="fas fa-users"></i>
+        {% for member in members %}<span class="member {% if member.is_leader %}leader{% endif %}">{% if member.title %}{{ member.title }} {% endif %}{{ member.member_name }}</span>{% if not loop.last %}<span class="member-sep">、</span>{% endif %}{% endfor %}
+    </div>
+    {% endif %}
 </div>
-{% endif %}
 
 <!-- 财务汇总 -->
 <div class="finance-summary">
     <div class="finance-item">
         <div class="finance-label">售价</div>
-        <div class="finance-value selling">{{ "%.0f"|format(project.total_selling_amount or 0) }}</div>
+        <div class="finance-value selling">{{ "%.0f"|format(finance.selling) }}</div>
     </div>
     <div class="finance-item">
         <div class="finance-label">成本</div>
-        <div class="finance-value cost">{{ "%.0f"|format(project.total_cost_amount or 0) }}</div>
+        <div class="finance-value cost">{{ "%.0f"|format(finance.cost) }}</div>
     </div>
     <div class="finance-item">
         <div class="finance-label">利润</div>
-        <div class="finance-value {% if project.total_profit >= 0 %}profit{% else %}loss{% endif %}">
-            {{ "%.0f"|format(project.total_profit or 0) }}
-        </div>
+        <div class="finance-value {% if finance.profit >= 0 %}profit{% else %}loss{% endif %}">{{ "%.0f"|format(finance.profit) }}</div>
     </div>
     <div class="finance-item">
-        <div class="finance-label">未付</div>
-        <div class="finance-value unpaid">{{ "%.0f"|format(project.total_unpaid_amount or 0) }}</div>
+        <div class="finance-label">未收</div>
+        <div class="finance-value {% if finance.unpaid > 0 %}unpaid{% endif %}">{{ "%.0f"|format(finance.unpaid) }}</div>
     </div>
 </div>
 
-<!-- 操作按钮 -->
-<div style="display:flex; gap:8px; margin-bottom:12px;">
-    <a href="{{ url_for('mobile.project_invoices', project_id=project.id) }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; background:white; border-radius:8px; text-decoration:none; color:#16a34a; font-size:13px; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+<!-- 发票 / 收款 -->
+<div class="quick-links">
+    <a href="{{ url_for('mobile.project_invoices', project_id=project.id) }}" class="quick-link invoice">
         <i class="fas fa-file-invoice"></i> 发票
     </a>
-    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; background:white; border-radius:8px; text-decoration:none; color:#2563eb; font-size:13px; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+    <a href="{{ url_for('mobile.project_receipts', project_id=project.id) }}" class="quick-link receipt">
         <i class="fas fa-money-bill-wave"></i> 收款
     </a>
 </div>
 
-<!-- 添加REF + REF列表 -->
+<!-- REF 明细 -->
 <div class="mobile-card">
     <div class="mobile-card-title">
         <i class="fas fa-list-alt"></i>
         <span style="flex: 1;">REF明细 ({{ refs|length }})</span>
+        <button type="button" class="add-ref-toggle" onclick="toggleAddRef()">
+            <i class="fas fa-plus"></i> 添加
+        </button>
     </div>
-    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:4px; margin-bottom:8px;">
-        <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-plane" style="color:#3b82f6; font-size:13px;"></i>机票</a>
-        <a href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-bed" style="color:#8b5cf6; font-size:13px;"></i>酒店</a>
-        <a href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-passport" style="color:#10b981; font-size:13px;"></i>签证</a>
-        <a href="{{ url_for('business_projects.project_ref.create_tour_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-map-marked-alt" style="color:#f59e0b; font-size:13px;"></i>旅游</a>
-        <a href="{{ url_for('business_projects.project_ref.create_insurance_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-shield-alt" style="color:#ec4899; font-size:13px;"></i>保险</a>
-        <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=project.id) }}" style="display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; background:#f8fafc; border-radius:6px; text-decoration:none; color:#475569; font-size:10px;"><i class="fas fa-plus" style="color:#94a3b8; font-size:13px;"></i>其他</a>
+
+    <div class="add-ref-grid" id="addRefGrid">
+        <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=project.id) }}" class="add-ref-btn"><i class="fas fa-plane" style="color:#3b82f6;"></i>机票</a>
+        <a href="{{ url_for('business_projects.project_ref.create_hotel_ref', header_id=project.id) }}" class="add-ref-btn"><i class="fas fa-bed" style="color:#8b5cf6;"></i>酒店</a>
+        <a href="{{ url_for('business_projects.project_ref.create_visa_ref', header_id=project.id) }}" class="add-ref-btn"><i class="fas fa-passport" style="color:#10b981;"></i>签证</a>
+        <a href="{{ url_for('business_projects.project_ref.create_tour_ref', header_id=project.id) }}" class="add-ref-btn"><i class="fas fa-map-marked-alt" style="color:#f59e0b;"></i>旅游</a>
+        <a href="{{ url_for('business_projects.project_ref.create_insurance_ref', header_id=project.id) }}" class="add-ref-btn"><i class="fas fa-shield-alt" style="color:#ec4899;"></i>保险</a>
+        <a href="{{ url_for('business_projects.project_ref.create_other_ref', header_id=project.id) }}" class="add-ref-btn"><i class="fas fa-ellipsis-h" style="color:#94a3b8;"></i>其他</a>
     </div>
 
     {% if refs %}
     <div class="ref-list">
         {% for ref in refs %}
-        <div class="ref-item" style="background:#f8fafc; border-radius:8px; padding:10px; margin-bottom:6px;">
-            <div style="display:flex; flex-wrap:wrap; gap:4px 0;">
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">REF</div>
-                    <div style="font-size:12px; font-weight:600; color:#1e293b;">{{ ref.ref_number }}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">类型</div>
-                    <div style="font-size:12px; color:{{ ref.ref_type.color if ref.ref_type and ref.ref_type.color else '#666' }};">
-                        <i class="fas fa-{% if ref.ref_type and ref.ref_type.code == 'AIR' %}plane{% elif ref.ref_type and ref.ref_type.code == 'HTL' %}bed{% elif ref.ref_type and ref.ref_type.code == 'VSA' %}passport{% elif ref.ref_type and ref.ref_type.code == 'INS' %}shield-alt{% elif ref.ref_type and ref.ref_type.code == 'TRN' %}car{% elif ref.ref_type and ref.ref_type.code == 'TUR' %}map-marked-alt{% elif ref.ref_type and ref.ref_type.code == 'ATT' %}ticket-alt{% else %}file-alt{% endif %}" style="font-size:10px; margin-right:2px;"></i>{{ ref.ref_type.name if ref.ref_type else '其他' }}
-                    </div>
-                </div>
-                <div style="width:60%; min-width:100px;">
-                    <div style="font-size:10px; color:#94a3b8;">名称</div>
-                    <div style="font-size:12px; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ ref.description or ref.detailed_description or '-' }}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">Invoice</div>
-                    <div style="font-size:12px; color:#16a34a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if ref._invoice_numbers %}{{ ref._invoice_numbers|join(', ') }}{% else %}-{% endif %}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">EO</div>
-                    <div style="font-size:12px; color:#1d4ed8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if ref._eo_list %}{{ ref._eo_list|map(attribute='eo_number')|join(', ') }}{% else %}-{% endif %}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">售价</div>
-                    <div style="font-size:12px; font-weight:600; color:#1e293b;">{{ "%.0f"|format(ref.selling_price or 0) }}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">成本</div>
-                    <div style="font-size:12px; color:#64748b;">{{ "%.0f"|format(ref.cost_price or 0) }}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">利润</div>
-                    {% set ref_profit = (ref.selling_price or 0) - (ref.cost_price or 0) %}
-                    <div style="font-size:12px; font-weight:600;" class="ref-profit {% if ref_profit >= 0 %}positive{% else %}negative{% endif %}">{% if ref_profit >= 0 %}+{% endif %}{{ "%.0f"|format(ref_profit) }}</div>
-                </div>
-                <div style="width:20%; min-width:50px;">
-                    <div style="font-size:10px; color:#94a3b8;">未付款</div>
-                    {% set ref_unpaid = (ref.selling_price or 0) - (ref.total_received if ref.total_received is defined else 0) %}
-                    <div style="font-size:12px; font-weight:600; color:{% if ref.payment_status == 'paid' %}#16a34a{% elif ref.payment_status == 'partial' %}#d97706{% else %}#dc2626{% endif %};">
-                        {% if ref.payment_status == 'paid' %}0{% else %}{{ "%.0f"|format(ref.unpaid_amount if ref.unpaid_amount is defined else (ref.selling_price or 0)) }}{% endif %}
-                    </div>
-                </div>
-                <div style="width:40%; min-width:80px;">
-                    <div style="font-size:10px; color:#94a3b8;">供应商</div>
-                    <div style="font-size:12px; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if ref.supplier %}{{ ref.supplier.company_name }}{% else %}-{% endif %}</div>
-                </div>
+        {% set ref_profit = (ref.selling_price or 0) - (ref.cost_price or 0) %}
+        <div class="ref-item">
+            <div class="ref-row-top">
+                <span class="ref-type-icon" style="color: {{ ref.ref_type.color if ref.ref_type and ref.ref_type.color else '#64748b' }};">
+                    <i class="fas fa-{% if ref.ref_type and ref.ref_type.code == 'AIR' %}plane{% elif ref.ref_type and ref.ref_type.code == 'HTL' %}bed{% elif ref.ref_type and ref.ref_type.code == 'VSA' %}passport{% elif ref.ref_type and ref.ref_type.code == 'INS' %}shield-alt{% elif ref.ref_type and ref.ref_type.code == 'TRN' %}car{% elif ref.ref_type and ref.ref_type.code == 'TUR' %}map-marked-alt{% elif ref.ref_type and ref.ref_type.code == 'ATT' %}ticket-alt{% else %}file-alt{% endif %}"></i>
+                </span>
+                <span class="ref-number">{{ ref.ref_number }}</span>
+                <span class="ref-type-name">{{ ref.ref_type.name if ref.ref_type else '其他' }}</span>
+                <span class="ref-selling">{{ "%.0f"|format(ref.selling_price or 0) }}</span>
+            </div>
+
+            <div class="ref-desc">{{ ref.description or ref.detailed_description or '-' }}</div>
+
+            <div class="ref-figures">
+                <span>成本 <b>{{ "%.0f"|format(ref.cost_price or 0) }}</b></span>
+                <span class="dot">·</span>
+                <span>利润 <b class="{% if ref_profit >= 0 %}positive{% else %}negative{% endif %}">{% if ref_profit >= 0 %}+{% endif %}{{ "%.0f"|format(ref_profit) }}</b></span>
+                <span class="dot">·</span>
+                <span>未收 <b class="{% if ref._unpaid > 0 %}negative{% else %}positive{% endif %}">{{ "%.0f"|format(ref._unpaid) }}</b></span>
+            </div>
+
+            <div class="ref-tags">
+                {% if ref._invoice_numbers %}
+                <span class="ref-tag tag-inv"><i class="fas fa-file-invoice"></i>{{ ref._invoice_numbers|join(', ') }}</span>
+                {% endif %}
+                {% if ref._eo_list %}
+                <span class="ref-tag tag-eo"><i class="fas fa-receipt"></i>{{ ref._eo_list|map(attribute='eo_number')|join(', ') }}</span>
+                {% endif %}
+                {% if ref.supplier %}
+                <span class="ref-tag tag-sup"><i class="fas fa-truck"></i>{{ ref.supplier.company_name }}</span>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -178,23 +148,21 @@
     {% endif %}
 </div>
 
-<!-- 备注信息 -->
-{% if project.remarks %}
+<!-- 备注：可就地编辑 -->
 <div class="mobile-card">
-    <div class="mobile-card-title" onclick="toggleSection('remarks-section')" style="cursor: pointer;">
+    <div class="mobile-card-title">
         <i class="fas fa-sticky-note"></i>
         <span style="flex: 1;">备注</span>
-        <i class="fas fa-chevron-down toggle-icon" id="remarks-toggle"></i>
+        <button type="button" class="inline-edit-btn" onclick="openRemarksSheet()">
+            <i class="fas fa-pen"></i> 编辑
+        </button>
     </div>
-    <div id="remarks-section" class="collapsible-section">
-        <div class="remarks-content">{{ project.remarks }}</div>
-    </div>
+    <div class="remarks-content" id="remarksContent">{{ project.remarks or '（无备注）' }}</div>
 </div>
-{% endif %}
 
 <!-- 提醒 -->
 {% if project.reminder_event %}
-<div class="mobile-card">
+<div class="mobile-card" style="padding: 12px;">
     <div class="reminder-bar">
         <i class="fas fa-bell"></i>
         <span>{{ project.reminder_event }}</span>
@@ -203,72 +171,292 @@
 </div>
 {% endif %}
 
+<!-- 底部弹出面板：改状态 -->
+<div class="sheet-mask" id="sheetMask" onclick="closeSheets()"></div>
+
+<div class="sheet" id="statusSheet">
+    <div class="sheet-title">项目状态</div>
+    {% for value, label in [('active', '进行中'), ('completed', '已完成'), ('draft', '草稿'), ('cancelled', '已取消')] %}
+    <button type="button" class="sheet-option {% if project.status == value %}current{% endif %}" data-value="{{ value }}" onclick="saveStatus('{{ value }}', '{{ label }}')">
+        {{ label }}
+        <i class="fas fa-check"></i>
+    </button>
+    {% endfor %}
+    <button type="button" class="sheet-cancel" onclick="closeSheets()">取消</button>
+</div>
+
+<!-- 底部弹出面板：改备注 -->
+<div class="sheet" id="remarksSheet">
+    <div class="sheet-title">备注</div>
+    <textarea id="remarksInput" class="sheet-textarea" rows="4" placeholder="项目备注...">{{ project.remarks or '' }}</textarea>
+    <div class="sheet-actions">
+        <button type="button" class="sheet-cancel-btn" onclick="closeSheets()">取消</button>
+        <button type="button" class="sheet-save-btn" id="remarksSaveBtn" onclick="saveRemarks()">保存</button>
+    </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    .project-header {
+    /* ---------- 项目概要 ---------- */
+    .summary-card { padding: 12px 14px; margin-bottom: 10px; }
+
+    .summary-top {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        margin-bottom: 8px;
+        gap: 10px;
     }
 
-    .project-hid {
-        font-size: 22px;
-        font-weight: 700;
-        color: #198754;
+    .summary-desc {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1e293b;
+        line-height: 1.4;
+        min-width: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
+    .summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .meta-item { display: inline-flex; align-items: center; gap: 4px; }
+    .meta-item i { color: #94a3b8; font-size: 11px; }
+    .meta-item.settled { color: #16a34a; }
+    .meta-item.settled i { color: #16a34a; }
+
+    .summary-members {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+        font-size: 12px;
+        color: #475569;
+        line-height: 1.6;
+    }
+
+    .summary-members > i { color: #94a3b8; margin-right: 5px; }
+    .member.leader { color: #16a34a; font-weight: 600; }
+    .member-sep { color: #cbd5e1; }
+
+    /* 状态徽章（可点开改） */
     .status-badge {
-        padding: 4px 10px;
+        flex-shrink: 0;
+        padding: 5px 10px;
         border-radius: 12px;
         font-size: 12px;
-        font-weight: 500;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
 
+    .status-badge i { font-size: 10px; opacity: 0.6; }
     .status-active { background: #dbeafe; color: #1d4ed8; }
     .status-completed { background: #dcfce7; color: #16a34a; }
     .status-cancelled { background: #fee2e2; color: #dc2626; }
     .status-draft { background: #f3f4f6; color: #6b7280; }
 
-    .project-desc {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 12px;
-        line-height: 1.5;
+    /* ---------- 财务汇总 ---------- */
+    .finance-summary {
+        display: flex;
+        background: white;
+        border-radius: 12px;
+        padding: 10px 4px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
 
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-    }
+    .finance-item { flex: 1; text-align: center; border-right: 1px solid #f1f5f9; }
+    .finance-item:last-child { border-right: none; }
+    .finance-label { font-size: 12px; color: #94a3b8; margin-bottom: 2px; }
+    .finance-value { font-size: 16px; font-weight: 700; color: #1e293b; }
+    .finance-value.cost { color: #64748b; }
+    .finance-value.profit { color: #16a34a; }
+    .finance-value.loss { color: #dc2626; }
+    .finance-value.unpaid { color: #d97706; }
 
-    .info-item {
+    /* ---------- 发票 / 收款 ---------- */
+    .quick-links { display: flex; gap: 10px; margin-bottom: 10px; }
+
+    .quick-link {
+        flex: 1;
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: #666;
-        padding: 6px 8px;
-        background: #f8f9fa;
-        border-radius: 6px;
+        justify-content: center;
+        gap: 6px;
+        padding: 12px;
+        background: white;
+        border-radius: 12px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
 
-    .info-item i {
-        width: 14px;
-        color: #999;
+    .quick-link:active { background: #f8fafc; }
+    .quick-link.invoice { color: #16a34a; }
+    .quick-link.receipt { color: #2563eb; }
+
+    /* ---------- 添加 REF ---------- */
+    .add-ref-toggle, .inline-edit-btn {
+        background: #f1f5f9;
+        border: none;
+        border-radius: 14px;
+        padding: 5px 12px;
         font-size: 12px;
+        color: #475569;
+        cursor: pointer;
+    }
+
+    .add-ref-toggle:active, .inline-edit-btn:active { background: #e2e8f0; }
+
+    .add-ref-grid {
+        display: none;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .add-ref-grid.open { display: grid; }
+
+    .add-ref-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 4px;
+        background: #f8fafc;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #475569;
+        font-size: 12px;
+    }
+
+    .add-ref-btn i { font-size: 16px; }
+    .add-ref-btn:active { background: #e2e8f0; }
+
+    /* ---------- REF 卡片 ---------- */
+    /* 原来用 width:20%/60% + flex-wrap 拼成假表格，手机宽度下必然错行对不齐，
+       改成每个 REF 一张自适应小卡。 */
+    .ref-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .ref-item {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+
+    .ref-row-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ref-type-icon { font-size: 13px; flex-shrink: 0; }
+
+    .ref-number {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        flex-shrink: 0;
+    }
+
+    .ref-type-name {
+        font-size: 12px;
+        color: #64748b;
+        background: #eef2f7;
+        border-radius: 4px;
+        padding: 1px 6px;
+        flex-shrink: 0;
+    }
+
+    .ref-selling {
+        margin-left: auto;
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        flex-shrink: 0;
+    }
+
+    .ref-desc {
+        font-size: 13px;
+        color: #334155;
+        margin-top: 5px;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .ref-figures {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .ref-figures b { color: #1e293b; font-weight: 600; }
+    .ref-figures .dot { color: #cbd5e1; }
+    .ref-figures b.positive { color: #16a34a; }
+    .ref-figures b.negative { color: #dc2626; }
+
+    .ref-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+
+    .ref-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: #eef2f7;
+        color: #64748b;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ref-tag.tag-inv { background: #f0fdf4; color: #16a34a; }
+    .ref-tag.tag-eo { background: #eff6ff; color: #1d4ed8; }
+
+    /* ---------- 其他 ---------- */
+    .empty-hint { text-align: center; padding: 24px; color: #999; }
+    .empty-hint i { font-size: 32px; margin-bottom: 8px; display: block; }
+    .empty-hint p { margin: 0; font-size: 14px; }
+
+    .remarks-content {
+        padding: 10px;
+        background: #f8fafc;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.6;
+        white-space: pre-wrap;
     }
 
     .reminder-bar {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 12px;
         padding: 8px 12px;
         background: #fffbeb;
         border: 1px solid #fcd34d;
@@ -280,222 +468,93 @@
     .reminder-bar i { color: #f59e0b; }
     .reminder-date { margin-left: auto; color: #b45309; }
 
-    /* 财务汇总 */
-    .finance-summary {
-        display: flex;
+    /* ---------- 底部弹出面板 ---------- */
+    .sheet-mask {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.4);
+        z-index: 1100;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+    }
+
+    .sheet-mask.show { opacity: 1; pointer-events: auto; }
+
+    .sheet {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
         background: white;
-        border-radius: 10px;
-        padding: 10px 4px;
-        margin-bottom: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        border-radius: 16px 16px 0 0;
+        padding: 16px 16px calc(16px + var(--safe-area-bottom));
+        z-index: 1101;
+        transform: translateY(100%);
+        transition: transform 0.25s ease;
     }
 
-    .finance-item {
-        flex: 1;
-        text-align: center;
-        border-right: 1px solid #f1f5f9;
-    }
+    .sheet.show { transform: translateY(0); }
 
-    .finance-item:last-child { border-right: none; }
-
-    .finance-label {
-        font-size: 11px;
+    .sheet-title {
+        font-size: 14px;
+        font-weight: 600;
         color: #94a3b8;
-        margin-bottom: 2px;
-    }
-
-    .finance-value {
-        font-size: 14px;
-        font-weight: 700;
-        color: #1e293b;
-    }
-
-    .finance-value.selling { color: #1e293b; }
-    .finance-value.cost { color: #94a3b8; }
-    .finance-value.profit { color: #16a34a; }
-    .finance-value.loss { color: #dc2626; }
-    .finance-value.unpaid { color: #d97706; }
-
-    /* 可折叠区域 */
-    .collapsible-section {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
-    }
-
-    .collapsible-section.expanded {
-        max-height: 500px;
-    }
-
-    .toggle-icon {
-        transition: transform 0.3s ease;
-        color: #999;
-    }
-
-    .toggle-icon.rotated {
-        transform: rotate(180deg);
-    }
-
-    /* 人员列表 */
-    .members-list {
-        padding-top: 8px;
-    }
-
-    .member-item {
-        padding: 8px 10px;
-        background: #f8f9fa;
-        border-radius: 6px;
-        margin-bottom: 6px;
-    }
-
-    .member-item.is-leader {
-        background: #dcfce7;
-        border: 1px solid #86efac;
-    }
-
-    .member-name {
-        font-size: 14px;
-        font-weight: 500;
-        color: #333;
-    }
-
-    .leader-badge {
-        font-size: 10px;
-        background: #16a34a;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: 6px;
-    }
-
-    .member-role {
-        font-size: 12px;
-        color: #666;
-        margin-left: 8px;
-    }
-
-    /* REF列表 */
-    .ref-list { padding-top: 4px; }
-
-    .ref-item {
-        padding: 10px 0;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    .ref-item:last-child { border-bottom: none; }
-
-    .ref-number { font-size: 13px; font-weight: 600; color: #1e293b; }
-
-    .ref-type-badge {
-        font-size: 10px; padding: 2px 7px;
-        border-radius: 4px; font-weight: 500;
-        display: inline-flex; align-items: center;
-    }
-
-    .ref-desc {
-        font-size: 12px; color: #64748b;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-
-    .ref-finance { font-size: 12px; }
-    .ref-selling { color: #16a34a; font-weight: 600; }
-    .ref-separator { color: #d1d5db; margin: 0 3px; }
-    .ref-cost { color: #94a3b8; }
-    .ref-profit { margin-left: 3px; font-weight: 500; }
-    .ref-profit.positive { color: #16a34a; }
-    .ref-profit.negative { color: #dc2626; }
-
-    .ref-tags { display: flex; gap: 4px; flex-wrap: wrap; }
-    .ref-tag {
-        font-size: 10px; padding: 1px 6px; border-radius: 4px;
-        background: #f1f5f9; color: #64748b; white-space: nowrap;
-    }
-
-    /* 空状态 */
-    .empty-hint {
         text-align: center;
-        padding: 24px;
-        color: #999;
-    }
-
-    .empty-hint i {
-        font-size: 32px;
-        margin-bottom: 8px;
-        display: block;
-    }
-
-    .empty-hint p { margin: 0; font-size: 14px; }
-
-    /* 备注 */
-    .remarks-content {
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #666;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        margin-top: 8px;
-    }
-
-    /* 操作按钮 */
-    .action-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
         margin-bottom: 12px;
     }
 
-    .action-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 12px 8px;
-        background: white;
-        border-radius: 10px;
-        text-decoration: none;
-        color: #333;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    .action-card:active { background: #f8f9fa; }
-
-    .action-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+    .sheet-option {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 14px 12px;
         margin-bottom: 6px;
+        border: none;
+        border-radius: 10px;
+        background: #f8fafc;
+        font-size: 16px;
+        color: #1e293b;
+        cursor: pointer;
     }
 
-    .action-icon i { color: white; font-size: 18px; }
+    .sheet-option i { display: none; color: var(--primary-color); }
+    .sheet-option.current { background: #f0fdf4; color: #16a34a; font-weight: 600; }
+    .sheet-option.current i { display: inline; }
 
-    .action-card span { font-size: 12px; }
-
-    /* 添加REF */
-    .add-ref-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
+    .sheet-cancel, .sheet-cancel-btn, .sheet-save-btn {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
     }
 
-    .add-ref-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 12px 8px;
-        background: #f0fdf4;
-        border: 1px solid #86efac;
-        border-radius: 8px;
-        text-decoration: none;
-        color: #16a34a;
+    .sheet-cancel { background: white; color: #64748b; margin-top: 4px; }
+
+    .sheet-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 16px;
+        color: #334155;
+        line-height: 1.5;
+        resize: vertical;
+        font-family: inherit;
     }
 
-    .add-ref-btn:active { background: #dcfce7; }
+    .sheet-textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
 
-    .add-ref-btn i { font-size: 20px; margin-bottom: 4px; }
-    .add-ref-btn span { font-size: 12px; }
+    .sheet-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .sheet-cancel-btn { background: #f1f5f9; color: #64748b; }
+    .sheet-save-btn { background: var(--primary-color); color: white; font-weight: 600; }
+    .sheet-save-btn:disabled { opacity: 0.6; }
 
     /* Toast */
     .toast {
@@ -503,14 +562,15 @@
         bottom: 100px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(15, 23, 42, 0.88);
         color: white;
         padding: 10px 20px;
         border-radius: 20px;
         font-size: 14px;
         opacity: 0;
+        pointer-events: none;
         transition: opacity 0.3s;
-        z-index: 1000;
+        z-index: 1200;
     }
 
     .toast.show { opacity: 1; }
@@ -518,35 +578,85 @@
 {% endblock %}
 
 {% block extra_js %}
-    // 切换折叠区域
-    function toggleSection(sectionId) {
-        const section = document.getElementById(sectionId);
-        const toggleIcon = document.getElementById(sectionId.replace('-section', '-toggle'));
-
-        if (section.classList.contains('expanded')) {
-            section.classList.remove('expanded');
-            if (toggleIcon) toggleIcon.classList.remove('rotated');
-        } else {
-            section.classList.add('expanded');
-            if (toggleIcon) toggleIcon.classList.add('rotated');
-        }
-    }
-
-    // 页面加载时展开人员名单（如果有人员）
-    document.addEventListener('DOMContentLoaded', function() {
-        {% if members %}
-        toggleSection('members-section');
-        {% endif %}
-
-        {% if project.remarks %}
-        toggleSection('remarks-section');
-        {% endif %}
-    });
+    const SAVE_URL = '{{ url_for("mobile.edit_project", project_id=project.id) }}';
 
     function showToast(message) {
         const toast = document.getElementById('toast');
         toast.textContent = message;
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function toggleAddRef() {
+        document.getElementById('addRefGrid').classList.toggle('open');
+    }
+
+    // ---------- 底部弹出面板 ----------
+    function openSheet(id) {
+        document.getElementById('sheetMask').classList.add('show');
+        document.getElementById(id).classList.add('show');
+    }
+
+    function closeSheets() {
+        document.getElementById('sheetMask').classList.remove('show');
+        document.querySelectorAll('.sheet').forEach(el => el.classList.remove('show'));
+    }
+
+    function openStatusSheet() { openSheet('statusSheet'); }
+    function openRemarksSheet() { openSheet('remarksSheet'); }
+
+    // 只提交改动的字段，后端按 key 是否存在决定更新哪些列
+    async function patchProject(payload) {
+        const resp = await fetch(SAVE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
+        });
+        return resp.json();
+    }
+
+    const STATUS_CLASS = {
+        active: 'status-active',
+        completed: 'status-completed',
+        draft: 'status-draft',
+        cancelled: 'status-cancelled'
+    };
+
+    async function saveStatus(value, label) {
+        closeSheets();
+        try {
+            const data = await patchProject({ status: value });
+            if (!data.success) { showToast(data.message || '保存失败'); return; }
+
+            const badge = document.getElementById('statusBadge');
+            badge.className = 'status-badge ' + STATUS_CLASS[value];
+            badge.innerHTML = label + ' <i class="fas fa-caret-down"></i>';
+            document.querySelectorAll('#statusSheet .sheet-option').forEach(el => {
+                el.classList.toggle('current', el.dataset.value === value);
+            });
+            showToast('已改为「' + label + '」');
+        } catch (e) {
+            showToast('网络错误');
+        }
+    }
+
+    async function saveRemarks() {
+        const btn = document.getElementById('remarksSaveBtn');
+        const value = document.getElementById('remarksInput').value;
+        btn.disabled = true;
+        try {
+            const data = await patchProject({ remarks: value });
+            if (!data.success) { showToast(data.message || '保存失败'); return; }
+            document.getElementById('remarksContent').textContent = value || '（无备注）';
+            closeSheets();
+            showToast('备注已保存');
+        } catch (e) {
+            showToast('网络错误');
+        } finally {
+            btn.disabled = false;
+        }
     }
 {% endblock %}

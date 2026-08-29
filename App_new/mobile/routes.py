@@ -109,6 +109,7 @@ def projects():
     """移动端项目列表"""
     from App_new.business.projects.models.project import ProjectHeader
     from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.project_member import ProjectMember
     from datetime import datetime, timedelta
     from sqlalchemy import func
 
@@ -116,73 +117,109 @@ def projects():
     per_page = 20
 
     # 搜索参数
-    search = request.args.get('q', '')
+    search = (request.args.get('q', '') or '').strip()
     status = request.args.get('status', '')
     time_range = request.args.get('time', '')  # 时间筛选: today, week, month
 
-    # 基础查询
-    query = ProjectHeader.query
-
-    # 搜索过滤
-    if search:
-        query = query.filter(
-            db.or_(
-                ProjectHeader.hid.ilike(f'%{search}%'),
-                ProjectHeader.desc.ilike(f'%{search}%')
-            )
-        )
-
-    # 状态过滤
-    if status:
-        query = query.filter(ProjectHeader.status == status)
-
-    # 时间范围过滤
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    if time_range == 'today':
-        query = query.filter(ProjectHeader.created_at >= today)
-    elif time_range == 'week':
-        week_start = today - timedelta(days=today.weekday())
-        query = query.filter(ProjectHeader.created_at >= week_start)
-    elif time_range == 'month':
-        month_start = today.replace(day=1)
-        query = query.filter(ProjectHeader.created_at >= month_start)
 
-    # 分页查询
-    projects_paginated = query.order_by(ProjectHeader.created_at.desc()).paginate(
+    def scope_by_permission(query):
+        """按员工等级限制可见范围（口径与桌面端 project_list 一致）
+
+        原来手机端列表完全没做权限过滤，1级员工能在列表里看到全公司的项目和金额，
+        点进去才被 can_access_project 拦下。
+        """
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            if staff_level == 1:
+                query = query.filter(ProjectHeader.staff_id == current_user.id)
+        return query
+
+    def apply_filters(query, with_status=True):
+        """套用权限 + 搜索 + 时间（+可选状态）筛选"""
+        query = scope_by_permission(query)
+
+        if search:
+            query = query.filter(
+                db.or_(
+                    ProjectHeader.hid.ilike(f'%{search}%'),
+                    ProjectHeader.desc.ilike(f'%{search}%')
+                )
+            )
+
+        if with_status and status:
+            query = query.filter(ProjectHeader.status == status)
+
+        if time_range == 'today':
+            query = query.filter(ProjectHeader.created_at >= today)
+        elif time_range == 'week':
+            week_start = today - timedelta(days=today.weekday())
+            query = query.filter(ProjectHeader.created_at >= week_start)
+        elif time_range == 'month':
+            query = query.filter(ProjectHeader.created_at >= today.replace(day=1))
+
+        return query
+
+    # ---------- 当前页项目 ----------
+    projects_paginated = apply_filters(ProjectHeader.query).options(
+        db.joinedload(ProjectHeader.company),
+        db.selectinload(ProjectHeader.refs)
+    ).order_by(ProjectHeader.created_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
 
-    # 统计数据（基于搜索和时间筛选，但不受状态筛选影响）
-    stats_query = ProjectHeader.query
-    if search:
-        stats_query = stats_query.filter(
-            db.or_(
-                ProjectHeader.hid.ilike(f'%{search}%'),
-                ProjectHeader.desc.ilike(f'%{search}%')
-            )
+    # ---------- 卡片数据：整页批量算，避免每张卡都去查库 ----------
+    # 原实现每张卡要查 refs / members / 每个ref的发票和收款，一页轻松几百条SQL。
+    page_ids = [p.id for p in projects_paginated.items]
+    member_counts = {}
+    unpaid_by_project = {}
+    if page_ids:
+        member_counts = dict(
+            db.session.query(ProjectMember.header_id, func.count(ProjectMember.id))
+            .filter(ProjectMember.header_id.in_(page_ids))
+            .group_by(ProjectMember.header_id).all()
         )
-    if time_range == 'today':
-        stats_query = stats_query.filter(ProjectHeader.created_at >= today)
-    elif time_range == 'week':
-        week_start = today - timedelta(days=today.weekday())
-        stats_query = stats_query.filter(ProjectHeader.created_at >= week_start)
-    elif time_range == 'month':
-        month_start = today.replace(day=1)
-        stats_query = stats_query.filter(ProjectHeader.created_at >= month_start)
+        ref_unpaid = ProjectRef.get_refs_unpaid_bulk(page_ids)
+        for p in projects_paginated.items:
+            unpaid_by_project[p.id] = sum(ref_unpaid.get(r.id, 0.0) for r in p.refs)
 
-    # 计算各状态数量
-    total_count = stats_query.count()
-    processing_count = stats_query.filter(ProjectHeader.status.in_(['draft', 'active'])).count()
-    completed_count = stats_query.filter(ProjectHeader.status == 'completed').count()
-    today_count = ProjectHeader.query.filter(ProjectHeader.created_at >= today).count()
+    cards = {}
+    for p in projects_paginated.items:
+        selling = sum(float(r.selling_price or 0) for r in p.refs)
+        cards[p.id] = {
+            'ref_count': len(p.refs),
+            'member_count': member_counts.get(p.id, 0),
+            'selling': selling,
+            'unpaid': unpaid_by_project.get(p.id, 0.0),
+        }
 
-    # 计算金额汇总（当前筛选条件下）
-    total_selling = 0
-    total_cost = 0
-    for project in stats_query.all():
-        total_selling += project.total_selling_amount or 0
-        total_cost += project.total_cost_amount or 0
-    total_profit = total_selling - total_cost
+    # ---------- 统计汇总：交给数据库聚合，不再把全表对象取到内存 ----------
+    # 原实现是 `for project in stats_query.all()` 遍历全部命中项目再逐个走 @property，
+    # 无筛选时等于把整库项目连同 refs 全部加载一遍，首屏基本卡在这里。
+    stats_base = apply_filters(ProjectHeader.query, with_status=False)
+
+    total_count = stats_base.with_entities(func.count(ProjectHeader.id)).scalar() or 0
+    processing_count = stats_base.filter(
+        ProjectHeader.status.in_(['draft', 'active'])
+    ).with_entities(func.count(ProjectHeader.id)).scalar() or 0
+    completed_count = stats_base.filter(
+        ProjectHeader.status == 'completed'
+    ).with_entities(func.count(ProjectHeader.id)).scalar() or 0
+    today_count = scope_by_permission(ProjectHeader.query).filter(
+        ProjectHeader.created_at >= today
+    ).with_entities(func.count(ProjectHeader.id)).scalar() or 0
+
+    amount_query = db.session.query(
+        func.coalesce(func.sum(ProjectRef.selling_price), 0),
+        func.coalesce(func.sum(ProjectRef.cost_price), 0)
+    ).select_from(ProjectHeader).outerjoin(
+        ProjectRef, ProjectRef.header_id == ProjectHeader.id
+    )
+    total_selling, total_cost = apply_filters(amount_query, with_status=False).one()
+    total_selling = float(total_selling or 0)
+    total_cost = float(total_cost or 0)
 
     stats = {
         'total': total_count,
@@ -191,11 +228,12 @@ def projects():
         'today': today_count,
         'total_selling': total_selling,
         'total_cost': total_cost,
-        'total_profit': total_profit
+        'total_profit': total_selling - total_cost
     }
 
     return render_template('mobile/projects.html',
                          projects=projects_paginated,
+                         cards=cards,
                          search=search,
                          status=status,
                          time_range=time_range,
@@ -219,18 +257,53 @@ def project_detail(project_id):
         return redirect(url_for('mobile.projects'))
 
     # 获取REF列表
-    refs = ProjectRef.query.filter_by(header_id=project_id).all()
+    refs = ProjectRef.query.filter_by(header_id=project_id).options(
+        db.joinedload(ProjectRef.ref_type),
+        db.joinedload(ProjectRef.supplier)
+    ).all()
+    ref_ids = [r.id for r in refs]
 
-    # 预加载每个REF的EO和Invoice信息
+    # 预加载每个REF的EO / Invoice / 未收款
+    # 原来是在循环里逐个REF查库（EO一次、发票明细一次，模板里 unpaid_amount 再各查一轮），
+    # 现在整批一次查完再在内存里分组。
     from App_new.business.projects.models.eo import ProjectEO
     from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
+
+    eos_by_ref = {}
+    invoice_numbers_by_ref = {}
+    unpaid_by_ref = {}
+    if ref_ids:
+        for eo in ProjectEO.query.filter(ProjectEO.ref_id.in_(ref_ids)).all():
+            eos_by_ref.setdefault(eo.ref_id, []).append(eo)
+
+        invoice_rows = db.session.query(
+            InvoiceItem.ref_id, ProjectInvoice.invoice_number
+        ).join(
+            ProjectInvoice, InvoiceItem.invoice_id == ProjectInvoice.id
+        ).filter(
+            InvoiceItem.ref_id.in_(ref_ids),
+            ProjectInvoice.status != 'cancelled'
+        ).all()
+        for ref_id, invoice_number in invoice_rows:
+            if invoice_number:
+                invoice_numbers_by_ref.setdefault(ref_id, set()).add(invoice_number)
+
+        unpaid_by_ref = ProjectRef.get_refs_unpaid_bulk([project_id])
+
     for ref in refs:
-        ref._eo_list = ProjectEO.query.filter_by(ref_id=ref.id).all()
-        invoice_items = InvoiceItem.query.filter_by(ref_id=ref.id).all()
-        ref._invoice_numbers = list(set(
-            item.invoice.invoice_number for item in invoice_items
-            if item.invoice and item.invoice.status != 'cancelled'
-        ))
+        ref._eo_list = eos_by_ref.get(ref.id, [])
+        ref._invoice_numbers = sorted(invoice_numbers_by_ref.get(ref.id, set()))
+        ref._unpaid = unpaid_by_ref.get(ref.id, 0.0)
+
+    # 财务汇总（在内存里算，避免模板反复触发 @property 重新查库）
+    total_selling = sum(float(r.selling_price or 0) for r in refs)
+    total_cost = sum(float(r.cost_price or 0) for r in refs)
+    finance = {
+        'selling': total_selling,
+        'cost': total_cost,
+        'profit': total_selling - total_cost,
+        'unpaid': sum(ref._unpaid for ref in refs),
+    }
 
     # 获取人员列表
     members = ProjectMember.query.filter_by(header_id=project_id).order_by(
@@ -238,18 +311,28 @@ def project_detail(project_id):
         ProjectMember.id
     ).all()
 
-    # 上一个/下一个项目
-    prev_project = ProjectHeader.query.filter(
-        ProjectHeader.id < project_id
-    ).order_by(ProjectHeader.id.desc()).first()
+    # 上一个/下一个项目（限制在当前用户可见范围内，否则点"下一个"会被权限拦回列表）
+    def scoped(query):
+        if current_user.role and current_user.role.name == 'staff':
+            staff_level = 1
+            if current_user.profile:
+                staff_level = current_user.profile.staff_level or 1
+            if staff_level == 1:
+                query = query.filter(ProjectHeader.staff_id == current_user.id)
+        return query
 
-    next_project = ProjectHeader.query.filter(
+    prev_project = scoped(ProjectHeader.query.filter(
+        ProjectHeader.id < project_id
+    )).order_by(ProjectHeader.id.desc()).first()
+
+    next_project = scoped(ProjectHeader.query.filter(
         ProjectHeader.id > project_id
-    ).order_by(ProjectHeader.id.asc()).first()
+    )).order_by(ProjectHeader.id.asc()).first()
 
     return render_template('mobile/project_detail.html',
                          project=project,
                          refs=refs,
+                         finance=finance,
                          members=members,
                          prev_project=prev_project,
                          next_project=next_project)
@@ -1347,7 +1430,6 @@ def book_ticket(product_id):
 
 
 @mobile_bp.route('/project/<int:project_id>/edit', methods=['GET', 'POST'])
-@csrf.exempt
 @login_required
 def edit_project(project_id):
     """手机端编辑项目"""
@@ -1380,23 +1462,39 @@ def edit_project(project_id):
 
     if request.method == 'POST':
         try:
-            data = request.get_json()
+            data = request.get_json(silent=True) or {}
 
-            company_id = data.get('company_id')
-            project.company_id = int(company_id) if company_id and int(company_id) > 0 else None
-            project.desc = data.get('desc', project.desc)
-            project.contact = data.get('contact', project.contact)
-            project.staff_id = int(data.get('staff_id')) if data.get('staff_id') else project.staff_id
-            project.status = data.get('status', project.status)
-            project.remarks = data.get('remarks', project.remarks)
-            project.reminder_event = data.get('reminder_event', project.reminder_event)
+            # 只更新请求里出现过的字段。
+            # 详情页的就地编辑只提交单个字段（如 {"status": "completed"}），
+            # 若沿用 data.get(key) 的写法，没提交的 company_id 会被当成 None 把客户公司清掉。
+            if 'company_id' in data:
+                company_id = data.get('company_id')
+                try:
+                    company_id = int(company_id) if company_id not in (None, '') else 0
+                except (TypeError, ValueError):
+                    company_id = 0
+                project.company_id = company_id if company_id > 0 else None
 
-            reminder_date = data.get('reminder_date', '')
-            if reminder_date:
-                from datetime import datetime as dt
-                project.reminder_date = dt.strptime(reminder_date, '%Y-%m-%d').date()
-            elif data.get('reminder_date') == '':
-                project.reminder_date = None
+            if 'desc' in data:
+                project.desc = data.get('desc')
+            if 'contact' in data:
+                project.contact = data.get('contact')
+            if 'staff_id' in data and data.get('staff_id'):
+                project.staff_id = int(data.get('staff_id'))
+            if 'status' in data and data.get('status'):
+                project.status = data.get('status')
+            if 'remarks' in data:
+                project.remarks = data.get('remarks')
+            if 'reminder_event' in data:
+                project.reminder_event = data.get('reminder_event')
+
+            if 'reminder_date' in data:
+                reminder_date = data.get('reminder_date') or ''
+                if reminder_date:
+                    from datetime import datetime as dt
+                    project.reminder_date = dt.strptime(reminder_date, '%Y-%m-%d').date()
+                else:
+                    project.reminder_date = None
 
             db.session.commit()
             return jsonify({'success': True, 'message': '保存成功'})

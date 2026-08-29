@@ -317,8 +317,11 @@
             color: #856404;
         }
 
-        {% block extra_css %}{% endblock %}
     </style>
+
+    {# 子模板自带 <style> 包裹；放在 base 的 </style> 之后，
+       否则会形成 <style> 套 <style>，CSS 解析时子模板的第一条规则会被整条丢弃 #}
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- 顶部导航栏 -->

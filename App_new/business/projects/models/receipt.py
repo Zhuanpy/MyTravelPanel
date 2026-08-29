@@ -271,6 +271,148 @@ class ProjectReceipt(db.Model):
         return total_received
 
     @classmethod
+    def get_refs_total_received_bulk(cls, header_ids):
+        """批量版 get_ref_total_received：一次算完若干项目下所有REF的已收款
+
+        返回 {ref_id: 已收金额}。计算规则与单条版 get_ref_total_received 完全一致，
+        区别只是把「每个REF重复查一遍收款/发票/分配表」压成按项目批量查一次，
+        供列表页和详情页使用（原来一页20个项目会打出几百条SQL）。
+        """
+        from .invoice import ProjectInvoice  # 避免循环导入
+        from .ref import ProjectRef
+
+        if not header_ids:
+            return {}
+        header_ids = list({int(h) for h in header_ids})
+
+        # 一次取出所有项目的REF，按项目分组
+        all_refs = ProjectRef.query.filter(ProjectRef.header_id.in_(header_ids)).all()
+        refs_by_header = {}
+        for ref in all_refs:
+            refs_by_header.setdefault(ref.header_id, []).append(ref)
+
+        ref_ids = [r.id for r in all_refs]
+        received = {rid: 0.0 for rid in ref_ids}
+        if not ref_ids:
+            return received
+
+        # 1. REF级别收款：直接关联到REF的收款全额计入
+        ref_receipts = cls.query.filter(
+            cls.ref_id.in_(ref_ids),
+            cls.status == 'confirmed'
+        ).all()
+        for receipt in ref_receipts:
+            received[receipt.ref_id] = received.get(receipt.ref_id, 0.0) + float(receipt.amount or 0)
+
+        # 一次取出这些项目的全部发票，供分配解析使用
+        invoices = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id.in_(header_ids)
+        ).all()
+        invoice_map = {inv.id: inv for inv in invoices}
+
+        # 2. 项目级别收款通过分配表分配到本项目发票（含跨项目收款）
+        allocations = ReceiptInvoiceAllocation.query.join(
+            ProjectInvoice, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+        ).join(
+            cls, ReceiptInvoiceAllocation.receipt_id == cls.id
+        ).filter(
+            ProjectInvoice.header_id.in_(header_ids),
+            cls.ref_id == None,  # noqa: E711 项目级别收款
+            cls.status == 'confirmed'
+        ).all()
+
+        allocs_by_header = {}
+        processed_receipt_ids = {}  # header_id -> set(receipt_id)
+        for alloc in allocations:
+            invoice = invoice_map.get(alloc.invoice_id)
+            if not invoice:
+                continue
+            allocs_by_header.setdefault(invoice.header_id, []).append(alloc)
+            processed_receipt_ids.setdefault(invoice.header_id, set()).add(alloc.receipt_id)
+
+        # 3. 没有分配记录的旧项目级别收款（向后兼容）
+        project_receipts = cls.query.filter(
+            cls.header_id.in_(header_ids),
+            cls.ref_id == None,  # noqa: E711
+            cls.status == 'confirmed'
+        ).all()
+        project_receipts_by_header = {}
+        for receipt in project_receipts:
+            project_receipts_by_header.setdefault(receipt.header_id, []).append(receipt)
+
+        for header_id in header_ids:
+            header_refs = refs_by_header.get(header_id, [])
+            if not header_refs:
+                continue
+            is_single_ref = len(header_refs) == 1
+            selling_map = {r.id: float(r.selling_price or 0) for r in header_refs}
+            header_ref_ids = [r.id for r in header_refs]
+
+            # 2. 分配表
+            for alloc in allocs_by_header.get(header_id, []):
+                invoice = invoice_map.get(alloc.invoice_id)
+                if not invoice:
+                    continue
+
+                ref_id_int_list = []
+                if invoice.ref_ids:
+                    try:
+                        raw = json.loads(invoice.ref_ids) if isinstance(invoice.ref_ids, str) else invoice.ref_ids
+                        ref_id_int_list = [int(r) for r in raw]
+                    except (json.JSONDecodeError, TypeError, ValueError):
+                        pass
+
+                # 发票没有关联REF
+                if not ref_id_int_list:
+                    if is_single_ref:
+                        # 项目只有一个REF，全额分配给它
+                        received[header_ref_ids[0]] += float(alloc.allocated_amount)
+                        continue
+                    # 多个REF，按比例分配给所有REF
+                    ref_id_int_list = list(header_ref_ids)
+
+                targets = [rid for rid in ref_id_int_list if rid in received]
+                if not targets:
+                    continue
+                if len(ref_id_int_list) == 1:
+                    # 只关联一个REF，全额分配
+                    received[targets[0]] += float(alloc.allocated_amount)
+                    continue
+
+                # 多个REF，按销售额比例分配
+                total_selling = sum(selling_map.get(rid, 0.0) for rid in ref_id_int_list)
+                if total_selling <= 0:
+                    continue
+                for rid in targets:
+                    ref_selling = selling_map.get(rid, 0.0)
+                    if ref_selling > 0:
+                        received[rid] += float(alloc.allocated_amount) * (ref_selling / total_selling)
+
+            # 3. 旧项目级别收款
+            processed = processed_receipt_ids.get(header_id, set())
+            for project_receipt in project_receipts_by_header.get(header_id, []):
+                if project_receipt.id in processed:
+                    continue
+
+                # 旧格式：extra_info.distribution 数组包含直接的 ref_id 分配
+                if project_receipt.extra_info:
+                    try:
+                        distribution_info = json.loads(project_receipt.extra_info)
+                        if 'distribution' in distribution_info:
+                            for dist in distribution_info['distribution']:
+                                if isinstance(dist, dict) and dist.get('ref_id') in received:
+                                    received[dist['ref_id']] += dist.get('amount', 0)
+                            continue  # 已处理，跳过后续逻辑
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass
+
+                # 项目只有一个REF且该收款没有分配信息，全部金额算到这个REF
+                if is_single_ref:
+                    received[header_ref_ids[0]] += float(project_receipt.amount or 0)
+
+        return received
+
+    @classmethod
     def get_project_unpaid_amount(cls, header_id):
         """项目未收款金额 = 所有未作废发票的未收金额合计
 

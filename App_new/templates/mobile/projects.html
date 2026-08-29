@@ -5,9 +5,9 @@
 {% block header_title %}项目列表{% endblock %}
 
 {% block content %}
-<!-- 统计汇总条 -->
+<!-- 统计汇总条：默认只占一行，金额收在里面点开看 -->
 <div class="stats-bar">
-    <div class="stats-row">
+    <div class="stats-row" onclick="toggleMoney()">
         <div class="stat-item total">
             <span class="stat-num">{{ stats.total }}</span>
             <span class="stat-txt">总计</span>
@@ -24,20 +24,23 @@
             <span class="stat-num">{{ stats.today }}</span>
             <span class="stat-txt">今日</span>
         </div>
+        <i class="fas fa-chevron-down money-toggle" id="moneyToggle"></i>
     </div>
-    <div class="stats-row-divider"></div>
-    <div class="stats-row">
-        <div class="stat-item selling">
-            <span class="stat-num">${{ "%.0f"|format(stats.total_selling) }}</span>
-            <span class="stat-txt">销售</span>
-        </div>
-        <div class="stat-item cost">
-            <span class="stat-num">${{ "%.0f"|format(stats.total_cost) }}</span>
-            <span class="stat-txt">成本</span>
-        </div>
-        <div class="stat-item profit">
-            <span class="stat-num">${{ "%.0f"|format(stats.total_profit) }}</span>
-            <span class="stat-txt">利润</span>
+    <div class="stats-money" id="statsMoney">
+        <div class="stats-row-divider"></div>
+        <div class="stats-row">
+            <div class="stat-item selling">
+                <span class="stat-num">${{ "%.0f"|format(stats.total_selling) }}</span>
+                <span class="stat-txt">销售</span>
+            </div>
+            <div class="stat-item cost">
+                <span class="stat-num">${{ "%.0f"|format(stats.total_cost) }}</span>
+                <span class="stat-txt">成本</span>
+            </div>
+            <div class="stat-item profit">
+                <span class="stat-num">${{ "%.0f"|format(stats.total_profit) }}</span>
+                <span class="stat-txt">利润</span>
+            </div>
         </div>
     </div>
 </div>
@@ -48,68 +51,71 @@
     <input type="hidden" name="time" value="{{ time_range }}">
     <div class="mobile-search">
         <i class="fas fa-search"></i>
-        <input type="text" name="q" placeholder="搜索项目编号或描述..." value="{{ search }}">
+        <input type="search" name="q" placeholder="搜索项目编号或描述..." value="{{ search }}">
+        {% if search %}
+        <a href="{{ url_for('mobile.projects', status=status, time=time_range) }}" class="search-clear"><i class="fas fa-times-circle"></i></a>
+        {% endif %}
     </div>
 </form>
 
-<!-- 时间筛选 -->
-<div class="time-filter-tabs">
-    <a href="{{ url_for('mobile.projects', status=status, q=search) }}" class="time-tab {% if not time_range %}active{% endif %}">全部</a>
-    <a href="{{ url_for('mobile.projects', status=status, q=search, time='today') }}" class="time-tab {% if time_range == 'today' %}active{% endif %}">今天</a>
-    <a href="{{ url_for('mobile.projects', status=status, q=search, time='week') }}" class="time-tab {% if time_range == 'week' %}active{% endif %}">本周</a>
-    <a href="{{ url_for('mobile.projects', status=status, q=search, time='month') }}" class="time-tab {% if time_range == 'month' %}active{% endif %}">本月</a>
+<!-- 筛选：时间 + 状态合并成一行，可横向滑动 -->
+<div class="filter-row">
+    <a href="{{ url_for('mobile.projects', status=status, q=search) }}" class="chip {% if not time_range %}active{% endif %}">全部</a>
+    <a href="{{ url_for('mobile.projects', status=status, q=search, time='today') }}" class="chip {% if time_range == 'today' %}active{% endif %}">今天</a>
+    <a href="{{ url_for('mobile.projects', status=status, q=search, time='week') }}" class="chip {% if time_range == 'week' %}active{% endif %}">本周</a>
+    <a href="{{ url_for('mobile.projects', status=status, q=search, time='month') }}" class="chip {% if time_range == 'month' %}active{% endif %}">本月</a>
+    <span class="chip-divider"></span>
+    <a href="{{ url_for('mobile.projects', time=time_range, q=search) }}" class="chip chip-status {% if not status %}active{% endif %}">全部状态</a>
+    <a href="{{ url_for('mobile.projects', time=time_range, q=search, status='active') }}" class="chip chip-status {% if status == 'active' %}active{% endif %}">进行中</a>
+    <a href="{{ url_for('mobile.projects', time=time_range, q=search, status='completed') }}" class="chip chip-status {% if status == 'completed' %}active{% endif %}">已完成</a>
+    <a href="{{ url_for('mobile.projects', time=time_range, q=search, status='draft') }}" class="chip chip-status {% if status == 'draft' %}active{% endif %}">草稿</a>
+    <a href="{{ url_for('mobile.projects', time=time_range, q=search, status='cancelled') }}" class="chip chip-status {% if status == 'cancelled' %}active{% endif %}">已取消</a>
 </div>
-
 
 <!-- 项目列表 -->
 <div class="project-list">
-    {% if projects.items|length > 0 %}
+    {% if projects.items %}
         {% for project in projects.items %}
+        {% set card = cards.get(project.id, {}) %}
+        {% set selling = card.get('selling', 0) %}
+        {% set unpaid = card.get('unpaid', 0) %}
         <a href="{{ url_for('mobile.project_detail', project_id=project.id) }}" class="project-card">
             <div class="project-header">
                 <div class="project-hid">
                     <i class="fas fa-folder{% if project.status == 'completed' %}-open{% endif %}"></i>
                     {{ project.hid }}
                 </div>
-                <div class="project-date">{{ project.created_at.strftime('%m-%d') if project.created_at else '' }}</div>
+                <div class="project-status status-{{ project.status }}">
+                    {% if project.status == 'draft' %}草稿
+                    {% elif project.status == 'active' %}进行中
+                    {% elif project.status == 'completed' %}已完成
+                    {% elif project.status == 'cancelled' %}已取消
+                    {% else %}{{ project.status }}{% endif %}
+                </div>
             </div>
+
             <div class="project-desc">{{ project.display_desc or '无描述' }}</div>
-            {% if project.company %}
-            <div class="project-company">
-                <i class="fas fa-building"></i> {{ project.company.company_name }}
-            </div>
-            {% endif %}
-            <div class="project-tags">
-                <span class="tag tag-ref">
-                    <i class="fas fa-file-alt"></i> {{ project.refs|length }} REF
-                </span>
-                <span class="tag tag-member">
-                    <i class="fas fa-users"></i> {{ project.members.count() }} 人
-                </span>
-                <span class="tag tag-amount">
-                    ${{ "%.0f"|format(project.total_selling_amount or 0) }}
-                </span>
-                {% set unpaid = project.total_unpaid_amount %}
-                {% if unpaid <= 0 %}
-                <span class="tag tag-paid">
-                    <i class="fas fa-check-circle"></i> 已收
-                </span>
-                {% elif unpaid < project.total_selling_amount %}
-                <span class="tag tag-partial">
-                    <i class="fas fa-clock"></i> 部分
-                </span>
-                {% else %}
-                <span class="tag tag-unpaid">
-                    <i class="fas fa-exclamation-circle"></i> 待收
-                </span>
+
+            <div class="project-meta">
+                {% if project.company %}
+                <span class="meta-item"><i class="fas fa-building"></i>{{ project.company.company_name }}</span>
                 {% endif %}
+                <span class="meta-item"><i class="fas fa-calendar"></i>{{ project.created_at.strftime('%m-%d') if project.created_at else '' }}</span>
             </div>
-            <div class="project-status status-{{ project.status }}">
-                {% if project.status == 'draft' %}草稿
-                {% elif project.status == 'active' %}进行中
-                {% elif project.status == 'completed' %}已完成
-                {% elif project.status == 'cancelled' %}已取消
-                {% else %}{{ project.status }}{% endif %}
+
+            <div class="project-footer">
+                <div class="project-tags">
+                    <span class="tag tag-ref"><i class="fas fa-file-alt"></i>{{ card.get('ref_count', 0) }} REF</span>
+                    <span class="tag tag-member"><i class="fas fa-users"></i>{{ card.get('member_count', 0) }} 人</span>
+                    {% if unpaid <= 0 %}
+                    <span class="tag tag-paid"><i class="fas fa-check-circle"></i>已收</span>
+                    {% elif unpaid < selling %}
+                    <span class="tag tag-partial"><i class="fas fa-clock"></i>欠 ${{ "%.0f"|format(unpaid) }}</span>
+                    {% else %}
+                    <span class="tag tag-unpaid"><i class="fas fa-exclamation-circle"></i>欠 ${{ "%.0f"|format(unpaid) }}</span>
+                    {% endif %}
+                </div>
+                <div class="project-amount">${{ "%.0f"|format(selling) }}</div>
             </div>
         </a>
         {% endfor %}
@@ -152,9 +158,9 @@
     .stats-bar {
         background: white;
         border-radius: 10px;
-        padding: 10px 16px;
-        margin-bottom: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        padding: 8px 14px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .stats-row {
@@ -165,9 +171,21 @@
 
     .stats-row-divider {
         height: 1px;
-        background: #e5e7eb;
+        background: #eef2f6;
         margin: 8px 0;
     }
+
+    .stats-money { display: none; }
+    .stats-money.open { display: block; }
+
+    .money-toggle {
+        color: #cbd5e1;
+        font-size: 12px;
+        margin-left: 6px;
+        transition: transform 0.2s;
+    }
+
+    .money-toggle.open { transform: rotate(180deg); }
 
     .stat-item {
         display: flex;
@@ -184,8 +202,8 @@
     }
 
     .stat-txt {
-        font-size: 10px;
-        color: #888;
+        font-size: 11px;
+        color: #94a3b8;
         margin-top: 2px;
     }
 
@@ -197,54 +215,46 @@
     .stat-item.cost .stat-num { color: #dc2626; }
     .stat-item.profit .stat-num { color: #16a34a; }
 
-    /* 时间筛选标签 */
-    .time-filter-tabs {
+    /* 搜索框：字号必须 >= 16px，否则 iOS 聚焦时会自动放大页面 */
+    .mobile-search { margin-bottom: 10px; padding: 8px 14px; }
+    .mobile-search input { font-size: 16px; }
+    .search-clear { color: #cbd5e1; padding-left: 8px; }
+
+    /* 筛选 chips：时间 + 状态并成一行横滑 */
+    .filter-row {
         display: flex;
+        align-items: center;
         gap: 6px;
         margin-bottom: 10px;
         overflow-x: auto;
         padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
     }
 
-    .time-tab {
+    .filter-row::-webkit-scrollbar { display: none; }
+
+    .chip {
         flex-shrink: 0;
         padding: 6px 14px;
         border-radius: 16px;
-        background: #f3f4f6;
-        color: #666;
+        background: white;
+        color: #64748b;
         text-decoration: none;
         font-size: 13px;
         white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
 
-    .time-tab.active {
-        background: #2563eb;
-        color: white;
-    }
+    .chip.active { background: var(--primary-color); color: white; }
+    .chip-status.active { background: #2563eb; }
 
-    /* 状态筛选标签 */
-    .filter-tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
-        overflow-x: auto;
-        padding-bottom: 4px;
-    }
-
-    .filter-tab {
+    .chip-divider {
         flex-shrink: 0;
-        padding: 8px 16px;
-        border-radius: 20px;
-        background: white;
-        color: #666;
-        text-decoration: none;
-        font-size: 14px;
-        white-space: nowrap;
-    }
-
-    .filter-tab.active {
-        background: #198754;
-        color: white;
+        width: 1px;
+        height: 18px;
+        background: #e2e8f0;
+        margin: 0 2px;
     }
 
     /* 项目列表 */
@@ -255,45 +265,44 @@
         padding-bottom: 80px;
     }
 
-    /* 项目卡片 */
     .project-card {
         display: block;
         background: white;
         border-radius: 12px;
-        padding: 14px 16px;
+        padding: 12px 14px;
         text-decoration: none;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        position: relative;
-        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        transition: transform 0.1s, background 0.1s;
+    }
+
+    .project-card:active {
+        background: #f8fafc;
+        transform: scale(0.99);
     }
 
     .project-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 6px;
+        gap: 8px;
     }
 
     .project-hid {
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
         color: #1e40af;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .project-hid i {
-        margin-right: 6px;
-        color: #3b82f6;
-    }
-
-    .project-date {
-        font-size: 12px;
-        color: #999;
-    }
+    .project-hid i { margin-right: 6px; color: #3b82f6; }
 
     .project-desc {
         font-size: 13px;
-        color: #333;
-        margin-bottom: 6px;
+        color: #334155;
+        margin-top: 4px;
         line-height: 1.4;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -301,95 +310,78 @@
         overflow: hidden;
     }
 
-    .project-company {
+    .project-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 5px;
         font-size: 12px;
-        color: #666;
-        margin-bottom: 8px;
+        color: #94a3b8;
     }
 
-    .project-company i {
-        margin-right: 4px;
-        color: #999;
+    .meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .project-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .project-amount {
+        flex-shrink: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #16a34a;
     }
 
     /* 标签组 */
     .project-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 5px;
+        min-width: 0;
     }
 
     .tag {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 4px 8px;
+        padding: 3px 8px;
         border-radius: 4px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 500;
+        white-space: nowrap;
     }
 
-    .tag-ref {
-        background: #eff6ff;
-        color: #2563eb;
-    }
-
-    .tag-member {
-        background: #fef3c7;
-        color: #d97706;
-    }
-
-    .tag-amount {
-        background: #f0fdf4;
-        color: #16a34a;
-        font-weight: 600;
-    }
-
-    .tag-paid {
-        background: #dcfce7;
-        color: #16a34a;
-    }
-
-    .tag-partial {
-        background: #fef3c7;
-        color: #d97706;
-    }
-
-    .tag-unpaid {
-        background: #fee2e2;
-        color: #dc2626;
-    }
+    .tag-ref { background: #eff6ff; color: #2563eb; }
+    .tag-member { background: #fef3c7; color: #d97706; }
+    .tag-paid { background: #dcfce7; color: #16a34a; }
+    .tag-partial { background: #fef3c7; color: #d97706; }
+    .tag-unpaid { background: #fee2e2; color: #dc2626; }
 
     /* 状态标签 */
     .project-status {
-        position: absolute;
-        top: 0;
-        right: 0;
-        padding: 4px 10px;
-        font-size: 10px;
+        flex-shrink: 0;
+        padding: 3px 9px;
+        font-size: 12px;
         font-weight: 500;
-        border-radius: 0 12px 0 8px;
+        border-radius: 10px;
     }
 
-    .status-draft {
-        background: #f3f4f6;
-        color: #6b7280;
-    }
-
-    .status-active {
-        background: #dbeafe;
-        color: #2563eb;
-    }
-
-    .status-completed {
-        background: #dcfce7;
-        color: #16a34a;
-    }
-
-    .status-cancelled {
-        background: #fee2e2;
-        color: #dc2626;
-    }
+    .status-draft { background: #f3f4f6; color: #6b7280; }
+    .status-active { background: #dbeafe; color: #2563eb; }
+    .status-completed { background: #dcfce7; color: #16a34a; }
+    .status-cancelled { background: #fee2e2; color: #dc2626; }
 
     /* 分页 */
     .pagination-mobile {
@@ -405,57 +397,58 @@
         padding: 8px 16px;
         background: white;
         border-radius: 8px;
-        color: #198754;
+        color: var(--primary-color);
         text-decoration: none;
         font-size: 14px;
     }
 
-    .page-info {
-        color: #666;
-        font-size: 14px;
-    }
+    .page-info { color: #666; font-size: 14px; }
 
     /* 浮动按钮 */
     .fab-button {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 56px;
-        height: 56px;
-        background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+        bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px);
+        right: 20px;
+        width: 52px;
+        height: 52px;
+        background: var(--primary-color);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 24px;
+        font-size: 22px;
         text-decoration: none;
-        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.35);
         z-index: 100;
-        transition: transform 0.2s, box-shadow 0.2s;
+        transition: transform 0.2s;
     }
 
-    .fab-button:active {
-        transform: scale(0.95);
-        box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
-    }
+    .fab-button:active { transform: scale(0.95); }
 
     /* 空状态 */
-    .mobile-empty {
-        text-align: center;
-        padding: 60px 20px;
-        color: #999;
-    }
-
-    .mobile-empty i {
-        font-size: 48px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-    }
-
-    .mobile-empty p {
-        margin: 0;
-        font-size: 14px;
-    }
+    .mobile-empty { text-align: center; padding: 60px 20px; color: #999; }
+    .mobile-empty i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+    .mobile-empty p { margin: 0; font-size: 14px; }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+    // 金额行展开状态记在本地，下次进来保持
+    function toggleMoney() {
+        const box = document.getElementById('statsMoney');
+        const icon = document.getElementById('moneyToggle');
+        const open = box.classList.toggle('open');
+        icon.classList.toggle('open', open);
+        try { localStorage.setItem('m_stats_money_open', open ? '1' : '0'); } catch (e) {}
+    }
+
+    (function () {
+        let open = false;
+        try { open = localStorage.getItem('m_stats_money_open') === '1'; } catch (e) {}
+        if (open) {
+            document.getElementById('statsMoney').classList.add('open');
+            document.getElementById('moneyToggle').classList.add('open');
+        }
+    })();
 {% endblock %}

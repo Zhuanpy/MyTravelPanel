@@ -192,6 +192,92 @@ class ProjectRef(db.Model):
         unpaid = float(self.selling_price) - total_received
         return max(0, unpaid)  # 确保不会返回负数
 
+    @classmethod
+    def get_refs_invoiced_bulk(cls, header_ids):
+        """批量版 is_invoiced：返回 {ref_id: 是否已开票}
+
+        判定规则与单条版 is_invoiced 完全一致，只是把「每个REF都重查一遍项目发票」
+        压成按项目查一次。
+        """
+        from .invoice import ProjectInvoice  # 避免循环导入
+        import json
+
+        if not header_ids:
+            return {}
+        header_ids = list({int(h) for h in header_ids})
+
+        refs = cls.query.filter(cls.header_id.in_(header_ids)).all()
+        result = {r.id: False for r in refs}
+        if not refs:
+            return result
+
+        invoices = ProjectInvoice.query.filter(
+            ProjectInvoice.header_id.in_(header_ids),
+            ProjectInvoice.status != 'cancelled'
+        ).all()
+
+        # 每个项目：收集发票明细里出现过的REF ID，以及是否有任何一张发票记了明细
+        invoiced_ref_ids = {}   # header_id -> set(ref_id)
+        matched_any_detail = {}  # header_id -> bool
+        has_invoice = {}         # header_id -> bool
+        for inv in invoices:
+            has_invoice[inv.header_id] = True
+            matched_any_detail.setdefault(inv.header_id, False)
+            if not inv.ref_ids:
+                continue
+            try:
+                ref_id_list = json.loads(inv.ref_ids) if isinstance(inv.ref_ids, str) else inv.ref_ids
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not ref_id_list:
+                continue
+            matched_any_detail[inv.header_id] = True
+            bucket = invoiced_ref_ids.setdefault(inv.header_id, set())
+            for rid in ref_id_list:
+                bucket.add(rid)
+                bucket.add(str(rid))
+
+        for ref in refs:
+            if not has_invoice.get(ref.header_id):
+                result[ref.id] = False  # 项目一张未作废发票都没有
+                continue
+            bucket = invoiced_ref_ids.get(ref.header_id, set())
+            if ref.id in bucket or str(ref.id) in bucket:
+                result[ref.id] = True
+            else:
+                # 全项目都没有可用的REF明细 → 旧数据，保守视为已开票
+                result[ref.id] = not matched_any_detail.get(ref.header_id, False)
+
+        return result
+
+    @classmethod
+    def get_refs_unpaid_bulk(cls, header_ids):
+        """批量版 unpaid_amount：返回 {ref_id: 未付款金额}
+
+        口径与单条版 unpaid_amount 一致（未开票的REF不产生应收，返回0），
+        但整批只打几条SQL，供移动端列表页/详情页使用。
+        """
+        from .receipt import ProjectReceipt  # 避免循环导入
+
+        if not header_ids:
+            return {}
+
+        refs = cls.query.filter(cls.header_id.in_(list({int(h) for h in header_ids}))).all()
+        if not refs:
+            return {}
+
+        invoiced_map = cls.get_refs_invoiced_bulk(header_ids)
+        received_map = ProjectReceipt.get_refs_total_received_bulk(header_ids)
+
+        unpaid = {}
+        for ref in refs:
+            selling = float(ref.selling_price or 0)
+            if not selling or not invoiced_map.get(ref.id):
+                unpaid[ref.id] = 0.0
+                continue
+            unpaid[ref.id] = max(0.0, selling - received_map.get(ref.id, 0.0))
+        return unpaid
+
     # 机票相关计算属性
     @property
     def total_flight_selling_price(self):
