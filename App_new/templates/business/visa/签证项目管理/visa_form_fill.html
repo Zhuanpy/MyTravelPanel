@@ -318,9 +318,9 @@ function fieldWidth(f) {
     if (f.ctype === 'radio') return (f.options || []).length >= 4 ? 2 : 1; // 护照类型/婚姻=2，性别/是否=1
     const s = ((f.label || '') + ' ' + (f.remark || '')).toLowerCase();
     // 3 倍：地址/备注/目的/在日住宿等长文本
-    if (/address|地址|住址|remarks|备注|说明|purpose|目的|hotels|住宿|ship or airline|previous stays|other names|special/.test(s)) return 3;
+    if (/address|地址|住址|remarks|备注|说明|purpose|目的|hotels|住宿|ship or airline|previous stays|special/.test(s)) return 3;
     // 2 倍：邮箱/公司/雇主名/职业/国籍与身份/邀请人担保人姓名/学校
-    if (/e-?mail|邮箱|employer name|雇主名称|company|公司|机构名|profession|occupation|职业|status|身份|inviter name|邀请人姓名|guarantor name|担保人姓名|学校/.test(s)) return 2;
+    if (/e-?mail|邮箱|employer name|雇主名称|company|公司|机构名|profession|occupation|职业|status|身份|inviter name|邀请人姓名|guarantor name|担保人姓名|学校|other names|曾用名/.test(s)) return 2;
     return 1;
 }
 
@@ -358,7 +358,9 @@ function renderField(f, opts0) {
         control = `<input type="text" data-seq="${escAttr(f.seq)}" class="visa-form-control fill-field" value="${escAttr(val)}" ${readonly ? 'readonly' : ''} ${readonly ? 'style="background:#f3f4f6;"' : ''}>`;
     }
     const fullTitle = label + (f.remark ? ' · ' + f.remark : '');
-    return `<div class="visa-form-group" style="margin-bottom:0; min-width:0; ${width > 1 ? 'grid-column: span ' + width + ';' : ''}">
+    // 3 倍宽(地址/备注等长文本)独占一整行，避免和短字段拼在一起排乱
+    const span = width >= 3 ? 'grid-column: 1 / -1;' : (width > 1 ? 'grid-column: span ' + width + ';' : '');
+    return `<div class="visa-form-group" style="margin-bottom:0; min-width:0; ${span}">
         <label class="visa-form-label" title="${escAttr(fullTitle)}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${escHtml(label)}${applicantMark}${remarkHint}</label>
         ${control}
     </div>`;

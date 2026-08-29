@@ -583,14 +583,39 @@ _JAPAN_RADIO_LABELS = {
     'RB5[2]': {'label': '曾被遣返/因逾期滞留被驱逐? (deported/overstay)', 'options': _JP_YESNO},
 }
 
-# 部分字段 /TU 只是 Name/Address/Tel（多个区块重名），给清晰标签避免混淆
+# 表单标签统一「英文 中文」：母版 /TU 多为纯英文，且 Name/Address/Tel 在多区块重名，
+# 这里按字段短名给出中英对照标签，页面与悬停提示都用它。
 _JAPAN_FIELD_LABELS = {
+    # 个人信息
+    'T2[0]': 'Surname 姓(同护照)',
+    'T7[0]': 'Given & middle names 名(同护照)',
+    'T14[0]': 'Date of birth 出生日期',
+    'T16[0]': 'Place of birth 出生地',
+    'T16[1]': 'Other names 曾用名/别名',
+    'T37[0]': 'ID No. 身份证号(政府签发)',
+    # 护照信息
+    'T49[0]': 'Passport No. 护照号',
+    'T50[0]': 'Nationality 国籍',
+    'T53[0]': 'Date of issue 签发日期',
+    'T57[0]': 'Issuing authority 签发机关',
+    'T57[1]': 'Place of issue 签发地',
+    'T59[0]': 'Date of expiry 有效期至',
+    'T34[0]': 'Former/other nationality 曾用或其他国籍',
+    # 访日信息
+    'T68[2]': 'Purpose of visit 访日目的/在留资格',
+    'T68[3]': 'Length of stay 预计停留时间',
+    'T66[0]': 'Date of arrival 抵日日期',
+    'T68[0]': 'Port of entry 入境口岸',
+    'T68[1]': 'Ship or airline 船名/航空公司',
+    'T62[0]': 'Certificate of Eligibility No. 在留资格认定证明书号',
+    'T64[0]': 'Previous stays 以往在日停留时间',
     'emp_name[0]': 'Employer name 雇主名称',
     'emp_adr[0]': 'Employer address 雇主地址',
     'emp_tel[0]': 'Employer tel 雇主电话',
-    'emp_name[1]': '在日住宿/联系人 名称',
-    'emp_adr[1]': '在日住宿/联系人 地址',
-    'emp_tel[1]': '在日住宿/联系人 电话',
+    'T5[0]': 'Current profession & position 现职业/职务',
+    'emp_name[1]': 'Accommodation 在日住宿/联系人 名称',
+    'emp_adr[1]': 'Accommodation address 在日住宿地址',
+    'emp_tel[1]': 'Accommodation tel 在日住宿电话',
     'T0[1]': 'Current residential address 现住址',
     'T97[0]': 'Tel 电话',
     'T3[0]': 'Mobile 手机',
@@ -611,18 +636,48 @@ _JAPAN_FIELD_LABELS = {
 
 # 日本填表分段：字段短名 → 段落标题（按内容归类，顺序即展示顺序）
 _JAPAN_SECTIONS = [
-    ('护照信息', ['T49[0]', 'T50[0]', 'T53[0]', 'T57[0]', 'T57[1]', 'T59[0]', 'T34[0]']),
-    ('个人信息', ['T2[0]', 'T7[0]', 'T14[0]', 'T16[0]', 'RB1[0]', 'T16[1]', 'T37[0]', 'RB2[0]', 'RB3[0]']),
+    ('护照信息', ['RB3[0]', 'T49[0]', 'T53[0]', 'T59[0]', 'T57[0]', 'T57[1]', 'T50[0]', 'T34[0]']),
+    ('个人信息', ['T2[0]', 'T7[0]', 'RB1[0]', 'T14[0]', 'T16[0]', 'T16[1]', 'T37[0]', 'RB2[0]']),
     ('联系方式', ['T0[1]', 'T97[0]', 'T3[0]', 'T3[1]']),
-    ('工作 / 雇主', ['emp_name[0]', 'emp_adr[0]', 'emp_tel[0]', 'T5[0]']),
-    ('访日信息', ['T68[2]', 'T68[3]', 'T66[0]', 'T68[0]', 'T68[1]', 'T62[0]', 'T64[0]',
-                  'emp_name[1]', 'emp_adr[1]', 'emp_tel[1]']),
+    ('工作 / 雇主', ['emp_name[0]', 'emp_adr[0]', 'T5[0]', 'emp_tel[0]']),
+    ('访日信息', ['T68[2]', 'T68[3]', 'T66[0]', 'T68[0]', 'T68[1]',
+                  'emp_name[1]', 'emp_adr[1]', 'emp_tel[1]', 'T62[0]', 'T64[0]']),
     ('在日担保人', ['guarantor_name[0]', 'guarantor_adr[0]', 'guarantor_tel[0]', 'T25[0]']),
     ('在日邀请人', ['T19[0]', 'T23[0]', 'T10[0]', 'T25[1]', 'T14[1]', 'T5[1]', 'T5[2]', 'T5[3]', 'RB1[1]']),
     ('配偶 / 家属', ['T16[2]']),
     ('声明事项', ['RB5[0]', 'RB5[1]', 'RB5[2]', 'RB5[3]', 'RB5[4]', 'RB5[5]']),
     ('备注 / 申请', ['T28[0]', 'T28[1]', 'T150[0]']),
 ]
+# 第1页需要「并排一行」的字段：同一 row 值的字段挤在一行，列宽平分
+# （只对第1页生效，第2页有同名短名 T5[0] 属于担保人栏，不能跟着走）
+_JAPAN_ROWS = {
+    # 个人信息：姓 名 性别 出生日期 / 出生地 曾用名 身份证号 婚姻状况
+    'T2[0]': 'per1', 'T7[0]': 'per1', 'RB1[0]': 'per1', 'T14[0]': 'per1',
+    'T16[0]': 'per2', 'T16[1]': 'per2', 'T37[0]': 'per2', 'RB2[0]': 'per2',
+    # 护照信息：类型 号码 签发日期 有效期至 / 签发机关 签发地 国籍 曾用其他国籍
+    'RB3[0]': 'psp1', 'T49[0]': 'psp1', 'T53[0]': 'psp1', 'T59[0]': 'psp1',
+    'T57[0]': 'psp2', 'T57[1]': 'psp2', 'T50[0]': 'psp2', 'T34[0]': 'psp2',
+    # 联系方式：现住址 电话 手机 邮箱
+    'T0[1]': 'contact', 'T97[0]': 'contact', 'T3[0]': 'contact', 'T3[1]': 'contact',
+    # 工作 / 雇主：名称 地址 职业 电话
+    'emp_name[0]': 'emp', 'emp_adr[0]': 'emp', 'T5[0]': 'emp', 'emp_tel[0]': 'emp',
+    # 访日信息：目的 停留时间 抵日日期 入境口岸 船名 / 在日住宿三项 / 证明书号 以往停留
+    # 段内一旦有行分组，无 row 的字段会各占一行，故整段都给 row
+    'T68[2]': 'jp1', 'T68[3]': 'jp1', 'T66[0]': 'jp1', 'T68[0]': 'jp1', 'T68[1]': 'jp1',
+    'emp_name[1]': 'jp3', 'emp_adr[1]': 'jp3', 'emp_tel[1]': 'jp3',
+    'T62[0]': 'jp4', 'T64[0]': 'jp4',
+}
+
+# 第2页行分组：担保人/邀请人各排两行，声明事项每题独占整行(题干长)
+_JAPAN_ROWS_P2 = {
+    'guarantor_name[0]': 'g1', 'RB1[0]': 'g1', 'T14[1]': 'g1', 'T25[1]': 'g1',
+    'guarantor_adr[0]': 'g2', 'guarantor_tel[0]': 'g2', 'T5[0]': 'g2', 'T5[1]': 'g2',
+    'T19[0]': 'i1', 'RB1[1]': 'i1', 'T14[0]': 'i1', 'T25[0]': 'i1',
+    'T23[0]': 'i2', 'T10[0]': 'i2', 'T5[3]': 'i2', 'T5[2]': 'i2',
+    'RB5[3]': 'd1', 'RB5[0]': 'd2', 'RB5[1]': 'd3',
+    'RB5[5]': 'd4', 'RB5[4]': 'd5', 'RB5[2]': 'd6',
+}
+
 # 短名 → (段落标题, 段落序, 段内序)
 _JAPAN_SECTION_MAP = {}
 for _si, (_title, _names) in enumerate(_JAPAN_SECTIONS):
@@ -634,35 +689,36 @@ for _si, (_title, _names) in enumerate(_JAPAN_SECTIONS):
 _JAPAN_PAGE2 = {
     # 在日担保人（页面上半块）
     'guarantor_name[0]': ('Guarantor name 担保人姓名', '在日担保人', 0),
-    'guarantor_adr[0]': ('Guarantor address 担保人地址', '在日担保人', 1),
-    'guarantor_tel[0]': ('Guarantor tel 担保人电话', '在日担保人', 2),
-    'T14[1]': ('Guarantor DOB 担保人生日', '在日担保人', 3),
-    'T25[1]': ('Relationship 关系(担保人)', '在日担保人', 4),
-    'T5[0]': ('Guarantor profession 担保人职业', '在日担保人', 5),
-    'T5[1]': ('Nationality & status 国籍/身份(担保人)', '在日担保人', 6),
+    'RB1[0]': (None, '在日担保人', 1),  # 单选，标签用 radio 表
+    'T14[1]': ('Guarantor DOB 担保人生日', '在日担保人', 2),
+    'T25[1]': ('Relationship 关系(担保人)', '在日担保人', 3),
+    'guarantor_adr[0]': ('Guarantor address 担保人地址', '在日担保人', 4),
+    'guarantor_tel[0]': ('Guarantor tel 担保人电话', '在日担保人', 5),
+    'T5[0]': ('Guarantor profession 担保人职业', '在日担保人', 6),
+    'T5[1]': ('Nationality & status 国籍/身份(担保人)', '在日担保人', 7),
     # 在日邀请人（页面下半块）
     'T19[0]': ('Inviter name 邀请人姓名', '在日邀请人', 0),
-    'T23[0]': ('Inviter address 邀请人地址', '在日邀请人', 1),
-    'T10[0]': ('Inviter tel 邀请人电话', '在日邀请人', 2),
-    'T14[0]': ('Inviter DOB 邀请人生日', '在日邀请人', 3),
-    'T25[0]': ('Relationship 关系(邀请人)', '在日邀请人', 4),
-    'T5[3]': ('Inviter profession 邀请人职业', '在日邀请人', 5),
-    'T5[2]': ('Nationality & status 国籍/身份(邀请人)', '在日邀请人', 6),
-    'RB1[1]': (None, '在日邀请人', 7),  # 单选，标签用 radio 表
+    'RB1[1]': (None, '在日邀请人', 1),  # 单选，标签用 radio 表
+    'T14[0]': ('Inviter DOB 邀请人生日', '在日邀请人', 2),
+    'T25[0]': ('Relationship 关系(邀请人)', '在日邀请人', 3),
+    'T23[0]': ('Inviter address 邀请人地址', '在日邀请人', 4),
+    'T10[0]': ('Inviter tel 邀请人电话', '在日邀请人', 5),
+    'T5[3]': ('Inviter profession 邀请人职业', '在日邀请人', 6),
+    'T5[2]': ('Nationality & status 国籍/身份(邀请人)', '在日邀请人', 7),
     # 配偶 / 家属
     'T16[2]': ("Partner's profession 配偶/家属职业", '配偶 / 家属', 0),
     # 声明事项（RB5 标签用 radio 表）
-    'RB5[0]': (None, '声明事项', 0), 'RB5[1]': (None, '声明事项', 1),
-    'RB5[2]': (None, '声明事项', 2), 'RB5[3]': (None, '声明事项', 3),
-    'RB5[4]': (None, '声明事项', 4), 'RB5[5]': (None, '声明事项', 5),
+    'RB5[3]': (None, '声明事项', 0), 'RB5[0]': (None, '声明事项', 1),
+    'RB5[1]': (None, '声明事项', 2), 'RB5[5]': (None, '声明事项', 3),
+    'RB5[4]': (None, '声明事项', 4), 'RB5[2]': (None, '声明事项', 5),
     # 备注 / 申请
     'T28[0]': ('Remarks 备注', '备注 / 申请', 0),
-    'T28[1]': ('Yes 的详情说明 (details)', '备注 / 申请', 1),
+    'T28[1]': ('Details 若选 Yes 请在此说明', '备注 / 申请', 1),
     'T150[0]': ('Date of application 申请日期', '备注 / 申请', 2),
 }
 # 段落全局顺序
 _JAPAN_SECTION_ORDER = {t: i for i, t in enumerate(
-    ['护照信息', '个人信息', '联系方式', '工作 / 雇主', '访日信息',
+    ['个人信息', '护照信息', '联系方式', '工作 / 雇主', '访日信息',
      '在日担保人', '在日邀请人', '配偶 / 家属', '声明事项', '备注 / 申请', '其它'])}
 
 
@@ -711,11 +767,12 @@ def _japan_template_fields():
                     options.append({'value': str(it), 'label': str(it)})
 
         # 标签 + 段落：第2页用专属映射(短名在页内唯一)，第1页用通用映射
+        # label 先留空，最后再回落到 /TU，避免 /TU 是 RB1/RB3 这种代号时盖掉手工标签
         if page_idx == 2 and short in _JAPAN_PAGE2:
             lbl, section, in_order = _JAPAN_PAGE2[short]
             label = lbl
         else:
-            label = _JAPAN_FIELD_LABELS.get(short, tu or short)
+            label = _JAPAN_FIELD_LABELS.get(short)
             sec_info = _JAPAN_SECTION_MAP.get(short)
             section = sec_info[0] if sec_info else '其它'
             in_order = sec_info[2] if sec_info else 0
@@ -743,6 +800,7 @@ def _japan_template_fields():
             'editable': True,
             'applicant': False,
             'default': '',
+            'row': (_JAPAN_ROWS if page_idx == 1 else _JAPAN_ROWS_P2).get(short, ''),
         })
     # 按 页 → 段落序 → 段内序 排列
     fields.sort(key=lambda f: f['_sort'])
