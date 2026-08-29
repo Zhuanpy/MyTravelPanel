@@ -2,8 +2,12 @@
 
 {% block title %}常用旅客管理{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
 {% block content %}
-<div class="container py-3" style="max-width: 1040px;">
+<div class="container py-3" style="max-width: 1240px;">
     <!-- 页面标题 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="fas fa-user-friends"></i> 常用旅客管理</h5>
@@ -51,11 +55,29 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="searchUsage" onchange="loadTravelers()"
+                            title="按是否被订单引用过筛选">
+                        <option value="">全部引用情况</option>
+                        <option value="unused">未被引用</option>
+                        <option value="used">已被引用</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <button class="btn btn-sm btn-outline-primary" onclick="loadTravelers()">
                         <i class="fas fa-search"></i> 搜索
                     </button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="resetSearch()">重置</button>
+                </div>
+            </div>
+            <div class="row g-2 align-items-center mt-0" id="bulkBar" style="display: none;">
+                <div class="col-12 d-flex align-items-center gap-2 pt-2 border-top">
+                    <small class="text-muted">已选 <strong id="bulkCount">0</strong> 条</small>
+                    <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                        <i class="fas fa-trash"></i> 批量删除
+                    </button>
+                    <button class="btn btn-sm btn-link text-muted p-0" onclick="clearSelection()">取消选择</button>
+                    <small class="text-muted ms-auto">仍被订单引用的会自动跳过</small>
                 </div>
             </div>
         </div>
@@ -67,20 +89,28 @@
             <table class="table table-hover table-sm mb-0 ft-list-table" style="font-size: 0.85rem;">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 8%;" title="系统自动生成的旅客编号">编号</th>
-                        <th style="width: 17%;">姓名</th>
-                        <th style="width: 12%;">护照号</th>
-                        <th style="width: 9%;" class="text-center">护照有效期</th>
-                        <th style="width: 12%;">电话</th>
-                        <th style="width: 15%;">公司</th>
-                        <th style="width: 9%;">集团</th>
-                        <th style="width: 8%;" class="text-center">所属</th>
-                        <th style="width: 8%;" class="text-center">资料</th>
-                        <th style="width: 5%;" class="text-center">操作</th>
+                        <th style="width: 3%;" class="text-center">
+                            <input type="checkbox" class="form-check-input m-0" id="selectAll"
+                                   onclick="toggleSelectAll(this)" title="全选本页">
+                        </th>
+                        <th style="width: 6%;" title="系统自动生成的旅客编号">编号</th>
+                        <th style="width: 15%;" class="sortable" onclick="sortBy('name')">姓名 <i class="fas fa-sort sort-icon" data-sort="name"></i></th>
+                        <th style="width: 10%;">护照号</th>
+                        <th style="width: 8%;" class="text-center">护照有效期</th>
+                        <th style="width: 10%;">电话</th>
+                        <th style="width: 12%;">公司</th>
+                        <th style="width: 7%;">集团</th>
+                        <th style="width: 6%;" class="text-center">所属</th>
+                        <th style="width: 6%;" class="text-center sortable" onclick="sortBy('orders')"
+                            title="被多少张订单引用（按姓名匹配项目人员）">引用 <i class="fas fa-sort sort-icon" data-sort="orders"></i></th>
+                        <th style="width: 8%;" class="text-center sortable" onclick="sortBy('last_used')"
+                            title="最近一次被订单引用的日期">最近引用 <i class="fas fa-sort sort-icon" data-sort="last_used"></i></th>
+                        <th style="width: 5%;" class="text-center">资料</th>
+                        <th style="width: 4%;" class="text-center">操作</th>
                     </tr>
                 </thead>
                 <tbody id="travelersTbody">
-                    <tr><td colspan="10" class="text-center text-muted py-4">加载中...</td></tr>
+                    <tr><td colspan="13" class="text-center text-muted py-4">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -97,7 +127,10 @@
 <!-- 常用旅客编辑模态框 -->
 <style>
     /* 列表：固定列宽 + 垂直居中，长文本省略号，避免换行导致行高参差 */
-    .ft-list-table { table-layout: fixed; min-width: 960px; }
+    .ft-list-table { table-layout: fixed; min-width: 1140px; }
+    .ft-list-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .ft-list-table th.sortable:hover { background: #eef2f7; }
+    .ft-list-table .sort-icon { font-size: 0.72rem; color: #adb5bd; margin-left: 2px; }
     .ft-list-table td, .ft-list-table th { vertical-align: middle; }
     .ft-list-table td.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ft-list-table td.nowrap { white-space: nowrap; }
@@ -245,11 +278,11 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">出生日期</label>
-                            <input type="date" class="form-control form-control-sm" id="travelerDob">
+                            <input type="text" class="form-control form-control-sm date-dmy" id="travelerDob" placeholder="dd-mm-yyyy">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">护照有效期</label>
-                            <input type="date" class="form-control form-control-sm" id="travelerPassportExpiry">
+                            <input type="text" class="form-control form-control-sm date-dmy" id="travelerPassportExpiry" placeholder="dd-mm-yyyy">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">签发国</label>
@@ -362,10 +395,54 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
 <script>
 let currentPage = 1;
+let currentSort = 'name';
+let currentDir = 'asc';
+
+// 日期选择器实例，key 为输入框 id
+const datePickers = {};
+
+// ISO(yyyy-mm-dd) -> dd-mm-yyyy，用于表格展示
+function formatDateDMY(iso) {
+    if (!iso) return '';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : iso;
+}
+
+// 设置日期：值统一用 ISO 传入，显示由 flatpickr 转成 dd-mm-yyyy
+function setDateValue(inputId, isoValue) {
+    const fp = datePickers[inputId];
+    if (fp) {
+        if (isoValue) fp.setDate(isoValue, false);
+        else fp.clear();
+    } else {
+        document.getElementById(inputId).value = isoValue || '';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 出生日期 / 护照有效期：界面显示 dd-mm-yyyy，input 的实际值仍是 yyyy-mm-dd
+    if (window.flatpickr) {
+        document.querySelectorAll('.date-dmy').forEach(function(el) {
+            datePickers[el.id] = flatpickr(el, {
+                locale: 'zh',
+                dateFormat: 'Y-m-d',   // 提交给后端的值
+                altInput: true,        // 另建一个可见输入框
+                altFormat: 'd-m-Y',    // 可见输入框显示 dd-mm-yyyy
+                allowInput: true,      // 允许直接键入 dd-mm-yyyy
+                disableMobile: true    // 否则手机上会退回系统原生选择器
+            });
+            // 让可见输入框沿用原来的尺寸样式
+            if (datePickers[el.id].altInput) {
+                datePickers[el.id].altInput.className = el.className.replace('date-dmy', '').trim();
+                datePickers[el.id].altInput.placeholder = 'dd-mm-yyyy';
+            }
+        });
+    }
+
     loadTravelers();
     // 支持从项目详情等页面携带 ?edit=<id> 直接打开编辑弹窗
     const editId = new URLSearchParams(window.location.search).get('edit');
@@ -427,19 +504,129 @@ function loadTravelers(page) {
     const keyword = document.getElementById('searchKeyword').value.trim();
     const companyId = document.getElementById('searchCompany').value;
     const groupName = document.getElementById('searchGroup').value;
+    const usage = document.getElementById('searchUsage').value;
     const params = new URLSearchParams({page: currentPage, per_page: 20});
     if (keyword) params.set('keyword', keyword);
     if (companyId) params.set('company_id', companyId);
     if (groupName) params.set('group_name', groupName);
+    if (usage) params.set('usage', usage);
+    params.set('sort', currentSort);
+    params.set('dir', currentDir);
 
+    clearSelection();
     fetch(`/projects/frequent_traveler/api/list?${params}`)
         .then(r => r.json())
         .then(data => {
             if (data.success) {
+                currentSort = data.sort || currentSort;
+                currentDir = data.dir || currentDir;
                 renderTravelers(data.data, data.total, data.page, data.pages);
+                updateSortIcons();
             }
         })
         .catch(err => console.error('加载失败:', err));
+}
+
+// ---- 排序 ----
+// 排序在后端做（引用数/最近引用是跨表聚合），保证是全表排序后再分页，而不是只排当前页
+function sortBy(field) {
+    if (currentSort === field) {
+        currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort = field;
+        // 姓名默认升序；引用数/最近引用默认降序（常用的、最近用的排前面）
+        currentDir = (field === 'name') ? 'asc' : 'desc';
+    }
+    loadTravelers(1);
+}
+
+function updateSortIcons() {
+    document.querySelectorAll('.sort-icon').forEach(function(icon) {
+        const active = icon.dataset.sort === currentSort;
+        icon.className = 'fas sort-icon ' +
+            (active ? (currentDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') + ' text-primary' : 'fa-sort');
+        icon.dataset.sort = icon.dataset.sort;
+    });
+}
+
+// ---- 批量选择 / 批量删除 ----
+function escAttr(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function toggleSelectAll(box) {
+    document.querySelectorAll('.row-check').forEach(cb => { cb.checked = box.checked; });
+    updateSelection();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.row-check').forEach(cb => { cb.checked = false; });
+    const all = document.getElementById('selectAll');
+    if (all) { all.checked = false; all.indeterminate = false; }
+    updateSelection();
+}
+
+function selectedRows() {
+    return Array.from(document.querySelectorAll('.row-check:checked')).map(cb => ({
+        id: parseInt(cb.value, 10),
+        name: cb.dataset.name || '',
+        orders: parseInt(cb.dataset.orders || '0', 10)
+    }));
+}
+
+function updateSelection() {
+    const rows = selectedRows();
+    const bar = document.getElementById('bulkBar');
+    document.getElementById('bulkCount').textContent = rows.length;
+    bar.style.display = rows.length ? '' : 'none';
+
+    const boxes = document.querySelectorAll('.row-check');
+    const all = document.getElementById('selectAll');
+    if (all) {
+        all.checked = boxes.length > 0 && rows.length === boxes.length;
+        all.indeterminate = rows.length > 0 && rows.length < boxes.length;
+    }
+}
+
+function bulkDelete() {
+    const rows = selectedRows();
+    if (!rows.length) return;
+
+    const inUse = rows.filter(r => r.orders > 0);
+    const free = rows.filter(r => r.orders === 0);
+
+    const lines = ['已选 ' + rows.length + ' 条常用旅客。', ''];
+    if (inUse.length) {
+        lines.push('其中 ' + inUse.length + ' 条仍被订单引用，将被跳过不删除：');
+        inUse.slice(0, 5).forEach(function (r) {
+            lines.push('  - ' + r.name + '（' + r.orders + ' 单）');
+        });
+        if (inUse.length > 5) lines.push('  ...');
+        lines.push('');
+    }
+    if (!free.length) {
+        lines.push('没有可删除的记录（所选全部仍被订单引用）。');
+        alert(lines.join('\n'));
+        return;
+    }
+    lines.push('将删除 ' + free.length + ' 条未被引用的记录，同时删除其上传的资料文件。');
+    lines.push('此操作不可恢复，确定继续？');
+    if (!confirm(lines.join('\n'))) return;
+
+    fetch('/projects/frequent_traveler/api/bulk_delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ids: rows.map(r => r.id)})
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.message || (data.success ? '删除完成' : '删除失败'));
+        loadTravelers(currentPage);
+    })
+    .catch(() => alert('网络错误，删除失败'));
 }
 
 function renderTravelers(travelers, total, page, pages) {
@@ -447,7 +634,8 @@ function renderTravelers(travelers, total, page, pages) {
     document.getElementById('travelerCount').textContent = `共 ${total} 条记录`;
 
     if (!travelers.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4">暂无常用旅客</td></tr>';
+        clearSelection();
         document.getElementById('travelerPagination').innerHTML = '';
         return;
     }
@@ -455,16 +643,25 @@ function renderTravelers(travelers, total, page, pages) {
     tbody.innerHTML = travelers.map((t) => {
         const expiryClass = t.passport_expiry_date && new Date(t.passport_expiry_date) < new Date() ? 'text-danger' : '';
         const fc = t.file_count || 0;
+        const orders = t.order_count || 0;
         return `
         <tr style="cursor: pointer;" onclick="editTraveler(${t.id})" title="点击编辑">
+            <td class="text-center" onclick="event.stopPropagation();">
+                <input type="checkbox" class="form-check-input m-0 row-check" value="${t.id}"
+                       data-name="${escAttr(t.name)}" data-orders="${orders}" onchange="updateSelection()">
+            </td>
             <td><span class="badge bg-light text-dark" style="font-size: 0.72rem; font-family: monospace;">${t.traveler_code || ''}</span></td>
             <td class="trunc" title="${t.name || ''}"><strong>${t.name || ''}</strong></td>
             <td class="trunc" title="${t.passport_number || ''}">${t.passport_number || '<span class="text-muted">-</span>'}</td>
-            <td class="text-center ${expiryClass}">${t.passport_expiry_date || '<span class="text-muted">-</span>'}</td>
+            <td class="text-center nowrap ${expiryClass}">${t.passport_expiry_date ? formatDateDMY(t.passport_expiry_date) : '<span class="text-muted">-</span>'}</td>
             <td class="trunc" title="${t.phone || ''}">${t.phone || '<span class="text-muted">-</span>'}</td>
             <td class="trunc" title="${t.company_name || ''}"><small>${t.company_name || '<span class="text-muted">-</span>'}</small></td>
             <td class="trunc" title="${t.group_name || ''}"><small class="text-muted">${t.group_name || '-'}</small></td>
             <td class="text-center">${t.staff_name ? `<span class="badge" style="background:#e0e7ff;color:#4338ca;">${t.staff_name}</span>` : '<span class="text-muted" style="font-size:0.75rem;">公共</span>'}</td>
+            <td class="text-center">${orders > 0
+                ? `<span class="badge bg-primary" style="font-size:0.72rem;">${orders}</span>`
+                : '<span class="badge bg-light text-muted" style="font-size:0.72rem;">0</span>'}</td>
+            <td class="text-center nowrap"><small class="${orders > 0 ? '' : 'text-muted'}">${t.last_used_at ? formatDateDMY(t.last_used_at) : '-'}</small></td>
             <td class="text-center">${fc > 0 ? `<span class="badge bg-info" style="font-size: 0.7rem;">${fc}</span>` : '<span class="text-muted">0</span>'}</td>
             <td class="text-center nowrap">
                 <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="event.stopPropagation(); deleteTraveler(${t.id}, '${t.name}')" title="删除" style="font-size: 0.75rem;">
@@ -494,6 +691,9 @@ function resetSearch() {
     document.getElementById('searchKeyword').value = '';
     document.getElementById('searchCompany').value = '';
     document.getElementById('searchGroup').value = '';
+    document.getElementById('searchUsage').value = '';
+    currentSort = 'name';
+    currentDir = 'asc';
     loadTravelers(1);
 }
 
@@ -513,6 +713,9 @@ function openTravelerModal(traveler) {
     const modal = document.getElementById('travelerModal');
     const title = document.getElementById('travelerModalTitle');
     document.getElementById('travelerForm').reset();
+    // form.reset() 只会清掉隐藏的原输入框，flatpickr 的可见输入框要单独清
+    setDateValue('travelerDob', '');
+    setDateValue('travelerPassportExpiry', '');
     document.getElementById('travelerId').value = '';
     document.getElementById('airlineMemberships').innerHTML = '';
     document.getElementById('membershipEmpty').style.display = '';
@@ -526,13 +729,13 @@ function openTravelerModal(traveler) {
         document.getElementById('travelerName').value = traveler.name || '';
         // name_en 字段已移除，不再需要
         document.getElementById('travelerGender').value = traveler.gender || '';
-        document.getElementById('travelerDob').value = traveler.date_of_birth || '';
+        setDateValue('travelerDob', traveler.date_of_birth);
         document.getElementById('travelerNationality').value = traveler.nationality || '';
         document.getElementById('travelerPhone').value = traveler.phone || '';
         document.getElementById('travelerEmail').value = traveler.email || '';
         document.getElementById('travelerPassport').value = traveler.passport_number || '';
         document.getElementById('travelerPassportCountry').value = traveler.passport_issuing_country || '';
-        document.getElementById('travelerPassportExpiry').value = traveler.passport_expiry_date || '';
+        setDateValue('travelerPassportExpiry', traveler.passport_expiry_date);
         document.getElementById('travelerIdCard').value = traveler.id_card_number || '';
         document.getElementById('travelerCompany').value = traveler.company_id || '';
         document.getElementById('travelerGroup').value = traveler.group_name || '';

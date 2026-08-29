@@ -24,6 +24,27 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _usage_subquery():
+    """常旅客被订单引用的统计（按订单数 + 最近一次引用）
+
+    项目人员和常旅客之间没有外键，全站都是按 member_name 精确匹配来认这个人的
+    （见 project_members.get_members），这里沿用同一套规则，否则列表上的引用数
+    会和项目详情页的「常客」标识对不上。
+
+    做成子查询而不是逐个统计：既能一次算完，也能直接用来做全局排序 + 分页。
+    """
+    from App_new.business.projects.models.project_member import ProjectMember
+    from App_new.business.projects.models.project import ProjectHeader
+
+    return db.session.query(
+        ProjectMember.member_name.label('member_name'),
+        db.func.count(db.distinct(ProjectMember.header_id)).label('order_count'),
+        db.func.max(ProjectHeader.created_at).label('last_used_at'),
+    ).join(
+        ProjectHeader, ProjectHeader.id == ProjectMember.header_id
+    ).group_by(ProjectMember.member_name).subquery()
+
+
 def get_traveler_files_path(traveler_id):
     """获取旅客文件存储路径"""
     base_path = Path(os.getcwd()) / '资源' / 'Travelers' / str(traveler_id)
@@ -140,11 +161,48 @@ def api_list():
             )
         )
 
-    query = query.order_by(FrequentTraveler.name)
+    # 引用统计：接到主查询上，这样「按引用数/最近引用排序」是全表排序后再分页，
+    # 而不是只在当前页里排。
+    usage = _usage_subquery()
+    order_count = db.func.coalesce(usage.c.order_count, 0)
+    last_used_at = usage.c.last_used_at
+
+    query = query.outerjoin(usage, usage.c.member_name == FrequentTraveler.name)
+
+    # 引用情况筛选：unused = 一次都没被订单引用过（就是可以考虑清理的那批）
+    usage_filter = request.args.get('usage', '', type=str).strip()
+    if usage_filter == 'unused':
+        query = query.filter(order_count == 0)
+    elif usage_filter == 'used':
+        query = query.filter(order_count > 0)
+
+    # 排序
+    sort = request.args.get('sort', 'name', type=str)
+    direction = request.args.get('dir', '', type=str).lower()
+    sort_columns = {
+        'name': FrequentTraveler.name,
+        'orders': order_count,
+        'last_used': last_used_at,
+        'created': FrequentTraveler.created_at,
+    }
+    if sort not in sort_columns:
+        sort = 'name'
+    # 姓名默认升序，引用数/最近引用默认降序（最常用、最近用的排前面）
+    if direction not in ('asc', 'desc'):
+        direction = 'asc' if sort in ('name',) else 'desc'
+    sort_col = sort_columns[sort]
+    query = query.order_by(
+        sort_col.asc() if direction == 'asc' else sort_col.desc(),
+        FrequentTraveler.name.asc()
+    )
+
+    query = query.add_columns(order_count.label('order_count'), last_used_at.label('last_used_at'))
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     # 批量查询文件数量
-    traveler_ids = [t.id for t in pagination.items]
+    rows_items = list(pagination.items)
+    travelers = [row[0] for row in rows_items]
+    traveler_ids = [t.id for t in travelers]
     file_counts = {}
     if traveler_ids:
         rows = db.session.query(
@@ -153,9 +211,12 @@ def api_list():
         file_counts = {r[0]: r[1] for r in rows}
 
     result = []
-    for t in pagination.items:
+    for row in rows_items:
+        t, cnt, last_at = row[0], row[1], row[2]
         d = t.to_dict()
         d['file_count'] = file_counts.get(t.id, 0)
+        d['order_count'] = int(cnt or 0)
+        d['last_used_at'] = last_at.strftime('%Y-%m-%d') if last_at else None
         result.append(d)
 
     return jsonify({
@@ -164,6 +225,8 @@ def api_list():
         'total': pagination.total,
         'page': pagination.page,
         'pages': pagination.pages,
+        'sort': sort,
+        'dir': direction,
     })
 
 
@@ -336,6 +399,79 @@ def api_delete(traveler_id):
     return jsonify({'success': True, 'message': f'常用旅客 {name} 已删除'})
 
 
+@frequent_traveler_bp.route('/api/bulk_delete', methods=['POST'])
+@login_required
+@staff_only
+def api_bulk_delete():
+    """批量删除常用旅客（用于清理长期没被订单引用的记录）
+
+    - 无权限的（归属其他员工）跳过，不中断整批
+    - 默认拒绝删除仍被订单引用的记录，除非显式传 force=true
+    """
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get('ids') or []
+    force = bool(data.get('force'))
+
+    try:
+        ids = [int(i) for i in raw_ids]
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'ids 参数不合法'}), 400
+    if not ids:
+        return jsonify({'success': False, 'message': '未选择要删除的旅客'}), 400
+
+    travelers = FrequentTraveler.query.filter(FrequentTraveler.id.in_(ids)).all()
+    if not travelers:
+        return jsonify({'success': False, 'message': '未找到对应的旅客'}), 404
+
+    # 引用数：按姓名匹配，口径与列表页一致
+    usage = _usage_subquery()
+    names = [t.name for t in travelers if t.name]
+    used_counts = {}
+    if names:
+        rows = db.session.query(usage.c.member_name, usage.c.order_count).filter(
+            usage.c.member_name.in_(names)
+        ).all()
+        used_counts = {r[0]: int(r[1] or 0) for r in rows}
+
+    deleted, skipped_no_perm, skipped_in_use = [], [], []
+    for t in travelers:
+        if not _can_access_traveler(t):
+            skipped_no_perm.append(t.name)
+            continue
+        if not force and used_counts.get(t.name, 0) > 0:
+            skipped_in_use.append(f'{t.name}({used_counts[t.name]}单)')
+            continue
+        for f in t.files.all():
+            try:
+                if os.path.exists(f.file_path):
+                    os.remove(f.file_path)
+            except OSError:
+                pass
+        db.session.delete(t)
+        deleted.append(t.name)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {e}'}), 500
+
+    parts = [f'已删除 {len(deleted)} 条']
+    if skipped_in_use:
+        parts.append(f'跳过仍被订单引用的 {len(skipped_in_use)} 条: {", ".join(skipped_in_use[:5])}'
+                     + ('...' if len(skipped_in_use) > 5 else ''))
+    if skipped_no_perm:
+        parts.append(f'跳过无权限的 {len(skipped_no_perm)} 条')
+
+    return jsonify({
+        'success': True,
+        'message': '；'.join(parts),
+        'deleted': len(deleted),
+        'skipped_in_use': skipped_in_use,
+        'skipped_no_perm': skipped_no_perm,
+    })
+
+
 # ==================== Excel 导入导出 ====================
 
 # Excel列定义（与表头对应）
@@ -345,19 +481,24 @@ EXCEL_COLUMNS = [
     ('name', '姓名*', 15),
     ('name_en', '英文名', 20),
     ('gender', '性别(male/female)', 12),
-    ('date_of_birth', '出生日期', 14),
+    ('date_of_birth', '出生日期(dd-mm-yyyy)', 20),
     ('nationality', '国籍', 12),
     ('phone', '电话', 18),
     ('email', '邮箱', 25),
     ('passport_number', '护照号码', 18),
     ('passport_issuing_country', '护照签发国', 12),
-    ('passport_expiry_date', '护照有效期', 14),
+    ('passport_expiry_date', '护照有效期(dd-mm-yyyy)', 22),
     ('id_card_number', '身份证号码', 20),
     ('airline_memberships', '航空会员(航司:号码,多个用;分隔)', 30),
     ('company_name', '关联公司', 20),
     ('group_name', '集团', 15),
     ('remarks', '备注', 25),
 ]
+
+
+# 导出/模板里日期列的显示格式（Excel 单元格格式，非字符串）
+EXCEL_DATE_FORMAT = 'DD-MM-YYYY'
+EXCEL_DATE_FIELDS = ('date_of_birth', 'passport_expiry_date')
 
 
 @frequent_traveler_bp.route('/api/export', methods=['GET'])
@@ -409,13 +550,13 @@ def api_export():
             d['name'] or '',
             d['name_en'] or '',
             d['gender'] or '',
-            d['date_of_birth'] or '',
+            t.date_of_birth,
             d['nationality'] or '',
             d['phone'] or '',
             d['email'] or '',
             d['passport_number'] or '',
             d['passport_issuing_country'] or '',
-            d['passport_expiry_date'] or '',
+            t.passport_expiry_date,
             d['id_card_number'] or '',
             memberships_str,
             d['company_name'] or '',
@@ -425,6 +566,9 @@ def api_export():
         for col_idx, value in enumerate(row_data, 1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.border = thin_border
+            if EXCEL_COLUMNS[col_idx - 1][0] in EXCEL_DATE_FIELDS:
+                cell.number_format = EXCEL_DATE_FORMAT
+                cell.alignment = Alignment(horizontal='center')
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -476,15 +620,20 @@ def api_template():
     dv_gender.add(f'E2:E1000')
 
     # 示例行
-    example = ['', 'MR', '张三', 'ZHANG SAN', 'male', '1990-01-15', 'CHINA',
+    # 示例行的日期同样写真正的日期值，套 dd-mm-yyyy 单元格格式
+    from datetime import date as _date
+    example = ['', 'MR', '张三', 'ZHANG SAN', 'male', _date(1990, 1, 15), 'CHINA',
                '+65 91234567', 'zhangsan@email.com', 'E12345678', 'CHINA',
-               '2030-12-31', '110101199001150011', 'SQ:1234567890;CX:987654',
+               _date(2030, 12, 31), '110101199001150011', 'SQ:1234567890;CX:987654',
                '', 'ALIBABA', '示例数据，请删除此行']
     example_font = Font(color='999999', italic=True)
     for col_idx, value in enumerate(example, 1):
         cell = ws.cell(row=2, column=col_idx, value=value)
         cell.font = example_font
         cell.border = thin_border
+        if EXCEL_COLUMNS[col_idx - 1][0] in EXCEL_DATE_FIELDS:
+            cell.number_format = EXCEL_DATE_FORMAT
+            cell.alignment = Alignment(horizontal='center')
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -579,7 +728,7 @@ def api_import():
             if not val:
                 return None
             from datetime import datetime as dt
-            for fmt in ('%Y-%m-%d', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y'):
+            for fmt in ('%Y-%m-%d', '%Y/%m/%d', '%d-%m-%Y', '%d/%m/%Y', '%m/%d/%Y'):
                 try:
                     return dt.strptime(val, fmt).date()
                 except ValueError:
