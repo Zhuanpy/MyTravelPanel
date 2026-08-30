@@ -18,6 +18,28 @@ from App_new.utils.decorators import staff_only
 
 project_refund = Blueprint('project_refund', __name__)
 
+
+def _ref_suppliers(header):
+    """本项目 REF 上出现过的供应商（去重）
+
+    退款要跟的供应商基本就是 REF 上那家（航司/地接/酒店），
+    从这里带出来免得手输错名字——supplier_name 是自由文本，
+    敲错了跟踪状态就对不上。附带 REF 编号方便一眼认出是哪一单。
+    """
+    from App_new.business.projects.models.ref import ProjectRef
+
+    grouped = {}
+    refs = ProjectRef.query.filter_by(header_id=header.id).order_by(ProjectRef.id).all()
+    for r in refs:
+        supplier = r.supplier
+        if not supplier or not supplier.company_name:
+            continue
+        grouped.setdefault(supplier.company_name, []).append(r.ref_number or '')
+    return [
+        {'name': name, 'refs': ', '.join(x for x in nums if x)}
+        for name, nums in sorted(grouped.items())
+    ]
+
 # 个人/现金类客户的公司名（这类客户退款退给个人，而非公司）
 _INDIVIDUAL_COMPANY_NAMES = ('个人', 'cash', '现金', 'cash sales')
 
@@ -67,14 +89,55 @@ def _apply_tracking_fields(refund, form):
 
     refund.supplier_name = (form.get('supplier_name') or '').strip() or None
     refund.supplier_refund_status = supplier_status
+    # 预计金额由发票明细汇总（见 _collect_refund_items），这里只处理实收
     refund.supplier_refund_amount = _parse_amount(form.get('supplier_refund_amount'))
     refund.supplier_refund_date = _parse_date(form.get('supplier_refund_date'))
     refund.supplier_refund_remarks = (form.get('supplier_refund_remarks') or '').strip() or None
 
+    # 「扣款」两个字段已从表单去掉：我方扣款必然等于「预计退回 − 预计退客户」，
+    # 手填只会和自动算出来的手续费对不上。列暂时保留（旧数据还在），但不再写入。
     refund.customer_refund_status = customer_status
     refund.customer_refund_amount = _parse_amount(form.get('customer_refund_amount'))
     refund.customer_refund_date = _parse_date(form.get('customer_refund_date'))
     refund.customer_refund_remarks = (form.get('customer_refund_remarks') or '').strip() or None
+
+
+
+def _collect_refund_items(header, form, refund_id):
+    """按勾选的发票解析两侧金额，返回 (items, 客户侧合计, 供应商侧合计)
+
+    每张发票两个金额：
+    - amount_<id>           本次预计退回客户（决定该发票的已退款/可退余额）
+    - supplier_amount_<id>  本次预计供应商退回
+
+    跟踪区的「预计退回 / 预计退客户」由这里汇总得出，不再让人手填两遍。
+    """
+    def _num(key):
+        raw = (form.get(key) or '').strip()
+        try:
+            value = float(raw) if raw else 0.0
+        except ValueError:
+            value = 0.0
+        # 允许 0（该发票不可退但仍列示在凭证上）；不接受负数
+        return value if value > 0 else 0.0
+
+    items, customer_total, supplier_total = [], 0.0, 0.0
+    for iid in form.getlist('invoice_ids'):
+        invoice = ProjectInvoice.query.get(int(iid))
+        # 安全检查：发票必须属于本项目
+        if not invoice or invoice.header_id != header.id:
+            continue
+        amount = _num(f'amount_{iid}')
+        supplier_amount = _num(f'supplier_amount_{iid}')
+        customer_total += amount
+        supplier_total += supplier_amount
+        items.append(ProjectRefundItem(
+            refund_id=refund_id,
+            invoice_id=invoice.id,
+            amount=amount,
+            supplier_expected_amount=supplier_amount,
+        ))
+    return items, customer_total, supplier_total
 
 
 def _build_invoice_rows(header, current_refund=None):
@@ -87,9 +150,11 @@ def _build_invoice_rows(header, current_refund=None):
     exclude_id = current_refund.id if current_refund else None
     # 本笔退款各发票已选金额
     selected_map = {}
+    selected_supplier_map = {}
     if current_refund:
         for it in current_refund.items:
             selected_map[it.invoice_id] = float(it.amount or 0)
+            selected_supplier_map[it.invoice_id] = float(it.supplier_expected_amount or 0)
 
     invoices = ProjectInvoice.query.filter_by(header_id=header.id).filter(
         ProjectInvoice.status != 'cancelled'
@@ -114,6 +179,7 @@ def _build_invoice_rows(header, current_refund=None):
             'remaining': max(0.0, round(remaining, 2)),
             'selected': is_selected,
             'selected_amount': selected_amount,
+            'selected_supplier_amount': selected_supplier_map.get(inv.id, 0.0),
         })
     return rows
 
@@ -254,6 +320,13 @@ def create_refund(header_id):
     """创建项目级退款记录（勾选多张发票退款），提交后跳转到打印页"""
     header = ProjectHeader.query.get_or_404(header_id)
 
+    # 已结算的项目不能再开退款单（会改变余额，与已发出的分成对不上）
+    from App_new.utils.permissions import block_if_settled
+    blocked = block_if_settled(header)
+    if blocked:
+        flash(blocked, 'warning')
+        return redirect(url_for('business_projects.project_refund.header_refunds', header_id=header_id))
+
     if request.method == 'POST':
         try:
             # 被勾选的发票 id 列表
@@ -285,27 +358,14 @@ def create_refund(header_id):
             db.session.add(refund)
             db.session.flush()  # 获取 refund.id
 
-            total = 0.0
-            for iid in selected_invoice_ids:
-                invoice = ProjectInvoice.query.get(int(iid))
-                # 安全检查：发票必须属于本项目
-                if not invoice or invoice.header_id != header.id:
-                    continue
-                amount_str = (request.form.get(f'amount_{iid}') or '').strip()
-                try:
-                    amount = float(amount_str) if amount_str else 0.0
-                except ValueError:
-                    amount = 0.0
-                # 允许 0（表示该发票不可退款，仍需在凭证中列示）；不接受负数
-                if amount < 0:
-                    amount = 0.0
-                total += amount
-                item = ProjectRefundItem(
-                    refund_id=refund.id,
-                    invoice_id=invoice.id,
-                    amount=amount,
-                )
+            items, total, supplier_total = _collect_refund_items(header, request.form, refund.id)
+            for item in items:
                 db.session.add(item)
+            db.session.flush()
+
+            # 预计金额由明细汇总，不从表单读
+            refund.customer_expected_amount = total
+            refund.supplier_expected_amount = supplier_total
 
             if not refund.items:
                 db.session.rollback()
@@ -315,9 +375,7 @@ def create_refund(header_id):
             refund.amount = total
             db.session.commit()
 
-            # 「保存并打印」跳打印页；「保存」回项目退款管理页
-            if (request.form.get('action') or '').strip() == 'save_print':
-                return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+            # 保存后回退款管理页，打印在那边按行操作（表单上不再重复提供打印入口）
             flash(f'退款记录 {refund.refund_number} 已保存', 'success')
             return redirect(url_for('business_projects.project_refund.header_refunds', header_id=header.id))
 
@@ -337,7 +395,7 @@ def create_refund(header_id):
 
     return render_template('business/projects/project_refund/create_refund.html',
                            header=header, invoice_rows=invoice_rows, defaults=defaults,
-                           refund=None,
+                           refund=None, ref_suppliers=_ref_suppliers(header),
                            form_action=url_for('business_projects.project_refund.create_refund', header_id=header.id))
 
 
@@ -374,27 +432,16 @@ def edit_refund(refund_id):
                 db.session.delete(it)
             db.session.flush()
 
-            total = 0.0
-            for iid in selected_invoice_ids:
-                invoice = ProjectInvoice.query.get(int(iid))
-                if not invoice or invoice.header_id != header.id:
-                    continue
-                amount_str = (request.form.get(f'amount_{iid}') or '').strip()
-                try:
-                    amount = float(amount_str) if amount_str else 0.0
-                except ValueError:
-                    amount = 0.0
-                # 允许 0（表示该发票不可退款，仍需在凭证中列示）；不接受负数
-                if amount < 0:
-                    amount = 0.0
-                total += amount
-                db.session.add(ProjectRefundItem(
-                    refund_id=refund.id,
-                    invoice_id=invoice.id,
-                    amount=amount,
-                ))
+            items, total, supplier_total = _collect_refund_items(header, request.form, refund.id)
+            for item in items:
+                db.session.add(item)
 
             db.session.flush()
+
+            # 预计金额由明细汇总，不从表单读
+            refund.customer_expected_amount = total
+            refund.supplier_expected_amount = supplier_total
+
             if not refund.items:
                 db.session.rollback()
                 flash('未能识别任何有效的发票明细', 'warning')
@@ -403,9 +450,7 @@ def edit_refund(refund_id):
             refund.amount = total
             db.session.commit()
 
-            # 「保存并打印」跳打印页；「保存」回项目退款管理页
-            if (request.form.get('action') or '').strip() == 'save_print':
-                return redirect(url_for('business_projects.project_refund.print_refund', refund_id=refund.id))
+            # 保存后回退款管理页，打印在那边按行操作（表单上不再重复提供打印入口）
             flash(f'退款记录 {refund.refund_number} 已保存', 'success')
             return redirect(url_for('business_projects.project_refund.header_refunds', header_id=header.id))
 
@@ -424,7 +469,7 @@ def edit_refund(refund_id):
 
     return render_template('business/projects/project_refund/create_refund.html',
                            header=header, invoice_rows=invoice_rows, defaults=defaults,
-                           refund=refund,
+                           refund=refund, ref_suppliers=_ref_suppliers(header),
                            form_action=url_for('business_projects.project_refund.edit_refund', refund_id=refund.id))
 
 
@@ -524,6 +569,138 @@ def update_tracking(refund_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
+
+
+@project_refund.route('/<int:refund_id>/create-adjustment', methods=['POST'])
+@login_required
+@staff_only
+def create_adjustment(refund_id):
+    """由退款单生成「退款调整单」，把手续费做进项目利润
+
+    退款单本身只是凭证，不进账。真正让「供应商退回 − 退给客户」这笔差额进到
+    利润和分成里的，是一条 refund 类型的 REF：
+        售价 = 供应商退回给我们的钱
+        成本 = 我们退给客户的钱
+        利润 = 两者之差 = 手续费收入
+
+    原来这一串（判断结不结算 → 建单 → 建 REF 且类型必须选对 → 建 EO）全靠人记，
+    漏一步就静默卡住结算，而且界面上根本选不到 refund 类型。
+
+    金额口径：优先用实际发生额，实际为 0 时回落到预计额（钱还没到账时先占位）。
+    """
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.shared.models.business_types import BusinessType
+
+    refund = ProjectRefund.query.get_or_404(refund_id)
+    header = refund.header
+
+    if refund.adjustment_ref_id:
+        existing = ProjectRef.query.get(refund.adjustment_ref_id)
+        if existing:
+            return jsonify({
+                'success': False,
+                'message': f'该退款单已生成调整单 {existing.ref_number}，不能重复生成',
+                'adjustment_ref_id': existing.id,
+                'adjustment_header_id': refund.adjustment_header_id,
+            }), 400
+        # 调整单被删过，允许重新生成
+        refund.adjustment_ref_id = None
+        refund.adjustment_header_id = None
+
+    refund_type = BusinessType.query.filter_by(code='refund').first()
+    if not refund_type:
+        return jsonify({
+            'success': False,
+            'message': '缺少「退款调整」业务类型，请先执行 scripts/20260829_refund_settlement_support.py'
+        }), 400
+
+    # 金额：实际优先，回落到预计
+    supplier_in = float(refund.supplier_refund_amount or 0) or float(refund.supplier_expected_amount or 0)
+    customer_out = float(refund.customer_refund_amount or 0) or float(refund.customer_expected_amount or 0)
+    basis = '实际' if float(refund.supplier_refund_amount or 0) or float(refund.customer_refund_amount or 0) else '预计'
+
+    if supplier_in <= 0 and customer_out <= 0:
+        return jsonify({
+            'success': False,
+            'message': '供应商退回和退给客户的金额都是 0，无法生成调整单。请先填写预计或实际金额。'
+        }), 400
+
+    try:
+        # 已结算的项目不能再改，另开一张单并挂回主单；未结算的直接加在本项目上
+        if header.is_settled:
+            target = ProjectHeader(
+                hid=ProjectHeader.generate_hid(),
+                desc=f'退款调整 {refund.refund_number}（{header.hid}）',
+                related_header_id=header.id,
+                company_id=header.company_id,
+                currency=header.currency or 'SGD',
+                status='active',
+                contact=header.contact,
+                staff_id=header.staff_id,
+                # 分成要分给原单的人，不是建单的人
+                operator_ids=header.operator_ids,
+                operator_names=header.operator_names,
+                salesperson_ids=header.salesperson_ids,
+                salesperson_names=header.salesperson_names,
+                remarks=f'由退款单 {refund.refund_number} 自动生成；原单 {header.hid} 已结算，故另开调整单',
+            )
+            db.session.add(target)
+            db.session.flush()
+            created_header = True
+        else:
+            target = header
+            created_header = False
+
+        ref = ProjectRef(
+            header_id=target.id,
+            ref_number=ProjectRef.generate_ref_number(),
+            ref_type_id=refund_type.id,
+            description=f'退款调整 {refund.refund_number}',
+            detailed_description=(
+                f'退款单 {refund.refund_number}（{basis}金额）\n'
+                f'供应商退回 {supplier_in:.2f} - 退给客户 {customer_out:.2f} '
+                f'= 手续费 {supplier_in - customer_out:.2f}'
+            ),
+            selling_price=supplier_in,
+            cost_price=customer_out,
+            currency=refund.currency or target.currency or 'SGD',
+        )
+        db.session.add(ref)
+        db.session.flush()
+
+        # EO 骨架：复用 project_eo 里的生成逻辑，保证 EO 编号规则单一来源
+        # （pay_amount 留空 = 未付款，结算前会被 settle_blockers 提示补上）
+        eo = None
+        if customer_out > 0:
+            from App_new.business.projects.routes.project_eo import _create_or_reactivate_eo
+            eo, _ = _create_or_reactivate_eo(ref)
+
+        refund.adjustment_header_id = target.id
+        refund.adjustment_ref_id = ref.id
+        db.session.commit()
+
+        parts = [f'已生成调整单 {ref.ref_number}（售价 {supplier_in:.2f} / 成本 {customer_out:.2f}，'
+                 f'利润 {supplier_in - customer_out:.2f}）']
+        if created_header:
+            parts.append(f'原单已结算，已另开项目 {target.hid} 并关联回 {header.hid}')
+        if eo:
+            parts.append(f'已建 EO {eo.eo_number}，请在实际付款后填金额并标记已付')
+        parts.append(f'还需记一笔 {supplier_in:.2f} 的收款挂到该 REF，项目才能结算')
+
+        return jsonify({
+            'success': True,
+            'message': '；'.join(parts),
+            'ref_id': ref.id,
+            'ref_number': ref.ref_number,
+            'header_id': target.id,
+            'hid': target.hid,
+            'created_header': created_header,
+            'eo_number': eo.eo_number if eo else None,
+            'basis': basis,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'生成失败：{str(e)}'}), 500
 
 
 @project_refund.route('/<int:refund_id>/delete', methods=['POST'])

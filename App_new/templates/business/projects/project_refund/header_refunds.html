@@ -51,7 +51,8 @@
                                 <th>退客户</th>
                                 <th class="text-end">已退金额</th>
                                 <th>退客户日期</th>
-                                <th class="text-center" style="width:140px;">操作</th>
+                                <th title="把「供应商退回 − 退给客户」的差额做进项目利润的那条 REF">调整单</th>
+                                <th class="text-center" style="width:160px;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -77,7 +78,41 @@
                                 <td><span class="badge {{ r.customer_refund_badge }}">{{ r.customer_refund_status_display }}</span></td>
                                 <td class="text-end small">{{ "%.2f"|format(r.customer_refund_amount) if r.customer_refund_amount else '-' }}</td>
                                 <td class="small">{{ r.customer_refund_date.strftime('%Y-%m-%d') if r.customer_refund_date else '-' }}</td>
+                                {# 调整单：显示自动生成的那条 REF，及其利润（= 手续费收入） #}
+                                <td class="small nowrap">
+                                    {% if r.adjustment_ref %}
+                                    {% set adj = r.adjustment_ref %}
+                                    {% set adj_profit = (adj.selling_price or 0) - (adj.cost_price or 0) %}
+                                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.adjustment_header_id) }}#ref-{{ adj.id }}"
+                                       class="fw-bold text-decoration-none"
+                                       title="售价 {{ '%.2f'|format(adj.selling_price or 0) }} / 成本 {{ '%.2f'|format(adj.cost_price or 0) }}">
+                                        {{ adj.ref_number }}
+                                    </a>
+                                    {% if r.adjustment_header_id != r.header_id %}
+                                    <span class="badge bg-warning text-dark ms-1"
+                                          title="原单已结算，调整单开在另一张项目上">{{ r.adjustment_header.hid if r.adjustment_header else '' }}</span>
+                                    {% endif %}
+                                    <br>
+                                    <span class="{{ 'text-success' if adj_profit >= 0 else 'text-danger' }}">
+                                        手续费 {{ '%.2f'|format(adj_profit) }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted" title="手续费还没做进项目利润">未生成</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-center">
+                                    {% if r.adjustment_ref_id %}
+                                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.adjustment_header_id) }}"
+                                       class="btn btn-sm btn-success" title="已生成退款调整单，点击查看">
+                                        <i class="fas fa-check"></i> 已入账
+                                    </a>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            onclick="createAdjustment({{ r.id }}, '{{ r.refund_number }}')"
+                                            title="退款单只是凭证，点这里把手续费做进项目利润">
+                                        <i class="fas fa-file-circle-plus"></i> 生成调整单
+                                    </button>
+                                    {% endif %}
                                     <a href="{{ url_for('business_projects.project_refund.edit_refund', refund_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="编辑"><i class="fas fa-edit"></i></a>
                                     <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="打印凭证"><i class="fas fa-print"></i></a>
                                     {% if r.can_delete %}
@@ -105,6 +140,30 @@
 </div>
 
 <script>
+// 由退款单生成「退款调整单」：把「供应商退回 − 退给客户」的差额做进项目利润。
+// 退款单本身只是凭证，不做这一步的话手续费不会进任何账，分成也算不到。
+function createAdjustment(id, refundNumber) {
+    if (!confirm(`将为退款单 ${refundNumber} 生成退款调整单：\n\n`
+               + `· 售价 = 供应商退回给我们的金额\n`
+               + `· 成本 = 我们退给客户的金额\n`
+               + `· 差额即手续费，会计入项目利润和分成\n\n`
+               + `原单若已结算，会另开一张项目并关联回原单。确定继续？`)) return;
+
+    fetch(`/projects/refund/${id}/create-adjustment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.message || (data.success ? '已生成' : '生成失败'));
+        if (data.success) location.reload();
+    })
+    .catch(() => alert('网络错误，生成失败'));
+}
+
 function deleteRefund(id) {
     if (!confirm('确定删除该退款记录及其明细吗？')) return;
     fetch(`/projects/refund/${id}/delete`, {

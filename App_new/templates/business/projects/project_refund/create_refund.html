@@ -4,10 +4,35 @@
 
 {% block page_title %}{{ '编辑退款' if refund else '退款处理' }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* 表单收窄：原先容器 1200px+，日期/金额这类短值字段被拉到 190px，
+       和长文本一样宽，看着松散也不好扫读。这里按字段实际内容限宽。 */
+    .refund-page { max-width: 1080px; }
+
+    .refund-page .form-control-sm,
+    .refund-page .form-select-sm { font-size: 0.82rem; }
+
+    .refund-page input[type="date"] { max-width: 150px; }
+    .refund-page input[type="number"] { max-width: 128px; }
+    /* 跟踪区的金额列是 col-md-1，让输入框填满该列而不是固定 128px */
+    .refund-page .col-md-1 input[type="number"] { max-width: 100%; }
+    .refund-page .w-currency { max-width: 76px; }
+    .refund-page .w-refundno { max-width: 162px; }
+
+    /* 发票表格：收紧行距，金额输入框不跟着列宽拉伸 */
+    .refund-page .table-sm > :not(caption) > * > * { padding: 0.3rem 0.45rem; }
+    .refund-page .inv-amount,
+    .refund-page .inv-supplier-amount { max-width: 120px; }
+
+    .refund-page .form-label.small { font-size: 0.75rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row justify-content-center">
-        <div class="col-lg-11 col-md-12">
+        <div class="col-12 refund-page">
             <!-- 页面头部 -->
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h5 class="mb-0">
@@ -46,13 +71,15 @@
                         <table class="table table-sm table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:40px;" class="text-center">选</th>
-                                    <th style="width:110px;">发票号</th>
-                                    <th style="width:110px;">发票日期</th>
-                                    <th style="width:130px;" class="text-end">发票金额</th>
-                                    <th style="width:120px;" class="text-end">已退款</th>
-                                    <th style="width:120px;" class="text-end">可退余额</th>
-                                    <th style="width:150px;">本次退款</th>
+                                    <th style="width:34px;" class="text-center">选</th>
+                                    <th style="width:100px;">发票号</th>
+                                    <th style="width:100px;">发票日期</th>
+                                    <th style="width:110px;" class="text-end">发票金额</th>
+                                    <th style="width:95px;" class="text-end">已退款</th>
+                                    <th style="width:100px;" class="text-end">可退余额</th>
+                                    <th style="width:110px;" title="航司/供应商就这张发票预计退回给我们多少">预计退回</th>
+                                    <th style="width:110px;" title="我们预计退给客户多少；两者之差即手续费">预计退客户</th>
+                                    <th></th>{# 填充列：吸收富余宽度，避免前面的列被撑开 #}
                                 </tr>
                             </thead>
                             <tbody>
@@ -72,19 +99,29 @@
                                     <td class="text-end">{{ "%.2f"|format(v.refunded) }}</td>
                                     <td class="text-end fw-bold {% if v.remaining > 0 %}text-danger{% endif %}">{{ "%.2f"|format(v.remaining) }}</td>
                                     <td>
+                                        <input type="number" step="0.01" min="0"
+                                               class="form-control form-control-sm inv-supplier-amount"
+                                               name="supplier_amount_{{ v.id }}"
+                                               value="{% if v.selected and v.selected_supplier_amount %}{{ '%.2f'|format(v.selected_supplier_amount) }}{% elif v.remaining > 0 %}{{ '%.2f'|format(v.remaining) }}{% endif %}"
+                                               {% if not v.selected %}disabled{% endif %}>
+                                    </td>
+                                    <td>
                                         <input type="number" step="0.01" min="0" max="{{ '%.2f'|format(v.remaining) }}"
                                                class="form-control form-control-sm inv-amount"
                                                name="amount_{{ v.id }}"
                                                value="{% if v.selected %}{{ '%.2f'|format(v.selected_amount) }}{% elif v.remaining > 0 %}{{ '%.2f'|format(v.remaining) }}{% endif %}"
                                                {% if not v.selected %}disabled{% endif %}>
                                     </td>
+                                    <td></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                             <tfoot class="table-light">
                                 <tr>
-                                    <td colspan="6" class="text-end fw-bold">退款合计</td>
+                                    <td colspan="6" class="text-end fw-bold">合计</td>
+                                    <td class="fw-bold" id="supplierTotalCell">0.00</td>
                                     <td class="fw-bold" id="totalCell">0.00</td>
+                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -103,7 +140,7 @@
                         <div class="row g-2">
                             <div class="col-md-2">
                                 <label class="form-label small mb-1">退款单号</label>
-                                <input type="text" class="form-control form-control-sm" value="{{ defaults.refund_number }}"
+                                <input type="text" class="form-control form-control-sm w-refundno" value="{{ defaults.refund_number }}"
                                        title="系统自动生成" readonly>
                             </div>
                             <div class="col-md-2">
@@ -124,7 +161,7 @@
                             </div>
                             <div class="col-md-1">
                                 <label class="form-label small mb-1">货币</label>
-                                <input type="text" name="currency" class="form-control form-control-sm" value="{{ defaults.currency }}" maxlength="3">
+                                <input type="text" name="currency" class="form-control form-control-sm w-currency" value="{{ defaults.currency }}" maxlength="3">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small mb-1">收款人 / 客户</label>
@@ -172,13 +209,36 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small mb-1">供应商</label>
-                                <input type="text" name="supplier_name" class="form-control form-control-sm"
-                                       value="{{ refund.supplier_name if refund and refund.supplier_name else '' }}"
-                                       placeholder="航司 / 地接 / 酒店等">
+                                {% set cur_supplier = refund.supplier_name if refund and refund.supplier_name else '' %}
+                                {% set known = ref_suppliers | map(attribute='name') | list %}
+                                {% if ref_suppliers %}
+                                {# 默认从本项目 REF 的供应商里选，避免手输错名字；
+                                   选「其他」才切换成自由输入 #}
+                                <select class="form-select form-select-sm" id="supplierSelect" onchange="onSupplierSelect()">
+                                    <option value="">— 选择供应商 —</option>
+                                    {% for s in ref_suppliers %}
+                                    <option value="{{ s.name }}" {{ 'selected' if cur_supplier == s.name }}>
+                                        {{ s.name }}{% if s.refs %} ({{ s.refs }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                    <option value="__custom__" {{ 'selected' if cur_supplier and cur_supplier not in known }}>其他（手动输入）</option>
+                                </select>
+                                {% endif %}
+                                <input type="text" name="supplier_name" id="supplierName"
+                                       class="form-control form-control-sm {% if ref_suppliers %}mt-1{% endif %}"
+                                       value="{{ cur_supplier }}"
+                                       placeholder="航司 / 地接 / 酒店等"
+                                       {% if ref_suppliers and not (cur_supplier and cur_supplier not in known) %}hidden{% endif %}>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label small mb-1">已收金额</label>
-                                <input type="number" step="0.01" min="0" name="supplier_refund_amount" class="form-control form-control-sm"
+                            <div class="col-md-1">
+                                <label class="form-label small mb-1" title="来自上方发票明细「本次预计退回」的合计，不可直接编辑">预计退回</label>
+                                <input type="text" readonly tabindex="-1"
+                                       class="form-control form-control-sm bg-light" id="supExpected" value="0.00">
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label small mb-1" title="默认取预计值，实际到账不一致时直接改">已收</label>
+                                <input type="number" step="0.01" min="0" name="supplier_refund_amount"
+                                       class="form-control form-control-sm actual-amount" id="supActual"
                                        value="{% if refund and refund.supplier_refund_amount %}{{ '%.2f'|format(refund.supplier_refund_amount) }}{% endif %}">
                             </div>
                             <div class="col-md-2">
@@ -208,13 +268,20 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small mb-1 text-muted">&nbsp;</label>
-                                <div class="form-control form-control-sm bg-light border-0 text-muted small">
+                                <div class="form-control form-control-sm bg-light border-0 text-muted small text-truncate"
+                                     title="退给：{{ defaults.payee_auto }}">
                                     退给：{{ defaults.payee_auto }}
                                 </div>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label small mb-1">已退金额</label>
-                                <input type="number" step="0.01" min="0" name="customer_refund_amount" class="form-control form-control-sm"
+                            <div class="col-md-1">
+                                <label class="form-label small mb-1" title="来自上方发票明细「本次预计退回客户」的合计，不可直接编辑">预计退客户</label>
+                                <input type="text" readonly tabindex="-1"
+                                       class="form-control form-control-sm bg-light" id="cusExpected" value="0.00">
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label small mb-1" title="默认取预计值，实际退款不一致时直接改">已退</label>
+                                <input type="number" step="0.01" min="0" name="customer_refund_amount"
+                                       class="form-control form-control-sm actual-amount" id="cusActual"
                                        value="{% if refund and refund.customer_refund_amount %}{{ '%.2f'|format(refund.customer_refund_amount) }}{% endif %}">
                             </div>
                             <div class="col-md-2">
@@ -229,20 +296,18 @@
                                        placeholder="如 已转账 尾号1234">
                             </div>
                         </div>
+                        <!-- 预计手续费：供应商退回 − 退给客户，就是这笔退款留在公司的钱 -->
+                        <div class="row g-2 mt-1">
+                            <div class="col-12">
+                                <div class="small text-muted border-top pt-1" id="feeHint"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="d-flex justify-content-end align-items-center gap-2 mb-3">
                     <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-sm btn-secondary">取消</a>
-                    {% if refund %}
-                    <a href="{{ url_for('business_projects.project_refund.print_refund', refund_id=refund.id) }}"
-                       target="_blank" class="btn btn-sm btn-outline-primary" title="打印当前已保存的内容（不含未保存的修改）">
-                        <i class="fas fa-print"></i> 打印凭证
-                    </a>
-                    {% endif %}
-                    <button type="submit" name="action" value="save_print" class="btn btn-sm btn-outline-danger">
-                        <i class="fas fa-print"></i> 保存并打印
-                    </button>
+                    {# 打印入口统一放在保存后的退款列表页，这里不再重复提供 #}
                     <button type="submit" name="action" value="save" class="btn btn-sm btn-danger">
                         <i class="fas fa-save"></i> 保存
                     </button>
@@ -254,10 +319,52 @@
 
 <script>
 // 勾选某发票时启用/禁用该行金额输入，并重算合计
+// 预计手续费 = 预计供应商退回 − 预计退给客户，就是这笔退款留在公司的收入。
+// 原先还有个「扣款」输入框让人手填这个数，但它必然等于这里算出来的差额，
+// 填两遍只会对不上，已去掉，改为完全由这两个预计金额推导。
+function recalcFee() {
+    const num = id => parseFloat((document.getElementById(id) || {}).value) || 0;
+    const hint = document.getElementById('feeHint');
+    if (!hint) return;
+
+    const supExp = num('supExpected');
+    const cusExp = num('cusExpected');
+
+    if (!supExp && !cusExp) { hint.textContent = ''; return; }
+
+    const fee = supExp - cusExp;
+    let txt = `预计手续费收入：${fee.toFixed(2)}（供应商退回 ${supExp.toFixed(2)} − 退给客户 ${cusExp.toFixed(2)}）`;
+    let cls = 'small text-muted border-top pt-1';
+
+    if (fee < 0) {
+        txt += ' ← 退给客户的比供应商退回的还多，请确认';
+        cls = 'small text-danger border-top pt-1';
+    }
+    hint.textContent = txt;
+    hint.className = cls;
+}
+
+// 供应商：下拉选中即写入实际提交的 supplier_name；选「其他」才露出输入框
+function onSupplierSelect() {
+    const sel = document.getElementById('supplierSelect');
+    const input = document.getElementById('supplierName');
+    if (!sel || !input) return;
+    if (sel.value === '__custom__') {
+        input.hidden = false;
+        input.value = '';
+        input.focus();
+    } else {
+        input.hidden = true;
+        input.value = sel.value;
+    }
+}
+
 function onInvToggle(cb) {
     const iid = cb.dataset.iid;
-    const el = document.querySelector(`[name="amount_${iid}"]`);
-    if (el) el.disabled = !cb.checked;
+    [`amount_${iid}`, `supplier_amount_${iid}`].forEach(function (n) {
+        const el = document.querySelector(`[name="${n}"]`);
+        if (el) el.disabled = !cb.checked;
+    });
     recalcTotal();
 }
 
@@ -269,23 +376,56 @@ function toggleAll(master) {
     });
 }
 
+// 已收/已退被人工改过就不再自动跟随预计值
+function markTouched(e) { e.target.dataset.touched = '1'; }
+
 function recalcTotal() {
-    let total = 0;
+    let customerTotal = 0, supplierTotal = 0;
     document.querySelectorAll('.inv-check:checked').forEach(cb => {
-        const el = document.querySelector(`[name="amount_${cb.dataset.iid}"]`);
-        const v = parseFloat(el && el.value);
-        if (!isNaN(v)) total += v;
+        const cus = parseFloat((document.querySelector(`[name="amount_${cb.dataset.iid}"]`) || {}).value);
+        const sup = parseFloat((document.querySelector(`[name="supplier_amount_${cb.dataset.iid}"]`) || {}).value);
+        if (!isNaN(cus)) customerTotal += cus;
+        if (!isNaN(sup)) supplierTotal += sup;
     });
-    const cell = document.getElementById('totalCell');
-    if (cell) cell.textContent = total.toFixed(2);
+
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v.toFixed(2); };
+    setText('totalCell', customerTotal);
+    setText('supplierTotalCell', supplierTotal);
+
+    // 跟踪区的「预计」是明细合计，只读；「已收/已退」默认引用它，改过就不再覆盖
+    const sync = (expectedId, actualId, value) => {
+        const exp = document.getElementById(expectedId);
+        if (exp) exp.value = value.toFixed(2);
+        const act = document.getElementById(actualId);
+        if (act && act.dataset.touched !== '1') act.value = value ? value.toFixed(2) : '';
+    };
+    sync('supExpected', 'supActual', supplierTotal);
+    sync('cusExpected', 'cusActual', customerTotal);
+
+    recalcFee();
 }
 
-// 金额输入变化时实时重算合计
+// 明细金额变化时实时重算两侧合计
 document.addEventListener('input', function(e) {
-    if (e.target && e.target.name && e.target.name.startsWith('amount_')) recalcTotal();
+    if (e.target && e.target.name &&
+        (e.target.name.startsWith('amount_') || e.target.name.startsWith('supplier_amount_'))) {
+        recalcTotal();
+    }
 });
 
-// 编辑时已有勾选，载入即算一次合计
-document.addEventListener('DOMContentLoaded', recalcTotal);
+['supActual', 'cusActual'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', markTouched);
+});
+
+// 编辑时已有勾选/金额，载入即各算一次
+document.addEventListener('DOMContentLoaded', function () {
+    // 编辑已有单据时，已收/已退里的值是人填的，标记一下免得被合计覆盖
+    ['supActual', 'cusActual'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el && el.value !== '') el.dataset.touched = '1';
+    });
+    recalcTotal();   // 内部会同步预计值并刷新手续费提示
+});
 </script>
 {% endblock %}

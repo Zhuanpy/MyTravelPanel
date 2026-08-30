@@ -43,6 +43,10 @@ class ProjectRefund(db.Model):
     supplier_refund_status = db.Column(db.Enum('pending', 'partial', 'received', 'na'),
                                        default='pending', nullable=False,
                                        comment='供应商退款状态: 未收到/部分收到/已收到/不涉及')
+    # 预计与扣款：退款几乎不会原额退回，航司/供应商会先扣一笔手续费。
+    # 记下来才能在钱到账前就知道该收多少，也才能解释「退款单总额」和「实收」为什么对不上。
+    supplier_expected_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='预计供应商退回金额')
+    supplier_deduction_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='供应商扣款(航司手续费等)')
     supplier_refund_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='已收到的供应商退款金额')
     supplier_refund_date = db.Column(db.Date, nullable=True, comment='收到供应商退款日期')
     supplier_refund_remarks = db.Column(db.String(255), nullable=True, comment='供应商退款备注')
@@ -51,9 +55,21 @@ class ProjectRefund(db.Model):
     customer_refund_status = db.Column(db.Enum('pending', 'partial', 'paid'),
                                        default='pending', nullable=False,
                                        comment='退客户状态: 未退款/部分退款/已退款')
+    # 我方扣款 = 留在公司的手续费收入，是这笔退款的利润来源
+    customer_expected_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='预计退给客户金额')
+    customer_deduction_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='我方扣款(手续费收入)')
     customer_refund_amount = db.Column(db.Numeric(10, 2), default=0, nullable=True, comment='已退给客户的金额')
     customer_refund_date = db.Column(db.Date, nullable=True, comment='退给客户日期')
     customer_refund_remarks = db.Column(db.String(255), nullable=True, comment='退客户备注')
+
+    # ===== 退款调整单：把手续费做进账的那张单 =====
+    # 退款单本身只是凭证，不进账。真正让「供应商退回 − 退给客户」这笔差额
+    # 进到项目利润和分成里的，是一条「退款调整」REF。这里记下生成的是哪张，
+    # 避免重复生成，也让页面能显示「已生成 / 未生成」。
+    adjustment_header_id = db.Column(db.Integer, db.ForeignKey('project_headers.id'), nullable=True,
+                                     comment='退款调整单所在项目ID')
+    adjustment_ref_id = db.Column(db.Integer, db.ForeignKey('project_refs.id'), nullable=True,
+                                  comment='退款调整REF的ID')
 
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -61,7 +77,11 @@ class ProjectRefund(db.Model):
     created_by = db.Column(db.String(50), nullable=True, comment='创建人')
 
     # 关联关系
-    header = db.relationship('ProjectHeader', backref='refunds')
+    # adjustment_header_id 也指向 project_headers，形成第二条外键路径，
+    # 因此这里必须显式指定用哪一列关联，否则 SQLAlchemy 无法确定 join 条件。
+    header = db.relationship('ProjectHeader', foreign_keys=[header_id], backref='refunds')
+    adjustment_header = db.relationship('ProjectHeader', foreign_keys=[adjustment_header_id])
+    adjustment_ref = db.relationship('ProjectRef', foreign_keys=[adjustment_ref_id])
     items = db.relationship('ProjectRefundItem', back_populates='refund',
                             cascade='all, delete-orphan', order_by='ProjectRefundItem.id')
 
@@ -84,15 +104,21 @@ class ProjectRefund(db.Model):
             'status': self.status,
             'supplier_name': self.supplier_name,
             'supplier_refund_status': self.supplier_refund_status,
+            'supplier_expected_amount': float(self.supplier_expected_amount) if self.supplier_expected_amount else 0,
+            'supplier_deduction_amount': float(self.supplier_deduction_amount) if self.supplier_deduction_amount else 0,
             'supplier_refund_amount': float(self.supplier_refund_amount) if self.supplier_refund_amount else 0,
             'supplier_refund_date': self.supplier_refund_date.isoformat() if self.supplier_refund_date else None,
             'supplier_refund_remarks': self.supplier_refund_remarks,
             'customer_refund_status': self.customer_refund_status,
+            'customer_expected_amount': float(self.customer_expected_amount) if self.customer_expected_amount else 0,
+            'customer_deduction_amount': float(self.customer_deduction_amount) if self.customer_deduction_amount else 0,
             'customer_refund_amount': float(self.customer_refund_amount) if self.customer_refund_amount else 0,
             'customer_refund_date': self.customer_refund_date.isoformat() if self.customer_refund_date else None,
             'customer_refund_remarks': self.customer_refund_remarks,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'adjustment_header_id': self.adjustment_header_id,
+            'adjustment_ref_id': self.adjustment_ref_id,
             'created_by': self.created_by,
             'items': [it.to_dict() for it in self.items],
         }
@@ -147,6 +173,20 @@ class ProjectRefund(db.Model):
     def status_display(self):
         """状态中文显示"""
         return {'confirmed': '已确认', 'cancelled': '已取消'}.get(self.status, self.status)
+
+    # ---------- 手续费（这笔退款留在公司的钱）----------
+    @property
+    def expected_service_fee(self):
+        """预计手续费 = 预计供应商退回 − 预计退给客户
+
+        这个差额就是退款这件事本身产生的收入，之前只能靠备注说明。
+        """
+        return float(self.supplier_expected_amount or 0) - float(self.customer_expected_amount or 0)
+
+    @property
+    def actual_service_fee(self):
+        """实际手续费 = 已收供应商退款 − 已退客户金额（两侧都发生后才有意义）"""
+        return float(self.supplier_refund_amount or 0) - float(self.customer_refund_amount or 0)
 
     # ---------- 供应商退款（收）----------
     @property
@@ -231,7 +271,12 @@ class ProjectRefundItem(db.Model):
                           nullable=False, comment='退款记录ID')
     invoice_id = db.Column(db.Integer, db.ForeignKey('project_invoices.id'), nullable=False, comment='发票ID')
 
-    amount = db.Column(db.Numeric(10, 2), nullable=False, default=0, comment='该发票本次退款金额')
+    # amount = 本次预计退回客户（面向客户那一侧，决定发票的「已退款/可退余额」）
+    amount = db.Column(db.Numeric(10, 2), nullable=False, default=0, comment='本次预计退回客户金额')
+    # 供应商那一侧：航司/地接就这张发票对应的业务预计退回给我们多少。
+    # 两者之差就是手续费，跟踪区的「预计退回/预计退客户」由本表汇总得出，不再手填。
+    supplier_expected_amount = db.Column(db.Numeric(10, 2), nullable=True, default=0,
+                                         comment='本次预计供应商退回金额')
     remarks = db.Column(db.String(255), nullable=True, comment='明细备注')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -249,6 +294,7 @@ class ProjectRefundItem(db.Model):
             'refund_id': self.refund_id,
             'invoice_id': self.invoice_id,
             'amount': float(self.amount) if self.amount else 0,
+            'supplier_expected_amount': float(self.supplier_expected_amount) if self.supplier_expected_amount else 0,
             'remarks': self.remarks,
         }
 

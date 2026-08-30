@@ -435,8 +435,11 @@
             </div>
         {% endif %}
         
-        <!-- REF类型字段隐藏，自动设置为"其他" -->
-        {{ form.ref_type_id(class="form-select", style="display: none;") }}
+        <!-- REF类型：默认「其他」，但要可改。隐藏的话新增的业务类型（如退款调整）
+             永远选不到，只能靠改库，而类型选错会影响结算校验。 -->
+        <label class="form-label">业务类型</label>
+        {{ form.ref_type_id(class="form-select form-select-sm") }}
+        <div class="form-text">默认「其他」。退款产生的手续费请选「退款调整」，该类型不要求开发票。</div>
         {% if form.ref_type_id.errors %}
             <div class="text-danger">
                 {% for error in form.ref_type_id.errors %}
