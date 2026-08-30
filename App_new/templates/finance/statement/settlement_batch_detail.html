@@ -270,6 +270,44 @@
         color: #555;
     }
 
+    /* 小节标题与搜索框同一行 */
+    .section-bar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .section-bar .section-title {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .detail-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .detail-search-select {
+        padding: 7px 8px;
+        border: 1px solid #d3dae3;
+        border-radius: 6px;
+        font-size: 13px;
+        background: #fff;
+        max-width: 150px;
+    }
+
+    .detail-search-input {
+        padding: 7px 10px;
+        border: 1px solid #d3dae3;
+        border-radius: 6px;
+        font-size: 13px;
+        width: 170px;
+    }
+
     .table-footer {
         display: flex;
         justify-content: space-between;
@@ -438,7 +476,35 @@
     {% endif %}
 
     <!-- 项目明细 -->
-    <h3 class="section-title"><i class="fas fa-list"></i> 项目明细（{{ project_pagination.total }} 个）</h3>
+    <div class="section-bar">
+        <h3 class="section-title"><i class="fas fa-list"></i>
+            项目明细（{% if project_pagination.filtered %}筛选出 {{ project_pagination.total }} / 共 {{ project_pagination.total_all }}{% else %}{{ project_pagination.total_all }}{% endif %} 个）
+        </h3>
+        {# 不带 page 参数：换条件要回到第 1 页。
+           下拉只列这张结算单里出现过的人 #}
+        <form method="GET" class="detail-search">
+            <input type="text" name="q" class="detail-search-input"
+                   value="{{ project_pagination.keyword }}" placeholder="搜索 HID">
+            <select name="op" class="detail-search-select">
+                <option value="">全部操作员</option>
+                {% for uid, name in operator_options %}
+                <option value="{{ uid }}" {{ 'selected' if project_pagination.operator == uid }}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <select name="sp" class="detail-search-select">
+                <option value="">全部业务员</option>
+                {% for uid, name in salesperson_options %}
+                <option value="{{ uid }}" {{ 'selected' if project_pagination.salesperson == uid }}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="action-btn"><i class="fas fa-search"></i> 筛选</button>
+            {% if project_pagination.filtered %}
+            <a class="action-btn ghost" href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id) }}">
+                <i class="fas fa-undo"></i> 清除
+            </a>
+            {% endif %}
+        </form>
+    </div>
 
     {% if projects %}
     <table class="data-table">
@@ -493,7 +559,7 @@
         {# 列合计：可与顶部概要卡直接对账 #}
         <tfoot>
             <tr>
-                <td colspan="3">合计（全部 {{ project_pagination.total }} 个项目）</td>
+                <td colspan="3">合计（全部 {{ project_pagination.total_all }} 个项目）</td>
                 <td class="num">{{ "%.2f"|format(project_totals.selling) }}</td>
                 <td class="num">{{ "%.2f"|format(project_totals.cost) }}</td>
                 <td class="num">{{ "%.2f"|format(project_totals.pl) }}</td>
@@ -509,12 +575,16 @@
     <div class="table-footer">
         <div>
             显示第 {{ project_pagination.start }}-{{ project_pagination.end }} 条，
+            {% if project_pagination.filtered %}
+            匹配 {{ project_pagination.total }} 条（结算单共 {{ project_pagination.total_all }} 条）
+            {% else %}
             共 {{ project_pagination.total }} 条
+            {% endif %}
         </div>
         {% if project_pagination.total_pages > 1 %}
         <div class="pager">
             {% if project_pagination.has_prev %}
-            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page - 1) }}">上一页</a>
+            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page - 1, q=project_pagination.keyword or None, op=project_pagination.operator or None, sp=project_pagination.salesperson or None) }}">上一页</a>
             {% endif %}
             {% for p in range(1, project_pagination.total_pages + 1) %}
                 {% if p == 1 or p == project_pagination.total_pages
@@ -522,21 +592,25 @@
                     {% if p == project_pagination.page %}
                     <span class="current">{{ p }}</span>
                     {% else %}
-                    <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=p) }}">{{ p }}</a>
+                    <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=p, q=project_pagination.keyword or None, op=project_pagination.operator or None, sp=project_pagination.salesperson or None) }}">{{ p }}</a>
                     {% endif %}
                 {% elif p == 2 or p == project_pagination.total_pages - 1 %}
                     <span class="gap">…</span>
                 {% endif %}
             {% endfor %}
             {% if project_pagination.has_next %}
-            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page + 1) }}">下一页</a>
+            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page + 1, q=project_pagination.keyword or None, op=project_pagination.operator or None, sp=project_pagination.salesperson or None) }}">下一页</a>
             {% endif %}
         </div>
         {% endif %}
     </div>
     {% else %}
     <div style="text-align: center; padding: 40px; color: #999;">
+        {% if project_pagination.filtered %}
+        <p>没有符合当前筛选条件的项目，结算单共 {{ project_pagination.total_all }} 个</p>
+        {% else %}
         <p>该结算单没有关联的项目</p>
+        {% endif %}
     </div>
     {% endif %}
 </div>

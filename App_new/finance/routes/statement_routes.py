@@ -1986,22 +1986,54 @@ def settlement_batch_detail(batch_id):
         'company': round(sum(float(p.company_profit or 0) for p in all_projects), 2),
     }
 
-    # 项目明细分页：一页 30 条
+    # 项目明细：HID 搜索 + 操作员/业务员筛选 + 分页（一页 30 条）
+    # 这些只影响下面这张明细表，员工分配和合计仍按整张结算单统计
+    keyword = (request.args.get('q') or '').strip()
+    filter_operator = (request.args.get('op') or '').strip()
+    filter_salesperson = (request.args.get('sp') or '').strip()
+
+    def _id_list(raw):
+        return [x.strip() for x in (raw or '').split(',') if x.strip().isdigit()]
+
+    # 下拉选项只列这张结算单里真实出现过的人，避免一长串无关员工
+    operator_options, salesperson_options = {}, {}
+    for p in all_projects:
+        for uid in _id_list(p.operator_ids):
+            operator_options.setdefault(uid, staff_name_map.get(int(uid), f'ID:{uid}'))
+        for uid in _id_list(p.salesperson_ids):
+            salesperson_options.setdefault(uid, staff_name_map.get(int(uid), f'ID:{uid}'))
+    operator_options = sorted(operator_options.items(), key=lambda kv: kv[1])
+    salesperson_options = sorted(salesperson_options.items(), key=lambda kv: kv[1])
+
+    matched = all_projects
+    if keyword:
+        kw = keyword.upper()
+        matched = [p for p in matched if kw in (p.hid or '').upper()]
+    if filter_operator:
+        matched = [p for p in matched if filter_operator in _id_list(p.operator_ids)]
+    if filter_salesperson:
+        matched = [p for p in matched if filter_salesperson in _id_list(p.salesperson_ids)]
+
     per_page = 30
-    total_projects = len(all_projects)
-    total_pages = max(1, (total_projects + per_page - 1) // per_page)
+    total_matched = len(matched)
+    total_pages = max(1, (total_matched + per_page - 1) // per_page)
     page = request.args.get('page', 1, type=int) or 1
     page = min(max(page, 1), total_pages)
     start = (page - 1) * per_page
-    projects = all_projects[start:start + per_page]
+    projects = matched[start:start + per_page]
     project_pagination = {
         'page': page,
         'per_page': per_page,
-        'total': total_projects,
+        'total': total_matched,          # 当前搜索条件下的条数
+        'total_all': len(all_projects),  # 整张结算单的条数
+        'keyword': keyword,
+        'operator': filter_operator,
+        'salesperson': filter_salesperson,
+        'filtered': bool(keyword or filter_operator or filter_salesperson),
         'total_pages': total_pages,
         'has_prev': page > 1,
         'has_next': page < total_pages,
-        'start': start + 1 if total_projects else 0,
+        'start': start + 1 if total_matched else 0,
         'end': start + len(projects),
     }
 
@@ -2016,6 +2048,8 @@ def settlement_batch_detail(batch_id):
                          staff_total_profit=staff_total_profit,
                          project_totals=project_totals,
                          project_pagination=project_pagination,
+                         operator_options=operator_options,
+                         salesperson_options=salesperson_options,
                          project_staff_display=project_staff_display)
 
 
