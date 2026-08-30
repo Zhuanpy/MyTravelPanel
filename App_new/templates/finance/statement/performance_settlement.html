@@ -382,7 +382,7 @@
             </div>
 
             <div class="filter-group">
-                <label class="filter-label">类型</label>
+                <label class="filter-label" title="按项目金额划分的小单/中单/大单">订单类型</label>
                 <select name="filter_order_type" class="filter-select">
                     <option value="">全部</option>
                     <option value="小单" {{ 'selected' if filter_order_type == '小单' }}>小单</option>
@@ -462,7 +462,7 @@
                 <th style="width: 100px; max-width: 100px;">公司</th>
                 <th title="项目创建日期">创建日</th>
                 <th title="最后一项结算条件达成的日期（推导值，不落库）">可结算日</th>
-                <th>类型</th>
+                <th>订单类型</th>
                 <th>金额</th>
                 <th>成本</th>
                 <th>盈亏</th>
