@@ -23,7 +23,8 @@
     python scripts/20260830_retire_payment_voucher.py           # 阶段一：迁移
     python scripts/20260830_retire_payment_voucher.py --drop    # 阶段二：删表删列
 
-前置：需先执行 20260830_settlement_batch_payout.py。阶段一幂等，可重复执行。
+阶段一幂等，可重复执行，且不依赖 20260830_settlement_batch_payout.py 是否先跑过
+（部署脚本按文件名字母序执行，本脚本排在它前面）。
 """
 
 import sys
@@ -99,14 +100,18 @@ def migrate():
                 if v['remarks']:
                     remarks = '%s / %s' % (v['remarks'], remarks)
 
+                # 刻意不写 payout_status：部署脚本按文件名字母序跑迁移，
+                # 20260830_retire_* 排在 20260830_settlement_batch_payout_* 之前，
+                # 那时 payout_status 列还不存在。该列建出来时带
+                # NOT NULL DEFAULT 'pending'，这里插入的行会自动拿到默认值。
                 conn.execute(text("""
                     INSERT INTO settlement_batches
                         (batch_number, settlement_date, settled_by, project_count,
                          total_profit, total_operator_profit, total_sales_profit,
-                         total_company_profit, status, payout_status, remarks, created_at)
+                         total_company_profit, status, remarks, created_at)
                     VALUES
                         (:bn, :sd, :sb, :pc, :tp, :op, :sa, :co,
-                         'confirmed', 'pending', :rm, NOW())
+                         'confirmed', :rm, NOW())
                 """), {
                     'bn': batch_number, 'sd': v['settle_date'],
                     'sb': v['settled_by'] or 'migrated', 'pc': len(todo),
