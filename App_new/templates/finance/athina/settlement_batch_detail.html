@@ -2,7 +2,45 @@
 
 {% block title %}结算单 {{ batch.batch_number }} - MyTravelPanel{% endblock %}
 
-{% block page_title %}结算单详情{% endblock %}
+{% block page_title %}结算单 {{ batch.batch_number }}{% endblock %}
+
+{# 元信息、状态、撤销、返回统一排到标题行右侧，正文里不再占行 #}
+{% block page_actions %}
+<div class="batch-actions">
+    <div class="batch-meta">
+        <span>结算日期 <b>{{ batch.settlement_date.strftime('%Y-%m-%d %H:%M') if batch.settlement_date else '-' }}</b></span>
+        <span>结算人 <b>{{ batch.settled_by }}</b></span>
+        <span>项目数 <b>{{ batch.project_count }}</b></span>
+    </div>
+    {% if batch.status == 'confirmed' %}
+    {# 公司结算 = 分成有没有发到员工手上，和「已确认」是两回事 #}
+    {% if batch.is_paid_out %}
+    <span class="badge-payout paid"
+          title="标记人 {{ batch.payout_by or '-' }}">
+        <i class="fas fa-check"></i> 公司已结算
+        {% if batch.payout_date %}{{ batch.payout_date.strftime('%Y-%m-%d') }}{% endif %}
+    </span>
+    <button class="action-btn" onclick="setPayout('unpay')">
+        <i class="fas fa-rotate-left"></i> 撤回结算标记
+    </button>
+    {% else %}
+    <span class="badge-payout pending"><i class="fas fa-hourglass-half"></i> 公司未结算</span>
+    <button class="action-btn primary" onclick="setPayout('pay')">
+        <i class="fas fa-money-check"></i> 标记公司已结算
+    </button>
+    {% endif %}
+    <button class="action-btn danger" onclick="cancelBatch()">
+        <i class="fas fa-undo"></i> 撤销结算
+    </button>
+    <span class="badge-confirmed">已确认</span>
+    {% else %}
+    <span class="badge-cancelled">已撤销</span>
+    {% endif %}
+    <a class="action-btn" href="{{ url_for('athina_routes.settlement_batch_list') }}">
+        <i class="fas fa-arrow-left"></i> 返回列表
+    </a>
+</div>
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
@@ -17,51 +55,32 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     }
 
-    .data-header {
+
+    /* 标题行右侧：元信息 + 撤销 + 状态 + 返回，全部一行排布 */
+    .batch-actions {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e9ecef;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px 14px;
     }
 
-    .data-header h1 {
-        color: #2E7D32;
-        font-size: 24px;
-        margin: 0;
-    }
-
-    .batch-info {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-bottom: 25px;
-    }
-
-    .info-card {
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-    }
-
-    .info-card .label {
+    /* 元信息（日期/结算人/项目数）不值得占卡片，压成一段小字 */
+    .batch-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 16px;
         font-size: 13px;
         color: #6c757d;
-        margin-bottom: 6px;
+        white-space: nowrap;
     }
 
-    .info-card .value {
-        font-size: 20px;
-        font-weight: bold;
+    .batch-meta b {
         color: #2d3748;
+        font-weight: 600;
     }
 
-    .info-card .value.batch-number {
-        color: #1a73e8;
-    }
 
     .badge-confirmed {
         background-color: #28a745;
@@ -69,6 +88,30 @@
         padding: 4px 10px;
         border-radius: 4px;
         font-size: 14px;
+    }
+
+    /* 公司结算状态：与「已确认/已撤销」区分开，用描边而非实心 */
+    .badge-payout {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: 4px;
+        font-size: 13px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .badge-payout.paid {
+        background: #eef7ef;
+        border-color: #c5e1c8;
+        color: #1b5e20;
+    }
+
+    .badge-payout.pending {
+        background: #fdf6e8;
+        border-color: #eddcb5;
+        color: #8a6d1f;
     }
 
     .badge-cancelled {
@@ -79,23 +122,49 @@
         font-size: 14px;
     }
 
-    .action-buttons {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-
+    /* 描边次要样式：原来「返回列表」灰实心、「撤销结算」红实心，
+       页面上视觉最重的反而是破坏性操作 */
     .action-btn {
-        padding: 8px 16px;
-        border: none;
+        padding: 7px 14px;
+        border: 1px solid #d3dae3;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 14px;
-        color: white;
+        font-size: 13px;
+        background: #fff;
+        color: #4a5566;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        transition: background-color .15s, border-color .15s;
+    }
+
+    .action-btn:hover {
+        background: #f4f6f9;
+        border-color: #b9c3cf;
+        color: #2d3748;
+    }
+
+    .action-btn.primary {
+        color: #1b5e20;
+        border-color: #bcdcc0;
+        background: #f3f9f4;
+    }
+
+    .action-btn.primary:hover {
+        background: #e7f3e9;
+        border-color: #9ccaa2;
+    }
+
+    .action-btn.danger {
+        color: #c0392b;
+        border-color: #eccac6;
+    }
+
+    .action-btn.danger:hover {
+        background: #fdf3f2;
+        border-color: #e0a9a3;
+        color: #a93226;
     }
 
     .data-table {
@@ -115,6 +184,95 @@
     .data-table td {
         padding: 10px 12px;
         border-bottom: 1px solid #e9ecef;
+    }
+
+    /* 数字列右对齐 + 等宽数字，位数对齐才好扫读 */
+    .data-table th.num,
+    .data-table td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .data-table tfoot td {
+        background: #f1f8f2;
+        font-weight: 700;
+        border-top: 2px solid #2E7D32;
+        border-bottom: none;
+    }
+
+    /* 公司利润不是员工，单独一行并与员工行拉开 */
+    .data-table tfoot tr.company td {
+        background: #f4f5f7;
+        border-top: 1px solid #dfe3e8;
+        font-weight: 600;
+        color: #555;
+    }
+
+    .table-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+        font-size: 13px;
+        color: #6c757d;
+    }
+
+    .pager a, .pager span {
+        display: inline-block;
+        padding: 5px 11px;
+        margin-left: 4px;
+        border: 1px solid #dde2e8;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #4a5566;
+    }
+
+    .pager a:hover {
+        background: #f4f6f9;
+        border-color: #b9c3cf;
+    }
+
+    .pager span.current {
+        background: #2E7D32;
+        border-color: #2E7D32;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .pager span.gap {
+        border: none;
+        padding: 5px 2px;
+    }
+
+    .staff-table {
+        max-width: 760px;
+    }
+
+    /* 这张表列少、数字位数也接近，左对齐读起来更顺；
+       等宽数字保留，位数仍然对得齐 */
+    .staff-table th.num,
+    .staff-table td.num {
+        width: 150px;
+        text-align: left;
+    }
+
+    .type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        background: #eef1f5;
+        color: #55606e;
+        white-space: nowrap;
+    }
+
+    .muted {
+        color: #9aa4b1;
+        font-size: 12px;
+        font-weight: 400;
     }
 
     .data-table tr:hover {
@@ -159,146 +317,67 @@
 
 {% block content %}
 <div class="data-container">
-    <div class="data-header">
-        <h1><i class="fas fa-file-alt"></i> 结算单 {{ batch.batch_number }}</h1>
-        <div>
-            {% if batch.status == 'confirmed' %}
-                <span class="badge-confirmed">已确认</span>
-            {% else %}
-                <span class="badge-cancelled">已撤销</span>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="action-buttons">
-        <a class="action-btn" href="{{ url_for('athina_routes.settlement_batch_list') }}" style="background-color: #607D8B;">
-            <i class="fas fa-arrow-left"></i> 返回列表
-        </a>
-        {% if batch.status == 'confirmed' %}
-        <button class="action-btn" onclick="cancelBatch()" style="background-color: #dc3545;">
-            <i class="fas fa-undo"></i> 撤销结算
-        </button>
-        {% endif %}
-    </div>
-
-    <!-- 结算单信息 -->
-    <div class="batch-info">
-        <div class="info-card">
-            <div class="label">结算单号</div>
-            <div class="value batch-number">{{ batch.batch_number }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">结算日期</div>
-            <div class="value">{{ batch.settlement_date.strftime('%Y-%m-%d %H:%M') if batch.settlement_date else '-' }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">结算人</div>
-            <div class="value">{{ batch.settled_by }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">项目数</div>
-            <div class="value">{{ batch.project_count }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">总利润</div>
-            <div class="value">${{ "%.2f"|format(batch.total_profit) }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">员工利润</div>
-            <div class="value">${{ "%.2f"|format(batch.total_operator_profit) }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">销售利润</div>
-            <div class="value">${{ "%.2f"|format(batch.total_sales_profit) }}</div>
-        </div>
-        <div class="info-card">
-            <div class="label">公司利润</div>
-            <div class="value">${{ "%.2f"|format(batch.total_company_profit) }}</div>
-        </div>
-    </div>
-
     {% if batch.remarks %}
     <div class="remarks-section">
         <strong>备注：</strong>{{ batch.remarks }}
     </div>
     {% endif %}
 
-    <!-- 员工利润分配明细 -->
-    {% if staff_list %}
-    <h3 class="section-title"><i class="fas fa-users"></i> 员工结算明细</h3>
-    <table class="data-table" style="margin-bottom: 25px;">
+    <!-- 员工利润分配：按人一行，操作员/业务员分列。
+         原先「按人×角色」和「按人合计」两张表在一人身兼两职时数字完全重复 -->
+    {% if person_rows %}
+    <h3 class="section-title"><i class="fas fa-users"></i> 员工利润分配</h3>
+    {# 只有 4 列，拉满 1400px 的话姓名和数字隔得太远 #}
+    <table class="data-table staff-table" style="margin-bottom: 25px;">
         <thead>
             <tr>
                 <th>姓名</th>
-                <th>角色</th>
-                <th>参与项目数</th>
-                <th>应分配利润</th>
+                <th class="num">操作员利润</th>
+                <th class="num">销售利润</th>
+                <th class="num">合计</th>
             </tr>
         </thead>
         <tbody>
-            {% for s in staff_list %}
+            {% for r in person_rows %}
             <tr>
-                <td style="font-weight: 600;">{{ s.name }}</td>
-                <td>{{ s.role }}</td>
-                <td>{{ s.projects }}</td>
-                <td style="font-weight: 600; color: {% if s.profit > 0 %}#2E7D32{% elif s.profit < 0 %}#dc3545{% else %}#333{% endif %};">
-                    ${{ "%.2f"|format(s.profit) }}
+                <td style="font-weight: 600;">{{ r.name }}</td>
+                <td class="num">
+                    {% if r.operator_projects %}
+                        {{ "%.2f"|format(r.operator_profit) }}
+                        <span class="muted">/ {{ r.operator_projects }} 单</span>
+                    {% else %}<span class="muted">-</span>{% endif %}
+                </td>
+                <td class="num">
+                    {% if r.sales_projects %}
+                        {{ "%.2f"|format(r.sales_profit) }}
+                        <span class="muted">/ {{ r.sales_projects }} 单</span>
+                    {% else %}<span class="muted">-</span>{% endif %}
+                </td>
+                <td class="num" style="font-weight: 600; color: {% if r.total_profit > 0 %}#2E7D32{% elif r.total_profit < 0 %}#dc3545{% else %}#333{% endif %};">
+                    {{ "%.2f"|format(r.total_profit) }}
                 </td>
             </tr>
             {% endfor %}
-            <tr style="background-color: #e8f5e9; font-weight: 700; border-top: 2px solid #2E7D32;">
-                <td>员工利润小计</td>
-                <td></td>
-                <td></td>
-                <td style="color: #2E7D32;">${{ "%.2f"|format(staff_total_profit) }}</td>
-            </tr>
-            <tr style="background-color: #f0f0f0; font-weight: 700;">
-                <td>公司利润</td>
-                <td></td>
-                <td>{{ batch.project_count }}</td>
-                <td style="color: #2E7D32;">${{ "%.2f"|format(batch.total_company_profit) }}</td>
-            </tr>
         </tbody>
-    </table>
-    {% endif %}
-
-    <!-- 员工利润汇总（按人合计） -->
-    {% if person_totals %}
-    <h3 class="section-title"><i class="fas fa-user-check"></i> 员工利润汇总（按人合计）</h3>
-    <table class="data-table" style="margin-bottom: 25px; max-width: 600px;">
-        <thead>
+        <tfoot>
             <tr>
-                <th>姓名</th>
-                <th>角色</th>
-                <th>应分配利润合计</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for p in person_totals %}
-            <tr>
-                <td style="font-weight: 600;">{{ p.name }}</td>
-                <td>{{ p.roles }}</td>
-                <td style="font-weight: 600; color: {% if p.total_profit > 0 %}#2E7D32{% elif p.total_profit < 0 %}#dc3545{% else %}#333{% endif %};">
-                    ${{ "%.2f"|format(p.total_profit) }}
-                </td>
-            </tr>
-            {% endfor %}
-            <tr style="background-color: #e8f5e9; font-weight: 700; border-top: 2px solid #2E7D32;">
                 <td>员工合计</td>
-                <td></td>
-                <td style="color: #2E7D32;">${{ "%.2f"|format(staff_total_profit) }}</td>
+                <td class="num"></td>
+                <td class="num"></td>
+                <td class="num" style="color: #2E7D32;">{{ "%.2f"|format(staff_total_profit) }}</td>
             </tr>
-            <tr style="background-color: #f0f0f0; font-weight: 700;">
-                <td>公司利润</td>
-                <td></td>
-                <td style="color: #2E7D32;">${{ "%.2f"|format(batch.total_company_profit) }}</td>
+            <tr class="company">
+                <td>公司利润 <span class="muted">（不参与员工分配）</span></td>
+                <td class="num"></td>
+                <td class="num"></td>
+                <td class="num">{{ "%.2f"|format(batch.total_company_profit) }}</td>
             </tr>
-        </tbody>
+        </tfoot>
     </table>
     {% endif %}
 
     <!-- 项目明细 -->
-    <h3 class="section-title"><i class="fas fa-list"></i> 项目明细（{{ projects|length }} 个）</h3>
+    <h3 class="section-title"><i class="fas fa-list"></i> 项目明细（{{ project_pagination.total }} 个）</h3>
 
     {% if projects %}
     <table class="data-table">
@@ -307,15 +386,15 @@
                 <th>HID</th>
                 <th>公司</th>
                 <th>日期</th>
-                <th>金额</th>
-                <th>成本</th>
-                <th>盈亏</th>
+                <th class="num">金额</th>
+                <th class="num">成本</th>
+                <th class="num">盈亏</th>
                 <th>操作员</th>
                 <th>业务员</th>
                 <th>类型</th>
-                <th>员工利润</th>
-                <th>销售利润</th>
-                <th>公司利润</th>
+                <th class="num">员工利润</th>
+                <th class="num">销售利润</th>
+                <th class="num">公司利润</th>
             </tr>
         </thead>
         <tbody>
@@ -331,26 +410,69 @@
                     {{ project.company.company_name if project.company else '-' }}
                 </td>
                 <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
-                <td>{{ "%.2f"|format(fd.get('total_selling', 0)) }}</td>
-                <td>{{ "%.2f"|format(fd.get('total_cost', 0)) }}</td>
-                <td>{{ "%.2f"|format(fd.get('total_pl', 0)) }}</td>
+                <td class="num">{{ "%.2f"|format(fd.get('total_selling', 0)) }}</td>
+                <td class="num">{{ "%.2f"|format(fd.get('total_cost', 0)) }}</td>
+                <td class="num" style="color: {% if fd.get('total_pl', 0) < 0 %}#dc3545{% else %}#2d3748{% endif %};">{{ "%.2f"|format(fd.get('total_pl', 0)) }}</td>
                 {% set psd = project_staff_display.get(project.id, {}) %}
                 <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
                 <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td>
                     {% if project.order_type %}
-                        <span class="badge" style="background-color: #6c757d; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ project.order_type }}</span>
+                        <span class="type-badge">{{ project.order_type }}</span>
                     {% else %}
                     -
                     {% endif %}
                 </td>
-                <td>{{ "%.2f"|format(project.operator_profit) if project.operator_profit else '0.00' }}</td>
-                <td>{{ "%.2f"|format(project.sales_profit) if project.sales_profit else '0.00' }}</td>
-                <td>{{ "%.2f"|format(project.company_profit) if project.company_profit else '0.00' }}</td>
+                <td class="num">{{ "%.2f"|format(project.operator_profit) if project.operator_profit else '0.00' }}</td>
+                <td class="num">{{ "%.2f"|format(project.sales_profit) if project.sales_profit else '0.00' }}</td>
+                <td class="num">{{ "%.2f"|format(project.company_profit) if project.company_profit else '0.00' }}</td>
             </tr>
             {% endfor %}
         </tbody>
+        {# 列合计：可与顶部概要卡直接对账 #}
+        <tfoot>
+            <tr>
+                <td colspan="3">合计（全部 {{ project_pagination.total }} 个项目）</td>
+                <td class="num">{{ "%.2f"|format(project_totals.selling) }}</td>
+                <td class="num">{{ "%.2f"|format(project_totals.cost) }}</td>
+                <td class="num">{{ "%.2f"|format(project_totals.pl) }}</td>
+                <td colspan="3"></td>
+                <td class="num">{{ "%.2f"|format(project_totals.operator) }}</td>
+                <td class="num">{{ "%.2f"|format(project_totals.sales) }}</td>
+                <td class="num">{{ "%.2f"|format(project_totals.company) }}</td>
+            </tr>
+        </tfoot>
     </table>
+
+    {# 合计行统计的是整张结算单，不随翻页变化 #}
+    <div class="table-footer">
+        <div>
+            显示第 {{ project_pagination.start }}-{{ project_pagination.end }} 条，
+            共 {{ project_pagination.total }} 条
+        </div>
+        {% if project_pagination.total_pages > 1 %}
+        <div class="pager">
+            {% if project_pagination.has_prev %}
+            <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page - 1) }}">上一页</a>
+            {% endif %}
+            {% for p in range(1, project_pagination.total_pages + 1) %}
+                {% if p == 1 or p == project_pagination.total_pages
+                      or (p >= project_pagination.page - 2 and p <= project_pagination.page + 2) %}
+                    {% if p == project_pagination.page %}
+                    <span class="current">{{ p }}</span>
+                    {% else %}
+                    <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=batch.id, page=p) }}">{{ p }}</a>
+                    {% endif %}
+                {% elif p == 2 or p == project_pagination.total_pages - 1 %}
+                    <span class="gap">…</span>
+                {% endif %}
+            {% endfor %}
+            {% if project_pagination.has_next %}
+            <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page + 1) }}">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
     {% else %}
     <div style="text-align: center; padding: 40px; color: #999;">
         <p>该结算单没有关联的项目</p>
@@ -361,6 +483,26 @@
 
 {% block extra_js %}
 <script>
+async function setPayout(action) {
+    const tip = action === 'pay'
+        ? '确认这张结算单的员工分成已经发放？'
+        : '撤回「公司已结算」标记？';
+    if (!confirm(tip)) return;
+
+    try {
+        const response = await fetch('{{ url_for("athina_routes.settlement_batch_payout", batch_id=batch.id) }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action })
+        });
+        const data = await response.json();
+        alert(data.message);
+        if (data.success) location.reload();
+    } catch (error) {
+        alert('操作失败，请稍后再试');
+    }
+}
+
 async function cancelBatch() {
     if (!confirm('确定要撤销此结算单吗？所有关联项目将恢复为未结算状态。')) {
         return;

@@ -17,25 +17,39 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     }
 
-    .data-header {
+    .toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 12px;
         margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e9ecef;
     }
 
-    .data-header h1 {
-        color: #2E7D32;
-        font-size: 24px;
-        margin: 0;
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        font-size: 13px;
+        color: #4a5566;
+        background: #fff;
+        border: 1px solid #d3dae3;
+        border-radius: 6px;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background-color .15s, border-color .15s;
+    }
+
+    .back-link:hover {
+        background: #f4f6f9;
+        border-color: #b9c3cf;
+        color: #2d3748;
     }
 
     .search-bar {
         display: flex;
         gap: 10px;
-        margin-bottom: 20px;
+        margin: 0;
     }
 
     .search-bar input {
@@ -46,12 +60,19 @@
         width: 300px;
     }
 
-    .search-bar button {
+    /* 搜索/重置一个是 button 一个是 a，统一成同一套盒模型，否则高度和图标间距对不齐 */
+    .search-bar button,
+    .search-bar .btn-reset {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         padding: 8px 16px;
         border: none;
         border-radius: 6px;
         cursor: pointer;
         font-size: 14px;
+        line-height: 1.4;
+        text-decoration: none;
     }
 
     .btn-search { background-color: #2E7D32; color: white; }
@@ -99,6 +120,32 @@
         font-size: 12px;
     }
 
+    /* 公司结算状态：与「已确认/已撤销」区分开，用描边而非实心 */
+    .badge-payout {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .badge-payout.paid {
+        background: #eef7ef;
+        border-color: #c5e1c8;
+        color: #1b5e20;
+    }
+
+    .badge-payout.pending {
+        background: #fdf6e8;
+        border-color: #eddcb5;
+        color: #8a6d1f;
+    }
+
+    .muted {
+        color: #adb5bd;
+    }
+
     .badge-cancelled {
         background-color: #dc3545;
         color: white;
@@ -128,25 +175,6 @@
         border-color: #2E7D32;
     }
 
-    .action-buttons {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-
-    .action-btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        color: white;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
     .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -157,21 +185,18 @@
 
 {% block content %}
 <div class="data-container">
-    <div class="data-header">
-        <h1><i class="fas fa-list-alt"></i> 结算单列表</h1>
-    </div>
-
-    <div class="action-buttons">
-        <a class="action-btn" href="{{ url_for('athina_routes.athina_performance_settlement') }}" style="background-color: #607D8B;">
-            <i class="fas fa-arrow-left"></i> 返回业绩结算
-        </a>
-    </div>
-
+    {# 标题由 base 的 page_title 统一渲染，这里不再重复一个 h1。
+       返回入口并到搜索行右侧，省掉一整行。 #}
+    <div class="toolbar">
     <form method="GET" class="search-bar">
         <input type="text" name="search" value="{{ search or '' }}" placeholder="搜索结算单号或结算人...">
         <button type="submit" class="btn-search"><i class="fas fa-search"></i> 搜索</button>
-        <a href="{{ url_for('athina_routes.settlement_batch_list') }}" class="btn-reset" style="text-decoration: none; display: inline-flex; align-items: center;"><i class="fas fa-undo"></i> 重置</a>
+        <a href="{{ url_for('athina_routes.settlement_batch_list') }}" class="btn-reset"><i class="fas fa-undo"></i> 重置</a>
     </form>
+        <a class="back-link" href="{{ url_for('athina_routes.athina_performance_settlement') }}">
+            <i class="fas fa-arrow-left"></i> 返回业绩结算
+        </a>
+    </div>
 
     {% if batches %}
     <table class="data-table">
@@ -186,6 +211,7 @@
                 <th>销售利润</th>
                 <th>公司利润</th>
                 <th>状态</th>
+                <th>公司结算</th>
                 <th>备注</th>
             </tr>
         </thead>
@@ -209,6 +235,18 @@
                         <span class="badge-confirmed">已确认</span>
                     {% else %}
                         <span class="badge-cancelled">已撤销</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {# 公司结算 = 分成有没有发到员工手上；已撤销的单不适用 #}
+                    {% if batch.status != 'confirmed' %}
+                        <span class="muted">-</span>
+                    {% elif batch.is_paid_out %}
+                        <span class="badge-payout paid" title="{{ batch.payout_by or '' }}">
+                            已结算{% if batch.payout_date %} {{ batch.payout_date.strftime('%Y-%m-%d') }}{% endif %}
+                        </span>
+                    {% else %}
+                        <span class="badge-payout pending">未结算</span>
                     {% endif %}
                 </td>
                 <td>{{ batch.remarks or '-' }}</td>

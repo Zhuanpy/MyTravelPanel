@@ -28,12 +28,25 @@ class SettlementBatch(db.Model):
     status = db.Column(db.String(20), default='confirmed', nullable=False, comment='状态(confirmed/cancelled)')
     remarks = db.Column(db.Text, nullable=True, comment='备注')
 
+    # 公司结算（分成发放）状态
+    # 和 status 是两件事：status 说这张单据算不算数，这里说钱有没有发到员工手上。
+    # 结算单确认后员工分成才算出来，实际转账通常晚几天，所以要单独记一笔。
+    payout_status = db.Column(db.String(20), default='pending', nullable=False,
+                              comment='公司结算状态(pending待结算/paid已结算)')
+    payout_date = db.Column(db.DateTime, nullable=True, comment='公司结算日期')
+    payout_by = db.Column(db.String(50), nullable=True, comment='公司结算操作人')
+
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关联关系
     projects = db.relationship('ProjectHeader', backref='settlement_batch', lazy='dynamic')
+
+    @property
+    def is_paid_out(self):
+        """分成是否已发放给员工"""
+        return self.payout_status == 'paid'
 
     @staticmethod
     def generate_batch_number():
@@ -66,6 +79,9 @@ class SettlementBatch(db.Model):
             'total_sales_profit': float(self.total_sales_profit) if self.total_sales_profit else 0,
             'total_company_profit': float(self.total_company_profit) if self.total_company_profit else 0,
             'status': self.status,
+            'payout_status': self.payout_status,
+            'payout_date': self.payout_date.isoformat() if self.payout_date else None,
+            'payout_by': self.payout_by,
             'remarks': self.remarks,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }

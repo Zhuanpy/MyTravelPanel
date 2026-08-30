@@ -17,55 +17,6 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     }
 
-    .data-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    .data-header h1 {
-        color: #2E7D32;
-        font-size: 28px;
-        margin: 0;
-        display: flex;
-        align-items: center;
-    }
-
-    .data-header h1 i {
-        margin-right: 10px;
-    }
-
-    .stats-panel {
-        padding: 0;
-        margin-bottom: 25px;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-    }
-
-    .stat-item {
-        text-align: center;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 20px 15px;
-    }
-
-    .stat-label {
-        font-size: 13px;
-        color: #6c757d;
-        margin-bottom: 8px;
-    }
-
-    .stat-value {
-        font-size: 28px;
-        font-weight: bold;
-        color: #2d3748;
-    }
-
     .filter-panel {
         background-color: #f8f9fa;
         padding: 20px;
@@ -85,8 +36,11 @@
 
     .filter-form {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
+        /* 固定窄列（原来是 minmax(200px,1fr) 会被拉满整行，输入框过宽）：
+           每列 130px，一行能排更多条件，日期框也刚好放得下 年/月/日 + 日历图标 */
+        grid-template-columns: repeat(auto-fill, 130px);
+        justify-content: start;
+        gap: 12px 14px;
         align-items: end;
     }
 
@@ -103,10 +57,10 @@
     }
 
     .filter-input, .filter-select {
-        padding: 8px 12px;
+        padding: 7px 8px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        font-size: 14px;
+        font-size: 13px;
         width: 100%;
         background-color: white;
     }
@@ -117,6 +71,8 @@
         gap: 10px;
         align-items: end;
         justify-content: flex-start;
+        /* 两个按钮并排，窄列放不下，占两列 */
+        grid-column: span 2;
     }
 
     .filter-btn {
@@ -133,38 +89,90 @@
         background-color: #6c757d;
     }
 
+    /* 操作区：按功能分组，颜色表达语义而不是逐个按钮指定。
+       原先 7 个按钮 7 种高饱和色，同为「分配利润」却一紫一橙、
+       同为「结算」却一绿一粉，颜色和功能没有对应关系。 */
     .action-buttons {
         display: flex;
-        gap: 10px;
+        align-items: stretch;
+        gap: 14px;
         margin-bottom: 20px;
         flex-wrap: wrap;
+        padding: 10px 12px;
+        background: #fbfcfd;
+        border: 1px solid #e9edf2;
+        border-radius: 8px;
+    }
+
+    .action-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 14px;
+        border-right: 1px solid #e5e9ef;
+    }
+
+    .action-group:last-child {
+        border-right: none;
+        padding-right: 0;
+    }
+
+    .action-group.push-right { margin-left: auto; }
+
+    .action-group-label {
+        font-size: 12px;
+        color: #8a94a6;
+        white-space: nowrap;
+        margin-right: 2px;
     }
 
     .action-btn {
-        background-color: #2196F3;
+        background-color: #4b6bfb;
         color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
+        border: 1px solid transparent;
+        padding: 8px 14px;
+        border-radius: 6px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 13px;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        white-space: nowrap;
+        transition: background-color .15s, border-color .15s;
     }
 
-    .action-btn:hover {
-        opacity: 0.9;
+    .action-btn:hover { filter: brightness(0.94); }
+
+    /* 次要动作：描边，弱化视觉重量。
+       「全部…」这类影响面最大的操作刻意用描边而非实心，避免误点。 */
+    .action-btn.ghost {
+        background-color: #fff;
+        color: #4a5566;
+        border-color: #d3dae3;
     }
 
-    .action-btn.danger {
-        background-color: #dc3545;
+    .action-btn.ghost:hover {
+        background-color: #f4f6f9;
+        border-color: #b9c3cf;
     }
 
-    .action-btn.success {
-        background-color: #28a745;
+    /* 结算是不可逆动作，单独一个强调色 */
+    .action-btn.settle { background-color: #1a8f4c; }
+
+    .action-btn.settle-wide {
+        background-color: #fff;
+        color: #1a8f4c;
+        border-color: #9dd3b4;
     }
+
+    .action-btn.settle-wide:hover {
+        background-color: #f0faf4;
+        border-color: #1a8f4c;
+    }
+
+    .action-btn.danger { background-color: #dc3545; }
+    .action-btn.success { background-color: #1a8f4c; }
 
     .table-wrapper {
         overflow-x: auto;
@@ -224,9 +232,15 @@
         cursor: pointer;
     }
 
+    /* 表格内容统一左对齐（表头本来就是左对齐，金额原先右对齐导致上下不齐） */
     .amount {
-        text-align: right;
+        text-align: left;
         font-weight: 500;
+    }
+
+    .data-table td,
+    .data-table th {
+        text-align: left;
     }
 
     .amount.positive {
@@ -303,52 +317,12 @@
 
 {% block content %}
 <div class="data-container">
-    <div class="data-header">
-        <h1><i class="fas fa-calculator"></i> 员工业绩结算</h1>
-        <form class="search-form" method="GET" id="searchForm">
-            <input type="hidden" name="filter_consultant" value="{{ filter_consultant or '' }}">
-            <input type="hidden" name="filter_sales_consultant" value="{{ filter_sales_consultant or '' }}">
-            <input type="hidden" name="filter_book_date_from" value="{{ filter_book_date_from or '' }}">
-            <input type="hidden" name="filter_book_date_to" value="{{ filter_book_date_to or '' }}">
-            <input type="hidden" name="filter_settleable_from" value="{{ filter_settleable_from or '' }}">
-            <input type="hidden" name="filter_settleable_to" value="{{ filter_settleable_to or '' }}">
-            <input type="hidden" name="filter_is_count_performance" value="{{ filter_is_count_performance or '' }}">
-            <input type="hidden" name="filter_balance" value="{{ filter_balance or '' }}">
-            <input type="text" name="search" class="search-input" placeholder="搜索项目HID、公司名称..." value="{{ search }}">
-            <button type="submit" class="search-btn">
-                <i class="fas fa-search"></i> 搜索
-            </button>
-        </form>
-    </div>
-
-    <!-- 统计面板（基于筛选结果） -->
-    <div class="stats-panel">
-        <div class="stat-item">
-            <div class="stat-label">筛选结果总数</div>
-            <div class="stat-value">{{ total_count }}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">累计利润</div>
-            <div class="stat-value">${{ "%.2f"|format(total_profit) }}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">已结算</div>
-            <div class="stat-value">{{ settled_count }}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">待结算</div>
-            <div class="stat-value">{{ unsettled_count }}</div>
-        </div>
-    </div>
-
     <!-- 筛选面板 -->
     <div class="filter-panel">
         <div class="filter-panel-title">
             <i class="fas fa-filter"></i> 筛选条件
         </div>
         <form method="GET" class="filter-form" id="filterForm">
-            <input type="hidden" name="search" value="{{ search or '' }}">
-            
             <div class="filter-group">
                 <label class="filter-label">操作员</label>
                 <select name="filter_consultant" class="filter-select">
@@ -432,28 +406,47 @@
 
     <!-- 操作按钮 -->
     <div class="action-buttons">
-        <span id="selectedCount" style="display: none; padding: 8px 12px; background: #e3f2fd; color: #1565c0; border-radius: 6px; font-weight: 600; font-size: 14px;"></span>
-        <button class="action-btn" onclick="clearSelection()" style="background-color: #6c757d;">
-            <i class="fas fa-times"></i> 清除选择
-        </button>
-        <button class="action-btn" onclick="calculateProfitDistribution()" style="background-color: #9C27B0;">
-            <i class="fas fa-calculator"></i> 选中-分配利润
-        </button>
-        <button class="action-btn" onclick="calculateAllUnsettledProfitDistribution()" style="background-color: #FF9800;">
-            <i class="fas fa-calculator"></i> 全部-分配利润
-        </button>
-        <button class="action-btn success" onclick="batchSettleSelected()">
-            <i class="fas fa-check-double"></i> 选中-结算
-        </button>
-        <button class="action-btn" onclick="batchSettleAllFiltered()" style="background-color: #E91E63;">
-            <i class="fas fa-check-circle"></i> 全部筛选结果-结算
-        </button>
-        <button class="action-btn" onclick="exportToExcel()" style="background-color: #28a745;">
-            <i class="fas fa-file-excel"></i> 导出Excel
-        </button>
-        <a class="action-btn" href="{{ url_for('athina_routes.settlement_batch_list') }}" style="background-color: #607D8B;">
-            <i class="fas fa-list-alt"></i> 结算单列表
-        </a>
+        {# 选择状态：勾选后才出现，和后面的动作区分开 #}
+        <div class="action-group" id="selectionGroup" style="display: none;">
+            <span id="selectedCount" style="padding: 5px 10px; background: #e8f0fe; color: #1a56c4; border-radius: 5px; font-weight: 600; font-size: 13px;"></span>
+            <button class="action-btn ghost" onclick="clearSelection()">
+                <i class="fas fa-times"></i> 清除
+            </button>
+        </div>
+
+        {# 利润分配：可重复执行、无破坏性 #}
+        <div class="action-group">
+            <span class="action-group-label">利润分配</span>
+            <button class="action-btn" onclick="calculateProfitDistribution()">
+                <i class="fas fa-calculator"></i> 选中
+            </button>
+            <button class="action-btn ghost" onclick="calculateAllUnsettledProfitDistribution()"
+                    title="对全部未结算且可结算的项目重算利润分配">
+                <i class="fas fa-calculator"></i> 全部未结算
+            </button>
+        </div>
+
+        {# 结算：不可逆。「全部筛选结果」影响面最大，刻意用描边弱化，避免误点 #}
+        <div class="action-group">
+            <span class="action-group-label">结算</span>
+            <button class="action-btn settle" onclick="batchSettleSelected()">
+                <i class="fas fa-check-double"></i> 选中
+            </button>
+            <button class="action-btn settle-wide" onclick="batchSettleAllFiltered()"
+                    title="结算当前筛选结果中的全部可结算项目，请先确认筛选条件">
+                <i class="fas fa-check-circle"></i> 全部筛选结果
+            </button>
+        </div>
+
+        {# 查看/导出：中性，不改数据 #}
+        <div class="action-group push-right">
+            <button class="action-btn ghost" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i> 导出Excel
+            </button>
+            <a class="action-btn ghost" href="{{ url_for('athina_routes.settlement_batch_list') }}">
+                <i class="fas fa-list-alt"></i> 结算单列表
+            </a>
+        </div>
     </div>
 
     <!-- 数据表格 -->
@@ -468,16 +461,16 @@
                 <th>HID</th>
                 <th style="width: 100px; max-width: 100px;">公司</th>
                 <th title="项目创建日期">创建日</th>
+                <th title="最后一项结算条件达成的日期（推导值，不落库）">可结算日</th>
+                <th>类型</th>
                 <th>金额</th>
                 <th>成本</th>
                 <th>盈亏</th>
                 <th>余额</th>
                 <th>操作员</th>
                 <th>业务员</th>
-                <th title="最后一项结算条件达成的日期（推导值，不落库）">可结算日</th>
                 <th>可结算</th>
                 <th>结算</th>
-                <th>类型</th>
                 <th>员工利润</th>
                 <th>销售利润</th>
                 <th>公司利润</th>
@@ -500,21 +493,6 @@
                 </td>
                 <td class="corporate-name-cell" title="{{ project.company.company_name if project.company else '-' }}">{{ project.company.company_name if project.company else '-' }}</td>
                 <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
-                <td class="amount {{ 'positive' if fd.get('total_selling', 0) > 0 else '' }}">
-                    {{ "%.2f"|format(fd.get('total_selling', 0)) }}
-                </td>
-                <td class="amount">
-                    {{ "%.2f"|format(fd.get('total_cost', 0)) }}
-                </td>
-                <td class="amount {{ 'positive' if fd.get('total_pl', 0) > 0 else 'negative' if fd.get('total_pl', 0) < 0 else '' }}">
-                    {{ "%.2f"|format(fd.get('total_pl', 0)) }}
-                </td>
-                <td class="amount">
-                    {{ "%.2f"|format(fd.get('total_balance', 0)) }}
-                </td>
-                {% set psd = project_staff_display.get(project.id, {}) %}
-                <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
-                <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 {# 可结算日：推导值。条件未全部满足时它只是「最后活动日」，用灰色区分 #}
                 <td style="white-space: nowrap;">
                     {% set sdate = fd.get('settleable_date') %}
@@ -530,6 +508,28 @@
                         -
                     {% endif %}
                 </td>
+                <td>
+                    {% if project.order_type %}
+                        <span class="badge" style="background-color: #6c757d; color: white;">{{ project.order_type }}</span>
+                    {% else %}
+                        <span class="badge badge-secondary">-</span>
+                    {% endif %}
+                </td>
+                <td class="amount {{ 'positive' if fd.get('total_selling', 0) > 0 else '' }}">
+                    {{ "%.2f"|format(fd.get('total_selling', 0)) }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(fd.get('total_cost', 0)) }}
+                </td>
+                <td class="amount {{ 'positive' if fd.get('total_pl', 0) > 0 else 'negative' if fd.get('total_pl', 0) < 0 else '' }}">
+                    {{ "%.2f"|format(fd.get('total_pl', 0)) }}
+                </td>
+                <td class="amount">
+                    {{ "%.2f"|format(fd.get('total_balance', 0)) }}
+                </td>
+                {% set psd = project_staff_display.get(project.id, {}) %}
+                <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
+                <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td>
                     {% if fd.get('can_settle') %}
                         <span class="badge badge-success">是</span>
@@ -550,13 +550,6 @@
                         <span class="badge badge-secondary">否</span>
                     {% endif %}
                 </td>
-                <td>
-                    {% if project.order_type %}
-                        <span class="badge" style="background-color: #6c757d; color: white;">{{ project.order_type }}</span>
-                    {% else %}
-                        <span class="badge badge-secondary">-</span>
-                    {% endif %}
-                </td>
                 <td class="amount {{ 'positive' if project.operator_profit and project.operator_profit > 0 else '' }}">
                     {{ "%.2f"|format(project.operator_profit) if project.operator_profit else '0.00' }}
                 </td>
@@ -572,7 +565,9 @@
             <!-- 汇总行（全部筛选结果） -->
             <tr class="summary-row">
                 <td></td>
-                <td colspan="3" style="text-align: right; font-weight: 600;">筛选结果汇总（{{ total_count }} 条）：</td>
+                {# 覆盖 HID/公司/创建日/类型 四列。原为 colspan=3，合计只有 16 格而表头 17 列，
+                   利润三列整体左移了一位 #}
+                <td colspan="5" style="font-weight: 600;">筛选结果汇总（{{ total_count }} 条）：</td>
                 <td class="amount">{{ "%.2f"|format(summary_total_selling|default(0)) }}</td>
                 <td class="amount">{{ "%.2f"|format(summary_total_cost|default(0)) }}</td>
                 <td class="amount {{ 'positive' if summary_total_pl and summary_total_pl > 0 else 'negative' if summary_total_pl and summary_total_pl < 0 else '' }}">
@@ -581,7 +576,7 @@
                 <td class="amount {{ 'negative' if summary_total_balance and summary_total_balance > 0.01 else '' }}">
                     {{ "%.2f"|format(summary_total_balance|default(0)) }}
                 </td>
-                <td colspan="5"></td>
+                <td colspan="4"></td>
                 <td class="amount {{ 'positive' if summary_operator_profit and summary_operator_profit > 0 else '' }}">
                     {{ "%.2f"|format(summary_operator_profit|default(0)) }}
                 </td>
@@ -599,7 +594,6 @@
     <!-- 分页 -->
     {% if pagination.pages > 1 %}
     {% set query_params = [] %}
-    {% if search %}{% set _ = query_params.append('search=' + search|urlencode) %}{% endif %}
     {% if filter_consultant %}{% set _ = query_params.append('filter_consultant=' + filter_consultant|string|urlencode) %}{% endif %}
     {% if filter_sales_consultant %}{% set _ = query_params.append('filter_sales_consultant=' + filter_sales_consultant|string|urlencode) %}{% endif %}
     {% if filter_book_date_from %}{% set _ = query_params.append('filter_book_date_from=' + filter_book_date_from) %}{% endif %}
@@ -679,7 +673,11 @@
         const counter = document.getElementById('selectedCount');
         if (counter) {
             counter.textContent = ids.length > 0 ? `已选 ${ids.length} 条` : '';
-            counter.style.display = ids.length > 0 ? 'inline-block' : 'none';
+        }
+        // 整组一起显隐：没勾选时「清除」按钮也没意义
+        const group = document.getElementById('selectionGroup');
+        if (group) {
+            group.style.display = ids.length > 0 ? 'flex' : 'none';
         }
     }
 
@@ -821,6 +819,8 @@
             filter_sales_consultant: '{{ filter_sales_consultant|default("") }}',
             filter_book_date_from: '{{ filter_book_date_from|default("") }}',
             filter_book_date_to: '{{ filter_book_date_to|default("") }}',
+            filter_settleable_from: '{{ filter_settleable_from|default("") }}',
+            filter_settleable_to: '{{ filter_settleable_to|default("") }}',
             filter_can_settle: '{{ filter_can_settle if filter_can_settle is not none else "" }}',
             filter_is_count_performance: '{{ filter_is_count_performance if filter_is_count_performance is not none else "" }}',
             filter_order_type: '{{ filter_order_type|default("") }}',
@@ -852,15 +852,7 @@
     function resetFilters() {
         const form = document.getElementById('filterForm');
         const inputs = form.querySelectorAll('input[type="text"], input[type="date"], select');
-        inputs.forEach(input => {
-            if (input.name !== 'search') {
-                input.value = '';
-            }
-        });
-        const searchInput = document.querySelector('.search-form input[name="search"]');
-        if (searchInput) {
-            searchInput.value = '';
-        }
+        inputs.forEach(input => { input.value = ''; });
         clearSelection();
         form.submit();
     }

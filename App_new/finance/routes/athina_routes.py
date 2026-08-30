@@ -555,8 +555,15 @@ def _get_staff_list():
 
 
 def _build_staff_name_map(staff_list):
-    """从 staff_list 构建 {id: name} 映射"""
-    return {s['id']: s['name'] for s in staff_list}
+    """历史记录里的 {id: name} 映射
+
+    不能只用 staff_list（只含在职员工）——员工离职停用后，他名下的历史项目
+    就查不到名字、页面显示成 ID:23。这里以全量用户为底，staff_list 只作补充。
+    """
+    from App_new.utils.staff_names import get_user_name_map
+    name_map = get_user_name_map()
+    name_map.update({s['id']: s['name'] for s in staff_list})
+    return name_map
 
 
 def _resolve_project_staff_display(projects, staff_name_map):
@@ -924,8 +931,8 @@ def athina_performance_settlement():
         # 统计面板（基于筛选结果）
         total_count = query.count()
         total_profit_result = summary_total_pl_result
-        settled_count = query.filter(ProjectHeader.is_settled == True).count()
-        unsettled_count = query.filter(ProjectHeader.is_settled == False).count()
+        # 顶部统计卡片已移除（底部汇总行已有同样的数字），
+        # 这两个 count() 只为卡片服务，一并去掉省两次全表计数
 
         # 获取员工列表（用于筛选下拉和名称解析）
         staff_list = _get_staff_list()
@@ -953,8 +960,6 @@ def athina_performance_settlement():
                              project_staff_display=project_staff_display,
                              total_count=total_count,
                              total_profit=float(total_profit_result),
-                             settled_count=settled_count,
-                             unsettled_count=unsettled_count,
                              summary_total_selling=summary_total_selling,
                              summary_total_cost=summary_total_cost,
                              summary_total_pl=float(summary_total_pl_result),
@@ -1256,13 +1261,17 @@ def athina_performance_settlement_export():
         filter_balance = request.args.get('filter_balance', '')
         filter_can_settle = request.args.get('filter_can_settle', '')
         filter_order_type = request.args.get('filter_order_type', '')
+        # 可结算日期筛选也要带上，否则导出的行数与页面显示的不一致
+        filter_settleable_from = request.args.get('filter_settleable_from', '')
+        filter_settleable_to = request.args.get('filter_settleable_to', '')
 
         # 构建查询
         query = build_performance_settlement_query(
             search, filter_consultant, filter_sales_consultant,
             filter_book_date_from, filter_book_date_to,
             filter_is_count_performance, filter_balance,
-            filter_can_settle, filter_order_type
+            filter_can_settle, filter_order_type,
+            filter_settleable_from, filter_settleable_to
         )
         from sqlalchemy import func as sa_func
         query = query.order_by(sa_func.cast(sa_func.substring(ProjectHeader.hid, 2), db.Integer).asc())
@@ -1556,7 +1565,11 @@ def athina_batch_settle_all_filtered():
             filters.get('filter_is_count_performance', ''),
             filters.get('filter_balance', ''),
             filters.get('filter_can_settle', ''),
-            filters.get('filter_order_type', '')
+            filters.get('filter_order_type', ''),
+            # 可结算日期筛选也必须带上：漏传的话「全部筛选结果-结算」
+            # 会结算比页面显示更多的项目
+            filters.get('filter_settleable_from', ''),
+            filters.get('filter_settleable_to', '')
         )
 
         # 只取未结算的项目ID
@@ -1864,14 +1877,16 @@ def settlement_batch_detail(batch_id):
 
     batch = SettlementBatch.query.get_or_404(batch_id)
 
-    projects = ProjectHeader.query.options(
+    # 员工分配和合计都要覆盖整张结算单，所以先全量取出，最后才按页切片；
+    # 否则翻到第 2 页时「员工利润分配」和合计行只会统计当页的 30 个项目
+    all_projects = ProjectHeader.query.options(
         db.joinedload(ProjectHeader.company)
     ).filter(
         ProjectHeader.settlement_batch_id == batch_id
     ).order_by(ProjectHeader.id.asc()).all()
 
     # 批量获取财务数据
-    project_ids = [p.id for p in projects]
+    project_ids = [p.id for p in all_projects]
     finance_data = {}
     if project_ids:
         refs_data = db.session.query(
@@ -1892,9 +1907,9 @@ def settlement_batch_detail(batch_id):
     # 获取员工姓名映射
     staff_name_map = _build_staff_name_map(_get_staff_list())
 
-    # 按员工ID汇总利润分配
+    # 按员工ID汇总利润分配（整张结算单，不受分页影响）
     staff_summary = {}
-    for p in projects:
+    for p in all_projects:
         # 操作员利润按人数均分
         op_ids = [int(s.strip()) for s in (p.operator_ids or '').split(',') if s.strip() and s.strip().isdigit()]
         if op_ids and p.operator_profit:
@@ -1933,26 +1948,62 @@ def settlement_batch_detail(batch_id):
     for s in staff_list:
         s['profit'] = round(s['profit'], 2)
 
-    # 按员工汇总利润（同一人可能既是操作员又是业务员）
-    person_profit_map = {}
+    # 按人合并成一行：同一人的操作员/业务员两个角色拆成两列。
+    # 原来分「按人×角色」和「按人合计」两张表，一人身兼两职时两张表数字完全重复。
+    person_map = {}
     for key, s in staff_summary.items():
         uid = int(key.split('_')[-1])
-        if uid not in person_profit_map:
-            person_profit_map[uid] = {
-                'name': s['name'],
-                'total_profit': 0,
-                'roles': []
-            }
-        person_profit_map[uid]['total_profit'] += s['profit']
-        person_profit_map[uid]['roles'].append(s['role'])
+        row = person_map.setdefault(uid, {
+            'name': s['name'],
+            'operator_profit': 0, 'operator_projects': 0,
+            'sales_profit': 0, 'sales_projects': 0,
+            'total_profit': 0,
+        })
+        if s['role'] == '操作员':
+            row['operator_profit'] += s['profit']
+            row['operator_projects'] += s['projects']
+        else:
+            row['sales_profit'] += s['profit']
+            row['sales_projects'] += s['projects']
+        row['total_profit'] += s['profit']
 
-    person_totals = sorted(person_profit_map.values(), key=lambda x: -x['total_profit'])
-    for p in person_totals:
-        p['total_profit'] = round(p['total_profit'], 2)
-        p['roles'] = ' + '.join(p['roles'])
+    person_rows = sorted(person_map.values(), key=lambda x: -x['total_profit'])
+    for r in person_rows:
+        r['operator_profit'] = round(r['operator_profit'], 2)
+        r['sales_profit'] = round(r['sales_profit'], 2)
+        r['total_profit'] = round(r['total_profit'], 2)
 
     # 员工利润合计
-    staff_total_profit = round(sum(p['total_profit'] for p in person_totals), 2)
+    staff_total_profit = round(sum(r['total_profit'] for r in person_rows), 2)
+
+    # 项目明细表的列合计：整张结算单的合计，不是当页的
+    project_totals = {
+        'selling': round(sum(finance_data.get(p.id, {}).get('total_selling', 0) for p in all_projects), 2),
+        'cost': round(sum(finance_data.get(p.id, {}).get('total_cost', 0) for p in all_projects), 2),
+        'pl': round(sum(finance_data.get(p.id, {}).get('total_pl', 0) for p in all_projects), 2),
+        'operator': round(sum(float(p.operator_profit or 0) for p in all_projects), 2),
+        'sales': round(sum(float(p.sales_profit or 0) for p in all_projects), 2),
+        'company': round(sum(float(p.company_profit or 0) for p in all_projects), 2),
+    }
+
+    # 项目明细分页：一页 30 条
+    per_page = 30
+    total_projects = len(all_projects)
+    total_pages = max(1, (total_projects + per_page - 1) // per_page)
+    page = request.args.get('page', 1, type=int) or 1
+    page = min(max(page, 1), total_pages)
+    start = (page - 1) * per_page
+    projects = all_projects[start:start + per_page]
+    project_pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_projects,
+        'total_pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'start': start + 1 if total_projects else 0,
+        'end': start + len(projects),
+    }
 
     # 解析每个项目的操作员/业务员显示名称
     project_staff_display = _resolve_project_staff_display(projects, staff_name_map)
@@ -1961,9 +2012,10 @@ def settlement_batch_detail(batch_id):
                          batch=batch,
                          projects=projects,
                          finance_data=finance_data,
-                         staff_list=staff_list,
-                         person_totals=person_totals,
+                         person_rows=person_rows,
                          staff_total_profit=staff_total_profit,
+                         project_totals=project_totals,
+                         project_pagination=project_pagination,
                          project_staff_display=project_staff_display)
 
 
@@ -1980,6 +2032,14 @@ def settlement_batch_cancel(batch_id):
         batch = SettlementBatch.query.get_or_404(batch_id)
         if batch.status == 'cancelled':
             return jsonify({'success': False, 'message': '该结算单已撤销'}), 400
+
+        # 分成已经发出去了，直接撤销会让账和实际付款对不上；
+        # 要撤必须先把「公司结算」标记撤回，逼使用者确认这笔钱怎么处理
+        if batch.payout_status == 'paid':
+            return jsonify({
+                'success': False,
+                'message': '该结算单已标记为「公司已结算」（分成已发放），请先撤回该标记再撤销结算单'
+            }), 400
 
         # 回退所有关联项目的结算状态
         projects = ProjectHeader.query.filter(
@@ -2005,6 +2065,48 @@ def settlement_batch_cancel(batch_id):
             'success': False,
             'message': f'撤销失败: {str(e)}'
         }), 500
+
+
+@athina_blue.route('/settlement_batches/<int:batch_id>/payout', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def settlement_batch_payout(batch_id):
+    """标记 / 撤回「公司结算」（分成是否已发放给员工）
+
+    与 status 无关：status 管单据是否有效，这里管钱有没有发出去。
+    """
+    try:
+        from App_new.finance.models.settlement_batch import SettlementBatch
+        from datetime import datetime
+
+        batch = SettlementBatch.query.get_or_404(batch_id)
+        action = (request.get_json(silent=True) or {}).get('action', 'pay')
+
+        if batch.status == 'cancelled':
+            return jsonify({'success': False, 'message': '结算单已撤销，无法标记公司结算'}), 400
+
+        if action == 'pay':
+            if batch.payout_status == 'paid':
+                return jsonify({'success': False, 'message': '该结算单已标记为公司已结算'}), 400
+            batch.payout_status = 'paid'
+            batch.payout_date = datetime.now()
+            batch.payout_by = current_user.username if current_user else 'unknown'
+            msg = f'结算单 {batch.batch_number} 已标记为公司已结算'
+        else:
+            if batch.payout_status != 'paid':
+                return jsonify({'success': False, 'message': '该结算单尚未标记为公司已结算'}), 400
+            batch.payout_status = 'pending'
+            batch.payout_date = None
+            batch.payout_by = None
+            msg = f'结算单 {batch.batch_number} 的公司结算标记已撤回'
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': msg})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'操作失败: {str(e)}'}), 500
 
 
 @athina_blue.route('/download_report/<report_type>', methods=['GET'])
