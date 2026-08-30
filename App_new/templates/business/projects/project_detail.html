@@ -122,9 +122,14 @@
                              <span style="flex: 1;">
                                  {# 三档：已结算 / 可结算（条件已满足，等着结） / 未完成（还差东西） #}
                                  {% if header.is_settled %}
-                                     <span style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">已结算</span>
-                                     {% if header.payment_voucher %}
-                                     <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=header.payment_voucher.id) }}" style="color: #1976D2; margin-left: 8px; font-size: 0.75rem;">{{ header.payment_voucher.voucher_no }}</a>
+                                     {# 已结算 → 点标签跳到所属结算单；历史遗留没有结算单号的退回成纯标签 #}
+                                     {% if header.settlement_batch_id %}
+                                     <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=header.settlement_batch_id) }}"
+                                        style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; text-decoration: none;"
+                                        title="点击查看结算单">已结算</a>
+                                     {% else %}
+                                     <span style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;"
+                                           title="无关联结算单">已结算</span>
                                      {% endif %}
                                  {% elif can_settle %}
                                      <span style="background: #cfe2ff; color: #084298; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;"

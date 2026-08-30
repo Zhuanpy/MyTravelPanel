@@ -13,39 +13,165 @@
         padding: 1rem 1rem;
     }
 
-    .action-buttons {
-        display: flex;
-        gap: 10px;
+    /* 筛选面板：与业绩结算页保持一致（固定 130px 窄列，一行排满） */
+    .filter-panel {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
         margin-bottom: 20px;
-        flex-wrap: wrap;
+        border: 1px solid #e9ecef;
     }
 
-    .action-btn {
-        background-color: #2196F3;
+    .filter-panel-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2E7D32;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+    }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 130px);
+        justify-content: start;
+        gap: 12px 14px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* 搜索框要放得下 HID/公司名称 */
+    .filter-group.wide {
+        grid-column: span 2;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .filter-input, .filter-select {
+        padding: 7px 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        width: 100%;
+        background-color: white;
+    }
+
+    .filter-buttons {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        align-items: end;
+        justify-content: flex-start;
+        grid-column: span 2;
+    }
+
+    .filter-btn {
+        background-color: #4CAF50;
         color: white;
         border: none;
-        padding: 10px 20px;
+        padding: 8px 16px;
         border-radius: 4px;
         cursor: pointer;
         font-size: 14px;
+    }
+
+    .filter-reset-btn {
+        background-color: #6c757d;
+    }
+
+    /* 操作区：按功能分组，颜色表达语义而不是逐个按钮指定。
+       原先 7 个按钮 7 种高饱和色（紫/橙/绿/黄/青/蓝/绿），
+       颜色和功能没有对应关系。 */
+    .action-buttons {
+        display: flex;
+        align-items: stretch;
+        gap: 14px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        padding: 10px 12px;
+        background: #fbfcfd;
+        border: 1px solid #e9edf2;
+        border-radius: 8px;
+    }
+
+    .action-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 14px;
+        border-right: 1px solid #e5e9ef;
+    }
+
+    .action-group:last-child {
+        border-right: none;
+        padding-right: 0;
+    }
+
+    .action-group.push-right { margin-left: auto; }
+
+    .action-group-label {
+        font-size: 12px;
+        color: #8a94a6;
+        white-space: nowrap;
+        margin-right: 2px;
+    }
+
+    .action-btn {
+        background-color: #4b6bfb;
+        color: white;
+        border: 1px solid transparent;
+        padding: 8px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        white-space: nowrap;
+        transition: background-color .15s, border-color .15s;
     }
 
-    .action-btn:hover {
-        opacity: 0.9;
-        color: white;
+    .action-btn:hover { filter: brightness(0.94); color: white; }
+
+    /* 次要动作：描边，弱化视觉重量。
+       「全部…」这类影响面最大的操作刻意用描边而非实心，避免误点。 */
+    .action-btn.ghost {
+        background-color: #fff;
+        color: #4a5566;
+        border-color: #d3dae3;
     }
 
-    .action-btn.success {
-        background-color: #28a745;
+    .action-btn.ghost:hover {
+        background-color: #f4f6f9;
+        border-color: #b9c3cf;
+        color: #2d3748;
+        filter: none;
     }
 
-    .action-btn.warning {
-        background-color: #ffc107;
-        color: #212529;
+    /* 结算是不可逆动作，单独一个强调色 */
+    .action-btn.settle { background-color: #1a8f4c; }
+
+    .action-btn.danger {
+        background-color: #fff;
+        color: #c0392b;
+        border-color: #eccac6;
+    }
+
+    .action-btn.danger:hover {
+        background-color: #fdf3f2;
+        border-color: #e0a9a3;
+        color: #a93226;
+        filter: none;
     }
 
     .table-wrapper {
@@ -66,7 +192,7 @@
         background-color: #2E7D32;
         color: white;
         padding: 12px 8px;
-        text-align: center;
+        text-align: left;
         font-weight: 600;
         position: sticky;
         top: 0;
@@ -77,7 +203,7 @@
         padding: 10px 8px;
         border-bottom: 1px solid #e9ecef;
         font-size: 13px;
-        text-align: center;
+        text-align: left;
     }
 
     .data-table tr:hover {
@@ -91,8 +217,9 @@
     }
 
     .amount {
-        text-align: center;
+        text-align: left;
         font-weight: 500;
+        font-variant-numeric: tabular-nums;
     }
 
     .amount.positive {
@@ -116,6 +243,16 @@
     .summary-row td {
         background-color: #e3f2fd !important;
         font-weight: 600;
+    }
+
+    .type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        background: #eef1f5;
+        color: #55606e;
+        white-space: nowrap;
     }
 
     .badge {
@@ -195,122 +332,96 @@
 
 {% block content %}
 <div class="data-container">
-    <!-- 统计卡片 -->
-    <div style="display: flex; gap: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 1rem;">
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
-            <i class="fas fa-list-ol" style="color: #667eea;"></i>
-            <span>结果</span>
-            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.total_count or pagination.total }}</span>
-        </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
-            <i class="fas fa-check-circle" style="color: #10b981;"></i>
-            <span>可结算</span>
-            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.can_settle_count }}</span>
-        </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
-            <i class="fas fa-lock" style="color: #6b7280;"></i>
-            <span>已结算</span>
-            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.settled_count }}</span>
-        </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
-            <i class="fas fa-clock" style="color: #f59e0b;"></i>
-            <span>未结算</span>
-            <span style="font-weight: 700; font-size: 1.05rem;">{{ stats.unsettled_count }}</span>
-        </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-right: 1px solid #f1f5f9; font-size: 0.95rem;">
-            <i class="fas fa-dollar-sign" style="color: #10b981;"></i>
-            <span>总利润</span>
-            <span style="font-weight: 700; font-size: 1.05rem;">{{ "%.2f"|format(stats.page_total_profit) }}</span>
-        </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.5rem; font-size: 0.95rem;">
-            <i class="fas fa-chart-line" style="color: #3b82f6;"></i>
-            <span>总销售</span>
-            <span style="font-weight: 700; font-size: 1.05rem;">{{ "%.2f"|format(stats.page_total_selling) }}</span>
-        </div>
-    </div>
+    {# 顶部统计卡片去掉：表格底部已有「当前页汇总」，同一份数字不必展示两遍 #}
 
     <!-- 筛选栏 -->
-    <div class="card mb-3">
-        <div class="card-body py-2">
-            <form method="GET" id="filterForm">
-                <div class="d-flex flex-nowrap align-items-end gap-2">
-                    <div>
-                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">搜索</label>
-                        <input type="text" name="search" class="form-control form-control-sm" style="width:160px;" placeholder="HID/公司名称" value="{{ filters.search or '' }}">
-                    </div>
-                    <div>
-                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">经办人</label>
-                        <select name="staff_id" class="form-select form-select-sm" style="width:120px;">
-                            <option value="">全部</option>
-                            {% for s in staff_list %}
-                            <option value="{{ s.id }}" {{ 'selected' if filters.staff_id|string == s.id|string }}>{{ s.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">结算状态</label>
-                        <select name="settlement_status" class="form-select form-select-sm" style="width:110px;">
-                            <option value="">全部</option>
-                            <option value="can_settle" {{ 'selected' if filters.settlement_status == 'can_settle' }}>可结算</option>
-                            <option value="settled" {{ 'selected' if filters.settlement_status == 'settled' }}>已结算</option>
-                            <option value="unsettled" {{ 'selected' if filters.settlement_status == 'unsettled' }}>未结算</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">盈亏状态</label>
-                        <select name="profit_status" class="form-select form-select-sm" style="width:100px;">
-                            <option value="">全部</option>
-                            <option value="profit" {{ 'selected' if filters.profit_status == 'profit' }}>盈利</option>
-                            <option value="loss" {{ 'selected' if filters.profit_status == 'loss' }}>亏损</option>
-                            <option value="zero" {{ 'selected' if filters.profit_status == 'zero' }}>持平</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">开始日期</label>
-                        <input type="date" name="date_from" class="form-control form-control-sm" style="width:140px;" value="{{ filters.date_from or '' }}">
-                    </div>
-                    <div>
-                        <label class="form-label mb-0" style="font-size:0.75rem; color:#6b7280;">结束日期</label>
-                        <input type="date" name="date_to" class="form-control form-control-sm" style="width:140px;" value="{{ filters.date_to or '' }}">
-                    </div>
-                    <div>
-                        <button type="submit" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-filter me-1"></i>筛选
-                        </button>
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
-                            <i class="fas fa-undo me-1"></i>重置
-                        </button>
-                    </div>
-                </div>
-            </form>
+    <div class="filter-panel">
+        <div class="filter-panel-title">
+            <i class="fas fa-filter"></i>&nbsp;筛选条件
         </div>
+        <form method="GET" class="filter-form" id="filterForm">
+            <div class="filter-group wide">
+                <label class="filter-label">搜索</label>
+                <input type="text" name="search" class="filter-input"
+                       placeholder="HID / 公司名称" value="{{ filters.search or '' }}">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">经办人</label>
+                <select name="staff_id" class="filter-select">
+                    <option value="">全部</option>
+                    {% for s in staff_list %}
+                    <option value="{{ s.id }}" {{ 'selected' if filters.staff_id|string == s.id|string }}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">结算状态</label>
+                <select name="settlement_status" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="can_settle" {{ 'selected' if filters.settlement_status == 'can_settle' }}>可结算</option>
+                    <option value="settled" {{ 'selected' if filters.settlement_status == 'settled' }}>已结算</option>
+                    <option value="unsettled" {{ 'selected' if filters.settlement_status == 'unsettled' }}>未结算</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">盈亏状态</label>
+                <select name="profit_status" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="profit" {{ 'selected' if filters.profit_status == 'profit' }}>盈利</option>
+                    <option value="loss" {{ 'selected' if filters.profit_status == 'loss' }}>亏损</option>
+                    <option value="zero" {{ 'selected' if filters.profit_status == 'zero' }}>持平</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">创建日期（从）</label>
+                <input type="date" name="date_from" class="filter-input" value="{{ filters.date_from or '' }}">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">创建日期（到）</label>
+                <input type="date" name="date_to" class="filter-input" value="{{ filters.date_to or '' }}">
+            </div>
+            <div class="filter-group filter-buttons">
+                <button type="submit" class="filter-btn">
+                    <i class="fas fa-filter"></i> 应用筛选
+                </button>
+                <button type="button" class="filter-btn filter-reset-btn" onclick="resetFilters()">
+                    <i class="fas fa-undo"></i> 重置
+                </button>
+            </div>
+        </form>
     </div>
 
-    <!-- 操作按钮 -->
+    <!-- 操作按钮：按功能分组，与业绩结算页一致 -->
     <div class="action-buttons">
-        <button class="action-btn" onclick="calculateProfitDistribution()" style="background-color: #9C27B0;">
-            <i class="fas fa-calculator"></i> 计算利润分配(选中)
-        </button>
-        <button class="action-btn" onclick="calculateAllUnsettledProfitDistribution()" style="background-color: #FF9800;">
-            <i class="fas fa-calculator"></i> 计算全部未结算
-        </button>
-        <button class="action-btn success" onclick="batchSettleSelected()">
-            <i class="fas fa-check-double"></i> 批量结算选中
-        </button>
-        <button class="action-btn warning" onclick="batchUnsettleSelected()">
-            <i class="fas fa-undo"></i> 批量取消结算
-        </button>
-        <a href="{{ url_for('business_projects.settlement.voucher_list') }}" class="action-btn" style="background-color: #17a2b8;">
-            <i class="fas fa-file-invoice-dollar"></i> 结算凭证列表
-        </a>
-        <a href="{{ url_for('business_projects.list.list_projects') }}" class="action-btn">
-            <i class="fas fa-arrow-left"></i> 返回项目列表
-        </a>
-        <button class="action-btn" onclick="exportToExcel()" style="background-color: #28a745;">
-            <i class="fas fa-file-excel"></i> 导出Excel
-        </button>
+        <div class="action-group">
+            <span class="action-group-label">利润分配</span>
+            <button class="action-btn" onclick="calculateProfitDistribution()">
+                <i class="fas fa-calculator"></i> 选中
+            </button>
+            <button class="action-btn ghost" onclick="calculateAllUnsettledProfitDistribution()">
+                <i class="fas fa-calculator"></i> 全部未结算
+            </button>
+        </div>
+
+        <div class="action-group">
+            <span class="action-group-label">结算</span>
+            <button class="action-btn settle" onclick="batchSettleSelected()">
+                <i class="fas fa-check-double"></i> 结算选中
+            </button>
+            {# 取消结算是回退操作，用描边危险色，不跟「结算」抢视觉重量 #}
+            <button class="action-btn danger" onclick="batchUnsettleSelected()">
+                <i class="fas fa-undo"></i> 取消结算
+            </button>
+        </div>
+
+        <div class="action-group push-right">
+            <button class="action-btn ghost" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i> 导出Excel
+            </button>
+            <a href="{{ url_for('business_projects.list.list_projects') }}" class="action-btn ghost">
+                <i class="fas fa-arrow-left"></i> 返回项目列表
+            </a>
+        </div>
     </div>
 
     <!-- 数据表格 -->
@@ -323,23 +434,23 @@
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
                 </th>
                 <th>HID</th>
-                <th style="width: 150px;">公司名称</th>
-                <th class="text-center">创建日期</th>
-                <th class="text-center">经办人</th>
-                <th class="text-center">操作员</th>
-                <th class="text-center">业务员</th>
-                <th class="text-center">销售金额</th>
-                <th class="text-center">成本</th>
-                <th class="text-center">利润</th>
-                <th class="text-center">收款</th>
-                <th class="text-center">余额</th>
-                <th class="text-center">REF/开票</th>
-                <th class="text-center">EO/付款</th>
-                <th class="text-center">订单类型</th>
-                <th class="text-center">操作员利润</th>
-                <th class="text-center">业务员利润</th>
-                <th class="text-center">公司利润</th>
-                <th class="text-center">结算状态</th>
+                <th style="width: 150px;">公司</th>
+                <th>创建日</th>
+                <th>经办人</th>
+                <th>操作员</th>
+                <th>业务员</th>
+                <th>金额</th>
+                <th>成本</th>
+                <th>盈亏</th>
+                <th>收款</th>
+                <th>余额</th>
+                <th>REF/开票</th>
+                <th>EO/付款</th>
+                <th>类型</th>
+                <th>员工利润</th>
+                <th>销售利润</th>
+                <th>公司利润</th>
+                <th>结算状态</th>
             </tr>
         </thead>
         <tbody>
@@ -359,11 +470,11 @@
                 <td class="company-cell" title="{{ project.company.company_name if project.company else '-' }}">
                     {{ project.company.company_name if project.company else '-' }}
                 </td>
-                <td class="text-center">{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
-                <td class="text-center">{{ project.staff_display_name }}</td>
+                <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
+                <td>{{ project.staff_display_name }}</td>
                 {% set psd = project_staff_display.get(project.id, {}) %}
-                <td class="text-center">{{ psd.get('operator_names', project.operator_names or '-') }}</td>
-                <td class="text-center">{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
+                <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
+                <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td class="amount">{{ "%.2f"|format(pstats.total_selling_price or 0) }}</td>
                 <td class="amount">{{ "%.2f"|format(pstats.total_cost_price or 0) }}</td>
                 <td class="amount {{ 'positive' if (pstats.total_profit or 0) > 0 else 'negative' if (pstats.total_profit or 0) < 0 else '' }}">
@@ -373,15 +484,15 @@
                 <td class="amount {{ 'negative' if (pstats.balance or 0) > 0.01 else '' }}">
                     {{ "%.2f"|format(pstats.balance or 0) }}
                 </td>
-                <td class="text-center">
+                <td>
                     {{ pstats.invoiced_ref_count or 0 }}/{{ pstats.ref_count or 0 }}
                 </td>
-                <td class="text-center">
+                <td>
                     {{ pstats.paid_eo_count or 0 }}/{{ pstats.eo_count or 0 }}
                 </td>
-                <td class="text-center">
+                <td>
                     {% if project.order_type %}
-                        <span class="badge" style="background-color: #6c757d; color: white;">{{ project.order_type }}</span>
+                        <span class="type-badge">{{ project.order_type }}</span>
                     {% else %}
                         <span class="text-muted">-</span>
                     {% endif %}
@@ -395,15 +506,16 @@
                 <td class="amount {{ 'positive' if project.company_profit and project.company_profit > 0 else 'negative' if project.company_profit and project.company_profit < 0 else '' }}">
                     {{ "%.2f"|format(project.company_profit|float) if project.company_profit else '0.00' }}
                 </td>
-                <td class="text-center">
+                <td>
                     {% if project.is_settled %}
-                        <span class="badge badge-success">已结算</span>
-                        {% if project.payment_voucher %}
-                        <br><small title="凭证号: {{ project.payment_voucher.voucher_no }}">
-                            <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=project.payment_voucher.id) }}" style="color: #1976D2;">
-                                {{ project.payment_voucher.voucher_no }}
-                            </a>
-                        </small>
+                        {# 已结算 → 点标签跳到所属结算单。
+                           用 settlement_batch_id 列而不是关系，避免每行多一次查询 #}
+                        {% if project.settlement_batch_id %}
+                        <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}"
+                           class="badge badge-success" style="text-decoration: none;"
+                           title="点击查看结算单">已结算</a>
+                        {% else %}
+                        <span class="badge badge-success" title="无关联结算单">已结算</span>
                         {% endif %}
                     {% elif pstats.can_settle %}
                         <span class="badge badge-warning">可结算</span>
@@ -420,7 +532,7 @@
 
             <!-- 汇总行 -->
             <tr class="summary-row">
-                <td colspan="7" style="text-align: right; font-weight: 600;">当前页汇总：</td>
+                <td colspan="7" style="font-weight: 600;">当前页汇总：</td>
                 <td class="amount">{{ "%.2f"|format(stats.page_total_selling) }}</td>
                 <td class="amount">{{ "%.2f"|format(stats.page_total_cost) }}</td>
                 <td class="amount {{ 'positive' if stats.page_total_profit > 0 else 'negative' if stats.page_total_profit < 0 else '' }}">
@@ -428,7 +540,9 @@
                 </td>
                 <td class="amount">{{ "%.2f"|format(stats.page_total_received) }}</td>
                 <td class="amount">{{ "%.2f"|format(stats.page_total_balance) }}</td>
-                <td colspan="2"></td>
+                {# REF/开票、EO/付款、类型 三列不参与汇总。
+                   原先只写了 colspan=2，漏掉「类型」列，导致后面三个利润整体左移一列 #}
+                <td colspan="3"></td>
                 <td class="amount {{ 'positive' if stats.page_operator_profit > 0 else 'negative' if stats.page_operator_profit < 0 else '' }}">
                     {{ "%.2f"|format(stats.page_operator_profit) }}
                 </td>
@@ -508,14 +622,6 @@
                             <div class="card-body text-center">
                                 <h6 class="text-muted mb-1">选中项目数</h6>
                                 <h3 class="text-success mb-0" id="settleProjectCount">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card border-primary">
-                            <div class="card-body text-center">
-                                <h6 class="text-muted mb-1">凭证号（预览）</h6>
-                                <h4 class="text-primary mb-0" id="settleVoucherNoPreview">-</h4>
                             </div>
                         </div>
                     </div>
@@ -657,9 +763,6 @@
         document.getElementById('settleDate').value = today;
         document.getElementById('settleRemarks').value = '';
 
-        // 生成预览凭证号
-        fetchVoucherNoPreview();
-
         // 填充项目预览表格
         const previewBody = document.getElementById('settleProjectsPreview');
         previewBody.innerHTML = selectedSettleProjects.map(p => `
@@ -673,23 +776,6 @@
         // 显示模态框
         const modal = new bootstrap.Modal(document.getElementById('batchSettleModal'));
         modal.show();
-    }
-
-    function fetchVoucherNoPreview() {
-        // 获取预览凭证号
-        fetch('/projects/settlement/api/preview_voucher_no', {
-            method: 'GET',
-            credentials: 'same-origin'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('settleVoucherNoPreview').textContent = data.voucher_no;
-            }
-        })
-        .catch(error => {
-            console.error('获取凭证号预览失败:', error);
-        });
     }
 
     function confirmBatchSettle() {

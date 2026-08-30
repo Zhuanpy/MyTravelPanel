@@ -7,7 +7,6 @@ from .ref import ProjectRef
 from .receipt import ProjectReceipt
 from .invoice import ProjectInvoice
 from .eo import ProjectEO
-from .payment_voucher import PaymentVoucher
 from .refund import ProjectRefund, ProjectRefundItem
 
 __all__ = [
@@ -19,7 +18,6 @@ __all__ = [
     'ProjectReceipt',
     'ProjectInvoice',
     'ProjectEO',
-    'PaymentVoucher',
     'ProjectRefund',
     'ProjectRefundItem'
 ]

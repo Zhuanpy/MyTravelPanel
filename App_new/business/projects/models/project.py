@@ -459,7 +459,6 @@ class ProjectHeader(db.Model):
     is_settled = db.Column(db.Boolean, default=False, nullable=False, comment='是否已结算')
     settled_at = db.Column(db.DateTime, nullable=True, comment='结算时间')
     settled_by = db.Column(db.String(50), nullable=True, comment='结算人')
-    payment_voucher_id = db.Column(db.Integer, db.ForeignKey('payment_vouchers.id'), nullable=True, comment='付款凭证ID')
     settlement_batch_id = db.Column(db.Integer, db.ForeignKey('settlement_batches.id'), nullable=True, comment='结算单ID')
 
     # 利润分配字段
@@ -563,8 +562,6 @@ class ProjectHeader(db.Model):
             'is_settled': self.is_settled,
             'settled_at': self.settled_at.isoformat() if self.settled_at else None,
             'settled_by': self.settled_by,
-            'payment_voucher_id': self.payment_voucher_id,
-            'voucher_no': self.payment_voucher.voucher_no if self.payment_voucher else None,
             'order_type': self.order_type,
             'operator_profit': float(self.operator_profit) if self.operator_profit else None,
             'sales_profit': float(self.sales_profit) if self.sales_profit else None,

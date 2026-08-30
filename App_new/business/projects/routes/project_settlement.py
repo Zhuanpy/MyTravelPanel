@@ -457,27 +457,19 @@ def _calculate_stats(project_stats, base_query=None):
     }
 
 
-@bp.route('/api/preview_voucher_no', methods=['GET'])
-@login_required
-@staff_only
-def preview_voucher_no():
-    """预览下一个结算凭证号"""
-    try:
-        from App_new.business.projects.models.payment_voucher import PaymentVoucher
-        voucher_no = PaymentVoucher.generate_voucher_no()
-        return jsonify({'success': True, 'voucher_no': voucher_no})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
-
-
 @bp.route('/api/batch_settle', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
 def batch_settle():
-    """批量结算项目，生成结算凭证"""
+    """批量结算项目
+
+    产出「结算单」(SettlementBatch)，与业绩结算页同一种记录。
+    这里原本走的是另一套「结算凭证」，同一件事两种记录，结果是从这个页面
+    结算的项目在结算单列表里根本看不到。凭证已下线，只留结算单。
+    """
     try:
-        from App_new.business.projects.models.payment_voucher import PaymentVoucher
+        from App_new.finance.models.settlement_batch import SettlementBatch
         from decimal import Decimal
 
         data = request.get_json()
@@ -507,66 +499,74 @@ def batch_settle():
         if not projects_to_settle:
             return jsonify({'success': False, 'message': '没有可结算的项目'})
 
+        # 结算条件校验：原先这里只判「还没结算」，不满足条件的项目也能结掉，
+        # 而业绩结算页会拦下来，同一个项目在两个页面结果不同。
+        # 统一用 settle_blockers（全站唯一的可结算判定）。
+        cannot_settle = []
+        for project in projects_to_settle:
+            blockers = project.settle_blockers
+            if blockers:
+                cannot_settle.append(f"{project.hid}（{blockers[0]}）")
+
+        if cannot_settle:
+            return jsonify({
+                'success': False,
+                'message': '以下项目不满足结算条件：' + '；'.join(cannot_settle)
+            }), 400
+
         # 计算汇总信息
-        total_selling = Decimal('0')
-        total_cost = Decimal('0')
         total_profit = Decimal('0')
         total_operator_profit = Decimal('0')
         total_sales_profit = Decimal('0')
         total_company_profit = Decimal('0')
 
-        # 结算前按当前 REF 重算分成：售价/成本本来就是实时算的，
-        # 分成却读存量字段，两者不是同一次计算的结果，会出现凭证利润与分成对不上
+        # 结算前按当前 REF 重算分成：不能直接读存量字段，否则没点过
+        # 「计算利润分配」的项目会按 0 入账，改过价的会用旧数字。
+        # 利润取 apply_profit_distribution 的返回值，与分成同一次计算得出，
+        # 口径也和业绩结算页产出的结算单一致。
         from App_new.finance.utils.profit_distribution import apply_profit_distribution
 
         for project in projects_to_settle:
-            # 查询项目的 REF 汇总
-            refs = ProjectRef.query.filter_by(header_id=project.id).all()
-            project_selling = sum(Decimal(str(r.selling_price or 0)) for r in refs)
-            project_cost = sum(Decimal(str(r.cost_price or 0)) for r in refs)
+            profit, operator, sales, company = apply_profit_distribution(project)
 
-            _, operator, sales, company = apply_profit_distribution(project)
-
-            total_selling += project_selling
-            total_cost += project_cost
-            total_profit += (project_selling - project_cost)
+            total_profit += profit
             total_operator_profit += operator
             total_sales_profit += sales
             total_company_profit += company
 
-        # 创建结算凭证
-        voucher = PaymentVoucher(
-            voucher_no=PaymentVoucher.generate_voucher_no(),
-            settle_date=settle_date,
-            settled_by=current_user.username if hasattr(current_user, 'username') else str(current_user.id),
+        settled_by = current_user.username if hasattr(current_user, 'username') else str(current_user.id)
+
+        # 结算单：权威记录，与业绩结算页产出同一种对象
+        batch = SettlementBatch(
+            batch_number=SettlementBatch.generate_batch_number(),
+            settlement_date=settle_date,
+            settled_by=settled_by,
             project_count=len(projects_to_settle),
-            total_selling=total_selling,
-            total_cost=total_cost,
             total_profit=total_profit,
             total_operator_profit=total_operator_profit,
             total_sales_profit=total_sales_profit,
             total_company_profit=total_company_profit,
             remarks=remarks
         )
-        db.session.add(voucher)
-        db.session.flush()  # 获取 voucher.id
+        db.session.add(batch)
+        db.session.flush()  # 获取 batch.id
 
-        # 更新项目结算状态并关联凭证
+        # 更新项目结算状态
         success_count = 0
         for project in projects_to_settle:
             project.is_settled = True
             project.settled_at = settle_date
-            project.settled_by = current_user.username if hasattr(current_user, 'username') else str(current_user.id)
-            project.payment_voucher_id = voucher.id
+            project.settled_by = settled_by
+            project.settlement_batch_id = batch.id
             success_count += 1
 
         db.session.commit()
 
         return jsonify({
             'success': True,
-            'message': f'成功结算 {success_count} 个项目，凭证号：{voucher.voucher_no}',
-            'voucher_no': voucher.voucher_no,
-            'voucher_id': voucher.id
+            'message': f'成功结算 {success_count} 个项目，结算单：{batch.batch_number}',
+            'batch_number': batch.batch_number,
+            'batch_id': batch.id
         })
 
     except Exception as e:
@@ -580,24 +580,66 @@ def batch_settle():
 @login_required
 @staff_only
 def batch_unsettle():
-    """批量取消结算"""
+    """批量取消结算
+
+    取消后要清掉 settlement_batch_id 并重算受影响结算单的汇总，
+    否则项目 is_settled=0 却仍挂在结算单上，结算单的项目数和利润合计
+    会和实际关联的项目对不上。
+    """
     try:
+        from App_new.finance.models.settlement_batch import SettlementBatch
+        from decimal import Decimal
+
         data = request.get_json()
         project_ids = data.get('project_ids', [])
 
         if not project_ids:
             return jsonify({'success': False, 'message': '请选择要取消结算的项目'})
 
-        success_count = 0
+        projects = [p for p in (ProjectHeader.query.get(pid) for pid in project_ids)
+                    if p and p.is_settled]
+        if not projects:
+            return jsonify({'success': False, 'message': '没有可取消结算的项目'})
 
-        for project_id in project_ids:
-            project = ProjectHeader.query.get(project_id)
-            if project and project.is_settled:
-                project.is_settled = False
-                project.settled_at = None
-                project.settled_by = None
-                project.payment_voucher_id = None  # 清除凭证关联
-                success_count += 1
+        # 分成已经发放的结算单不允许拆动，口径与结算单详情页的撤销保护一致
+        affected_batch_ids = {p.settlement_batch_id for p in projects if p.settlement_batch_id}
+        paid_batches = SettlementBatch.query.filter(
+            SettlementBatch.id.in_(affected_batch_ids or [-1]),
+            SettlementBatch.payout_status == 'paid'
+        ).all() if affected_batch_ids else []
+
+        if paid_batches:
+            names = '、'.join(b.batch_number for b in paid_batches)
+            return jsonify({
+                'success': False,
+                'message': f'结算单 {names} 已标记为「公司已结算」（分成已发放），请先撤回该标记'
+            }), 400
+
+        success_count = 0
+        for project in projects:
+            project.is_settled = False
+            project.settled_at = None
+            project.settled_by = None
+            project.settlement_batch_id = None
+            success_count += 1
+
+        db.session.flush()
+
+        # 重算受影响结算单：还剩项目就更新汇总，一个都不剩就整单作废
+        for batch_id in affected_batch_ids:
+            batch = SettlementBatch.query.get(batch_id)
+            if not batch:
+                continue
+            remaining = ProjectHeader.query.filter_by(settlement_batch_id=batch_id).all()
+            batch.project_count = len(remaining)
+            batch.total_profit = sum((Decimal(str(p.operator_profit or 0))
+                                      + Decimal(str(p.sales_profit or 0))
+                                      + Decimal(str(p.company_profit or 0))) for p in remaining) or Decimal('0')
+            batch.total_operator_profit = sum(Decimal(str(p.operator_profit or 0)) for p in remaining) or Decimal('0')
+            batch.total_sales_profit = sum(Decimal(str(p.sales_profit or 0)) for p in remaining) or Decimal('0')
+            batch.total_company_profit = sum(Decimal(str(p.company_profit or 0)) for p in remaining) or Decimal('0')
+            if not remaining:
+                batch.status = 'cancelled'
 
         db.session.commit()
 
@@ -702,7 +744,6 @@ def export_excel():
                 '业务员利润': float(project.sales_profit) if project.sales_profit else 0.00,
                 '公司利润': float(project.company_profit) if project.company_profit else 0.00,
                 '结算状态': '已结算' if project.is_settled else ('可结算' if pstats.get('can_settle') else '未结算'),
-                '凭证号': project.payment_voucher.voucher_no if project.payment_voucher else '',
                 '结算时间': project.settled_at.strftime('%Y-%m-%d %H:%M') if project.settled_at else '',
                 '结算人': project.settled_by or ''
             })
@@ -895,119 +936,3 @@ def calculate_all_unsettled_profit_distribution():
         db.session.rollback()
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'计算失败: {str(e)}'})
-
-
-@bp.route('/vouchers')
-@login_required
-@staff_only
-def voucher_list():
-    """结算凭证列表页面"""
-    try:
-        from App_new.business.projects.models.payment_voucher import PaymentVoucher
-
-        # 获取筛选参数
-        search = request.args.get('search', '')
-        date_from = request.args.get('date_from', '')
-        date_to = request.args.get('date_to', '')
-        page = request.args.get('page', 1, type=int)
-        per_page = 20
-
-        # 构建查询
-        query = PaymentVoucher.query
-
-        # 搜索凭证号
-        if search:
-            query = query.filter(PaymentVoucher.voucher_no.like(f'%{search}%'))
-
-        # 日期筛选（转换为 datetime 对象）
-        if date_from:
-            try:
-                date_from_dt = datetime.strptime(date_from, '%Y-%m-%d')
-                query = query.filter(PaymentVoucher.settle_date >= date_from_dt)
-            except ValueError:
-                pass
-        if date_to:
-            try:
-                date_to_dt = datetime.strptime(date_to + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
-                query = query.filter(PaymentVoucher.settle_date <= date_to_dt)
-            except ValueError:
-                pass
-
-        # 排序
-        query = query.order_by(PaymentVoucher.settle_date.desc())
-
-        # 分页
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-        vouchers = pagination.items
-
-        # 计算汇总
-        total_stats = {
-            'total_vouchers': PaymentVoucher.query.count(),
-            'total_projects': db.session.query(db.func.sum(PaymentVoucher.project_count)).scalar() or 0,
-            'total_profit': float(db.session.query(db.func.sum(PaymentVoucher.total_profit)).scalar() or 0)
-        }
-
-        # 构建查询字符串
-        query_params = []
-        if search:
-            query_params.append(f'search={search}')
-        if date_from:
-            query_params.append(f'date_from={date_from}')
-        if date_to:
-            query_params.append(f'date_to={date_to}')
-        query_string = '&'.join(query_params)
-
-        return render_template(
-            'business/projects/voucher_list.html',
-            vouchers=vouchers,
-            pagination=pagination,
-            total_stats=total_stats,
-            query_string=query_string,
-            filters={
-                'search': search,
-                'date_from': date_from,
-                'date_to': date_to
-            }
-        )
-
-    except Exception as e:
-        traceback.print_exc()
-        return render_template(
-            'business/projects/voucher_list.html',
-            vouchers=[],
-            pagination=None,
-            total_stats={'total_vouchers': 0, 'total_projects': 0, 'total_profit': 0},
-            query_string='',
-            filters={}
-        )
-
-
-@bp.route('/vouchers/<int:voucher_id>')
-@login_required
-@staff_only
-def voucher_detail(voucher_id):
-    """结算凭证详情页面"""
-    try:
-        from App_new.business.projects.models.payment_voucher import PaymentVoucher
-
-        voucher = PaymentVoucher.query.get_or_404(voucher_id)
-
-        # 获取关联的项目
-        projects = ProjectHeader.query.filter_by(payment_voucher_id=voucher_id).all()
-
-        # 获取项目统计信息
-        project_ids = [p.id for p in projects]
-        project_stats = _get_project_stats(project_ids) if project_ids else {}
-
-        return render_template(
-            'business/projects/voucher_detail.html',
-            voucher=voucher,
-            projects=projects,
-            project_stats=project_stats
-        )
-
-    except Exception as e:
-        traceback.print_exc()
-        from flask import flash, redirect, url_for
-        flash(f'加载凭证详情失败: {str(e)}', 'error')
-        return redirect(url_for('business_projects.settlement.voucher_list'))
