@@ -16,22 +16,27 @@
     {# 公司结算 = 分成有没有发到员工手上，和「已确认」是两回事 #}
     {% if batch.is_paid_out %}
     <span class="badge-payout paid"
-          title="标记人 {{ batch.payout_by or '-' }}">
+          title="操作人 {{ batch.payout_by or '-' }}{% if batch.payout_remarks %}&#10;备注：{{ batch.payout_remarks }}{% endif %}">
         <i class="fas fa-check"></i> 公司已结算
         {% if batch.payout_date %}{{ batch.payout_date.strftime('%Y-%m-%d') }}{% endif %}
     </span>
+    <button class="action-btn" onclick="openPayoutDialog('update')">
+        <i class="fas fa-pen"></i> 编辑
+    </button>
     <button class="action-btn" onclick="setPayout('unpay')">
         <i class="fas fa-rotate-left"></i> 撤回结算标记
     </button>
+    {# 分成已发放，撤销结算单会让账和实际付款对不上：按钮直接不给，
+       真要撤先撤回上面的结算标记 #}
     {% else %}
     <span class="badge-payout pending"><i class="fas fa-hourglass-half"></i> 公司未结算</span>
-    <button class="action-btn primary" onclick="setPayout('pay')">
+    <button class="action-btn primary" onclick="openPayoutDialog('pay')">
         <i class="fas fa-money-check"></i> 标记公司已结算
     </button>
-    {% endif %}
     <button class="action-btn danger" onclick="cancelBatch()">
         <i class="fas fa-undo"></i> 撤销结算
     </button>
+    {% endif %}
     <span class="badge-confirmed">已确认</span>
     {% else %}
     <span class="badge-cancelled">已撤销</span>
@@ -88,6 +93,62 @@
         padding: 4px 10px;
         border-radius: 4px;
         font-size: 14px;
+    }
+
+    .payout-mask {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1080;
+    }
+
+    .payout-card {
+        background: #fff;
+        border-radius: 10px;
+        padding: 22px 24px;
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+    }
+
+    .payout-card h4 {
+        margin: 0 0 16px;
+        font-size: 17px;
+        color: #2d3748;
+    }
+
+    .payout-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .payout-input {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid #d3dae3;
+        border-radius: 5px;
+        font-size: 13px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .payout-hint {
+        margin: 5px 0 14px;
+        font-size: 12px;
+        color: #8a94a6;
+    }
+
+    .payout-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
     }
 
     /* 公司结算状态：与「已确认/已撤销」区分开，用描边而非实心 */
@@ -479,18 +540,92 @@
     </div>
     {% endif %}
 </div>
+
+{# 标记和编辑共用一个弹窗，区别只在标题和提交时的 action #}
+<div id="payoutDialog" class="payout-mask" hidden>
+    <div class="payout-card">
+        <h4 id="payoutTitle">标记公司已结算</h4>
+        <label class="payout-label" for="payoutDate">结算日期</label>
+        <input type="date" id="payoutDate" class="payout-input">
+        <p class="payout-hint">实际把钱发给员工的日期，不一定是今天</p>
+
+        <label class="payout-label" for="payoutRemarks">备注</label>
+        <textarea id="payoutRemarks" class="payout-input" rows="3"
+                  placeholder="选填，例如：8/25 银行转账，8/30 补录"></textarea>
+
+        <div class="payout-buttons">
+            <button class="action-btn" onclick="closePayoutDialog()">取消</button>
+            <button class="action-btn primary" id="payoutSubmit" onclick="submitPayout()">确定</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+const PAYOUT_URL = '{{ url_for("statement_routes.settlement_batch_payout", batch_id=batch.id) }}';
+// 已存的日期/备注，编辑时回填
+const PAYOUT_CURRENT = {
+    date: '{{ batch.payout_date.strftime("%Y-%m-%d") if batch.payout_date else "" }}',
+    remarks: {{ (batch.payout_remarks or '')|tojson }}
+};
+let payoutAction = 'pay';
+
+function openPayoutDialog(action) {
+    payoutAction = action;
+    document.getElementById('payoutTitle').textContent =
+        action === 'pay' ? '标记公司已结算' : '修改公司结算信息';
+    document.getElementById('payoutSubmit').textContent =
+        action === 'pay' ? '确认已结算' : '保存';
+    // 新标记默认今天，编辑时回填原值
+    document.getElementById('payoutDate').value =
+        action === 'update' && PAYOUT_CURRENT.date
+            ? PAYOUT_CURRENT.date
+            : new Date().toLocaleDateString('sv');   // sv locale 天然是 YYYY-MM-DD
+    document.getElementById('payoutRemarks').value =
+        action === 'update' ? PAYOUT_CURRENT.remarks : '';
+    document.getElementById('payoutDialog').hidden = false;
+}
+
+function closePayoutDialog() {
+    document.getElementById('payoutDialog').hidden = true;
+}
+
+async function submitPayout() {
+    const date = document.getElementById('payoutDate').value;
+    if (!date) {
+        alert('请选择结算日期');
+        return;
+    }
+    const btn = document.getElementById('payoutSubmit');
+    btn.disabled = true;
+    try {
+        const response = await fetch(PAYOUT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: payoutAction,
+                payout_date: date,
+                remarks: document.getElementById('payoutRemarks').value
+            })
+        });
+        const data = await response.json();
+        alert(data.message);
+        if (data.success) {
+            location.reload();
+            return;
+        }
+    } catch (error) {
+        alert('操作失败，请稍后再试');
+    }
+    btn.disabled = false;
+}
+
 async function setPayout(action) {
-    const tip = action === 'pay'
-        ? '确认这张结算单的员工分成已经发放？'
-        : '撤回「公司已结算」标记？';
-    if (!confirm(tip)) return;
+    if (!confirm('撤回「公司已结算」标记？撤回后可以撤销结算单。')) return;
 
     try {
-        const response = await fetch('{{ url_for("statement_routes.settlement_batch_payout", batch_id=batch.id) }}', {
+        const response = await fetch(PAYOUT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: action })
@@ -502,6 +637,14 @@ async function setPayout(action) {
         alert('操作失败，请稍后再试');
     }
 }
+
+// 点遮罩或按 Esc 关闭
+document.getElementById('payoutDialog').addEventListener('click', function (e) {
+    if (e.target === this) closePayoutDialog();
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closePayoutDialog();
+});
 
 async function cancelBatch() {
     if (!confirm('确定要撤销此结算单吗？所有关联项目将恢复为未结算状态。')) {

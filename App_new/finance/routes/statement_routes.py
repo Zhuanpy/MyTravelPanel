@@ -2072,37 +2072,71 @@ def settlement_batch_cancel(batch_id):
 @login_required
 @staff_only
 def settlement_batch_payout(batch_id):
-    """标记 / 撤回「公司结算」（分成是否已发放给员工）
+    """标记 / 修改 / 撤回「公司结算」（分成是否已发放给员工）
 
     与 status 无关：status 管单据是否有效，这里管钱有没有发出去。
+
+    action:
+      pay    标记为已结算，日期可指定（实际转账日常常不是操作那天）
+      update 已标记后修改日期和备注
+      unpay  撤回标记
     """
     try:
         from App_new.finance.models.settlement_batch import SettlementBatch
         from datetime import datetime
 
         batch = SettlementBatch.query.get_or_404(batch_id)
-        action = (request.get_json(silent=True) or {}).get('action', 'pay')
+        data = request.get_json(silent=True) or {}
+        action = data.get('action', 'pay')
+        operator = current_user.username if current_user else 'unknown'
 
         if batch.status == 'cancelled':
             return jsonify({'success': False, 'message': '结算单已撤销，无法标记公司结算'}), 400
+
+        def _parse_date(raw):
+            """空值取当前时间；只给了日期就补 00:00"""
+            if not raw:
+                return datetime.now()
+            for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    return datetime.strptime(raw, fmt)
+                except ValueError:
+                    continue
+            raise ValueError('日期格式无法识别：%s' % raw)
 
         if action == 'pay':
             if batch.payout_status == 'paid':
                 return jsonify({'success': False, 'message': '该结算单已标记为公司已结算'}), 400
             batch.payout_status = 'paid'
-            batch.payout_date = datetime.now()
-            batch.payout_by = current_user.username if current_user else 'unknown'
+            batch.payout_date = _parse_date(data.get('payout_date'))
+            batch.payout_remarks = (data.get('remarks') or '').strip() or None
+            batch.payout_by = operator
             msg = f'结算单 {batch.batch_number} 已标记为公司已结算'
+
+        elif action == 'update':
+            if batch.payout_status != 'paid':
+                return jsonify({'success': False, 'message': '该结算单尚未标记为公司已结算，无法修改'}), 400
+            batch.payout_date = _parse_date(data.get('payout_date'))
+            batch.payout_remarks = (data.get('remarks') or '').strip() or None
+            # 记录最后一次改动的人，而不是最初标记的人
+            batch.payout_by = operator
+            msg = f'结算单 {batch.batch_number} 的公司结算信息已更新'
+
         else:
             if batch.payout_status != 'paid':
                 return jsonify({'success': False, 'message': '该结算单尚未标记为公司已结算'}), 400
             batch.payout_status = 'pending'
             batch.payout_date = None
             batch.payout_by = None
+            batch.payout_remarks = None
             msg = f'结算单 {batch.batch_number} 的公司结算标记已撤回'
 
         db.session.commit()
         return jsonify({'success': True, 'message': msg})
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
 
     except Exception as e:
         db.session.rollback()

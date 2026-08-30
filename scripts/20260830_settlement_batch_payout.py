@@ -8,7 +8,8 @@
 新增字段：
 - payout_status  pending 待结算 / paid 已结算，默认 pending
 - payout_date    标记为已结算的时间
-- payout_by      标记人
+- payout_by      标记人（改过日期后记的是最后一次操作人）
+- payout_remarks 备注：实际转账日常常和标记那天不是同一天，日期可改，备注写清原因
 
 已撤销的结算单不参与，保持 pending（页面显示「不适用」）。
 
@@ -33,6 +34,7 @@ NEW_COLUMNS = [
     ('payout_status', "VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '公司结算状态(pending待结算/paid已结算)'"),
     ('payout_date', "DATETIME NULL COMMENT '公司结算日期'"),
     ('payout_by', "VARCHAR(50) NULL COMMENT '公司结算操作人'"),
+    ('payout_remarks', "TEXT NULL COMMENT '公司结算备注'"),
 ]
 
 

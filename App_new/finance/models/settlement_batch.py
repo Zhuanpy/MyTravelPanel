@@ -35,6 +35,8 @@ class SettlementBatch(db.Model):
                               comment='公司结算状态(pending待结算/paid已结算)')
     payout_date = db.Column(db.DateTime, nullable=True, comment='公司结算日期')
     payout_by = db.Column(db.String(50), nullable=True, comment='公司结算操作人')
+    # 实际转账日常常晚于/早于标记那天，所以日期可改；备注用来写清楚为什么改
+    payout_remarks = db.Column(db.Text, nullable=True, comment='公司结算备注')
 
     # 时间信息
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -82,6 +84,7 @@ class SettlementBatch(db.Model):
             'payout_status': self.payout_status,
             'payout_date': self.payout_date.isoformat() if self.payout_date else None,
             'payout_by': self.payout_by,
+            'payout_remarks': self.payout_remarks,
             'remarks': self.remarks,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
