@@ -124,7 +124,7 @@
                                  {% if header.is_settled %}
                                      {# 已结算 → 点标签跳到所属结算单；历史遗留没有结算单号的退回成纯标签 #}
                                      {% if header.settlement_batch_id %}
-                                     <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=header.settlement_batch_id) }}"
+                                     <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=header.settlement_batch_id) }}"
                                         style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; text-decoration: none;"
                                         title="点击查看结算单">已结算</a>
                                      {% else %}

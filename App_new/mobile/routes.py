@@ -571,11 +571,11 @@ def flight_conversion():
                          error_msg=error_msg)
 
 
-@mobile_bp.route('/athina-code', methods=['GET', 'POST'])
+@mobile_bp.route('/booking-code', methods=['GET', 'POST'])
 @login_required
-def athina_code():
-    """移动端 ATHINA 代码生成"""
-    return render_template('mobile/athina_code.html')
+def booking_code():
+    """移动端订位代码生成"""
+    return render_template('mobile/booking_code.html')
 
 
 @mobile_bp.route('/flight-order/create', methods=['GET', 'POST'])

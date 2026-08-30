@@ -249,7 +249,7 @@
             <div class="modal-body">
                 <div style="margin-bottom: 15px;">
                     <label class="form-label small mb-1">粘贴航段信息</label>
-                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="支持以下格式（自动识别）：&#10;1) Athina/GDS 格式: CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1&#10;2) 中文行程: 1.新加坡（樟宜机场） - 海口美兰国际机场, 航班号：HU 748，05月25号，出发：12:05 - 抵达：15:40&#10;3) Trip.com / 携程 / Google Flights / 酷航 网页直接复制" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
+                    <textarea class="form-control" id="modalFlightParser" rows="8" placeholder="支持以下格式（自动识别）：&#10;1) 订位系统/GDS 格式: CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1&#10;2) 中文行程: 1.新加坡（樟宜机场） - 海口美兰国际机场, 航班号：HU 748，05月25号，出发：12:05 - 抵达：15:40&#10;3) Trip.com / 携程 / Google Flights / 酷航 网页直接复制" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearModalParser()">
@@ -1867,7 +1867,7 @@ async function parseFlightSegmentsFromModal() {
         return;
     }
 
-    // 1) 优先尝试现有 GDS / Athina 格式直接解析
+    // 1) 优先尝试现有 GDS / 订位系统格式直接解析
     if (probeGdsSegmentCount(parserText) > 0) {
         document.getElementById('flightParser').value = parserText;
         parseFlightSegments();
@@ -1881,7 +1881,7 @@ async function parseFlightSegmentsFromModal() {
         || $('input[name="csrf_token"]').val() || '';
     let result;
     try {
-        const response = await fetch("{{ url_for('flights_athina.parse_flights_api') }}", {
+        const response = await fetch("{{ url_for('flights_itinerary.parse_flights_api') }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

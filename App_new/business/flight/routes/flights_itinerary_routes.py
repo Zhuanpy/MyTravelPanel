@@ -9,7 +9,7 @@ from App_new.utils.utils import FlightData as flight
 from App_new.exts import csrf, db
 from App_new.utils.decorators import staff_only
 
-flights_athina = Blueprint('flights_athina', __name__, url_prefix='/flights_athina')
+flights_itinerary = Blueprint('flights_itinerary', __name__, url_prefix='/flights_itinerary')
 
 def init_cache(app):
     """初始化缓存"""
@@ -74,40 +74,44 @@ def request_schedule_data(flight_number):
         print(f"Error fetching schedule data for {flight_number}: {e}")
         return None
 
-@flights_athina.route('/athina', methods=['GET'])
+@flights_itinerary.route('/booking_code', methods=['GET'])
 @login_required
 @staff_only
-def athina():
-    """Athina页面"""
-    return render_template('business/flight/flight_athina.html')
+def booking_code():
+    """订位代码页面"""
+    return render_template('business/flight/flight_booking_code.html')
 
-@flights_athina.route('/athina_simple', methods=['GET'])
+@flights_itinerary.route('/booking_code_simple', methods=['GET'])
 @login_required
 @staff_only
-def athina_simple():
-    """简化的Athina页面"""
-    return render_template('business/flight/flight_athina.html')
+def booking_code_simple():
+    """简化的订位代码页面"""
+    return render_template('business/flight/flight_booking_code.html')
 
-# 页面内三个工具标签：parse=航班解析 / itinerary=机票行程转换 / athina=ATHINA代码生成
-_CONVERSION_TABS = ('parse', 'itinerary', 'athina')
+# 页面内三个工具标签：parse=航班解析 / itinerary=机票行程转换 / booking_code=订位代码生成
+_CONVERSION_TABS = ('parse', 'itinerary', 'booking_code')
+
+# 旧标签值兼容：原来这个标签叫 athina，存过书签的链接不能直接失效
+_LEGACY_TABS = {'athina': 'booking_code'}
 
 
-@flights_athina.route('/conversion', methods=['GET'])
+@flights_itinerary.route('/conversion', methods=['GET'])
 @login_required
 @staff_only
-def athina_conversion():
-    """Athina机票工具整合页面
+def conversion():
+    """机票工具整合页面
 
     通过 ?tab= 参数区分当前激活的标签页，便于刷新/收藏/分享时保留标签状态。
     非法或缺省值一律回退到 parse。
     """
     tab = request.args.get('tab', 'parse')
+    tab = _LEGACY_TABS.get(tab, tab)
     if tab not in _CONVERSION_TABS:
         tab = 'parse'
-    return render_template('business/flight/flight_athina_conversion.html',
+    return render_template('business/flight/flight_itinerary_tools.html',
                            output_text="", active_tab=tab)
 
-@flights_athina.route('/itinerary_conversion', methods=['GET', 'POST'])
+@flights_itinerary.route('/itinerary_conversion', methods=['GET', 'POST'])
 @login_required
 @staff_only
 def itinerary_conversion():
@@ -176,7 +180,7 @@ def itinerary_conversion():
     # GET请求返回行程转换页面
     return render_template('flights/flight_conversion.html', output_text="")
 
-@flights_athina.route('/api/convert_itinerary', methods=['POST'])
+@flights_itinerary.route('/api/convert_itinerary', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
@@ -218,13 +222,13 @@ def api_convert_itinerary():
         return jsonify({'success': False, 'error': f'行程转换失败：{str(e)}'}), 500
 
 
-@flights_athina.route('/generate_booking_code', methods=['POST'])
+@flights_itinerary.route('/generate_booking_code', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
 def generate_booking_code():
     """
-    生成Athina预订代码API
+    生成订位代码API
     """
     try:
         # 获取并验证请求数据
@@ -255,7 +259,7 @@ def generate_booking_code():
 
                 try:
                     # 生成预订代码
-                    r = flight.athina_booking_code(num, schedule_dic, flight_date)
+                    r = flight.generate_booking_code_text(num, schedule_dic, flight_date)
 
                     if r.startswith("An error occurred") or r.startswith("Database error"):
                         return jsonify({'error': r}), 500
@@ -277,7 +281,7 @@ def generate_booking_code():
         return jsonify({'error': str(e)}), 500
 
 
-@flights_athina.route('/parse_flights', methods=['POST'])
+@flights_itinerary.route('/parse_flights', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only

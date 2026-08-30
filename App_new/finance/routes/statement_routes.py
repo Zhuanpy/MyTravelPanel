@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Athina 相关路由"""
+"""对账与业绩结算相关路由"""
 
 from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, send_file
 from io import BytesIO
@@ -18,51 +18,51 @@ from openpyxl.utils import get_column_letter
 # 创建logger
 logger = logging.getLogger(__name__)
 
-# 创建 Athina 蓝图
-athina_blue = Blueprint('athina_routes', __name__)
+# 创建对账/结算蓝图
+statement_blue = Blueprint('statement_routes', __name__)
 
 
-## Athina 页面和CSV导入路由已删除（数据已迁移到 ProjectHeader）
+## 旧对账页面和CSV导入路由已删除（数据已迁移到 ProjectHeader）
 
 
-@athina_blue.route('/athina_stats')
+@statement_blue.route('/stats')
 @login_required
 @staff_only
-def athina_stats():
-    """Athina数据统计（已废弃）"""
-    return jsonify({'success': False, 'message': 'Athina数据已迁移到项目系统'}), 410
+def statement_stats():
+    """旧对账数据统计（已废弃）"""
+    return jsonify({'success': False, 'message': '旧对账数据已迁移到项目系统'}), 410
 
 
-@athina_blue.route('/athina_header_data')
+@statement_blue.route('/statement_data')
 @login_required
 @staff_only
-def athina_header_data():
-    """Athina数据查看（已废弃，重定向到业绩结算页面）"""
-    return redirect(url_for('athina_routes.athina_performance_settlement'))
+def statement_data():
+    """旧对账数据查看（已废弃，重定向到业绩结算页面）"""
+    return redirect(url_for('statement_routes.performance_settlement'))
 
 
-# ---- 以下为已删除的 Athina 数据管理路由的占位符 ----
-# athina_clear_data, athina_recalculate_subtotals, athina_toggle_performance,
-# athina_update_consultants, athina_delete_header, athina_detail
-# 这些路由操作的是已删除的 athina_booking_headers/details 表，不再需要
+# ---- 以下为已删除的旧对账数据管理路由的占位符 ----
+# clear_data, recalculate_subtotals, toggle_performance,
+# update_consultants, delete_header, detail
+# 这些路由操作的是已删除的旧预订数据表，不再需要
 
 
-_ATHINA_REMOVED_MSG = """以下Athina旧数据路由已删除（数据已迁移到ProjectHeader）:
-athina_stats, athina_header_data(仅保留重定向), athina_clear_data,
-athina_recalculate_subtotals, athina_toggle_performance, athina_update_consultants,
-athina_delete_header, athina_detail"""  # noqa: E501 - 仅文档用
+_REMOVED_ROUTES_MSG = """以下旧对账数据路由已删除（数据已迁移到ProjectHeader）:
+statement_stats, statement_data(仅保留重定向), clear_data,
+recalculate_subtotals, toggle_performance, update_consultants,
+delete_header, detail"""  # noqa: E501 - 仅文档用
 
 
 # ---- 保留的路由从这里开始 ----
-# 以下是不依赖 AthinaBookingHeader/Detail 的路由
+# 以下是不依赖旧预订数据表的路由
 
 
-## 以下 Athina 旧数据管理路由已删除（athina_booking_headers/details 表已废弃）:
-# athina_clear_data, athina_recalculate_subtotals, athina_toggle_performance,
-# athina_update_consultants, athina_delete_header, athina_detail
+## 以下旧预订数据管理路由已删除（旧预订数据表已废弃）:
+# clear_data, recalculate_subtotals, toggle_performance,
+# update_consultants, delete_header, detail
 
 
-@athina_blue.route('/athina_processing', methods=['GET', 'POST'])
+@statement_blue.route('/processing', methods=['GET', 'POST'])
 @csrf.exempt
 @login_required
 @staff_only
@@ -164,7 +164,7 @@ def process_all_invoices():
         return jsonify({'error': error_msg}), 500
 
 
-@athina_blue.route('/athina_processing_month', methods=['POST'])
+@statement_blue.route('/processing_month', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
@@ -254,10 +254,10 @@ def process_month_invoice():
         return jsonify({'error': error_msg}), 500
 
 
-@athina_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
+@statement_blue.route('/open_statement_folder', methods=['GET', 'POST'])
 @csrf.exempt
-def open_athina_statement_folder():
-    """打开Athina账单文件夹"""
+def open_statement_folder():
+    """打开账单文件夹"""
     from App_new.config import Config
     from pathlib import Path
     
@@ -270,7 +270,7 @@ def open_athina_statement_folder():
             flash('文件夹不存在，已自动创建', 'info')
         except Exception as e:
             flash(f'创建文件夹失败：{str(e)}', 'error')
-            return redirect(url_for("athina_routes.athina_performance_settlement"))
+            return redirect(url_for("statement_routes.performance_settlement"))
     
     try:
         os.startfile(str(folder_path))
@@ -278,10 +278,10 @@ def open_athina_statement_folder():
     except Exception as e:
         flash(f'打开文件夹失败：{str(e)}', 'error')
     
-    return redirect(url_for("athina_routes.athina_performance_settlement"))
+    return redirect(url_for("statement_routes.performance_settlement"))
 
 
-@athina_blue.route('/compare_reports', methods=['POST'])
+@statement_blue.route('/compare_reports', methods=['POST'])
 @csrf.exempt
 def compare_reports():
     """对比两个报表的利润列数据"""
@@ -693,10 +693,10 @@ def _get_can_settle_project_ids():
     return {pid for pid in candidate_ids if fully_invoiced.get(pid, False)}
 
 
-@athina_blue.route('/athina_performance_settlement')
+@statement_blue.route('/performance_settlement')
 @login_required
 @staff_only
-def athina_performance_settlement():
+def performance_settlement():
     """员工业绩结算页面（基于ProjectHeader）"""
     try:
         from sqlalchemy import func
@@ -941,7 +941,7 @@ def athina_performance_settlement():
         # 解析每个项目的操作员/业务员显示名称
         project_staff_display = _resolve_project_staff_display(projects, staff_name_map)
 
-        return render_template('finance/athina/athina_performance_settlement.html',
+        return render_template('finance/statement/performance_settlement.html',
                              projects=projects,
                              finance_data=finance_data,
                              pagination=pagination,
@@ -972,7 +972,7 @@ def athina_performance_settlement():
         flash(f'加载数据失败: {str(e)}', 'error')
         import traceback
         traceback.print_exc()
-        return redirect(url_for('athina_routes.athina_header_data'))
+        return redirect(url_for('statement_routes.statement_data'))
 
 
 
@@ -1239,10 +1239,10 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
     return query
 
 
-@athina_blue.route('/athina_performance_settlement_export', methods=['GET'])
+@statement_blue.route('/performance_settlement_export', methods=['GET'])
 @login_required
 @staff_only
-def athina_performance_settlement_export():
+def performance_settlement_export():
     """导出业绩结算筛选结果为Excel（基于ProjectHeader）"""
     try:
         from sqlalchemy import func
@@ -1279,7 +1279,7 @@ def athina_performance_settlement_export():
 
         if not projects:
             flash('没有数据可导出', 'warning')
-            return redirect(url_for('athina_routes.athina_performance_settlement'))
+            return redirect(url_for('statement_routes.performance_settlement'))
 
         # 批量获取财务数据
         project_ids = [p.id for p in projects]
@@ -1363,14 +1363,14 @@ def athina_performance_settlement_export():
     except Exception as e:
         logger.error(f'导出Excel失败: {str(e)}', exc_info=True)
         flash(f'导出失败: {str(e)}', 'error')
-        return redirect(url_for('athina_routes.athina_performance_settlement'))
+        return redirect(url_for('statement_routes.performance_settlement'))
 
 
-@athina_blue.route('/athina_batch_settle_performance', methods=['POST'])
+@statement_blue.route('/batch_settle_performance', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_batch_settle_performance():
+def batch_settle_performance():
     """批量结算（基于ProjectHeader），创建结算单"""
     try:
         from App_new.business.projects.models.project import ProjectHeader
@@ -1540,11 +1540,11 @@ def athina_batch_settle_performance():
         }), 500
 
 
-@athina_blue.route('/athina_batch_settle_all_filtered', methods=['POST'])
+@statement_blue.route('/batch_settle_all_filtered', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_batch_settle_all_filtered():
+def batch_settle_all_filtered():
     """结算全部筛选结果（跨分页），根据前端传来的筛选参数查询所有匹配项目"""
     try:
         from App_new.business.projects.models.project import ProjectHeader
@@ -1612,7 +1612,7 @@ def athina_batch_settle_all_filtered():
         total_sales = Decimal('0')
         total_company = Decimal('0')
 
-        # 结算前重算分成（与 athina_batch_settle_performance 同一口径）
+        # 结算前重算分成（与 batch_settle_performance 同一口径）
         from App_new.finance.utils.profit_distribution import apply_profit_distribution
 
         for project in settleable_ids:
@@ -1657,11 +1657,11 @@ def athina_batch_settle_all_filtered():
         }), 500
 
 
-@athina_blue.route('/athina_calculate_profit_distribution', methods=['POST'])
+@statement_blue.route('/calculate_profit_distribution', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_calculate_profit_distribution():
+def calculate_profit_distribution():
     """计算并更新利润分配（仅可结算项目）"""
     try:
         from App_new.finance.utils.profit_distribution import (
@@ -1750,11 +1750,11 @@ def athina_calculate_profit_distribution():
         }), 500
 
 
-@athina_blue.route('/athina_calculate_all_unsettled_profit_distribution', methods=['POST'])
+@statement_blue.route('/calculate_all_unsettled_profit_distribution', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_calculate_all_unsettled_profit_distribution():
+def calculate_all_unsettled_profit_distribution():
     """计算全部可结算的未结算单的利润分配（基于ProjectHeader）"""
     try:
         from App_new.finance.utils.profit_distribution import (
@@ -1834,7 +1834,7 @@ def athina_calculate_all_unsettled_profit_distribution():
         }), 500
 
 
-@athina_blue.route('/settlement_batches')
+@statement_blue.route('/settlement_batches')
 @login_required
 @staff_only
 def settlement_batch_list():
@@ -1859,13 +1859,13 @@ def settlement_batch_list():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     batches = pagination.items
 
-    return render_template('finance/athina/settlement_batch_list.html',
+    return render_template('finance/statement/settlement_batch_list.html',
                          batches=batches,
                          pagination=pagination,
                          search=search)
 
 
-@athina_blue.route('/settlement_batches/<int:batch_id>')
+@statement_blue.route('/settlement_batches/<int:batch_id>')
 @login_required
 @staff_only
 def settlement_batch_detail(batch_id):
@@ -2008,7 +2008,7 @@ def settlement_batch_detail(batch_id):
     # 解析每个项目的操作员/业务员显示名称
     project_staff_display = _resolve_project_staff_display(projects, staff_name_map)
 
-    return render_template('finance/athina/settlement_batch_detail.html',
+    return render_template('finance/statement/settlement_batch_detail.html',
                          batch=batch,
                          projects=projects,
                          finance_data=finance_data,
@@ -2019,7 +2019,7 @@ def settlement_batch_detail(batch_id):
                          project_staff_display=project_staff_display)
 
 
-@athina_blue.route('/settlement_batches/<int:batch_id>/cancel', methods=['POST'])
+@statement_blue.route('/settlement_batches/<int:batch_id>/cancel', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
@@ -2067,7 +2067,7 @@ def settlement_batch_cancel(batch_id):
         }), 500
 
 
-@athina_blue.route('/settlement_batches/<int:batch_id>/payout', methods=['POST'])
+@statement_blue.route('/settlement_batches/<int:batch_id>/payout', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
@@ -2109,7 +2109,7 @@ def settlement_batch_payout(batch_id):
         return jsonify({'success': False, 'message': f'操作失败: {str(e)}'}), 500
 
 
-@athina_blue.route('/download_report/<report_type>', methods=['GET'])
+@statement_blue.route('/download_report/<report_type>', methods=['GET'])
 @csrf.exempt
 def download_report(report_type):
     """下载带有对比结果的报表文件"""
@@ -2139,7 +2139,7 @@ def download_report(report_type):
         return jsonify({'success': False, 'error': str(e)})
 
 
-@athina_blue.route('/batch_compare_reports', methods=['POST'])
+@statement_blue.route('/batch_compare_reports', methods=['POST'])
 @csrf.exempt
 def batch_compare_reports():
     """批量对比两个文件夹中的报表"""
@@ -2187,7 +2187,7 @@ def batch_compare_reports():
         return jsonify({'success': False, 'error': str(e)})
 
 
-@athina_blue.route('/download_batch_report', methods=['GET'])
+@statement_blue.route('/download_batch_report', methods=['GET'])
 @csrf.exempt
 def download_batch_report():
     """下载批量对比汇总报告"""
@@ -2211,7 +2211,7 @@ def download_batch_report():
         return jsonify({'success': False, 'error': str(e)})
 
 
-@athina_blue.route('/open_booking_folder', methods=['GET'])
+@statement_blue.route('/open_booking_folder', methods=['GET'])
 @login_required
 @staff_only
 def open_booking_folder():
@@ -2244,7 +2244,7 @@ def open_booking_folder():
         return jsonify({'error': error_msg, 'success': False}), 500
 
 
-@athina_blue.route('/athina_export_unsettled', methods=['GET'])
+@statement_blue.route('/export_unsettled', methods=['GET'])
 @login_required
 @staff_only
 def export_unsettled_orders():
@@ -2291,21 +2291,21 @@ def export_unsettled_orders():
         return jsonify({'error': error_msg, 'success': False}), 500
 
 
-# ==================== Athina 数据导入到项目系统（已废弃） ====================
-# athina_to_project, athina_to_project_import, athina_to_project_batch_import 路由已删除
-# athina_booking_headers/details 表已废弃，不再从 Athina 表导入数据
+# ==================== 旧预订数据导入到项目系统（已废弃） ====================
+# import_to_project, import_to_project_import, import_to_project_batch_import 路由已删除
+# 旧预订数据表已废弃，不再从该表导入数据
 
 
-@athina_blue.route('/athina_to_project/generate_eos/<int:project_id>', methods=['POST'])
+@statement_blue.route('/import_to_project/generate_eos/<int:project_id>', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_to_project_generate_eos(project_id):
+def import_to_project_generate_eos(project_id):
     """为项目生成 EO"""
-    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    from App_new.finance.services.import_to_project_service import ImportToProjectService
 
     try:
-        service = AthinaToProjectService(
+        service = ImportToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )
@@ -2321,27 +2321,27 @@ def athina_to_project_generate_eos(project_id):
         return jsonify({'success': False, 'message': f'生成 EO 失败: {str(e)}'}), 500
 
 
-# athina_to_project_generate_receipt 和 athina_to_project_preview 路由已删除
-# （依赖 athina_booking_headers 表，该表已废弃）
+# import_to_project_generate_receipt 和 import_to_project_preview 路由已删除
+# （依赖旧预订数据表，该表已废弃）
 
 
-# ==================== Athina CSV 文件导入到项目系统 ====================
+# ==================== 外部系统 CSV 文件导入到项目系统 ====================
 
-@athina_blue.route('/athina_to_project/csv_import')
+@statement_blue.route('/import_to_project/csv_import')
 @login_required
 @staff_only
-def athina_to_project_csv_import():
-    """Athina CSV 文件导入页面"""
-    return render_template('finance/athina/athina_csv_import.html')
+def import_to_project_csv_import():
+    """外部系统 CSV 文件导入页面"""
+    return render_template('finance/statement/csv_import.html')
 
 
-@athina_blue.route('/athina_to_project/import_reservation_csv', methods=['POST'])
+@statement_blue.route('/import_to_project/import_reservation_csv', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_import_reservation_csv():
+def import_reservation_csv():
     """导入 Reservation Listing Report.csv (HID + REF)"""
-    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    from App_new.finance.services.import_to_project_service import ImportToProjectService
     import traceback
 
     try:
@@ -2372,8 +2372,8 @@ def athina_import_reservation_csv():
         logger.info(f'导入选项: {options}')
 
         # 导入 - 传递当前用户信息，确保导入的项目能被用户看到
-        logger.info(f'创建 AthinaToProjectService, user_id={current_user.id}')
-        service = AthinaToProjectService(
+        logger.info(f'创建 ImportToProjectService, user_id={current_user.id}')
+        service = ImportToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )
@@ -2391,13 +2391,13 @@ def athina_import_reservation_csv():
         return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
 
 
-@athina_blue.route('/athina_to_project/import_eo_csv', methods=['POST'])
+@statement_blue.route('/import_to_project/import_eo_csv', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_import_eo_csv():
+def import_eo_csv():
     """导入 Exchange Order Listing Report.csv (EO)"""
-    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    from App_new.finance.services.import_to_project_service import ImportToProjectService
 
     try:
         if 'file' not in request.files:
@@ -2414,7 +2414,7 @@ def athina_import_eo_csv():
         file_content = file.read()
 
         # 导入
-        service = AthinaToProjectService(
+        service = ImportToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )
@@ -2427,13 +2427,13 @@ def athina_import_eo_csv():
         return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
 
 
-@athina_blue.route('/athina_to_project/import_invoice_csv', methods=['POST'])
+@statement_blue.route('/import_to_project/import_invoice_csv', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_import_invoice_csv():
+def import_invoice_csv():
     """导入 Invoice Listing Report.csv (Invoice)"""
-    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    from App_new.finance.services.import_to_project_service import ImportToProjectService
 
     try:
         if 'file' not in request.files:
@@ -2450,7 +2450,7 @@ def athina_import_invoice_csv():
         file_content = file.read()
 
         # 导入
-        service = AthinaToProjectService(
+        service = ImportToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )
@@ -2463,13 +2463,13 @@ def athina_import_invoice_csv():
         return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
 
 
-@athina_blue.route('/athina_to_project/import_receipt_csv', methods=['POST'])
+@statement_blue.route('/import_to_project/import_receipt_csv', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_import_receipt_csv():
+def import_receipt_csv():
     """导入 Receipt.csv (收款记录)"""
-    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    from App_new.finance.services.import_to_project_service import ImportToProjectService
 
     try:
         if 'file' not in request.files:
@@ -2486,7 +2486,7 @@ def athina_import_receipt_csv():
         file_content = file.read()
 
         # 导入
-        service = AthinaToProjectService(
+        service = ImportToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )
@@ -2499,13 +2499,13 @@ def athina_import_receipt_csv():
         return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
 
 
-@athina_blue.route('/import/payment-voucher-csv', methods=['POST'])
+@statement_blue.route('/import/payment-voucher-csv', methods=['POST'])
 @csrf.exempt
 @login_required
 @staff_only
-def athina_import_payment_voucher_csv():
+def import_payment_voucher_csv():
     """导入 Payment Voucher CSV (付款凭证)"""
-    from App_new.finance.services.athina_to_project_service import AthinaToProjectService
+    from App_new.finance.services.import_to_project_service import ImportToProjectService
 
     try:
         if 'file' not in request.files:
@@ -2522,7 +2522,7 @@ def athina_import_payment_voucher_csv():
         file_content = file.read()
 
         # 导入
-        service = AthinaToProjectService(
+        service = ImportToProjectService(
             current_user_id=current_user.id,
             current_user_name=current_user.username
         )

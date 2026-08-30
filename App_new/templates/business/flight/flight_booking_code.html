@@ -1,31 +1,31 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}Athina系统 - MyTravelPanel{% endblock %}
+{% block title %}订位代码生成 - MyTravelPanel{% endblock %}
 
-{% block page_title %}Athina系统{% endblock %}
+{% block page_title %}订位代码生成{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flight_order_common.css') }}">
 <style>
-    .flight-athina-container {
+    .flight-code-container {
         max-width: 800px;
         margin: 0 auto;
         padding: 20px;
     }
     
-    .flight-athina-header {
+    .flight-code-header {
         text-align: center;
         margin-bottom: 2rem;
     }
     
-    .flight-athina-title {
+    .flight-code-title {
         font-size: 1.5rem;
         font-weight: 600;
         color: #2d3748;
         margin-bottom: 1rem;
     }
     
-    .flight-athina-box {
+    .flight-code-box {
         border: 1px solid #e2e8f0;
         padding: 10px;
         margin: 5px;
@@ -39,37 +39,37 @@
         background-color: #f7fafc;
     }
 
-    .flight-athina-box:hover {
+    .flight-code-box:hover {
         background-color: #edf2f7;
     }
 
-    .flight-athina-box input[type="radio"] {
+    .flight-code-box input[type="radio"] {
         position: absolute;
         left: 5px;
         top: 50%;
         transform: translateY(-50%);
     }
 
-    .flight-athina-info {
+    .flight-code-info {
         margin-left: 25px;
         font-size: 12.5px;
         line-height: 0.8;
     }
 
-    .flight-athina-box input[type="radio"]:checked + .flight-athina-info {
+    .flight-code-box input[type="radio"]:checked + .flight-code-info {
         font-weight: bold;
     }
     
-    .flight-athina-box input[type="radio"]:checked + label + .flight-athina-info {
+    .flight-code-box input[type="radio"]:checked + label + .flight-code-info {
         font-weight: bold;
     }
 
-    .flight-athina-row {
+    .flight-code-row {
         clear: both;
         margin-bottom: 15px;
     }
     
-    .flight-athina-date-input {
+    .flight-code-date-input {
         padding: 8px 12px;
         border: 1px solid #e2e8f0;
         border-radius: 4px;
@@ -77,13 +77,13 @@
         margin-top: 10px;
     }
     
-    .flight-athina-date-input:focus {
+    .flight-code-date-input:focus {
         border-color: #48BB78;
         outline: none;
         box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1);
     }
     
-    .flight-athina-btn {
+    .flight-code-btn {
         background-color: #48BB78;
         color: white;
         padding: 8px 16px;
@@ -95,12 +95,12 @@
         transition: all 0.2s;
     }
     
-    .flight-athina-btn:hover {
+    .flight-code-btn:hover {
         background-color: #38A169;
         transform: translateY(-1px);
     }
     
-    .flight-athina-textarea {
+    .flight-code-textarea {
         width: 100%;
         padding: 12px;
         border: 1px solid #e2e8f0;
@@ -111,33 +111,33 @@
         margin-top: 15px;
     }
     
-    .flight-athina-label {
+    .flight-code-label {
         display: block;
         margin-bottom: 5px;
         font-weight: 500;
         color: #4a5568;
     }
     
-    .flight-athina-output-container {
+    .flight-code-output-container {
         margin-top: 20px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="flight-athina-container">
-    <div class="flight-athina-header">
-        <h2 class="flight-athina-title">常用航班</h2>
+<div class="flight-code-container">
+    <div class="flight-code-header">
+        <h2 class="flight-code-title">常用航班</h2>
     </div>
     
     <form action="/result" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="flight-athina-row">
+        <div class="flight-code-row">
             {% for flight in flights %}
-                <div class="flight-athina-box">
+                <div class="flight-code-box">
                     <input type="radio" id="flight{{ loop.index }}" name="flight" value="{{ flight }}">
                     <label for="flight{{ loop.index }}"></label>
-                    <div class="flight-athina-info">
+                    <div class="flight-code-info">
                         <p>{{ flight[0] }}</p>
                         <p>{{ flight[1] }}</p>
                         <p>{{ flight[2] }}</p>
@@ -147,16 +147,16 @@
         </div>
         
         <div>
-            <label class="flight-athina-label" for="date">出发日期:</label>
-            <input type="text" id="date" name="date" class="flight-athina-date-input" placeholder="例如 01JUN">
+            <label class="flight-code-label" for="date">出发日期:</label>
+            <input type="text" id="date" name="date" class="flight-code-date-input" placeholder="例如 01JUN">
         </div>
         
-        <button type="submit" class="flight-athina-btn">确认</button>
+        <button type="submit" class="flight-code-btn">确认</button>
     </form>
 
-    <div class="flight-athina-output-container">
-        <label class="flight-athina-label" for="output_text">输出行程：</label>
-        <textarea id="output_text" name="output_text" rows="10" class="flight-athina-textarea">{{ output_text }}</textarea>
+    <div class="flight-code-output-container">
+        <label class="flight-code-label" for="output_text">输出行程：</label>
+        <textarea id="output_text" name="output_text" rows="10" class="flight-code-textarea">{{ output_text }}</textarea>
     </div>
 </div>
 {% endblock %}

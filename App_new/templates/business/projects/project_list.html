@@ -383,7 +383,7 @@
                                    后者每行会多发一次查询（列表页 20 行就是 20 次）。
                                    极少数历史项目没有结算单号，那就退回成纯标签。 #}
                                 {% if project.settlement_batch_id %}
-                                <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}"
+                                <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}"
                                    class="badge bg-success text-decoration-none"
                                    title="结算时间: {{ project.settled_at.strftime('%Y-%m-%d') if project.settled_at else '-' }}&#10;点击查看结算单">
                                     <i class="fas fa-check-circle"></i> 已结算

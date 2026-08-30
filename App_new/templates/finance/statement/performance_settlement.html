@@ -443,7 +443,7 @@
             <button class="action-btn ghost" onclick="exportToExcel()">
                 <i class="fas fa-file-excel"></i> 导出Excel
             </button>
-            <a class="action-btn ghost" href="{{ url_for('athina_routes.settlement_batch_list') }}">
+            <a class="action-btn ghost" href="{{ url_for('statement_routes.settlement_batch_list') }}">
                 <i class="fas fa-list-alt"></i> 结算单列表
             </a>
         </div>
@@ -540,7 +540,7 @@
                 <td>
                     {% if project.is_settled %}
                         {% if project.settlement_batch %}
-                            <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}" target="_blank" class="detail-link" style="font-size: 12px;">
+                            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}" target="_blank" class="detail-link" style="font-size: 12px;">
                                 {{ project.settlement_batch.batch_number }}
                             </a>
                         {% else %}
@@ -744,7 +744,7 @@
             return;
         }
 
-        fetch('/statement/athina_batch_settle_performance', {
+        fetch('/statement/batch_settle_performance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -779,7 +779,7 @@
             return;
         }
 
-        fetch('/statement/athina_batch_settle_performance', {
+        fetch('/statement/batch_settle_performance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -827,7 +827,7 @@
             filter_balance: '{{ filter_balance|default("") }}'
         };
 
-        fetch('/statement/athina_batch_settle_all_filtered', {
+        fetch('/statement/batch_settle_all_filtered', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -868,7 +868,7 @@
             return;
         }
 
-        fetch('/statement/athina_calculate_profit_distribution', {
+        fetch('/statement/calculate_profit_distribution', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -899,7 +899,7 @@
             return;
         }
 
-        fetch('/statement/athina_calculate_all_unsettled_profit_distribution', {
+        fetch('/statement/calculate_all_unsettled_profit_distribution', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -929,7 +929,7 @@
         const params = new URLSearchParams(window.location.search);
         
         // 构建导出URL
-        const exportUrl = '/statement/athina_performance_settlement_export?' + params.toString();
+        const exportUrl = '/statement/performance_settlement_export?' + params.toString();
         
         // 创建下载链接
         const link = document.createElement('a');

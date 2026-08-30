@@ -1,6 +1,6 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}Athina 数据导入到项目系统{% endblock %}
+{% block title %}对账数据导入到项目系统{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -9,16 +9,16 @@
         <div>
             <h4 class="mb-1">
                 <i class="fas fa-file-import text-primary me-2"></i>
-                Athina 数据导入到项目系统
+                对账数据导入到项目系统
             </h4>
-            <p class="text-muted mb-0 small">将 Athina 预订数据导入到项目管理系统 (HID + REF)</p>
+            <p class="text-muted mb-0 small">将 对账 预订数据导入到项目管理系统 (HID + REF)</p>
         </div>
         <div>
-            <a href="{{ url_for('athina_routes.athina_to_project_csv_import') }}" class="btn btn-success btn-sm me-2">
+            <a href="{{ url_for('statement_routes.import_to_project_csv_import') }}" class="btn btn-success btn-sm me-2">
                 <i class="fas fa-file-csv me-1"></i>CSV 文件导入
             </a>
-            <a href="{{ url_for('athina_routes.athina_header_data') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-arrow-left me-1"></i>返回 Athina 数据
+            <a href="{{ url_for('statement_routes.statement_data') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>返回 对账数据
             </a>
         </div>
     </div>
@@ -121,37 +121,37 @@
                     </thead>
                     <tbody>
                         {% for item in items %}
-                        <tr data-header-id="{{ item.athina_header.id }}">
+                        <tr data-header-id="{{ item.statement_header.id }}">
                             <td>
                                 {% if not item.is_imported %}
                                 <input type="checkbox" class="form-check-input row-checkbox"
-                                       value="{{ item.athina_header.id }}">
+                                       value="{{ item.statement_header.id }}">
                                 {% endif %}
                             </td>
                             <td>
-                                <strong>{{ item.athina_header.booking_header_id }}</strong>
+                                <strong>{{ item.statement_header.booking_header_id }}</strong>
                             </td>
                             <td>
                                 <span class="text-truncate d-inline-block" style="max-width: 180px;"
-                                      title="{{ item.athina_header.corporate_name }}">
-                                    {{ item.athina_header.corporate_name or '-' }}
+                                      title="{{ item.statement_header.corporate_name }}">
+                                    {{ item.statement_header.corporate_name or '-' }}
                                 </span>
                             </td>
-                            <td>{{ item.athina_header.book_date.strftime('%Y-%m-%d') if item.athina_header.book_date else '-' }}</td>
+                            <td>{{ item.statement_header.book_date.strftime('%Y-%m-%d') if item.statement_header.book_date else '-' }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ item.details_count }}</span>
                             </td>
                             <td>
-                                {% if item.athina_header.sub_total_gross %}
-                                ${{ "%.2f"|format(item.athina_header.sub_total_gross) }}
+                                {% if item.statement_header.sub_total_gross %}
+                                ${{ "%.2f"|format(item.statement_header.sub_total_gross) }}
                                 {% else %}-{% endif %}
                             </td>
                             <td>
-                                {% if item.athina_header.sub_total_pl %}
-                                    {% if item.athina_header.sub_total_pl > 0 %}
-                                    <span class="text-success">${{ "%.2f"|format(item.athina_header.sub_total_pl) }}</span>
-                                    {% elif item.athina_header.sub_total_pl < 0 %}
-                                    <span class="text-danger">${{ "%.2f"|format(item.athina_header.sub_total_pl) }}</span>
+                                {% if item.statement_header.sub_total_pl %}
+                                    {% if item.statement_header.sub_total_pl > 0 %}
+                                    <span class="text-success">${{ "%.2f"|format(item.statement_header.sub_total_pl) }}</span>
+                                    {% elif item.statement_header.sub_total_pl < 0 %}
+                                    <span class="text-danger">${{ "%.2f"|format(item.statement_header.sub_total_pl) }}</span>
                                     {% else %}
                                     <span class="text-muted">$0.00</span>
                                     {% endif %}
@@ -172,11 +172,11 @@
                                 </a>
                                 {% else %}
                                 <button class="btn btn-outline-info btn-sm py-0"
-                                        onclick="previewImport({{ item.athina_header.id }})">
+                                        onclick="previewImport({{ item.statement_header.id }})">
                                     <i class="fas fa-eye me-1"></i>预览
                                 </button>
                                 <button class="btn btn-primary btn-sm py-0"
-                                        onclick="importSingle({{ item.athina_header.id }})">
+                                        onclick="importSingle({{ item.statement_header.id }})">
                                     <i class="fas fa-file-import me-1"></i>导入
                                 </button>
                                 {% endif %}
@@ -202,19 +202,19 @@
         <ul class="pagination pagination-sm justify-content-center">
             {% if pagination.has_prev %}
             <li class="page-item">
-                <a class="page-link" href="{{ url_for('athina_routes.athina_to_project', page=pagination.prev_num, search=search, filter_imported=filter_imported) }}">
+                <a class="page-link" href="{{ url_for('statement_routes.statement_to_project', page=pagination.prev_num, search=search, filter_imported=filter_imported) }}">
                     <i class="fas fa-chevron-left"></i>
                 </a>
             </li>
             {% endif %}
             {% for p in pagination.iter_pages() %}
             <li class="page-item {% if p == pagination.page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('athina_routes.athina_to_project', page=p, search=search, filter_imported=filter_imported) }}">{{ p }}</a>
+                <a class="page-link" href="{{ url_for('statement_routes.statement_to_project', page=p, search=search, filter_imported=filter_imported) }}">{{ p }}</a>
             </li>
             {% endfor %}
             {% if pagination.has_next %}
             <li class="page-item">
-                <a class="page-link" href="{{ url_for('athina_routes.athina_to_project', page=pagination.next_num, search=search, filter_imported=filter_imported) }}">
+                <a class="page-link" href="{{ url_for('statement_routes.statement_to_project', page=pagination.next_num, search=search, filter_imported=filter_imported) }}">
                     <i class="fas fa-chevron-right"></i>
                 </a>
             </li>
@@ -276,7 +276,7 @@ async function importSingle(headerId) {
     const options = getImportOptions();
 
     try {
-        const response = await fetch(`/statement/athina_to_project/import/${headerId}`, {
+        const response = await fetch(`/statement/statement_to_project/import/${headerId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(options)
@@ -307,7 +307,7 @@ async function batchImport() {
     const options = getImportOptions();
 
     try {
-        const response = await fetch('/statement/athina_to_project/batch_import', {
+        const response = await fetch('/statement/statement_to_project/batch_import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -333,7 +333,7 @@ async function previewImport(headerId) {
     currentPreviewHeaderId = headerId;
 
     try {
-        const response = await fetch(`/statement/athina_to_project/preview/${headerId}`);
+        const response = await fetch(`/statement/statement_to_project/preview/${headerId}`);
         const result = await response.json();
 
         if (result.success) {
@@ -458,7 +458,7 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
     const options = getImportOptions();
 
     try {
-        const response = await fetch(`/statement/athina_to_project/import/${currentPreviewHeaderId}`, {
+        const response = await fetch(`/statement/statement_to_project/import/${currentPreviewHeaderId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(options)

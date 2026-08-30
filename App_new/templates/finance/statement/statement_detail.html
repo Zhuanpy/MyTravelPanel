@@ -1,8 +1,8 @@
 ﻿{% extends "staff_base.html" %}
 
-{% block title %}Athina预订详情 - MyTravelPanel{% endblock %}
+{% block title %}对账预订详情 - MyTravelPanel{% endblock %}
 
-{% block page_title %}Athina预订详情{% endblock %}
+{% block page_title %}对账预订详情{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
@@ -337,7 +337,7 @@
 <div class="detail-container">
     <div class="detail-header">
         <h1><i class="fas fa-eye"></i> 预订详情 - {{ header.booking_header_id }}</h1>
-        <a href="/statement/athina_header_data" class="back-btn">
+        <a href="/statement/statement_data" class="back-btn">
             <i class="fas fa-arrow-left"></i> 返回列表
         </a>
     </div>

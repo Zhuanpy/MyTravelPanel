@@ -1,14 +1,14 @@
 ﻿{% extends "staff_base.html" %}
 
-{% block title %}Athina账单 - MyTravelPanel{% endblock %}
+{% block title %}对账账单 - MyTravelPanel{% endblock %}
 
-{% block page_title %}Athina账单{% endblock %}
+{% block page_title %}对账账单{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     /* 全局样式 */
-    .athina-container {
+    .stmt-container {
         max-width: 1000px;
         margin: 20px auto;
         padding: 20px;
@@ -21,7 +21,7 @@
     }
 
     /* 两列布局容器 */
-    .athina-sections-grid {
+    .stmt-sections-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 15px;
@@ -29,14 +29,14 @@
         margin-top: 15px;
     }
 
-    .athina-header {
+    .stmt-header {
         width: 100%;
         margin-bottom: 20px;
         text-align: center;
         position: relative;
     }
 
-    .athina-header h1 {
+    .stmt-header h1 {
         color: #2E7D32;
         font-size: 24px;
         margin-bottom: 8px;
@@ -44,7 +44,7 @@
         display: inline-block;
     }
 
-    .athina-header h1:after {
+    .stmt-header h1:after {
         content: '';
         position: absolute;
         bottom: -6px;
@@ -56,7 +56,7 @@
         border-radius: 2px;
     }
 
-    .athina-section {
+    .stmt-section {
         width: 100%;
         margin-bottom: 0;
         padding: 15px;
@@ -66,13 +66,13 @@
         border: 1px solid #e9ecef;
     }
 
-    .athina-section:hover {
+    .stmt-section:hover {
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
         transform: translateY(-1px);
     }
 
     /* 按钮样式 */
-    .athina-btn {
+    .stmt-btn {
         background-color: #2E7D32;
         color: white;
         border: none;
@@ -91,14 +91,14 @@
         justify-content: center;
     }
 
-    .athina-btn:hover {
+    .stmt-btn:hover {
         background-color: #1B5E20;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         transform: translateY(-1px);
     }
 
     /* 表单样式 */
-    .athina-form {
+    .stmt-form {
         margin: 10px 0;
         display: flex;
         flex-wrap: wrap;
@@ -108,14 +108,14 @@
         max-width: 200px;
     }
 
-    .athina-form label {
+    .stmt-form label {
         margin-right: 8px;
         font-weight: 500;
         color: #424242;
         font-size: 13px;
     }
 
-    .athina-input {
+    .stmt-input {
         padding: 6px 10px;
         font-size: 13px;
         border: 1px solid #ddd;
@@ -126,7 +126,7 @@
         background-color: #fff;
     }
 
-    .athina-input:focus {
+    .stmt-input:focus {
         border-color: #4CAF50;
         background-color: #ffffff;
         box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.15);
@@ -186,7 +186,7 @@
     }
 
     /* 下拉选择框样式 */
-    select.athina-input {
+    select.stmt-input {
         padding: 6px 10px;
         font-size: 13px;
         border: 1px solid #ddd;
@@ -198,7 +198,7 @@
         cursor: pointer;
     }
 
-    select.athina-input:focus {
+    select.stmt-input:focus {
         border-color: #FF9800;
         background-color: #ffffff;
         box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.15);
@@ -214,7 +214,7 @@
     }
 
     /* 链接样式 */
-    .athina-link {
+    .stmt-link {
         color: #2E7D32;
         text-decoration: none;
         font-size: 14px;
@@ -227,12 +227,12 @@
         align-items: center;
     }
 
-    .athina-link:before {
+    .stmt-link:before {
         content: '📁';
         margin-right: 6px;
     }
 
-    .athina-link:hover {
+    .stmt-link:hover {
         background-color: #4CAF50;
         color: white;
         text-decoration: none;
@@ -271,25 +271,25 @@
 
     /* 响应式布局 */
     @media (max-width: 768px) {
-        .athina-container {
+        .stmt-container {
             padding: 15px 10px;
             margin: 15px auto;
         }
 
-        .athina-header h1 {
+        .stmt-header h1 {
             font-size: 20px;
         }
 
-        .athina-sections-grid {
+        .stmt-sections-grid {
             grid-template-columns: 1fr;
             gap: 10px;
         }
 
-        .athina-section {
+        .stmt-section {
             padding: 12px;
         }
 
-        .athina-btn {
+        .stmt-btn {
             padding: 8px 14px;
             font-size: 13px;
         }
@@ -303,25 +303,25 @@
 {% endblock %}
 
 {% block content %}
-<div class="container athina-container">
-    <div class="athina-header">
-        <h1>Athina 账单处理</h1>
+<div class="container stmt-container">
+    <div class="stmt-header">
+        <h1>对账账单处理</h1>
     </div>
 
-    <div class="athina-sections-grid">
-        <div class="athina-section">
+    <div class="stmt-sections-grid">
+        <div class="stmt-section">
             <div class="section-title">CSV文件导入</div>
             <!-- 文件导入表单 -->
-            <form id="csv-import-form" class="athina-form" enctype="multipart/form-data">
+            <form id="csv-import-form" class="stmt-form" enctype="multipart/form-data">
                 <div style="width: 100%; margin-bottom: 10px;">
                     <label for="csv-file-input">选择CSV文件:</label>
-                    <input type="file" id="csv-file-input" class="athina-input" accept=".csv" required />
+                    <input type="file" id="csv-file-input" class="stmt-input" accept=".csv" required />
                     <small style="color: #666; font-size: 11px;">支持 Reservation Listing Report.csv 格式</small>
                 </div>
             </form>
             
             <!-- 导入按钮 -->
-            <button class="athina-btn" onclick="importCsvFile()">导入CSV文件</button>
+            <button class="stmt-btn" onclick="importCsvFile()">导入CSV文件</button>
 
             <!-- 用于显示导入结果 -->
             <div id="result-display-import" class="result-display">
@@ -329,10 +329,10 @@
             </div>
         </div>
 
-        <div class="athina-section">
+        <div class="stmt-section">
             <div class="section-title">全部订单计算</div>
             <!-- 处理全部订单按钮 -->
-            <button class="athina-btn" onclick="processAllInvoice()">计算全部订单</button>
+            <button class="stmt-btn" onclick="processAllInvoice()">计算全部订单</button>
 
             <!-- 用于显示全部订单的处理结果 -->
             <div id="result-display-all" class="result-display">
@@ -340,15 +340,15 @@
             </div>
         </div>
 
-        <div class="athina-section">
+        <div class="stmt-section">
             <div class="section-title">指定月份计算</div>
             <!-- 处理选择月份订单按钮 -->
-            <button class="athina-btn" onclick="processMonthInvoice()">计算选择月份</button>
+            <button class="stmt-btn" onclick="processMonthInvoice()">计算选择月份</button>
             
             <!-- 输入月份表单 -->
-            <form id="month-form" class="athina-form">
+            <form id="month-form" class="stmt-form">
                 <label for="month-input">输入月份:</label>
-                <input type="text" id="month-input" class="athina-input" placeholder="如：2024-08" required />
+                <input type="text" id="month-input" class="stmt-input" placeholder="如：2024-08" required />
             </form>
 
             <!-- 用于显示选择月份订单的处理结果 -->
@@ -357,20 +357,20 @@
             </div>
         </div>
 
-        <div class="athina-section">
+        <div class="stmt-section">
             <div class="section-title">报表利润对比</div>
             <!-- 报表对比按钮 -->
-            <button class="athina-btn" onclick="compareReports()">对比报表利润</button>
+            <button class="stmt-btn" onclick="compareReports()">对比报表利润</button>
             
             <!-- 报表选择表单 -->
-            <form id="report-form" class="athina-form">
+            <form id="report-form" class="stmt-form">
                 <div style="width: 100%; margin-bottom: 10px;">
                     <label for="report-a-input">报表A (旧报表):</label>
-                    <input type="file" id="report-a-input" class="athina-input" accept=".xlsx,.xls,.csv" required />
+                    <input type="file" id="report-a-input" class="stmt-input" accept=".xlsx,.xls,.csv" required />
                 </div>
                 <div style="width: 100%; margin-bottom: 10px;">
                     <label for="report-b-input">报表B (新报表):</label>
-                    <input type="file" id="report-b-input" class="athina-input" accept=".xlsx,.xls,.csv" required />
+                    <input type="file" id="report-b-input" class="stmt-input" accept=".xlsx,.xls,.csv" required />
                 </div>
             </form>
 
@@ -380,7 +380,7 @@
             </div>
         </div>
 
-        <div class="athina-section">
+        <div class="stmt-section">
             <div class="section-title">批量报表对比</div>
             
             <!-- 操作说明 -->
@@ -395,18 +395,18 @@
             </div>
             
             <!-- 批量对比按钮 -->
-            <button class="athina-btn" onclick="batchCompareReports()">批量对比报表</button>
+            <button class="stmt-btn" onclick="batchCompareReports()">批量对比报表</button>
             
             <!-- 批量对比表单 -->
-            <form id="batch-report-form" class="athina-form">
+            <form id="batch-report-form" class="stmt-form">
                 <div style="width: 100%; margin-bottom: 10px;">
                     <label for="folder-a-input">文件夹A (旧报表文件夹):</label>
-                    <input type="file" id="folder-a-input" class="athina-input" multiple accept=".xlsx,.xls,.csv" required />
+                    <input type="file" id="folder-a-input" class="stmt-input" multiple accept=".xlsx,.xls,.csv" required />
                     <small style="color: #666; font-size: 11px;">请选择文件夹A中的所有报表文件</small>
                 </div>
                 <div style="width: 100%; margin-bottom: 10px;">
                     <label for="folder-b-input">文件夹B (新报表文件夹):</label>
-                    <input type="file" id="folder-b-input" class="athina-input" multiple accept=".xlsx,.xls,.csv" required />
+                    <input type="file" id="folder-b-input" class="stmt-input" multiple accept=".xlsx,.xls,.csv" required />
                     <small style="color: #666; font-size: 11px;">请选择文件夹B中的所有报表文件</small>
                 </div>
             </form>
@@ -420,7 +420,7 @@
     
     <!-- 打开项目文件夹链接 -->
     <div style="margin-top: 20px; text-align: center;">
-        <a href="#" onclick="alert(\'银行账单功能开发中...\'); return false;" class="athina-link">打开项目文件夹</a>
+        <a href="#" onclick="alert(\'银行账单功能开发中...\'); return false;" class="stmt-link">打开项目文件夹</a>
     </div>
 </div>
 {% endblock %}
@@ -449,7 +449,7 @@
         const formData = new FormData();
         formData.append('file', file);
         
-        fetch('/statement/athina_import_csv', {
+        fetch('/statement/import_csv', {
             method: 'POST',
             body: formData
         })
@@ -486,7 +486,7 @@
         // 显示加载状态
         document.getElementById("result-display-all").innerText = "处理中，请稍候...";
         
-        fetch('/statement/athina_processing', {
+        fetch('/statement/processing', {
             method: 'GET',
         })
         .then(response => {
@@ -524,7 +524,7 @@
         // 显示加载状态
         document.getElementById("result-display-month").innerText = "处理中，请稍候...";
 
-        fetch('/statement/athina_processing_month', {
+        fetch('/statement/processing_month', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

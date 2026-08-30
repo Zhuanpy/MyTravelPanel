@@ -36,7 +36,7 @@
     {% else %}
     <span class="badge-cancelled">已撤销</span>
     {% endif %}
-    <a class="action-btn" href="{{ url_for('athina_routes.settlement_batch_list') }}">
+    <a class="action-btn" href="{{ url_for('statement_routes.settlement_batch_list') }}">
         <i class="fas fa-arrow-left"></i> 返回列表
     </a>
 </div>
@@ -453,7 +453,7 @@
         {% if project_pagination.total_pages > 1 %}
         <div class="pager">
             {% if project_pagination.has_prev %}
-            <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page - 1) }}">上一页</a>
+            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page - 1) }}">上一页</a>
             {% endif %}
             {% for p in range(1, project_pagination.total_pages + 1) %}
                 {% if p == 1 or p == project_pagination.total_pages
@@ -461,14 +461,14 @@
                     {% if p == project_pagination.page %}
                     <span class="current">{{ p }}</span>
                     {% else %}
-                    <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=batch.id, page=p) }}">{{ p }}</a>
+                    <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=p) }}">{{ p }}</a>
                     {% endif %}
                 {% elif p == 2 or p == project_pagination.total_pages - 1 %}
                     <span class="gap">…</span>
                 {% endif %}
             {% endfor %}
             {% if project_pagination.has_next %}
-            <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page + 1) }}">下一页</a>
+            <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=batch.id, page=project_pagination.page + 1) }}">下一页</a>
             {% endif %}
         </div>
         {% endif %}
@@ -490,7 +490,7 @@ async function setPayout(action) {
     if (!confirm(tip)) return;
 
     try {
-        const response = await fetch('{{ url_for("athina_routes.settlement_batch_payout", batch_id=batch.id) }}', {
+        const response = await fetch('{{ url_for("statement_routes.settlement_batch_payout", batch_id=batch.id) }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: action })
@@ -509,7 +509,7 @@ async function cancelBatch() {
     }
 
     try {
-        const response = await fetch('{{ url_for("athina_routes.settlement_batch_cancel", batch_id=batch.id) }}', {
+        const response = await fetch('{{ url_for("statement_routes.settlement_batch_cancel", batch_id=batch.id) }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });

@@ -1,13 +1,13 @@
 {% extends "mobile/mobile_base.html" %}
 {% set active_nav_tab = 'tools' %}
 
-{% block title %}ATHINA代码 - MyTravel{% endblock %}
+{% block title %}订位代码 - MyTravel{% endblock %}
 
 {% block header_left %}
 <a href="{{ url_for('mobile.flight_tools') }}" style="color: white; font-size: 20px; margin-right: 12px;">
     <i class="fas fa-arrow-left"></i>
 </a>
-<span>ATHINA代码</span>
+<span>订位代码</span>
 {% endblock %}
 
 {% block content %}
@@ -297,7 +297,7 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
         output.value = '处理中...';
 
-        fetch("{{ url_for('flights_athina.generate_booking_code') }}", {
+        fetch("{{ url_for('flights_itinerary.generate_booking_code') }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

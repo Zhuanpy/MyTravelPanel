@@ -511,7 +511,7 @@
                         {# 已结算 → 点标签跳到所属结算单。
                            用 settlement_batch_id 列而不是关系，避免每行多一次查询 #}
                         {% if project.settlement_batch_id %}
-                        <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}"
+                        <a href="{{ url_for('statement_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}"
                            class="badge badge-success" style="text-decoration: none;"
                            title="点击查看结算单">已结算</a>
                         {% else %}

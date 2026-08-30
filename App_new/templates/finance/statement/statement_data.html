@@ -1,8 +1,8 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Athina数据查看 - MyTravelPanel{% endblock %}
+{% block title %}对账数据查看 - MyTravelPanel{% endblock %}
 
-{% block page_title %}Athina数据查看{% endblock %}
+{% block page_title %}对账数据查看{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
@@ -404,7 +404,7 @@
 {% block content %}
 <div class="data-container">
     <div class="data-header">
-        <h1><i class="fas fa-table"></i> Athina数据查看</h1>
+        <h1><i class="fas fa-table"></i> 对账数据查看</h1>
         <form class="search-form" method="GET" id="searchForm">
                    <!-- 保留筛选参数 -->
                    <input type="hidden" name="filter_corporate_name" value="{{ filter_corporate_name or '' }}">
@@ -427,7 +427,7 @@
         <div class="filter-panel-title">
             <i class="fas fa-filter"></i> 筛选条件
         </div>
-        <form method="GET" class="filter-form" id="filterForm" action="{{ url_for('athina_routes.athina_header_data') }}">
+        <form method="GET" class="filter-form" id="filterForm" action="{{ url_for('statement_routes.statement_data') }}">
             <!-- 保留搜索参数 -->
             <input type="hidden" name="search" value="{{ search or '' }}">
             
@@ -521,10 +521,10 @@
 
     <!-- 操作按钮 -->
     <div class="action-buttons">
-        <a href="/statement/athina_import" class="action-btn">
+        <a href="/statement/statement_import" class="action-btn">
             <i class="fas fa-upload"></i> 数据录入
         </a>
-        <a href="/statement/athina_analysis" class="action-btn">
+        <a href="/statement/statement_analysis" class="action-btn">
             <i class="fas fa-chart-bar"></i> 分析报表
         </a>
         <button class="action-btn" onclick="exportData()" style="background-color: #FF9800;">
@@ -557,7 +557,7 @@
             {% for header in headers %}
             <tr>
                 <td>
-                    <a href="/statement/athina_detail/{{ header.id }}" class="detail-link">
+                    <a href="/statement/statement_detail/{{ header.id }}" class="detail-link">
                         {{ header.booking_header_id }}
                     </a>
                 </td>
@@ -643,7 +643,7 @@
                     </a>
                 </td>
                 <td>
-                    <a href="/statement/athina_detail/{{ header.id }}" class="detail-link">
+                    <a href="/statement/statement_detail/{{ header.id }}" class="detail-link">
                         <i class="fas fa-eye"></i> 查看详情
                     </a>
                 </td>
@@ -707,8 +707,8 @@
     <div class="no-data">
         <i class="fas fa-database"></i>
         <h3>暂无数据</h3>
-        <p>还没有导入任何Athina数据，请先进行数据录入。</p>
-        <a href="/statement/athina_import" class="action-btn" style="margin-top: 20px;">
+        <p>还没有导入任何对账数据，请先进行数据录入。</p>
+        <a href="/statement/statement_import" class="action-btn" style="margin-top: 20px;">
             <i class="fas fa-upload"></i> 开始录入数据
         </a>
     </div>
@@ -720,7 +720,7 @@
 <script>
     // 切换业绩状态
     function togglePerformanceStatus(headerId, currentStatus) {
-        fetch('/statement/athina_toggle_performance/' + headerId, {
+        fetch('/statement/statement_toggle_performance/' + headerId, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -804,7 +804,7 @@
         data[field] = newValue || null;
         
         // 发送请求保存
-        fetch('/statement/athina_update_consultants/' + headerId, {
+        fetch('/statement/statement_update_consultants/' + headerId, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -878,7 +878,7 @@
         data[field] = newValue || null;
         
         // 发送请求保存
-        fetch('/statement/athina_update_consultants/' + headerId, {
+        fetch('/statement/statement_update_consultants/' + headerId, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -964,11 +964,11 @@
             params.append('search', searchInput.value);
         }
         
-        const url = '/statement/athina_export' + (params.toString() ? '?' + params.toString() : '');
+        const url = '/statement/statement_export' + (params.toString() ? '?' + params.toString() : '');
         
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'athina_data_export.csv';
+        link.download = 'statement_data_export.csv';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

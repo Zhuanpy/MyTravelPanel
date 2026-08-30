@@ -286,14 +286,14 @@
 #     return redirect(url_for('statement_routes.cmb_bank'))
 #
 #
-# @statement_blue.route('/athina_page')
+# @statement_blue.route('/statement_page')
 # @login_required
 # @staff_only
-# def athina_page():
-#     return render_template('finance/athina/athina.html')
+# def statement_page():
+#     return render_template('finance/statement/statement.html')
 #
 #
-# @statement_blue.route('/athina_processing', methods=['GET', 'POST'])
+# @statement_blue.route('/processing', methods=['GET', 'POST'])
 # @csrf.exempt
 # def process_all_invoices():
 #     try:
@@ -314,7 +314,7 @@
 #         return jsonify({'error': f'处理失败: {str(e)}'}), 500
 #
 #
-# @statement_blue.route('/athina_processing_month', methods=['POST'])
+# @statement_blue.route('/processing_month', methods=['POST'])
 # @csrf.exempt
 # def process_month_invoice():
 #     try:
@@ -348,9 +348,9 @@
 #         return jsonify({'error': f'处理失败: {str(e)}'}), 500
 #
 #
-# @statement_blue.route('/open_athina_statement_folder', methods=['GET', 'POST'])
+# @statement_blue.route('/open_statement_folder', methods=['GET', 'POST'])
 # @csrf.exempt
-# def open_athina_statement_folder():
+# def open_statement_folder():
 #     folder_path = Config.BILLING_DATA_PATH / "BOOKING"
 #
 #     # 如果文件夹不存在，则创建它
@@ -360,7 +360,7 @@
 #             flash('文件夹不存在，已自动创建', 'info')
 #         except Exception as e:
 #             flash(f'创建文件夹失败：{str(e)}', 'error')
-#             return redirect(url_for("statement_routes.athina_page"))
+#             return redirect(url_for("statement_routes.statement_page"))
 #
 #     try:
 #         os.startfile(str(folder_path))
@@ -368,7 +368,7 @@
 #     except Exception as e:
 #         flash(f'打开文件夹失败：{str(e)}', 'error')
 #
-#     return redirect(url_for("statement_routes.athina_page"))
+#     return redirect(url_for("statement_routes.statement_page"))
 #
 # @statement_blue.route('/statement/company_bill', methods=['GET', 'POST'])
 # @login_required

@@ -1,14 +1,14 @@
 {% extends "staff_base.html" %}
 
-{% block title %}Athina数据录入 - MyTravelPanel{% endblock %}
+{% block title %}对账数据录入 - MyTravelPanel{% endblock %}
 
-{% block page_title %}Athina数据录入{% endblock %}
+{% block page_title %}对账数据录入{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_common.css') }}">
 <style>
     /* 全局样式 */
-    .athina-container {
+    .stmt-container {
         max-width: 1200px;
         margin: 20px auto;
         padding: 20px;
@@ -17,14 +17,14 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     }
 
-    .athina-header {
+    .stmt-header {
         width: 100%;
         margin-bottom: 30px;
         text-align: center;
         position: relative;
     }
 
-    .athina-header h1 {
+    .stmt-header h1 {
         color: #2E7D32;
         font-size: 28px;
         margin-bottom: 8px;
@@ -32,7 +32,7 @@
         display: inline-block;
     }
 
-    .athina-header h1:after {
+    .stmt-header h1:after {
         content: '';
         position: absolute;
         bottom: -6px;
@@ -44,7 +44,7 @@
         border-radius: 2px;
     }
 
-    .athina-header p {
+    .stmt-header p {
         color: #666;
         font-size: 16px;
         margin-top: 10px;
@@ -301,7 +301,7 @@
 
     /* 响应式布局 */
     @media (max-width: 768px) {
-        .athina-container {
+        .stmt-container {
             padding: 15px;
             margin: 10px;
         }
@@ -311,7 +311,7 @@
             gap: 20px;
         }
 
-        .athina-header h1 {
+        .stmt-header h1 {
             font-size: 24px;
         }
 
@@ -327,9 +327,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="athina-container">
-    <div class="athina-header">
-        <h1><i class="fas fa-file-import"></i> Athina数据录入</h1>
+<div class="stmt-container">
+    <div class="stmt-header">
+        <h1><i class="fas fa-file-import"></i> 对账数据录入</h1>
         <p>上传并导入 Reservation Listing Report CSV 文件到数据库</p>
     </div>
 
@@ -393,7 +393,7 @@
             </div>
             
             <div class="action-buttons">
-                <a href="/statement/athina_header_data" class="action-btn">
+                <a href="/statement/statement_data" class="action-btn">
                     <i class="fas fa-table"></i> 查看数据
                 </a>
                 <button class="action-btn" onclick="refreshStats()">
@@ -405,7 +405,7 @@
                 <button class="action-btn" onclick="recalculateSubtotals()">
                     <i class="fas fa-calculator"></i> 重新计算
                 </button>
-                <a href="/statement/athina_analysis" class="action-btn">
+                <a href="/statement/statement_analysis" class="action-btn">
                     <i class="fas fa-chart-bar"></i> 分析报表
                 </a>
             </div>
@@ -536,7 +536,7 @@
         const formData = new FormData();
         formData.append('file', selectedFile);
 
-        fetch('/statement/athina_import_csv', {
+        fetch('/statement/import_csv', {
             method: 'POST',
             body: formData
         })
@@ -625,7 +625,7 @@
 
     // 刷新统计数据
     function refreshStats() {
-        fetch('/statement/athina_stats')
+        fetch('/statement/statement_stats')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -641,11 +641,11 @@
 
     // 清空数据
     function clearData() {
-        if (!confirm('确定要清空所有Athina数据吗？此操作不可恢复！')) {
+        if (!confirm('确定要清空所有对账数据吗？此操作不可恢复！')) {
             return;
         }
 
-        fetch('/statement/athina_clear_data', {
+        fetch('/statement/statement_clear_data', {
             method: 'POST'
         })
         .then(response => response.json())
@@ -668,7 +668,7 @@
             return;
         }
 
-        fetch('/statement/athina_recalculate_subtotals', {
+        fetch('/statement/statement_recalculate_subtotals', {
             method: 'POST'
         })
         .then(response => response.json())

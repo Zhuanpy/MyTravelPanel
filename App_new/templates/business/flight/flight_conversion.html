@@ -240,7 +240,7 @@
     <div class="flight-app-container">
         <h1 class="flight-app-title">机票行程转化</h1>
         
-        <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post" id="conversionForm">
+        <form action="{{ url_for('flights_itinerary.itinerary_conversion') }}" method="post" id="conversionForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flight-app-itinerary-container">
                 <div class="flight-app-itinerary-column">

@@ -964,7 +964,7 @@ def resolve_airport_codes(flights, lookup_fn):
 
 
 def format_segments(flights):
-    """格式化为航段信息（Athina格式）"""
+    """格式化为航段信息（订位系统格式）"""
     lines = []
     for i, f in enumerate(flights, 1):
         num = f["number"]
@@ -993,7 +993,7 @@ def parse_flights(text):
         dict: {
             'success': bool,
             'flights': list,         # 结构化航班数据
-            'segments': str,         # 航段信息文本（Athina格式）
+            'segments': str,         # 航段信息文本（订位系统格式）
             'format_detected': str   # 检测到的格式
         }
     """

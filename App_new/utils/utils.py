@@ -22,7 +22,7 @@ def get_times():
 class FlightData:
 
     @classmethod
-    def athina_booking_code(cls, num: int, data: dict, flight_date: str):
+    def generate_booking_code_text(cls, num: int, data: dict, flight_date: str):
         """
         根据提供的航班信息生成预定代码。
         :param num: 航班的序号，通常用于标识航班的顺序

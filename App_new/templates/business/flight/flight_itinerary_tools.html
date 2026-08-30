@@ -1,8 +1,8 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}Athina机票工具 - MyTravelPanel{% endblock %}
+{% block title %}机票工具 - MyTravelPanel{% endblock %}
 
-{% block page_title %}Athina机票工具{% endblock %}
+{% block page_title %}机票工具{% endblock %}
 
 {% block extra_css %}
 <!-- CSRF令牌 -->
@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <style>
     /* 页面专用样式 - 机票转换工具特定布局 */
-    .athina-conversion-container {
+    .itinerary-tools-container {
         max-width: 1050px;
         margin: 0 auto;
         padding: 20px;
@@ -84,7 +84,7 @@
     }
 
     /* 历史记录下拉列表 */
-    .athina-dropdown-list {
+    .code-dropdown-list {
         position: absolute;
         max-height: 200px;
         overflow-y: auto;
@@ -96,13 +96,13 @@
         width: calc(100% - 2px);
     }
 
-    .athina-dropdown-item {
+    .code-dropdown-item {
         padding: 0.75rem 1rem;
         cursor: pointer;
         transition: background 0.15s ease;
     }
 
-    .athina-dropdown-item:hover {
+    .code-dropdown-item:hover {
         background: var(--visa-bg-hover);
     }
 
@@ -312,7 +312,7 @@
     }
 
     @media (max-width: 768px) {
-        .athina-conversion-container {
+        .itinerary-tools-container {
             padding: 10px;
         }
 
@@ -535,7 +535,7 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="athina-conversion-container">
+    <div class="itinerary-tools-container">
     <!-- 工具切换按钮 -->
     <div class="tool-switch-container">
         <button id="parseBtn" class="tool-switch-btn{% if active_tab == 'parse' %} active{% endif %}" onclick="switchTool('parse')">
@@ -544,8 +544,8 @@
         <button id="itineraryBtn" class="tool-switch-btn{% if active_tab == 'itinerary' %} active{% endif %}" onclick="switchTool('itinerary')">
             <i class="fas fa-exchange-alt"></i> 机票行程转换
         </button>
-        <button id="athinaBtn" class="tool-switch-btn{% if active_tab == 'athina' %} active{% endif %}" onclick="switchTool('athina')">
-            <i class="fas fa-code"></i> ATHINA代码生成
+        <button id="booking_codeBtn" class="tool-switch-btn{% if active_tab == 'booking_code' %} active{% endif %}" onclick="switchTool('booking_code')">
+            <i class="fas fa-code"></i> 订位代码生成
         </button>
     </div>
     
@@ -580,7 +580,7 @@
             <div class="visa-card-body" style="padding: 2rem;">
                 <div class="flight-app">
                     <div class="flight-app-container">
-                        <form action="{{ url_for('flights_athina.itinerary_conversion') }}" method="post" id="conversionForm">
+                        <form action="{{ url_for('flights_itinerary.itinerary_conversion') }}" method="post" id="conversionForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="visa-form-group visa-mb-3">
                                 <label for="input_text" class="visa-form-label">
@@ -656,18 +656,18 @@
             </div><!-- /tool-layout -->
         </div><!-- /itineraryTool -->
 
-        <!-- ATHINA 预订代码生成器工具 -->
-        <div id="athinaTool" class="tool-section{% if active_tab == 'athina' %} active{% endif %}">
+        <!-- 订位代码 预订代码生成器工具 -->
+        <div id="booking_codeTool" class="tool-section{% if active_tab == 'booking_code' %} active{% endif %}">
             <div class="tool-layout">
                 <!-- 左侧记忆功能区域 -->
-                <div class="memory-card" id="athinaMemoryCard">
+                <div class="memory-card" id="bookingCodeMemoryCard">
                     <div class="memory-card-header">
                         <span><i class="fas fa-history"></i> 历史记录</span>
-                        <button class="clear-memory-btn" onclick="clearAthinaMemory()" title="清空记录">
+                        <button class="clear-memory-btn" onclick="clearBookingCodeMemory()" title="清空记录">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
-                    <div class="memory-card-body" id="athinaMemoryList">
+                    <div class="memory-card-body" id="bookingCodeMemoryList">
                         <div class="memory-empty">
                             <i class="fas fa-inbox"></i>
                             <span>暂无历史记录</span>
@@ -680,7 +680,7 @@
                     <div class="visa-card">
                 <h2 class="section-header">
                     <i class="fas fa-code"></i>
-                    ATHINA 预订代码生成器
+                    订位代码 预订代码生成器
                 </h2>
             <div class="visa-card-body" style="padding: 2rem;">
                 <div style="background: var(--visa-bg-light); padding: 1.5rem; border-radius: var(--visa-radius-md); margin-bottom: 1.5rem;">
@@ -731,7 +731,7 @@
         </div>
                 </div><!-- /tool-main-content -->
             </div><!-- /tool-layout -->
-        </div><!-- /athinaTool -->
+        </div><!-- /bookingCodeTool -->
         <!-- 航班解析工具 -->
         <div id="parseTool" class="tool-section{% if active_tab == 'parse' %} active{% endif %}">
             <div class="tool-layout">
@@ -802,7 +802,7 @@
             </div><!-- /tool-layout -->
         </div><!-- /parseTool -->
     </div><!-- /tool-content-container -->
-    </div><!-- /athina-conversion-container -->
+    </div><!-- /itinerary-tools-container -->
 </div><!-- /container-fluid -->
 
 <!-- 添加航班时刻弹窗 -->
@@ -885,7 +885,7 @@
     // ========================================
     const MAX_MEMORY_ITEMS = 10;  // 最多保存10条记录
     const ITINERARY_MEMORY_KEY = 'itinerary_conversion_memory';
-    const ATHINA_MEMORY_KEY = 'athina_code_memory';
+    const BOOKING_CODE_MEMORY_KEY = 'booking_code_memory';
 
     // 获取记忆数据
     function getMemory(key) {
@@ -1044,14 +1044,14 @@
     }
 
     // ========================================
-    // ATHINA代码生成 - 记忆功能
+    // 订位代码生成 - 记忆功能
     // ========================================
     
-    // 保存ATHINA记忆
-    function saveAthinaMemory(flights) {
+    // 保存订位代码记忆
+    function saveBookingCodeMemory(flights) {
         if (!flights || flights.length === 0) return;
         
-        const memory = getMemory(ATHINA_MEMORY_KEY);
+        const memory = getMemory(BOOKING_CODE_MEMORY_KEY);
         
         // 生成标题
         const title = flights.map(f => f.flightDate + ' ' + f.flightNumber).join(' → ');
@@ -1080,14 +1080,14 @@
             memory.pop();
         }
         
-        saveMemory(ATHINA_MEMORY_KEY, memory);
-        renderAthinaMemory();
+        saveMemory(BOOKING_CODE_MEMORY_KEY, memory);
+        renderBookingCodeMemory();
     }
 
-    // 渲染ATHINA记忆列表
-    function renderAthinaMemory() {
-        const container = document.getElementById('athinaMemoryList');
-        const memory = getMemory(ATHINA_MEMORY_KEY);
+    // 渲染订位代码记忆列表
+    function renderBookingCodeMemory() {
+        const container = document.getElementById('bookingCodeMemoryList');
+        const memory = getMemory(BOOKING_CODE_MEMORY_KEY);
         
         if (memory.length === 0) {
             container.innerHTML = `
@@ -1100,23 +1100,23 @@
         }
         
         container.innerHTML = memory.map(item => `
-            <div class="memory-item" onclick="loadAthinaMemory(${item.id})">
+            <div class="memory-item" onclick="loadBookingCodeMemory(${item.id})">
                 <div class="memory-item-content">
                     <div class="memory-item-title">${escapeHtml(item.title)}</div>
                     <div class="memory-item-meta">
                         ${item.flights.length}个航班 | ${formatTime(item.timestamp)}
                     </div>
                 </div>
-                <button class="memory-item-delete" onclick="deleteAthinaMemory(event, ${item.id})" title="删除">
+                <button class="memory-item-delete" onclick="deleteBookingCodeMemory(event, ${item.id})" title="删除">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
         `).join('');
     }
 
-    // 加载ATHINA记忆
-    function loadAthinaMemory(id) {
-        const memory = getMemory(ATHINA_MEMORY_KEY);
+    // 加载订位代码记忆
+    function loadBookingCodeMemory(id) {
+        const memory = getMemory(BOOKING_CODE_MEMORY_KEY);
         const item = memory.find(m => m.id === id);
         
         if (item) {
@@ -1161,25 +1161,25 @@
         }
     }
 
-    // 删除ATHINA记忆
-    function deleteAthinaMemory(event, id) {
+    // 删除订位代码记忆
+    function deleteBookingCodeMemory(event, id) {
         event.stopPropagation();
         
-        const memory = getMemory(ATHINA_MEMORY_KEY);
+        const memory = getMemory(BOOKING_CODE_MEMORY_KEY);
         const index = memory.findIndex(m => m.id === id);
         
         if (index !== -1) {
             memory.splice(index, 1);
-            saveMemory(ATHINA_MEMORY_KEY, memory);
-            renderAthinaMemory();
+            saveMemory(BOOKING_CODE_MEMORY_KEY, memory);
+            renderBookingCodeMemory();
         }
     }
 
-    // 清空ATHINA记忆
-    function clearAthinaMemory() {
+    // 清空订位代码记忆
+    function clearBookingCodeMemory() {
         if (confirm('确定要清空所有历史记录吗？')) {
-            localStorage.removeItem(ATHINA_MEMORY_KEY);
-            renderAthinaMemory();
+            localStorage.removeItem(BOOKING_CODE_MEMORY_KEY);
+            renderBookingCodeMemory();
         }
     }
 
@@ -1238,13 +1238,13 @@
 
     // 页面加载时初始化：优先用后端根据 ?tab= 渲染的标签，非法值回退 parse
     document.addEventListener('DOMContentLoaded', function() {
-        const validTabs = ['parse', 'itinerary', 'athina'];
+        const validTabs = ['parse', 'itinerary', 'booking_code'];
         const initialTab = "{{ active_tab }}";
         switchTool(validTabs.includes(initialTab) ? initialTab : 'parse');
 
         // 初始化记忆列表
         renderItineraryMemory();
-        renderAthinaMemory();
+        renderBookingCodeMemory();
     });
 
     // 行程转换相关功能
@@ -1537,7 +1537,7 @@
     // 双击输入框时显示历史数据的下拉列表
     function showDropdown(input) {
         // 移除任何现有的下拉列表
-        const existingDropdown = input.parentElement.querySelector('.athina-dropdown-list');
+        const existingDropdown = input.parentElement.querySelector('.code-dropdown-list');
         if (existingDropdown) {
             existingDropdown.remove();
         }
@@ -1546,10 +1546,10 @@
         const history = JSON.parse(localStorage.getItem(key)) || [];
         if (history.length > 0) {
             const dropdown = document.createElement('div');
-            dropdown.className = 'athina-dropdown-list';
+            dropdown.className = 'code-dropdown-list';
             history.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'athina-dropdown-item';
+                div.className = 'code-dropdown-item';
                 div.textContent = item;
                 div.onclick = function() {
                     input.value = item;
@@ -1660,7 +1660,7 @@
         const textarea = document.getElementById('itinerary');
         textarea.value = '处理中...';
 
-        fetch("{{ url_for('flights_athina.generate_booking_code') }}", {
+        fetch("{{ url_for('flights_itinerary.generate_booking_code') }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1679,7 +1679,7 @@
             } else {
                 textarea.value = result.itinerary;
                 // 保存到记忆
-                saveAthinaMemory(data);
+                saveBookingCodeMemory(data);
             }
         })
         .catch(error => {
@@ -1933,7 +1933,7 @@
         segmentsArea.value = '解析中...';
         badge.style.display = 'none';
 
-        fetch("{{ url_for('flights_athina.parse_flights_api') }}", {
+        fetch("{{ url_for('flights_itinerary.parse_flights_api') }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

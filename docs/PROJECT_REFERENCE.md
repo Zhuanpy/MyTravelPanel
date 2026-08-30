@@ -202,17 +202,17 @@ MyTravelPanel/
 - 航班信息录入
 - 乘客信息管理
 - 航段管理
-- Athina系统集成
+- 订位代码与行程转换
 - 航班日程表
 
 **关键路由文件:**
 - `App_new/business/flight/routes/flight_routes.py` - 机票管理
-- `App_new/business/flight/routes/flights_athina_routes.py` - Athina集成
+- `App_new/business/flight/routes/flights_itinerary_routes.py` - 行程转换与订位代码
 
 ### 4.5 财务管理 (Finance)
 - 银行对账单导入与处理
 - 多银行支持 (CMB招商, OCBC, UOB)
-- Athina系统预订数据导入
+- 外部预订系统 CSV 数据导入
 - 供应商对账
 - 银行关键词分类
 - **会计科目表管理 (Chart of Accounts)**
@@ -225,7 +225,7 @@ MyTravelPanel/
 
 **关键路由文件:**
 - `App_new/finance/routes/cmb_routes.py` - 招商银行
-- `App_new/finance/routes/athina_routes.py` - Athina导入
+- `App_new/finance/routes/statement_routes.py` - 对账、业绩结算与 CSV 导入
 - `App_new/finance/routes/ledger_routes.py` - 总账与会计科目管理
 
 ### 4.6 其他模块
@@ -279,9 +279,6 @@ VisaProject (签证项目)
 BankStatement (银行对账单)
 ├── BankTransaction (银行交易)
 └── BankStatementKeyword (关键词)
-
-AthinaBookingHeader (Athina预订)
-└── AthinaBookingDetail (预订明细)
 
 ChartOfAccount (会计科目表)
 ├── code (科目代码)

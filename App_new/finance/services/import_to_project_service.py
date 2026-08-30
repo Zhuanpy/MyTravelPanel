@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Athina 数据导入到项目系统服务
+外部预订系统数据导入到项目系统服务
 分步骤导入：HID+REF -> EO -> Invoice -> Receipt
-支持从 Athina CSV 文件导入
+支持从外部系统导出的 CSV 文件导入
 """
 
 import csv
@@ -12,7 +12,7 @@ import traceback
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta
 from App_new.exts import db
-# AthinaBookingHeader/Detail 模型已删除（数据已迁移到 ProjectHeader）
+# 旧预订数据模型已删除（数据已迁移到 ProjectHeader）
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.project_member import ProjectMember
@@ -25,10 +25,10 @@ from App_new.shared.models.business_types import BusinessType
 from App_new.business.flight.models.flight import ProjectFlightPassenger, ProjectFlightSegment
 
 
-class AthinaToProjectService:
-    """Athina 数据导入到项目系统服务"""
+class ImportToProjectService:
+    """外部预订系统数据导入到项目系统服务"""
 
-    # Athina book_type 到 BusinessType.code 的映射
+    # 外部系统 book_type 到 BusinessType.code 的映射
     BOOK_TYPE_MAPPING = {
         'Air': 'flight',
         'Airline': 'flight',
@@ -44,7 +44,7 @@ class AthinaToProjectService:
         'Package': 'tour_package',
         'Visa': 'visa',
         'Other': 'other',
-        'Miscellanous': 'other',  # Athina 杂项类型
+        'Miscellanous': 'other',  # 外部系统杂项类型
         'Miscellaneous': 'other',  # 正确拼写版本
         'Misc': 'other',
         # 缩写映射
@@ -183,7 +183,7 @@ class AthinaToProjectService:
             return None
 
     def _get_business_type_id(self, book_type):
-        """根据 Athina book_type 获取 BusinessType ID"""
+        """根据外部系统 book_type 获取 BusinessType ID"""
         if not book_type:
             # 默认使用 'other' 类型
             return self._get_or_create_other_type()
@@ -337,12 +337,12 @@ class AthinaToProjectService:
             self.errors.append(f'创建供应商 "{supplier_name}" 失败: {str(e)}')
             return None
 
-    # ---- 以下 Athina 表导入方法已删除 ----
-    # get_importable_athina_headers_paginated, get_importable_athina_headers,
+    # ---- 以下旧预订数据表导入方法已删除 ----
+    # get_importable_headers_paginated, get_importable_headers,
     # import_header_and_refs, generate_receipt_from_balance
-    # 这些方法依赖已废弃的 athina_booking_headers/details 表
-    # ---- Athina 方法删除标记开始 ----
-    _ATHINA_METHODS_REMOVED = True
+    # 这些方法依赖已废弃的旧预订数据表
+    # ---- 旧导入方法删除标记开始 ----
+    _LEGACY_IMPORT_METHODS_REMOVED = True
     _REMOVE_OLD_START = True  # MARKER
 
     # ==========================================================================
@@ -1102,7 +1102,7 @@ class AthinaToProjectService:
                 if hid:
                     project_header = ProjectHeader.query.filter_by(hid=hid).first()
                     if project_header:
-                        # 尝试通过 extra_info 中的 athina_booking_ref 匹配
+                        # 尝试通过 extra_info 中的 athina_booking_ref 匹配（键名是历史数据，不能改）
                         for ref in project_header.refs:
                             extra_info = json.loads(ref.extra_info) if ref.extra_info else {}
                             if extra_info.get('athina_booking_ref') == booking_ref:
@@ -1436,7 +1436,7 @@ class AthinaToProjectService:
                     if project_ref:
                         ref_ids.append(project_ref.id)
                     else:
-                        # 尝试通过 extra_info 中的 athina_booking_ref 匹配
+                        # 尝试通过 extra_info 中的 athina_booking_ref 匹配（键名是历史数据，不能改）
                         for ref in project_header.refs:
                             extra_info = json.loads(ref.extra_info) if ref.extra_info else {}
                             athina_ref = extra_info.get('athina_booking_ref', '')

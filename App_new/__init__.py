@@ -140,14 +140,14 @@ def create_app(config_name=None):
     from .business.flight.routes.flights_home_routes import flight_home
     from .business.flight.routes.flights_booking_routes import flights_booking
     from .business.flight.routes.flights_schedule import flights_schedule
-    from .business.flight.routes.flights_athina_routes import flights_athina
+    from .business.flight.routes.flights_itinerary_routes import flights_itinerary
     from .business.flight.routes.flights_usbangla_routes import flights_usbangla
     from .business.flight.routes.passport_routes import flights_passport
     app.register_blueprint(flight_routes, url_prefix='/flight_routes')
     app.register_blueprint(flight_home, url_prefix='/flight_home')
     app.register_blueprint(flights_booking, url_prefix='/flights_booking')
     app.register_blueprint(flights_schedule, url_prefix='/flight_schedule')
-    app.register_blueprint(flights_athina, url_prefix='/flights_athina')
+    app.register_blueprint(flights_itinerary, url_prefix='/flights_itinerary')
     app.register_blueprint(flights_usbangla, url_prefix='/flights_usbangla')
     app.register_blueprint(flights_passport)
 
@@ -218,12 +218,16 @@ def create_app(config_name=None):
     app.register_blueprint(cmb_blue, url_prefix='/statement')
     app.register_blueprint(statement_common_blue, url_prefix='/statement')
     
-    # Athina 模块
-    from .finance.routes.athina_routes import athina_blue
-    app.register_blueprint(athina_blue, url_prefix='/statement')
+    # 对账/结算模块
+    from .finance.routes.statement_routes import statement_blue
+    app.register_blueprint(statement_blue, url_prefix='/statement')
     
+    # 旧 athina_* 路由的兼容重定向（无前缀，路径写全）
+    from .finance.routes.legacy_athina_redirects import legacy_blue
+    app.register_blueprint(legacy_blue)
+
     # SOA 模块
-    from .finance.routes.athina_routes_soa import soa_blue
+    from .finance.routes.statement_soa_routes import soa_blue
     app.register_blueprint(soa_blue, url_prefix='/statement')
     
     # 关键词管理模块
@@ -538,7 +542,7 @@ def import_all_models():
         )
         # 银行关键词模型
         from .finance.models.bank_keywords import BankStatementKeyword, BankKeywordCategory
-        # Athina账单模型已删除（数据已迁移到 ProjectHeader）
+        # 旧对账账单模型已删除（数据已迁移到 ProjectHeader）
         # 会计科目与日记账模型
         from .finance.models.chart_of_account import ChartOfAccount
         from .finance.models.journal_entry import JournalEntry, JournalEntryLine

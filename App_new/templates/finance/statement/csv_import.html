@@ -1,6 +1,6 @@
 {% extends "shared/staff_base.html" %}
 
-{% block title %}Athina CSV 导入到项目{% endblock %}
+{% block title %}对账 CSV 导入到项目{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -76,8 +76,8 @@
     <!-- 页面标题 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">Athina CSV 导入到项目系统</h4>
-            <p class="text-muted mb-0">分步骤导入 Athina 导出的 CSV 文件</p>
+            <h4 class="mb-1">对账 CSV 导入到项目系统</h4>
+            <p class="text-muted mb-0">分步骤导入 对账 导出的 CSV 文件</p>
         </div>
         <div>
             <a href="{{ url_for('project_list.project_list') }}" class="btn btn-outline-secondary">
@@ -277,11 +277,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     // 导入 URL 配置
     const importUrls = {
-        1: '{{ url_for("athina_routes.athina_import_reservation_csv") }}',
-        2: '{{ url_for("athina_routes.athina_import_eo_csv") }}',
-        3: '{{ url_for("athina_routes.athina_import_invoice_csv") }}',
-        4: '{{ url_for("athina_routes.athina_import_receipt_csv") }}',
-        5: '{{ url_for("athina_routes.athina_import_payment_voucher_csv") }}'
+        1: '{{ url_for("statement_routes.import_reservation_csv") }}',
+        2: '{{ url_for("statement_routes.import_eo_csv") }}',
+        3: '{{ url_for("statement_routes.import_invoice_csv") }}',
+        4: '{{ url_for("statement_routes.import_receipt_csv") }}',
+        5: '{{ url_for("statement_routes.import_payment_voucher_csv") }}'
     };
 
     // 为每个步骤设置文件上传和表单提交

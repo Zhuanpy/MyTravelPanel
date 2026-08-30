@@ -14,11 +14,11 @@
         <div class="tool-name">行程转换</div>
         <div class="tool-desc">格式化航班行程</div>
     </a>
-    <a href="{{ url_for('mobile.athina_code') }}" class="tool-card" style="flex: 1; text-align: center;">
+    <a href="{{ url_for('mobile.booking_code') }}" class="tool-card" style="flex: 1; text-align: center;">
         <div class="tool-icon-lg" style="background: linear-gradient(135deg, #10b981, #059669); margin: 0 auto 8px;">
             <i class="fas fa-code"></i>
         </div>
-        <div class="tool-name">ATHINA</div>
+        <div class="tool-name">订位代码</div>
         <div class="tool-desc">生成预订代码</div>
     </a>
 </div>
@@ -36,7 +36,7 @@
 </a>
 
 <!-- 桌面版入口 -->
-<a href="{{ url_for('flights_athina.athina_conversion') }}?desktop=true" class="desktop-link">
+<a href="{{ url_for('flights_itinerary.conversion') }}?desktop=true" class="desktop-link">
     <i class="fas fa-laptop"></i>
     <span>使用完整版（电脑端）</span>
     <i class="fas fa-external-link-alt"></i>

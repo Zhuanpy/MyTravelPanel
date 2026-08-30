@@ -646,7 +646,7 @@ def cmb_reconcile_transaction(transaction_id):
 # - cmb_upload_file → statement_common.upload_file (已删除)
 
 
-# Athina 相关路由已移动到 athina_routes.py
+# 对账相关路由已移动到 statement_routes.py
 
 @cmb_blue.route('/statement/company_bill', methods=['GET', 'POST'])
 @login_required
