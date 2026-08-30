@@ -368,8 +368,11 @@
                                 </span>
                             </td>
                             <td>
-                                {% set balance = (stats.total_selling_price or 0) - (stats.total_received or 0) %}
-                                <span class="fw-bold {{ 'text-danger' if balance > 0 else 'text-success' if balance < 0 else 'text-muted' }}">
+                                {# 直接用后端算好的 stats.balance（= 未作废发票的未收合计）。
+                                   模板里再拿「售价 − 已收」重算会得出负数：REF售价是内部数字，
+                                   与实际开给客户的发票可能不一致（如 H260 售价0、发票80已收齐 → -80）。#}
+                                {% set balance = stats.balance or 0 %}
+                                <span class="fw-bold {{ 'text-danger' if balance > 0 else 'text-muted' }}">
                                     S${{ "%.2f"|format(balance) }}
                                 </span>
                             </td>

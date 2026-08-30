@@ -754,12 +754,11 @@ class ProjectHeader(db.Model):
         }
         need_invoice = [r for r in refs if r.ref_type_id not in refund_type_ids]
         if need_invoice:
-            invoiced_ids = {
-                row[0] for row in db.session.query(InvoiceItem.ref_id).filter(
-                    InvoiceItem.ref_id.in_([r.id for r in need_invoice])
-                ).distinct().all()
-            }
-            missing = [r for r in need_invoice if r.id not in invoiced_ids]
+            # 走 ProjectInvoice.ref_ids（与 is_invoiced 同源），不要数 invoice_items：
+            # 只有 334/546 张发票有明细行，但 546 张都有 ref_ids，
+            # 数明细行会把业务上已完成的项目永远卡住
+            invoiced = ProjectRef.get_refs_invoiced_bulk([self.id])
+            missing = [r for r in need_invoice if not invoiced.get(r.id)]
             if missing:
                 names = ', '.join(r.ref_number for r in missing[:5])
                 more = '...' if len(missing) > 5 else ''
@@ -774,26 +773,23 @@ class ProjectHeader(db.Model):
             more = '...' if len(no_eo) > 5 else ''
             blockers.append(f'有 {len(no_eo)} 个 REF 未生成 EO：{names}{more}')
 
-        unpaid_eos = [eo for eo in eos if not eo.pay_amount or float(eo.pay_amount) <= 0]
+        # 以 is_paid 为准，不看 pay_amount：库里有 24 个 EO 是 is_paid=1 但金额 0/NULL
+        # （零金额 EO 是合法的），按金额判会把它们误判成未付款
+        unpaid_eos = [eo for eo in eos if not eo.is_paid]
         if unpaid_eos:
             names = ', '.join(eo.eo_number for eo in unpaid_eos[:5])
             more = '...' if len(unpaid_eos) > 5 else ''
             blockers.append(f'有 {len(unpaid_eos)} 个 EO 未付款：{names}{more}')
 
-        # 3. 余额：售价合计 − 已确认收款
-        total_selling = sum(float(r.selling_price or 0) for r in refs)
-        total_received = float(
-            db.session.query(db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)).filter(
-                ProjectReceipt.header_id == self.id,
-                ProjectReceipt.status == 'confirmed'
-            ).scalar() or 0
-        )
-        balance = total_selling - total_received
-        if abs(balance) > 0.01:
-            if balance > 0:
-                blockers.append(f'还有 S${balance:.2f} 未收款（售价 {total_selling:.2f} / 已收 {total_received:.2f}）')
-            else:
-                blockers.append(f'收款超出售价 S${-balance:.2f}（售价 {total_selling:.2f} / 已收 {total_received:.2f}）')
+        # 3. 未收款：以「未作废发票的未收合计」为准，不用「REF售价合计 − 已收」。
+        # 后者是两套账：收款只能分配到发票，能收的上限就是发票未收合计
+        # （见 ProjectReceipt.get_project_unpaid_amount 的说明）。
+        # REF 售价是内部数字，可能与实际开给客户的发票不一致——例如 H260 的
+        # REF 售价 0 但开了 80 的发票且已收齐，按旧算法会被判成「收款超出售价 80」，
+        # 明明客户已付清却永远结算不了。
+        unpaid = ProjectReceipt.get_project_unpaid_amount(self.id)
+        if unpaid > 0.01:
+            blockers.append(f'还有 S${unpaid:.2f} 未收款（按未作废发票的未收合计）')
 
         return blockers
 

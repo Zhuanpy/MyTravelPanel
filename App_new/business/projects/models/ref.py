@@ -251,6 +251,37 @@ class ProjectRef(db.Model):
         return result
 
     @classmethod
+    def get_headers_fully_invoiced(cls, header_ids):
+        """返回 {header_id: 该项目所有 REF 是否都已开票}
+
+        结算条件必须用它，不能去数 invoice_items：发票关联 REF 有两套机制——
+          A. project_invoices.ref_ids（JSON，546/546 张发票都有）
+          B. invoice_items.ref_id（明细行外键，只有 334/546 张有）
+        未收款计算走 A，结算条件却在数 B，同一张发票两边判定相反，导致 187 个
+        业务上已完成的项目永远结算不了（如 H10：发票 ref_ids=[103] 指向 R10，
+        但没有明细行）。这里统一走 A，与 is_invoiced 同源。
+
+        另注：ref_ids 里的 ID 存法不统一，既有数字 [451] 也有字符串 ["454"]，
+        get_refs_invoiced_bulk 两种都认。
+        """
+        if not header_ids:
+            return {}
+        header_ids = list({int(h) for h in header_ids})
+
+        refs = cls.query.with_entities(cls.id, cls.header_id).filter(
+            cls.header_id.in_(header_ids)).all()
+        invoiced = cls.get_refs_invoiced_bulk(header_ids)
+
+        result = {}
+        for ref_id, hid in refs:
+            ok = bool(invoiced.get(ref_id))
+            result[hid] = result.get(hid, True) and ok
+        # 没有 REF 的项目不算"全部已开票"（结算另有"必须有 REF"的条件）
+        for hid in header_ids:
+            result.setdefault(hid, False)
+        return result
+
+    @classmethod
     def get_refs_unpaid_bulk(cls, header_ids):
         """批量版 unpaid_amount：返回 {ref_id: 未付款金额}
 

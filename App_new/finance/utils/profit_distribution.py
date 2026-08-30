@@ -247,3 +247,38 @@ def get_ratio_basis(project):
         db.func.coalesce(db.func.sum(ProjectRef.cost_price), 0)
     ).filter(ProjectRef.header_id == main.id).one()
     return Decimal(str(row[0] or 0)) - Decimal(str(row[1] or 0))
+
+
+def apply_profit_distribution(project):
+    """按项目当前的 REF 重算利润分配并写回项目，返回 (利润, 操作员, 业务员, 公司)
+
+    结算必须调用它，不能直接读 project.operator_profit：
+    那三个字段是「计算利润分配」按钮留下的快照，而结算单里的 total_profit
+    是实时从 REF 算的。两者不是同一次计算的结果——没点过按钮就结算，分成按 0
+    入账；REF 价格改过再结算，分成还是旧数字。库里已经因此出现过
+    「结算单利润 3008.50 / 分成合计 0.00」和「分成比利润多分 319.80」。
+
+    调用方负责 commit。
+    """
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.exts import db
+
+    row = db.session.query(
+        db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0),
+        db.func.coalesce(db.func.sum(ProjectRef.cost_price), 0)
+    ).filter(ProjectRef.header_id == project.id).one()
+    profit = Decimal(str(row[0] or 0)) - Decimal(str(row[1] or 0))
+
+    # 退款/调整单沿用主单档位
+    basis = get_ratio_basis(project)
+    project.order_type = get_order_type(profit, basis)
+
+    if profit == 0:
+        operator = sales = company = Decimal('0')
+    else:
+        operator, sales, company = calculate_profit_distribution(profit, basis)
+
+    project.operator_profit = operator
+    project.sales_profit = sales
+    project.company_profit = company
+    return profit, operator, sales, company

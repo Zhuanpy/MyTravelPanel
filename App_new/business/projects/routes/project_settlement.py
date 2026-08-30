@@ -285,15 +285,36 @@ def _get_project_stats(project_ids):
         db.func.sum(ProjectRef.cost_price).label('total_cost')
     ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
 
-    # 批量查询收款数据
-    receipts_data = db.session.query(
+    # 批量查询收款数据：走「发票分配表 + REF级直接收款」，不能把本项目名下的收款直接相加。
+    # 一笔项目级收款可能跨项目分配（如 H808 名下 695，其中 345 属于 H810），
+    # 直接相加会让付款方显示超收、被分配方显示未收款，两边都结算不了。
+    from App_new.business.projects.models.receipt import ReceiptInvoiceAllocation
+    from App_new.business.projects.models.invoice import ProjectInvoice
+
+    receipts_dict = {}
+    for row in db.session.query(
+        ProjectInvoice.header_id,
+        db.func.sum(ReceiptInvoiceAllocation.allocated_amount).label('total')
+    ).join(
+        ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
+    ).join(
+        ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+    ).filter(
+        ProjectInvoice.header_id.in_(project_ids),
+        ProjectReceipt.status == 'confirmed',
+        ProjectReceipt.ref_id.is_(None)
+    ).group_by(ProjectInvoice.header_id).all():
+        receipts_dict[row.header_id] = float(row.total or 0)
+
+    for row in db.session.query(
         ProjectReceipt.header_id,
-        db.func.sum(ProjectReceipt.amount).label('total_received')
+        db.func.sum(ProjectReceipt.amount).label('total')
     ).filter(
         ProjectReceipt.header_id.in_(project_ids),
-        ProjectReceipt.status == 'confirmed'
-    ).group_by(ProjectReceipt.header_id).all()
-    receipts_dict = {r.header_id: float(r.total_received or 0) for r in receipts_data}
+        ProjectReceipt.status == 'confirmed',
+        ProjectReceipt.ref_id.isnot(None)
+    ).group_by(ProjectReceipt.header_id).all():
+        receipts_dict[row.header_id] = receipts_dict.get(row.header_id, 0) + float(row.total or 0)
 
     # REF数量
     ref_counts = db.session.query(
@@ -302,14 +323,20 @@ def _get_project_stats(project_ids):
     ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
     ref_count_dict = {r.header_id: r.ref_count for r in ref_counts}
 
-    # 有发票的REF数量
-    ref_with_invoice = db.session.query(
-        ProjectRef.header_id,
-        db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_ref_count')
-    ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id).filter(
-        ProjectRef.header_id.in_(project_ids)
-    ).group_by(ProjectRef.header_id).all()
-    invoiced_ref_dict = {r.header_id: r.invoiced_ref_count for r in ref_with_invoice}
+    # 是否所有 REF 都已开票：走 ProjectInvoice.ref_ids，与 settle_blockers / is_invoiced 同源。
+    # 不能数 invoice_items——只有 334/546 张发票有明细行，会把业务上已完成的项目误判成未开票
+    fully_invoiced_dict = ProjectRef.get_headers_fully_invoiced(project_ids)
+
+    # 未收款：按未作废发票的未收合计（收款只能分配到发票，能收的上限就是它）
+    unpaid_dict = {}
+    for row in db.session.query(
+        ProjectInvoice.header_id,
+        db.func.sum(db.func.greatest(ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)).label('unpaid')
+    ).filter(
+        ProjectInvoice.header_id.in_(project_ids),
+        ProjectInvoice.status != 'cancelled'
+    ).group_by(ProjectInvoice.header_id).all():
+        unpaid_dict[row.header_id] = float(row.unpaid or 0)
 
     # EO数量
     eo_counts = db.session.query(
@@ -339,16 +366,20 @@ def _get_project_stats(project_ids):
         balance = total_selling - total_received
 
         ref_count = ref_count_dict.get(project_id, 0)
-        invoiced_ref_count = invoiced_ref_dict.get(project_id, 0)
+        invoiced_ref_count = ref_count if fully_invoiced_dict.get(project_id) else 0
         eo_count = eo_count_dict.get(project_id, 0)
         paid_eo_count = paid_eo_dict.get(project_id, 0)
 
-        # 计算是否可结算
-        all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
-        all_eos_paid = eo_count == 0 or (eo_count > 0 and eo_count == paid_eo_count)
-        balance_cleared = abs(balance) < 0.01
+        # 可结算条件：与 ProjectHeader.settle_blockers 完全一致
+        # （每条 REF 都要有 EO；EO 以 is_paid 为准，不看 pay_amount）
+        all_refs_have_eo = ref_count > 0 and ref_count == eo_count
+        all_eos_paid = eo_count > 0 and eo_count == paid_eo_count
+        all_refs_invoiced = fully_invoiced_dict.get(project_id, False)
+        # 未收款以发票未收合计为准（与 settle_blockers 同源）；
+        # 「REF售价合计 − 已收」是另一套账，REF售价与实际开票金额可能不一致
+        balance_cleared = unpaid_dict.get(project_id, 0.0) < 0.01
 
-        can_settle = all_refs_invoiced and all_eos_paid and balance_cleared
+        can_settle = all_refs_have_eo and all_eos_paid and all_refs_invoiced and balance_cleared
 
         project_stats[project_id] = {
             'total_selling_price': total_selling,
@@ -357,7 +388,7 @@ def _get_project_stats(project_ids):
             'total_received': total_received,
             'balance': balance,
             'ref_count': ref_count,
-            'invoiced_ref_count': invoiced_ref_count,
+            'invoiced_ref_count': ref_count if fully_invoiced_dict.get(project_id) else 0,
             'eo_count': eo_count,
             'paid_eo_count': paid_eo_count,
             'can_settle': can_settle
@@ -480,18 +511,24 @@ def batch_settle():
         total_sales_profit = Decimal('0')
         total_company_profit = Decimal('0')
 
+        # 结算前按当前 REF 重算分成：售价/成本本来就是实时算的，
+        # 分成却读存量字段，两者不是同一次计算的结果，会出现凭证利润与分成对不上
+        from App_new.finance.utils.profit_distribution import apply_profit_distribution
+
         for project in projects_to_settle:
             # 查询项目的 REF 汇总
             refs = ProjectRef.query.filter_by(header_id=project.id).all()
             project_selling = sum(Decimal(str(r.selling_price or 0)) for r in refs)
             project_cost = sum(Decimal(str(r.cost_price or 0)) for r in refs)
 
+            _, operator, sales, company = apply_profit_distribution(project)
+
             total_selling += project_selling
             total_cost += project_cost
             total_profit += (project_selling - project_cost)
-            total_operator_profit += Decimal(str(project.operator_profit or 0))
-            total_sales_profit += Decimal(str(project.sales_profit or 0))
-            total_company_profit += Decimal(str(project.company_profit or 0))
+            total_operator_profit += operator
+            total_sales_profit += sales
+            total_company_profit += company
 
         # 创建结算凭证
         voucher = PaymentVoucher(

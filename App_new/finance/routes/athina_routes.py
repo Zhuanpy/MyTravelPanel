@@ -572,6 +572,26 @@ def _resolve_project_staff_display(projects, staff_name_map):
     return result
 
 
+
+
+def _invoice_unpaid_subquery():
+    """每个项目的未收款 = 未作废发票的未收合计
+
+    结算的收款条件用它，不用「REF售价合计 − 已收」：收款只能分配到发票，
+    能收的上限就是发票未收合计（见 ProjectReceipt.get_project_unpaid_amount）。
+    REF 售价是内部数字，可能与实际开给客户的发票不一致——例如 H260 的 REF 售价 0
+    但开了 80 的发票且已收齐，按售价口径会被判成「收款超出售价 80」而永远结不了。
+    """
+    from sqlalchemy import func
+    from App_new.business.projects.models.invoice import ProjectInvoice
+
+    return db.session.query(
+        ProjectInvoice.header_id.label('header_id'),
+        func.coalesce(func.sum(func.greatest(
+            ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0).label('unpaid')
+    ).filter(ProjectInvoice.status != 'cancelled').group_by(ProjectInvoice.header_id).subquery()
+
+
 def _get_can_settle_project_ids():
     """获取所有可结算项目的 ID 集合（ref>0, ref==eo, eo==paid, ref==invoiced, balance==0）
 
@@ -588,12 +608,6 @@ def _get_can_settle_project_ids():
     ref_count_subq = db.session.query(
         ProjectRef.header_id,
         func.count(ProjectRef.id).label('ref_count')
-    ).group_by(ProjectRef.header_id).subquery()
-
-    invoiced_ref_subq = db.session.query(
-        ProjectRef.header_id,
-        func.count(db.distinct(InvoiceItem.ref_id)).label('inv_ref_count')
-    ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
     ).group_by(ProjectRef.header_id).subquery()
 
     eo_count_subq = db.session.query(
@@ -613,6 +627,8 @@ def _get_can_settle_project_ids():
         ProjectRef.header_id,
         func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_sell')
     ).group_by(ProjectRef.header_id).subquery()
+
+    unpaid_subq = _invoice_unpaid_subquery()
 
     # 收款计算：与项目列表保持一致，使用发票分配表
     # 方式1: 项目级别收款通过发票分配表统计（正确处理跨项目收款）
@@ -648,20 +664,26 @@ def _get_can_settle_project_ids():
     ).outerjoin(
         paid_eo_subq, ref_count_subq.c.header_id == paid_eo_subq.c.header_id
     ).outerjoin(
-        invoiced_ref_subq, ref_count_subq.c.header_id == invoiced_ref_subq.c.header_id
-    ).outerjoin(
         sell_subq, ref_count_subq.c.header_id == sell_subq.c.header_id
     ).outerjoin(
         rcpt_subq, ref_count_subq.c.header_id == rcpt_subq.c.header_id
+    ).outerjoin(
+        unpaid_subq, ref_count_subq.c.header_id == unpaid_subq.c.header_id
     ).filter(
         ref_count_subq.c.ref_count > 0,
         ref_count_subq.c.ref_count == func.coalesce(eo_count_subq.c.eo_count, 0),
         func.coalesce(eo_count_subq.c.eo_count, 0) == func.coalesce(paid_eo_subq.c.paid_count, 0),
-        ref_count_subq.c.ref_count == func.coalesce(invoiced_ref_subq.c.inv_ref_count, 0),
-        func.abs(func.coalesce(sell_subq.c.total_sell, 0) - func.coalesce(rcpt_subq.c.total_rcpt, 0)) < 0.01
+        func.coalesce(unpaid_subq.c.unpaid, 0) < 0.01   # 未收款按发票未收合计
     ).all()
 
-    return {r[0] for r in rows}
+    # 开票判定放在 Python 里做：它要读 project_invoices.ref_ids（JSON，且 ID 存法
+    # 数字/字符串混用），SQL 相关子查询在这个只 select 子查询的上下文里引用不到
+    # project_headers，硬拼也会和 settle_blockers 分叉。这里直接复用同一个方法。
+    candidate_ids = [r[0] for r in rows]
+    if not candidate_ids:
+        return set()
+    fully_invoiced = ProjectRef.get_headers_fully_invoiced(candidate_ids)
+    return {pid for pid in candidate_ids if fully_invoiced.get(pid, False)}
 
 
 @athina_blue.route('/athina_performance_settlement')
@@ -688,13 +710,16 @@ def athina_performance_settlement():
         filter_balance = request.args.get('filter_balance', '')
         filter_can_settle = request.args.get('filter_can_settle', '')
         filter_order_type = request.args.get('filter_order_type', '')
+        filter_settleable_from = request.args.get('filter_settleable_from', '')
+        filter_settleable_to = request.args.get('filter_settleable_to', '')
 
         # 使用辅助函数构建查询
         query = build_performance_settlement_query(
             search, filter_consultant, filter_sales_consultant,
             filter_book_date_from, filter_book_date_to,
             filter_is_count_performance, filter_balance,
-            filter_can_settle, filter_order_type
+            filter_can_settle, filter_order_type,
+            filter_settleable_from, filter_settleable_to
         )
 
         # 汇总统计（基于筛选条件，不分页）
@@ -815,6 +840,13 @@ def athina_performance_settlement():
                 received = receipt_map.get(pid, 0)
                 data['total_balance'] = data['total_selling'] - received
 
+            # 批量查询「可结算日」= 最后一项结算条件达成日（推导值，不落库）
+            sd = _settleable_date_subquery()
+            for row in db.session.query(sd.c.header_id, sd.c.settleable_date).filter(
+                    sd.c.header_id.in_(project_ids)).all():
+                if row.header_id in finance_data:
+                    finance_data[row.header_id]['settleable_date'] = row.settleable_date
+
             # 批量查询是否有发票
             invoice_data = db.session.query(
                 ProjectInvoice.header_id
@@ -839,14 +871,21 @@ def athina_performance_settlement():
             ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
             ref_count_dict = {r.header_id: r.ref_count for r in ref_counts}
 
-            # 有发票的REF数量
-            ref_with_invoice = db.session.query(
-                ProjectRef.header_id,
-                func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_ref_count')
-            ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id).filter(
-                ProjectRef.header_id.in_(project_ids)
-            ).group_by(ProjectRef.header_id).all()
-            invoiced_ref_dict = {r.header_id: r.invoiced_ref_count for r in ref_with_invoice}
+            # 是否所有 REF 都已开票：走 ProjectInvoice.ref_ids（与 is_invoiced 同源）。
+            # 不能数 invoice_items——只有 334/546 张发票有明细行，会误判成未开票
+            fully_invoiced_dict = ProjectRef.get_headers_fully_invoiced(project_ids)
+
+            # 未收款：未作废发票的未收合计
+            unpaid_map = {}
+            for row in db.session.query(
+                ProjectInvoice.header_id,
+                func.coalesce(func.sum(func.greatest(
+                    ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0).label('unpaid')
+            ).filter(
+                ProjectInvoice.header_id.in_(project_ids),
+                ProjectInvoice.status != 'cancelled'
+            ).group_by(ProjectInvoice.header_id).all():
+                unpaid_map[row.header_id] = float(row.unpaid or 0)
 
             # EO总数
             eo_counts = db.session.query(
@@ -871,15 +910,14 @@ def athina_performance_settlement():
                 ref_count = ref_count_dict.get(pid, 0)
                 eo_count = eo_count_dict.get(pid, 0)
                 paid_eo_count = paid_eo_dict.get(pid, 0)
-                invoiced_ref_count = invoiced_ref_dict.get(pid, 0)
-                balance = finance_data[pid].get('total_balance', 0)
-
                 can_settle = (
                     ref_count > 0
                     and ref_count == eo_count
                     and eo_count == paid_eo_count
-                    and ref_count == invoiced_ref_count
-                    and abs(balance) < 0.01
+                    and fully_invoiced_dict.get(pid, False)
+                    # 未收款按发票未收合计（与 settle_blockers 同源），
+                    # 不用「REF售价 − 已收」——REF售价与实际开票金额可能不一致
+                    and unpaid_map.get(pid, 0.0) < 0.01
                 )
                 finance_data[pid]['can_settle'] = can_settle
 
@@ -909,6 +947,8 @@ def athina_performance_settlement():
                              filter_balance=filter_balance,
                              filter_can_settle=filter_can_settle,
                              filter_order_type=filter_order_type,
+                             filter_settleable_from=filter_settleable_from,
+                             filter_settleable_to=filter_settleable_to,
                              staff_list=staff_list,
                              project_staff_display=project_staff_display,
                              total_count=total_count,
@@ -930,17 +970,61 @@ def athina_performance_settlement():
         return redirect(url_for('athina_routes.athina_header_data'))
 
 
+
+def _settleable_date_subquery():
+    """「可结算日」子查询：header_id -> 最后一项结算条件达成的日期
+
+    系统里没有「可结算日期」这个字段，can_settle 是每次查询实时算的布尔条件，
+    不落库。但这个日期可以推导出来——它就是三件事里最晚发生的那一件：
+        最后一张未作废发票的日期 / 最后一笔已付 EO 的付款日 / 最后一笔已确认收款的收款日
+
+    刻意不落库：利润分配就是「算一次存起来」的反面教材，REF 一改就过期。
+    推导出来的值不可能过期，代价只是多一个 join。
+
+    注意：项目尚未满足全部结算条件时，这个值只表示「最后活动日」，
+    要精确筛「何时变成可结算」请与 filter_can_settle=true 组合使用。
+    """
+    from sqlalchemy import func, union_all
+    from App_new.business.projects.models.ref import ProjectRef
+    from App_new.business.projects.models.eo import ProjectEO
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    from App_new.business.projects.models.receipt import ProjectReceipt
+
+    inv_d = db.session.query(
+        ProjectInvoice.header_id.label('header_id'),
+        ProjectInvoice.invoice_date.label('d')
+    ).filter(ProjectInvoice.status != 'cancelled')
+
+    eo_d = db.session.query(
+        ProjectRef.header_id.label('header_id'),
+        ProjectEO.paid_date.label('d')
+    ).join(ProjectRef, ProjectEO.ref_id == ProjectRef.id).filter(ProjectEO.is_paid == True)
+
+    rcpt_d = db.session.query(
+        ProjectReceipt.header_id.label('header_id'),
+        ProjectReceipt.payment_date.label('d')
+    ).filter(ProjectReceipt.status == 'confirmed')
+
+    combined = union_all(inv_d, eo_d, rcpt_d).alias('settleable_dates')
+    return db.session.query(
+        combined.c.header_id.label('header_id'),
+        func.max(combined.c.d).label('settleable_date')
+    ).group_by(combined.c.header_id).subquery()
+
+
 def build_performance_settlement_query(search, filter_consultant, filter_sales_consultant,
                                        filter_book_date_from, filter_book_date_to,
                                        filter_is_count_performance, filter_balance,
-                                       filter_can_settle='', filter_order_type=''):
+                                       filter_can_settle='', filter_order_type='',
+                                       filter_settleable_from='', filter_settleable_to=''):
     """构建业绩结算查询的辅助函数（基于ProjectHeader）"""
     from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 
     has_filters = (filter_consultant or filter_sales_consultant or
                   filter_book_date_from or filter_book_date_to or
                   filter_is_count_performance != '' or filter_balance != '' or
-                  filter_can_settle != '' or filter_order_type != '')
+                  filter_can_settle != '' or filter_order_type != '' or
+                  filter_settleable_from or filter_settleable_to)
 
     query = ProjectHeader.query.options(
         db.joinedload(ProjectHeader.company),
@@ -1042,6 +1126,15 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
                              func.coalesce(selling_subq.c.total_selling, 0) - func.coalesce(receipt_subq.c.total_received, 0) > 0
                          )
 
+    # 可结算日期筛选（推导值：最后一项结算条件达成日）
+    if filter_settleable_from or filter_settleable_to:
+        sd = _settleable_date_subquery()
+        query = query.outerjoin(sd, ProjectHeader.id == sd.c.header_id)
+        if filter_settleable_from:
+            query = query.filter(sd.c.settleable_date >= filter_settleable_from)
+        if filter_settleable_to:
+            query = query.filter(sd.c.settleable_date <= filter_settleable_to)
+
     # 订单类型筛选
     if filter_order_type:
         query = query.filter(ProjectHeader.order_type == filter_order_type)
@@ -1058,13 +1151,6 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
         ref_count_subq = db.session.query(
             ProjectRef.header_id,
             func.count(ProjectRef.id).label('ref_count')
-        ).group_by(ProjectRef.header_id).subquery()
-
-        # 子查询：每个项目有发票的REF数
-        invoiced_ref_subq = db.session.query(
-            ProjectRef.header_id,
-            func.count(db.distinct(InvoiceItem.ref_id)).label('inv_ref_count')
-        ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
         ).group_by(ProjectRef.header_id).subquery()
 
         # 子查询：每个项目的EO数
@@ -1087,6 +1173,8 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
             ProjectRef.header_id,
             func.coalesce(func.sum(ProjectRef.selling_price), 0).label('total_sell')
         ).group_by(ProjectRef.header_id).subquery()
+
+        unpaid_subq = _invoice_unpaid_subquery()
 
         # 收款子查询：使用发票分配表正确处理跨项目收款
         # 方式1: 项目级别收款通过发票分配表统计
@@ -1123,23 +1211,25 @@ def build_performance_settlement_query(search, filter_consultant, filter_sales_c
         ).outerjoin(
             paid_eo_subq, ref_count_subq.c.header_id == paid_eo_subq.c.header_id
         ).outerjoin(
-            invoiced_ref_subq, ref_count_subq.c.header_id == invoiced_ref_subq.c.header_id
-        ).outerjoin(
             sell_subq, ref_count_subq.c.header_id == sell_subq.c.header_id
         ).outerjoin(
             rcpt_subq, ref_count_subq.c.header_id == rcpt_subq.c.header_id
+        ).outerjoin(
+            unpaid_subq, ref_count_subq.c.header_id == unpaid_subq.c.header_id
         ).filter(
             ref_count_subq.c.ref_count > 0,
             ref_count_subq.c.ref_count == func.coalesce(eo_count_subq.c.eo_count, 0),
             func.coalesce(eo_count_subq.c.eo_count, 0) == func.coalesce(paid_eo_subq.c.paid_count, 0),
-            ref_count_subq.c.ref_count == func.coalesce(invoiced_ref_subq.c.inv_ref_count, 0),
-            func.abs(func.coalesce(sell_subq.c.total_sell, 0) - func.coalesce(rcpt_subq.c.total_rcpt, 0)) < 0.01
+            func.coalesce(unpaid_subq.c.unpaid, 0) < 0.01   # 未收款按发票未收合计
         ).subquery()
 
+        # 与 _get_can_settle_project_ids 用同一套判定（含开票），避免筛选和
+        # 页面显示、结算闸门给出不同答案
+        settleable_ids = _get_can_settle_project_ids()
         if filter_can_settle == 'true':
-            query = query.filter(ProjectHeader.id.in_(db.select(can_settle_query)))
+            query = query.filter(ProjectHeader.id.in_(settleable_ids or [-1]))
         else:
-            query = query.filter(~ProjectHeader.id.in_(db.select(can_settle_query)))
+            query = query.filter(~ProjectHeader.id.in_(settleable_ids or [-1]))
 
     return query
 
@@ -1319,10 +1409,8 @@ def athina_batch_settle_performance():
             ProjectRef.header_id, func.count(ProjectRef.id).label('cnt')
         ).filter(ProjectRef.header_id.in_(unsettled_ids)).group_by(ProjectRef.header_id).all()}
 
-        invoiced_refs = {r.header_id: r.cnt for r in db.session.query(
-            ProjectRef.header_id, func.count(db.distinct(InvoiceItem.ref_id)).label('cnt')
-        ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id
-        ).filter(ProjectRef.header_id.in_(unsettled_ids)).group_by(ProjectRef.header_id).all()}
+        # 开票判定与页面显示、settle_blockers 同源（走 ref_ids，不数 invoice_items）
+        fully_invoiced = ProjectRef.get_headers_fully_invoiced(unsettled_ids)
 
         eo_counts = {r.header_id: r.cnt for r in db.session.query(
             ProjectRef.header_id, func.count(ProjectEO.id).label('cnt')
@@ -1375,9 +1463,10 @@ def athina_batch_settle_performance():
             rc = ref_counts.get(p.id, 0)
             ec = eo_counts.get(p.id, 0)
             pc = paid_eos.get(p.id, 0)
-            ic = invoiced_refs.get(p.id, 0)
-            balance = selling_map.get(p.id, 0) - receipt_map.get(p.id, 0)
-            if not (rc > 0 and rc == ec and ec == pc and rc == ic and abs(balance) < 0.01):
+            # 未收款按发票未收合计，与页面显示、settle_blockers 同源
+            unpaid = ProjectReceipt.get_project_unpaid_amount(p.id)
+            if not (rc > 0 and rc == ec and ec == pc
+                    and fully_invoiced.get(p.id, False) and unpaid < 0.01):
                 cannot_settle.append(p.hid)
 
         if cannot_settle:
@@ -1401,16 +1490,22 @@ def athina_batch_settle_performance():
         total_sales = Decimal('0')
         total_company = Decimal('0')
 
+        # 结算前按当前 REF 重算分成：不能直接读存量字段，
+        # 否则没点过「计算利润分配」的项目会按 0 入账，改过价的会用旧数字
+        from App_new.finance.utils.profit_distribution import apply_profit_distribution
+
         for project in unsettled:
+            profit, operator, sales, company = apply_profit_distribution(project)
+
             project.is_settled = True
             project.settled_at = datetime.utcnow()
             project.settled_by = current_user.username if current_user else None
             project.settlement_batch_id = batch.id
 
-            total_profit += Decimal(str(project.total_profit or 0))
-            total_operator += Decimal(str(project.operator_profit or 0))
-            total_sales += Decimal(str(project.sales_profit or 0))
-            total_company += Decimal(str(project.company_profit or 0))
+            total_profit += profit
+            total_operator += operator
+            total_sales += sales
+            total_company += company
 
         batch.project_count = len(unsettled)
         batch.total_profit = total_profit
@@ -1504,16 +1599,21 @@ def athina_batch_settle_all_filtered():
         total_sales = Decimal('0')
         total_company = Decimal('0')
 
+        # 结算前重算分成（与 athina_batch_settle_performance 同一口径）
+        from App_new.finance.utils.profit_distribution import apply_profit_distribution
+
         for project in settleable_ids:
+            profit, operator, sales, company = apply_profit_distribution(project)
+
             project.is_settled = True
             project.settled_at = datetime.utcnow()
             project.settled_by = current_user.username if current_user else None
             project.settlement_batch_id = batch.id
 
-            total_profit += Decimal(str(project.total_profit or 0))
-            total_operator += Decimal(str(project.operator_profit or 0))
-            total_sales += Decimal(str(project.sales_profit or 0))
-            total_company += Decimal(str(project.company_profit or 0))
+            total_profit += profit
+            total_operator += operator
+            total_sales += sales
+            total_company += company
 
         batch.project_count = len(settleable_ids)
         batch.total_profit = total_profit

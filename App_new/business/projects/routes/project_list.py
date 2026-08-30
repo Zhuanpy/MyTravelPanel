@@ -865,14 +865,23 @@ def list_projects():
                 ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                 ref_count_dict = {r.header_id: r.ref_count for r in ref_counts}
 
-                # 2. 每个项目有 InvoiceItem 的 REF 数量
-                ref_with_invoice = db.session.query(
-                    ProjectRef.header_id,
-                    db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_ref_count')
-                ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id).filter(
-                    ProjectRef.header_id.in_(project_ids)
-                ).group_by(ProjectRef.header_id).all()
-                invoiced_ref_dict = {r.header_id: r.invoiced_ref_count for r in ref_with_invoice}
+                # 2. 是否所有 REF 都已开票：走 ProjectInvoice.ref_ids，与 settle_blockers 同源。
+                #    不能数 invoice_items——只有 334/546 张发票有明细行
+                fully_invoiced_dict = ProjectRef.get_headers_fully_invoiced(project_ids)
+
+                # 未收款 = 未作废发票的未收合计。不能用「REF售价 − 已收」：
+                # REF售价是内部数字，与实际开给客户的发票可能不一致，相减会得出负数
+                # （如 H260 售价0、发票80已收齐，旧算法显示未付款 -80）。
+                unpaid_dict = {}
+                for _row in db.session.query(
+                    ProjectInvoice.header_id,
+                    db.func.coalesce(db.func.sum(db.func.greatest(
+                        ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0).label("unpaid")
+                ).filter(
+                    ProjectInvoice.header_id.in_(project_ids),
+                    ProjectInvoice.status != "cancelled"
+                ).group_by(ProjectInvoice.header_id).all():
+                    unpaid_dict[_row.header_id] = float(_row.unpaid or 0)
 
                 # 3. 每个项目的 EO 总数
                 eo_counts = db.session.query(
@@ -918,19 +927,20 @@ def list_projects():
 
                     # 从字典获取收款金额
                     total_received = receipts_data.get(project_id, 0)
-                    balance = total_selling - total_received
+                    # 未付款取发票未收合计，天然不为负
+                    balance = unpaid_dict.get(project_id, 0.0)
 
                     # 计算结算状态
                     ref_count = ref_count_dict.get(project_id, 0)
-                    invoiced_ref_count = invoiced_ref_dict.get(project_id, 0)
+                    invoiced_ref_count = ref_count if fully_invoiced_dict.get(project_id) else 0
                     eo_count = eo_count_dict.get(project_id, 0)
                     paid_eo_count = paid_eo_dict.get(project_id, 0)
 
                     # 可结算条件：所有REF生成EO 且 所有EO已付款 且 所有REF有发票 且 Balance=0
                     all_refs_have_eo = ref_count > 0 and ref_count == eo_count
                     all_eos_paid = eo_count > 0 and eo_count == paid_eo_count
-                    all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
-                    balance_cleared = abs(balance) < 0.01  # 考虑浮点精度
+                    all_refs_invoiced = fully_invoiced_dict.get(project_id, False)
+                    balance_cleared = balance < 0.01  # 发票未收合计，不会为负
 
                     can_settle = all_refs_have_eo and all_eos_paid and all_refs_invoiced and balance_cleared
 
@@ -1204,14 +1214,23 @@ def list_projects():
                     ).filter(ProjectRef.header_id.in_(project_ids)).group_by(ProjectRef.header_id).all()
                     ref_count_dict = {r.header_id: r.ref_count for r in ref_counts}
 
-                    # 2. 每个项目有 InvoiceItem 的 REF 数量
-                    ref_with_invoice = db.session.query(
-                        ProjectRef.header_id,
-                        db.func.count(db.distinct(InvoiceItem.ref_id)).label('invoiced_ref_count')
-                    ).join(InvoiceItem, InvoiceItem.ref_id == ProjectRef.id).filter(
-                        ProjectRef.header_id.in_(project_ids)
-                    ).group_by(ProjectRef.header_id).all()
-                    invoiced_ref_dict = {r.header_id: r.invoiced_ref_count for r in ref_with_invoice}
+                    # 2. 是否所有 REF 都已开票：走 ProjectInvoice.ref_ids，与 settle_blockers 同源。
+                    #    不能数 invoice_items——只有 334/546 张发票有明细行
+                    fully_invoiced_dict = ProjectRef.get_headers_fully_invoiced(project_ids)
+
+                    # 未收款 = 未作废发票的未收合计。不能用「REF售价 − 已收」：
+                    # REF售价是内部数字，与实际开给客户的发票可能不一致，相减会得出负数
+                    # （如 H260 售价0、发票80已收齐，旧算法显示未付款 -80）。
+                    unpaid_dict = {}
+                    for _row in db.session.query(
+                        ProjectInvoice.header_id,
+                        db.func.coalesce(db.func.sum(db.func.greatest(
+                            ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0).label("unpaid")
+                    ).filter(
+                        ProjectInvoice.header_id.in_(project_ids),
+                        ProjectInvoice.status != "cancelled"
+                    ).group_by(ProjectInvoice.header_id).all():
+                        unpaid_dict[_row.header_id] = float(_row.unpaid or 0)
 
                     # 3. 每个项目的 EO 总数
                     eo_counts = db.session.query(
@@ -1256,18 +1275,19 @@ def list_projects():
 
                         # 从字典获取收款金额
                         total_received = receipts_data.get(project_id, 0)
-                        balance = total_selling - total_received
+                        # 未付款取发票未收合计，天然不为负
+                        balance = unpaid_dict.get(project_id, 0.0)
 
                         # 计算结算状态
                         ref_count = ref_count_dict.get(project_id, 0)
-                        invoiced_ref_count = invoiced_ref_dict.get(project_id, 0)
+                        invoiced_ref_count = ref_count if fully_invoiced_dict.get(project_id) else 0
                         eo_count = eo_count_dict.get(project_id, 0)
                         paid_eo_count = paid_eo_dict.get(project_id, 0)
 
                         # 可结算条件：所有REF生成EO 且 所有EO已付款 且 所有REF有发票 且 Balance=0
                         all_refs_have_eo = ref_count > 0 and ref_count == eo_count
                         all_eos_paid = eo_count > 0 and eo_count == paid_eo_count
-                        all_refs_invoiced = ref_count > 0 and ref_count == invoiced_ref_count
+                        all_refs_invoiced = fully_invoiced_dict.get(project_id, False)
                         balance_cleared = abs(balance) < 0.01
 
                         can_settle = all_refs_have_eo and all_eos_paid and all_refs_invoiced and balance_cleared
@@ -1973,6 +1993,19 @@ def export_excel():
                 else:
                     receipts_data[r.header_id] = float(r.total_old or 0)
 
+            # 未收款 = 未作废发票的未收合计（与列表页/结算判定同源）
+            from App_new.business.projects.models.invoice import ProjectInvoice as _Inv
+            export_unpaid = {}
+            for _row in db.session.query(
+                _Inv.header_id,
+                db.func.coalesce(db.func.sum(db.func.greatest(
+                    _Inv.amount - _Inv.paid_amount, 0)), 0).label('unpaid')
+            ).filter(
+                _Inv.header_id.in_(project_ids),
+                _Inv.status != 'cancelled'
+            ).group_by(_Inv.header_id).all():
+                export_unpaid[_row.header_id] = float(_row.unpaid or 0)
+
             for project_id in project_ids:
                 ref_info = next((r for r in refs_data if r.header_id == project_id), None)
 
@@ -1985,7 +2018,8 @@ def export_excel():
                     'total_cost_price': total_cost,
                     'total_profit': total_selling - total_cost,
                     'total_received': total_received,
-                    'balance': total_selling - total_received
+                    # 未付款取发票未收合计，天然不为负
+                    'balance': export_unpaid.get(project_id, 0.0)
                 }
         
         # 准备Excel数据
@@ -2111,7 +2145,11 @@ def settle_project(project_id):
                 'blockers': blockers
             })
 
-        # 执行结算
+        # 结算前按当前 REF 重算分成。原先这里只置状态、完全不算分成，
+        # 项目结算了但操作员/业务员那三个字段还是空的或旧值。
+        from App_new.finance.utils.profit_distribution import apply_profit_distribution
+        profit, operator, sales, company = apply_profit_distribution(project)
+
         project.is_settled = True
         project.settled_at = datetime.now()
         project.settled_by = current_user.display_name if hasattr(current_user, 'display_name') else str(current_user.id)
@@ -2120,7 +2158,8 @@ def settle_project(project_id):
 
         return jsonify({
             'success': True,
-            'message': '项目结算成功'
+            'message': f'项目结算成功（利润 {float(profit):.2f}：操作员 {float(operator):.2f} / '
+                       f'业务员 {float(sales):.2f} / 公司 {float(company):.2f}）'
         })
 
     except Exception as e:
