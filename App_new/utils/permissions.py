@@ -249,3 +249,15 @@ def can_access_project(header, user):
     
     # 1级员工/其他用户只能访问自己的项目
     return is_project_owner(header, user)
+
+
+def block_if_settled(header):
+    """已结算项目禁止改动资金：返回错误消息，可结算则返回 None
+
+    收款/退款都会改变项目余额，而余额是结算条件之一。已结算项目再动钱，
+    会让结算时算出的利润分成和实际对不上（分成可能已经发出去了）。
+    页面上按钮已隐藏，这里挡住直接敲 URL 的情况。
+    """
+    if header is not None and getattr(header, 'is_settled', False):
+        return f'项目 {header.hid} 已结算，不能再新增或修改收款/退款；如需调整请先取消结算'
+    return None

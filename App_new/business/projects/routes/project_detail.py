@@ -145,6 +145,11 @@ def project_detail(project_id):
                 supplier_balances[supplier_id]['pending_eo'] = pending_amount
                 supplier_balances[supplier_id]['expected_balance'] = supplier_balances[supplier_id]['balance'] - pending_amount
 
+        # 结算状态分三档：已结算 / 可结算 / 未完成。
+        # 原来只有「已结算 / 未结算」，看不出「条件已满足、等着结」和「还差东西」的区别。
+        settle_blockers = [] if header.is_settled else header.settle_blockers
+        can_settle = (not header.is_settled) and not settle_blockers
+
         return render_template('business/projects/project_detail.html',
                                header=header,
                                company=company,
@@ -152,7 +157,9 @@ def project_detail(project_id):
                                prev_header=prev_header,
                                next_header=next_header,
                                leader_member_name=leader_member_name,
-                               supplier_balances=supplier_balances)
+                               supplier_balances=supplier_balances,
+                               can_settle=can_settle,
+                               settle_blockers=settle_blockers)
                                
     except Exception as e:
         error_msg = str(e)

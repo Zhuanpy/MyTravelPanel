@@ -530,6 +530,13 @@ def create_header_receipt(header_id):
     """创建项目级别收款记录"""
     header = ProjectHeader.query.get_or_404(header_id)
 
+    # 已结算的项目不能再动钱（页面按钮已隐藏，这里挡直接敲 URL）
+    from App_new.utils.permissions import block_if_settled
+    blocked = block_if_settled(header)
+    if blocked:
+        flash(blocked, 'warning')
+        return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
+
     # 检查是否有发票（必须先生成发票才能收款）
     from App_new.business.projects.models.invoice import ProjectInvoice
     invoice_count = ProjectInvoice.query.filter_by(header_id=header_id).filter(

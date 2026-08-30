@@ -120,13 +120,21 @@
                          <div style="display: flex; align-items: center; padding: 6px 10px; background: #f8f9fa; border-radius: 4px;">
                              <span style="color: #6c757d; min-width: 60px; font-weight: 500;">结算</span>
                              <span style="flex: 1;">
+                                 {# 三档：已结算 / 可结算（条件已满足，等着结） / 未完成（还差东西） #}
                                  {% if header.is_settled %}
                                      <span style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">已结算</span>
                                      {% if header.payment_voucher %}
                                      <a href="{{ url_for('business_projects.settlement.voucher_detail', voucher_id=header.payment_voucher.id) }}" style="color: #1976D2; margin-left: 8px; font-size: 0.75rem;">{{ header.payment_voucher.voucher_no }}</a>
                                      {% endif %}
+                                 {% elif can_settle %}
+                                     <span style="background: #cfe2ff; color: #084298; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;"
+                                           title="开票、EO付款、收款均已完成，可以结算">可结算</span>
                                  {% else %}
-                                     <span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">未结算</span>
+                                     <span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;"
+                                           title="{{ settle_blockers | join('；') }}">未完成</span>
+                                     <span style="color: #856404; margin-left: 8px; font-size: 0.75rem;">
+                                         {{ settle_blockers | join('；') }}
+                                     </span>
                                  {% endif %}
                              </span>
                              {% if header.settled_at %}
@@ -244,12 +252,16 @@
                     <i class="fas fa-file-invoice"></i> 生成发票
                 </button>
                 {% endif %}
+                {# 已结算的项目不能再动钱：收款和退款都会改变余额，
+                   而余额是结算条件之一，改了会让已发出的分成对不上 #}
+                {% if not header.is_settled %}
                 <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
                 <a href="{{ url_for('business_projects.project_refund.header_refunds', header_id=header.id) }}" class="btn btn-outline-danger btn-sm">
                     <i class="fas fa-rotate-left"></i> 退款管理
                 </a>
+                {% endif %}
                 {% if not header.is_settled %}
                 <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
                 <button type="button" class="btn btn-warning btn-sm" onclick="copyRefFromOther()" title="按REF编号从其他订单复制一条REF到当前项目">
