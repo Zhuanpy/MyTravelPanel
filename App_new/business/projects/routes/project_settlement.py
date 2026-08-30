@@ -139,8 +139,12 @@ def settlement_list():
                     display_name = u.username
                 staff_list.append({'id': u.id, 'name': display_name})
 
-        # 构建操作员/业务员名字映射（从员工表获取）
-        staff_name_map = {s['id']: s['name'] for s in staff_list}
+        # 构建操作员/业务员名字映射
+        # 以全量用户为底：staff_list 过滤了 is_active，离职员工的历史项目
+        # 只用它会查不到名字、显示成 ID:23
+        from App_new.utils.staff_names import get_user_name_map
+        staff_name_map = get_user_name_map()
+        staff_name_map.update({s['id']: s['name'] for s in staff_list})
         project_staff_display = {}
         for p in projects:
             op_ids = [int(s.strip()) for s in (p.operator_ids or '').split(',') if s.strip() and s.strip().isdigit()]
