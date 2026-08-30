@@ -391,30 +391,13 @@
         </form>
     </div>
 
-    <!-- 操作按钮：按功能分组，与业绩结算页一致 -->
+    {# 结算和利润分配统一在业绩结算页操作，这里只做查看。
+       两个页面都能结算的话，状态口径和校验规则很容易再次分叉。 #}
     <div class="action-buttons">
-        <div class="action-group">
-            <span class="action-group-label">利润分配</span>
-            <button class="action-btn" onclick="calculateProfitDistribution()">
-                <i class="fas fa-calculator"></i> 选中
-            </button>
-            <button class="action-btn ghost" onclick="calculateAllUnsettledProfitDistribution()">
-                <i class="fas fa-calculator"></i> 全部未结算
-            </button>
-        </div>
-
-        <div class="action-group">
-            <span class="action-group-label">结算</span>
-            <button class="action-btn settle" onclick="batchSettleSelected()">
-                <i class="fas fa-check-double"></i> 结算选中
-            </button>
-            {# 取消结算是回退操作，用描边危险色，不跟「结算」抢视觉重量 #}
-            <button class="action-btn danger" onclick="batchUnsettleSelected()">
-                <i class="fas fa-undo"></i> 取消结算
-            </button>
-        </div>
-
         <div class="action-group push-right">
+            <a href="{{ url_for('statement_routes.performance_settlement') }}" class="action-btn">
+                <i class="fas fa-calculator"></i> 去业绩结算
+            </a>
             <button class="action-btn ghost" onclick="exportToExcel()">
                 <i class="fas fa-file-excel"></i> 导出Excel
             </button>
@@ -430,9 +413,6 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 40px;">
-                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
-                </th>
                 <th>HID</th>
                 <th style="width: 150px;">公司</th>
                 <th>创建日</th>
@@ -457,11 +437,6 @@
             {% for project in projects %}
             {% set pstats = project_stats.get(project.id, {}) %}
             <tr>
-                <td>
-                    <input type="checkbox" class="record-checkbox" value="{{ project.id }}"
-                           data-settled="{{ 'true' if project.is_settled else 'false' }}"
-                           data-can-settle="{{ 'true' if pstats.can_settle else 'false' }}">
-                </td>
                 <td>
                     <a href="{{ url_for('business_projects.detail.project_detail', project_id=project.id) }}" class="hid-link">
                         {{ project.hid }}
@@ -532,7 +507,7 @@
 
             <!-- 汇总行 -->
             <tr class="summary-row">
-                <td colspan="7" style="font-weight: 600;">当前页汇总：</td>
+                <td colspan="6" style="font-weight: 600;">当前页汇总：</td>
                 <td class="amount">{{ "%.2f"|format(stats.page_total_selling) }}</td>
                 <td class="amount">{{ "%.2f"|format(stats.page_total_cost) }}</td>
                 <td class="amount {{ 'positive' if stats.page_total_profit > 0 else 'negative' if stats.page_total_profit < 0 else '' }}">
@@ -604,76 +579,6 @@
     {% endif %}
 </div>
 
-<!-- 批量结算模态框 -->
-<div class="modal fade" id="batchSettleModal" tabindex="-1" aria-labelledby="batchSettleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
-                <h5 class="modal-title" id="batchSettleModalLabel">
-                    <i class="fas fa-check-double"></i> 批量结算确认
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- 结算汇总信息 -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card border-success">
-                            <div class="card-body text-center">
-                                <h6 class="text-muted mb-1">选中项目数</h6>
-                                <h3 class="text-success mb-0" id="settleProjectCount">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 结算表单 -->
-                <form id="batchSettleForm">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label"><i class="fas fa-calendar-alt"></i> 结算日期</label>
-                            <input type="date" class="form-control" id="settleDate" name="settle_date" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label"><i class="fas fa-user"></i> 结算人</label>
-                            <input type="text" class="form-control" id="settleBy" value="{{ current_user.username }}" readonly>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label"><i class="fas fa-sticky-note"></i> 结算备注</label>
-                        <textarea class="form-control" id="settleRemarks" name="remarks" rows="3" placeholder="请输入结算备注（可选）"></textarea>
-                    </div>
-                </form>
-
-                <!-- 选中项目预览 -->
-                <div class="mt-3">
-                    <h6><i class="fas fa-list"></i> 选中项目预览</h6>
-                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
-                        <table class="table table-sm table-bordered mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>HID</th>
-                                    <th>公司</th>
-                                    <th class="text-end">利润</th>
-                                </tr>
-                            </thead>
-                            <tbody id="settleProjectsPreview">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i> 取消
-                </button>
-                <button type="button" class="btn btn-success" id="confirmBatchSettleBtn" onclick="confirmBatchSettle()">
-                    <i class="fas fa-check"></i> 确认结算
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -697,246 +602,8 @@
             .catch(() => alert('网络错误，查询失败'));
     }
 
-    function toggleSelectAll() {
-        const selectAll = document.getElementById('selectAll');
-        const checkboxes = document.querySelectorAll('.record-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = selectAll.checked;
-        });
-    }
-
-    function getSelectedIds(filterType) {
-        const checkboxes = document.querySelectorAll('.record-checkbox:checked');
-        let ids = [];
-        checkboxes.forEach(cb => {
-            if (filterType === 'settle') {
-                // 只选择可结算且未结算的
-                if (cb.dataset.canSettle === 'true' && cb.dataset.settled === 'false') {
-                    ids.push(parseInt(cb.value));
-                }
-            } else if (filterType === 'unsettle') {
-                // 只选择已结算的
-                if (cb.dataset.settled === 'true') {
-                    ids.push(parseInt(cb.value));
-                }
-            } else {
-                ids.push(parseInt(cb.value));
-            }
-        });
-        return ids;
-    }
-
-    // 存储选中的项目信息
-    let selectedSettleProjects = [];
-
-    function batchSettleSelected() {
-        const selectedIds = getSelectedIds('settle');
-        if (selectedIds.length === 0) {
-            alert('请先选择可结算的项目');
-            return;
-        }
-
-        // 收集选中项目的信息用于预览
-        selectedSettleProjects = [];
-        const checkboxes = document.querySelectorAll('.record-checkbox:checked');
-        checkboxes.forEach(cb => {
-            if (cb.dataset.canSettle === 'true' && cb.dataset.settled === 'false') {
-                const row = cb.closest('tr');
-                const hid = row.querySelector('.hid-link')?.textContent?.trim() || '-';
-                const company = row.querySelector('.company-cell')?.textContent?.trim() || '-';
-                const profitCell = row.querySelectorAll('.amount')[2]; // 第3个amount是利润
-                const profit = profitCell?.textContent?.trim() || '0.00';
-                selectedSettleProjects.push({
-                    id: parseInt(cb.value),
-                    hid: hid,
-                    company: company,
-                    profit: profit
-                });
-            }
-        });
-
-        // 更新模态框内容
-        document.getElementById('settleProjectCount').textContent = selectedSettleProjects.length;
-
-        // 设置默认日期为今天
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('settleDate').value = today;
-        document.getElementById('settleRemarks').value = '';
-
-        // 填充项目预览表格
-        const previewBody = document.getElementById('settleProjectsPreview');
-        previewBody.innerHTML = selectedSettleProjects.map(p => `
-            <tr>
-                <td>${p.hid}</td>
-                <td>${p.company}</td>
-                <td class="text-end">${p.profit}</td>
-            </tr>
-        `).join('');
-
-        // 显示模态框
-        const modal = new bootstrap.Modal(document.getElementById('batchSettleModal'));
-        modal.show();
-    }
-
-    function confirmBatchSettle() {
-        const selectedIds = selectedSettleProjects.map(p => p.id);
-        if (selectedIds.length === 0) {
-            alert('没有选中的项目');
-            return;
-        }
-
-        const settleDate = document.getElementById('settleDate').value;
-        const remarks = document.getElementById('settleRemarks').value;
-
-        if (!settleDate) {
-            alert('请选择结算日期');
-            return;
-        }
-
-        // 禁用确认按钮
-        const btn = document.getElementById('confirmBatchSettleBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
-
-        fetch('/projects/settlement/api/batch_settle', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                project_ids: selectedIds,
-                remarks: remarks,
-                settle_date: settleDate
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 关闭模态框
-                bootstrap.Modal.getInstance(document.getElementById('batchSettleModal')).hide();
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('操作失败: ' + data.message);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check"></i> 确认结算';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('操作失败，请稍后再试');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check"></i> 确认结算';
-        });
-    }
-
-    function batchUnsettleSelected() {
-        const selectedIds = getSelectedIds('unsettle');
-        if (selectedIds.length === 0) {
-            alert('请先选择已结算的项目');
-            return;
-        }
-
-        if (!confirm(`确定要取消 ${selectedIds.length} 个项目的结算吗？`)) {
-            return;
-        }
-
-        fetch('/projects/settlement/api/batch_unsettle', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ project_ids: selectedIds })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('操作失败: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('操作失败，请稍后再试');
-        });
-    }
-
     function resetFilters() {
         window.location.href = '{{ url_for("business_projects.settlement.settlement_list") }}';
-    }
-
-    function calculateProfitDistribution() {
-        const selectedIds = getSelectedIds();
-        if (selectedIds.length === 0) {
-            alert('请先选择要计算利润分配的项目');
-            return;
-        }
-
-        if (!confirm(`确定要计算 ${selectedIds.length} 个项目的利润分配吗？\n\n注意：此操作将根据利润自动计算并更新分配结果。`)) {
-            return;
-        }
-
-        fetch('/projects/settlement/api/calculate_profit_distribution', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ project_ids: selectedIds })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                let message = data.message;
-                if (data.error_count > 0 && data.errors) {
-                    message += '\n\n错误详情：\n' + data.errors.join('\n');
-                }
-                alert(message);
-                location.reload();
-            } else {
-                alert('操作失败: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('操作失败，请稍后再试');
-        });
-    }
-
-    function calculateAllUnsettledProfitDistribution() {
-        if (!confirm('确定要计算全部未结算项目的利润分配吗？\n\n注意：此操作将筛选所有未结算项目，并根据利润自动计算并更新分配结果。')) {
-            return;
-        }
-
-        fetch('/projects/settlement/api/calculate_all_unsettled_profit_distribution', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                let message = data.message;
-                if (data.error_count > 0 && data.errors) {
-                    message += '\n\n错误详情：\n' + data.errors.join('\n');
-                }
-                alert(message);
-                location.reload();
-            } else {
-                alert('操作失败: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('操作失败，请稍后再试');
-        });
     }
 
     function exportToExcel() {
