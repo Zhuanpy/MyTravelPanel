@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """对账与业绩结算相关路由"""
 
-from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, send_file
+from flask import Blueprint, render_template, jsonify, request, url_for, redirect, flash, send_file, current_app
 from io import BytesIO
 from flask_login import login_required, current_user
 from App_new.exts import csrf, db
@@ -1865,11 +1865,14 @@ def settlement_batch_list():
                          search=search)
 
 
-@statement_blue.route('/settlement_batches/<int:batch_id>')
-@login_required
-@staff_only
-def settlement_batch_detail(batch_id):
-    """结算单详情页面"""
+def _build_batch_report(batch_id):
+    """组装一张结算单的全部报表数据
+
+    页面、Excel、PDF 三处共用同一份数据，避免各算各的导致口径分叉
+    （这个项目在结算口径上已经吃过好几次这种亏）。
+
+    返回的都是整张结算单的口径，不含页面上的搜索/筛选/分页。
+    """
     from App_new.finance.models.settlement_batch import SettlementBatch
     from App_new.business.projects.models.project import ProjectHeader
     from App_new.business.projects.models.ref import ProjectRef
@@ -1986,6 +1989,35 @@ def settlement_batch_detail(batch_id):
         'company': round(sum(float(p.company_profit or 0) for p in all_projects), 2),
     }
 
+    # 解析全部项目的操作员/业务员显示名称（导出要用整份）
+    all_staff_display = _resolve_project_staff_display(all_projects, staff_name_map)
+
+    return {
+        'batch': batch,
+        'all_projects': all_projects,
+        'finance_data': finance_data,
+        'person_rows': person_rows,
+        'staff_total_profit': staff_total_profit,
+        'project_totals': project_totals,
+        'staff_display': all_staff_display,
+        'staff_name_map': staff_name_map,
+    }
+
+
+@statement_blue.route('/settlement_batches/<int:batch_id>')
+@login_required
+@staff_only
+def settlement_batch_detail(batch_id):
+    """结算单详情页面"""
+    report = _build_batch_report(batch_id)
+    batch = report['batch']
+    all_projects = report['all_projects']
+    finance_data = report['finance_data']
+    person_rows = report['person_rows']
+    staff_total_profit = report['staff_total_profit']
+    project_totals = report['project_totals']
+    staff_name_map = report['staff_name_map']
+
     # 项目明细：HID 搜索 + 操作员/业务员筛选 + 分页（一页 30 条）
     # 这些只影响下面这张明细表，员工分配和合计仍按整张结算单统计
     keyword = (request.args.get('q') or '').strip()
@@ -2051,6 +2083,260 @@ def settlement_batch_detail(batch_id):
                          operator_options=operator_options,
                          salesperson_options=salesperson_options,
                          project_staff_display=project_staff_display)
+
+
+def _batch_report_rows(report):
+    """把报表数据摊平成 Excel/PDF 都能直接用的三段表格"""
+    batch = report['batch']
+
+    info = [
+        ('结算单号', batch.batch_number),
+        ('结算日期', batch.settlement_date.strftime('%Y-%m-%d %H:%M') if batch.settlement_date else '-'),
+        ('结算人', batch.settled_by or '-'),
+        ('项目数', batch.project_count),
+        ('状态', '已确认' if batch.status == 'confirmed' else '已撤销'),
+        ('公司结算', '已结算' if batch.is_paid_out else '未结算'),
+        ('公司结算日期', batch.payout_date.strftime('%Y-%m-%d') if batch.payout_date else '-'),
+        ('公司结算操作人', batch.payout_by or '-'),
+        ('公司结算备注', batch.payout_remarks or '-'),
+        ('总利润', float(batch.total_profit or 0)),
+        ('员工利润', float(batch.total_operator_profit or 0)),
+        ('销售利润', float(batch.total_sales_profit or 0)),
+        ('公司利润', float(batch.total_company_profit or 0)),
+        ('备注', batch.remarks or '-'),
+    ]
+
+    staff_header = ['姓名', '操作员利润', '操作员单数', '销售利润', '业务员单数', '合计']
+    staff_rows = [[
+        r['name'], r['operator_profit'], r['operator_projects'],
+        r['sales_profit'], r['sales_projects'], r['total_profit'],
+    ] for r in report['person_rows']]
+    staff_rows.append(['员工合计', '', '', '', '', report['staff_total_profit']])
+    # 公司利润不是员工，单独一行并注明
+    staff_rows.append(['公司利润（不参与员工分配）', '', '', '', '',
+                       float(batch.total_company_profit or 0)])
+
+    detail_header = ['HID', '公司', '创建日', '金额', '成本', '盈亏',
+                     '操作员', '业务员', '订单类型', '员工利润', '销售利润', '公司利润']
+    detail_rows = []
+    for p in report['all_projects']:
+        fd = report['finance_data'].get(p.id, {})
+        psd = report['staff_display'].get(p.id, {})
+        detail_rows.append([
+            p.hid,
+            p.company.company_name if p.company else '-',
+            p.created_at.strftime('%Y-%m-%d') if p.created_at else '-',
+            round(fd.get('total_selling', 0), 2),
+            round(fd.get('total_cost', 0), 2),
+            round(fd.get('total_pl', 0), 2),
+            psd.get('operator_names', p.operator_names or '-'),
+            psd.get('salesperson_names', p.salesperson_names or '-'),
+            p.order_type or '-',
+            float(p.operator_profit or 0),
+            float(p.sales_profit or 0),
+            float(p.company_profit or 0),
+        ])
+
+    t = report['project_totals']
+    detail_total = ['合计（%d 个项目）' % len(report['all_projects']), '', '',
+                    t['selling'], t['cost'], t['pl'], '', '', '',
+                    t['operator'], t['sales'], t['company']]
+
+    return info, (staff_header, staff_rows), (detail_header, detail_rows, detail_total)
+
+
+@statement_blue.route('/settlement_batches/<int:batch_id>/export/excel')
+@login_required
+@staff_only
+def settlement_batch_export_excel(batch_id):
+    """结算单报表导出 Excel（三个工作表：结算单信息 / 员工利润分配 / 项目明细）"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    report = _build_batch_report(batch_id)
+    batch = report['batch']
+    info, (staff_header, staff_rows), (detail_header, detail_rows, detail_total) = \
+        _batch_report_rows(report)
+
+    head_fill = PatternFill('solid', fgColor='2E7D32')
+    head_font = Font(color='FFFFFF', bold=True)
+    total_fill = PatternFill('solid', fgColor='E8F5E9')
+
+    wb = Workbook()
+
+    ws = wb.active
+    ws.title = '结算单信息'
+    ws.append(['项目', '内容'])
+    for c in ws[1]:
+        c.fill, c.font = head_fill, head_font
+    for k, v in info:
+        ws.append([k, v])
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 32
+
+    def _sheet(title, header, rows, total_row=None):
+        w = wb.create_sheet(title)
+        w.append(header)
+        for c in w[1]:
+            c.fill, c.font, c.alignment = head_fill, head_font, Alignment(horizontal='center')
+        for r in rows:
+            w.append(r)
+        if total_row:
+            w.append(total_row)
+            for c in w[w.max_row]:
+                c.fill, c.font = total_fill, Font(bold=True)
+        for i, name in enumerate(header, start=1):
+            width = max(len(str(name)) * 2 + 4,
+                        *(len(str(r[i - 1])) + 4 for r in rows)) if rows else len(str(name)) * 2 + 4
+            w.column_dimensions[get_column_letter(i)].width = min(width, 40)
+        w.freeze_panes = 'A2'
+        return w
+
+    _sheet('员工利润分配', staff_header, staff_rows)
+    _sheet('项目明细', detail_header, detail_rows, detail_total)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='%s.xlsx' % batch.batch_number,
+    )
+
+
+def _register_report_font():
+    """注册中文字体
+
+    优先用仓库里自带的微软雅黑（static/fonts/msyh.ttc，已入 git 会随部署上线），
+    取不到就退到 reportlab 内置的 STSong-Light——它不需要字体文件，
+    Linux 上也能正常输出中文，只是没有粗体。
+    """
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
+    registered = pdfmetrics.getRegisteredFontNames()
+    if 'MSYH' in registered:
+        return 'MSYH', 'MSYHBD' if 'MSYHBD' in registered else 'MSYH'
+
+    fonts_dir = os.path.join(current_app.static_folder, 'fonts')
+    regular = os.path.join(fonts_dir, 'msyh.ttc')
+    bold = os.path.join(fonts_dir, 'msyhbd.ttc')
+    try:
+        if os.path.exists(regular):
+            pdfmetrics.registerFont(TTFont('MSYH', regular))
+            if os.path.exists(bold):
+                pdfmetrics.registerFont(TTFont('MSYHBD', bold))
+                return 'MSYH', 'MSYHBD'
+            return 'MSYH', 'MSYH'
+    except Exception:
+        logger.warning('微软雅黑注册失败，改用内置 STSong-Light', exc_info=True)
+
+    if 'STSong-Light' not in registered:
+        pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+    return 'STSong-Light', 'STSong-Light'
+
+
+@statement_blue.route('/settlement_batches/<int:batch_id>/export/pdf')
+@login_required
+@staff_only
+def settlement_batch_export_pdf(batch_id):
+    """结算单报表导出 PDF（A4 横向）"""
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                    Paragraph, Spacer)
+
+    report = _build_batch_report(batch_id)
+    batch = report['batch']
+    info, (staff_header, staff_rows), (detail_header, detail_rows, detail_total) = \
+        _batch_report_rows(report)
+
+    font, font_bold = _register_report_font()
+    title_style = ParagraphStyle('t', fontName=font_bold, fontSize=15, leading=20)
+    sub_style = ParagraphStyle('s', fontName=font, fontSize=9,
+                               textColor=colors.HexColor('#6c757d'), leading=13)
+    sec_style = ParagraphStyle('h', fontName=font_bold, fontSize=11, leading=16,
+                               spaceBefore=8, spaceAfter=4)
+
+    def money(v):
+        # 单数这类整数不要加小数位，只有金额才格式化成两位
+        if isinstance(v, bool) or v in (None, ''):
+            return ''
+        if isinstance(v, int):
+            return str(v)
+        if isinstance(v, float):
+            return '%.2f' % v
+        return v
+
+    def make_table(header, rows, col_widths, total_row=None, right_cols=()):
+        data = [header] + [[money(c) for c in r] for r in rows]
+        if total_row:
+            data.append([money(c) for c in total_row])
+        style = [
+            ('FONTNAME', (0, 0), (-1, -1), font),
+            ('FONTNAME', (0, 0), (-1, 0), font_bold),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#dfe3e8')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafbfc')]),
+        ]
+        for c in right_cols:
+            style.append(('ALIGN', (c, 1), (c, -1), 'RIGHT'))
+        if total_row:
+            style += [('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E8F5E9')),
+                      ('FONTNAME', (0, -1), (-1, -1), font_bold)]
+        t = Table(data, colWidths=col_widths, repeatRows=1)
+        t.setStyle(TableStyle(style))
+        return t
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            leftMargin=12 * mm, rightMargin=12 * mm,
+                            topMargin=12 * mm, bottomMargin=12 * mm,
+                            title='结算单 %s' % batch.batch_number)
+
+    payout = '已结算 %s' % batch.payout_date.strftime('%Y-%m-%d') if batch.is_paid_out else '未结算'
+    story = [
+        Paragraph('结算单 %s' % batch.batch_number, title_style),
+        Paragraph('结算日期 %s ｜ 结算人 %s ｜ 项目数 %s ｜ 状态 %s ｜ 公司结算 %s' % (
+            batch.settlement_date.strftime('%Y-%m-%d %H:%M') if batch.settlement_date else '-',
+            batch.settled_by or '-', batch.project_count,
+            '已确认' if batch.status == 'confirmed' else '已撤销', payout), sub_style),
+        Spacer(1, 6),
+    ]
+
+    summary = [['总利润', '员工利润', '销售利润', '公司利润'],
+               [float(batch.total_profit or 0), float(batch.total_operator_profit or 0),
+                float(batch.total_sales_profit or 0), float(batch.total_company_profit or 0)]]
+    story += [make_table(summary[0], summary[1:], [55 * mm] * 4, right_cols=(0, 1, 2, 3)),
+              Spacer(1, 4)]
+
+    story += [Paragraph('员工利润分配', sec_style),
+              make_table(staff_header, staff_rows,
+                         [55 * mm, 30 * mm, 25 * mm, 30 * mm, 25 * mm, 30 * mm],
+                         right_cols=(1, 2, 3, 4, 5)),
+              Spacer(1, 4)]
+
+    story += [Paragraph('项目明细（%d 个）' % len(report['all_projects']), sec_style),
+              make_table(detail_header, detail_rows,
+                         [16 * mm, 40 * mm, 19 * mm, 20 * mm, 20 * mm, 18 * mm,
+                          28 * mm, 28 * mm, 22 * mm, 20 * mm, 20 * mm, 20 * mm],
+                         total_row=detail_total, right_cols=(3, 4, 5, 9, 10, 11))]
+
+    doc.build(story)
+    buf.seek(0)
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name='%s.pdf' % batch.batch_number)
 
 
 @statement_blue.route('/settlement_batches/<int:batch_id>/cancel', methods=['POST'])

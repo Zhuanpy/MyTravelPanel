@@ -41,6 +41,13 @@
     {% else %}
     <span class="badge-cancelled">已撤销</span>
     {% endif %}
+    {# 报表导出的是整张结算单，不受页面上的搜索/筛选影响 #}
+    <a class="action-btn" href="{{ url_for('statement_routes.settlement_batch_export_excel', batch_id=batch.id) }}">
+        <i class="fas fa-file-excel"></i> Excel
+    </a>
+    <a class="action-btn" href="{{ url_for('statement_routes.settlement_batch_export_pdf', batch_id=batch.id) }}">
+        <i class="fas fa-file-pdf"></i> PDF
+    </a>
     <a class="action-btn" href="{{ url_for('statement_routes.settlement_batch_list') }}">
         <i class="fas fa-arrow-left"></i> 返回列表
     </a>
