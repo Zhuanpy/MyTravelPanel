@@ -378,9 +378,21 @@
                             </td>
                             <td class="text-center">
                                 {% if project.is_settled %}
-                                <span class="badge bg-success" title="结算时间: {{ project.settled_at.strftime('%Y-%m-%d') if project.settled_at else '-' }}">
+                                {# 已结算 → 直接跳该项目所在的结算单详情。
+                                   用 settlement_batch_id 这个列而不是 settlement_batch 关系，
+                                   后者每行会多发一次查询（列表页 20 行就是 20 次）。
+                                   极少数历史项目没有结算单号，那就退回成纯标签。 #}
+                                {% if project.settlement_batch_id %}
+                                <a href="{{ url_for('athina_routes.settlement_batch_detail', batch_id=project.settlement_batch_id) }}"
+                                   class="badge bg-success text-decoration-none"
+                                   title="结算时间: {{ project.settled_at.strftime('%Y-%m-%d') if project.settled_at else '-' }}&#10;点击查看结算单">
+                                    <i class="fas fa-check-circle"></i> 已结算
+                                </a>
+                                {% else %}
+                                <span class="badge bg-success" title="结算时间: {{ project.settled_at.strftime('%Y-%m-%d') if project.settled_at else '-' }}&#10;无关联结算单">
                                     <i class="fas fa-check-circle"></i> 已结算
                                 </span>
+                                {% endif %}
                                 {% elif stats.can_settle %}
                                 <a href="{{ url_for('business_projects.settlement.settlement_list', search=project.hid) }}"
                                    class="btn btn-sm btn-warning"
