@@ -1448,6 +1448,12 @@ def create_project_links(project_id):
                 status='active'
             )
             header.leader_name = header.staff_name or project.applicant_name
+            # 操作员和业务员默认为经办人，与项目创建页、配套项目的口径一致。
+            # 漏掉的话项目主表里这两栏是空的，结算时按人统计分成会漏掉这个项目。
+            header.operator_ids = str(staff_id_value) if staff_id_value else None
+            header.operator_names = header.staff_name
+            header.salesperson_ids = str(staff_id_value) if staff_id_value else None
+            header.salesperson_names = header.staff_name
             db.session.add(header)
             db.session.flush()  # 获取header.id
             
