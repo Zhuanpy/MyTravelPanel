@@ -103,8 +103,12 @@
         text-decoration: underline;
     }
 
-    .btn-export {
-        margin-left: 10px;
+    /* 生成 与 打印/导出 之间的分隔线，间距交给 flex 的 gap */
+    .btn-divider {
+        width: 1px;
+        align-self: stretch;
+        background: #dee2e6;
+        margin: 0 4px;
     }
 
     @media print {
@@ -141,14 +145,18 @@
                     <option value="operating_expense" {% if current_source_type == 'operating_expense' %}selected{% endif %}>Operating Expense 运营费用</option>
                 </select>
             </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary">
+            {# 原来 col-md-4 只有 ~445px，三个按钮放不下会把「导出」挤到第二行，
+               而且靠 margin-left 拉间距，换行后缩进也对不齐。
+               改成 col-md-6 + flex：生成是主操作，打印/导出是输出动作，用竖线分开 #}
+            <div class="col-md-6 d-flex align-items-end gap-2 flex-wrap">
+                <button type="submit" class="btn btn-primary text-nowrap">
                     <i class="fas fa-search"></i> Generate 生成
                 </button>
-                <button type="button" class="btn btn-outline-secondary btn-export" onclick="window.print()">
+                <span class="btn-divider"></span>
+                <button type="button" class="btn btn-outline-secondary text-nowrap" onclick="window.print()">
                     <i class="fas fa-print"></i> Print 打印
                 </button>
-                <button type="button" class="btn btn-outline-success btn-export" onclick="exportToCSV()">
+                <button type="button" class="btn btn-outline-success text-nowrap" onclick="exportToCSV()">
                     <i class="fas fa-file-csv"></i> Export CSV 导出
                 </button>
             </div>
