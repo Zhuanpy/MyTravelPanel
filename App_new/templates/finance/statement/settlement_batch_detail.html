@@ -520,12 +520,12 @@
                 <th>HID</th>
                 <th>公司</th>
                 <th>日期</th>
+                <th>类型</th>
                 <th class="num">金额</th>
                 <th class="num">成本</th>
                 <th class="num">盈亏</th>
                 <th>操作员</th>
                 <th>业务员</th>
-                <th>类型</th>
                 <th class="num">员工利润</th>
                 <th class="num">销售利润</th>
                 <th class="num">公司利润</th>
@@ -544,12 +544,6 @@
                     {{ project.company.company_name if project.company else '-' }}
                 </td>
                 <td>{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}</td>
-                <td class="num">{{ "%.2f"|format(fd.get('total_selling', 0)) }}</td>
-                <td class="num">{{ "%.2f"|format(fd.get('total_cost', 0)) }}</td>
-                <td class="num" style="color: {% if fd.get('total_pl', 0) < 0 %}#dc3545{% else %}#2d3748{% endif %};">{{ "%.2f"|format(fd.get('total_pl', 0)) }}</td>
-                {% set psd = project_staff_display.get(project.id, {}) %}
-                <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
-                <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td>
                     {% if project.order_type %}
                         <span class="type-badge">{{ project.order_type }}</span>
@@ -557,6 +551,12 @@
                     -
                     {% endif %}
                 </td>
+                <td class="num">{{ "%.2f"|format(fd.get('total_selling', 0)) }}</td>
+                <td class="num">{{ "%.2f"|format(fd.get('total_cost', 0)) }}</td>
+                <td class="num" style="color: {% if fd.get('total_pl', 0) < 0 %}#dc3545{% else %}#2d3748{% endif %};">{{ "%.2f"|format(fd.get('total_pl', 0)) }}</td>
+                {% set psd = project_staff_display.get(project.id, {}) %}
+                <td>{{ psd.get('operator_names', project.operator_names or '-') }}</td>
+                <td>{{ psd.get('salesperson_names', project.salesperson_names or '-') }}</td>
                 <td class="num">{{ "%.2f"|format(project.operator_profit) if project.operator_profit else '0.00' }}</td>
                 <td class="num">{{ "%.2f"|format(project.sales_profit) if project.sales_profit else '0.00' }}</td>
                 <td class="num">{{ "%.2f"|format(project.company_profit) if project.company_profit else '0.00' }}</td>
@@ -566,11 +566,11 @@
         {# 列合计：可与顶部概要卡直接对账 #}
         <tfoot>
             <tr>
-                <td colspan="3">合计（全部 {{ project_pagination.total_all }} 个项目）</td>
+                <td colspan="4">合计（全部 {{ project_pagination.total_all }} 个项目）</td>
                 <td class="num">{{ "%.2f"|format(project_totals.selling) }}</td>
                 <td class="num">{{ "%.2f"|format(project_totals.cost) }}</td>
                 <td class="num">{{ "%.2f"|format(project_totals.pl) }}</td>
-                <td colspan="3"></td>
+                <td colspan="2"></td>
                 <td class="num">{{ "%.2f"|format(project_totals.operator) }}</td>
                 <td class="num">{{ "%.2f"|format(project_totals.sales) }}</td>
                 <td class="num">{{ "%.2f"|format(project_totals.company) }}</td>

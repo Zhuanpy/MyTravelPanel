@@ -2116,8 +2116,8 @@ def _batch_report_rows(report):
     staff_rows.append(['公司利润（不参与员工分配）', '', '', '', '',
                        float(batch.total_company_profit or 0)])
 
-    detail_header = ['HID', '公司', '创建日', '金额', '成本', '盈亏',
-                     '操作员', '业务员', '订单类型', '员工利润', '销售利润', '公司利润']
+    detail_header = ['HID', '公司', '创建日', '订单类型', '金额', '成本', '盈亏',
+                     '操作员', '业务员', '员工利润', '销售利润', '公司利润']
     detail_rows = []
     for p in report['all_projects']:
         fd = report['finance_data'].get(p.id, {})
@@ -2126,20 +2126,20 @@ def _batch_report_rows(report):
             p.hid,
             p.company.company_name if p.company else '-',
             p.created_at.strftime('%Y-%m-%d') if p.created_at else '-',
+            p.order_type or '-',
             round(fd.get('total_selling', 0), 2),
             round(fd.get('total_cost', 0), 2),
             round(fd.get('total_pl', 0), 2),
             psd.get('operator_names', p.operator_names or '-'),
             psd.get('salesperson_names', p.salesperson_names or '-'),
-            p.order_type or '-',
             float(p.operator_profit or 0),
             float(p.sales_profit or 0),
             float(p.company_profit or 0),
         ])
 
     t = report['project_totals']
-    detail_total = ['合计（%d 个项目）' % len(report['all_projects']), '', '',
-                    t['selling'], t['cost'], t['pl'], '', '', '',
+    detail_total = ['合计（%d 个项目）' % len(report['all_projects']), '', '', '',
+                    t['selling'], t['cost'], t['pl'], '', '',
                     t['operator'], t['sales'], t['company']]
 
     return info, (staff_header, staff_rows), (detail_header, detail_rows, detail_total)
@@ -2249,6 +2249,7 @@ def settlement_batch_export_pdf(batch_id):
     from reportlab.lib import colors
     from reportlab.lib.units import mm
     from reportlab.lib.styles import ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics
     from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
                                     Paragraph, Spacer)
 
@@ -2274,14 +2275,54 @@ def settlement_batch_export_pdf(batch_id):
             return '%.2f' % v
         return v
 
+    cell_font_size = 7.5
+    cell_padding = 12  # Table 左右各 6pt 内边距
+
+    def clip(text, width, bold=False):
+        """超出列宽的文字截掉并加省略号
+
+        中文没有空格，reportlab 不会自动换行，长公司名会直接压到后面几列上，
+        所以按列宽逐字量一遍，放不下的部分直接不显示。
+        """
+        fname = font_bold if bold else font
+        limit = width - cell_padding
+        if limit <= 0 or pdfmetrics.stringWidth(text, fname, cell_font_size) <= limit:
+            return text
+        limit -= pdfmetrics.stringWidth('…', fname, cell_font_size)
+        kept, used = [], 0
+        for ch in text:
+            cw = pdfmetrics.stringWidth(ch, fname, cell_font_size)
+            if used + cw > limit:
+                break
+            kept.append(ch)
+            used += cw
+        return ''.join(kept) + '…'
+
     def make_table(header, rows, col_widths, total_row=None, right_cols=()):
         data = [header] + [[money(c) for c in r] for r in rows]
         if total_row:
             data.append([money(c) for c in total_row])
+        last = len(data) - 1
+        spans = []
+        if total_row:
+            # 合计行的标题后面是空格子，合并过去让它有足够宽度，也去掉中间的竖线
+            row = data[last]
+            end = 0
+            while end + 1 < len(row) and row[end + 1] == '':
+                end += 1
+            if end:
+                spans.append(('SPAN', (0, last), (end, last)))
+        span_width = {c: sum(col_widths[c:e + 1]) for _, (c, _), (e, _) in spans}
+        for i, row in enumerate(data):
+            bold = i == 0 or (total_row and i == last)
+            for j, cell in enumerate(row):
+                if isinstance(cell, str) and j < len(col_widths):
+                    width = span_width.get(j) if i == last else None
+                    row[j] = clip(cell, width or col_widths[j], bold)
         style = [
             ('FONTNAME', (0, 0), (-1, -1), font),
             ('FONTNAME', (0, 0), (-1, 0), font_bold),
-            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('FONTSIZE', (0, 0), (-1, -1), cell_font_size),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -2295,6 +2336,7 @@ def settlement_batch_export_pdf(batch_id):
         if total_row:
             style += [('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E8F5E9')),
                       ('FONTNAME', (0, -1), (-1, -1), font_bold)]
+        style += spans
         t = Table(data, colWidths=col_widths, repeatRows=1)
         t.setStyle(TableStyle(style))
         return t
@@ -2329,9 +2371,11 @@ def settlement_batch_export_pdf(batch_id):
 
     story += [Paragraph('项目明细（%d 个）' % len(report['all_projects']), sec_style),
               make_table(detail_header, detail_rows,
-                         [16 * mm, 40 * mm, 19 * mm, 20 * mm, 20 * mm, 18 * mm,
-                          28 * mm, 28 * mm, 22 * mm, 20 * mm, 20 * mm, 20 * mm],
-                         total_row=detail_total, right_cols=(3, 4, 5, 9, 10, 11))]
+                         # 列宽按最长内容量过：HID 12 位要 23.3mm，日期/金额要 19mm，
+                         # 剩下的都给公司名，横向 A4 可用宽度 273mm
+                         [24 * mm, 47 * mm, 20 * mm, 18 * mm, 19 * mm, 19 * mm,
+                          19 * mm, 24 * mm, 24 * mm, 19 * mm, 19 * mm, 19 * mm],
+                         total_row=detail_total, right_cols=(4, 5, 6, 9, 10, 11))]
 
     doc.build(story)
     buf.seek(0)
