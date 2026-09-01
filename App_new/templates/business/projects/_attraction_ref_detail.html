@@ -1,0 +1,85 @@
+{# 景点/门票 REF 明细块：Attr / Ticket / Loc / Pax / Date / Rate(分人群单价) / Conf# / Note
+
+   项目价格单（ref_statement_print.html）与发票详情页（project_invoice/invoice_detail.html）
+   共用这一份，写法与 _flight_ref_detail.html、_hotel_ref_detail.html 一致。
+
+   参数 ref 需能取到 extra_data / description / remarks；发票明细行传 item.ref。
+   fallback_desc 用于发票明细行在 REF 没有描述时回退到 item.description。
+#}
+{% from 'business/projects/_pax_fare_rows.html' import pax_fare_rows %}
+{% macro attraction_ref_detail(ref, fallback_desc='') %}
+    {% set extra_data = ref.extra_data if ref.extra_data is defined and ref.extra_data else {} %}
+    {% set type_names = {'THEME_PARK': 'Theme Park', 'MUSEUM': 'Museum', 'SHOW': 'Show', 'ACTIVITY': 'Activity',
+                         'DAY_TOUR': 'Day Tour', 'WATER_PARK': 'Water Park', 'ZOO': 'Zoo', 'LANDMARK': 'Landmark',
+                         'CRUISE': 'Cruise', 'OTHER': 'Other'} %}
+    {% set slot_names = {'MORNING': 'Morning', 'AFTERNOON': 'Afternoon', 'EVENING': 'Evening', 'FULL_DAY': 'Full Day'} %}
+    {% set ticket_names = {'STANDARD': 'Standard', 'EXPRESS': 'Express', 'VIP': 'VIP', 'COMBO': 'Combo'} %}
+
+
+    {% set attr_type = type_names.get(extra_data.get('attraction_type'), extra_data.get('attraction_type')) %}
+    {% set ticket_parts = [] %}
+    {% if extra_data.get('ticket_type') %}
+        {% set _ = ticket_parts.append(ticket_names.get(extra_data.get('ticket_type'), extra_data.get('ticket_type'))) %}
+    {% endif %}
+    {% if extra_data.get('time_slot') %}
+        {% set _ = ticket_parts.append(slot_names.get(extra_data.get('time_slot'), extra_data.get('time_slot'))) %}
+    {% endif %}
+
+    <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+        <tr>
+            <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Attr</td>
+            <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ extra_data.get('attraction_name') or ref.description or fallback_desc or '-' }}{% if attr_type %} ({{ attr_type }}){% endif %}</td>
+        </tr>
+        {% if ticket_parts %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Ticket</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ ticket_parts | join(', ') }}</td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('location') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Loc</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ extra_data.get('location') }}</td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('pax_names_display') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">
+                {% set pax_list = extra_data.get('pax_names_display').split(', ') %}
+                {% if pax_list|length > 1 %}
+                    {% for pax in pax_list %}{{ loop.index }}. {{ pax }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                    {{ extra_data.get('pax_names_display') }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('visit_date') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ extra_data.get('visit_date') }}</td>
+        </tr>
+        {% endif %}
+        {{ pax_fare_rows(extra_data) }}
+        {% if extra_data.get('confirmation_number') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Conf#</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ extra_data.get('confirmation_number') }}</td>
+        </tr>
+        {% endif %}
+        {% if ref.remarks %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
+        </tr>
+        {% endif %}
+    </table>
+{% endmacro %}

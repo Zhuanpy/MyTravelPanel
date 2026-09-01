@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from App_new.business.projects.models.project import ProjectHeader
 from App_new.business.projects.models.ref import ProjectRef
 from App_new.business.projects.models.invoice import ProjectInvoice, InvoiceItem
-from App_new.business.projects.services.ref_extra_info import normalize_ref_dates
+from App_new.business.projects.services.ref_extra_info import enrich_ref_extra_data
 from App_new.exts import csrf, db
 from App_new.business.projects.forms.invoice_forms import ProjectInvoiceForm, InvoicePaymentForm
 from App_new.utils.decorators import staff_only, admin_only
@@ -214,8 +214,8 @@ def invoice_detail(invoice_id):
             else:
                 extra_data['pax_names_display'] = extra_data.get('pax_name', '')
 
-        # 统一各业务类型的日期键名（保险 start_date / 景点 visit_date / 其他 service_date）
-        normalize_ref_dates(extra_data)
+        # 统一各业务类型的日期键名，并补算酒店晚数，供发票/对账单模板使用
+        enrich_ref_extra_data(extra_data)
 
         return extra_data
 

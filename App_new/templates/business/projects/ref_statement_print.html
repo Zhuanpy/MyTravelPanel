@@ -1,4 +1,7 @@
 {% from 'business/projects/_flight_ref_detail.html' import flight_ref_detail %}
+{% from 'business/projects/_hotel_ref_detail.html' import hotel_ref_detail %}
+{% from 'business/projects/_attraction_ref_detail.html' import attraction_ref_detail %}
+{% from 'business/projects/_pax_fare_rows.html' import pax_fare_rows %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -212,6 +215,12 @@
                         {% if type_code == 'flight' or type_name == '机票' %}
                             {# 机票明细走共用宏，与发票详情页保持一致 #}
                             {{ flight_ref_detail(ref) }}
+                        {% elif type_code == 'hotel' or type_name == '酒店' %}
+                            {# 酒店明细走共用宏，与发票详情页保持一致 #}
+                            {{ hotel_ref_detail(ref) }}
+                        {% elif type_code == 'attraction' or type_name in ['景点/活动', '门票'] %}
+                            {# 景点/门票明细走共用宏，与发票详情页保持一致 #}
+                            {{ attraction_ref_detail(ref) }}
                         {% elif type_code == 'tour' or type_name in ['旅游团', '旅游套餐'] %}
                             {# Tour类型 #}
                             {% set extra_data = ref.extra_data if ref.extra_data is defined else {} %}
@@ -301,25 +310,7 @@
                                     <td style="border: none; padding: 1px 0;">{{ extra_data.departure_date }}{% if extra_data.end_date is defined and extra_data.end_date %} - {{ extra_data.end_date }}{% endif %}</td>
                                 </tr>
                                 {% endif %}
-                                {% if extra_data.adult_qty is defined or extra_data.child_qty is defined or extra_data.infant_qty is defined %}
-                                <tr>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
-                                    <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
-                                    <td style="border: none; padding: 1px 0;">
-                                        {% set qty_parts = [] %}
-                                        {% if extra_data.adult_qty is defined and extra_data.adult_qty > 0 %}
-                                            {% set _ = qty_parts.append(extra_data.adult_qty|string + ' Adult' + ('s' if extra_data.adult_qty > 1 else '')) %}
-                                        {% endif %}
-                                        {% if extra_data.child_qty is defined and extra_data.child_qty > 0 %}
-                                            {% set _ = qty_parts.append(extra_data.child_qty|string + ' Child' + ('ren' if extra_data.child_qty > 1 else '')) %}
-                                        {% endif %}
-                                        {% if extra_data.infant_qty is defined and extra_data.infant_qty > 0 %}
-                                            {% set _ = qty_parts.append(extra_data.infant_qty|string + ' Infant' + ('s' if extra_data.infant_qty > 1 else '')) %}
-                                        {% endif %}
-                                        {{ qty_parts|join(', ') if qty_parts else '-' }}
-                                    </td>
-                                </tr>
-                                {% endif %}
+                                {{ pax_fare_rows(extra_data) }}
                                 {% if ref.remarks %}
                                 <tr>
                                     <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>

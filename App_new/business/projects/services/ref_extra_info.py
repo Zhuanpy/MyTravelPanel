@@ -47,3 +47,48 @@ def normalize_ref_dates(extra_data):
             extra_data['departure_date'] = resolved
 
     return extra_data
+
+
+def fill_hotel_nights(extra_data):
+    """补算酒店晚数
+
+    现在的酒店表单会把 nights 一起存进 extra_info，但早期表单只存了
+    入住/退房日期，发票上就没法显示"几晚"。这里在缺失时用日期补算。
+    """
+    if not isinstance(extra_data, dict):
+        return extra_data
+
+    checkin = extra_data.get('checkin_date')
+    checkout = extra_data.get('checkout_date')
+    if not checkin or not checkout:
+        return extra_data
+
+    try:
+        nights = int(extra_data.get('nights') or 0)
+    except (TypeError, ValueError):
+        nights = 0
+    if nights > 0:
+        return extra_data
+
+    from datetime import datetime
+    try:
+        start = datetime.strptime(str(checkin).strip()[:10], '%Y-%m-%d').date()
+        end = datetime.strptime(str(checkout).strip()[:10], '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return extra_data
+
+    delta = (end - start).days
+    if delta > 0:
+        extra_data['nights'] = delta
+
+    return extra_data
+
+
+def enrich_ref_extra_data(extra_data):
+    """发票/对账单渲染前对 extra_info 做的统一补全
+
+    路由里的 build_ref_extra_data 都调这一个入口，避免各处逻辑再次分叉。
+    """
+    normalize_ref_dates(extra_data)
+    fill_hotel_nights(extra_data)
+    return extra_data

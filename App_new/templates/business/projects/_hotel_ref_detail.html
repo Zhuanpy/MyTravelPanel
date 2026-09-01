@@ -1,0 +1,94 @@
+{# 酒店 REF 明细块：Hotel / Room / Pax / Date(含晚数) / Rate(每晚价格) / Meal / Conf# / Note
+
+   项目价格单（ref_statement_print.html）与发票详情页（project_invoice/invoice_detail.html）
+   共用这一份，写法与 _flight_ref_detail.html 一致 —— 同一块明细散在三处各自维护
+   必然漂移，抽成宏后改一次三处同步。
+
+   参数 ref 需能取到 extra_data / description / remarks；发票明细行传 item.ref。
+   fallback_desc 用于发票明细行在 REF 没有描述时回退到 item.description。
+#}
+{% macro hotel_ref_detail(ref, fallback_desc='') %}
+    {% set extra_data = ref.extra_data if ref.extra_data is defined and ref.extra_data else {} %}
+    {% set nights = extra_data.get('nights') | int %}
+    {% set rooms = extra_data.get('room_count') | int %}
+    {% set per_night = extra_data.get('selling_per_night') | float %}
+    {% set meal_names = {'RO': 'Room Only', 'BB': 'Breakfast', 'HB': 'Half Board', 'FB': 'Full Board', 'AI': 'All Inclusive'} %}
+
+    <table style="border: none; font-size: 11px; width: 100%; line-height: 1.2;">
+        <tr>
+            <td style="width: 50px; border: none; vertical-align: top; padding: 1px 0;">Hotel</td>
+            <td style="width: 10px; border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ extra_data.get('hotel_name') or ref.description or fallback_desc or '-' }}</td>
+        </tr>
+        {% if extra_data.get('room_type') or rooms > 1 %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Room</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">
+                {{ extra_data.get('room_type') or '-' }}{% if rooms > 1 %} x {{ rooms }} Rooms{% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('pax_names_display') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Pax</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">
+                {% set pax_list = extra_data.get('pax_names_display').split(', ') %}
+                {% if pax_list|length > 1 %}
+                    {% for pax in pax_list %}{{ loop.index }}. {{ pax }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                    {{ extra_data.get('pax_names_display') }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('checkin_date') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Date</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">
+                {{ extra_data.get('checkin_date') }}{% if extra_data.get('checkout_date') %} - {{ extra_data.get('checkout_date') }}{% endif %}{% if nights > 0 %} ({{ nights }} Night{{ 's' if nights > 1 else '' }}){% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {# 每晚价格：老数据没存 selling_per_night 时整行不显示，不按总价倒推 —— 手工改过总价的 REF 倒推出来的是均价，印在发票上会误导客户 #}
+        {% if per_night > 0 and nights > 0 %}
+        {% set room_qty = rooms if rooms > 0 else 1 %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Rate</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">
+                {# 小计右对齐，与景点/其他的 Rate 行排版一致 #}
+                <table style="width: 100%; border: none; line-height: 1.2;">
+                    <tr>
+                        <td style="border: none; padding: 1px 0;">{{ nights }} Night{{ 's' if nights > 1 else '' }}{% if room_qty > 1 %} x {{ room_qty }} Rooms{% endif %} x {{ "%.2f"|format(per_night) }} / night</td>
+                        <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(nights * room_qty * per_night) }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('meal_plan') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Meal</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ meal_names.get(extra_data.get('meal_plan'), extra_data.get('meal_plan')) }}</td>
+        </tr>
+        {% endif %}
+        {% if extra_data.get('confirmation_number') %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Conf#</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ extra_data.get('confirmation_number') }}</td>
+        </tr>
+        {% endif %}
+        {% if ref.remarks %}
+        <tr>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">Note</td>
+            <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+            <td style="border: none; padding: 1px 0;">{{ (ref.remarks or '') | replace('\n', '<br>') | safe }}</td>
+        </tr>
+        {% endif %}
+    </table>
+{% endmacro %}

@@ -1,0 +1,48 @@
+{# 分人群的 Qty / Rate 两行
+
+   景点、其他、保险、签证、交通这几类 REF 的价格都存成同一套字段
+   （adult_qty/adult_selling、child_*、infant_*），总价 = Σ 人数 x 单价。
+   之前只有"几个大人几个小孩"的 Qty 行，看不到单价；这里统一补上 Rate。
+
+   单独抽出来是因为要给景点宏和"其他类型通用显示"（三条渲染路径）共用，
+   否则同一块又要复制四份。
+#}
+{% macro pax_fare_rows(extra_data) %}
+    {% set data = extra_data if extra_data else {} %}
+    {# (单数label, 复数label, 人数, 单价) #}
+    {% set fares = [] %}
+    {% for key, one, many in [('adult', 'Adult', 'Adults'), ('child', 'Child', 'Children'), ('infant', 'Infant', 'Infants')] %}
+        {% set qty = data.get(key ~ '_qty') | int %}
+        {% if qty > 0 %}
+            {% set _ = fares.append((one, many, qty, data.get(key ~ '_selling') | float)) %}
+        {% endif %}
+    {% endfor %}
+    {% set has_price = fares | selectattr(3, 'greaterthan', 0) | list | length > 0 %}
+
+    {% if fares %}
+    <tr>
+        <td style="border: none; vertical-align: top; padding: 1px 0;">Qty</td>
+        <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+        <td style="border: none; padding: 1px 0;">
+            {% for one, many, qty, price in fares %}{{ qty }} {{ many if qty > 1 else one }}{% if not loop.last %}, {% endif %}{% endfor %}
+        </td>
+    </tr>
+    {% endif %}
+    {% if has_price %}
+    {# 有单价才列"人数 x 单价 = 小计"；老数据没存单价时只留 Qty 行，不按总价倒推均价 #}
+    <tr>
+        <td style="border: none; vertical-align: top; padding: 1px 0;">Rate</td>
+        <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
+        <td style="border: none; padding: 1px 0;">
+            <table style="width: 100%; border: none; line-height: 1.2;">
+                {% for one, many, qty, price in fares %}
+                <tr>
+                    <td style="border: none; padding: 1px 0;">{{ qty }} {{ many if qty > 1 else one }} x {{ "%.2f"|format(price) }}</td>
+                    <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(qty * price) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </td>
+    </tr>
+    {% endif %}
+{% endmacro %}
