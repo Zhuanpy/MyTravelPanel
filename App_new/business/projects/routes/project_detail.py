@@ -12,6 +12,7 @@ from App_new.utils.decorators import staff_only
 from App_new.utils.permissions import can_access_project
 
 from App_new.business.projects.models.ref import ProjectRef
+from App_new.business.projects.services.ref_extra_info import normalize_ref_dates
 from App_new.exts import db, csrf
 from datetime import datetime
 import traceback
@@ -505,6 +506,9 @@ def print_statement(project_id):
                     extra_data['pax_names_display'] = ', '.join(pax_names_list)
                 else:
                     extra_data['pax_names_display'] = extra_data.get('pax_name', '')
+
+            # 统一各业务类型的日期键名（保险 start_date / 景点 visit_date / 其他 service_date）
+            normalize_ref_dates(extra_data)
 
             return extra_data
 

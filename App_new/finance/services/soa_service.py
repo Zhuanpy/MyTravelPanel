@@ -9,6 +9,7 @@ from datetime import datetime
 from App_new.exts import db
 from App_new.business.projects.models.project import ProjectHeader, CustomerCompany
 from App_new.business.projects.models.ref import ProjectRef
+from App_new.business.projects.services.ref_extra_info import resolve_ref_start_date
 from App_new.business.projects.models.receipt import ProjectReceipt, ReceiptInvoiceAllocation
 from App_new.business.projects.models.invoice import ProjectInvoice
 from App_new.business.flight.models.flight import ProjectFlightSegment
@@ -232,8 +233,8 @@ class SOAService:
                 if row.first_dep:
                     dep_date_by_ref[row.ref_id] = row.first_dep.strftime('%Y-%m-%d')
 
-        # 没有航段日期的 REF（如酒店）从 extra_info 里回退取 checkin_date
-        # 酒店表单同时存了 checkin_date 与 departure_date(=checkin_date)，两个键都试一下兼容旧数据
+        # 没有航段日期的 REF（酒店/保险/景点等）从 extra_info 里回退，
+        # 各业务类型的日期键名不同，统一走 resolve_ref_start_date 解析
         for rid, ref in refs_by_id.items():
             if rid in dep_date_by_ref or not ref.extra_info:
                 continue
@@ -241,9 +242,7 @@ class SOAService:
                 info = json.loads(ref.extra_info)
             except (json.JSONDecodeError, TypeError):
                 continue
-            if not isinstance(info, dict):
-                continue
-            d = info.get('checkin_date') or info.get('departure_date')
+            d = resolve_ref_start_date(info)
             if d:
                 dep_date_by_ref[rid] = d
 
