@@ -176,8 +176,9 @@
                 </div>
                 <div class="col-4">
                     <label class="form-label small mb-1">服务日期</label>
+                    {# 新建时默认当天；编辑页 today 不传，旧数据的空日期保持为空 #}
                     <input type="date" name="service_date" id="service_date" class="form-control form-control-sm"
-                           value="{{ extra_info.service_date if extra_info and extra_info.service_date else (extra_info.departure_date if extra_info and extra_info.departure_date else '') }}"
+                           value="{{ extra_info.service_date if extra_info and extra_info.service_date else (extra_info.departure_date if extra_info and extra_info.departure_date else (today if is_create and today else '')) }}"
                            onchange="updateDescription()">
                 </div>
             </div>

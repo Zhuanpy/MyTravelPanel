@@ -1948,7 +1948,9 @@ def create_insurance_ref(header_id):
                              members=members,
                              extra_info=None,
                              is_create=True,
-                             has_invoice=False)
+                             has_invoice=False,
+                             # 新建时开始日期默认当天（编辑页不传，避免给旧数据凭空补上今天）
+                             today=datetime.now().strftime('%Y-%m-%d'))
     except Exception as e:
         flash(f'页面加载失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.list.list_projects'))
@@ -3117,7 +3119,9 @@ def create_attraction_ref(header_id):
                              members=members,
                              extra_info=None,
                              is_create=True,
-                             has_invoice=False)
+                             has_invoice=False,
+                             # 新建时游览日期默认当天（编辑页不传，避免给旧数据凭空补上今天）
+                             today=datetime.now().strftime('%Y-%m-%d'))
     except Exception as e:
         flash(f'页面加载失败：{str(e)}', 'error')
         return redirect(url_for('business_projects.list.list_projects'))
@@ -3847,7 +3851,9 @@ def create_other_ref(header_id):
             is_create=True,
             extra_info=None,
             members=members,
-            has_invoice=False
+            has_invoice=False,
+            # 新建时服务日期默认当天（编辑页不传，避免给旧数据凭空补上今天）
+            today=datetime.now().strftime('%Y-%m-%d')
         )
     except Exception as e:
         flash(f'页面加载失败：{str(e)}', 'error')

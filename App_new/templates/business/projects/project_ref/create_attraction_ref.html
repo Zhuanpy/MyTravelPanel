@@ -185,8 +185,9 @@
                 </div>
                 <div class="col-2">
                     <label class="form-label small mb-1">游览日期</label>
+                    {# 新建时默认当天；编辑页 today 不传，旧数据的空日期保持为空 #}
                     <input type="date" name="visit_date" id="visit_date" class="form-control form-control-sm"
-                           value="{{ extra_info.visit_date if extra_info and extra_info.visit_date else '' }}"
+                           value="{{ extra_info.visit_date if extra_info and extra_info.visit_date else (today if is_create and today else '') }}"
                            onchange="updateDescription()">
                 </div>
                 <div class="col-2">

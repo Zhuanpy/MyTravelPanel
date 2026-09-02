@@ -101,7 +101,8 @@
                 </div>
                 <div class="col-2">
                     <label class="form-label small mb-1">开始日期</label>
-                    <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ extra_info.start_date if extra_info and extra_info.start_date else '' }}" onchange="updateDescription()">
+                    {# 新建时默认当天；编辑页 today 不传，旧数据的空日期保持为空 #}
+                    <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ extra_info.start_date if extra_info and extra_info.start_date else (today if is_create and today else '') }}" onchange="updateDescription()">
                 </div>
                 <div class="col-2">
                     <label class="form-label small mb-1">结束日期</label>
