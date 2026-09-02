@@ -248,10 +248,14 @@
         
         // 身份选择下拉框事件监听器已移至 loadIdentityOptions 函数中
     });
-    // 自动隐藏警告消息
-    setTimeout(function() {
-        $('.alert').alert('close');
-    }, 3000);
+    // 自动隐藏提示：按类型区分时长（success/info 5秒，warning/error 20秒），
+    // 与 shared/_flash_toast.html、staff_base.html 口径一致。
+    // 原来是无差别 3 秒关掉所有 .alert，服务端返回的报错一闪就没了，根本来不及看。
+    document.querySelectorAll('.alert').forEach(function(el) {
+        var isLong = el.classList.contains('alert-warning') || el.classList.contains('alert-danger')
+                     || el.classList.contains('alert-error');
+        setTimeout(function() { $(el).alert('close'); }, isLong ? 20000 : 5000);
+    });
 
     // 加载补充信息到备注
     window.loadAdditionalInfo = function(btn) {
@@ -336,13 +340,26 @@
     // 表单验证和提交处理
     const form = document.getElementById('visaForm');
     const formAlert = document.getElementById('formAlert');
+    let formAlertTimer = null;
     function showAlert(message, isSuccess) {
+        // 报错同时打进 Console：提示框会自动消失，Console 里的记录不会
+        if (!isSuccess) { console.error('[签证创建]', message); }
+
         formAlert.textContent = message;
         formAlert.className = `visa-project-alert ${isSuccess ? 'visa-project-alert-success' : 'visa-project-alert-error'}`;
         formAlert.style.display = 'block';
-        setTimeout(() => {
-            formAlert.style.display = 'none';
-        }, 5000);
+        formAlert.style.cursor = 'pointer';
+        formAlert.title = '点击关闭';
+
+        // 成功 5 秒，报错 20 秒（报错要留足看清和截图的时间），
+        // 与 shared/_flash_toast.html 口径一致；悬停暂停倒计时，点击立即关闭
+        const delay = isSuccess ? 5000 : 20000;
+        const hide = () => { formAlert.style.display = 'none'; };
+        clearTimeout(formAlertTimer);
+        formAlertTimer = setTimeout(hide, delay);
+        formAlert.onmouseenter = () => clearTimeout(formAlertTimer);
+        formAlert.onmouseleave = () => { formAlertTimer = setTimeout(hide, delay); };
+        formAlert.onclick = () => { clearTimeout(formAlertTimer); hide(); };
     }
     // 更新表单提交处理
     form.addEventListener('submit', async function(e) {
@@ -733,6 +750,9 @@ function openVisaTypeFolder(visaType) {
 
 // 显示Toast消息
 function showToast(message, type) {
+    // 报错同时打进 Console：toast 再快也会漏看，Console 里的记录不会消失
+    if (type !== 'success') { console.error('[签证]', message); }
+
     // 创建toast容器（如果不存在）
     let toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
@@ -762,6 +782,7 @@ function showToast(message, type) {
         word-wrap: break-word;
     `;
     toast.textContent = message;
+    toast.style.cursor = 'pointer';
 
     // 添加到容器
     toastContainer.appendChild(toast);
@@ -770,16 +791,22 @@ function showToast(message, type) {
     setTimeout(() => {
         toast.style.transform = 'translateX(0)';
     }, 100);
-        
-    // 自动移除
-    setTimeout(() => {
+
+    // 自动移除：success 5秒，报错 20秒（报错要留足看清和截图的时间）
+    // 鼠标悬停暂停倒计时，点击立即关闭
+    const delay = type === 'success' ? 5000 : 20000;
+    const dismiss = () => {
         toast.style.transform = 'translateX(100%)';
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
             }
         }, 300);
-        }, 3000);
-    }
+    };
+    let timer = setTimeout(dismiss, delay);
+    toast.addEventListener('mouseenter', () => clearTimeout(timer));
+    toast.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, delay); });
+    toast.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
+}
 </script>
 {% endblock %}

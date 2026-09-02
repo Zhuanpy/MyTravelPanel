@@ -384,17 +384,27 @@
 
     // Toast 通知函数
     function showToast(type, message) {
+        // 报错同时打进 Console：toast 再快也会漏看，Console 里的记录不会消失
+        if (type !== 'success') { console.error('[签证]', message); }
+
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
         toast.className = `visa-flash visa-flash-${type}`;
         toast.textContent = message;
+        toast.style.cursor = 'pointer';
         container.appendChild(toast);
-        
-        // 3秒后自动移除
-        setTimeout(() => {
+
+        // 自动移除：success 5秒，报错 20秒（报错要留足看清和截图的时间）
+        // 鼠标悬停暂停倒计时，点击立即关闭。与 shared/_flash_toast.html 口径一致
+        const delay = type === 'success' ? 5000 : 20000;
+        const dismiss = () => {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        };
+        let timer = setTimeout(dismiss, delay);
+        toast.addEventListener('mouseenter', () => clearTimeout(timer));
+        toast.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, delay); });
+        toast.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
     }
 
     function openProjectFolder(projectFolder, visaType) {

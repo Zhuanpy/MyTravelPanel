@@ -677,6 +677,9 @@ const CSRF_TOKEN = document.getElementById('csrfToken').value;
 
 // ==================== 工具函数 ====================
 function showMessage(message, type) {
+    // 报错同时打进 Console：toast 再快也会漏看，Console 里的记录不会消失
+    if (type !== 'success') { console.error('[签证]', message); }
+
     const toastContainer = document.querySelector('.toast-container') || (() => {
         const container = document.createElement('div');
         container.className = 'toast-container position-fixed top-0 end-0 p-3';
@@ -697,18 +700,24 @@ function showMessage(message, type) {
     `;
 
     toastContainer.appendChild(toast);
-    const bsToast = new bootstrap.Toast(toast, { delay: type === 'success' ? 1500 : 5000 });
+    // success 5秒，报错 20秒（创建HID 之类的失败原因要留足看清和截图的时间）
+    // 与 shared/_flash_toast.html 口径一致；autohide 期间鼠标悬停 Bootstrap 会自动暂停
+    const bsToast = new bootstrap.Toast(toast, { delay: type === 'success' ? 5000 : 20000 });
     bsToast.show();
     toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 
 function showModalAlert(message, type) {
+    // 报错同时打进 Console：提示再快也会漏看，Console 里的记录不会消失
+    if (type !== 'success') { console.error('[签证]', message); }
+
     const alertDiv = document.getElementById('addLinkAlert');
     if (alertDiv) {
         alertDiv.textContent = message;
         alertDiv.className = `visa-info-box ${type === 'success' ? '' : 'alert-error'}`;
         alertDiv.style.display = 'block';
-        setTimeout(() => alertDiv.style.display = 'none', 3000);
+        // success 5秒，报错 20秒
+        setTimeout(() => alertDiv.style.display = 'none', type === 'success' ? 5000 : 20000);
     }
 }
 

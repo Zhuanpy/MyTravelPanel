@@ -188,7 +188,10 @@ def visa_processing():
     """签证处理页面路由（签证类型通过查询参数 visa_type 传入）"""
     try:
         # 签证类型改为查询参数传入：/visa_processing?visa_type=xxx
-        visa_type = request.args.get('visa_type', '').strip()
+        # 保留原始值：个别签证类型名在库里带首尾空格（URL 里表现为 visa_type=+xxx），
+        # 只用 strip 后的值去查会查不到，直接 302 打回列表页
+        raw_visa_type = request.args.get('visa_type', '')
+        visa_type = raw_visa_type.strip()
         if not visa_type:
             flash('缺少签证类型参数', 'error')
             return redirect(url_for('visa_project.show_current_all_projects'))
@@ -201,11 +204,19 @@ def visa_processing():
         if 'singapore_status' not in form_data:
             form_data['singapore_status'] = 'PR'
 
-        # 获取签证类型信息
-        types_info = VisaTypes.query.filter_by(visa_type=visa_type).first()
+        # 获取签证类型信息：先按原样匹配，再按去空格匹配，最后拿库里的值去空格比对，
+        # 避免库里名称带空格时匹配不上（MySQL 比较会忽略尾部空格，但不忽略前导空格）
+        types_info = (
+            VisaTypes.query.filter_by(visa_type=raw_visa_type).first()
+            or VisaTypes.query.filter_by(visa_type=visa_type).first()
+            or VisaTypes.query.filter(db.func.trim(VisaTypes.visa_type) == visa_type).first()
+        )
         if not types_info:
-            flash(f'签证类型 "{visa_type}" 不存在', 'error')
+            flash(f'签证类型 "{visa_type}" 不存在，请检查签证类型是否已被删除或改名', 'error')
             return redirect(url_for('visa_project.show_current_all_projects'))
+
+        # 后续一律用库里的真实值，避免 strip 前后不一致导致文件夹名对不上
+        visa_type = types_info.visa_type
         
         # 获取相关链接 - 使用visa_type_id查询
         links = VisaLinks.query.filter_by(visa_type_id=types_info.id).order_by(VisaLinks.name.asc()).all()
