@@ -19,6 +19,13 @@ def is_ajax():
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 
+def _natural_key(name):
+    """文件名自然排序：让 图2 排在 图10 前面（纯字典序会反过来）"""
+    import re
+    return [int(part) if part.isdigit() else part.lower()
+            for part in re.split(r'(\d+)', name or '')]
+
+
 @utils_process.route('/file_processing')
 @login_required
 @staff_only
@@ -576,6 +583,106 @@ def image_matting_process():
     except Exception as e:
         current_app.logger.error(f'抠图处理失败: {str(e)}\n{traceback.format_exc()}')
         return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
+
+
+@utils_process.route('/image_merge')
+@login_required
+@staff_only
+def image_merge():
+    """多图拼接长图工具页面"""
+    return render_template('shared/utils/截图拼接.html')
+
+
+@csrf.exempt
+@utils_process.route('/image_merge_process', methods=['POST'])
+@login_required
+@staff_only
+def image_merge_process():
+    """
+    上传多张图片 -> 按顺序拼成一张长图 -> 返回文件下载。
+
+    手机不支持长截图时只能连续截多张，这里拼回一整张。
+    默认自动裁掉相邻两张之间滚动重复的内容。
+    """
+    try:
+        from PIL import Image as _PILImage
+        from App_new.utils.image_merge import merge_images, to_bytes
+
+        files = request.files.getlist('imageFiles')
+        if not files or all(f.filename == '' for f in files):
+            return jsonify({'success': False, 'message': '请选择图片文件'}), 400
+
+        direction = request.form.get('direction', 'vertical')
+        if direction not in ('vertical', 'horizontal'):
+            direction = 'vertical'
+        auto_overlap = request.form.get('auto_overlap') in ('1', 'true', 'on', 'yes')
+        trim_chrome = request.form.get('trim_chrome') in ('1', 'true', 'on', 'yes')
+        fmt = 'jpeg' if request.form.get('format') == 'jpeg' else 'png'
+
+        try:
+            gap = max(0, min(200, int(request.form.get('gap', 0) or 0)))
+        except ValueError:
+            gap = 0
+        try:
+            quality = max(60, min(100, int(request.form.get('quality', 90) or 90)))
+        except ValueError:
+            quality = 90
+
+        # 解析上传图片
+        image_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tif', '.tiff'}
+        parsed = []
+        for index, f in enumerate(files):
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in image_exts:
+                continue
+            parsed.append((index, _PILImage.open(BytesIO(f.read()))))
+
+        if not parsed:
+            return jsonify({'success': False, 'message': '没有找到有效的图片文件'}), 400
+
+        # 顺序：前端拖动排过序就按它给的下标，否则按文件名自然排序
+        # （自然排序是为了 "图2" 排在 "图10" 前面，纯字典序会反过来）
+        order_raw = (request.form.get('order') or '').strip()
+        by_index = dict(parsed)
+        if order_raw:
+            try:
+                wanted = [int(x) for x in order_raw.split(',') if x.strip() != '']
+            except ValueError:
+                wanted = []
+            ordered = [by_index[i] for i in wanted if i in by_index]
+            # 前端漏传的补在后面，避免整张图缺内容
+            ordered += [img for i, img in parsed if i not in set(wanted)]
+        else:
+            names = {i: files[i].filename for i, _ in parsed}
+            ordered = [img for i, img in sorted(parsed, key=lambda p: _natural_key(names[p[0]]))]
+
+        if len(ordered) < 2:
+            return jsonify({'success': False, 'message': '至少需要 2 张图片才能拼接'}), 400
+
+        current_app.logger.info(
+            f'图片拼接开始: 数量={len(ordered)} 方向={direction} '
+            f'去重叠={auto_overlap} 去框架={trim_chrome} 格式={fmt}')
+
+        merged, info = merge_images(ordered, direction=direction,
+                                    auto_overlap=auto_overlap,
+                                    trim_chrome=trim_chrome, gap=gap)
+        buf, mimetype, ext = to_bytes(merged, fmt, quality)
+
+        width, height = info['size']
+        cut = sum(info['overlaps'])
+        current_app.logger.info(
+            f'图片拼接完成: {width}x{height} 去除重复 {cut}px '
+            f'重叠明细={info["overlaps"]} 固定框架={info.get("chrome")}')
+
+        return send_file(buf, mimetype=mimetype, as_attachment=True,
+                         download_name=f'拼接长图_{width}x{height}.{ext}')
+
+    except ValueError as e:
+        # 尺寸超限之类的可预期错误，直接把原因给用户
+        return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f'图片拼接失败: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'拼接失败：{str(e)}'}), 500
 
 
 @utils_process.route('/image/print/<path:image_path>')

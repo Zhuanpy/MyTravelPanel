@@ -29,6 +29,9 @@
                 <a href="{{ url_for('utils_process.image_matting') }}" class="quick-action-btn btn-green">
                     <i class="fas fa-cut"></i> 抠图合并
                 </a>
+                <a href="{{ url_for('utils_process.image_merge') }}" class="quick-action-btn btn-blue">
+                    <i class="fas fa-object-group"></i> 截图拼接
+                </a>
                 <a href="{{ url_for('utils_process.open_Photoshop') }}" class="quick-action-btn btn-purple">
                     <i class="fas fa-image"></i> Photoshop
                 </a>
@@ -76,6 +79,27 @@
                 </div>
             </div>
             
+            <!-- 截图拼接 -->
+            <div class="resource-card resource-card-blue">
+                <div class="resource-card-header">
+                    <div class="resource-card-icon resource-icon-blue">
+                        <i class="fas fa-object-group"></i>
+                    </div>
+                    <h4 class="resource-card-title">截图拼接</h4>
+                </div>
+                <p class="resource-card-description">
+                    手机不能长截图时，连续截多张上传拼成一整张，自动去掉相邻两张重复的内容。
+                </p>
+                <div class="resource-card-footer">
+                    <a href="{{ url_for('utils_process.image_merge') }}" class="visa-btn visa-btn-primary visa-btn-sm">
+                        <i class="fas fa-arrow-right"></i> 前往处理
+                    </a>
+                    <span class="resource-card-stats">
+                        <i class="fas fa-mobile-alt"></i> 长图还原
+                    </span>
+                </div>
+            </div>
+
             <!-- PDF合并 -->
             <div class="resource-card resource-card-orange">
                 <div class="resource-card-header">

@@ -351,8 +351,13 @@
                                 <i class="fas fa-file-pdf me-2"></i>PDF处理
                             </a></li>
                             <li><h6 class="dropdown-header">图片处理</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('utils_process.image_matting') }}">
+                            <li><a class="dropdown-item {% if request.endpoint == 'utils_process.image_matting' %}active{% endif %}"
+                                   href="{{ url_for('utils_process.image_matting') }}">
                                 <i class="fas fa-cut me-2"></i>抠图合并
+                            </a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'utils_process.image_merge' %}active{% endif %}"
+                                   href="{{ url_for('utils_process.image_merge') }}">
+                                <i class="fas fa-object-group me-2"></i>截图拼接
                             </a></li>
                         </ul>
                     </li>

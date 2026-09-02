@@ -1,0 +1,402 @@
+{% extends "staff_base.html" %}
+
+{% block title %}截图拼接 - MyTravelPanel{% endblock %}
+
+{% block page_title %}截图拼接{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+    /* 缩略图列表：顺序直接决定拼接结果，所以要能一眼看清并调整 */
+    .shot-item {
+        display: flex; align-items: center; gap: .75rem;
+        padding: .5rem .75rem; border: 1px solid #e5e7eb; border-radius: 8px;
+        background: #fff; margin-bottom: .5rem; cursor: grab;
+    }
+    .shot-item.dragging { opacity: .4; }
+    .shot-item.drop-target { border-color: #2563eb; background: #eff6ff; }
+    .shot-index {
+        flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+        background: #2563eb; color: #fff; font-size: .8rem; font-weight: 600;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .shot-thumb {
+        flex-shrink: 0; width: 46px; height: 66px; object-fit: cover;
+        object-position: top; border: 1px solid #e5e7eb; border-radius: 4px; background: #f9fafb;
+    }
+    .shot-name {
+        flex: 1; min-width: 0; font-size: .82rem; color: #374151;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .shot-size { font-size: .72rem; color: #9ca3af; }
+    .shot-btn {
+        flex-shrink: 0; width: 28px; height: 28px; border: 1px solid #e5e7eb;
+        border-radius: 4px; background: #fff; cursor: pointer; color: #6b7280;
+    }
+    .shot-btn:hover { background: #f3f4f6; color: #111827; }
+    .shot-btn:disabled { opacity: .3; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="mergeMessage" class="visa-flash" style="display: none;"></div>
+
+<div class="visa-container-sm">
+    <h1 class="visa-page-title">截图拼接长图</h1>
+    <p class="visa-text-center visa-text-muted">
+        手机不能长截图时，连续截多张上传，按顺序拼成一整张
+    </p>
+
+    <div class="visa-card visa-mb-3">
+        <div class="visa-card-header" style="background: #eff6ff;">
+            <h2 style="color: #2563eb;"><i class="fas fa-object-group"></i> 上传截图 → 拼成长图</h2>
+        </div>
+        <div class="visa-card-body">
+            <form id="mergeForm" method="post"
+                  action="{{ url_for('utils_process.image_merge_process') }}"
+                  enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="order" id="orderInput">
+
+                <!-- 选择图片 -->
+                <div class="visa-form-group">
+                    <label class="visa-form-label">选择截图（2 张以上）</label>
+                    <div id="mergeDropZone"
+                         class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-blue-500 tw-transition-colors"
+                         onclick="document.getElementById('mergeFilesInput').click()">
+                        <i class="fas fa-images tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
+                        <div class="tw-mb-2">
+                            <button type="button" class="visa-btn visa-btn-primary visa-btn-lg"
+                                    onclick="event.stopPropagation(); document.getElementById('mergeFilesInput').click()">
+                                <i class="fas fa-folder-open"></i> 点击选择截图
+                            </button>
+                        </div>
+                        <p class="tw-text-gray-600 tw-mb-1">或将图片拖拽到此处</p>
+                        <p class="tw-text-xs tw-text-gray-400">支持 JPG、PNG、WEBP、BMP、TIFF，可多选</p>
+                    </div>
+                    <input type="file" id="mergeFilesInput" name="imageFiles" multiple
+                           accept=".jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff" style="display:none">
+                </div>
+
+                <!-- 顺序列表 -->
+                <div class="visa-form-group" id="shotListWrap" style="display:none;">
+                    <label class="visa-form-label">
+                        拼接顺序 <span class="tw-text-xs tw-text-gray-400">（拖动或用箭头调整，从上到下依次拼接）</span>
+                    </label>
+                    <div id="shotList"></div>
+                </div>
+
+                <!-- 选项 -->
+                <div class="visa-form-group">
+                    <label for="direction" class="visa-form-label">拼接方向</label>
+                    <select id="direction" name="direction" class="visa-form-control"
+                            onchange="toggleDirectionOptions()">
+                        <option value="vertical">竖向（上下拼接，长截图用这个）</option>
+                        <option value="horizontal">横向（左右拼接）</option>
+                    </select>
+                </div>
+
+                <div class="visa-form-group" id="overlapRow">
+                    <label class="visa-form-label">重复内容</label>
+                    <div class="tw-flex tw-items-center tw-gap-2">
+                        <input type="checkbox" id="auto_overlap" name="auto_overlap" value="1" checked
+                               onchange="toggleDirectionOptions()">
+                        <label for="auto_overlap" class="tw-text-sm tw-mb-0">
+                            自动去除相邻两张重复的部分
+                        </label>
+                    </div>
+                    <p class="tw-text-xs tw-text-gray-400 tw-mt-1">
+                        滚动截图时相邻两张通常有一段重复内容，勾上会自动裁掉，接起来像一张原生长截图
+                    </p>
+                </div>
+
+                <div class="visa-form-group" id="chromeRow">
+                    <label class="visa-form-label">固定顶栏 / 底栏</label>
+                    <div class="tw-flex tw-items-center tw-gap-2">
+                        <input type="checkbox" id="trim_chrome" name="trim_chrome" value="1" checked>
+                        <label for="trim_chrome" class="tw-text-sm tw-mb-0">
+                            只保留一份状态栏、标题栏、底部导航栏
+                        </label>
+                    </div>
+                    <p class="tw-text-xs tw-text-gray-400 tw-mt-1">
+                        App 截图顶部的状态栏、标题栏和底部的导航栏不随内容滚动，每张都一样。
+                        勾上会自动识别，长图中间不再重复出现
+                    </p>
+                </div>
+
+                <div class="visa-form-group" id="gapRow">
+                    <label for="gap" class="visa-form-label">图片间距（像素）</label>
+                    <input type="number" id="gap" name="gap" class="visa-form-control"
+                           value="0" min="0" max="200">
+                    <p class="tw-text-xs tw-text-gray-400 tw-mt-1">
+                        仅在不去重复内容时生效，去重复时留间距接缝会断开
+                    </p>
+                </div>
+
+                <div class="visa-form-group">
+                    <label for="format" class="visa-form-label">输出格式</label>
+                    <select id="format" name="format" class="visa-form-control"
+                            onchange="toggleQuality()">
+                        <option value="png">PNG（无损，文件较大）</option>
+                        <option value="jpeg">JPG（体积小，适合超长图）</option>
+                    </select>
+                </div>
+
+                <div class="visa-form-group" id="qualityRow" style="display:none;">
+                    <label for="quality" class="visa-form-label">JPG 质量</label>
+                    <input type="number" id="quality" name="quality" class="visa-form-control"
+                           value="90" min="60" max="100">
+                </div>
+
+                <div class="visa-text-center">
+                    <button type="submit" class="visa-btn visa-btn-primary visa-btn-lg"
+                            onclick="return handleMergeSubmit(event, this)">
+                        <i class="fas fa-compress-arrows-alt"></i> 开始拼接
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="visa-card">
+        <div class="visa-card-body">
+            <p class="tw-text-sm tw-text-gray-600 tw-mb-2"><strong>使用说明</strong></p>
+            <ul class="tw-text-sm tw-text-gray-500" style="padding-left:1.2rem; line-height:1.8;">
+                <li>手机上连续截图时，每次<strong>少滑一点</strong>，让相邻两张有重叠，拼出来才不会漏内容</li>
+                <li>顺序按文件名自动排好，不对就在上面的列表里拖动调整</li>
+                <li>宽度不一致会自动统一到最窄的那张（只缩小不放大，避免糊）</li>
+                <li>App 截图的固定顶栏/底栏会自动识别，长图里只保留首张的顶栏和末张的底栏</li>
+                <li>状态栏时钟、电量在几张之间变了也不影响识别</li>
+                <li>拼不上（没检测到重复）时会直接首尾相接，不会乱裁</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 当前选中的文件顺序，存的是 input.files 里的下标
+let shotOrder = [];
+let thumbUrls = [];
+
+function bytesText(n) {
+    return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+}
+
+// 文件名自然排序，和后端口径一致：图2 要排在 图10 前面
+function naturalCompare(a, b) {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function rebuildShotList() {
+    const input = document.getElementById('mergeFilesInput');
+    const wrap = document.getElementById('shotListWrap');
+    const list = document.getElementById('shotList');
+
+    thumbUrls.forEach(url => URL.revokeObjectURL(url));
+    thumbUrls = [];
+    list.innerHTML = '';
+
+    if (!input.files || input.files.length === 0) {
+        wrap.style.display = 'none';
+        return;
+    }
+    wrap.style.display = 'block';
+
+    shotOrder.forEach((fileIndex, position) => {
+        const file = input.files[fileIndex];
+        const url = URL.createObjectURL(file);
+        thumbUrls.push(url);
+
+        const row = document.createElement('div');
+        row.className = 'shot-item';
+        row.draggable = true;
+        row.dataset.position = position;
+        row.innerHTML = `
+            <span class="shot-index">${position + 1}</span>
+            <img class="shot-thumb" src="${url}" alt="">
+            <div class="shot-name">${file.name}<div class="shot-size">${bytesText(file.size)}</div></div>
+            <button type="button" class="shot-btn" title="上移" ${position === 0 ? 'disabled' : ''}
+                    onclick="moveShot(${position}, -1)"><i class="fas fa-arrow-up"></i></button>
+            <button type="button" class="shot-btn" title="下移" ${position === shotOrder.length - 1 ? 'disabled' : ''}
+                    onclick="moveShot(${position}, 1)"><i class="fas fa-arrow-down"></i></button>
+            <button type="button" class="shot-btn" title="移除"
+                    onclick="removeShot(${position})"><i class="fas fa-times"></i></button>
+        `;
+        list.appendChild(row);
+    });
+
+    bindDrag();
+    document.getElementById('orderInput').value = shotOrder.join(',');
+}
+
+function moveShot(position, delta) {
+    const target = position + delta;
+    if (target < 0 || target >= shotOrder.length) return;
+    [shotOrder[position], shotOrder[target]] = [shotOrder[target], shotOrder[position]];
+    rebuildShotList();
+}
+
+function removeShot(position) {
+    shotOrder.splice(position, 1);
+    rebuildShotList();
+}
+
+// 拖动排序
+let dragFrom = null;
+function bindDrag() {
+    document.querySelectorAll('.shot-item').forEach(row => {
+        row.addEventListener('dragstart', () => {
+            dragFrom = Number(row.dataset.position);
+            row.classList.add('dragging');
+        });
+        row.addEventListener('dragend', () => row.classList.remove('dragging'));
+        row.addEventListener('dragover', e => {
+            e.preventDefault();
+            row.classList.add('drop-target');
+        });
+        row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+        row.addEventListener('drop', e => {
+            e.preventDefault();
+            row.classList.remove('drop-target');
+            const to = Number(row.dataset.position);
+            if (dragFrom === null || dragFrom === to) return;
+            const [moved] = shotOrder.splice(dragFrom, 1);
+            shotOrder.splice(to, 0, moved);
+            dragFrom = null;
+            rebuildShotList();
+        });
+    });
+}
+
+function toggleDirectionOptions() {
+    const vertical = document.getElementById('direction').value === 'vertical';
+    const autoOverlap = document.getElementById('auto_overlap').checked;
+    document.getElementById('overlapRow').style.display = vertical ? '' : 'none';
+    document.getElementById('chromeRow').style.display = vertical ? '' : 'none';
+    // 去重复和留间距互斥：去掉重复后还留白，接缝会出现一条断带
+    document.getElementById('gapRow').style.display = (vertical && autoOverlap) ? 'none' : '';
+}
+
+function toggleQuality() {
+    document.getElementById('qualityRow').style.display =
+        document.getElementById('format').value === 'jpeg' ? '' : 'none';
+}
+
+function handleMergeSubmit(event, btn) {
+    event.preventDefault();
+    const form = document.getElementById('mergeForm');
+    const input = document.getElementById('mergeFilesInput');
+
+    if (!input.files || input.files.length === 0) {
+        showMergeError('请先选择截图');
+        return false;
+    }
+    if (shotOrder.length < 2) {
+        showMergeError('至少需要 2 张图片才能拼接');
+        return false;
+    }
+
+    document.getElementById('orderInput').value = shotOrder.join(',');
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 拼接中，请稍候...';
+
+    fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.indexOf('image/') !== -1) {
+            const disposition = response.headers.get('content-disposition');
+            let filename = '拼接长图.png';
+            if (disposition) {
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?((['"]).*?\2|[^;\n]*)/i);
+                if (match && match[1]) {
+                    filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
+                }
+            }
+            return response.blob().then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                showMergeSuccess('拼接完成，已开始下载');
+            });
+        }
+        if (contentType.indexOf('application/json') !== -1) {
+            return response.json().then(data => showMergeError(data.message || '拼接失败'));
+        }
+        showMergeError('服务器返回错误（状态码：' + response.status + '）');
+    })
+    .catch(error => showMergeError(error.message || '拼接出错，请重试'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+
+    return false;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('mergeFilesInput');
+    const dropZone = document.getElementById('mergeDropZone');
+
+    input.addEventListener('change', function () {
+        // 默认按文件名自然排序，手机截图文件名一般就是拍摄顺序
+        shotOrder = Array.from(input.files, (_, i) => i)
+            .sort((a, b) => naturalCompare(input.files[a].name, input.files[b].name));
+        rebuildShotList();
+    });
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault(); e.stopPropagation();
+            dropZone.classList.add('tw-border-blue-500', 'tw-bg-blue-50');
+        });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault(); e.stopPropagation();
+            dropZone.classList.remove('tw-border-blue-500', 'tw-bg-blue-50');
+        });
+    });
+    dropZone.addEventListener('drop', function (e) {
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            input.files = e.dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+
+    toggleDirectionOptions();
+    toggleQuality();
+});
+
+function showMergeSuccess(message) {
+    const box = document.getElementById('mergeMessage');
+    box.textContent = message;
+    box.className = 'visa-flash visa-flash-success';
+    box.style.display = 'block';
+    setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
+
+function showMergeError(message) {
+    console.error('[截图拼接]', message);
+    const box = document.getElementById('mergeMessage');
+    box.textContent = message;
+    box.className = 'visa-flash visa-flash-error';
+    box.style.display = 'block';
+    box.style.cursor = 'pointer';
+    box.onclick = () => { box.style.display = 'none'; };
+    setTimeout(() => { box.style.display = 'none'; }, 20000);
+}
+</script>
+{% endblock %}
