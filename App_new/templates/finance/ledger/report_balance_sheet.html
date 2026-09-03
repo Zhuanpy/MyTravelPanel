@@ -409,10 +409,21 @@
                     <td class="amount-cell">0.00</td>
                 </tr>
                 {% endfor %}
+                <!-- Retained Earnings 以前年度留存收益 -->
+                {# 资产是从开业到截止日的累计余额，权益这边也必须累计，
+                   否则差额正好等于以前年度的利润，报表不平 #}
+                {% if retained_earnings is defined and retained_earnings %}
+                <tr class="net-income-row">
+                    <td></td>
+                    <td class="account-name">Retained Earnings 以前年度留存收益</td>
+                    <td class="amount-cell">0.00</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format(retained_earnings|float) }}</td>
+                </tr>
+                {% endif %}
                 <!-- Net Income 净利润 -->
                 <tr class="net-income-row">
                     <td></td>
-                    <td class="account-name">Net Income 净利润</td>
+                    <td class="account-name">Net Income 本年净利润</td>
                     <td class="amount-cell">{{ '{:,.2f}'.format(net_income_current|float) }}</td>
                     <td class="amount-cell">{{ '{:,.2f}'.format(net_income_ytd|float) }}</td>
                 </tr>

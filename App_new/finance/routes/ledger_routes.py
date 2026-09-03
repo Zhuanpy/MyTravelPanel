@@ -1172,13 +1172,17 @@ def report_balance_sheet():
         return items, total
 
     def get_net_income(period_start, period_end):
-        """计算净利润 (收入 - 费用)"""
+        """计算净利润 (收入 - 费用)
+
+        period_start 传 None 表示从开业累计——资产负债表必须用累计口径：
+        资产那几行是从开业到截止日的余额，权益这边只算本财年的话，
+        以前年度的留存收益就漏了，报表必然不平。
+        """
         income_query = db.session.query(
             func.coalesce(func.sum(JournalEntryLine.credit - JournalEntryLine.debit), 0)
         ).join(JournalEntry).join(ChartOfAccount).filter(
             JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             ChartOfAccount.account_type == 'income',
-            JournalEntry.entry_date >= period_start,
             JournalEntry.entry_date <= period_end
         )
 
@@ -1187,9 +1191,12 @@ def report_balance_sheet():
         ).join(JournalEntry).join(ChartOfAccount).filter(
             JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             ChartOfAccount.account_type == 'expense',
-            JournalEntry.entry_date >= period_start,
             JournalEntry.entry_date <= period_end
         )
+
+        if period_start is not None:
+            income_query = income_query.filter(JournalEntry.entry_date >= period_start)
+            expense_query = expense_query.filter(JournalEntry.entry_date >= period_start)
 
         total_income = Decimal(str(income_query.scalar() or 0))
         total_expense = Decimal(str(expense_query.scalar() or 0))
@@ -1275,12 +1282,15 @@ def report_balance_sheet():
     # ============ NET INCOME 净利润 ============
     # 当期净利润 (当月)
     net_income_current = get_net_income(current_month_start, as_of_dt)
-    # 年累计净利润 (从年初到截止日期)
+    # 本财年净利润 (财年初到截止日期)
     net_income_ytd = get_net_income(year_start, as_of_dt)
+    # 以前年度留存收益 = 开业至今累计净利 - 本财年净利
+    # 资产是累计余额，权益也必须累计，否则差额正好等于以前年度的利润
+    retained_earnings = get_net_income(None, as_of_dt) - net_income_ytd
 
     # 将净利润加入资本总计
     total_capital_current = total_equity_current + net_income_current
-    total_capital_ytd = total_equity_ytd + net_income_ytd
+    total_capital_ytd = total_equity_ytd + retained_earnings + net_income_ytd
 
     # ============ 汇总计算 ============
     # Total Liabilities + Capital
@@ -1308,6 +1318,7 @@ def report_balance_sheet():
                            # Net Income
                            net_income_current=net_income_current,
                            net_income_ytd=net_income_ytd,
+                           retained_earnings=retained_earnings,
                            # Total Capital
                            total_capital_current=total_capital_current,
                            total_capital_ytd=total_capital_ytd,
