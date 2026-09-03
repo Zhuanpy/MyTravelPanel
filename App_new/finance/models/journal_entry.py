@@ -152,6 +152,17 @@ class JournalEntry(db.Model):
         if self.status != 'posted':
             raise ValueError("Only posted entries can be reversed")
 
+        # 项目可能已被删除，原分录的 header_id 成了悬空值（建分录时项目还在）。
+        # 照抄过来新建会被外键拒绝，冲销就做不成——项目没了反而更该把账冲掉。
+        # header_id 可为空，置空即可，冲销分录本身不依赖项目关联。
+        header_id = self.header_id
+        if header_id is not None:
+            from App_new.business.projects.models.project import ProjectHeader
+            if not db.session.query(
+                ProjectHeader.query.filter(ProjectHeader.id == header_id).exists()
+            ).scalar():
+                header_id = None
+
         # 创建冲销分录（保留原始来源信息）
         reverse_entry = JournalEntry(
             entry_number=self._generate_entry_number(),
@@ -159,7 +170,7 @@ class JournalEntry(db.Model):
             source_type=self.source_type,  # 保留原来源类型
             source_id=self.source_id,  # 保留原来源ID
             source_number=f'REV-{self.source_number}' if self.source_number else f'REV-{self.entry_number}',
-            header_id=self.header_id,
+            header_id=header_id,
             description=f'Reversal: {self.description}' if self.description else f'Reversal of {self.entry_number}',
             currency=self.currency,
             status='posted',
