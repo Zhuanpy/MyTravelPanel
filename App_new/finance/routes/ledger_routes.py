@@ -22,6 +22,26 @@ logger = logging.getLogger(__name__)
 ledger_blue = Blueprint('ledger_routes', __name__)
 
 
+# 报表口径：冲销分录（reversed）必须和它的冲销对手（posted）一起计入。
+# 系统冲销的做法是——原分录状态改成 reversed，另建一条借贷互换的 posted 分录。
+# 只统计 posted 会把原分录漏掉、只留冲销那一半，等于把这笔业务倒记了一遍。
+# 实测 FY2026 因此收入少算 32 万，毛利从 +15 万变成 -17 万。
+# 两者一起算，借贷相反自动抵消，净效果为 0，才是正确的会计处理。
+REPORT_ENTRY_STATUSES = ('posted', 'reversed')
+
+
+def fiscal_year_start(as_of):
+    """返回 as_of 所在财年的起始日
+
+    公司财年不一定是自然年（Joyful Escapes 是 9月1日起），
+    Year To Date 必须按财年算，否则跨年那几个月的数字全是错的。
+    """
+    from flask import current_app
+    month = current_app.config.get('FISCAL_YEAR_START_MONTH', 1)
+    year = as_of.year if as_of.month >= month else as_of.year - 1
+    return date(year, month, 1)
+
+
 # ==================== Ledger 首页 ====================
 
 @ledger_blue.route('/')
@@ -583,7 +603,7 @@ def report_ledger():
             # 查询该科目的所有分录行
             query = JournalEntryLine.query.join(JournalEntry).filter(
                 JournalEntryLine.account_id == account_id,
-                JournalEntry.status == 'posted'
+                JournalEntry.status.in_(REPORT_ENTRY_STATUSES)
             )
 
             if start_date:
@@ -600,7 +620,7 @@ def report_ledger():
                     func.coalesce(func.sum(JournalEntryLine.debit), 0) - func.coalesce(func.sum(JournalEntryLine.credit), 0)
                 ).join(JournalEntry).filter(
                     JournalEntryLine.account_id == account_id,
-                    JournalEntry.status == 'posted',
+                    JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
                     JournalEntry.entry_date < datetime.strptime(start_date, '%Y-%m-%d').date()
                 )
                 result = opening_query.scalar()
@@ -653,7 +673,7 @@ def report_trial_balance():
 
     start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
     end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
-    year_start_dt = date(end_dt.year, 1, 1)
+    year_start_dt = fiscal_year_start(end_dt)
 
     # 获取所有活跃科目
     accounts = ChartOfAccount.query.filter_by(is_active=True).order_by(ChartOfAccount.code).all()
@@ -678,7 +698,7 @@ def report_trial_balance():
             func.coalesce(func.sum(JournalEntryLine.credit), 0).label('credit')
         ).join(JournalEntry).filter(
             JournalEntryLine.account_id == account.id,
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             JournalEntry.entry_date < start_dt
         ).first()
 
@@ -691,7 +711,7 @@ def report_trial_balance():
             func.coalesce(func.sum(JournalEntryLine.credit), 0).label('credit')
         ).join(JournalEntry).filter(
             JournalEntryLine.account_id == account.id,
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             JournalEntry.entry_date >= start_dt,
             JournalEntry.entry_date <= end_dt
         ).first()
@@ -705,7 +725,7 @@ def report_trial_balance():
             func.coalesce(func.sum(JournalEntryLine.credit), 0).label('credit')
         ).join(JournalEntry).filter(
             JournalEntryLine.account_id == account.id,
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             JournalEntry.entry_date >= year_start_dt,
             JournalEntry.entry_date <= end_dt
         ).first()
@@ -774,11 +794,11 @@ def report_profit_loss():
     try:
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
-        year_start = date(end_dt.year, 1, 1)
-    except:
-        start_dt = date.today().replace(month=1, day=1)
+        year_start = fiscal_year_start(end_dt)
+    except (ValueError, TypeError):
         end_dt = date.today()
-        year_start = date(end_dt.year, 1, 1)
+        start_dt = fiscal_year_start(end_dt)
+        year_start = start_dt
 
     # 公司名称
     company_name = 'JOYFUL ESCAPES PTE LTD'
@@ -819,7 +839,7 @@ def report_profit_loss():
             db.or_(
                 JournalEntry.id.is_(None),
                 db.and_(
-                    JournalEntry.status == 'posted',
+                    JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
                     JournalEntry.entry_date >= period_start,
                     JournalEntry.entry_date <= period_end
                 )
@@ -1027,10 +1047,10 @@ def report_balance_sheet():
 
     try:
         as_of_dt = datetime.strptime(as_of_date, '%Y-%m-%d').date()
-        year_start = date(as_of_dt.year, 1, 1)
-    except:
+        year_start = fiscal_year_start(as_of_dt)
+    except (ValueError, TypeError):
         as_of_dt = date.today()
-        year_start = date(as_of_dt.year, 1, 1)
+        year_start = fiscal_year_start(as_of_dt)
 
     def get_account_balances(account_type, period_end, period_start=None):
         """查询指定类型科目的余额
@@ -1065,7 +1085,7 @@ def report_balance_sheet():
                 db.or_(
                     JournalEntry.id.is_(None),
                     db.and_(
-                        JournalEntry.status == 'posted',
+                        JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
                         JournalEntry.entry_date >= period_start,
                         JournalEntry.entry_date <= period_end
                     )
@@ -1077,7 +1097,7 @@ def report_balance_sheet():
                 db.or_(
                     JournalEntry.id.is_(None),
                     db.and_(
-                        JournalEntry.status == 'posted',
+                        JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
                         JournalEntry.entry_date <= period_end
                     )
                 )
@@ -1113,7 +1133,7 @@ def report_balance_sheet():
         income_query = db.session.query(
             func.coalesce(func.sum(JournalEntryLine.credit - JournalEntryLine.debit), 0)
         ).join(JournalEntry).join(ChartOfAccount).filter(
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             ChartOfAccount.account_type == 'income',
             JournalEntry.entry_date >= period_start,
             JournalEntry.entry_date <= period_end
@@ -1122,7 +1142,7 @@ def report_balance_sheet():
         expense_query = db.session.query(
             func.coalesce(func.sum(JournalEntryLine.debit - JournalEntryLine.credit), 0)
         ).join(JournalEntry).join(ChartOfAccount).filter(
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             ChartOfAccount.account_type == 'expense',
             JournalEntry.entry_date >= period_start,
             JournalEntry.entry_date <= period_end
@@ -1315,7 +1335,7 @@ def report_general_ledger_listing():
         JournalEntry, JournalEntryLine.entry_id == JournalEntry.id
     ).filter(
         ChartOfAccount.is_active == True,
-        JournalEntry.status == 'posted'
+        JournalEntry.status.in_(REPORT_ENTRY_STATUSES)
     ).distinct().all()
 
     account_ids = [a.id for a in accounts_with_transactions]
@@ -1332,7 +1352,7 @@ def report_general_ledger_listing():
             func.coalesce(func.sum(JournalEntryLine.credit), 0).label('credit')
         ).join(JournalEntry).filter(
             JournalEntryLine.account_id == account.id,
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             JournalEntry.entry_date < start_dt
         )
         opening_result = opening_query.first()
@@ -1348,7 +1368,7 @@ def report_general_ledger_listing():
         # 查询本期交易
         lines_query = JournalEntryLine.query.join(JournalEntry).filter(
             JournalEntryLine.account_id == account.id,
-            JournalEntry.status == 'posted',
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
             JournalEntry.entry_date >= start_dt,
             JournalEntry.entry_date <= end_dt
         ).order_by(JournalEntry.entry_date, JournalEntry.id)

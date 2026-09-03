@@ -64,6 +64,10 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
     UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 
+    # 财年起始月份（1-12）。Joyful Escapes 的财年是 9月1日 - 次年8月31日，
+    # 所以财务报表的 Year To Date 必须从 9 月起算，不能按自然年 1 月。
+    FISCAL_YEAR_START_MONTH = int(os.environ.get('FISCAL_YEAR_START_MONTH', 9))
+
     # 性能监控（用于排查 CPU 飙高的根因）
     # 日志输出到 logs/slow_request.log 和 logs/slow_query.log
     MONITORING_ENABLED = os.environ.get('MONITORING_ENABLED', 'true').lower() == 'true'
