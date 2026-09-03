@@ -415,8 +415,8 @@
                 {% if retained_earnings is defined and retained_earnings %}
                 <tr class="net-income-row">
                     <td></td>
-                    <td class="account-name">Retained Earnings 以前年度留存收益</td>
-                    <td class="amount-cell">0.00</td>
+                    <td class="account-name">Retained Earnings 留存收益</td>
+                    <td class="amount-cell">{{ '{:,.2f}'.format((retained_current|default(0))|float) }}</td>
                     <td class="amount-cell">{{ '{:,.2f}'.format(retained_earnings|float) }}</td>
                 </tr>
                 {% endif %}

@@ -1288,6 +1288,17 @@ def report_balance_sheet():
     # 资产是累计余额，权益也必须累计，否则差额正好等于以前年度的利润
     retained_earnings = get_net_income(None, as_of_dt) - net_income_ytd
 
+    # 把"留存收益"科目(3200)的余额并进这一行，不单独列。
+    # 两者名字一样、含义也是一回事（都是以前年度累积的损益），分开列会出现
+    # 两行 Retained Earnings，数字对但看的人会以为报表出错。
+    retained_code = '3200'
+    retained_current = Decimal('0')
+    for item in list(capital_items):
+        if item['code'] == retained_code:
+            retained_earnings += item['year_to_date']
+            retained_current += item['current_period']
+            capital_items.remove(item)
+
     # 将净利润加入资本总计
     total_capital_current = total_equity_current + net_income_current
     total_capital_ytd = total_equity_ytd + retained_earnings + net_income_ytd
@@ -1319,6 +1330,7 @@ def report_balance_sheet():
                            net_income_current=net_income_current,
                            net_income_ytd=net_income_ytd,
                            retained_earnings=retained_earnings,
+                           retained_current=retained_current,
                            # Total Capital
                            total_capital_current=total_capital_current,
                            total_capital_ytd=total_capital_ytd,
