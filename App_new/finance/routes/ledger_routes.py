@@ -301,6 +301,34 @@ def generate_journal_from_business():
         receipt_created = 0
         eo_created = 0
         skipped = 0
+        failed = 0
+
+        def build_and_add(factory, source, label):
+            """生成一条分录并写入，成功返回 True
+
+            每条包在 SAVEPOINT 里：某一条失败只回滚它自己，不会把整批的事务
+            毒化掉。原来只 log 不 rollback，一条 flush 失败之后，后续每次操作
+            都会抛 "transaction has been rolled back due to a previous exception"，
+            整批就此报废。
+
+            也不再调 entry.post()——create_from_* 已经把状态置成 posted，
+            再调 post() 必然抛 "Only draft entries can be posted"。
+            借贷平衡的校验在这里单独做，不能跟着丢掉。
+            """
+            nonlocal failed
+            try:
+                with db.session.begin_nested():
+                    entry = factory(source, user=current_user.username)
+                    if not entry or not entry.lines:
+                        return False
+                    if not entry.is_balanced:
+                        raise ValueError('分录借贷不平衡')
+                    db.session.add(entry)
+                return True
+            except Exception as exc:
+                failed += 1
+                logger.warning(f'{label} 生成日记账失败: {exc}')
+                return False
 
         # 处理已确认的 Invoice（排除 cancelled）
         invoices = ProjectInvoice.query.filter_by(status='confirmed').all()
@@ -309,15 +337,9 @@ def generate_journal_from_business():
             if existing:
                 skipped += 1
                 continue
-            try:
-                entry = JournalEntry.create_from_invoice(invoice, user=current_user.username)
-                if entry and entry.lines:
-                    db.session.add(entry)
-                    db.session.flush()
-                    entry.post(user=current_user.username)
-                    invoice_created += 1
-            except Exception as e:
-                logger.warning(f"Invoice {invoice.invoice_number} 生成日记账失败: {str(e)}")
+            if build_and_add(JournalEntry.create_from_invoice, invoice,
+                             f'Invoice {invoice.invoice_number}'):
+                invoice_created += 1
 
         # 处理已确认的 Receipt
         receipts = ProjectReceipt.query.filter_by(status='confirmed').all()
@@ -326,15 +348,9 @@ def generate_journal_from_business():
             if existing:
                 skipped += 1
                 continue
-            try:
-                entry = JournalEntry.create_from_receipt(receipt, user=current_user.username)
-                if entry and entry.lines:
-                    db.session.add(entry)
-                    db.session.flush()
-                    entry.post(user=current_user.username)
-                    receipt_created += 1
-            except Exception as e:
-                logger.warning(f"Receipt {receipt.receipt_number} 生成日记账失败: {str(e)}")
+            if build_and_add(JournalEntry.create_from_receipt, receipt,
+                             f'Receipt {receipt.receipt_number}'):
+                receipt_created += 1
 
         # 处理已付款的 EO
         eos = ProjectEO.query.filter_by(is_paid=True).all()
@@ -343,20 +359,16 @@ def generate_journal_from_business():
             if existing:
                 skipped += 1
                 continue
-            try:
-                entry = JournalEntry.create_from_eo(eo, user=current_user.username)
-                if entry and entry.lines:
-                    db.session.add(entry)
-                    db.session.flush()
-                    entry.post(user=current_user.username)
-                    eo_created += 1
-            except Exception as e:
-                logger.warning(f"EO {eo.eo_number} 生成日记账失败: {str(e)}")
+            if build_and_add(JournalEntry.create_from_eo, eo,
+                             f'EO {eo.eo_number}'):
+                eo_created += 1
 
         db.session.commit()
 
         total_created = invoice_created + receipt_created + eo_created
-        message = f'Generated {total_created} journal entries (Invoice: {invoice_created}, Receipt: {receipt_created}, EO: {eo_created}, Skipped: {skipped})'
+        message = (f'Generated {total_created} journal entries '
+                   f'(Invoice: {invoice_created}, Receipt: {receipt_created}, '
+                   f'EO: {eo_created}, Skipped: {skipped}, Failed: {failed})')
 
         return jsonify({'success': True, 'message': message})
 

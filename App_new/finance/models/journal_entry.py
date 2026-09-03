@@ -192,22 +192,36 @@ class JournalEntry(db.Model):
 
     @classmethod
     def _generate_entry_number(cls):
-        """生成分录编号"""
-        today = date.today()
-        prefix = f"JE{today.strftime('%Y%m%d')}"
+        """生成分录编号 JE + 日期 + 4 位序号
 
-        # 查找今天最后一个编号
-        last_entry = cls.query.filter(
-            cls.entry_number.like(f'{prefix}%')
-        ).order_by(cls.entry_number.desc()).first()
+        序号要同时避开两处：数据库里已有的，和本次会话里已经生成、
+        还没提交的。批量补分录时一次要生成上千条，只查数据库的话，
+        同一批里后面的会拿到和前面一样的号，flush 时撞 unique 约束，
+        整批事务跟着报废。
 
-        if last_entry:
-            last_num = int(last_entry.entry_number[-4:])
-            new_num = last_num + 1
-        else:
-            new_num = 1
+        按数值取最大值而不是按字符串排序：序号超过 9999 变成 5 位后，
+        字符串序会把 'JE...10000' 排在 'JE...9999' 前面，取错最大值。
+        """
+        prefix = f"JE{date.today().strftime('%Y%m%d')}"
+        start = len(prefix)
 
-        return f"{prefix}{new_num:04d}"
+        # 数据库里已有的最大序号
+        max_in_db = db.session.query(
+            db.func.max(db.func.cast(db.func.substring(cls.entry_number, start + 1),
+                                     db.Integer))
+        ).filter(cls.entry_number.like(f'{prefix}%')).scalar() or 0
+
+        # 本次会话里已生成但还没落库的（begin_nested 期间也算）
+        max_pending = 0
+        for obj in list(db.session.new) + list(db.session.identity_map.values()):
+            number = getattr(obj, 'entry_number', None)
+            if isinstance(obj, cls) and number and number.startswith(prefix):
+                try:
+                    max_pending = max(max_pending, int(number[start:]))
+                except ValueError:
+                    continue
+
+        return f"{prefix}{max(max_in_db, max_pending) + 1:04d}"
 
     @classmethod
     def create_from_invoice(cls, invoice, user=None):
