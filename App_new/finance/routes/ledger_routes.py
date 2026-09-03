@@ -13,7 +13,8 @@ from App_new.finance.models.journal_entry import JournalEntry, JournalEntryLine
 from App_new.finance.models.shareholder_loan import ShareholderLoan, ShareholderLoanRepayment, ShareholderLoanRepaymentDetail
 from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import func
+from sqlalchemy import func, case
+from decimal import InvalidOperation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1378,6 +1379,158 @@ def report_general_journal():
                            start_date=start_date,
                            end_date=end_date,
                            current_source_type=source_type)
+
+
+@ledger_blue.route('/reports/reconciliation-check')
+@login_required
+@staff_only
+def reconciliation_check():
+    """月度对账检查 —— 账面银行变动 vs 银行流水，逐月比对
+
+    这页存在的理由：FY2026 账面银行和实际差了 35 万，能积累一整年，
+    就是因为没有任何地方逐月核对。差异当月只有几万，一年后才发现就成了大工程。
+
+    三块内容：
+    1. 期末余额对比（账面 vs 银行对账单最后一笔的 balance）
+    2. 逐月净变动对比，差异超阈值标红
+    3. 待处理清单（有单据没分录 / 银行流水未匹配）
+    """
+    from App_new.finance.models.statement import BankTransaction
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    from App_new.business.projects.models.receipt import ProjectReceipt
+    from App_new.business.projects.models.eo import ProjectEO
+    from App_new.finance.models.operating_expense import OperatingExpense
+
+    end_date = request.args.get('end_date') or date.today().isoformat()
+    try:
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        end_dt = date.today()
+    start_date = request.args.get('start_date') or fiscal_year_start(end_dt).isoformat()
+    try:
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        start_dt = fiscal_year_start(end_dt)
+
+    bank_code = request.args.get('bank_code', '1002')
+    try:
+        threshold = Decimal(request.args.get('threshold', '1000'))
+    except (InvalidOperation, TypeError):
+        threshold = Decimal('1000')
+
+    bank_account = ChartOfAccount.get_by_code(bank_code)
+
+    # ---------- 逐月：账面银行变动 ----------
+    book_rows = {}
+    if bank_account:
+        month_expr = func.date_format(JournalEntry.entry_date, '%Y-%m')
+        for row in db.session.query(
+            month_expr.label('m'),
+            func.coalesce(func.sum(JournalEntryLine.debit), 0).label('inflow'),
+            func.coalesce(func.sum(JournalEntryLine.credit), 0).label('outflow')
+        ).join(JournalEntry, JournalEntryLine.entry_id == JournalEntry.id).filter(
+            JournalEntryLine.account_id == bank_account.id,
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
+            JournalEntry.entry_date >= start_dt,
+            JournalEntry.entry_date <= end_dt
+        ).group_by('m').all():
+            book_rows[row.m] = (Decimal(str(row.inflow)), Decimal(str(row.outflow)))
+
+    # ---------- 逐月：银行流水变动 ----------
+    bank_rows = {}
+    month_expr = func.date_format(BankTransaction.transaction_date, '%Y-%m')
+    for row in db.session.query(
+        month_expr.label('m'),
+        func.coalesce(func.sum(
+            case((BankTransaction.transaction_type == 'credit', BankTransaction.amount), else_=0)), 0).label('inflow'),
+        func.coalesce(func.sum(
+            case((BankTransaction.transaction_type == 'debit', BankTransaction.amount), else_=0)), 0).label('outflow')
+    ).filter(
+        BankTransaction.transaction_date >= start_dt,
+        BankTransaction.transaction_date <= end_dt
+    ).group_by('m').all():
+        bank_rows[row.m] = (Decimal(str(row.inflow)), Decimal(str(row.outflow)))
+
+    months = sorted(set(book_rows) | set(bank_rows))
+    rows, total_diff = [], Decimal('0')
+    for m in months:
+        b_in, b_out = book_rows.get(m, (Decimal('0'), Decimal('0')))
+        k_in, k_out = bank_rows.get(m, (Decimal('0'), Decimal('0')))
+        book_net, bank_net = b_in - b_out, k_in - k_out
+        diff = bank_net - book_net
+        total_diff += diff
+        rows.append({
+            'month': m,
+            'book_in': b_in, 'book_out': b_out, 'book_net': book_net,
+            'bank_in': k_in, 'bank_out': k_out, 'bank_net': bank_net,
+            'diff': diff,
+            'flagged': abs(diff) > threshold,
+        })
+
+    # ---------- 期末余额对比 ----------
+    book_balance = Decimal('0')
+    if bank_account:
+        book_balance = Decimal(str(db.session.query(
+            func.coalesce(func.sum(JournalEntryLine.debit - JournalEntryLine.credit), 0)
+        ).join(JournalEntry, JournalEntryLine.entry_id == JournalEntry.id).filter(
+            JournalEntryLine.account_id == bank_account.id,
+            JournalEntry.status.in_(REPORT_ENTRY_STATUSES),
+            JournalEntry.entry_date <= end_dt
+        ).scalar() or 0))
+
+    # 银行对账单余额：取截止日之前最后一笔带 balance 的流水
+    last_txn = BankTransaction.query.filter(
+        BankTransaction.transaction_date <= end_dt,
+        BankTransaction.balance.isnot(None)
+    ).order_by(BankTransaction.transaction_date.desc(),
+               BankTransaction.id.desc()).first()
+    bank_balance = Decimal(str(last_txn.balance)) if last_txn else None
+    balance_diff = (bank_balance - book_balance) if bank_balance is not None else None
+
+    # ---------- 待处理清单 ----------
+    def _missing(model, source_type, extra_filter=None):
+        """有单据但没生成分录的数量和金额"""
+        sub = db.session.query(JournalEntry.source_id).filter(
+            JournalEntry.source_type == source_type)
+        q = model.query.filter(~model.id.in_(sub))
+        if extra_filter is not None:
+            q = q.filter(extra_filter)
+        return q.count()
+
+    pending = {
+        'invoice': _missing(ProjectInvoice, 'invoice', ProjectInvoice.status == 'confirmed'),
+        'receipt': _missing(ProjectReceipt, 'receipt', ProjectReceipt.status == 'confirmed'),
+        'eo': _missing(ProjectEO, 'eo', ProjectEO.is_paid == True),
+        'expense': _missing(OperatingExpense, 'operating_expense',
+                            OperatingExpense.status.in_(['confirmed', 'paid'])),
+    }
+
+    unmatched = db.session.query(
+        func.count(BankTransaction.id),
+        func.coalesce(func.sum(BankTransaction.amount), 0)
+    ).filter(
+        BankTransaction.reconciliation_status == 'unmatched',
+        BankTransaction.transaction_date >= start_dt,
+        BankTransaction.transaction_date <= end_dt
+    ).first()
+
+    return render_template('finance/ledger/reconciliation_check.html',
+                           company_name='JOYFUL ESCAPES PTE LTD',
+                           start_date=start_dt.isoformat(),
+                           end_date=end_dt.isoformat(),
+                           bank_code=bank_code,
+                           bank_account=bank_account,
+                           threshold=threshold,
+                           rows=rows,
+                           total_diff=total_diff,
+                           book_balance=book_balance,
+                           bank_balance=bank_balance,
+                           balance_diff=balance_diff,
+                           last_txn_date=last_txn.transaction_date if last_txn else None,
+                           pending=pending,
+                           pending_total=sum(pending.values()),
+                           unmatched_count=unmatched[0] or 0,
+                           unmatched_amount=Decimal(str(unmatched[1] or 0)))
 
 
 @ledger_blue.route('/reports/general-ledger-listing')

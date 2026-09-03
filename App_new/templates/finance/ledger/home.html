@@ -367,6 +367,13 @@
                         <small>List all entries by date 按日期列出所有分录</small>
                     </div>
                 </a>
+                <a href="{{ url_for('ledger_routes.reconciliation_check') }}" class="report-link">
+                    <i class="fas fa-clipboard-check" style="background: #e8f5e9; color: #2f9e44;"></i>
+                    <div class="info">
+                        <h5>Reconciliation Check 月度对账检查</h5>
+                        <small>Book vs bank, month by month 逐月核对账面与银行流水</small>
+                    </div>
+                </a>
                 <a href="{{ url_for('ledger_routes.report_trial_balance') }}" class="report-link">
                     <i class="fas fa-balance-scale" style="background: #fff3e0; color: #f57c00;"></i>
                     <div class="info">

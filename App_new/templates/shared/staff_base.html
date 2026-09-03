@@ -183,6 +183,10 @@
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_balance_sheet') }}">
                                 <i class="fas fa-file-invoice-dollar me-2"></i>资产负债表
                             </a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'ledger_routes.reconciliation_check' %}active{% endif %}"
+                                   href="{{ url_for('ledger_routes.reconciliation_check') }}">
+                                <i class="fas fa-clipboard-check me-2"></i>月度对账检查
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">基础设置</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.chart_of_accounts') }}">
