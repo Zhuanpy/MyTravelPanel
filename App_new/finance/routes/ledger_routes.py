@@ -322,15 +322,17 @@ def generate_journal_from_business():
                 with db.session.begin_nested():
                     entry = factory(source, user=current_user.username)
                     if not entry or not entry.lines:
-                        return False
+                        return None
                     if not entry.is_balanced:
                         raise ValueError('分录借贷不平衡')
                     db.session.add(entry)
-                return True
+                # SAVEPOINT 释放时已 flush，这里 entry.id 才有值。
+                # 返回 entry 而不是 True，是为了让费用单能回写 journal_entry_id。
+                return entry
             except Exception as exc:
                 failed += 1
                 logger.warning(f'{label} 生成日记账失败: {exc}')
-                return False
+                return None
 
         # 处理已确认的 Invoice（排除 cancelled）
         invoices = ProjectInvoice.query.filter_by(status='confirmed').all()
@@ -380,8 +382,10 @@ def generate_journal_from_business():
                 if expense.journal_entry_id != existing.id:
                     expense.journal_entry_id = existing.id   # 补上历史遗漏的外键
                 continue
-            if build_and_add(JournalEntry.create_from_operating_expense, expense,
-                             f'Expense {expense.expense_number}'):
+            entry = build_and_add(JournalEntry.create_from_operating_expense, expense,
+                                  f'Expense {expense.expense_number}')
+            if entry:
+                expense.journal_entry_id = entry.id
                 expense_created += 1
 
         db.session.commit()
