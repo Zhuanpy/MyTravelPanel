@@ -1,0 +1,411 @@
+/* ==========================================================================
+   财务报表统一样式 —— 极简黑白
+
+   四份对外报表共用：损益表、资产负债表、试算平衡表、总账明细。
+   这四份是要打印/导出 PDF 交给 ACRA 和银行的，风格按正统财务报表来。
+
+   原来四个模板各自复制了一份几乎相同的 CSS（表头深蓝 #004080、灰底
+   #e8e8e8、毛利绿底、净利蓝底），改一处要改四遍，还容易改漏。合并到
+   这里，以后改一次全部生效。
+
+   设计原则：
+   - 不用背景色填充，只靠线条和字重分层。打印最正式，也最省墨。
+   - 合计线只画在金额列上方，不横贯整行 —— 会计报表的通用画法。
+   - 最终合计（净利润、资产合计）用下双线收口，这是「到此为止」的惯例记号。
+   - 数字用 tabular-nums 等宽数字，列对齐不跳动，比 Courier New 干净。
+   - 唯一保留的彩色是「借贷是否平衡」的警示 —— 那是状态不是装饰，
+     报表不平必须一眼看见。
+   ========================================================================== */
+
+:root {
+    --fr-ink:        #111;      /* 正文 */
+    --fr-ink-soft:   #555;      /* 次要文字（科目代码等） */
+    --fr-ink-muted:  #888;      /* 页脚、附注 */
+    --fr-rule:       #111;      /* 强分隔线：表头、合计 */
+    --fr-rule-hair:  #e8e8e8;   /* 弱分隔线：密集表格的行线 */
+    --fr-paper:      #fff;
+}
+
+/* ---------- 页面外壳 ---------- */
+
+.report-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 总账明细列多，需要更宽 */
+.report-container.wide {
+    max-width: 1500px;
+}
+
+/* 筛选区是操作区不是报表的一部分，保留浅底以示区分（打印时隐藏） */
+.filter-section {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    border: 1px solid #e9ecef;
+}
+
+/* ---------- 报表抬头 ---------- */
+
+.report-header {
+    text-align: center;
+    margin-bottom: 22px;
+    padding: 4px 0 16px;
+    background: var(--fr-paper);
+    border-bottom: 1.5px solid var(--fr-rule);
+}
+
+.report-header .company-name {
+    font-size: 1.35em;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--fr-ink);
+    margin-bottom: 6px;
+}
+
+.report-header .report-title {
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--fr-ink);
+    margin-bottom: 4px;
+}
+
+.report-header .report-period {
+    font-size: .88em;
+    color: var(--fr-ink-soft);
+    font-weight: 400;
+}
+
+/* ---------- 表格容器 ---------- */
+/* 报表本身就是一张纸，不要卡片阴影和圆角 */
+
+.pnl-table-container,
+.bs-table-container,
+.report-table-container,
+.ledger-table-container {
+    background: var(--fr-paper);
+    margin-bottom: 20px;
+}
+
+/* ---------- 表格主体 ---------- */
+
+.pnl-table,
+.bs-table,
+.report-table,
+.ledger-table,
+.check-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9em;
+    color: var(--fr-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 表头：上下两条实线夹住，字小、大写、疏排 */
+.pnl-table th,
+.bs-table th,
+.report-table th,
+.ledger-table th,
+.check-table th {
+    background: none;
+    color: var(--fr-ink);
+    padding: 10px 12px 8px;
+    font-weight: 600;
+    font-size: .82em;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    text-align: left;
+    white-space: nowrap;
+    border-top: 1.5px solid var(--fr-rule);
+    border-bottom: 1px solid var(--fr-rule);
+}
+
+.pnl-table th.text-right,
+.bs-table th.text-right,
+.report-table th.text-right,
+.ledger-table th.text-right,
+.pnl-table th.amount-cell,
+.bs-table th.amount-cell,
+.report-table th.amount-cell,
+.ledger-table th.amount-cell {
+    text-align: right;
+}
+
+.pnl-table td,
+.bs-table td,
+.report-table td,
+.ledger-table td,
+.check-table td {
+    padding: 7px 12px;
+    vertical-align: middle;
+    border-bottom: none;
+}
+
+/* 损益表和资产负债表行数少，完全不画行线最干净；
+   试算平衡表和总账明细动辄上百行，加一道极淡的行线才扫得动 */
+.report-table tbody td,
+.ledger-table tbody td,
+.check-table tbody td {
+    border-bottom: 1px solid var(--fr-rule-hair);
+}
+
+.pnl-table tbody tr:hover,
+.bs-table tbody tr:hover,
+.report-table tbody tr:hover,
+.ledger-table tbody tr:hover,
+.check-table tbody tr:hover {
+    background: #fafafa;
+}
+
+/* ---------- 科目行 ---------- */
+
+.section-header td {
+    background: none;
+    font-weight: 700;
+    font-size: .95em;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--fr-ink);
+    padding: 20px 12px 6px;
+    border-bottom: none;
+}
+
+.subsection-header td {
+    background: none;
+    font-weight: 600;
+    color: var(--fr-ink);
+    padding: 12px 12px 5px 24px;
+    border-bottom: none;
+}
+
+.parent-row td,
+.account-row td {
+    font-weight: 600;
+}
+
+.child-row .account-name {
+    padding-left: 30px;
+}
+
+.account-code {
+    font-variant-numeric: tabular-nums;
+    color: var(--fr-ink-soft);
+    width: 100px;
+    white-space: nowrap;
+}
+
+.amount-cell {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.spacer-row td {
+    height: 12px;
+    border: none !important;
+    background: none;
+}
+
+/* ---------- 合计行 ---------- */
+/* 会计惯例：横线只画在金额上方，不横贯整行 */
+
+.total-row td,
+.subtotal-row td,
+.summary-row td {
+    font-weight: 700;
+    background: none;
+}
+
+.total-row .amount-cell,
+.subtotal-row .amount-cell,
+.summary-row .amount-cell {
+    border-top: 1px solid var(--fr-rule);
+    padding-top: 8px;
+}
+
+/* 最终合计：下双线收口 */
+.gross-profit-row td,
+.net-profit-row td,
+.net-after-tax-row td,
+.total-assets-row td,
+.total-liabilities-row td,
+.total-capital-row td,
+.grand-total-row td,
+.net-income-row td,
+.ending-balance-row td {
+    background: none;
+    color: var(--fr-ink);
+    font-weight: 700;
+}
+
+.gross-profit-row .amount-cell,
+.net-profit-row .amount-cell,
+.total-liabilities-row .amount-cell,
+.net-income-row .amount-cell,
+.ending-balance-row .amount-cell {
+    border-top: 1px solid var(--fr-rule);
+    padding-top: 8px;
+}
+
+.net-after-tax-row .amount-cell,
+.total-assets-row .amount-cell,
+.total-capital-row .amount-cell,
+.grand-total-row .amount-cell {
+    border-top: 1px solid var(--fr-rule);
+    border-bottom: 3px double var(--fr-rule);
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* ---------- 总账明细特有 ---------- */
+
+.beginning-balance-row td,
+.current-period-row td {
+    font-weight: 600;
+    background: none;
+    border-bottom: 1px solid var(--fr-rule-hair);
+}
+
+.transaction-row td {
+    font-weight: 400;
+}
+
+/* 金额正负不用颜色区分，负号本身就是记号（会计报表的通用做法） */
+.amount-positive,
+.amount-negative,
+.text-blue {
+    color: var(--fr-ink);
+}
+
+.ref-link {
+    color: var(--fr-ink);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.ref-link:hover {
+    color: #000;
+}
+
+.trans-count {
+    color: var(--fr-ink-muted);
+    font-size: .88em;
+}
+
+/* ---------- 平衡校验 ---------- */
+/* 唯一保留颜色的地方：报表不平必须一眼看见，这是状态不是装饰 */
+
+.balance-check {
+    margin-top: 20px;
+    padding: 13px 16px;
+    text-align: center;
+    font-size: .9em;
+    font-weight: 700;
+    letter-spacing: .03em;
+    border-top: 1px solid var(--fr-rule);
+    border-bottom: 1px solid var(--fr-rule);
+}
+
+.balance-check.balance-ok {
+    color: var(--fr-ink);
+    background: none;
+}
+
+.balance-check.balance-error {
+    color: #b02020;
+    border-color: #b02020;
+    border-width: 2px;
+    background: #fdf5f5;
+}
+
+/* ---------- 页脚 ---------- */
+
+.report-footer {
+    margin-top: 18px;
+    padding-top: 10px;
+    font-size: .8em;
+    color: var(--fr-ink-muted);
+    border-top: 1px solid var(--fr-rule-hair);
+}
+
+/* ==========================================================================
+   打印
+   ========================================================================== */
+
+@media print {
+    /* 外壳一律不上纸 */
+    .navbar,
+    #sidebar, .sidebar,
+    .sidebar-overlay,
+    .breadcrumb,
+    nav[aria-label="breadcrumb"],
+    .d-flex.border-bottom,
+    .filter-section,
+    .no-print {
+        display: none !important;
+    }
+
+    /* 主内容区拉满整页 */
+    main, .col-md-10, .col-lg-11 {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        flex: 0 0 100% !important;
+    }
+
+    .container-fluid { padding: 0 !important; }
+    .row { margin: 0 !important; }
+
+    .report-container,
+    .report-container.wide {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+
+    .pnl-table-container,
+    .bs-table-container,
+    .report-table-container,
+    .ledger-table-container {
+        box-shadow: none;
+    }
+
+    .pnl-table,
+    .bs-table,
+    .report-table,
+    .ledger-table,
+    .check-table {
+        font-size: 9pt;
+    }
+
+    /* 悬停底色不该出现在纸上 */
+    .pnl-table tbody tr:hover,
+    .bs-table tbody tr:hover,
+    .report-table tbody tr:hover,
+    .ledger-table tbody tr:hover,
+    .check-table tbody tr:hover {
+        background: none;
+    }
+
+    /* 合计行不能被分页截断 */
+    .total-row, .subtotal-row, .summary-row,
+    .gross-profit-row, .net-profit-row, .net-after-tax-row,
+    .total-assets-row, .total-liabilities-row, .total-capital-row,
+    .grand-total-row, .net-income-row,
+    .beginning-balance-row, .ending-balance-row {
+        page-break-inside: avoid;
+    }
+
+    /* 分组标题不能落在页尾成为孤行 */
+    .section-header, .subsection-header {
+        page-break-after: avoid;
+    }
+
+    thead { display: table-header-group; }
+
+    @page { size: portrait; margin: 1.2cm; }
+}

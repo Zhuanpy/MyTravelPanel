@@ -5,65 +5,57 @@
 {% block page_title %}月度对账检查{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/finance_report.css') }}">
 <style>
-    .report-container { max-width: 1500px; margin: 0 auto; padding: 20px; }
+    .report-container { max-width: 1500px; }
 
-    .filter-section {
-        background: #f8f9fa; padding: 15px 20px; border-radius: 8px;
-        margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .report-header {
-        text-align: center; margin-bottom: 20px; padding: 15px;
-        background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .report-header .company-name { font-size: 1.4em; font-weight: bold; color: #004080; margin-bottom: 5px; }
-    .report-header .report-title { font-size: 1.15em; color: #333; }
-    .report-header .report-period { font-size: .88em; color: #666; margin-top: 4px; }
-
-    /* 顶部三张卡：账面 / 银行 / 差额 */
-    .summary-row { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+    /* 顶部三张卡：账面余额 / 银行余额 / 差额 */
+    .summary-row { display: flex; gap: 15px; margin-bottom: 22px; flex-wrap: wrap; }
     .summary-card {
-        flex: 1; min-width: 220px; background: #fff; border-radius: 8px;
-        padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.1); border-left: 4px solid #adb5bd;
+        flex: 1; min-width: 220px; background: #fff;
+        padding: 14px 16px;
+        border: 1px solid #e8e8e8;
+        border-left: 3px solid #adb5bd;
     }
-    .summary-card .label { font-size: .82em; color: #6c757d; margin-bottom: 6px; }
-    .summary-card .value { font-size: 1.5em; font-weight: 600; color: #212529; }
-    .summary-card .note  { font-size: .76em; color: #868e96; margin-top: 6px; }
-    .summary-card.ok    { border-left-color: #2f9e44; }
-    .summary-card.warn  { border-left-color: #e8590c; }
-    .summary-card.ok    .value { color: #2f9e44; }
-    .summary-card.warn  .value { color: #e8590c; }
+    .summary-card .label { font-size: .82em; color: #666; margin-bottom: 6px; }
+    .summary-card .value {
+        font-size: 1.5em; font-weight: 700; color: #111;
+        font-variant-numeric: tabular-nums;
+    }
+    .summary-card .note { font-size: .76em; color: #888; margin-top: 6px; }
 
-    table.check-table { width: 100%; background: #fff; border-collapse: collapse; font-size: .9em; }
-    table.check-table th {
-        background: #004080; color: #fff; padding: 9px 10px; font-weight: 600;
-        text-align: right; white-space: nowrap;
-    }
-    table.check-table th:first-child { text-align: left; }
-    table.check-table td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: right; }
-    table.check-table td:first-child { text-align: left; font-weight: 600; }
-    table.check-table tbody tr:hover { background: #f6f8fa; }
-    table.check-table tr.flagged { background: #fff4e6; }
-    table.check-table tr.flagged:hover { background: #ffe8cc; }
-    table.check-table tr.flagged td.diff { color: #e8590c; font-weight: 700; }
-    table.check-table td.diff.small { color: #868e96; }
-    .group-sep { border-left: 2px solid #dee2e6; }
+    /* 差异是否在阈值内 —— 状态标识，保留颜色 */
+    .summary-card.ok   { border-left-color: #2f6f3e; }
+    .summary-card.warn { border-left-color: #c05621; }
+    .summary-card.warn .value { color: #c05621; }
+
+    /* 逐月对比表：月份列左对齐，其余全是数字，右对齐 */
+    .check-table th { text-align: right; }
+    .check-table th:first-child { text-align: left; }
+    .check-table td { text-align: right; font-variant-numeric: tabular-nums; }
+    .check-table td:first-child { text-align: left; font-weight: 600; }
+
+    /* 超过阈值的月份 —— 状态标识，保留颜色 */
+    .check-table tr.flagged { background: #fdf6f0; }
+    .check-table tr.flagged:hover { background: #faeee4; }
+    .check-table tr.flagged td.diff { color: #c05621; font-weight: 700; }
+    .check-table td.diff.small { color: #888; }
+    .check-table tfoot td { font-weight: 700; }
+    .check-table tfoot td.diff.over { color: #c05621; }
+    .group-sep { border-left: 1px solid #e0e0e0; }
 
     .pending-box {
-        background: #fff; border-radius: 8px; padding: 16px 18px; margin-top: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,.1);
+        background: #fff; border: 1px solid #e8e8e8;
+        padding: 16px 18px; margin-top: 22px;
     }
     .pending-box h5 { font-size: 1em; margin-bottom: 10px; }
-    .pending-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f3f5; }
-    .pending-item:last-child { border-bottom: none; }
-    .badge-zero { color: #2f9e44; font-weight: 600; }
-    .badge-todo { color: #e8590c; font-weight: 700; }
-
-    @media print {
-        .no-print { display: none !important; }
-        .report-container { max-width: 100%; padding: 0; }
+    .pending-item {
+        display: flex; justify-content: space-between;
+        padding: 6px 0; border-bottom: 1px solid #f1f3f5;
     }
+    .pending-item:last-child { border-bottom: none; }
+    .badge-zero { color: #2f6f3e; font-weight: 600; }
+    .badge-todo { color: #c05621; font-weight: 700; }
 </style>
 {% endblock %}
 
@@ -161,14 +153,14 @@
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="8" style="text-align:center; color:#868e96; padding:24px">该期间没有数据</td></tr>
+            <tr><td colspan="8" style="text-align:center; color:#888; padding:24px">该期间没有数据</td></tr>
             {% endfor %}
         </tbody>
         {% if rows %}
         <tfoot>
-            <tr style="background:#f1f3f5; font-weight:700">
+            <tr>
                 <td colspan="7" style="text-align:right">合计差异</td>
-                <td class="diff group-sep" style="{% if total_diff|abs > threshold %}color:#e8590c{% endif %}">
+                <td class="diff group-sep{% if total_diff|abs > threshold %} over{% endif %}">
                     {{ '{:,.2f}'.format(total_diff|float) }}
                 </td>
             </tr>
