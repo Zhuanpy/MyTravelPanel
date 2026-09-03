@@ -881,9 +881,13 @@ def report_profit_loss():
         sorted_items = sorted(id_to_data.values(), key=lambda x: x['code'])
 
         for item in sorted_items:
-            # 只累加叶子节点的金额到总计
-            if not item['is_parent'] and item['amount'] != 0:
-                total += item['amount']
+            # 全部相加，不能跳过父科目。
+            # 上面的查询是 group_by(科目id)，每个科目的 amount 只含它自己的分录、
+            # 不含子科目汇总，所以直接全加才是正确总额。
+            # 原来按"父科目金额=子科目之和"跳过父科目，但实际分录都记在 4100
+            # (Sales Revenue) 和 5100 (Direct Costs) 这些中间层科目上，而它们恰好
+            # 有子科目 —— 于是收入和销售成本的合计双双变成 0，净利润跟着全错。
+            total += item['amount']
 
             # 所有有金额的科目都显示
             if item['amount'] != 0 or item['is_parent']:
