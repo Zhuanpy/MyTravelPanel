@@ -1497,12 +1497,22 @@ def reconciliation_check():
             q = q.filter(extra_filter)
         return q.count()
 
+    # 统计口径必须和 create_from_* 的跳过条件一致：金额为 0 的单据生成不出
+    # 有意义的分录（借 0 / 贷 0），代码本来就跳过。这里若照算，页面会永远显示
+    # 一个处理不掉的待办数字，看的人很快就会习惯性无视——监控页就废了。
     pending = {
-        'invoice': _missing(ProjectInvoice, 'invoice', ProjectInvoice.status == 'confirmed'),
-        'receipt': _missing(ProjectReceipt, 'receipt', ProjectReceipt.status == 'confirmed'),
-        'eo': _missing(ProjectEO, 'eo', ProjectEO.is_paid == True),
+        'invoice': _missing(ProjectInvoice, 'invoice',
+                            db.and_(ProjectInvoice.status == 'confirmed',
+                                    ProjectInvoice.amount > 0)),
+        'receipt': _missing(ProjectReceipt, 'receipt',
+                            db.and_(ProjectReceipt.status == 'confirmed',
+                                    ProjectReceipt.amount > 0)),
+        'eo': _missing(ProjectEO, 'eo',
+                       db.and_(ProjectEO.is_paid == True,
+                               ProjectEO.pay_amount > 0)),
         'expense': _missing(OperatingExpense, 'operating_expense',
-                            OperatingExpense.status.in_(['confirmed', 'paid'])),
+                            db.and_(OperatingExpense.status.in_(['confirmed', 'paid']),
+                                    OperatingExpense.amount > 0)),
     }
 
     unmatched = db.session.query(
