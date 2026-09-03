@@ -3,7 +3,6 @@ from flask_login import login_required, current_user
 from App_new.utils.VisaForm import MyPdfFile
 from App_new.utils.WordToPdf import WordToPDFConverter
 from App_new.utils.decorators import staff_only
-import subprocess
 import os
 import tempfile
 import traceback
@@ -412,22 +411,6 @@ def upload_pdf_to_pdf():
         current_app.logger.error(f'上传PDF合并失败: {str(e)}\n{traceback.format_exc()}')
         return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
 
-
-@utils_process.route('/open_booking_software')
-@login_required
-@staff_only
-def open_booking_software():
-    try:
-        software_path = r"C:\Program Files (x86)\Athena Bookings\Athena Bookings ver 2.0.RDP"
-        subprocess.run([software_path], shell=True)
-        if is_ajax():
-            return jsonify({'success': True, 'message': '预订系统已启动'})
-        return redirect(url_for("index.index"))
-    except Exception as e:
-        if is_ajax():
-            return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
-        flash(f'启动失败：{str(e)}')
-        return redirect(url_for("index.index"))
 
 @utils_process.route('/files_home')
 @login_required

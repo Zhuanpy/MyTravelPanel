@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 from App_new.exts import csrf
 from App_new.utils.VisaForm import MyPdfFile
 from App_new.utils.WordToPdf import WordToPDFConverter
-import subprocess
 import os
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -136,50 +135,6 @@ def word_to_pdf():
             return jsonify({'success': False, 'message': f'未知错误: {e}'}), 500
         flash(f'未知错误: {e}')
         return redirect(url_for('files_process.file_processing'))
-
-@files_process.route('/open_FuXin_pdf')
-def open_FuXin_pdf():
-    try:
-        software_path = r"E:\SOFT\福昕PDF套件高级编辑器\福昕PDF套件高级编辑器 5.0.4.0920 单文件破解版.exe"
-        subprocess.run([software_path], shell=True)
-        if is_ajax():
-            return jsonify({'success': True, 'message': '福昕PDF编辑器已启动'})
-        return redirect(url_for("index.index"))
-    except Exception as e:
-        if is_ajax():
-            return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
-        flash(f'启动失败：{str(e)}')
-        return redirect(url_for("index.index"))
-
-
-@files_process.route('/open_Photoshop')
-def open_Photoshop():
-    try:
-        software_path = r"C:\Program Files\Adobe\Adobe Photoshop CS6 (64 Bit)\Photoshop.exe"
-        subprocess.run([software_path], shell=True)
-        if is_ajax():
-            return jsonify({'success': True, 'message': 'Photoshop已启动'})
-        return redirect(url_for("index.index"))
-    except Exception as e:
-        if is_ajax():
-            return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
-        flash(f'启动失败：{str(e)}')
-        return redirect(url_for("index.index"))
-
-@files_process.route('/open_booking_software')
-def open_booking_software():
-    try:
-        software_path = r"C:\Program Files (x86)\Athena Bookings\Athena Bookings ver 2.0.RDP"
-        subprocess.run([software_path], shell=True)
-        if is_ajax():
-            return jsonify({'success': True, 'message': '预订系统已启动'})
-        return redirect(url_for("index.index"))
-    except Exception as e:
-        if is_ajax():
-            return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
-        flash(f'启动失败：{str(e)}')
-        return redirect(url_for("index.index"))
-
 
 @files_process.route('/letter_generator')
 def letter_generator():
