@@ -486,6 +486,10 @@ def edit_invoice(invoice_id):
     
     if form.validate_on_submit():
         try:
+            # 先记下旧金额和旧日期，用于判断要不要重做分录
+            old_invoice_amount = float(invoice.amount or 0)
+            old_invoice_date = invoice.invoice_date
+
             # 更新发票信息
             invoice.invoice_date = form.invoice_date.data
             invoice.due_date = form.due_date.data
@@ -499,7 +503,17 @@ def edit_invoice(invoice_id):
             invoice.customer_address = form.customer_address.data
             invoice.remarks = form.remarks.data
             invoice.terms = form.terms.data
-            
+
+            # 金额或日期变了就重做分录（冲销旧的 + 按新数字建新的）。
+            # 不同步的话账上还是老金额——线上因此有 4,744.41 的差额。
+            if (float(form.amount.data or 0) != old_invoice_amount
+                    or form.invoice_date.data != old_invoice_date):
+                from App_new.finance.services.journal_sync import resync_invoice_entry
+                resync_invoice_entry(
+                    invoice,
+                    user=current_user.username if current_user else None,
+                    reason=f'发票 {invoice.invoice_number} 金额/日期修改，重做分录')
+
             # 更新关联REF
             selected_ref_ids = form.selected_refs.data
             if selected_ref_ids and (len(selected_ref_ids) == 1 and selected_ref_ids[0] == 0):
@@ -550,13 +564,21 @@ def delete_invoice(invoice_id):
     header_id = invoice.header_id
     
     try:
+        # 删除前必须先冲销分录，否则分录会变成找不到来源单据的孤儿——
+        # 线上有 78 条这样的孤儿分录，连追溯都做不到。
+        from App_new.finance.services.journal_sync import reverse_entries_for
+        reversed_count, _ = reverse_entries_for(
+            'invoice', invoice.id,
+            user=current_user.username if current_user else None,
+            reason=f'发票 {invoice.invoice_number} 删除')
+
         # 删除发票明细
         InvoiceItem.query.filter_by(invoice_id=invoice_id).delete()
-        
+
         # 删除发票
         db.session.delete(invoice)
         db.session.commit()
-        flash('发票删除成功', 'success')
+        flash('发票删除成功' + (f'，已冲销 {reversed_count} 条日记账分录' if reversed_count else ''), 'success')
         
     except Exception as e:
         db.session.rollback()
@@ -603,6 +625,14 @@ def sync_ref_prices(invoice_id):
 
         # 更新发票金额
         invoice.amount = new_total
+
+        # 金额变了同步重做分录，否则账上还是旧金额
+        if float(new_total or 0) != old_amount:
+            from App_new.finance.services.journal_sync import resync_invoice_entry
+            resync_invoice_entry(
+                invoice,
+                user=current_user.username if current_user else None,
+                reason=f'发票 {invoice.invoice_number} 同步REF价格，金额 {old_amount:.2f} -> {float(new_total or 0):.2f}')
 
         # 更新发票明细项（价格和描述）
         items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
@@ -1098,14 +1128,25 @@ def record_payment(invoice_id):
 def cancel_invoice(invoice_id):
     """取消发票"""
     invoice = ProjectInvoice.query.get_or_404(invoice_id)
-    
+
     try:
+        # 作废必须同时冲销分录。这条路径原来没做，线上因此积累了 188 张
+        # 已作废发票的分录还挂在账上，虚增收入 3.2 万。
+        from App_new.finance.services.journal_sync import reverse_entries_for
+        reversed_count, _ = reverse_entries_for(
+            'invoice', invoice.id,
+            user=current_user.username if current_user else None,
+            reason=f'发票 {invoice.invoice_number} 作废')
+
         invoice.status = 'cancelled'
         db.session.commit()
-        
+
+        message = '发票已取消'
+        if reversed_count:
+            message += f'，已冲销 {reversed_count} 条日记账分录'
         return jsonify({
             'success': True,
-            'message': '发票已取消'
+            'message': message
         })
         
     except Exception as e:
