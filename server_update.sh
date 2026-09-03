@@ -2,15 +2,17 @@
 
 # 服务器项目更新脚本
 # 使用方法:
-#   ./server_update.sh                    # 常规更新
+#   ./server_update.sh                    # 常规更新（跑迁移前会自动备份数据库）
 #   ./server_update.sh --check-settle     # 更新后检查结算状态
 #   ./server_update.sh --check-settle H1913  # 检查指定项目
+#   ./server_update.sh --skip-backup      # 跳过部署前备份（仅用于确知无迁移的紧急发布）
 
 set -e  # 遇到错误立即退出
 
 # 解析参数
 CHECK_SETTLE=false
 CHECK_HID=""
+SKIP_BACKUP=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -22,6 +24,10 @@ while [[ $# -gt 0 ]]; do
                 CHECK_HID="$1"
                 shift
             fi
+            ;;
+        --skip-backup)
+            SKIP_BACKUP=true
+            shift
             ;;
         *)
             shift
@@ -62,6 +68,28 @@ source venv/bin/activate
 echo ""
 echo "[4/6] 安装/更新依赖..."
 pip install -r requirements.txt -q
+
+# 部署前备份数据库
+# 放在跑迁移之前：下一步会自动执行所有新的迁移脚本，那是最容易把数据改坏的地方。
+# 万一某个迁移写错了，这份 30 秒前的快照就是唯一的退路。
+echo ""
+echo "[4.5] 部署前备份数据库..."
+if [ "$SKIP_BACKUP" = true ]; then
+    echo ">>> 已指定 --skip-backup，跳过（迁移出问题将无法回滚数据）"
+else
+    # 存到独立目录，不和每周定时备份混在一起：
+    # 部署一天可能好几次，共用目录的话轮转会把每周备份挤掉
+    if python scripts/tools/db_backup.py --dir "$PROJECT_DIR/backups/db_predeploy" --keep 10; then
+        echo ">>> 部署前备份完成 -> backups/db_predeploy/"
+    else
+        echo "!!! =========================================="
+        echo "!!! 备份失败，已中止部署。"
+        echo "!!! 下一步要跑数据库迁移，没有备份等于没有退路。"
+        echo "!!! 排查后重试；确知本次没有迁移脚本可用 --skip-backup 跳过。"
+        echo "!!! =========================================="
+        exit 1
+    fi
+fi
 
 # 运行数据库迁移脚本
 echo ""
@@ -180,6 +208,20 @@ fi
 echo ">>> 重启 nginx..."
 sudo systemctl restart nginx
 echo ">>> 服务重启完成"
+
+# 确保每周备份的定时任务在位
+# 幂等：已经有了就什么都不做。放在这里而不是让人手动敲，是为了换服务器、
+# 重装系统之后不会忘掉这一步——忘了也不会报错，等到要恢复时才发现没备份。
+echo ""
+echo "[6.1] 检查每周数据库备份定时任务..."
+BACKUP_CRON="0 3 * * 0 cd $PROJECT_DIR && venv/bin/python scripts/tools/db_backup.py >> logs/db_backup.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "scripts/tools/db_backup.py"; then
+    echo ">>> 已存在，跳过"
+else
+    # 读出现有任务 + 追加一行 + 写回，不会覆盖别的定时任务
+    (crontab -l 2>/dev/null; echo "$BACKUP_CRON") | crontab -
+    echo ">>> 已安装：每周日 03:00 自动备份 -> backups/db/"
+fi
 
 # 显示状态
 echo ""
