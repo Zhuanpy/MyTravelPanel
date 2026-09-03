@@ -10,7 +10,6 @@
 
 {% block content %}
 <div class="visa-container">
-    <h1 class="visa-page-title">文件处理服务</h1>
     <p class="visa-text-center visa-text-muted visa-mb-4">集成化的文件处理工具，提升办公效率</p>
     
     <!-- 快速访问 -->
@@ -23,26 +22,11 @@
                 <a href="{{ url_for('utils_process.file_processing') }}" class="quick-action-btn btn-red">
                     <i class="fas fa-file-pdf"></i> PDF处理
                 </a>
-                <a href="{{ url_for('utils_process.open_FuXin_pdf') }}" class="quick-action-btn btn-orange">
-                    <i class="fas fa-tools"></i> PDF工具
-                </a>
                 <a href="{{ url_for('utils_process.image_matting') }}" class="quick-action-btn btn-green">
                     <i class="fas fa-cut"></i> 抠图合并
                 </a>
                 <a href="{{ url_for('utils_process.image_merge') }}" class="quick-action-btn btn-blue">
                     <i class="fas fa-object-group"></i> 截图拼接
-                </a>
-                <a href="{{ url_for('utils_process.open_Photoshop') }}" class="quick-action-btn btn-purple">
-                    <i class="fas fa-image"></i> Photoshop
-                </a>
-                <a href="{{ url_for('utils_process.open_booking_software') }}" class="quick-action-btn btn-blue">
-                    <i class="fas fa-code"></i> 预订系统
-                </a>
-                <a href="{{ url_for('utils_blue.render_todo_list') }}" class="quick-action-btn btn-green">
-                    <i class="fas fa-tasks"></i> 待办事件
-                </a>
-                <a href="{{ url_for('own_company.company_header') }}" class="quick-action-btn btn-indigo">
-                    <i class="fas fa-building"></i> 公司抬头
                 </a>
             </div>
         </div>
@@ -79,27 +63,6 @@
                 </div>
             </div>
             
-            <!-- 截图拼接 -->
-            <div class="resource-card resource-card-blue">
-                <div class="resource-card-header">
-                    <div class="resource-card-icon resource-icon-blue">
-                        <i class="fas fa-object-group"></i>
-                    </div>
-                    <h4 class="resource-card-title">截图拼接</h4>
-                </div>
-                <p class="resource-card-description">
-                    手机不能长截图时，连续截多张上传拼成一整张，自动去掉相邻两张重复的内容。
-                </p>
-                <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.image_merge') }}" class="visa-btn visa-btn-primary visa-btn-sm">
-                        <i class="fas fa-arrow-right"></i> 前往处理
-                    </a>
-                    <span class="resource-card-stats">
-                        <i class="fas fa-mobile-alt"></i> 长图还原
-                    </span>
-                </div>
-            </div>
-
             <!-- PDF合并 -->
             <div class="resource-card resource-card-orange">
                 <div class="resource-card-header">
@@ -154,6 +117,27 @@
         </div>
         
         <div class="visa-grid-3">
+            <!-- 截图拼接 -->
+            <div class="resource-card resource-card-blue">
+                <div class="resource-card-header">
+                    <div class="resource-card-icon resource-icon-blue">
+                        <i class="fas fa-object-group"></i>
+                    </div>
+                    <h4 class="resource-card-title">截图拼接</h4>
+                </div>
+                <p class="resource-card-description">
+                    手机不能长截图时，连续截多张上传拼成一整张，自动去掉相邻两张重复的内容。
+                </p>
+                <div class="resource-card-footer">
+                    <a href="{{ url_for('utils_process.image_merge') }}" class="visa-btn visa-btn-primary visa-btn-sm">
+                        <i class="fas fa-arrow-right"></i> 前往处理
+                    </a>
+                    <span class="resource-card-stats">
+                        <i class="fas fa-mobile-alt"></i> 长图还原
+                    </span>
+                </div>
+            </div>
+
             <!-- AI 抠图合并 -->
             <div class="resource-card resource-card-green">
                 <div class="resource-card-header">
@@ -175,68 +159,6 @@
                 </div>
             </div>
 
-            <!-- 图片压缩 -->
-            <div class="resource-card resource-card-purple">
-                <div class="resource-card-header">
-                    <div class="resource-card-icon resource-icon-purple">
-                        <i class="fas fa-compress-arrows-alt"></i>
-                    </div>
-                    <h4 class="resource-card-title">图片压缩</h4>
-                </div>
-                <p class="resource-card-description">
-                    减小图片文件大小，优化网络分享和存储空间，保持图片质量的同时提高加载速度。
-                </p>
-                <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.open_Photoshop') }}" class="visa-btn visa-btn-primary visa-btn-sm">
-                        <i class="fas fa-external-link-alt"></i> 打开工具
-                    </a>
-                    <span class="resource-card-stats">
-                        <i class="fas fa-magic"></i> Photoshop
-                    </span>
-                </div>
-            </div>
-            
-            <!-- 图片裁剪 -->
-            <div class="resource-card resource-card-indigo">
-                <div class="resource-card-header">
-                    <div class="resource-card-icon resource-icon-indigo">
-                        <i class="fas fa-crop-alt"></i>
-                    </div>
-                    <h4 class="resource-card-title">图片裁剪</h4>
-                </div>
-                <p class="resource-card-description">
-                    裁剪图片到指定尺寸或比例，突出重要内容，制作适合各种用途的图片素材。
-                </p>
-                <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.open_Photoshop') }}" class="visa-btn visa-btn-primary visa-btn-sm">
-                        <i class="fas fa-external-link-alt"></i> 打开工具
-                    </a>
-                    <span class="resource-card-stats">
-                        <i class="fas fa-magic"></i> Photoshop
-                    </span>
-                </div>
-            </div>
-            
-            <!-- 格式转换 -->
-            <div class="resource-card resource-card-blue">
-                <div class="resource-card-header">
-                    <div class="resource-card-icon resource-icon-blue">
-                        <i class="fas fa-exchange-alt"></i>
-                    </div>
-                    <h4 class="resource-card-title">格式转换</h4>
-                </div>
-                <p class="resource-card-description">
-                    在各种图片格式之间转换，如JPEG、PNG、GIF等，满足不同场景的图片格式需求。
-                </p>
-                <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.open_Photoshop') }}" class="visa-btn visa-btn-primary visa-btn-sm">
-                        <i class="fas fa-external-link-alt"></i> 打开工具
-                    </a>
-                    <span class="resource-card-stats">
-                        <i class="fas fa-magic"></i> Photoshop
-                    </span>
-                </div>
-            </div>
         </div>
     </div>
     

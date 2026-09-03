@@ -413,38 +413,6 @@ def upload_pdf_to_pdf():
         return jsonify({'success': False, 'message': f'处理失败：{str(e)}'}), 500
 
 
-@utils_process.route('/open_FuXin_pdf')
-@login_required
-@staff_only
-def open_FuXin_pdf():
-    try:
-        software_path = r"E:\SOFT\福昕PDF套件高级编辑器\福昕PDF套件高级编辑器 5.0.4.0920 单文件破解版.exe"
-        subprocess.run([software_path], shell=True)
-        if is_ajax():
-            return jsonify({'success': True, 'message': '福昕PDF编辑器已启动'})
-        return redirect(url_for("index.index"))
-    except Exception as e:
-        if is_ajax():
-            return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
-        flash(f'启动失败：{str(e)}')
-        return redirect(url_for("index.index"))
-
-@utils_process.route('/open_Photoshop')
-@login_required
-@staff_only
-def open_Photoshop():
-    try:
-        software_path = r"C:\Program Files\Adobe\Adobe Photoshop CS6 (64 Bit)\Photoshop.exe"
-        subprocess.run([software_path], shell=True)
-        if is_ajax():
-            return jsonify({'success': True, 'message': 'Photoshop已启动'})
-        return redirect(url_for("index.index"))
-    except Exception as e:
-        if is_ajax():
-            return jsonify({'success': False, 'message': f'启动失败：{str(e)}'}), 500
-        flash(f'启动失败：{str(e)}')
-        return redirect(url_for("index.index"))
-
 @utils_process.route('/open_booking_software')
 @login_required
 @staff_only
