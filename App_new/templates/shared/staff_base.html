@@ -147,13 +147,27 @@
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.ledger_home') }}">
                                 <i class="fas fa-home me-2"></i>总账首页
                             </a></li>
+
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">审计报表（打印给审计）</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_profit_loss') }}">
+                                <i class="fas fa-chart-line me-2"></i>损益表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_balance_sheet') }}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>资产负债表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_trial_balance') }}">
+                                <i class="fas fa-balance-scale me-2"></i>试算平衡表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_general_ledger_listing') }}">
+                                <i class="fas fa-list-ol me-2"></i>总账明细
+                            </a></li>
+
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">日常记账</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.journal_entries') }}">
                                 <i class="fas fa-book me-2"></i>日记账分录
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">资金管理</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.operating_expense_list') }}">
                                 <i class="fas fa-money-bill-wave me-2"></i>运营费用
                             </a></li>
@@ -163,30 +177,23 @@
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.shareholder_loan_list') }}">
                                 <i class="fas fa-hand-holding-usd me-2"></i>股东借款
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">财务报表</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_ledger') }}">
-                                <i class="fas fa-file-alt me-2"></i>总账明细
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_journal_entries') }}">
-                                <i class="fas fa-table me-2"></i>日记账报表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_general_journal') }}">
-                                <i class="fas fa-journal-whills me-2"></i>序时账
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_trial_balance') }}">
-                                <i class="fas fa-balance-scale me-2"></i>试算平衡表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_profit_loss') }}">
-                                <i class="fas fa-chart-line me-2"></i>损益表
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_balance_sheet') }}">
-                                <i class="fas fa-file-invoice-dollar me-2"></i>资产负债表
-                            </a></li>
+                            <li><h6 class="dropdown-header">核对与查询</h6></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'ledger_routes.reconciliation_check' %}active{% endif %}"
                                    href="{{ url_for('ledger_routes.reconciliation_check') }}">
                                 <i class="fas fa-clipboard-check me-2"></i>月度对账检查
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_ledger') }}">
+                                <i class="fas fa-folder-open me-2"></i>科目账簿
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_general_journal') }}">
+                                <i class="fas fa-journal-whills me-2"></i>序时账
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ledger_routes.report_journal_entries') }}">
+                                <i class="fas fa-table me-2"></i>日记账报表
+                            </a></li>
+
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">基础设置</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('ledger_routes.chart_of_accounts') }}">

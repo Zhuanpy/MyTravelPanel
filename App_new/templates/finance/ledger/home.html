@@ -351,40 +351,13 @@
             </div>
 
             <!-- Reports -->
-            <h3 class="section-title"><i class="fas fa-chart-bar me-2"></i>Reports 报表</h3>
+            <h3 class="section-title"><i class="fas fa-file-invoice me-2"></i>Audit Reports 审计报表</h3>
+            <p class="text-muted small mb-3">打印或导出 PDF 交给审计、报 ACRA，这四份是一套</p>
             <div class="report-grid">
-                <a href="{{ url_for('ledger_routes.report_ledger') }}" class="report-link">
-                    <i class="fas fa-file-alt" style="background: #e3f2fd; color: #1976d2;"></i>
-                    <div class="info">
-                        <h5>Ledger 分类账</h5>
-                        <small>View account transactions 查看科目交易和余额</small>
-                    </div>
-                </a>
-                <a href="{{ url_for('ledger_routes.report_journal_entries') }}" class="report-link">
-                    <i class="fas fa-table" style="background: #e8f5e9; color: #388e3c;"></i>
-                    <div class="info">
-                        <h5>Journal Report 日记账报表</h5>
-                        <small>List all entries by date 按日期列出所有分录</small>
-                    </div>
-                </a>
-                <a href="{{ url_for('ledger_routes.reconciliation_check') }}" class="report-link">
-                    <i class="fas fa-clipboard-check" style="background: #e8f5e9; color: #2f9e44;"></i>
-                    <div class="info">
-                        <h5>Reconciliation Check 月度对账检查</h5>
-                        <small>Book vs bank, month by month 逐月核对账面与银行流水</small>
-                    </div>
-                </a>
-                <a href="{{ url_for('ledger_routes.report_trial_balance') }}" class="report-link">
-                    <i class="fas fa-balance-scale" style="background: #fff3e0; color: #f57c00;"></i>
-                    <div class="info">
-                        <h5>Trial Balance 试算平衡表</h5>
-                        <small>Verify debit/credit balance 验证借贷是否平衡</small>
-                    </div>
-                </a>
                 <a href="{{ url_for('ledger_routes.report_profit_loss') }}" class="report-link">
                     <i class="fas fa-chart-line" style="background: #f3e5f5; color: #7b1fa2;"></i>
                     <div class="info">
-                        <h5>Profit & Loss 损益表</h5>
+                        <h5>Profit &amp; Loss 损益表</h5>
                         <small>Income and expense summary 收入和支出汇总</small>
                     </div>
                 </a>
@@ -395,22 +368,54 @@
                         <small>Assets, liabilities and equity 资产、负债和权益</small>
                     </div>
                 </a>
-                <a href="{{ url_for('ledger_routes.report_general_journal') }}" class="report-link">
-                    <i class="fas fa-journal-whills" style="background: #ffebee; color: #c62828;"></i>
+                <a href="{{ url_for('ledger_routes.report_trial_balance') }}" class="report-link">
+                    <i class="fas fa-balance-scale" style="background: #fff3e0; color: #f57c00;"></i>
                     <div class="info">
-                        <h5>General Journal 总分类账</h5>
-                        <small>Detailed journal with lines 详细日记账及分录明细</small>
+                        <h5>Trial Balance 试算平衡表</h5>
+                        <small>Verify debit/credit balance 验证借贷是否平衡</small>
                     </div>
                 </a>
                 <a href="{{ url_for('ledger_routes.report_general_ledger_listing') }}" class="report-link">
-                    <i class="fas fa-list-alt" style="background: #e8eaf6; color: #3f51b5;"></i>
+                    <i class="fas fa-list-ol" style="background: #e8eaf6; color: #3f51b5;"></i>
                     <div class="info">
-                        <h5>General Ledger Listing 总账明细表</h5>
-                        <small>Ledger grouped by account 按科目分组的明细表</small>
+                        <h5>General Ledger 总账明细</h5>
+                        <small>All transactions grouped by account 按科目分组的全部交易</small>
                     </div>
                 </a>
             </div>
-        </div>
+
+            <!-- 内部核对，不交审计 -->
+            <h3 class="section-title"><i class="fas fa-search me-2"></i>Checks &amp; Enquiry 核对与查询</h3>
+            <div class="report-grid">
+                <a href="{{ url_for('ledger_routes.reconciliation_check') }}" class="report-link">
+                    <i class="fas fa-clipboard-check" style="background: #e8f5e9; color: #2f9e44;"></i>
+                    <div class="info">
+                        <h5>Reconciliation Check 月度对账检查</h5>
+                        <small>Book vs bank, month by month 逐月核对账面与银行流水</small>
+                    </div>
+                </a>
+                <a href="{{ url_for('ledger_routes.report_ledger') }}" class="report-link">
+                    <i class="fas fa-folder-open" style="background: #e3f2fd; color: #1976d2;"></i>
+                    <div class="info">
+                        <h5>Account Ledger 科目账簿</h5>
+                        <small>Pick one account, see its movements 选定科目查流水和余额</small>
+                    </div>
+                </a>
+                <a href="{{ url_for('ledger_routes.report_general_journal') }}" class="report-link">
+                    <i class="fas fa-journal-whills" style="background: #ffebee; color: #c62828;"></i>
+                    <div class="info">
+                        <h5>General Journal 序时账</h5>
+                        <small>Entries in date order 按发生顺序排列的分录</small>
+                    </div>
+                </a>
+                <a href="{{ url_for('ledger_routes.report_journal_entries') }}" class="report-link">
+                    <i class="fas fa-table" style="background: #e8f5e9; color: #388e3c;"></i>
+                    <div class="info">
+                        <h5>Journal Report 日记账报表</h5>
+                        <small>List all entries by date 按日期列出所有分录</small>
+                    </div>
+                </a>
+            </div>
 
         <div class="col-md-4">
             <!-- Entry Statistics -->
