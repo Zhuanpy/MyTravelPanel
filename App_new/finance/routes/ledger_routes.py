@@ -1297,6 +1297,11 @@ def report_balance_sheet():
         if item['code'] == retained_code:
             retained_earnings += item['year_to_date']
             retained_current += item['current_period']
+            # 必须同时从权益合计里扣掉。total_equity_* 是在这之前算的，
+            # 已经含了 3200；只往 retained_earnings 里加而不扣，它就被算两遍，
+            # 资产负债表差额正好等于 3200 的余额。
+            total_equity_ytd -= item['year_to_date']
+            total_equity_current -= item['current_period']
             capital_items.remove(item)
 
     # 将净利润加入资本总计
