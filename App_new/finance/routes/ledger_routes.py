@@ -292,6 +292,7 @@ def generate_journal_from_business():
         from App_new.business.projects.models.invoice import ProjectInvoice
         from App_new.business.projects.models.receipt import ProjectReceipt
         from App_new.business.projects.models.eo import ProjectEO
+        from App_new.finance.models.operating_expense import OperatingExpense
 
         # 确保科目已初始化
         if ChartOfAccount.query.count() == 0:
@@ -300,6 +301,7 @@ def generate_journal_from_business():
         invoice_created = 0
         receipt_created = 0
         eo_created = 0
+        expense_created = 0
         skipped = 0
         failed = 0
 
@@ -363,12 +365,33 @@ def generate_journal_from_business():
                              f'EO {eo.eo_number}'):
                 eo_created += 1
 
+        # 处理已确认/已付款的营业费用
+        # 费用单原本不在批量生成范围内：它用 journal_entry_id 外键关联分录，
+        # 和另外三种的 source_type+source_id 是两套机制，去重逻辑对不上。
+        # 这里统一按 source_type+source_id 判重（可靠），顺带把外键回填。
+        expenses = OperatingExpense.query.filter(
+            OperatingExpense.status.in_(['confirmed', 'paid'])
+        ).all()
+        for expense in expenses:
+            existing = JournalEntry.query.filter_by(
+                source_type='operating_expense', source_id=expense.id).first()
+            if existing:
+                skipped += 1
+                if expense.journal_entry_id != existing.id:
+                    expense.journal_entry_id = existing.id   # 补上历史遗漏的外键
+                continue
+            if build_and_add(JournalEntry.create_from_operating_expense, expense,
+                             f'Expense {expense.expense_number}'):
+                expense_created += 1
+
         db.session.commit()
 
-        total_created = invoice_created + receipt_created + eo_created
+        total_created = (invoice_created + receipt_created + eo_created
+                         + expense_created)
         message = (f'Generated {total_created} journal entries '
                    f'(Invoice: {invoice_created}, Receipt: {receipt_created}, '
-                   f'EO: {eo_created}, Skipped: {skipped}, Failed: {failed})')
+                   f'EO: {eo_created}, Expense: {expense_created}, '
+                   f'Skipped: {skipped}, Failed: {failed})')
 
         return jsonify({'success': True, 'message': message})
 
@@ -1765,6 +1788,9 @@ def operating_expense_confirm(expense_id):
         journal_entry.total_amount = expense.amount
 
         db.session.add(journal_entry)
+        # 必须先 flush 才拿得到主键。原来直接取 journal_entry.id 得到的是 None，
+        # 外键写不进去——所有费用单的 journal_entry_id 因此一直是空的。
+        db.session.flush()
 
         # 更新费用单状态
         expense.status = 'paid'

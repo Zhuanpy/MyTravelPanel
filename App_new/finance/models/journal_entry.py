@@ -273,6 +273,62 @@ class JournalEntry(db.Model):
         return entry
 
     @classmethod
+    def create_from_operating_expense(cls, expense, user=None):
+        """从营业费用单创建分录
+        借: 费用科目（费用单上选的那个）
+        贷: 银行存款（费用单指定的，没指定就用默认的 1002）
+
+        费用单和发票/收款/EO 不同——它自己带 expense_account_id，
+        科目由录入时决定，这里不猜。
+        """
+        from .chart_of_account import ChartOfAccount
+
+        if not expense.amount or not expense.expense_account_id:
+            return None
+
+        entry = cls(
+            entry_number=cls._generate_entry_number(),
+            entry_date=expense.expense_date or date.today(),
+            source_type='operating_expense',
+            source_id=expense.id,
+            source_number=expense.expense_number,
+            description=f'Operating Expense - {expense.description}',
+            currency=expense.currency or 'SGD',
+            created_by=user
+        )
+
+        # 费用科目 (借)
+        entry.lines.append(JournalEntryLine(
+            line_no=1,
+            account_id=expense.expense_account_id,
+            debit=expense.amount,
+            credit=Decimal('0'),
+            memo=expense.description
+        ))
+
+        # 银行存款 (贷)
+        credit_account_id = expense.bank_account_id
+        if not credit_account_id:
+            default_bank = ChartOfAccount.get_by_code('1002')
+            credit_account_id = default_bank.id if default_bank else None
+        if not credit_account_id:
+            return None
+
+        entry.lines.append(JournalEntryLine(
+            line_no=2,
+            account_id=credit_account_id,
+            debit=Decimal('0'),
+            credit=expense.amount,
+            memo=f'Payment for {expense.description}'
+        ))
+
+        entry.total_amount = expense.amount
+        entry.status = 'posted'
+        entry.posted_at = datetime.utcnow()
+        entry.posted_by = user
+        return entry
+
+    @classmethod
     def create_from_receipt(cls, receipt, user=None):
         """从收款创建分录
         借: 银行存款
