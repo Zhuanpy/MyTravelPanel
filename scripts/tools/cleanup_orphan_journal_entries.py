@@ -25,10 +25,18 @@ FY2026 实测存量：
     # 确认无误后真执行
     venv/bin/python scripts/tools/cleanup_orphan_journal_entries.py --execute
 
-    --date 冲销分录的记账日期，默认今天。想让影响落在特定期间就指定，
-           比如 --date 2026-08-31 让它落在 FY2026 内
-    --types 只处理指定类型，逗号分隔：invoice,receipt,eo,operating_expense
-    --limit 只处理前 N 条，用于小批量试跑
+    --from-date  只处理该日期及之后的分录。**已审计结算的期间不要动**——
+                 期初余额是按当时账面数调到已审数字的，事后再冲销那段的
+                 分录，期初调整就失效了，等于重复更正。
+                 例：--from-date 2025-09-01 只清 FY2026
+    --date       冲销分录的记账日期，默认今天。想让影响落在特定期间就指定，
+                 比如 --date 2026-08-31 让它落在 FY2026 内
+    --types      只处理指定类型，逗号分隔：invoice,receipt,eo,operating_expense
+    --limit      只处理前 N 条，用于小批量试跑
+
+典型用法（清理 FY2026，影响落在 FY2026 内）:
+    ... cleanup_orphan_journal_entries.py --from-date 2025-09-01 --date 2026-08-31
+    ... cleanup_orphan_journal_entries.py --from-date 2025-09-01 --date 2026-08-31 --execute
 
 执行前务必先备份：
     venv/bin/python scripts/tools/db_backup.py --dir backups/db_before_cleanup --keep 3
@@ -83,18 +91,26 @@ def load_models():
     }
 
 
-def collect(source_type, model):
-    """找出该类型下所有"单据已作废或已删除"的已过账分录"""
+def collect(source_type, model, from_date=None):
+    """找出该类型下所有"单据已作废或已删除"的已过账分录
+
+    from_date 限定只处理该日期及之后的分录。已审计结算的期间不能再动——
+    期初余额是按当时的账面数调到已审数字的，事后再冲销那段的分录，期初
+    调整就失效了，等于重复更正。
+    """
     from App_new.exts import db
     from App_new.finance.models.journal_entry import JournalEntry
 
-    entries = JournalEntry.query.filter(
+    query = JournalEntry.query.filter(
         JournalEntry.source_type == source_type,
         JournalEntry.status == 'posted',
         # 冲销分录本身不能再冲，否则无限套娃
         db.or_(JournalEntry.source_number.is_(None),
                ~JournalEntry.source_number.like('REV-%')),
-    ).all()
+    )
+    if from_date:
+        query = query.filter(JournalEntry.entry_date >= from_date)
+    entries = query.all()
     if not entries:
         return []
 
@@ -121,6 +137,9 @@ def main():
     parser.add_argument('--date', help='冲销分录的记账日期，默认今天')
     parser.add_argument('--types', help='只处理指定类型，逗号分隔')
     parser.add_argument('--limit', type=int, help='只处理前 N 条')
+    parser.add_argument('--from-date', dest='from_date',
+                        help='只处理该日期及之后的分录。已审计结算的期间不要动——'
+                             '期初余额已按已审数字调平，再冲销那段会重复更正')
     args = parser.parse_args()
 
     entry_date = None
@@ -132,6 +151,14 @@ def main():
             return 2
     else:
         entry_date = date.today()
+
+    from_date = None
+    if args.from_date:
+        try:
+            from_date = datetime.strptime(args.from_date, '%Y-%m-%d').date()
+        except ValueError:
+            log(f'错误：--from-date 格式应为 YYYY-MM-DD，收到 {args.from_date}')
+            return 2
 
     types = [t.strip() for t in args.types.split(',')] if args.types else list(SPECS)
     for t in types:
@@ -149,11 +176,16 @@ def main():
         log('=' * 68)
         log('无效日记账分录清理' + ('（执行）' if args.execute else '（DRY RUN，不改数据）'))
         log(f'冲销分录记账日期：{entry_date}')
+        if from_date:
+            log(f'只处理 {from_date} 及之后的分录（更早的期间已结算，不动）')
+        else:
+            log('未指定 --from-date：将处理全部历史分录。'
+                '若之前做过期初余额调整，请加 --from-date 避免重复更正')
         log('=' * 68)
 
         todo, summary = [], defaultdict(lambda: [0, 0.0])
         for source_type in types:
-            found = collect(source_type, models[source_type])
+            found = collect(source_type, models[source_type], from_date)
             for entry, reason in found:
                 todo.append((source_type, entry, reason))
                 key = (source_type, reason)
