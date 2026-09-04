@@ -280,6 +280,124 @@ def generate_payment_no():
         })
 
 
+def _resolve_eo_pax_names(eos):
+    """批量解析EO对应的出行人(Pax)姓名，返回 {eo.id: 'Name1, Name2'}
+
+    依次尝试：REF extra_info 预渲染字段 -> 机票乘客表 -> extra_info 里的成员ID -> 项目成员表兜底。
+    一次性批量查询，避免逐条 N+1。
+    """
+    from sqlalchemy import or_
+    from App_new.business.projects.models.project_member import ProjectMember
+    from App_new.business.flight.models.flight import ProjectFlightPassenger
+
+    pax_map = {eo.id: '' for eo in eos}
+    if not eos:
+        return pax_map
+
+    # 机票乘客表
+    ref_ids = [eo.ref_id for eo in eos if eo.ref_id]
+    passengers_by_ref = {}
+    if ref_ids:
+        for p in ProjectFlightPassenger.query.filter(ProjectFlightPassenger.ref_id.in_(ref_ids)).all():
+            if p.name:
+                passengers_by_ref.setdefault(p.ref_id, []).append(p.name)
+
+    # 预解析 extra_info，收集酒店/签证等 REF 引用的成员ID 与项目 header_id（用于姓名回退）
+    extra_info_cache = {}
+    member_ids_needed = set()
+    header_ids_needed = set()
+    for eo in eos:
+        if not eo.ref:
+            continue
+        parsed = None
+        if eo.ref.extra_info:
+            try:
+                parsed = json.loads(eo.ref.extra_info)
+            except (json.JSONDecodeError, TypeError):
+                parsed = None
+        extra_info_cache[eo.id] = parsed
+        if parsed:
+            for mid in (parsed.get('pax_names') or []):
+                try:
+                    member_ids_needed.add(int(mid))
+                except (TypeError, ValueError):
+                    pass
+            lid = parsed.get('leader_id')
+            if lid:
+                try:
+                    member_ids_needed.add(int(lid))
+                except (TypeError, ValueError):
+                    pass
+        if eo.ref.header_id:
+            header_ids_needed.add(eo.ref.header_id)
+
+    # 一次查询获取所需的 ProjectMember（按 ID 命中或按 header_id 兜底）
+    members_by_id = {}
+    members_by_header = {}
+    if member_ids_needed or header_ids_needed:
+        pm_filters = []
+        if member_ids_needed:
+            pm_filters.append(ProjectMember.id.in_(member_ids_needed))
+        if header_ids_needed:
+            pm_filters.append(ProjectMember.header_id.in_(header_ids_needed))
+        for m in ProjectMember.query.filter(or_(*pm_filters)).all():
+            members_by_id[m.id] = m
+            members_by_header.setdefault(m.header_id, []).append(m)
+
+    for eo in eos:
+        pax_names = ''
+        if not eo.ref:
+            continue
+        extra_data = extra_info_cache.get(eo.id) or {}
+
+        # 方法1: extra_info.pax_names_display（机票REF已预渲染）
+        if extra_data.get('pax_names_display'):
+            pax_names = extra_data.get('pax_names_display')
+        # 方法2: extra_info.pax_name（老版字符串）
+        elif extra_data.get('pax_name'):
+            pax_names = extra_data.get('pax_name', '')
+
+        # 方法3: 机票乘客表
+        if not pax_names and eo.ref_id in passengers_by_ref:
+            pax_names = ', '.join(passengers_by_ref[eo.ref_id])
+
+        # 方法4: 把 extra_info.pax_names(成员ID列表) / leader_id 解析为姓名（酒店/签证等）
+        if not pax_names and extra_data:
+            leader_id = extra_data.get('leader_id')
+            try:
+                leader_id = int(leader_id) if leader_id else None
+            except (TypeError, ValueError):
+                leader_id = None
+
+            ordered_ids = []
+            if leader_id and leader_id in members_by_id:
+                ordered_ids.append(leader_id)
+            for mid in (extra_data.get('pax_names') or []):
+                try:
+                    mid_int = int(mid)
+                except (TypeError, ValueError):
+                    continue
+                if mid_int != leader_id and mid_int in members_by_id:
+                    ordered_ids.append(mid_int)
+
+            names = [members_by_id[mid].member_name for mid in ordered_ids if members_by_id[mid].member_name]
+            if names:
+                pax_names = ', '.join(names)
+
+        # 方法5: 项目成员表兜底（leader 优先），与 eo_list/export 逻辑对齐
+        if not pax_names and eo.ref.header_id in members_by_header:
+            members = members_by_header[eo.ref.header_id]
+            leaders = [m.member_name for m in members if m.is_leader and m.member_name]
+            if leaders:
+                pax_names = ', '.join(leaders)
+            else:
+                pax_names = ', '.join([m.member_name for m in members if m.member_name])
+
+        pax_map[eo.id] = pax_names
+
+    return pax_map
+
+
 @project_eo.route('/batch-pay')
 @login_required
 @staff_only
@@ -395,114 +513,13 @@ def batch_pay():
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         results = pagination.items
         
-        # 批量获取乘客信息，避免 N+1 问题
-        import json
-        from sqlalchemy import or_
-        from App_new.business.projects.models.project_member import ProjectMember
-        from App_new.business.flight.models.flight import ProjectFlightPassenger
-
-        ref_ids = [eo.ref_id for eo, *_ in results if eo.ref_id]
-        passengers_by_ref = {}
-        if ref_ids:
-            all_passengers = ProjectFlightPassenger.query.filter(ProjectFlightPassenger.ref_id.in_(ref_ids)).all()
-            for p in all_passengers:
-                if p.ref_id not in passengers_by_ref:
-                    passengers_by_ref[p.ref_id] = []
-                if p.name:
-                    passengers_by_ref[p.ref_id].append(p.name)
-
-        # 预解析 extra_info，收集酒店/签证等 REF 引用的成员ID 与项目 header_id（用于姓名回退）
-        extra_info_cache = {}        # eo.id -> parsed extra_info dict
-        member_ids_needed = set()
-        header_ids_needed = set()
-        for eo, *_ in results:
-            if not eo.ref:
-                continue
-            parsed = None
-            if eo.ref.extra_info:
-                try:
-                    parsed = json.loads(eo.ref.extra_info)
-                except (json.JSONDecodeError, TypeError):
-                    parsed = None
-            extra_info_cache[eo.id] = parsed
-            if parsed:
-                for mid in (parsed.get('pax_names') or []):
-                    try:
-                        member_ids_needed.add(int(mid))
-                    except (TypeError, ValueError):
-                        pass
-                lid = parsed.get('leader_id')
-                if lid:
-                    try:
-                        member_ids_needed.add(int(lid))
-                    except (TypeError, ValueError):
-                        pass
-            if eo.ref.header_id:
-                header_ids_needed.add(eo.ref.header_id)
-
-        # 一次查询获取所需的 ProjectMember（按 ID 命中或按 header_id 兜底）
-        members_by_id = {}
-        members_by_header = {}
-        if member_ids_needed or header_ids_needed:
-            pm_filters = []
-            if member_ids_needed:
-                pm_filters.append(ProjectMember.id.in_(member_ids_needed))
-            if header_ids_needed:
-                pm_filters.append(ProjectMember.header_id.in_(header_ids_needed))
-            for m in ProjectMember.query.filter(or_(*pm_filters)).all():
-                members_by_id[m.id] = m
-                members_by_header.setdefault(m.header_id, []).append(m)
+        # 批量解析出行人(Pax)，避免 N+1 问题
+        pax_map = _resolve_eo_pax_names([row[0] for row in results])
 
         # 处理数据
         eos = []
         for eo, supplier_name, ref_type_name, ref_number, project_id, project_hid, company_name, ref_supplier_id in results:
-            # 获取乘客姓名 - 支持所有类型的REF
-            pax_names = ''
-            if eo.ref:
-                extra_data = extra_info_cache.get(eo.id) or {}
-
-                # 方法1: extra_info.pax_names_display（机票REF已预渲染）
-                if extra_data.get('pax_names_display'):
-                    pax_names = extra_data.get('pax_names_display')
-                # 方法2: extra_info.pax_name（老版字符串）
-                elif extra_data.get('pax_name'):
-                    pax_names = extra_data.get('pax_name', '')
-
-                # 方法3: 机票乘客表
-                if not pax_names and eo.ref_id in passengers_by_ref:
-                    pax_names = ', '.join(passengers_by_ref[eo.ref_id])
-
-                # 方法4: 把 extra_info.pax_names(成员ID列表) / leader_id 解析为姓名（酒店/签证等）
-                if not pax_names and extra_data:
-                    leader_id = extra_data.get('leader_id')
-                    try:
-                        leader_id = int(leader_id) if leader_id else None
-                    except (TypeError, ValueError):
-                        leader_id = None
-
-                    ordered_ids = []
-                    if leader_id and leader_id in members_by_id:
-                        ordered_ids.append(leader_id)
-                    for mid in (extra_data.get('pax_names') or []):
-                        try:
-                            mid_int = int(mid)
-                        except (TypeError, ValueError):
-                            continue
-                        if mid_int != leader_id and mid_int in members_by_id:
-                            ordered_ids.append(mid_int)
-
-                    names = [members_by_id[mid].member_name for mid in ordered_ids if members_by_id[mid].member_name]
-                    if names:
-                        pax_names = ', '.join(names)
-
-                # 方法5: 项目成员表兜底（leader 优先），与 eo_list/export 逻辑对齐
-                if not pax_names and eo.ref.header_id in members_by_header:
-                    members = members_by_header[eo.ref.header_id]
-                    leaders = [m.member_name for m in members if m.is_leader and m.member_name]
-                    if leaders:
-                        pax_names = ', '.join(leaders)
-                    else:
-                        pax_names = ', '.join([m.member_name for m in members if m.member_name])
+            pax_names = pax_map.get(eo.id, '')
 
             eos.append({
                 'id': eo.id,
@@ -681,6 +698,9 @@ def batch_pay_export():
         # 获取全部结果（不分页）
         results = query.all()
 
+        # 批量解析出行人(Pax)，与页面显示口径一致
+        pax_map = _resolve_eo_pax_names([row[0] for row in results])
+
         # 创建Excel工作簿
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -698,7 +718,7 @@ def batch_pay_export():
         )
 
         # 表头
-        headers = ['Date', 'EO No', 'Currency', 'Cost', 'HID', 'REF', 'Type', 'Supplier']
+        headers = ['Date', 'EO No', 'Currency', 'Cost', 'HID', 'REF', 'Type', 'Supplier', 'Pax']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = header_font
@@ -716,13 +736,14 @@ def batch_pay_export():
             ws.cell(row=row_idx, column=6, value=ref_number or '')
             ws.cell(row=row_idx, column=7, value=ref_type_name or '')
             ws.cell(row=row_idx, column=8, value=supplier_name or '')
+            ws.cell(row=row_idx, column=9, value=pax_map.get(eo.id, ''))
 
             # 设置边框
-            for col in range(1, 9):
+            for col in range(1, 10):
                 ws.cell(row=row_idx, column=col).border = thin_border
 
         # 调整列宽
-        column_widths = [12, 15, 10, 12, 10, 12, 12, 25]
+        column_widths = [12, 15, 10, 12, 10, 12, 12, 25, 30]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
 
