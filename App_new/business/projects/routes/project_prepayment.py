@@ -180,7 +180,8 @@ def create_prepayment():
                                suppliers=suppliers,
                                bank_accounts=bank_accounts,
                                prepayment_accounts=prepayment_accounts,
-                               copy_data=copy_data)
+                               copy_data=copy_data,
+                               today=date.today())
 
     # POST 处理
     try:
