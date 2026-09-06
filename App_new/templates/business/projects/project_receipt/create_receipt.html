@@ -104,8 +104,15 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 关联发票 -->
+                            <!-- 收款性质 -->
                             <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.receipt_type.label }} <span class="text-danger">*</span></label>
+                                {{ form.receipt_type(class="form-select", id="receiptType") }}
+                                <small class="text-muted" id="receiptTypeHint">先开票后收钱选「发票回款」</small>
+                            </div>
+
+                            <!-- 关联发票 -->
+                            <div class="col-md-3 mb-3" id="invoiceBox">
                                 <label class="form-label">{{ form.invoice_id.label }}</label>
                                 {{ form.invoice_id(class="form-select") }}
                                 <small class="text-muted">选择后将自动更新发票的已付金额</small>
@@ -253,4 +260,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<script>
+// 预收款收钱时还没有发票，关联发票那一栏禁掉，避免误选后被后端强制清空
+(function () {
+    const typeSel = document.getElementById('receiptType');
+    if (!typeSel) return;
+    const box  = document.getElementById('invoiceBox');
+    const inv  = box ? box.querySelector('select') : null;
+    const hint = document.getElementById('receiptTypeHint');
+
+    function sync() {
+        const isAdvance = typeSel.value === 'advance';
+        if (inv) inv.disabled = isAdvance;
+        if (box) box.style.opacity = isAdvance ? .5 : 1;
+        if (hint) hint.textContent = isAdvance
+            ? '记入「预收账款」，后续该项目开票时自动抵扣'
+            : '先开票后收钱选「发票回款」';
+    }
+    typeSel.addEventListener('change', sync);
+    sync();
+})();
+</script>
+
 {% endblock %}

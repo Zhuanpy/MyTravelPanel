@@ -129,8 +129,22 @@ def create_invoice(header_id):
             except Exception as je:
                 logger.warning(f"发票 {invoice.invoice_number} 生成日记账失败: {str(je)}")
 
+            # 该项目若有客户预收款，自动抵扣本张发票（借预收账款/贷应收账款）
+            # 用 SAVEPOINT 隔离：抵扣出问题只回滚这一段，不连累已经建好的发票
+            offset_amount = 0
+            try:
+                from App_new.business.projects.services.advance_offset import offset_invoice
+                with db.session.begin_nested():
+                    offset_amount, _ = offset_invoice(invoice, user=current_user.username)
+            except Exception as ao_err:
+                offset_amount = 0
+                logger.warning(f"发票 {invoice.invoice_number} 预收抵扣失败: {str(ao_err)}")
+
             db.session.commit()
-            flash('发票创建成功', 'success')
+            if offset_amount:
+                flash(f'发票创建成功，已从预收款抵扣 {offset_amount:,.2f}', 'success')
+            else:
+                flash('发票创建成功', 'success')
             return redirect(url_for('business_projects.project_invoice.header_invoices', header_id=header.id))
             
         except Exception as e:

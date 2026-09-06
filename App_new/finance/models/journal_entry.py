@@ -342,10 +342,21 @@ class JournalEntry(db.Model):
     @classmethod
     def create_from_receipt(cls, receipt, user=None):
         """从收款创建分录
-        借: 银行存款
-        贷: 应收账款
+
+        发票回款 (receipt_type='payment')：
+            借: 银行存款 / 贷: 应收账款
+        预收款 (receipt_type='advance')：
+            借: 银行存款 / 贷: 预收账款
+
+        预收款是「先收钱、后开票」，收钱时还没有发票，冲不了应收 ——
+        原来一律贷应收账款，会把应收冲成负数。它是一笔负债：欠客户一次服务，
+        等开出发票再由 create_from_advance_offset 转成应收。
         """
         from .chart_of_account import ChartOfAccount
+
+        is_advance = getattr(receipt, 'receipt_type', 'payment') == 'advance'
+        credit_code = '2200' if is_advance else '1100'   # 预收账款 / 应收账款
+        label = 'Advance' if is_advance else 'Receipt'
 
         entry = cls(
             entry_number=cls._generate_entry_number(),
@@ -354,7 +365,7 @@ class JournalEntry(db.Model):
             source_id=receipt.id,
             source_number=receipt.receipt_number,
             header_id=receipt.header_id,
-            description=f'Receipt {receipt.receipt_number}',
+            description=f'{label} {receipt.receipt_number}',
             currency=receipt.currency or 'SGD',
             created_by=user
         )
@@ -367,22 +378,78 @@ class JournalEntry(db.Model):
                 account_id=bank_account.id,
                 debit=receipt.amount,
                 credit=Decimal('0'),
-                memo=f'Bank deposit for Receipt {receipt.receipt_number}'
+                memo=f'Bank deposit for {label} {receipt.receipt_number}'
             ))
 
-        # 应收账款 (贷)
-        ar_account = ChartOfAccount.get_by_code('1100')
-        if ar_account:
+        # 应收账款 或 预收账款 (贷)
+        credit_account = ChartOfAccount.get_by_code(credit_code)
+        if credit_account:
             entry.lines.append(JournalEntryLine(
                 line_no=2,
-                account_id=ar_account.id,
+                account_id=credit_account.id,
                 debit=Decimal('0'),
                 credit=receipt.amount,
-                memo=f'AR reduction for Receipt {receipt.receipt_number}'
+                memo=('Deposit received %s' % receipt.receipt_number) if is_advance
+                     else ('AR reduction for Receipt %s' % receipt.receipt_number)
             ))
 
         entry.total_amount = receipt.amount
         # 自动过账
+        entry.status = 'posted'
+        entry.posted_at = datetime.utcnow()
+        entry.posted_by = user
+        return entry
+
+    @classmethod
+    def create_from_advance_offset(cls, receipt, invoice, amount, user=None, offset_date=None):
+        """预收款抵扣发票
+        借: 预收账款
+        贷: 应收账款
+
+        开票时把预收转成应收核销：负债减少、应收归零，银行不动
+        （钱早在收预收款时就到账了）。
+        """
+        from .chart_of_account import ChartOfAccount
+
+        amount = Decimal(str(amount or 0))
+        if amount <= 0:
+            return None
+
+        deposit_account = ChartOfAccount.get_by_code('2200')   # 预收账款
+        ar_account = ChartOfAccount.get_by_code('1100')        # 应收账款
+        if not deposit_account or not ar_account:
+            return None
+
+        entry = cls(
+            entry_number=cls._generate_entry_number(),
+            entry_date=offset_date or invoice.invoice_date or date.today(),
+            source_type='receipt',
+            source_id=receipt.id,
+            source_number=f'OFFSET-{receipt.receipt_number}',
+            header_id=invoice.header_id,
+            description=f'Advance offset {receipt.receipt_number} -> Invoice {invoice.invoice_number}',
+            currency=receipt.currency or 'SGD',
+            created_by=user,
+            remarks=(f'预收款 {receipt.receipt_number} 抵扣发票 {invoice.invoice_number}，'
+                     f'金额 {amount}')
+        )
+
+        entry.lines.append(JournalEntryLine(
+            line_no=1,
+            account_id=deposit_account.id,
+            debit=amount,
+            credit=Decimal('0'),
+            memo=f'Offset advance {receipt.receipt_number}'
+        ))
+        entry.lines.append(JournalEntryLine(
+            line_no=2,
+            account_id=ar_account.id,
+            debit=Decimal('0'),
+            credit=amount,
+            memo=f'AR settled by advance for Invoice {invoice.invoice_number}'
+        ))
+
+        entry.total_amount = amount
         entry.status = 'posted'
         entry.posted_at = datetime.utcnow()
         entry.posted_by = user

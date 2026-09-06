@@ -35,13 +35,14 @@ def create_receipt(ref_id):
     """创建REF级别收款记录"""
     ref = ProjectRef.query.get_or_404(ref_id)
 
-    # 检查是否有发票（必须先生成发票才能收款）
+    # 检查是否有发票。发票回款当然要先有发票；但预收款是「先收钱、后开票」，
+    # 收钱那一刻项目可能一张发票都没有 —— 一律拦住的话预收功能就废了。
     from App_new.business.projects.models.invoice import ProjectInvoice
     invoice_count = ProjectInvoice.query.filter_by(header_id=ref.header_id).filter(
         ProjectInvoice.status != 'cancelled'
     ).count()
-    if invoice_count == 0:
-        flash('请先生成发票后再创建收款记录', 'warning')
+    if invoice_count == 0 and request.form.get('receipt_type') != 'advance':
+        flash('请先生成发票后再创建收款记录（如果是尚未开票的预收款，请选择「预收款」）', 'warning')
         return redirect(url_for('business_projects.project_receipt.ref_receipts', ref_id=ref_id))
 
     form = ProjectReceiptForm()
@@ -57,6 +58,12 @@ def create_receipt(ref_id):
             # 处理发票ID（0表示不关联）
             invoice_id = form.invoice_id.data if form.invoice_id.data and form.invoice_id.data != 0 else None
 
+            # 预收款是「先收钱、后开票」，收钱时不该有发票可关联；
+            # 即使表单上误选了也强制清掉，否则会既贷预收账款又占掉发票额度
+            receipt_type = form.receipt_type.data or 'payment'
+            if receipt_type == 'advance':
+                invoice_id = None
+
             # 创建收款记录（不再直接设置 invoice_id）
             receipt = ProjectReceipt(
                 receipt_number=receipt_number,
@@ -65,6 +72,7 @@ def create_receipt(ref_id):
                 invoice_id=None,  # 不再使用此字段
                 amount=form.amount.data,
                 currency=form.currency.data,
+                receipt_type=receipt_type,
                 payment_method=form.payment_method.data,
                 payment_date=form.payment_date.data,
                 payer_name=form.payer_name.data,
@@ -510,7 +518,17 @@ def header_receipts(header_id):
     form.selected_invoices.choices = unpaid_invoices if unpaid_invoices else [(0, "暂无未付款的发票")]
 
     # 是否可以创建收款
+    # 原来要求「有发票且还有未收款」才放行，但预收款是「先收钱、后开票」，
+    # 收钱那一刻本来就没有发票 —— 一律拦住的话这个功能根本用不了。
+    # 所以：有未收发票 -> 可以做发票回款；任何时候 -> 都可以做预收款。
     can_create_receipt = invoice_count > 0 and unpaid_amount > 0
+    can_create_advance = True
+
+    # 该项目当前的客户预收余额（收进来还没被发票抵扣掉的部分）
+    from App_new.business.projects.services.advance_offset import (
+        get_advance_balance, available_advances)
+    advance_balance = get_advance_balance(header_id)
+    advance_receipts = available_advances(header_id)
 
     return render_template('business/projects/project_receipt/header_receipts.html',
                          header=header,
@@ -521,7 +539,10 @@ def header_receipts(header_id):
                          form=form,
                          receipt_number=receipt_number,
                          invoice_count=invoice_count,
-                         can_create_receipt=can_create_receipt)
+                         can_create_receipt=can_create_receipt,
+                         can_create_advance=can_create_advance,
+                         advance_balance=advance_balance,
+                         advance_receipts=advance_receipts)
 
 @project_receipt.route('/header/<int:header_id>/receipt/create', methods=['GET', 'POST'])
 @login_required
@@ -537,20 +558,22 @@ def create_header_receipt(header_id):
         flash(blocked, 'warning')
         return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
-    # 检查是否有发票（必须先生成发票才能收款）
+    # 检查是否有发票。发票回款当然要先有发票；但预收款是「先收钱、后开票」，
+    # 收钱那一刻项目可能一张发票都没有 —— 一律拦住的话预收功能就废了。
     from App_new.business.projects.models.invoice import ProjectInvoice
     invoice_count = ProjectInvoice.query.filter_by(header_id=header_id).filter(
         ProjectInvoice.status != 'cancelled'
     ).count()
-    if invoice_count == 0:
-        flash('请先生成发票后再创建收款记录', 'warning')
+    if invoice_count == 0 and request.form.get('receipt_type') != 'advance':
+        flash('请先生成发票后再创建收款记录（如果是尚未开票的预收款，请选择「预收款」）', 'warning')
         log_error(f'项目收款被拦（无可用发票）{header.hid}(id={header_id})')
         return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header_id))
 
-    # 检查是否还有未收款金额
+    # 检查是否还有未收款金额。同样只对发票回款成立 —— 预收款收的是「还没开票」
+    # 的钱，未收款金额本来就可能是 0（甚至项目一张发票都没有）。
     unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
-    if unpaid_amount <= 0:
-        flash('该项目已无未收款金额，无法创建新收款记录', 'warning')
+    if unpaid_amount <= 0 and request.form.get('receipt_type') != 'advance':
+        flash('该项目已无未收款金额，无法创建新收款记录（如果是尚未开票的预收款，请选择「预收款」）', 'warning')
         # 这两条 warning 会直接 redirect，页面上看起来只是"闪了一下"，必须留痕
         log_error(f'项目收款被拦（发票未收合计为0）{header.hid}(id={header_id})：'
                   f'发票口径未收={unpaid_amount:.2f}，页面口径未收={header.total_unpaid_amount:.2f}')
@@ -587,120 +610,130 @@ def create_header_receipt(header_id):
             amount = float(form.amount.data)
             distribution_method = form.distribution_method.data
             
-            # 验证收款金额不能超过未收款总额（严格验证）
-            unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
-            if amount > unpaid_amount + 0.01:  # 允许0.01的浮点数误差
-                flash(f'收款金额({amount:.2f})不能超过未收款总额({unpaid_amount:.2f})', 'error')
-                log_error(f'项目收款被拒 {header.hid}(id={header_id})：收款金额 {amount:.2f} > 未收款总额 {unpaid_amount:.2f}')
-                return render_template('business/projects/project_receipt/create_header_receipt.html',
-                                     form=form,
-                                     header=header,
-                                     receipt_number=receipt_number,
-                                     unpaid_amount=unpaid_amount)
-            
-            # 根据分配方式处理 - 按发票分配
-            from App_new.business.projects.models.invoice import ProjectInvoice
+            # 收款性质决定后面怎么走。预收款是「先收钱、后开票」：那一刻项目可能
+            # 一张发票都没有，unpaid_amount 是 0，下面「金额不能超过未收款总额」
+            # 会把它一律拒掉；手动分配那条还要求必须选发票，也没得选。
+            # 这一整套发票校验和分配对预收款全不适用，直接跳过。
+            receipt_type = form.receipt_type.data or 'payment'
+            is_advance = receipt_type == 'advance'
 
-            if distribution_method == 'manual':
-                # 手动分配：只分配给选中的发票
-                selected_invoice_ids = form.selected_invoices.data
-                if not selected_invoice_ids or (len(selected_invoice_ids) == 1 and selected_invoice_ids[0] == 0):
-                    flash('请选择要分配的发票', 'error')
-                    log_error(f'项目收款被拒 {header.hid}(id={header_id})：手动分配但未选择发票')
+            unpaid_amount = ProjectReceipt.get_project_unpaid_amount(header_id)
+            distribution_result = {'success': True, 'distribution': [], 'remaining_amount': amount}
+
+            if not is_advance:
+                # 验证收款金额不能超过未收款总额（严格验证）
+                if amount > unpaid_amount + 0.01:  # 允许0.01的浮点数误差
+                    flash(f'收款金额({amount:.2f})不能超过未收款总额({unpaid_amount:.2f})', 'error')
+                    log_error(f'项目收款被拒 {header.hid}(id={header_id})：收款金额 {amount:.2f} > 未收款总额 {unpaid_amount:.2f}')
                     return render_template('business/projects/project_receipt/create_header_receipt.html',
                                          form=form,
                                          header=header,
                                          receipt_number=receipt_number,
                                          unpaid_amount=unpaid_amount)
+            
+                # 根据分配方式处理 - 按发票分配
+                from App_new.business.projects.models.invoice import ProjectInvoice
 
-                # 计算选中发票的总未收款金额
-                selected_unpaid_total = 0
-                selected_invoices_data = []
-                for inv_id in selected_invoice_ids:
-                    invoice = ProjectInvoice.query.get(inv_id)
-                    if invoice:
+                if distribution_method == 'manual':
+                    # 手动分配：只分配给选中的发票
+                    selected_invoice_ids = form.selected_invoices.data
+                    if not selected_invoice_ids or (len(selected_invoice_ids) == 1 and selected_invoice_ids[0] == 0):
+                        flash('请选择要分配的发票', 'error')
+                        log_error(f'项目收款被拒 {header.hid}(id={header_id})：手动分配但未选择发票')
+                        return render_template('business/projects/project_receipt/create_header_receipt.html',
+                                             form=form,
+                                             header=header,
+                                             receipt_number=receipt_number,
+                                             unpaid_amount=unpaid_amount)
+
+                    # 计算选中发票的总未收款金额
+                    selected_unpaid_total = 0
+                    selected_invoices_data = []
+                    for inv_id in selected_invoice_ids:
+                        invoice = ProjectInvoice.query.get(inv_id)
+                        if invoice:
+                            inv_unpaid = invoice.unpaid_amount
+                            if inv_unpaid > 0:
+                                selected_unpaid_total += inv_unpaid
+                                selected_invoices_data.append({'invoice': invoice, 'unpaid': inv_unpaid})
+
+                    if amount > selected_unpaid_total + 0.01:
+                        flash(f'收款金额不能超过选中发票的未收款总额：{header.currency or "SGD"} {selected_unpaid_total:.2f}', 'error')
+                        log_error(f'项目收款被拒 {header.hid}(id={header_id})：收款金额 {amount:.2f} > 选中发票未收款合计 {selected_unpaid_total:.2f}，选中发票 {selected_invoice_ids}')
+                        return render_template('business/projects/project_receipt/create_header_receipt.html',
+                                             form=form,
+                                             header=header,
+                                             receipt_number=receipt_number,
+                                             unpaid_amount=unpaid_amount)
+
+                    # 按比例分配给选中的发票
+                    distribution = []
+                    remaining_amount = amount
+                    for i, inv_data in enumerate(selected_invoices_data):
+                        invoice = inv_data['invoice']
+                        inv_unpaid = inv_data['unpaid']
+                        if inv_unpaid > 0 and selected_unpaid_total > 0:
+                            # 最后一张发票：分配所有剩余金额（避免浮点误差丢失）
+                            if i == len(selected_invoices_data) - 1:
+                                allocated = min(inv_unpaid, remaining_amount)
+                            else:
+                                # 按比例分配（用原始金额计算比例，而非递减的remaining）
+                                allocated = min(inv_unpaid, round(amount * (inv_unpaid / selected_unpaid_total), 2))
+                            if allocated > 0:
+                                distribution.append({
+                                    'invoice_id': invoice.id,
+                                    'invoice_number': invoice.invoice_number,
+                                    'amount': allocated,
+                                    'method': 'manual'
+                                })
+                                remaining_amount -= allocated
+
+                    distribution_result = {
+                        'success': True,
+                        'distribution': distribution,
+                        'remaining_amount': remaining_amount,
+                        'total_unpaid': selected_unpaid_total
+                    }
+                else:
+                    # 顺序分配：按发票日期顺序依次结算
+                    invoices = ProjectInvoice.query.filter_by(header_id=header_id).filter(
+                        ProjectInvoice.status.in_(['confirmed', 'partial'])
+                    ).order_by(ProjectInvoice.invoice_date).all()
+
+                    distribution = []
+                    remaining_amount = amount
+                    total_unpaid = 0
+
+                    for invoice in invoices:
                         inv_unpaid = invoice.unpaid_amount
                         if inv_unpaid > 0:
-                            selected_unpaid_total += inv_unpaid
-                            selected_invoices_data.append({'invoice': invoice, 'unpaid': inv_unpaid})
+                            total_unpaid += inv_unpaid
+                            allocated = min(inv_unpaid, remaining_amount)
+                            if allocated > 0:
+                                distribution.append({
+                                    'invoice_id': invoice.id,
+                                    'invoice_number': invoice.invoice_number,
+                                    'amount': allocated,
+                                    'method': 'sequential'
+                                })
+                                remaining_amount -= allocated
+                            if remaining_amount <= 0:
+                                break
 
-                if amount > selected_unpaid_total + 0.01:
-                    flash(f'收款金额不能超过选中发票的未收款总额：{header.currency or "SGD"} {selected_unpaid_total:.2f}', 'error')
-                    log_error(f'项目收款被拒 {header.hid}(id={header_id})：收款金额 {amount:.2f} > 选中发票未收款合计 {selected_unpaid_total:.2f}，选中发票 {selected_invoice_ids}')
+                    distribution_result = {
+                        'success': True,
+                        'distribution': distribution,
+                        'remaining_amount': remaining_amount,
+                        'total_unpaid': total_unpaid
+                    }
+            
+                if not distribution_result.get('success', True) and distribution_result.get('message'):
+                    flash(distribution_result['message'], 'error')
                     return render_template('business/projects/project_receipt/create_header_receipt.html',
                                          form=form,
                                          header=header,
                                          receipt_number=receipt_number,
                                          unpaid_amount=unpaid_amount)
-
-                # 按比例分配给选中的发票
-                distribution = []
-                remaining_amount = amount
-                for i, inv_data in enumerate(selected_invoices_data):
-                    invoice = inv_data['invoice']
-                    inv_unpaid = inv_data['unpaid']
-                    if inv_unpaid > 0 and selected_unpaid_total > 0:
-                        # 最后一张发票：分配所有剩余金额（避免浮点误差丢失）
-                        if i == len(selected_invoices_data) - 1:
-                            allocated = min(inv_unpaid, remaining_amount)
-                        else:
-                            # 按比例分配（用原始金额计算比例，而非递减的remaining）
-                            allocated = min(inv_unpaid, round(amount * (inv_unpaid / selected_unpaid_total), 2))
-                        if allocated > 0:
-                            distribution.append({
-                                'invoice_id': invoice.id,
-                                'invoice_number': invoice.invoice_number,
-                                'amount': allocated,
-                                'method': 'manual'
-                            })
-                            remaining_amount -= allocated
-
-                distribution_result = {
-                    'success': True,
-                    'distribution': distribution,
-                    'remaining_amount': remaining_amount,
-                    'total_unpaid': selected_unpaid_total
-                }
-            else:
-                # 顺序分配：按发票日期顺序依次结算
-                invoices = ProjectInvoice.query.filter_by(header_id=header_id).filter(
-                    ProjectInvoice.status.in_(['confirmed', 'partial'])
-                ).order_by(ProjectInvoice.invoice_date).all()
-
-                distribution = []
-                remaining_amount = amount
-                total_unpaid = 0
-
-                for invoice in invoices:
-                    inv_unpaid = invoice.unpaid_amount
-                    if inv_unpaid > 0:
-                        total_unpaid += inv_unpaid
-                        allocated = min(inv_unpaid, remaining_amount)
-                        if allocated > 0:
-                            distribution.append({
-                                'invoice_id': invoice.id,
-                                'invoice_number': invoice.invoice_number,
-                                'amount': allocated,
-                                'method': 'sequential'
-                            })
-                            remaining_amount -= allocated
-                        if remaining_amount <= 0:
-                            break
-
-                distribution_result = {
-                    'success': True,
-                    'distribution': distribution,
-                    'remaining_amount': remaining_amount,
-                    'total_unpaid': total_unpaid
-                }
-            
-            if not distribution_result.get('success', True) and distribution_result.get('message'):
-                flash(distribution_result['message'], 'error')
-                return render_template('business/projects/project_receipt/create_header_receipt.html',
-                                     form=form,
-                                     header=header,
-                                     receipt_number=receipt_number,
-                                     unpaid_amount=unpaid_amount)
 
             # 将 distribution 数组转换为 allocations 字典格式
             distribution_list = distribution_result.get('distribution', [])
@@ -714,7 +747,11 @@ def create_header_receipt(header_id):
             # 一分钱都分配不出去时不能建记录：这种"孤儿收款"没有任何分配明细，
             # 各REF的已收算不到它头上（页面照旧显示未收款），却会被按原始金额计入
             # 项目已收，把后续收款全部挡在门外。
-            if not allocations:
+            #
+            # 预收款除外 —— 它天生就没有发票可分配，那正是它存在的理由。
+            # 它记进「预收账款」而不是冲应收，不会造成上面说的那种错账；
+            # 等该项目开出发票，由 advance_offset 抵扣并补上分配记录。
+            if not allocations and not is_advance:
                 flash('没有可分配的发票（发票可能已作废或已收满），收款记录未创建', 'error')
                 log_error(f'项目收款被拒 {header.hid}(id={header_id})：分配结果为空，'
                           f'金额={amount:.2f}，分配方式={distribution_method}')
@@ -732,6 +769,7 @@ def create_header_receipt(header_id):
                 invoice_id=None,  # 不再使用直接关联，改用分配表
                 amount=amount,
                 currency=form.currency.data,
+                receipt_type=receipt_type,
                 payment_method=form.payment_method.data,
                 payment_date=form.payment_date.data,
                 payer_name=form.payer_name.data,

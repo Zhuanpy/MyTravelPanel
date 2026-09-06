@@ -147,6 +147,21 @@
                              <span style="color: #333;">{{ header.settled_at.strftime('%Y-%m-%d') }}</span>
                              {% endif %}
                          </div>
+                         {% if advance_balance and advance_balance > 0 %}
+                         {# 客户预收款：钱收了但还没开票，是欠客户一次服务的负债，不是收入。
+                            只在有余额时出现，没有预收的项目不占位。 #}
+                         <div style="display: flex; align-items: center; padding: 6px 10px; background: #fffbf2; border-left: 3px solid #a86b00; border-radius: 4px;">
+                             <span style="color: #a86b00; min-width: 60px; font-weight: 600;">预收款</span>
+                             <span style="flex: 1; color: #a86b00; font-weight: 600;">
+                                 {{ header.currency or 'SGD' }} {{ "%.2f"|format(advance_balance) }}
+                             </span>
+                             <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}"
+                                style="font-size: 0.75rem; color: #a86b00;"
+                                title="{% for r in advance_receipts %}{{ r.receipt_number }}：{{ '%.2f'|format(r.advance_balance) }}&#10;{% endfor %}下次开票时自动抵扣">
+                                 {{ advance_receipts|length }} 笔 · 查看
+                             </a>
+                         </div>
+                         {% endif %}
                      </div>
                      
                  </div>

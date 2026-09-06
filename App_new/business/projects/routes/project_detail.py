@@ -151,7 +151,16 @@ def project_detail(project_id):
         settle_blockers = [] if header.is_settled else header.settle_blockers
         can_settle = (not header.is_settled) and not settle_blockers
 
+        # 客户预收余额：已收进来、还没被发票抵扣掉的部分。
+        # 它是负债不是收入，项目页要能一眼看到，否则容易被当成"已经赚到的钱"。
+        from App_new.business.projects.services.advance_offset import (
+            get_advance_balance, available_advances)
+        advance_balance = get_advance_balance(header.id)
+        advance_receipts = available_advances(header.id)
+
         return render_template('business/projects/project_detail.html',
+                               advance_balance=advance_balance,
+                               advance_receipts=advance_receipts,
                                header=header,
                                company=company,
                                companies=companies,

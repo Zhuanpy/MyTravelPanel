@@ -137,10 +137,15 @@
                        class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> 返回项目详情
                     </a>
-                    {% if can_create_receipt %}
+                    {% if can_create_receipt or can_create_advance %}
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createReceiptModal">
                         <i class="fas fa-plus"></i> 新增项目收款
                     </button>
+                    {% if not can_create_receipt %}
+                    <span class="text-muted small ms-2">
+                        <i class="fas fa-info-circle"></i> 暂无未收发票，可先记「预收款」
+                    </span>
+                    {% endif %}
                     {% else %}
                     <button type="button" class="btn btn-primary" disabled
                             title="{{ '请先生成发票' if invoice_count == 0 else ('还有REF未开票，请先生成发票' if header.uninvoiced_selling_amount > 0.005 else '已无未收款金额') }}">
@@ -190,6 +195,27 @@
                                 <small class="text-muted">未收款金额</small>
                             </div>
                         </div>
+                        {% if advance_balance and advance_balance > 0 %}
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center">
+                                <h4 class="text-warning mb-1">
+                                    {{ header.currency or 'SGD' }} {{ "%.2f"|format(advance_balance) }}
+                                </h4>
+                                <small class="text-muted">
+                                    预收余额
+                                    <i class="fas fa-question-circle text-muted"
+                                       title="客户已付、尚未被发票抵扣的金额。该项目下次开票时会自动抵扣。"></i>
+                                </small>
+                                {% if advance_receipts %}
+                                <div class="small text-muted mt-1">
+                                    {% for r in advance_receipts %}
+                                    <div>{{ r.receipt_number }}：{{ "%.2f"|format(r.advance_balance) }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="col-md-3 mb-3">
                             <div class="text-center">
                                 <h4 class="text-info mb-1">
@@ -365,7 +391,7 @@
 </div>
 
 <!-- 新增收款弹窗 -->
-{% if can_create_receipt %}
+{% if can_create_receipt or can_create_advance %}
 <div class="modal fade" id="createReceiptModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -379,6 +405,16 @@
                     <!-- 必填字段区域 -->
                     <div class="border rounded p-3 mb-3 bg-light">
                         <h6 class="text-muted mb-3"><i class="fas fa-asterisk text-danger" style="font-size:10px;"></i> 必填信息</h6>
+                        <!-- 收款性质放在最前：它决定要不要选发票分配，先选它后面才好填 -->
+                        <div class="row mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.receipt_type.label }} <span class="text-danger">*</span></label>
+                                {{ form.receipt_type(class="form-select form-select-sm", id="modalReceiptType") }}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-text mt-4" id="modalReceiptTypeHint"></div>
+                            </div>
+                        </div>
                         <div class="row mb-2">
                             <div class="col-md-3">
                                 <label class="form-label">收款单号</label>
@@ -829,4 +865,33 @@ if (modalDistMethod) {
     });
 }
 </script>
+
+<script>
+// 预收款是「先收钱、后开票」，此时没有发票可分配。
+// 选中预收时把分配区禁掉并提示，免得填了却被后端忽略、看着像丢数据。
+(function () {
+    const sel = document.getElementById('modalReceiptType');
+    if (!sel) return;
+    const hint = document.getElementById('modalReceiptTypeHint');
+    function sync() {
+        const isAdvance = sel.value === 'advance';
+        ['distribution_method', 'selected_invoices'].forEach(function (name) {
+            const el = document.querySelector('#createReceiptModal [name="' + name + '"]');
+            if (!el) return;
+            el.disabled = isAdvance;
+            const box = el.closest('.col-md-3, .col-md-6, .col-md-12, .mb-2, .mb-3');
+            if (box) box.style.opacity = isAdvance ? .45 : 1;
+        });
+        if (hint) {
+            hint.innerHTML = isAdvance
+                ? '<i class="fas fa-info-circle text-warning"></i> 记入「预收账款」，该项目下次开票时自动抵扣，本次不分配发票'
+                : '<i class="fas fa-info-circle text-info"></i> 已有发票、本次收回，按下方方式分配到发票';
+        }
+    }
+    sel.addEventListener('change', sync);
+    document.addEventListener('DOMContentLoaded', sync);
+    sync();
+})();
+</script>
+
 {% endblock %}

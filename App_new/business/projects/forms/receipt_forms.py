@@ -6,6 +6,13 @@ from datetime import date
 class ProjectReceiptForm(FlaskForm):
     """项目收款表单"""
 
+    # 收款性质：先开票后收钱 = 回款；先收钱后开票 = 预收款
+    # 预收款贷「预收账款」而不是「应收账款」，后续开票时自动抵扣
+    receipt_type = SelectField('收款性质', choices=[
+        ('payment', '发票回款 —— 已有发票，本次收回'),
+        ('advance', '预收款 —— 尚未开票，后续开票时抵扣')
+    ], default='payment', validators=[DataRequired(message='请选择收款性质')])
+
     # 关联发票（可选）
     invoice_id = SelectField('关联发票', coerce=int, validators=[
         Optional()
@@ -74,6 +81,13 @@ class ProjectReceiptForm(FlaskForm):
 
 class ProjectLevelReceiptForm(FlaskForm):
     """项目级别收款表单 - 按发票分配"""
+
+    # 收款性质：先开票后收钱 = 回款；先收钱后开票 = 预收款
+    # 预收款贷「预收账款」而不是「应收账款」，后续开票时自动抵扣
+    receipt_type = SelectField('收款性质', choices=[
+        ('payment', '发票回款 —— 已有发票，本次收回'),
+        ('advance', '预收款 —— 尚未开票，后续开票时抵扣')
+    ], default='payment', validators=[DataRequired(message='请选择收款性质')])
 
     # 收款信息
     amount = DecimalField('收款金额', validators=[

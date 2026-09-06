@@ -24,6 +24,12 @@ class ProjectReceipt(db.Model):
                                nullable=False, comment='付款方式')
     payment_date = db.Column(db.Date, nullable=False, comment='收款日期')
 
+    # 收款性质：区分「先开票后收钱」和「先收钱后开票」，决定贷方科目
+    #   payment  发票回款 -> 贷 1100 应收账款
+    #   advance  预收款   -> 贷 2200 预收账款，后续开票时再抵扣转应收
+    receipt_type = db.Column(db.Enum('payment', 'advance'), default='payment',
+                             nullable=False, comment='收款性质：payment=发票回款 / advance=预收款')
+
     # 收款人信息
     payer_name = db.Column(db.String(100), nullable=True, comment='付款人姓名')
     payer_contact = db.Column(db.String(50), nullable=True, comment='付款人联系方式')
@@ -57,6 +63,38 @@ class ProjectReceipt(db.Model):
 
     def __repr__(self):
         return f'<ProjectReceipt {self.receipt_number}: {self.amount} {self.currency}>'
+
+    @property
+    def is_advance(self):
+        """是否预收款"""
+        return self.receipt_type == 'advance'
+
+    @property
+    def allocated_amount(self):
+        """已分配（已核销到发票）的金额
+
+        直接查库而不是遍历 self.invoice_allocations —— 关系对象在同一个会话里
+        会被缓存，抵扣刚写进去还没提交时读到的是旧值，界面上会显示成「抵扣了
+        但余额没变」。查询能看到 flush 过的数据，同一请求内前后一致。
+        """
+        from decimal import Decimal
+        if not self.id:
+            return Decimal('0')
+        total = db.session.query(
+            db.func.coalesce(db.func.sum(ReceiptInvoiceAllocation.allocated_amount), 0)
+        ).filter(ReceiptInvoiceAllocation.receipt_id == self.id).scalar()
+        return Decimal(str(total or 0))
+
+    @property
+    def advance_balance(self):
+        """预收余额 = 收款额 - 已核销额
+
+        只有预收款才有余额的概念；普通回款返回 0。
+        """
+        from decimal import Decimal
+        if not self.is_advance or self.status != 'confirmed':
+            return Decimal('0')
+        return (self.amount or Decimal('0')) - self.allocated_amount
 
     def to_dict(self):
         """转换为字典格式"""
@@ -149,8 +187,13 @@ class ProjectReceipt(db.Model):
         return status_map.get(self.status, self.status)
 
     @property
-    def receipt_type(self):
-        """收款类型：项目级别或REF级别"""
+    def receipt_level(self):
+        """收款层级：项目级别或REF级别
+
+        原名 receipt_type，跟新增的「收款性质」字段（payment/advance）撞名，
+        而且 type 那个词已经被性质占了。全项目没有任何模板或路由引用过这个
+        property，改名安全。
+        """
         return '项目级别' if self.ref_id is None else 'REF级别'
 
     @classmethod

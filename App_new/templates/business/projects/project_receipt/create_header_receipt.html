@@ -50,7 +50,15 @@
                                 {% endfor %}
                             </div>
                             <div class="col-md-3 mb-3">
-                                <!-- 占位符，保持布局平衡 -->
+                                <label class="form-label">{{ form.receipt_type.label }} <span class="text-danger">*</span></label>
+                                {{ form.receipt_type(class="form-select", id="receiptType") }}
+                                <div class="form-text" id="receiptTypeHint">
+                                    <i class="fas fa-info-circle text-info"></i>
+                                    先开票后收钱选「发票回款」；先收钱后开票选「预收款」
+                                </div>
+                                {% for error in form.receipt_type.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
                             </div>
                         </div>
                         <div class="row mb-4">
@@ -215,4 +223,34 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endblock %}
 
-{% block title %}新增项目收款 - {{ header.hid }}{% endblock %}
+{% block title %}新增项目收款 - {{ header.hid }}
+<script>
+// 预收款是「先收钱、后开票」，收钱时没有发票可分配。
+// 选中预收时把分配区整块禁掉，免得填了却被后端忽略、看着像丢数据。
+(function () {
+    const typeSel = document.getElementById('receiptType');
+    if (!typeSel) return;
+    const distSel = document.querySelector('[name="distribution_method"]');
+    const invSel  = document.querySelector('[name="selected_invoices"]');
+    const hint    = document.getElementById('receiptTypeHint');
+
+    function sync() {
+        const isAdvance = typeSel.value === 'advance';
+        [distSel, invSel].forEach(el => {
+            if (!el) return;
+            el.disabled = isAdvance;
+            const box = el.closest('.mb-3') || el.parentElement;
+            if (box) box.style.opacity = isAdvance ? .5 : 1;
+        });
+        if (hint) {
+            hint.innerHTML = isAdvance
+                ? '<i class="fas fa-info-circle text-warning"></i> 预收款记入「预收账款」，后续该项目开票时自动抵扣'
+                : '<i class="fas fa-info-circle text-info"></i> 先开票后收钱选「发票回款」；先收钱后开票选「预收款」';
+        }
+    }
+    typeSel.addEventListener('change', sync);
+    sync();
+})();
+</script>
+
+{% endblock %}
