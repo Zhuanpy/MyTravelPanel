@@ -1090,44 +1090,101 @@ def record_payment(invoice_id):
     
     if form.validate_on_submit():
         try:
+            from App_new.business.projects.models.receipt import (
+                ProjectReceipt, ReceiptInvoiceAllocation
+            )
+
             payment_amount = float(form.payment_amount.data)
-            
+
             # 验证付款金额不能超过未付金额
             if payment_amount > invoice.unpaid_amount:
                 flash(f'付款金额不能超过未付金额：{invoice.currency} {invoice.unpaid_amount:.2f}', 'error')
                 return render_template('business/projects/project_invoice/record_payment.html',
                                      form=form,
                                      invoice=invoice)
-            
-            # 更新已付金额
-            invoice.paid_amount = float(invoice.paid_amount or 0) + payment_amount
-            
-            # 记录付款信息到extra_info
-            payment_record = {
-                'amount': payment_amount,
-                'date': form.payment_date.data.isoformat(),
-                'method': form.payment_method.data,
-                'transaction_id': form.transaction_id.data,
-                'remarks': form.remarks.data,
-                'recorded_at': datetime.utcnow().isoformat(),
-                'recorded_by': current_user.username if current_user else None
-            }
-            
-            extra_info = json.loads(invoice.extra_info) if invoice.extra_info else {}
-            if 'payments' not in extra_info:
-                extra_info['payments'] = []
-            extra_info['payments'].append(payment_record)
-            invoice.extra_info = json.dumps(extra_info)
-            
-            # 更新发票状态
-            invoice.update_payment_status()
-            
+
+            # 走正规收款单路径：建 ProjectReceipt + 分配行，paid_amount 由分配表回写。
+            #
+            # 原来这里是 `invoice.paid_amount += payment_amount` 再把明细塞进
+            # extra_info['payments']，既不建收款单也不建分配行，两个后果：
+            #   1. 总账里没有对应分录 —— 这笔钱在财务上不存在
+            #   2. paid_amount 的权威来源是分配表（update_invoice_paid_amount 用
+            #      SUM(分配) 直接覆盖它），下次任何操作触发重算，这笔付款静默蒸发
+            # 线上已因此污染 4 张发票（10184/10185 缓存被累成票面 2 倍，
+            # 10290/10671 分配表为 0 但 paid_amount 有值）。
+            receipt_number = ProjectReceipt.generate_receipt_number()
+            receipt = ProjectReceipt(
+                receipt_number=receipt_number,
+                header_id=invoice.header_id,
+                ref_id=None,
+                invoice_id=None,  # 废弃字段，发票关联一律走分配表
+                amount=payment_amount,
+                currency=invoice.currency or 'SGD',
+                receipt_type='payment',  # 先开票后收钱，贷应收账款
+                payment_method=form.payment_method.data,
+                payment_date=form.payment_date.data,
+                payer_name=invoice.customer_name,
+                payer_company=invoice.customer_company,
+                transaction_id=form.transaction_id.data,
+                remarks=form.remarks.data or f'发票 {invoice.invoice_number} 收款',
+                status='confirmed',
+                created_by=current_user.username if current_user else None
+            )
+            db.session.add(receipt)
+            db.session.flush()
+
+            db.session.add(ReceiptInvoiceAllocation(
+                receipt_id=receipt.id,
+                invoice_id=invoice.id,
+                allocated_amount=payment_amount
+            ))
+            db.session.flush()
+
+            # 日记账（借：银行存款 / 贷：应收账款）。用 SAVEPOINT 隔离，
+            # 分录失败只回滚这一小段，不会让整笔收款在最后 commit 时炸掉。
+            try:
+                with db.session.begin_nested():
+                    journal_entry = JournalEntry.create_from_receipt(
+                        receipt,
+                        user=current_user.username if current_user else None
+                    )
+                    if journal_entry and journal_entry.lines:
+                        db.session.add(journal_entry)
+                        # create_from_receipt 已置为 posted，只有还是草稿时才需过账
+                        if journal_entry.status == 'draft':
+                            journal_entry.post(
+                                user=current_user.username if current_user else None
+                            )
+            except Exception as je_error:
+                logger.exception(
+                    '创建发票收款日记账失败 %s 发票 %s: %s',
+                    receipt_number, invoice.invoice_number, je_error
+                )
+
+            # paid_amount / payment_status 一律由分配表回写，不再手动累加
+            ProjectReceipt.update_invoice_paid_amount(invoice.id)
+
+            # 同步各 REF 的付款状态，与收款单入口保持同一套逻辑；
+            # 不做的话这条路径建的收款不会反映到 REF 上
+            header = invoice.header
+            if header:
+                for ref in header.refs:
+                    if ref.selling_price:
+                        total_received = ProjectReceipt.get_ref_total_received(ref.id, header.id)
+                        if total_received >= float(ref.selling_price):
+                            ref.payment_status = 'paid'
+                        elif total_received > 0:
+                            ref.payment_status = 'partial'
+                        else:
+                            ref.payment_status = 'unpaid'
+
             db.session.commit()
-            flash('付款记录成功', 'success')
+            flash(f'付款记录成功，已生成收款单 {receipt_number}', 'success')
             return redirect(url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id))
-            
+
         except Exception as e:
             db.session.rollback()
+            logger.exception('记录发票付款失败 invoice_id=%s: %s', invoice_id, e)
             flash(f'记录失败：{str(e)}', 'error')
     
     return render_template('business/projects/project_invoice/record_payment.html',
