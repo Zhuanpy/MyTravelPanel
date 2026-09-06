@@ -530,100 +530,27 @@ def list_projects():
                 # 未完成 = 未结算 且 不在可结算列表中
                 base_query = base_query.filter(~ProjectHeader.id.in_(can_settle_ids))
 
-        # 添加付款状态筛选 - 基于发票数据判断
-        if payment_status:
+        # 付款状态筛选 —— 与列表每一行的 balance 同源：未作废发票的未收合计。
+        #
+        # 原来是「REF售价 > 已收款」，跟行显示、跟未收款合计都不是一套口径：
+        # H169（董事借款 90,000）、H160（股东往来 19,967）这类 REF 上挂着售价、
+        # 却没有未收发票的单，行里显示 0，却会被「未付款」筛出来。
+        # 没有任何未作废发票的项目两边都不进——没开过票就谈不上收没收。
+        if payment_status in ('unpaid', 'paid'):
             from App_new.business.projects.models.invoice import ProjectInvoice
-            from sqlalchemy import union_all
 
-            # 按 header 统计发票金额和已付金额
-            invoice_sum_subq = db.session.query(
-                ProjectInvoice.header_id.label('hid'),
-                db.func.coalesce(db.func.sum(ProjectInvoice.amount), 0).label('invoice_total'),
-                db.func.coalesce(db.func.sum(ProjectInvoice.paid_amount), 0).label('invoice_paid')
-            ).filter(
+            unpaid_expr = db.func.coalesce(db.func.sum(db.func.greatest(
+                ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0)
+            status_subquery = db.session.query(ProjectInvoice.header_id).filter(
                 ProjectInvoice.status != 'cancelled'
-            ).group_by(ProjectInvoice.header_id).subquery()
-
-            # 按 header 统计总销售金额（用于没有发票的项目）
-            refs_sum_subq = db.session.query(
-                ProjectRef.header_id.label('hid'),
-                db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
-            ).group_by(ProjectRef.header_id).subquery()
-
-            # 按 header 统计总收款金额（基于发票分配计算，正确处理跨项目收款）
-            # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
-            invoice_alloc_filter = db.session.query(
-                ProjectInvoice.header_id.label('hid'),
-                ReceiptInvoiceAllocation.allocated_amount.label('amount')
-            ).join(
-                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
-            ).join(
-                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-            ).filter(
-                ProjectReceipt.status == 'confirmed',
-                ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
-            )
-
-            # 方式2: REF级别直接收款
-            ref_receipt_filter = db.session.query(
-                ProjectReceipt.header_id.label('hid'),
-                ProjectReceipt.amount.label('amount')
-            ).filter(
-                ProjectReceipt.status == 'confirmed',
-                ProjectReceipt.ref_id.isnot(None)
-            )
-
-            # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
-            old_receipts_subq = db.session.query(
-                ReceiptInvoiceAllocation.receipt_id
-            ).distinct().scalar_subquery()
-
-            old_project_receipt_filter = db.session.query(
-                ProjectReceipt.header_id.label('hid'),
-                ProjectReceipt.amount.label('amount')
-            ).filter(
-                ProjectReceipt.status == 'confirmed',
-                ProjectReceipt.ref_id == None,  # 项目级别收款
-                ~ProjectReceipt.id.in_(old_receipts_subq)  # 没有分配记录
-            )
-
-            # 合并三种方式
-            combined_filter = union_all(invoice_alloc_filter, ref_receipt_filter, old_project_receipt_filter).alias('combined_receipts_filter')
-            receipts_sum_subq = db.session.query(
-                combined_filter.c.hid,
-                db.func.coalesce(db.func.sum(combined_filter.c.amount), 0).label('total_received')
-            ).group_by(combined_filter.c.hid).subquery()
+            ).group_by(ProjectInvoice.header_id)
 
             if payment_status == 'unpaid':
-                # 未付款项目：销售金额 > 实际收款金额（与列表显示的"未付款"计算方式一致）
-                unpaid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
-                    receipts_sum_subq,
-                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
-                ).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    db.or_(
-                        receipts_sum_subq.c.total_received.is_(None),
-                        refs_sum_subq.c.total_selling > db.func.coalesce(receipts_sum_subq.c.total_received, 0)
-                    )
-                )
+                status_subquery = status_subquery.having(unpaid_expr > 0.01)
+            else:
+                status_subquery = status_subquery.having(unpaid_expr < 0.01)
 
-                base_query = base_query.filter(
-                    ProjectHeader.id.in_(unpaid_projects)
-                )
-
-            elif payment_status == 'paid':
-                # 已付款项目：销售金额 <= 实际收款金额（与列表显示的"未付款"计算方式一致）
-                paid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
-                    receipts_sum_subq,
-                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
-                ).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    refs_sum_subq.c.total_selling <= db.func.coalesce(receipts_sum_subq.c.total_received, 0)
-                )
-
-                base_query = base_query.filter(
-                    ProjectHeader.id.in_(paid_projects)
-                )
+            base_query = base_query.filter(ProjectHeader.id.in_(status_subquery))
         
         if date_from:
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
@@ -666,7 +593,6 @@ def list_projects():
         if all_filtered_ids:
             try:
                 from App_new.business.projects.models.invoice import ProjectInvoice
-                from sqlalchemy import union_all, case
 
                 # 汇总所有筛选项目的销售和成本
                 all_refs_totals = db.session.query(
@@ -677,75 +603,20 @@ def list_projects():
                 total_selling_all = float(all_refs_totals.total_selling or 0)
                 total_cost_all = float(all_refs_totals.total_cost or 0)
 
-                # 按项目计算收款（与筛选逻辑一致，通过 union_all 合并三种收款方式）
-                # 方式1: 通过发票分配表统计
-                alloc_by_project = db.session.query(
-                    ProjectInvoice.header_id.label('hid'),
-                    ReceiptInvoiceAllocation.allocated_amount.label('amount')
-                ).join(
-                    ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
-                ).join(
-                    ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
+                # 未收款合计 = 未作废发票的未收合计，跟表格每一行的 balance 同一个口径。
+                #
+                # 原来这里是「REF售价 − 已收款」，行里早就改成发票口径了（见下面
+                # unpaid_dict 那段的注释），合计没跟着改，于是出现了「每行都是 0、
+                # 合计却有六位数」的情况：H169（董事借款 90,000）、H160（股东往来
+                # 19,967）这类根本不是销售、也从没开过票的单，REF 上挂着售价、
+                # 没有收款，就被算成了应收 —— 线上 FY2025 那段一共虚增 109,967。
+                # 这两笔在总账里已经按往来款调整过了，账是对的，虚的只是这个合计。
+                total_balance_result = db.session.query(
+                    db.func.coalesce(db.func.sum(db.func.greatest(
+                        ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0)
                 ).filter(
                     ProjectInvoice.header_id.in_(all_filtered_ids),
-                    ProjectReceipt.status == 'confirmed',
-                    ProjectReceipt.ref_id == None
-                )
-
-                # 方式2: REF级别直接收款
-                ref_receipt_by_project = db.session.query(
-                    ProjectReceipt.header_id.label('hid'),
-                    ProjectReceipt.amount.label('amount')
-                ).filter(
-                    ProjectReceipt.header_id.in_(all_filtered_ids),
-                    ProjectReceipt.status == 'confirmed',
-                    ProjectReceipt.ref_id.isnot(None)
-                )
-
-                # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）
-                old_receipts_subq = db.session.query(
-                    ReceiptInvoiceAllocation.receipt_id
-                ).distinct().scalar_subquery()
-
-                old_receipt_by_project = db.session.query(
-                    ProjectReceipt.header_id.label('hid'),
-                    ProjectReceipt.amount.label('amount')
-                ).filter(
-                    ProjectReceipt.header_id.in_(all_filtered_ids),
-                    ProjectReceipt.status == 'confirmed',
-                    ProjectReceipt.ref_id == None,
-                    ~ProjectReceipt.id.in_(old_receipts_subq)
-                )
-
-                # 合并三种收款方式，按项目分组求和
-                combined_receipts = union_all(
-                    alloc_by_project, ref_receipt_by_project, old_receipt_by_project
-                ).alias('combined_receipts_summary')
-
-                receipt_per_project = db.session.query(
-                    combined_receipts.c.hid,
-                    db.func.coalesce(db.func.sum(combined_receipts.c.amount), 0).label('total_received')
-                ).group_by(combined_receipts.c.hid).subquery()
-
-                # 每个项目的销售额
-                selling_per_project = db.session.query(
-                    ProjectRef.header_id.label('hid'),
-                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
-                ).filter(
-                    ProjectRef.header_id.in_(all_filtered_ids)
-                ).group_by(ProjectRef.header_id).subquery()
-
-                # 汇总：每个项目的 max(0, 销售额 - 已收款)，避免多收项目产生负数
-                total_balance_result = db.session.query(
-                    db.func.coalesce(db.func.sum(
-                        case(
-                            (selling_per_project.c.total_selling > db.func.coalesce(receipt_per_project.c.total_received, 0),
-                             selling_per_project.c.total_selling - db.func.coalesce(receipt_per_project.c.total_received, 0)),
-                            else_=0
-                        )
-                    ), 0)
-                ).select_from(selling_per_project).outerjoin(
-                    receipt_per_project, receipt_per_project.c.hid == selling_per_project.c.hid
+                    ProjectInvoice.status != 'cancelled'
                 ).scalar() or 0
 
                 summary_stats = {
@@ -1087,34 +958,30 @@ def list_projects():
                             db.func.sum(ProjectRef.selling_price) - db.func.sum(ProjectRef.cost_price) == 0
                         )
 
-                # 应用余额筛选（销售金额 - 已收款金额）
-                if balance_min or balance_max:
-                    print(f"应用余额筛选: balance_min={balance_min}, balance_max={balance_max}")
-                    # 需要JOIN收款表来计算余额
-                    subquery = subquery.outerjoin(
-                        ProjectReceipt, 
-                        ProjectRef.header_id == ProjectReceipt.header_id
-                    ).group_by(ProjectRef.header_id)
-                    
-                    if balance_min:
-                        print(f"设置余额最小值筛选: {balance_min}")
-                        # 确保余额大于0的项目被筛选出来
-                        subquery = subquery.having(
-                            (db.func.sum(ProjectRef.selling_price) - db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)) > 0
-                        )
-                        # 如果指定了具体的balance_min值，则使用该值
-                        if float(balance_min) > 0:
-                            subquery = subquery.having(
-                                (db.func.sum(ProjectRef.selling_price) - db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)) >= float(balance_min)
-                            )
-                    if balance_max:
-                        print(f"设置余额最大值筛选: {balance_max}")
-                        subquery = subquery.having(
-                            (db.func.sum(ProjectRef.selling_price) - db.func.coalesce(db.func.sum(ProjectReceipt.amount), 0)) <= float(balance_max)
-                        )
-                
-                # 应用子查询筛选
+                # 应用子查询筛选（售价/利润类条件）
                 base_query = base_query.filter(ProjectHeader.id.in_(subquery))
+
+                # 余额筛选单独一条子查询，不挂在上面那条上：
+                # 原来是在 REF 子查询上 outerjoin 收款表，REF 和收款是多对多，
+                # 一join就变笛卡尔积——两条REF三笔收款，sum(selling_price) 会变成 3 倍。
+                # 而且口径也不对，改成跟列表显示一致的「未作废发票的未收合计」。
+                if balance_min or balance_max:
+                    from App_new.business.projects.models.invoice import ProjectInvoice
+
+                    unpaid_expr = db.func.coalesce(db.func.sum(db.func.greatest(
+                        ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0)
+                    balance_subquery = db.session.query(ProjectInvoice.header_id).filter(
+                        ProjectInvoice.status != 'cancelled'
+                    ).group_by(ProjectInvoice.header_id)
+
+                    if balance_min:
+                        balance_subquery = balance_subquery.having(unpaid_expr > 0)
+                        if float(balance_min) > 0:
+                            balance_subquery = balance_subquery.having(unpaid_expr >= float(balance_min))
+                    if balance_max:
+                        balance_subquery = balance_subquery.having(unpaid_expr <= float(balance_max))
+
+                    base_query = base_query.filter(ProjectHeader.id.in_(balance_subquery))
                 
                 # 重新执行分页查询
                 pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
@@ -1747,100 +1614,27 @@ def export_excel():
 
                 base_query = base_query.filter(~ProjectHeader.id.in_(can_settle_ids))
 
-        # 付款状态筛选 - 基于发票数据判断
-        if payment_status:
+        # 付款状态筛选 —— 与列表每一行的 balance 同源：未作废发票的未收合计。
+        #
+        # 原来是「REF售价 > 已收款」，跟行显示、跟未收款合计都不是一套口径：
+        # H169（董事借款 90,000）、H160（股东往来 19,967）这类 REF 上挂着售价、
+        # 却没有未收发票的单，行里显示 0，却会被「未付款」筛出来。
+        # 没有任何未作废发票的项目两边都不进——没开过票就谈不上收没收。
+        if payment_status in ('unpaid', 'paid'):
             from App_new.business.projects.models.invoice import ProjectInvoice
-            from sqlalchemy import union_all
 
-            # 按 header 统计发票金额和已付金额
-            invoice_sum_subq = db.session.query(
-                ProjectInvoice.header_id.label('hid'),
-                db.func.coalesce(db.func.sum(ProjectInvoice.amount), 0).label('invoice_total'),
-                db.func.coalesce(db.func.sum(ProjectInvoice.paid_amount), 0).label('invoice_paid')
-            ).filter(
+            unpaid_expr = db.func.coalesce(db.func.sum(db.func.greatest(
+                ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0)
+            status_subquery = db.session.query(ProjectInvoice.header_id).filter(
                 ProjectInvoice.status != 'cancelled'
-            ).group_by(ProjectInvoice.header_id).subquery()
-
-            # 按 header 统计总销售金额（用于没有发票的项目）
-            refs_sum_subq = db.session.query(
-                ProjectRef.header_id.label('hid'),
-                db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling')
-            ).group_by(ProjectRef.header_id).subquery()
-
-            # 按 header 统计总收款金额（基于发票分配计算，正确处理跨项目收款）
-            # 方式1: 通过发票分配表统计（仅限项目级别收款，避免与REF级别收款重复计算）
-            invoice_alloc_export = db.session.query(
-                ProjectInvoice.header_id.label('hid'),
-                ReceiptInvoiceAllocation.allocated_amount.label('amount')
-            ).join(
-                ReceiptInvoiceAllocation, ReceiptInvoiceAllocation.invoice_id == ProjectInvoice.id
-            ).join(
-                ProjectReceipt, ReceiptInvoiceAllocation.receipt_id == ProjectReceipt.id
-            ).filter(
-                ProjectReceipt.status == 'confirmed',
-                ProjectReceipt.ref_id == None  # 仅项目级别收款，REF级别收款在方式2统计
-            )
-
-            # 方式2: REF级别直接收款
-            ref_receipt_export = db.session.query(
-                ProjectReceipt.header_id.label('hid'),
-                ProjectReceipt.amount.label('amount')
-            ).filter(
-                ProjectReceipt.status == 'confirmed',
-                ProjectReceipt.ref_id.isnot(None)
-            )
-
-            # 方式3: 旧项目级别收款（没有分配记录也没有ref_id）- 向后兼容
-            old_receipts_export_subq = db.session.query(
-                ReceiptInvoiceAllocation.receipt_id
-            ).distinct().scalar_subquery()
-
-            old_project_receipt_export = db.session.query(
-                ProjectReceipt.header_id.label('hid'),
-                ProjectReceipt.amount.label('amount')
-            ).filter(
-                ProjectReceipt.status == 'confirmed',
-                ProjectReceipt.ref_id == None,  # 项目级别收款
-                ~ProjectReceipt.id.in_(old_receipts_export_subq)  # 没有分配记录
-            )
-
-            # 合并三种方式
-            combined_export = union_all(invoice_alloc_export, ref_receipt_export, old_project_receipt_export).alias('combined_receipts_export')
-            receipts_sum_subq = db.session.query(
-                combined_export.c.hid,
-                db.func.coalesce(db.func.sum(combined_export.c.amount), 0).label('total_received')
-            ).group_by(combined_export.c.hid).subquery()
+            ).group_by(ProjectInvoice.header_id)
 
             if payment_status == 'unpaid':
-                # 未付款项目：销售金额 > 实际收款金额（与列表显示的"未付款"计算方式一致）
-                unpaid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
-                    receipts_sum_subq,
-                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
-                ).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    db.or_(
-                        receipts_sum_subq.c.total_received.is_(None),
-                        refs_sum_subq.c.total_selling > db.func.coalesce(receipts_sum_subq.c.total_received, 0)
-                    )
-                )
+                status_subquery = status_subquery.having(unpaid_expr > 0.01)
+            else:
+                status_subquery = status_subquery.having(unpaid_expr < 0.01)
 
-                base_query = base_query.filter(
-                    ProjectHeader.id.in_(unpaid_projects)
-                )
-
-            elif payment_status == 'paid':
-                # 已付款项目：销售金额 <= 实际收款金额（与列表显示的"未付款"计算方式一致）
-                paid_projects = db.session.query(refs_sum_subq.c.hid).outerjoin(
-                    receipts_sum_subq,
-                    receipts_sum_subq.c.hid == refs_sum_subq.c.hid
-                ).filter(
-                    refs_sum_subq.c.total_selling > 0,
-                    refs_sum_subq.c.total_selling <= db.func.coalesce(receipts_sum_subq.c.total_received, 0)
-                )
-
-                base_query = base_query.filter(
-                    ProjectHeader.id.in_(paid_projects)
-                )
+            base_query = base_query.filter(ProjectHeader.id.in_(status_subquery))
 
         if date_from:
             base_query = base_query.filter(ProjectHeader.created_at >= date_from)
