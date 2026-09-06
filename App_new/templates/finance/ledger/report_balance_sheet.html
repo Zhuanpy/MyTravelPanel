@@ -204,7 +204,7 @@
 
     <!-- Report Footer 报表底部 -->
     <div class="text-muted small text-end mt-3">
-        Generated at: {{ now().strftime('%d %b %Y %H:%M:%S') if now is defined else '' }}
+        Generated at: {{ generated_at.strftime('%d %b %Y %H:%M:%S') }}
     </div>
 </div>
 

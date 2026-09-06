@@ -216,7 +216,7 @@
 
     <!-- Report Footer -->
     <div class="report-footer">
-        <span>{{ now().strftime('%d%b%Y %H:%M:%S') if now is defined else '' }}</span>
+        <span>Generated at: {{ generated_at.strftime('%d %b %Y %H:%M:%S') }}</span>
         <span>Page 页码: 1 / 1</span>
     </div>
 

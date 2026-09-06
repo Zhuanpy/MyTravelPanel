@@ -803,6 +803,7 @@ def report_trial_balance():
     company_name = 'JOYFUL ESCAPES PTE LTD'
 
     return render_template('finance/ledger/report_trial_balance.html',
+                           generated_at=datetime.now(),
                            trial_balance=trial_balance,
                            totals=totals,
                            company_name=company_name,
@@ -929,11 +930,41 @@ def report_profit_loss():
             # 有子科目 —— 于是收入和销售成本的合计双双变成 0，净利润跟着全错。
             total += item['amount']
 
-            # 所有有金额的科目都显示
-            if item['amount'] != 0 or item['is_parent']:
-                items.append(item)
+            # 这里全部返回。显示与否要看当期和年累计两列，而这个函数一次
+            # 只处理一列，判断不了 —— 交给下面的 merge_periods。
+            items.append(item)
 
         return items, total
+
+
+    def merge_periods(items_current, items_ytd):
+        """合并「当期 / 年累计」两列，并丢掉两列都为 0 的科目
+
+        4000 营业收入、5000 营业成本这类一级科目本身不记账 —— 分录都落在
+        4100/5100 等二级科目上 —— 所以恒为 0，列出来只是白占一行。
+
+        但不能只看当期就丢：所选区间的起点晚于财年起点时（比如财年 9/1 起、
+        区间选 3/1~8/31），某科目可能当期为 0 而年累计有数，那一行必须留着。
+        所以要两列都为 0 才丢。
+
+        合计不受影响 —— total 在 process_accounts 里就算完了，与显示无关。
+        """
+        ytd_map = {item['code']: item['amount'] for item in items_ytd}
+        merged = []
+        for item in items_current:
+            ytd = ytd_map.get(item['code'], Decimal('0'))
+            if item['amount'] == 0 and ytd == 0:
+                continue
+            merged.append({
+                'code': item['code'],
+                'name': item['name'],
+                'name_cn': item['name_cn'],
+                'level': item['level'],
+                'is_parent': item['is_parent'],
+                'current_period': item['amount'],
+                'year_to_date': ytd,
+            })
+        return merged
 
     # ============ REVENUE (收入) - 代码以4开头 ============
     revenue_current = get_account_amounts('income', '4', start_dt, end_dt)
@@ -942,19 +973,7 @@ def report_profit_loss():
     revenue_items_current, total_revenue_current = process_accounts(revenue_current, is_income=True)
     revenue_items_ytd, total_revenue_ytd = process_accounts(revenue_ytd, is_income=True)
 
-    # 合并当期和年累计数据
-    revenue_items = []
-    ytd_map = {item['code']: item['amount'] for item in revenue_items_ytd}
-    for item in revenue_items_current:
-        revenue_items.append({
-            'code': item['code'],
-            'name': item['name'],
-            'name_cn': item['name_cn'],
-            'level': item['level'],
-            'is_parent': item['is_parent'],
-            'current_period': item['amount'],
-            'year_to_date': ytd_map.get(item['code'], Decimal('0'))
-        })
+    revenue_items = merge_periods(revenue_items_current, revenue_items_ytd)
 
     # ============ COST OF SALES (销售成本) - 代码以5开头 ============
     cos_current = get_account_amounts('expense', '5', start_dt, end_dt)
@@ -963,18 +982,7 @@ def report_profit_loss():
     cos_items_current, total_cos_current = process_accounts(cos_current, is_income=False)
     cos_items_ytd, total_cos_ytd = process_accounts(cos_ytd, is_income=False)
 
-    cos_items = []
-    ytd_map = {item['code']: item['amount'] for item in cos_items_ytd}
-    for item in cos_items_current:
-        cos_items.append({
-            'code': item['code'],
-            'name': item['name'],
-            'name_cn': item['name_cn'],
-            'level': item['level'],
-            'is_parent': item['is_parent'],
-            'current_period': item['amount'],
-            'year_to_date': ytd_map.get(item['code'], Decimal('0'))
-        })
+    cos_items = merge_periods(cos_items_current, cos_items_ytd)
 
     # ============ COSTS AND EXPENSES (费用) - 代码以6或7开头 ============
     expenses_current = get_account_amounts('expense', ('6', '7'), start_dt, end_dt)
@@ -983,18 +991,7 @@ def report_profit_loss():
     expenses_items_current, total_expenses_current = process_accounts(expenses_current, is_income=False)
     expenses_items_ytd, total_expenses_ytd = process_accounts(expenses_ytd, is_income=False)
 
-    expenses_items = []
-    ytd_map = {item['code']: item['amount'] for item in expenses_items_ytd}
-    for item in expenses_items_current:
-        expenses_items.append({
-            'code': item['code'],
-            'name': item['name'],
-            'name_cn': item['name_cn'],
-            'level': item['level'],
-            'is_parent': item['is_parent'],
-            'current_period': item['amount'],
-            'year_to_date': ytd_map.get(item['code'], Decimal('0'))
-        })
+    expenses_items = merge_periods(expenses_items_current, expenses_items_ytd)
 
     # ============ TAXATION (税务) - 代码以8或9开头 ============
     tax_current = get_account_amounts('expense', ('8', '9'), start_dt, end_dt)
@@ -1003,18 +1000,7 @@ def report_profit_loss():
     tax_items_current, total_tax_current = process_accounts(tax_current, is_income=False)
     tax_items_ytd, total_tax_ytd = process_accounts(tax_ytd, is_income=False)
 
-    tax_items = []
-    ytd_map = {item['code']: item['amount'] for item in tax_items_ytd}
-    for item in tax_items_current:
-        tax_items.append({
-            'code': item['code'],
-            'name': item['name'],
-            'name_cn': item['name_cn'],
-            'level': item['level'],
-            'is_parent': item['is_parent'],
-            'current_period': item['amount'],
-            'year_to_date': ytd_map.get(item['code'], Decimal('0'))
-        })
+    tax_items = merge_periods(tax_items_current, tax_items_ytd)
 
     # ============ 计算各项汇总 ============
     # 毛利润 = 收入 - 销售成本
@@ -1030,6 +1016,7 @@ def report_profit_loss():
     net_profit_after_tax_ytd = net_profit_ytd - total_tax_ytd
 
     return render_template('finance/ledger/report_profit_loss.html',
+                           generated_at=datetime.now(),
                            company_name=company_name,
                            # Revenue
                            revenue_items=revenue_items,
@@ -1319,6 +1306,7 @@ def report_balance_sheet():
     is_balanced = abs(total_assets_ytd - total_liab_capital_ytd) < Decimal('0.01')
 
     return render_template('finance/ledger/report_balance_sheet.html',
+                           generated_at=datetime.now(),
                            company_name=company_name,
                            # Assets
                            asset_items=asset_items,
@@ -1704,6 +1692,7 @@ def report_general_ledger_listing():
     company_name = 'JOYFUL ESCAPES PTE LTD'
 
     return render_template('finance/ledger/report_general_ledger_listing.html',
+                           generated_at=datetime.now(),
                            ledger_data=ledger_data,
                            company_name=company_name,
                            start_date=start_date,
