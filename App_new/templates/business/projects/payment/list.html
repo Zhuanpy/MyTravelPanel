@@ -320,18 +320,24 @@ function cancelPayment(paymentId, paymentNo) {
 }
 
 // 确认付款（标记为已核对，之后不可取消和编辑）
-function confirmPayment(paymentId) {
-    if (!confirm('确认后付款记录将不可取消和编辑，确定要确认吗？')) return;
+// 后端要求这笔付款先匹配上银行流水；没匹配上会回 need_force，
+// 这时再问一次，问清楚了才带 force 重发 —— 不让「已核对」随手就点出来。
+function confirmPayment(paymentId, force) {
+    if (!force && !confirm('确认后付款记录将不可取消和编辑，确定要确认吗？')) return;
 
     fetch(`/projects/payment/${paymentId}/reconcile`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({reconcile: true})
+        body: JSON.stringify({reconcile: true, force: !!force})
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
             location.reload();
+        } else if (data.need_force) {
+            if (confirm(data.message + '\n\n仍要标记为已核对吗？（会记为手工确认）')) {
+                confirmPayment(paymentId, true);
+            }
         } else {
             alert('操作失败: ' + data.message);
         }
@@ -384,7 +390,8 @@ function batchConfirm() {
         preview += '\n... 等 ' + nos.length + ' 条';
     }
 
-    if (!confirm('确定要确认以下 ' + ids.length + ' 条付款记录吗？\n\n' + preview + '\n\n确认后将不可取消和编辑。')) return;
+    if (!confirm('确定要确认以下 ' + ids.length + ' 条付款记录吗？\n\n' + preview
+               + '\n\n确认后将不可取消和编辑。\n没有匹配到银行流水的会被跳过。')) return;
 
     const btn = document.getElementById('btnBatchConfirm');
     btn.disabled = true;

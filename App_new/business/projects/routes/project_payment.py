@@ -308,6 +308,24 @@ def get_payment_summary():
     return jsonify({'success': True, 'data': result})
 
 
+def _matched_payment_ids(payment_ids):
+    """这批付款里，哪些真的匹配到了银行流水
+
+    is_reconciled 这个字段本意是「已跟银行对过账」，但页面上的「确认」按钮
+    一直是无条件置位的，还带一键全选 —— 于是线上几乎每条付款都是「已核对」，
+    这个状态等于没有。改成必须有 bank_transaction_matches 里的匹配记录才算数。
+    """
+    from App_new.finance.models.bank_transaction_match import BankTransactionMatch
+
+    if not payment_ids:
+        return set()
+    rows = BankTransactionMatch.query.filter(
+        BankTransactionMatch.match_type == 'payment',
+        BankTransactionMatch.match_id.in_(payment_ids)
+    ).with_entities(BankTransactionMatch.match_id).all()
+    return {r[0] for r in rows}
+
+
 @project_payment.route('/<int:payment_id>/reconcile', methods=['POST'])
 @login_required
 @staff_only
@@ -318,11 +336,25 @@ def toggle_reconcile(payment_id):
         payment = SupplierPayment.query.get_or_404(payment_id)
         data = request.get_json() or {}
         reconcile = data.get('reconcile', True)
+        force = bool(data.get('force'))
+
+        # 没有银行流水佐证就不给标「已核对」，除非操作人在弹窗里明确坚持；
+        # 坚持的那种会在 reconciled_by 上留「(手工)」，事后分得清哪些有凭据。
+        operator = current_user.username if current_user else None
+        if reconcile and payment.id not in _matched_payment_ids([payment.id]):
+            if not force:
+                return jsonify({
+                    'success': False,
+                    'need_force': True,
+                    'message': f'付款记录 {payment.payment_no} 没有匹配到银行流水，'
+                               f'建议先在银行对账里匹配后再确认'
+                })
+            operator = f'{operator or "unknown"}(手工)'
 
         payment.is_reconciled = reconcile
         if reconcile:
             payment.reconciled_at = datetime.utcnow()
-            payment.reconciled_by = current_user.username if current_user else None
+            payment.reconciled_by = operator
         else:
             payment.reconciled_at = None
             payment.reconciled_by = None
@@ -366,6 +398,11 @@ def batch_reconcile():
         confirmed_count = 0
         skipped = []  # 被跳过的记录及原因
 
+        # 批量这条路不给「强行确认」的口子：线上那批莫名其妙的「已核对」
+        # 就是一键全选点出来的。没匹配上银行流水的一律跳过，
+        # 真要手工确认，回到单条那个按钮，一条条来。
+        matched_ids = _matched_payment_ids([p.id for p in payments])
+
         for payment in payments:
             if payment.is_reconciled:
                 skipped.append(f'{payment.payment_no}（已核对）')
@@ -373,6 +410,9 @@ def batch_reconcile():
             # 已取消的付款不应再确认
             if payment.status == 'cancelled':
                 skipped.append(f'{payment.payment_no}（已取消）')
+                continue
+            if payment.id not in matched_ids:
+                skipped.append(f'{payment.payment_no}（无银行流水）')
                 continue
 
             payment.is_reconciled = True

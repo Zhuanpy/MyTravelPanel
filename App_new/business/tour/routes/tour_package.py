@@ -536,13 +536,15 @@ def handle_tour_project():
 @login_required
 @staff_only
 def index():
-    cities = ProductCity.query.order_by(ProductCity.country_name, ProductCity.display_name).all()
-    cities_by_country = {}
-    for city in cities:
-        if city.country_name not in cities_by_country:
-            cities_by_country[city.country_name] = []
-        cities_by_country[city.country_name].append(city)
-    return render_template('index.html', cities_by_country=cities_by_country)
+    """配套模块入口 —— 重定向到配套首页
+
+    原来这里自己查一遍城市再 render_template('index.html')，但模板搜索路径里
+    'index.html' 命中的是 templates/mobile/index.html（手机端首页），它要 stats
+    变量，于是 /package/ 一直 500（UndefinedError: 'stats' is undefined）。
+    真正的配套首页是 package_home，查的东西一模一样还多了产品数统计，
+    这里不重复实现，直接重定向过去。
+    """
+    return redirect(url_for('package_routes.package_home'))
 
 @login_required
 @staff_only

@@ -96,8 +96,12 @@
     <div class="container">
     <h1 class="title">行程团管理</h1>
     
+    {# 团必须挂在某个旅游项目下（create_tour_group 是 POST + 要 project_id），
+       这里没有项目上下文，只能先去项目列表选项目，进去再建团。
+       原来这两处直接 url_for('tour_projects.create_tour_group')，
+       缺 project_id，整页 BuildError 打不开。 #}
     <div style="text-align: center; margin-bottom: 20px;">
-        <a href="{{ url_for('tour_projects.create_tour_group') }}" class="btn">创建新行程团</a>
+        <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="btn">去项目里建团</a>
     </div>
 
     {% if groups %}
@@ -106,6 +110,7 @@
             <tr>
                 <th>ID</th>
                 <th>行程名称</th>
+                <th>所属项目</th>
                 <th>出发日期</th>
                 <th>返回日期</th>
                 <th>人数</th>
@@ -120,6 +125,13 @@
             <tr>
                 <td>{{ group.id }}</td>
                 <td>{{ group.title }}</td>
+                <td>
+                    {% if group.project %}
+                    <a href="{{ url_for('tour_projects.edit_tour_project', project_id=group.project_id) }}">
+                        {{ group.project.project_name }}
+                    </a>
+                    {% else %}-{% endif %}
+                </td>
                 <td>{{ group.departure_date.strftime('%Y-%m-%d') if group.departure_date else '未设置' }}</td>
                 <td>{{ group.return_date.strftime('%Y-%m-%d') if group.return_date else '未设置' }}</td>
                 <td>{{ group.pax }} 人</td>
@@ -150,7 +162,7 @@
     {% else %}
     <div style="text-align: center; padding: 40px; color: #666;">
         <p>暂无行程团数据</p>
-        <a href="{{ url_for('tour_projects.create_tour_group') }}" class="btn">创建第一个行程团</a>
+        <a href="{{ url_for('tour_projects.manage_tour_projects') }}" class="btn">先去创建旅游项目</a>
     </div>
     {% endif %}
     </div>

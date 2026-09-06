@@ -109,4 +109,11 @@ class ProjectEO(db.Model):
         if not self.eo_number:
             # 生成一个临时编号，保存时会被替换
             self.eo_number = 'TEMP'
+
+        # EO日期：建单的四个入口一个都没填过，历史数据全是 NULL，
+        # 下游（对账、财报取数）只好到处写「eo_date 为空就退回 created_at」。
+        # 这里建单就按同样的口径把它填上，兜底逻辑以后可以慢慢撤掉。
+        # 导入历史单据时会显式传 created_at，跟着它走而不是取今天。
+        if not self.eo_date:
+            self.eo_date = self.created_at.date() if self.created_at else datetime.now().date()
     
