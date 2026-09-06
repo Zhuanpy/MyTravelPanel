@@ -1,0 +1,417 @@
+/* ==========================================================================
+   项目首页
+
+   跟总账那边（ledger_home.css / finance_report.css）刻意不一样：总账首页通向
+   四份要打印交审计的报表，克制到只有黑白线条；项目首页是每天进来找入口的地方，
+   十几个功能并排，靠颜色比靠读标题快得多，所以这里放开用色。
+
+   用色的规矩：
+   - 一个功能一个色，同一组功能用邻近色，颜色是「认路标记」不是装饰
+   - 底色一律用最浅的一档（#eff6ff 这种），文字才用饱和色，整页不压眼
+   - 卡片圆角 + 极淡投影，hover 抬 1px —— 轻快但不晃
+   - 数字一律 tabular-nums，列不跳
+   ========================================================================== */
+
+:root {
+    --ph-ink:       #0f172a;
+    --ph-ink-soft:  #475569;
+    --ph-ink-muted: #94a3b8;
+    --ph-line:      #e2e8f0;
+    --ph-line-soft: #f1f5f9;
+    --ph-hover:     #f8fafc;
+
+    /* 功能配色：色相拉开，色调统一（600 号色配 50 号底） */
+    --ph-blue:   #2563eb;  --ph-blue-bg:   #eff6ff;  --ph-blue-line:   #bfdbfe;
+    --ph-green:  #16a34a;  --ph-green-bg:  #f0fdf4;  --ph-green-line:  #bbf7d0;
+    --ph-violet: #7c3aed;  --ph-violet-bg: #f5f3ff;  --ph-violet-line: #ddd6fe;
+    --ph-amber:  #d97706;  --ph-amber-bg:  #fffbeb;  --ph-amber-line:  #fde68a;
+    --ph-red:    #dc2626;  --ph-red-bg:    #fef2f2;  --ph-red-line:    #fecaca;
+    --ph-teal:   #0d9488;  --ph-teal-bg:   #f0fdfa;  --ph-teal-line:   #99f6e4;
+    --ph-pink:   #db2777;  --ph-pink-bg:   #fdf2f8;  --ph-pink-line:   #fbcfe8;
+    --ph-slate:  #475569;  --ph-slate-bg:  #f1f5f9;  --ph-slate-line:  #cbd5e1;
+}
+
+/* ---------- 页面外壳 ---------- */
+
+.ph-page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding-bottom: 32px;
+    color: var(--ph-ink);
+}
+
+/* ---------- 指标卡 ---------- */
+/* 四张色块，一眼分得开；数字用同色系的深色，底色只是背景不抢戏 */
+
+.ph-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.ph-metric {
+    position: relative;
+    padding: 16px 18px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.ph-metric .value {
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+}
+
+.ph-metric .value .unit {
+    font-size: .5em;
+    font-weight: 600;
+    margin-right: 3px;
+    letter-spacing: 0;
+    opacity: .75;
+}
+
+.ph-metric .label {
+    margin-top: 5px;
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--ph-ink-soft);
+}
+
+/* 角标图标：压到很淡，只做质感，不参与识别 */
+.ph-metric > i {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    font-size: 1.5rem;
+    opacity: .18;
+}
+
+.ph-metric.is-blue   { background: var(--ph-blue-bg); }
+.ph-metric.is-green  { background: var(--ph-green-bg); }
+.ph-metric.is-violet { background: var(--ph-violet-bg); }
+.ph-metric.is-amber  { background: var(--ph-amber-bg); }
+.ph-metric.is-red    { background: var(--ph-red-bg); }
+
+.ph-metric.is-blue   .value, .ph-metric.is-blue   > i { color: var(--ph-blue); }
+.ph-metric.is-green  .value, .ph-metric.is-green  > i { color: var(--ph-green); }
+.ph-metric.is-violet .value, .ph-metric.is-violet > i { color: var(--ph-violet); }
+.ph-metric.is-amber  .value, .ph-metric.is-amber  > i { color: var(--ph-amber); }
+.ph-metric.is-red    .value, .ph-metric.is-red    > i { color: var(--ph-red); }
+
+/* ---------- 提醒条 ---------- */
+
+.ph-alert {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    margin-bottom: 22px;
+    border-radius: 12px;
+    background: var(--ph-amber-bg);
+    border: 1px solid var(--ph-amber-line);
+}
+
+.ph-alert > i { font-size: 1.15rem; color: var(--ph-amber); }
+.ph-alert .body { flex: 1; min-width: 0; }
+.ph-alert .title { font-weight: 600; font-size: .95rem; color: #92400e; }
+.ph-alert .desc  { font-size: .84rem; color: var(--ph-ink-soft); margin-top: 3px; }
+
+/* 逾期应收是真金白银收不回来，跟「项目拖期」不是一个量级，换红 */
+.ph-alert.is-danger { background: var(--ph-red-bg); border-color: var(--ph-red-line); }
+.ph-alert.is-danger > i { color: var(--ph-red); }
+.ph-alert.is-danger .title { color: #991b1b; }
+
+/* ---------- 主体两栏 ---------- */
+
+.ph-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 24px;
+    align-items: start;
+}
+
+/* ---------- 分组标题 ---------- */
+
+.ph-section { margin-bottom: 24px; }
+
+.ph-section > h2 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: var(--ph-ink);
+}
+
+/* 标题左边一小段色条，跟这一组功能的主色一致 */
+.ph-section > h2::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--ph-slate);
+}
+
+.ph-section.is-blue   > h2::before { background: var(--ph-blue); }
+.ph-section.is-teal   > h2::before { background: var(--ph-teal); }
+.ph-section.is-violet > h2::before { background: var(--ph-violet); }
+
+.ph-section > h2 .more {
+    margin-left: auto;
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--ph-blue);
+    text-decoration: none;
+}
+
+.ph-section > h2 .more:hover { text-decoration: underline; }
+
+.ph-section > .note {
+    font-size: .82rem;
+    color: var(--ph-ink-muted);
+    margin: 0 0 12px 13px;
+}
+
+/* ---------- 功能入口卡 ---------- */
+
+.ph-links {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.ph-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    background: #fff;
+    border: 1px solid var(--ph-line);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ph-ink);
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+
+.ph-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .07);
+    text-decoration: none;
+    color: var(--ph-ink);
+}
+
+.ph-card .chip {
+    flex: 0 0 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.ph-card .name { font-weight: 600; font-size: .9rem; line-height: 1.3; }
+.ph-card .desc { display: block; font-weight: 400; font-size: .76rem; color: var(--ph-ink-muted); margin-top: 3px; }
+
+.ph-card.is-blue   .chip { background: var(--ph-blue-bg);   color: var(--ph-blue); }
+.ph-card.is-green  .chip { background: var(--ph-green-bg);  color: var(--ph-green); }
+.ph-card.is-violet .chip { background: var(--ph-violet-bg); color: var(--ph-violet); }
+.ph-card.is-amber  .chip { background: var(--ph-amber-bg);  color: var(--ph-amber); }
+.ph-card.is-red    .chip { background: var(--ph-red-bg);    color: var(--ph-red); }
+.ph-card.is-teal   .chip { background: var(--ph-teal-bg);   color: var(--ph-teal); }
+.ph-card.is-pink   .chip { background: var(--ph-pink-bg);   color: var(--ph-pink); }
+.ph-card.is-slate  .chip { background: var(--ph-slate-bg);  color: var(--ph-slate); }
+
+.ph-card.is-blue:hover   { border-color: var(--ph-blue-line); }
+.ph-card.is-green:hover  { border-color: var(--ph-green-line); }
+.ph-card.is-violet:hover { border-color: var(--ph-violet-line); }
+.ph-card.is-amber:hover  { border-color: var(--ph-amber-line); }
+.ph-card.is-red:hover    { border-color: var(--ph-red-line); }
+.ph-card.is-teal:hover   { border-color: var(--ph-teal-line); }
+.ph-card.is-pink:hover   { border-color: var(--ph-pink-line); }
+.ph-card.is-slate:hover  { border-color: var(--ph-slate-line); }
+
+/* ---------- 白卡容器（表格 / 右栏小表都用它） ---------- */
+
+.ph-panel {
+    background: #fff;
+    border: 1px solid var(--ph-line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+
+.ph-panel > h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .88rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+}
+
+.ph-panel > h2 > i { font-size: .85rem; }
+.ph-panel > h2 .more { margin-left: auto; font-size: .78rem; font-weight: 500; color: var(--ph-blue); text-decoration: none; }
+.ph-panel > h2 .more:hover { text-decoration: underline; }
+
+/* ---------- 右栏小表 ---------- */
+
+.ph-kv {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .86rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ph-kv td { padding: 7px 0; border-bottom: 1px solid var(--ph-line-soft); color: var(--ph-ink-soft); }
+.ph-kv td:last-child { text-align: right; font-weight: 600; color: var(--ph-ink); }
+
+.ph-kv tr.total td {
+    border-top: 1px solid var(--ph-line);
+    border-bottom: none;
+    padding-top: 9px;
+    font-weight: 700;
+    color: var(--ph-ink);
+}
+
+/* 合计行的数字给个色：一眼知道是好消息还是坏消息 */
+.ph-kv tr.total.is-green td:last-child { color: var(--ph-green); }
+.ph-kv tr.total.is-blue  td:last-child { color: var(--ph-blue); }
+.ph-kv tr.total.is-amber td:last-child { color: var(--ph-amber); }
+
+/* ---------- 最近项目表 ---------- */
+
+.ph-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .86rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ph-table th {
+    padding: 9px 12px;
+    font-size: .75rem;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--ph-ink-muted);
+    background: var(--ph-hover);
+}
+
+.ph-table th:first-child { border-radius: 8px 0 0 8px; }
+.ph-table th:last-child  { border-radius: 0 8px 8px 0; }
+
+.ph-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--ph-line-soft);
+    vertical-align: middle;
+}
+
+.ph-table tbody tr:last-child td { border-bottom: none; }
+.ph-table tbody tr:hover { background: var(--ph-hover); }
+
+.ph-table .num { text-align: right; white-space: nowrap; font-weight: 500; }
+
+.ph-table .hid a { color: var(--ph-blue); font-weight: 600; text-decoration: none; }
+.ph-table .hid a:hover { text-decoration: underline; }
+
+.ph-table .customer {
+    color: var(--ph-ink-soft);
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- 状态标 ---------- */
+
+.ph-pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: .74rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ph-pill.is-active { background: var(--ph-green-bg);  color: var(--ph-green); }
+.ph-pill.is-done   { background: var(--ph-blue-bg);   color: var(--ph-blue); }
+.ph-pill.is-cancel { background: var(--ph-slate-bg);  color: var(--ph-slate); }
+
+/* ---------- 提醒列表 ---------- */
+
+.ph-reminder {
+    display: flex;
+    gap: 11px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--ph-line-soft);
+}
+
+.ph-reminder:last-child { border-bottom: none; }
+
+.ph-reminder .date {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: .75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: var(--ph-amber-bg);
+    color: var(--ph-amber);
+}
+
+/* 今天到期的转红，否则一列全是橙的等于没标 */
+.ph-reminder .date.is-today { background: var(--ph-red-bg); color: var(--ph-red); }
+
+.ph-reminder .body { min-width: 0; }
+.ph-reminder .body a { color: var(--ph-blue); font-weight: 600; font-size: .87rem; text-decoration: none; }
+.ph-reminder .body a:hover { text-decoration: underline; }
+
+.ph-reminder .event {
+    font-size: .78rem;
+    color: var(--ph-ink-muted);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- 空状态 ---------- */
+
+.ph-empty {
+    padding: 24px 0;
+    text-align: center;
+    font-size: .84rem;
+    color: var(--ph-ink-muted);
+}
+
+.ph-empty i { display: block; font-size: 1.6rem; margin-bottom: 8px; opacity: .35; }
+
+/* ---------- 顶部快捷操作（挂在 base 的标题栏右侧） ---------- */
+
+.ph-actions .btn { font-size: .84rem; border-radius: 8px; }
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 1400px) {
+    .ph-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1100px) {
+    .ph-body { grid-template-columns: 1fr; gap: 8px; }
+    .ph-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+    .ph-metrics { grid-template-columns: repeat(2, 1fr); }
+    .ph-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+    .ph-links { grid-template-columns: 1fr; }
+}

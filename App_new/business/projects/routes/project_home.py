@@ -77,59 +77,15 @@ def index():
 
         upcoming_reminders = reminders_query.limit(5).all()
 
-        # 功能模块列表
-        modules = [
-            {
-                'name': '创建项目',
-                'desc': '新建一个项目',
-                'icon': 'fas fa-plus-circle',
-                'color': 'success',
-                'url': 'business_projects.project_create.create_header'
-            },
-            {
-                'name': '项目列表',
-                'desc': '查看和管理所有项目',
-                'icon': 'fas fa-list',
-                'color': 'primary',
-                'url': 'business_projects.list.list_projects'
-            },
-            {
-                'name': '收款管理',
-                'desc': '管理项目收款记录',
-                'icon': 'fas fa-money-bill-wave',
-                'color': 'info',
-                'url': 'business_projects.project_receipt.receipt_list'
-            },
-            {
-                'name': '发票管理',
-                'desc': '管理项目发票',
-                'icon': 'fas fa-file-invoice',
-                'color': 'warning',
-                'url': 'business_projects.project_invoice.invoice_list'
-            },
-            {
-                'name': 'EO管理',
-                'desc': '管理Exchange Order',
-                'icon': 'fas fa-exchange-alt',
-                'color': 'secondary',
-                'url': 'business_projects.project_eo.eo_list'
-            },
-            {
-                'name': '邮件模板',
-                'desc': '管理邮件模板',
-                'icon': 'fas fa-envelope',
-                'color': 'dark',
-                'url': 'business_projects.detail.email_templates_list'
-            }
-        ]
-
+        # 功能入口原来在这里硬编码成 modules 列表（还带 Bootstrap 配色），
+        # 现在直接写在模板里按用途分组，跟导航栏的下拉菜单对得上，不再传。
         return render_template(
             'business/projects/project_home.html',
             total_stats=total_stats,
             warning_stats=warning_stats,
             recent_projects=recent_projects,
             upcoming_reminders=upcoming_reminders,
-            modules=modules
+            today=today
         )
 
     except Exception as e:
@@ -142,6 +98,6 @@ def index():
             warning_stats={},
             recent_projects=[],
             upcoming_reminders=[],
-            modules=[],
+            today=datetime.now().date(),
             error=str(e)
         )
