@@ -1,0 +1,306 @@
+/* ==========================================================================
+   Ledger 首页 —— 极简黑白，与 finance_report.css 同一套视觉语言
+
+   原样式是 Bootstrap 模板的默认长相：紫色渐变横幅（#667eea→#764ba2）、
+   六色图标片、卡片阴影加 hover 位移。而同模块的四份对外报表用的是
+   finance_report.css 的极简黑白，一个模块两种风格。
+
+   这里沿用报表那一套：
+   - 不靠背景色填充，只用线条和字重分层
+   - 图标一律单色，不做彩色底片
+   - 数字用 tabular-nums 等宽，列对齐不跳动
+   - 彩色只留给状态（待生成、未初始化）—— 那是信息不是装饰
+
+   首页是操作页不是打印页，所以比报表多一点交互反馈（hover 换底色、
+   左边线转深），但不做位移和阴影 —— 位移会让一屏十几个入口一直在抖。
+   ========================================================================== */
+
+:root {
+    --lg-ink:        #111;
+    --lg-ink-soft:   #555;
+    --lg-ink-muted:  #888;
+    --lg-rule:       #111;      /* 强分隔线 */
+    --lg-rule-hair:  #e2e2e2;   /* 弱分隔线 */
+    --lg-hover:      #fafafa;
+    --lg-warn:       #a86b00;   /* 待办/未初始化，唯一的彩色 */
+    --lg-warn-bg:    #fffbf2;
+}
+
+/* ---------- 页面外壳 ---------- */
+/* staff_base 的 <main> 已有 px-4，这里只管纵向节奏和最大宽度 */
+
+.lg-page {
+    max-width: 1280px;
+    margin: 0 auto;          /* 跟 finance_report.css 的 .report-container 一致 */
+    padding-bottom: 32px;
+    color: var(--lg-ink);
+}
+
+/* ---------- 关键指标条 ---------- */
+/* 四个数字排一行，用竖线分隔而不是四张卡片 —— 它们是同一组事实，
+   不是四个独立对象，卡片化反而割裂了 */
+
+.lg-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1.5px solid var(--lg-rule);
+    border-bottom: 1px solid var(--lg-rule);
+    margin-bottom: 28px;
+}
+
+.lg-metric {
+    padding: 16px 20px;
+    border-left: 1px solid var(--lg-rule-hair);
+}
+
+.lg-metric:first-child {
+    padding-left: 0;
+    border-left: none;
+}
+
+.lg-metric .value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.01em;
+}
+
+.lg-metric .value.is-warn { color: var(--lg-warn); }
+.lg-metric .value .unit {
+    font-size: .5em;
+    font-weight: 600;
+    color: var(--lg-ink-muted);
+    margin-right: 3px;
+    letter-spacing: 0;
+}
+
+.lg-metric .label {
+    margin-top: 6px;
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--lg-ink-muted);
+}
+
+/* ---------- 提醒条 ---------- */
+/* 不用整块黄底 —— 那会盖过页面主体。左侧一道粗线足够醒目 */
+
+.lg-alert {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    background: var(--lg-warn-bg);
+    border-left: 3px solid var(--lg-warn);
+}
+
+.lg-alert i { font-size: 1.1rem; color: var(--lg-warn); }
+.lg-alert .body { flex: 1; }
+.lg-alert .title { font-weight: 600; font-size: .95rem; }
+.lg-alert .desc  { font-size: .84rem; color: var(--lg-ink-soft); margin-top: 2px; }
+
+/* ---------- 主体两栏 ---------- */
+/* 用 grid 而不是 Bootstrap 的 row/col —— 原来的 col-md-8 少了一个
+   闭合 div，右栏被浏览器嵌进了左栏里。grid 没有这个隐患 */
+
+.lg-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 288px;
+    gap: 36px;
+    align-items: start;
+}
+
+/* ---------- 分组标题 ---------- */
+
+.lg-section {
+    margin-bottom: 26px;
+}
+
+.lg-section > h2 {
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--lg-ink);
+    padding-bottom: 7px;
+    margin: 0 0 2px;
+    border-bottom: 1.5px solid var(--lg-rule);
+}
+
+.lg-section > .note {
+    font-size: .8rem;
+    color: var(--lg-ink-muted);
+    margin: 8px 0 0;
+}
+
+/* ---------- 功能入口 ---------- */
+/* 两列紧凑列表。原来是彩色卡片，12 个入口 12 种颜色，
+   眼睛没有落点；统一成单色后靠标题本身区分 */
+
+.lg-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 28px;
+}
+
+.lg-links.single { grid-template-columns: 1fr; }
+
+.lg-link {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 13px 12px 13px 10px;
+    border-bottom: 1px solid var(--lg-rule-hair);
+    border-left: 2px solid transparent;
+    text-decoration: none;
+    color: var(--lg-ink);
+    transition: background .12s, border-left-color .12s;
+}
+
+.lg-link:hover {
+    background: var(--lg-hover);
+    border-left-color: var(--lg-rule);
+    text-decoration: none;
+    color: var(--lg-ink);
+}
+
+.lg-link > i {
+    flex: 0 0 16px;
+    font-size: .9rem;
+    color: var(--lg-ink-muted);
+    position: relative;
+    top: 1px;
+}
+
+.lg-link:hover > i { color: var(--lg-ink); }
+
+.lg-link .name {
+    font-weight: 600;
+    font-size: .92rem;
+    line-height: 1.35;
+}
+
+.lg-link .desc {
+    display: block;
+    font-weight: 400;
+    font-size: .78rem;
+    color: var(--lg-ink-muted);
+    margin-top: 2px;
+}
+
+/* ---------- 右栏小表 ---------- */
+
+.lg-panel {
+    border-top: 1.5px solid var(--lg-rule);
+    padding-top: 4px;
+    margin-bottom: 26px;
+}
+
+.lg-panel h2 {
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    margin: 8px 0 6px;
+}
+
+.lg-kv {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .86rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.lg-kv td { padding: 7px 0; border-bottom: 1px solid var(--lg-rule-hair); }
+.lg-kv td:last-child { text-align: right; font-weight: 600; }
+.lg-kv tr.total td {
+    border-top: 1px solid var(--lg-rule);
+    border-bottom: none;
+    padding-top: 9px;
+    font-weight: 700;
+}
+.lg-kv tr.total td:first-child { font-weight: 700; }
+
+/* ---------- 最近分录表 ---------- */
+/* 表头样式跟四份报表保持一致：上下实线夹住、小字大写疏排 */
+
+.lg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .86rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.lg-table th {
+    padding: 9px 12px 7px;
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    text-align: left;
+    white-space: nowrap;
+    border-top: 1.5px solid var(--lg-rule);
+    border-bottom: 1px solid var(--lg-rule);
+}
+
+.lg-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--lg-rule-hair);
+    vertical-align: middle;
+}
+
+.lg-table tbody tr:hover { background: var(--lg-hover); }
+
+.lg-table .num { text-align: right; white-space: nowrap; }
+.lg-table .entry-no a { color: var(--lg-ink); text-decoration: none; font-weight: 600; }
+.lg-table .entry-no a:hover { text-decoration: underline; }
+.lg-table .descr {
+    color: var(--lg-ink-soft);
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 来源类型：不用四种填充色，统一细边框 + 小字，靠文字本身区分 */
+.lg-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--lg-ink-soft);
+    border: 1px solid var(--lg-rule-hair);
+    border-radius: 2px;
+    white-space: nowrap;
+}
+
+/* 手工分录值得一眼认出来 —— 它是人为调整，不是业务自动产生的 */
+.lg-tag.is-manual {
+    color: var(--lg-warn);
+    border-color: #e8d5ae;
+}
+
+/* ---------- 顶部快捷操作（挂在 base 的标题栏右侧） ---------- */
+
+.lg-actions .btn {
+    font-size: .84rem;
+    border-radius: 3px;
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 1100px) {
+    .lg-body { grid-template-columns: 1fr; gap: 8px; }
+}
+
+@media (max-width: 768px) {
+    .lg-metrics { grid-template-columns: repeat(2, 1fr); }
+    .lg-metric:nth-child(3) { padding-left: 0; border-left: none; }
+    .lg-metric:nth-child(n+3) { border-top: 1px solid var(--lg-rule-hair); }
+    .lg-links { grid-template-columns: 1fr; }
+}
