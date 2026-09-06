@@ -90,25 +90,47 @@
                             <i class="fas fa-project-diagram"></i> 项目管理
                         </a>
                         <ul class="dropdown-menu">
-                            <li><h6 class="dropdown-header">HID 项目</h6></li>
+                            {# 结构对齐总账菜单：首页独立置顶，其余按「用途」分组而不是按单据类型。
+                               原来分成 REF/EO/Invoice/Receipt/Refund/Settlement 六组，好几组只有
+                               一条，分隔线比内容还多；而且「项目首页」被压在分组标题底下。 #}
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.home.index') }}">
                                 <i class="fas fa-home me-2"></i>项目首页
                             </a></li>
+
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">项目</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.list.list_projects') }}">
                                 <i class="fas fa-list me-2"></i>项目列表
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_create.create_header') }}">
                                 <i class="fas fa-plus me-2"></i>创建项目
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">REF 报价单</h6></li>
+                            <li><h6 class="dropdown-header">业务单据</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_ref.ref_list') }}">
-                                <i class="fas fa-file-alt me-2"></i>REF列表
+                                <i class="fas fa-file-alt me-2"></i>REF 报价单
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">EO 执行单</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.eo_list') }}">
-                                <i class="fas fa-tasks me-2"></i>EO列表
+                                <i class="fas fa-tasks me-2"></i>EO 执行单
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_invoice.invoice_list') }}">
+                                <i class="fas fa-file-invoice me-2"></i>发票列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
+                                <i class="fas fa-receipt me-2"></i>收据列表
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_refund.refund_list') }}">
+                                <i class="fas fa-rotate-left me-2"></i>退款列表
+                            </a></li>
+
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">收付款</h6></li>
+                            {# 按客户收款原来导航里进不去，只能靠记 URL。
+                               批量收款（batch-invoice-receipt）不放这里：它要 invoice_ids 参数，
+                               是从发票列表勾选后跳转的第二步，直接点只会被弹回发票列表。 #}
+                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_by_company') }}">
+                                <i class="fas fa-building me-2"></i>按客户收款
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_eo.batch_pay') }}">
                                 <i class="fas fa-money-check-alt me-2"></i>批量付款
@@ -116,23 +138,9 @@
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.project_payment.list_payments') }}">
                                 <i class="fas fa-list-alt me-2"></i>付款记录
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Invoice 发票</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_invoice.invoice_list') }}">
-                                <i class="fas fa-file-invoice me-2"></i>发票列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Receipt 收款</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_receipt.receipt_list') }}">
-                                <i class="fas fa-receipt me-2"></i>收据列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Refund 退款</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('business_projects.project_refund.refund_list') }}">
-                                <i class="fas fa-rotate-left me-2"></i>退款列表
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Settlement 结算</h6></li>
+                            <li><h6 class="dropdown-header">结算</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('business_projects.settlement.settlement_list') }}">
                                 <i class="fas fa-calculator me-2"></i>项目结算
                             </a></li>
@@ -240,15 +248,23 @@
                             <i class="fas fa-plane"></i> 机票
                         </a>
                         <ul class="dropdown-menu">
+                            {# 分组对齐总账/项目菜单。原来 11 个条目一个分组标题都没有，
+                               只靠两条分隔线，订单、工具、基础数据、文件夹混在一起。 #}
+                            <li><h6 class="dropdown-header">订单</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_booking.order_list') }}">
                                 <i class="fas fa-list me-2"></i>订单列表
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_booking.create_order') }}">
                                 <i class="fas fa-plus me-2"></i>创建订单
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">工具</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_itinerary.conversion') }}">
-                                <i class="fas fa-exchange-alt me-2"></i>机票工具
+                                <i class="fas fa-exchange-alt me-2"></i>行程转换
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_itinerary.booking_code') }}">
+                                <i class="fas fa-barcode me-2"></i>订座代码解析
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_usbangla.ticket_generator') }}">
                                 <i class="fas fa-toolbox me-2"></i>机票行程生成
@@ -256,13 +272,21 @@
                             <li><a class="dropdown-item" href="{{ url_for('flights_passport.extract_page') }}">
                                 <i class="fas fa-id-card me-2"></i>护照识别
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('flights_passport.recent') }}">
+                                <i class="fas fa-history me-2"></i>识别记录
+                            </a></li>
+
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">基础数据</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_flight_schedule') }}">
                                 <i class="fas fa-clock me-2"></i>航班时刻表
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('flights_schedule.input_airport_code_info') }}">
                                 <i class="fas fa-map-marker-alt me-2"></i>机场代码
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">文件夹</h6></li>
                             <li><a class="dropdown-item flight-folder-link" href="#" data-url="/flight_home/open_project_folder">
                                 <i class="fas fa-folder me-2"></i>资源文件夹
                             </a></li>
@@ -279,9 +303,13 @@
                             <i class="fas fa-cubes"></i> 产品
                         </a>
                         <ul class="dropdown-menu">
+                            {# 产品中心当首页独立置顶；其余按「卖什么 / 从谁进货 / 谁在问」分组。
+                               原来签证产品、景点门票、图片库、客户咨询、会员订单都没有分组标题，
+                               跟有标题的「旅游配套」「供应商」混在一起。 #}
                             <li><a class="dropdown-item" href="{{ url_for('products.index') }}">
                                 <i class="fas fa-th-large me-2"></i>产品中心
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">旅游配套</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('tour_products.product_list') }}">
@@ -290,13 +318,19 @@
                             <li><a class="dropdown-item" href="{{ url_for('tour_products.add_product') }}">
                                 <i class="fas fa-plus me-2"></i>添加配套
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">单项产品</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('visa_basic.visa_type_list') }}">
                                 <i class="fas fa-passport me-2"></i>签证产品
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('products.ticket_list') }}">
                                 <i class="fas fa-ticket-alt me-2"></i>景点门票
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('products.create_ticket') }}">
+                                <i class="fas fa-plus me-2"></i>添加门票
+                            </a></li>
+
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">供应商</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('supplier.suppliers') }}">
@@ -305,16 +339,17 @@
                             <li><a class="dropdown-item" href="{{ url_for('supplier.add_supplier') }}">
                                 <i class="fas fa-user-plus me-2"></i>添加供应商
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('staff.image_library') }}">
-                                <i class="fas fa-images me-2"></i>图片库管理
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">客户与素材</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('staff.inquiry_list') }}">
                                 <i class="fas fa-inbox me-2"></i>客户咨询
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('staff.member_order_list') }}">
                                 <i class="fas fa-shopping-cart me-2"></i>会员订单
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('staff.image_library') }}">
+                                <i class="fas fa-images me-2"></i>图片库管理
                             </a></li>
                         </ul>
                     </li>
@@ -323,14 +358,14 @@
                             <i class="fas fa-box"></i> 配套预算
                         </a>
                         <ul class="dropdown-menu">
+                            {# 配套首页独立置顶。原来「城市管理」紧贴首页、不属于任何分组，
+                               它其实是基础数据，挪到最后的「基础设置」里，跟总账菜单一致。 #}
                             <li><a class="dropdown-item" href="{{ url_for('package_routes.package_home') }}">
                                 <i class="fas fa-home me-2"></i>配套首页
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('package_routes.manage_cities') }}">
-                                <i class="fas fa-city me-2"></i>城市管理
-                            </a></li>
+
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">预算管理</h6></li>
+                            <li><h6 class="dropdown-header">预算</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('package_budget.list_budgets') }}">
                                 <i class="fas fa-file-invoice-dollar me-2"></i>预算列表
                             </a></li>
@@ -340,15 +375,26 @@
                             <li><a class="dropdown-item" href="{{ url_for('package_budget.list_templates') }}">
                                 <i class="fas fa-file-alt me-2"></i>预算模板
                             </a></li>
+
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">旅游项目</h6></li>
-                            <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('tour_projects') and request.endpoint != 'tour_projects.itinerary_template_list' %}active{% endif %}"
+                            <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('tour_projects') and request.endpoint not in ('tour_projects.itinerary_template_list', 'tour_projects.create_tour_project') %}active{% endif %}"
                                    href="{{ url_for('tour_projects.manage_tour_projects') }}">
                                 <i class="fas fa-suitcase me-2"></i>旅游项目列表
+                            </a></li>
+                            <li><a class="dropdown-item {% if request.endpoint == 'tour_projects.create_tour_project' %}active{% endif %}"
+                                   href="{{ url_for('tour_projects.create_tour_project') }}">
+                                <i class="fas fa-plus me-2"></i>创建旅游项目
                             </a></li>
                             <li><a class="dropdown-item {% if request.endpoint == 'tour_projects.itinerary_template_list' %}active{% endif %}"
                                    href="{{ url_for('tour_projects.itinerary_template_list') }}">
                                 <i class="fas fa-layer-group me-2"></i>行程模板库
+                            </a></li>
+
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">基础设置</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('package_routes.manage_cities') }}">
+                                <i class="fas fa-city me-2"></i>城市管理
                             </a></li>
                         </ul>
                     </li>
