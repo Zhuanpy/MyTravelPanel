@@ -16,7 +16,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="report-container">
+<div class="report-container wide">
     <!-- Filter -->
     <div class="filter-section no-print">
         <form class="row g-3 align-items-end" method="GET">
@@ -68,16 +68,23 @@
                 <col style="width:11%">
             </colgroup>
             <thead>
-                <!-- 单行表头 -->
+                <!-- 两行表头：上行是三组期间的跨列标题，下行是借/贷。
+                     原来靠三段底色区分三组，改成跨列标题 + 组间竖线 —— 财务报表的
+                     通用画法，也跟 finance_report.css「不用背景色填充」的原则一致。 -->
+                <tr class="group-row">
+                    <th rowspan="2">Account Code 科目代码</th>
+                    <th rowspan="2" class="text-left">Account Name 科目名称</th>
+                    <th colspan="2" class="group-start">Opening Balance 期初余额</th>
+                    <th colspan="2" class="group-start">Current Period 本期发生</th>
+                    <th colspan="2" class="group-start">Year To Date 本年累计</th>
+                </tr>
                 <tr>
-                    <th>Account Code 科目代码</th>
-                    <th class="text-left">Account Name 科目名称</th>
-                    <th style="background:#d0d0d0; border-left:2px solid #999">Opening Debit 期初借方</th>
-                    <th style="background:#d0d0d0">Opening Credit 期初贷方</th>
-                    <th style="background:#c5e1a5; border-left:2px solid #999">Current Debit 本期借方</th>
-                    <th style="background:#c5e1a5">Current Credit 本期贷方</th>
-                    <th style="background:#b3e5fc; border-left:2px solid #999">YTD Debit 本年借方</th>
-                    <th style="background:#b3e5fc">YTD Credit 本年贷方</th>
+                    <th class="amount-cell group-start">Debit 借方</th>
+                    <th class="amount-cell">Credit 贷方</th>
+                    <th class="amount-cell group-start">Debit 借方</th>
+                    <th class="amount-cell">Credit 贷方</th>
+                    <th class="amount-cell group-start">Debit 借方</th>
+                    <th class="amount-cell">Credit 贷方</th>
                 </tr>
             </thead>
             <tbody>
@@ -86,21 +93,21 @@
                     <td class="account-code">{{ item.code }}</td>
                     <td class="text-left">{{ item.name }}{% if item.name_cn %} ({{ item.name_cn }}){% endif %}</td>
                     <!-- Opening Balance -->
-                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                    <td class="amount-cell group-start">
                         {% if item.opening_debit > 0 %}{{ '{:,.2f}'.format(item.opening_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">
                         {% if item.opening_credit > 0 %}{{ '{:,.2f}'.format(item.opening_credit|float) }}{% endif %}
                     </td>
                     <!-- Current Period -->
-                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                    <td class="amount-cell group-start">
                         {% if item.current_debit > 0 %}{{ '{:,.2f}'.format(item.current_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">
                         {% if item.current_credit > 0 %}{{ '{:,.2f}'.format(item.current_credit|float) }}{% endif %}
                     </td>
                     <!-- Year To Date -->
-                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                    <td class="amount-cell group-start">
                         {% if item.ytd_debit > 0 %}{{ '{:,.2f}'.format(item.ytd_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">
@@ -113,21 +120,21 @@
                 <tr class="total-row">
                     <td colspan="2" class="text-right">Total 合计:</td>
                     <!-- Opening Balance Totals -->
-                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                    <td class="amount-cell group-start">
                         {% if totals.opening_debit > 0 %}{{ '{:,.2f}'.format(totals.opening_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">
                         {% if totals.opening_credit > 0 %}{{ '{:,.2f}'.format(totals.opening_credit|float) }}{% endif %}
                     </td>
                     <!-- Current Period Totals -->
-                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                    <td class="amount-cell group-start">
                         {% if totals.current_debit > 0 %}{{ '{:,.2f}'.format(totals.current_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">
                         {% if totals.current_credit > 0 %}{{ '{:,.2f}'.format(totals.current_credit|float) }}{% endif %}
                     </td>
                     <!-- Year To Date Totals -->
-                    <td class="amount-cell" style="border-left:2px solid #ccc">
+                    <td class="amount-cell group-start">
                         {% if totals.ytd_debit > 0 %}{{ '{:,.2f}'.format(totals.ytd_debit|float) }}{% endif %}
                     </td>
                     <td class="amount-cell">

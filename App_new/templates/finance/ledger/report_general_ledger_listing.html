@@ -7,8 +7,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/finance_report.css') }}">
 <style>
-    /* 总账明细 11 列，需要更宽的版面和横向打印 */
-    .report-container { max-width: 1600px; }
+    /* 版面宽度用共享的 .report-container.wide，这里只管列宽和横向打印 */
 
     .col-account    { width: 8%; }
     .col-date       { width: 8%; }
@@ -29,7 +28,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="report-container">
+<div class="report-container wide">
     <!-- Filter -->
     <div class="filter-section no-print">
         <form class="row g-3 align-items-end" method="GET">

@@ -34,9 +34,11 @@
     padding: 20px;
 }
 
-/* 总账明细列多，需要更宽 */
+/* 列多的报表用这个：试算平衡表 8 列、总账明细 11 列。
+   th 是 nowrap 的，中英双语表头一列就要 140px 上下，挤在 1000px 里
+   会把表格撑出容器 —— 容器居中、表格往右伸，看着就是整体偏右。 */
 .report-container.wide {
-    max-width: 1500px;
+    max-width: 1600px;
 }
 
 /* 筛选区是操作区不是报表的一部分，保留浅底以示区分（打印时隐藏） */
@@ -88,6 +90,16 @@
 .ledger-table-container {
     background: var(--fr-paper);
     margin-bottom: 20px;
+    /* 兜底：窗口再窄也让表格自己横向滚动，不要撑破居中的容器。
+       打印时不能有滚动条，所以 @media print 里还原成 visible。 */
+    overflow-x: auto;
+}
+
+@media print {
+    .pnl-table-container,
+    .bs-table-container,
+    .report-table-container,
+    .ledger-table-container { overflow-x: visible; }
 }
 
 /* ---------- 表格主体 ---------- */
@@ -201,6 +213,46 @@
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 分组表头 ---------- */
+/* 试算平衡表把「期初 / 本期 / 本年」三组各拆成借贷两列，共 8 列。
+   原来靠三段底色（#d0d0d0 / #c5e1a5 / #b3e5fc）区分，跟这份样式表
+   「不用背景色填充」的原则冲突，打印也费墨。
+
+   改成上行跨列组标题 + 组间竖线 —— 正统财务报表就是这么画的，
+   分组关系比颜色说得更清楚（颜色只告诉你「这几列是一伙的」，
+   跨列标题还顺带告诉你「这一伙叫什么」）。 */
+
+.report-table thead tr.group-row th {
+    text-align: center;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--fr-rule-hair);
+}
+
+/* 科目代码/名称跨两行，底线要跟第二行的底线齐平，用强线 */
+.report-table thead tr.group-row th[rowspan] {
+    vertical-align: bottom;
+    border-bottom: 1px solid var(--fr-rule);
+}
+
+.report-table thead tr.group-row th[rowspan].text-left {
+    text-align: left;
+}
+
+/* 第二行不再画上边线，否则和第一行的下边线叠成双线 */
+.report-table thead tr.group-row + tr th {
+    border-top: none;
+}
+
+/* 组的左边界：表头画得实一点，表体用发丝线，上下贯通 */
+.report-table thead th.group-start {
+    border-left: 1px solid var(--fr-ink-muted);
+}
+
+.report-table tbody td.group-start,
+.report-table tfoot td.group-start {
+    border-left: 1px solid var(--fr-rule-hair);
 }
 
 .spacer-row td {
