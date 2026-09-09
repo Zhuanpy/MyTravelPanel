@@ -585,8 +585,11 @@
                             <div class="visa-form-group visa-mb-3">
                                 <label for="input_text" class="visa-form-label">
                                         <i class="fas fa-plane-departure"></i> 输入行程：
+                                        <span style="font-weight: 400; color: #64748b; font-size: 0.8rem; margin-left: 0.5rem;">
+                                            网页原文直接粘进来即可，会自动识别，不必先走「航班解析」
+                                        </span>
                                     </label>
-                                <textarea id="input_text" name="input_text" class="visa-form-textarea" placeholder="请输入需要转换的行程数据..." style="min-height: 250px; font-family: 'Consolas', 'Monaco', monospace;">{{ request.form.get('input_text', '') }}</textarea>
+                                <textarea id="input_text" name="input_text" class="visa-form-textarea" placeholder="直接粘贴以下任意一种，点「开始转换」即可：&#10;• 订票网页原文：Trip.com / 携程 / Google Flights / 酷航 / 新航 / 航司官网&#10;• 手动输入：1.SINGAPORE - DHAKA, Flight No: BS 310, 22APR, Departure: 15:25 - Arrival: 17:35&#10;• 订位系统航段：1. MU  568 S  05AUG SINPVG HK1  1635   2205  O*  E SA" style="min-height: 250px; font-family: 'Consolas', 'Monaco', monospace;">{{ request.form.get('input_text', '') }}</textarea>
                                 </div>
                                 
                             <div class="visa-flex visa-gap-3 visa-mb-3">
@@ -629,10 +632,12 @@
                                         </div>
                                     </div>
                                     
-                                <div>
+                                <div class="visa-flex visa-gap-2" style="align-items: center;">
                                     <button type="submit" class="visa-btn visa-btn-primary">
                                             <i class="fas fa-sync-alt"></i> 开始转换
                                         </button>
+                                    <!-- 自动识别到的来源格式，转换成功后才显示 -->
+                                    <span id="convert_format_badge" style="display:none; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; background: #d1fae5; color: #065f46;"></span>
                                 </div>
                             </div>
                             
@@ -1258,7 +1263,11 @@
         if (form) {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                
+
+                // 上一次的识别结果先收起来，免得失败时还挂着旧标签误导人
+                const oldBadge = document.getElementById('convert_format_badge');
+                if (oldBadge) oldBadge.style.display = 'none';
+
                 // 获取表单数据
                 const formData = new FormData(form);
                 
@@ -1358,7 +1367,18 @@
                              console.log('Success, updating output text');
                              // 更新输出文本
                              document.getElementById('output_text').value = data.output_text;
-                             
+
+                             // 显示后端自动识别到的来源格式，让人知道这段被当成什么解析的
+                             const convBadge = document.getElementById('convert_format_badge');
+                             if (convBadge && data.format_detected) {
+                                 convBadge.textContent = '识别为：' + data.format_detected;
+                                 convBadge.style.display = 'inline-block';
+                             }
+                             // 解析阶段的告警（如手动输入里有查不到 IATA 的城市）
+                             if (data.warning) {
+                                 showToast(data.warning, 'warning');
+                             }
+
                              // 保存到记忆
                              const inputText = document.getElementById('input_text').value;
                              const luggage = document.getElementById('luggage').value;
