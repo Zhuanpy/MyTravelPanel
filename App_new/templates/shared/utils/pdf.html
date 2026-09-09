@@ -1,177 +1,185 @@
 ﻿{% extends "staff_base.html" %}
 
-{% block title %}PDF处理 - MyTravelPanel{% endblock %}
+{% block title %}文件处理 - MyTravelPanel{% endblock %}
 
-{% block page_title %}PDF处理{% endblock %}
+{% block page_title %}文件处理{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+    /* 卡片进网格后间距交给 gap，去掉卡片自带的下外边距；
+       再让同一行卡片等高、按钮统一贴底，否则内容长短不一会参差不齐 */
+    .fp-grid .visa-card { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
+    .fp-grid .visa-card-body { flex: 1; display: flex; flex-direction: column; }
+    .fp-grid form { flex: 1; display: flex; flex-direction: column; }
+    .fp-grid form > button[type="submit"] { margin-top: auto; align-self: flex-start; }
+
+    /* 分区标题：比卡片标题重，但不必单独占一张卡 */
+    .fp-section {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.25rem 0.75rem;
+        margin: 2rem 0 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .fp-section:first-of-type { margin-top: 0.5rem; }
+    .fp-section h2 { margin: 0; font-size: 1.05rem; font-weight: 600; color: #334155; }
+    .fp-section .fp-hint { font-size: 0.8rem; color: #94a3b8; }
+</style>
 {% endblock %}
 
 {% block content %}
 <div id="successMessage" class="visa-flash" style="display: none;"></div>
 
-<div class="visa-container-sm">
-    <h1 class="visa-page-title">PDF文件处理</h1>
-    <p class="visa-text-center visa-text-muted">高效处理PDF和Office文档</p>
+<div class="visa-container">
+    <h1 class="visa-page-title">文件处理</h1>
 
-    <!-- 上传图片合并为PDF（上传下载模式） -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="background: #ecfdf5;">
-            <h2 style="color: #059669;"><i class="fas fa-cloud-upload-alt"></i> 上传图片合并为PDF</h2>
-        </div>
-        <div class="visa-card-body">
-            <form id="uploadImageForm" method="post" action="{{url_for('utils_process.upload_images_to_pdf')}}" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-form-group">
-                    <label class="visa-form-label">选择图片文件</label>
-                    <div id="imageDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-green-500 tw-transition-colors"
-                         onclick="document.getElementById('imageFilesInput').click()">
-                        <i class="fas fa-cloud-upload-alt tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
-                        <div class="tw-mb-2">
-                            <button type="button" class="visa-btn visa-btn-success visa-btn-lg"
-                                    onclick="event.stopPropagation(); document.getElementById('imageFilesInput').click()">
-                                <i class="fas fa-folder-open"></i> 点击选择图片
-                            </button>
+    <!-- ==================== 上传处理：选文件 → 处理 → 自动下载 ==================== -->
+    <div class="fp-section">
+        <h2><i class="fas fa-cloud-upload-alt tw-text-green-600"></i> 上传处理</h2>
+        <span class="fp-hint">在自己电脑上选文件，处理完直接下载，不需要服务器路径</span>
+    </div>
+
+    <div class="visa-grid-2 fp-grid">
+        <!-- 上传图片合并为PDF -->
+        <div class="visa-card">
+            <div class="visa-card-header" style="background: #ecfdf5;">
+                <h2 style="color: #059669;"><i class="fas fa-images"></i> 图片合并为PDF</h2>
+            </div>
+            <div class="visa-card-body">
+                <form id="uploadImageForm" method="post" action="{{url_for('utils_process.upload_images_to_pdf')}}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="visa-form-group">
+                        <div id="imageDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-green-500 tw-transition-colors"
+                             onclick="document.getElementById('imageFilesInput').click()">
+                            <i class="fas fa-cloud-upload-alt tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
+                            <div class="tw-mb-2">
+                                <button type="button" class="visa-btn visa-btn-success"
+                                        onclick="event.stopPropagation(); document.getElementById('imageFilesInput').click()">
+                                    <i class="fas fa-folder-open"></i> 点击选择图片
+                                </button>
+                            </div>
+                            <p class="tw-text-gray-600 tw-mb-1">或将图片拖拽到此处</p>
+                            <p class="tw-text-xs tw-text-gray-400">支持 JPG、PNG、WEBP、BMP，可多选，按文件名顺序合并</p>
                         </div>
-                        <p class="tw-text-gray-600 tw-mb-1">或将图片拖拽到此处</p>
-                        <p class="tw-text-xs tw-text-gray-400">支持 JPG、PNG、WEBP、BMP 格式，可多选</p>
+                        <input type="file" id="imageFilesInput" name="imageFiles" multiple accept=".jpg,.jpeg,.png,.webp,.bmp" style="display:none"
+                               onchange="updateFileList(this, 'imageFileList')">
+                        <div id="imageFileList" class="tw-mt-2"></div>
                     </div>
-                    <input type="file" id="imageFilesInput" name="imageFiles" multiple accept=".jpg,.jpeg,.png,.webp,.bmp" style="display:none"
-                           onchange="updateFileList(this, 'imageFileList')">
-                    <div id="imageFileList" class="tw-mt-2"></div>
-                </div>
-                <button type="submit" class="visa-btn visa-btn-success visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
-                    <i class="fas fa-file-pdf"></i> 合并并下载PDF
-                </button>
-            </form>
+                    <button type="submit" class="visa-btn visa-btn-success visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
+                        <i class="fas fa-file-pdf"></i> 合并并下载PDF
+                    </button>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <!-- 上传PDF合并（上传下载模式） -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="background: #eff6ff;">
-            <h2 style="color: #2563eb;"><i class="fas fa-cloud-upload-alt"></i> 上传PDF合并</h2>
-        </div>
-        <div class="visa-card-body">
-            <form id="uploadPdfForm" method="post" action="{{url_for('utils_process.upload_pdf_to_pdf')}}" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-form-group">
-                    <label class="visa-form-label">选择PDF文件</label>
-                    <div id="pdfDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-blue-500 tw-transition-colors"
-                         onclick="document.getElementById('pdfFilesInput').click()">
-                        <i class="fas fa-file-pdf tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
-                        <div class="tw-mb-2">
-                            <button type="button" class="visa-btn visa-btn-info visa-btn-lg"
-                                    onclick="event.stopPropagation(); document.getElementById('pdfFilesInput').click()">
-                                <i class="fas fa-folder-open"></i> 点击选择PDF
-                            </button>
+        <!-- 上传PDF合并 -->
+        <div class="visa-card">
+            <div class="visa-card-header" style="background: #eff6ff;">
+                <h2 style="color: #2563eb;"><i class="fas fa-file-pdf"></i> 多个PDF合并</h2>
+            </div>
+            <div class="visa-card-body">
+                <form id="uploadPdfForm" method="post" action="{{url_for('utils_process.upload_pdf_to_pdf')}}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="visa-form-group">
+                        <div id="pdfDropZone" class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-6 tw-text-center tw-cursor-pointer hover:tw-border-blue-500 tw-transition-colors"
+                             onclick="document.getElementById('pdfFilesInput').click()">
+                            <i class="fas fa-file-pdf tw-text-4xl tw-text-gray-400 tw-mb-2"></i>
+                            <div class="tw-mb-2">
+                                <button type="button" class="visa-btn visa-btn-info"
+                                        onclick="event.stopPropagation(); document.getElementById('pdfFilesInput').click()">
+                                    <i class="fas fa-folder-open"></i> 点击选择PDF
+                                </button>
+                            </div>
+                            <p class="tw-text-gray-600 tw-mb-1">或将PDF拖拽到此处</p>
+                            <p class="tw-text-xs tw-text-gray-400">支持多个PDF，按文件名顺序合并，页宽自动统一</p>
                         </div>
-                        <p class="tw-text-gray-600 tw-mb-1">或将PDF拖拽到此处</p>
-                        <p class="tw-text-xs tw-text-gray-400">支持多个PDF文件，按文件名顺序合并</p>
+                        <input type="file" id="pdfFilesInput" name="pdfFiles" multiple accept=".pdf" style="display:none"
+                               onchange="updateFileList(this, 'pdfFileList')">
+                        <div id="pdfFileList" class="tw-mt-2"></div>
                     </div>
-                    <input type="file" id="pdfFilesInput" name="pdfFiles" multiple accept=".pdf" style="display:none"
-                           onchange="updateFileList(this, 'pdfFileList')">
-                    <div id="pdfFileList" class="tw-mt-2"></div>
-                </div>
-                <button type="submit" class="visa-btn visa-btn-info visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
-                    <i class="fas fa-compress"></i> 合并并下载PDF
-                </button>
-            </form>
+                    <button type="submit" class="visa-btn visa-btn-info visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
+                        <i class="fas fa-compress"></i> 合并并下载PDF
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
-    <hr class="tw-my-6 tw-border-gray-200">
-    <p class="visa-text-center tw-text-sm tw-text-gray-400 tw-mb-4">以下为服务器本地路径模式</p>
+    <!-- ==================== 服务器本地路径 ==================== -->
+    <div class="fp-section">
+        <h2><i class="fas fa-server tw-text-gray-400"></i> 服务器本地路径</h2>
+        <span class="fp-hint">填的是<strong>运行本系统那台机器</strong>上的目录，生成的文件也留在那台机器上</span>
+    </div>
 
-    <!-- 图片合并为PDF -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="background: #fef2f2;">
-            <h2 style="color: #dc2626;"><i class="fas fa-images"></i> 图片合并为PDF（本地路径）</h2>
-        </div>
-        <div class="visa-card-body">
-            <form id="imageForm" method="post" action="{{url_for('utils_process.merge_images_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-form-group">
-                    <label for="imageFolderPath" class="visa-form-label">图片路径</label>
-                    <input type="text" id="imageFolderPath" name="imageFolderPath" class="visa-form-control"
-                           placeholder="支持文件夹路径或单个图片文件路径">
-                    <div class="tw-mt-2 tw-text-sm tw-text-gray-600">
-                        <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-blue-500"></i> <strong>文件夹路径：</strong>合并文件夹内所有图片，PDF文件名为文件夹名</p>
-                        <p class="tw-ml-5 tw-mb-1 tw-text-xs">示例: C:\Users\User\Downloads\JPG → 生成 JPG.pdf</p>
-                        <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-blue-500"></i> <strong>文件路径：</strong>仅转换指定的图片，PDF文件名为图片名</p>
-                        <p class="tw-ml-5 tw-text-xs">示例: C:\Users\User\Downloads\JPG\497.png → 生成 497.pdf</p>
+    <div class="visa-grid-3 fp-grid">
+        <!-- 多个PDF合并（本地路径） -->
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h2><i class="fas fa-object-group"></i> 多个PDF合并</h2>
+            </div>
+            <div class="visa-card-body">
+                <form id="pdfForm" method="post" action="{{url_for('utils_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="visa-form-group">
+                        <label for="pdfFolderPath" class="visa-form-label">PDF文件夹路径</label>
+                        <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="visa-form-control"
+                               placeholder="例：C:\Users\User\Downloads\PDF">
+                        <p class="tw-mt-2 tw-text-xs tw-text-gray-500">合并文件夹内全部PDF，结果输出到同一文件夹</p>
                     </div>
-                </div>
-                <button type="submit" name="submit_button" value="merge_images" class="visa-btn visa-btn-accent visa-btn-lg">
-                    <i class="fas fa-file-pdf"></i> 图片合并为PDF
-                </button>
-            </form>
+                    <button type="submit" name="submit_button" value="merge_pdfs" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-compress"></i> 开始合并
+                    </button>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <!-- 多个PDF合并 -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="background: #fff7ed;">
-            <h2 style="color: #ea580c;"><i class="fas fa-object-group"></i> 多个PDF合并（本地路径）</h2>
+        <!-- Word转换PDF -->
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h2><i class="fas fa-file-word"></i> Word转PDF</h2>
+            </div>
+            <div class="visa-card-body">
+                <form id="wordForm" method="post" action="{{url_for('utils_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="visa-form-group">
+                        <label for="wordFolderPath" class="visa-form-label">Word文件夹路径</label>
+                        <input type="text" id="wordFolderPath" name="wordFolderPath" class="visa-form-control" required
+                               placeholder="例：C:\Users\User\Downloads\Word">
+                        <p class="tw-mt-2 tw-text-xs tw-text-gray-500">转换文件夹内全部 .doc / .docx</p>
+                    </div>
+                    <button type="submit" name="submit_button" value="word_to_pdf" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-exchange-alt"></i> 开始转换
+                    </button>
+                </form>
+            </div>
         </div>
-        <div class="visa-card-body">
-            <form id="pdfForm" method="post" action="{{url_for('utils_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-form-group">
-                    <label for="pdfFolderPath" class="visa-form-label">PDF文件夹路径</label>
-                    <input type="text" id="pdfFolderPath" name="pdfFolderPath" class="visa-form-control"
-                           placeholder="输入包含PDF文件的文件夹路径">
-                </div>
-                <button type="submit" name="submit_button" value="merge_pdfs" class="visa-btn visa-btn-accent visa-btn-lg">
-                    <i class="fas fa-compress"></i> 多个PDF合并
-                </button>
-            </form>
-        </div>
-    </div>
 
-    <!-- Word转换PDF -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="background: #dbeafe;">
-            <h2 style="color: #1e40af;"><i class="fas fa-file-word"></i> Word转换PDF</h2>
-        </div>
-        <div class="visa-card-body">
-            <form id="wordForm" method="post" action="{{url_for('utils_process.word_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="utils-form-group">
-                    <label for="wordFolderPath" class="visa-form-label">Word文件夹路径</label>
-                    <input type="text" id="wordFolderPath" name="wordFolderPath" class="visa-form-control" required
-                           placeholder="输入包含Word文件的文件夹路径">
-                </div>
-                <button type="submit" name="submit_button" value="word_to_pdf" class="visa-btn visa-btn-info visa-btn-lg">
-                    <i class="fas fa-exchange-alt"></i> Word转PDF
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- 长截图切分打印 -->
-    <div class="visa-card visa-mb-3">
-        <div class="visa-card-header" style="background: #faf5ff;">
-            <h2 style="color: #7c3aed;"><i class="fas fa-cut"></i> 长截图切分打印</h2>
-        </div>
-        <div class="visa-card-body">
-            <form id="screenshotForm" method="post" action="{{url_for('utils_process.split_screenshot_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="visa-form-group">
-                    <label for="screenshotFolderPath" class="visa-form-label">长截图文件夹路径</label>
-                    <input type="text" id="screenshotFolderPath" name="screenshotFolderPath" class="visa-form-control" required
-                           placeholder="输入包含长截图的文件夹路径">
-                </div>
-                <div class="visa-form-group">
-                    <label for="marginSize" class="visa-form-label">上下边距 (毫米)</label>
-                    <input type="number" id="marginSize" name="marginSize" class="visa-form-control" 
-                           value="20" min="0" max="50" style="width: 200px;">
-                </div>
-                <button type="submit" name="submit_button" value="split_screenshot" class="visa-btn visa-btn-warning visa-btn-lg">
-                    <i class="fas fa-scissors"></i> 长截图切分打印
-                </button>
-            </form>
+        <!-- 长截图切分打印 -->
+        <div class="visa-card">
+            <div class="visa-card-header">
+                <h2><i class="fas fa-cut"></i> 长截图切分打印</h2>
+            </div>
+            <div class="visa-card-body">
+                <form id="screenshotForm" method="post" action="{{url_for('utils_process.split_screenshot_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="visa-form-group">
+                        <label for="screenshotFolderPath" class="visa-form-label">长截图文件夹路径</label>
+                        <input type="text" id="screenshotFolderPath" name="screenshotFolderPath" class="visa-form-control" required
+                               placeholder="例：C:\Users\User\Downloads\Screenshot">
+                    </div>
+                    <div class="visa-form-group">
+                        <label for="marginSize" class="visa-form-label">上下边距（毫米）</label>
+                        <input type="number" id="marginSize" name="marginSize" class="visa-form-control"
+                               value="20" min="0" max="50" style="width: 140px;">
+                    </div>
+                    <button type="submit" name="submit_button" value="split_screenshot" class="visa-btn visa-btn-primary">
+                        <i class="fas fa-scissors"></i> 切分并生成PDF
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
