@@ -56,10 +56,13 @@ _CATALOG = {
             'endpoints': [
                 {'method': 'POST', 'path': '/flights_itinerary/parse_flights',
                  'input': 'JSON {text}',
-                 'desc': '各平台行程文本→结构化航段（Trip/携程/Google Flights/酷航/手动）'},
+                 'desc': '各平台行程文本→结构化航段（Trip/携程/Google Flights/酷航/手动）；'
+                         '只需要航段时用它，要最终行程单直接用下面那个'},
                 {'method': 'POST', 'path': '/flights_itinerary/api/convert_itinerary',
                  'input': 'JSON {text, language(chinese|english), luggage?, price?}',
-                 'desc': '行程文本→格式化中/英文行程单'},
+                 'desc': '★一步到位：网页原文或航段→格式化中/英文行程单。text 不是航段格式时'
+                         '自动先解析（不必先调 parse_flights）；返回含 format_detected/warning，'
+                         '识别不出航班返回 400 而非空串'},
                 {'method': 'POST', 'path': '/flights_itinerary/generate_booking_code',
                  'input': 'JSON [{flightNumber, flightDate}]',
                  'desc': '生成 GDS 订位指令串（航班需已在本地时刻表；非真实预订）'},

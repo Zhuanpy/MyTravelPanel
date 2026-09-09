@@ -306,8 +306,15 @@ POST /projects/ref/flight/<rid>/ticketing
 | `/search_airports` | GET | query `iata,city` | 机场模糊搜索 |
 | `/flights_booking/parse_flight_text` | POST | JSON `text` | 粘贴行程文字 → 结构化航段/乘客 |
 | `/flights_booking/parse_flight_image` | POST | JSON `image,platform` | 截图 OCR → 航段 |
-| `/flights_itinerary/parse_flights` | POST | JSON `text` | 解析 Trip/携程/Google Flights/酷航 行程 → 航段（对应 conversion 页「航班解析」标签） |
-| `/flights_itinerary/api/convert_itinerary` | POST | JSON `text,language,luggage,price` | 行程文本 → 格式化中/英文行程单（对应「机票行程转换」标签） |
+| `/flights_itinerary/parse_flights` | POST | JSON `text` | 解析 Trip/携程/Google Flights/酷航 行程 → 航段（对应 conversion 页「航班解析」标签）。**只在需要中间航段时调**，要最终行程单直接用下面那个 |
+| `/flights_itinerary/api/convert_itinerary` | POST | JSON `text,language,luggage,price` | **★一步到位**：网页原文或航段 → 格式化中/英文行程单（对应「机票行程转换」标签） |
+
+> `/api/convert_itinerary` 的 `text` 既可以是订位系统航段，也可以直接是各订票网站复制的原文
+> —— 不是航段格式会自动先解析一遍，**不必先调 `parse_flights`**。
+> 返回多两个字段：`format_detected`（识别成了什么格式，如 `Trip.com` / `手动输入` / `航段格式`）
+> 和 `warning`（如手动输入里有查不到 IATA 的城市）。
+> **行为变更（2026-09-09）**：识别不出任何航班时返回 `400` + `{"success": false, "error": "..."}`，
+> 不再像以前那样静默返回空的 `output_text`。原来把"空输出"当正常的调用方要改成看状态码。
 | `/flights_itinerary/generate_booking_code` | POST | JSON `[{flightNumber,flightDate}]` | 生成 GDS 订位指令串（对应「订位代码生成」标签，**非真实预订**） |
 | `/flights_usbangla/parse_pdf` | POST | files `pdf_file` | 解析 US-Bangla 电子票 |
 | `/flights_usbangla/parse_mu_pdf` `/parse_tongcheng_pdf` `/parse_text_itinerary` | POST | files/JSON | 东航/同程/文本行程解析 |
