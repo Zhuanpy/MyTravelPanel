@@ -22,8 +22,11 @@
                 <a href="{{ url_for('utils_process.file_processing') }}" class="quick-action-btn btn-red">
                     <i class="fas fa-file-pdf"></i> PDF处理
                 </a>
-                <a href="{{ url_for('utils_process.image_matting') }}" class="quick-action-btn btn-green">
-                    <i class="fas fa-cut"></i> 抠图合并
+                <a href="{{ url_for('utils_process.image_matting', matting_type='card') }}" class="quick-action-btn btn-green">
+                    <i class="fas fa-id-card"></i> 抠图-证件卡片
+                </a>
+                <a href="{{ url_for('utils_process.image_matting', matting_type='passport') }}" class="quick-action-btn btn-green">
+                    <i class="fas fa-passport"></i> 抠图-护照页
                 </a>
                 <a href="{{ url_for('utils_process.image_merge') }}" class="quick-action-btn btn-blue">
                     <i class="fas fa-object-group"></i> 截图拼接
@@ -150,8 +153,11 @@
                     AI 自动去除证件、卡片、护照页背景，可自动摆正、透视校正，多张合并成一张，导出 PNG / 透明 PNG / 可打印 PDF。
                 </p>
                 <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.image_matting') }}" class="visa-btn visa-btn-success visa-btn-sm">
-                        <i class="fas fa-arrow-right"></i> 前往处理
+                    <a href="{{ url_for('utils_process.image_matting', matting_type='card') }}" class="visa-btn visa-btn-success visa-btn-sm">
+                        <i class="fas fa-id-card"></i> 证件 / 卡片
+                    </a>
+                    <a href="{{ url_for('utils_process.image_matting', matting_type='passport') }}" class="visa-btn visa-btn-success visa-btn-sm">
+                        <i class="fas fa-passport"></i> 护照 / 文件页
                     </a>
                     <span class="resource-card-stats">
                         <i class="fas fa-magic"></i> AI 去背景

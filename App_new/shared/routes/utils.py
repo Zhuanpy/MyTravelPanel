@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash, send_file, abort
 from flask_login import login_required, current_user
 from App_new.utils.VisaForm import MyPdfFile
 from App_new.utils.WordToPdf import WordToPDFConverter
@@ -246,38 +246,58 @@ def split_screenshot_to_pdf():
 @login_required
 @staff_only
 def upload_images_to_pdf():
-    """上传图片文件，合并为PDF后下载"""
+    """上传图片文件，合并为PDF后下载
+
+    page_size 决定每页多大:
+    - width (默认): 所有页统一成 A4 宽度, 高度按各自图片比例 —— 图片宽窄不一也不会页页不同
+    - a4        : 统一排成 A4 页面(留白居中, 整本同一个方向)
+    - origin    : 保持原图尺寸(旧行为, 图片宽度不同则页面宽度也不同)
+    """
     try:
         files = request.files.getlist('imageFiles')
         if not files or all(f.filename == '' for f in files):
             return jsonify({'success': False, 'message': '请选择图片文件'}), 400
 
         from PIL import Image
+        from App_new.utils.image_matting import flatten_white, to_pdf_bytes_multi, to_pdf_bytes_uniform_width
+
+        page_size = request.form.get('page_size', 'width')
+        if page_size not in ('width', 'a4', 'origin'):
+            page_size = 'width'
 
         image_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
         images = []
 
         # 按文件名排序
-        sorted_files = sorted(files, key=lambda f: f.filename)
+        # 自然排序: 多页 PDF 的页序按文件名来, 让 图2 排在 图10 前面
+        sorted_files = sorted(files, key=lambda f: _natural_key(f.filename))
 
         for f in sorted_files:
             ext = os.path.splitext(f.filename)[1].lower()
             if ext not in image_extensions:
                 continue
-            img = Image.open(BytesIO(f.read()))
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
-            images.append(img)
+            # 透明图直接 convert('RGB') 会变黑底, 统一走贴白底
+            images.append(flatten_white(Image.open(BytesIO(f.read()))))
 
         if not images:
             return jsonify({'success': False, 'message': '没有找到有效的图片文件'}), 400
 
-        # 合并为PDF到内存
-        pdf_buffer = BytesIO()
-        first_img = images[0]
-        rest_imgs = images[1:] if len(images) > 1 else []
-        first_img.save(pdf_buffer, 'PDF', save_all=True, append_images=rest_imgs)
-        pdf_buffer.seek(0)
+        current_app.logger.info(f'图片合并PDF: 数量={len(images)} 页面尺寸={page_size}')
+
+        # ---------- A4 页面: 复用抠图那套排版(留白居中 + 整本方向统一) ----------
+        if page_size == 'a4':
+            pdf_buffer = to_pdf_bytes_multi(images)
+            return send_file(pdf_buffer, mimetype='application/pdf',
+                             as_attachment=True, download_name='merged_images.pdf')
+
+        # ---------- 统一宽度: 每页都是 A4 宽, 高度按各自比例 ----------
+        if page_size == 'width':
+            pdf_buffer = to_pdf_bytes_uniform_width(images)
+        else:
+            # ---------- 原图尺寸: 老行为, 页面大小跟着图片像素走 ----------
+            pdf_buffer = BytesIO()
+            images[0].save(pdf_buffer, 'PDF', save_all=True, append_images=images[1:])
+            pdf_buffer.seek(0)
 
         return send_file(
             pdf_buffer,
@@ -349,12 +369,49 @@ def files_home():
     return render_template('shared/utils/文件处理首页.html')
 
 
+# 抠图处理模式: URL 参数 -> (内部模式, 标题, 说明)
+MATTING_MODES = {
+    'card': {
+        'mode': 'card',
+        'label': '证件 / 卡片',
+        'desc': '保留圆角 + 自动摆正，适合身份证、银行卡、各类证件卡片',
+        'icon': 'fas fa-id-card',
+        'default_pdf': 'none',      # 卡片多数是拿 PNG 去排版
+    },
+    'passport': {
+        'mode': 'page',
+        'label': '护照 / 文件页',
+        'desc': '透视校正，拉平成矩形，适合护照资料页、整页文件',
+        'icon': 'fas fa-passport',
+        'default_pdf': 'merged',    # 护照页多数是多张合成一个 PDF 交件
+    },
+}
+
+
 @utils_process.route('/image_matting')
 @login_required
 @staff_only
-def image_matting():
-    """AI 抠图合并工具页面"""
-    return render_template('shared/utils/抠图合并.html')
+def image_matting_entry():
+    """不带参数访问时跳到默认模式(证件 / 卡片)"""
+    return redirect(url_for('utils_process.image_matting', matting_type='card'))
+
+
+@utils_process.route('/image_matting/<matting_type>')
+@login_required
+@staff_only
+def image_matting(matting_type):
+    """AI 抠图合并工具页面, 处理模式由 URL 参数指定(card / passport)"""
+    # 兼容内部模式名 page 直接作为 URL 参数传入
+    if matting_type == 'page':
+        matting_type = 'passport'
+    if matting_type not in MATTING_MODES:
+        abort(404)
+    return render_template(
+        'shared/utils/抠图合并.html',
+        matting_type=matting_type,
+        matting_modes=MATTING_MODES,
+        current_mode=MATTING_MODES[matting_type],
+    )
 
 
 @csrf.exempt
@@ -364,13 +421,18 @@ def image_matting():
 def image_matting_process():
     """
     上传图片 -> AI 去背景 -> 可选合并/导出 PDF -> 返回结果文件下载。
-    - 合并(merge != none): 返回单张 PNG, 或 PDF(勾选时)
-    - 不合并(merge == none): 单张返回 PNG; 多张打包为 ZIP; 勾选 PDF 时同理返回 PDF/ZIP
+
+    输出由 merge(合并方式) 和 pdf_mode(PDF 方式) 共同决定:
+    - merge != none: 多张先拼成一张, 输出单个 PNG 或单页 PDF
+    - merge == none + pdf_mode=merged: 每张一页, 合成一个多页 PDF(一次下载)
+    - merge == none + pdf_mode=each  : 每张单独 PDF, 打包 ZIP
+    - merge == none + pdf_mode=none  : 单张返回 PNG, 多张打包 ZIP
     """
     try:
         from PIL import Image as _PILImage
         try:
-            from App_new.utils.image_matting import matting, to_pdf_bytes
+            from App_new.utils.image_matting import (
+                matting, to_pdf_bytes, to_pdf_bytes_multi, pick_orientation)
         except ImportError as imp_err:
             return jsonify({
                 'success': False,
@@ -383,11 +445,25 @@ def image_matting_process():
             return jsonify({'success': False, 'message': '请选择图片文件'}), 400
 
         # 读取参数
-        mode = request.form.get('mode', 'card')          # card | page
+        mode = request.form.get('mode', 'card')          # card | page(别名 passport)
         bg = request.form.get('bg', 'white')             # white | transparent
         merge = request.form.get('merge', 'none')        # none | vertical | horizontal | grid
-        want_pdf = request.form.get('pdf') in ('1', 'true', 'on', 'yes')
+        # PDF 方式: none=不导出 | merged=多张合成一个多页 PDF | each=每张单独 PDF(打包 ZIP)
+        pdf_mode = request.form.get('pdf_mode', '')
+        if not pdf_mode:
+            # 兼容老参数 pdf=1(以及 API 调用方): 默认合成一个多页 PDF
+            pdf_mode = 'merged' if request.form.get('pdf') in ('1', 'true', 'on', 'yes') else 'none'
+        if pdf_mode not in ('none', 'merged', 'each'):
+            pdf_mode = 'none'
+        want_pdf = (pdf_mode != 'none')
+        # PDF 页面方向: auto=按多数图片统一 | portrait=全部竖 | landscape=全部横
+        page_orient = request.form.get('page_orient', 'auto')
+        if page_orient not in ('auto', 'portrait', 'landscape'):
+            page_orient = 'auto'
 
+        # 兼容路由参数别名 passport -> page
+        if mode == 'passport':
+            mode = 'page'
         if mode not in ('card', 'page'):
             mode = 'card'
         if bg not in ('white', 'transparent'):
@@ -412,7 +488,8 @@ def image_matting_process():
             return jsonify({'success': False, 'message': '没有找到有效的图片文件'}), 400
 
         current_app.logger.info(
-            f'抠图处理开始: 数量={len(pil_images)} 模式={mode} 背景={bg} 合并={merge} pdf={want_pdf}')
+            f'抠图处理开始: 数量={len(pil_images)} 模式={mode} 背景={bg} '
+            f'合并={merge} pdf={pdf_mode} 页面方向={page_orient}')
 
         result = matting(pil_images, mode=mode, bg=bg, merge=merge)
 
@@ -420,7 +497,7 @@ def image_matting_process():
         if merge != 'none':
             merged = result['merged']
             if want_pdf:
-                buf = to_pdf_bytes(merged)
+                buf = to_pdf_bytes(merged, orientation=page_orient)
                 return send_file(buf, mimetype='application/pdf',
                                  as_attachment=True, download_name='抠图合并结果.pdf')
             buf = BytesIO()
@@ -435,7 +512,7 @@ def image_matting_process():
         # 单张直接返回
         if len(singles) == 1:
             if want_pdf:
-                buf = to_pdf_bytes(singles[0])
+                buf = to_pdf_bytes(singles[0], orientation=page_orient)
                 return send_file(buf, mimetype='application/pdf',
                                  as_attachment=True, download_name=f'{names[0]}_nobg.pdf')
             buf = BytesIO()
@@ -444,14 +521,24 @@ def image_matting_process():
             return send_file(buf, mimetype='image/png',
                              as_attachment=True, download_name=f'{names[0]}_nobg.png')
 
-        # 多张: 打包 ZIP
+        # 多张 + 合成 PDF: 每张一页, 返回一个多页 PDF
+        if pdf_mode == 'merged':
+            buf = to_pdf_bytes_multi(singles, orientation=page_orient)
+            return send_file(buf, mimetype='application/pdf',
+                             as_attachment=True, download_name='抠图结果.pdf')
+
+        # 多张: 打包 ZIP(每张单独 PDF 时也统一方向, 打印才不会一横一竖)
+        zip_orient = page_orient
+        if pdf_mode == 'each' and zip_orient == 'auto':
+            zip_orient = pick_orientation(singles)
+
         import zipfile
         zip_buf = BytesIO()
         with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
             for img, name in zip(singles, names):
                 item = BytesIO()
                 if want_pdf:
-                    item = to_pdf_bytes(img)
+                    item = to_pdf_bytes(img, orientation=zip_orient)
                     zf.writestr(f'{name}_nobg.pdf', item.getvalue())
                 else:
                     img.save(item, 'PNG')

@@ -68,6 +68,14 @@
                                onchange="updateFileList(this, 'imageFileList')">
                         <div id="imageFileList" class="tw-mt-2"></div>
                     </div>
+                    <div class="visa-form-group">
+                        <label for="page_size" class="visa-form-label">页面尺寸</label>
+                        <select id="page_size" name="page_size" class="visa-form-control">
+                            <option value="width">统一宽度（每页都是 A4 宽，高度按图片比例）</option>
+                            <option value="a4">统一 A4 页面（居中留白，整本同方向）</option>
+                            <option value="origin">保持原图尺寸（图片宽度不同则页面也不同）</option>
+                        </select>
+                    </div>
                     <button type="submit" class="visa-btn visa-btn-success visa-btn-lg" onclick="return handleUploadSubmit(event, this)">
                         <i class="fas fa-file-pdf"></i> 合并并下载PDF
                     </button>

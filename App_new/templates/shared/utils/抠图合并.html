@@ -1,8 +1,8 @@
 {% extends "staff_base.html" %}
 
-{% block title %}抠图合并 - MyTravelPanel{% endblock %}
+{% block title %}抠图合并 - {{ current_mode.label }} - MyTravelPanel{% endblock %}
 
-{% block page_title %}抠图合并{% endblock %}
+{% block page_title %}抠图合并 - {{ current_mode.label }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
@@ -12,7 +12,18 @@
 <div id="successMessage" class="visa-flash" style="display: none;"></div>
 
 <div class="visa-container-sm">
-    <p class="visa-text-center visa-text-muted">自动去除证件 / 卡片 / 护照页背景，可摆正、合并、导出 PDF</p>
+    <p class="visa-text-center visa-text-muted">{{ current_mode.desc }}</p>
+
+    <!-- 处理模式切换: 直接走不同路由 -->
+    <div class="visa-form-group visa-text-center">
+        {% for key, item in matting_modes.items() %}
+        <a href="{{ url_for('utils_process.image_matting', matting_type=key) }}"
+           class="visa-btn {% if key == matting_type %}visa-btn-success{% else %}visa-btn-secondary{% endif %}"
+           style="margin: 0 4px;">
+            <i class="{{ item.icon }}"></i> {{ item.label }}
+        </a>
+        {% endfor %}
+    </div>
 
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="background: #ecfdf5;">
@@ -43,14 +54,8 @@
                     <div id="mattingFileList" class="tw-mt-2"></div>
                 </div>
 
-                <!-- 处理模式 -->
-                <div class="visa-form-group">
-                    <label for="mode" class="visa-form-label">处理模式</label>
-                    <select id="mode" name="mode" class="visa-form-control">
-                        <option value="card">证件 / 卡片（保留圆角 + 自动摆正）</option>
-                        <option value="page">文件 / 护照页（透视校正，拉平成矩形）</option>
-                    </select>
-                </div>
+                <!-- 处理模式: 由 URL 参数决定, 随表单提交 -->
+                <input type="hidden" id="mode" name="mode" value="{{ current_mode.mode }}">
 
                 <!-- 输出背景 -->
                 <div class="visa-form-group">
@@ -74,10 +79,28 @@
 
                 <!-- 导出 PDF -->
                 <div class="visa-form-group">
-                    <label class="visa-form-label" style="cursor:pointer;">
-                        <input type="checkbox" id="pdf" name="pdf" value="1" style="margin-right:6px;">
-                        额外导出 A4 可打印 PDF（透明底将按白底转换）
-                    </label>
+                    <label for="pdf_mode" class="visa-form-label">PDF 输出</label>
+                    <select id="pdf_mode" name="pdf_mode" class="visa-form-control">
+                        <option value="none" {% if current_mode.default_pdf == 'none' %}selected{% endif %}>
+                            不导出 PDF（只出 PNG）
+                        </option>
+                        <option value="merged" {% if current_mode.default_pdf == 'merged' %}selected{% endif %}>
+                            合成一个 PDF（多张每张一页，一次下载）
+                        </option>
+                        <option value="each">每张单独一个 PDF（打包 ZIP）</option>
+                    </select>
+                    <small id="pdfHint" class="tw-text-gray-500"></small>
+                </div>
+
+                <!-- PDF 页面方向 -->
+                <div class="visa-form-group" id="orientGroup">
+                    <label for="page_orient" class="visa-form-label">PDF 页面方向</label>
+                    <select id="page_orient" name="page_orient" class="visa-form-control">
+                        <option value="auto">自动统一（按多数图片方向，整本一致）</option>
+                        <option value="portrait">全部竖向 A4</option>
+                        <option value="landscape">全部横向 A4</option>
+                    </select>
+                    <small class="tw-text-gray-500">整本 PDF 用同一个方向，图片内容不旋转，文字保持正向。</small>
                 </div>
 
                 <button type="submit" class="visa-btn visa-btn-success visa-btn-lg"
@@ -88,7 +111,8 @@
 
             <div class="tw-mt-4 tw-text-sm tw-text-gray-600">
                 <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-green-500"></i> 首次使用会自动下载 AI 模型(u2net)，请耐心等待。</p>
-                <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-green-500"></i> 多张且选择"不合并"时，结果将打包为 ZIP 下载。</p>
+                <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-green-500"></i> 一次可多选图片；选「合成一个 PDF」即得到单个多页 PDF（页序按文件名，方向整本统一）。</p>
+                <p class="tw-mb-1"><i class="fas fa-info-circle tw-text-green-500"></i> 不导出 PDF 且多张不合并时，PNG 会打包成 ZIP 下载。</p>
             </div>
         </div>
     </div>
@@ -97,20 +121,44 @@
 
 {% block extra_js %}
 <script>
-// 显示已选文件列表
+// 文件名自然排序键，与后端 _natural_key 保持一致：
+// 数字段按数值比大小，其余按小写字符比 —— 让 图2 排在 图10 前面
+function naturalKey(name) {
+    return String(name || '').split(/(\d+)/).map(function(part, i) {
+        return i % 2 ? parseInt(part, 10) : part.toLowerCase();
+    });
+}
+
+function compareByName(a, b) {
+    const ka = naturalKey(a), kb = naturalKey(b);
+    const n = Math.min(ka.length, kb.length);
+    for (let i = 0; i < n; i++) {
+        if (ka[i] === kb[i]) continue;
+        return ka[i] < kb[i] ? -1 : 1;
+    }
+    return ka.length - kb.length;
+}
+
+// 显示已选文件列表（按文件名排好序，列出来的顺序就是最终处理/页码顺序）
 function updateFileList(input, listId) {
     const listDiv = document.getElementById(listId);
-    const files = Array.from(input.files);
+    const files = Array.from(input.files).sort(function(a, b) {
+        return compareByName(a.name, b.name);
+    });
     if (files.length === 0) {
         listDiv.innerHTML = '';
         return;
     }
     let html = '<div class="tw-text-sm tw-text-gray-600 tw-mt-2">';
-    html += '<strong>已选择 ' + files.length + ' 个文件：</strong>';
+    html += '<strong>已选择 ' + files.length + ' 个文件</strong>';
+    html += '<span class="tw-text-gray-400">（已按文件名排序，下面的顺序就是处理顺序）</span>';
     html += '<ul class="tw-list-none tw-pl-0 tw-mt-1" style="max-height:150px;overflow-y:auto">';
-    files.forEach(function(f) {
+    files.forEach(function(f, idx) {
         const size = (f.size / 1024).toFixed(1);
-        html += '<li class="tw-py-1 tw-border-b tw-border-gray-100"><i class="fas fa-file-image tw-text-gray-400 tw-mr-1"></i>' + f.name + ' <span class="tw-text-gray-400">(' + size + ' KB)</span></li>';
+        html += '<li class="tw-py-1 tw-border-b tw-border-gray-100">'
+             +  '<span class="tw-text-green-600 tw-font-semibold tw-mr-1">' + (idx + 1) + '.</span>'
+             +  '<i class="fas fa-file-image tw-text-gray-400 tw-mr-1"></i>' + f.name
+             +  ' <span class="tw-text-gray-400">(' + size + ' KB)</span></li>';
     });
     html += '</ul></div>';
     listDiv.innerHTML = html;
@@ -189,8 +237,44 @@ function handleUploadSubmit(event, btn) {
     return false;
 }
 
+// 根据「合并方式 + PDF 输出」提示最终会下载到什么文件
+function updatePdfHint() {
+    const mergeSel = document.getElementById('merge');
+    const pdfSel = document.getElementById('pdf_mode');
+    const hint = document.getElementById('pdfHint');
+    if (!mergeSel || !pdfSel || !hint) return;
+    const merged = mergeSel.value !== 'none';
+    const pdf = pdfSel.value;
+    let text = '';
+    if (pdf === 'merged') {
+        text = merged
+            ? '多张已先拼成一张，PDF 只有一页。想每张一页请把合并方式改成「不合并」。'
+            : '多张图合成一个多页 PDF，每张一页 A4，直接下载一个文件。';
+    } else if (pdf === 'each') {
+        text = merged
+            ? '多张已先拼成一张，只会得到一个 PDF。'
+            : '每张一个 PDF，多张打包成 ZIP 下载。';
+    } else {
+        text = merged ? '输出一张合并后的 PNG。' : '每张一个 PNG，多张打包成 ZIP 下载。';
+    }
+    const bgSel = document.getElementById('bg');
+    if (pdf !== 'none' && bgSel && bgSel.value === 'transparent') {
+        text += ' PDF 不支持透明，会按白底输出。';
+    }
+    hint.textContent = text;
+
+    const orientGroup = document.getElementById('orientGroup');
+    if (orientGroup) orientGroup.style.display = (pdf === 'none') ? 'none' : '';
+}
+
 // 拖拽上传支持
 document.addEventListener('DOMContentLoaded', function() {
+    ['merge', 'pdf_mode', 'bg'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updatePdfHint);
+    });
+    updatePdfHint();
+
     const dropZone = document.getElementById('mattingDropZone');
     const fileInput = document.getElementById('mattingFilesInput');
     if (!dropZone || !fileInput) return;

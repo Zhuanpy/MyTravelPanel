@@ -12,9 +12,12 @@
 注意: cv2 / rembg 体积较大且非必装，全部采用延迟导入，
       未安装时由路由层捕获 ImportError 并返回友好提示。
 """
+import logging
 from io import BytesIO
 
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 IMG_EXT = (".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff")
 
@@ -129,6 +132,116 @@ def composite_white(rgb, mask):
     return (rgb.astype(np.float32) * a + 255 * (1 - a)).astype(np.uint8)
 
 
+# ---------------- 掩码可靠性判定 ----------------
+# 纸张铺满取景框时, 四边留白小于此比例即视为"纸已溢出画面"
+BORDER_MARGIN_RATIO = 0.03
+# 掩码实心度(掩码面积/凸包面积)低于此值, 说明圈住的是页面里的内容块而不是整张纸
+MIN_SOLIDITY = 0.85
+
+
+def mask_is_unreliable(cnt, img_w, img_h):
+    """判断 AI 掩码能不能拿来裁剪, 返回 (不可信, 原因)。
+
+    两种典型翻车(都会把证件切掉一块):
+    1. 实心度低 —— 纸面和背景色接近时, AI 只圈住照片/印刷文字这些显著块,
+       掩码支离破碎, 取它的四边形会把页眉页脚切掉;
+    2. 三条以上边几乎没有留白 —— 纸张本来就拍到出框了, 没有背景可裁,
+       此时掩码再小也只能是误判。
+
+    命中任一条就不裁剪, 直接用整图 —— 少裁一点远比切掉半本护照强。
+    """
+    import cv2
+    hull = cv2.convexHull(cnt)
+    hull_area = cv2.contourArea(hull)
+    if hull_area <= 0:
+        return True, '掩码面积为空'
+
+    solidity = cv2.contourArea(cnt) / hull_area
+    if solidity < MIN_SOLIDITY:
+        return True, f'掩码实心度过低({solidity:.2f})，疑似只圈住页面内容'
+
+    x, y, w, h = cv2.boundingRect(hull)
+    gaps = (x / img_w, y / img_h, (img_w - (x + w)) / img_w, (img_h - (y + h)) / img_h)
+    tight = sum(1 for g in gaps if g < BORDER_MARGIN_RATIO)
+    if tight >= 3:
+        return True, f'{tight} 条边没有留白，纸张已拍出取景框'
+
+    return False, ''
+
+
+# 检出的四边形与掩码的交并比, 低于此值说明这个四边形根本不贴合纸张轮廓
+MIN_QUAD_IOU = 0.90
+# 四边形内角与 90° 的最大允许偏差。正常角度拍摄的证件不会超过 20° 左右,
+# 偏差过大说明四个角找错了, 硬做透视变换会把页面拉成歪斜的平行四边形。
+MAX_CORNER_DEVIATION = 25.0
+
+
+def _quad_iou(mask, quad):
+    """四边形区域与掩码的交并比。"""
+    import numpy as np
+    import cv2
+    filled = np.zeros_like(mask)
+    cv2.fillPoly(filled, [quad.astype(np.int32)], 255)
+    a, b = mask > 0, filled > 0
+    union = (a | b).sum()
+    return float((a & b).sum()) / union if union else 0.0
+
+
+def _max_corner_deviation(quad):
+    """四个内角里偏离 90° 最多的那个, 单位为度。"""
+    import numpy as np
+    worst = 0.0
+    for i in range(4):
+        prev, cur, nxt = quad[(i - 1) % 4], quad[i], quad[(i + 1) % 4]
+        v1, v2 = prev - cur, nxt - cur
+        cosv = float(np.dot(v1, v2)) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-9)
+        worst = max(worst, abs(np.degrees(np.arccos(np.clip(cosv, -1.0, 1.0))) - 90))
+    return worst
+
+
+def quad_is_unreliable(quad, mask):
+    """判断检出的四边形能不能拿来做透视校正, 返回 (不可信, 原因)。
+
+    掩码本身可信、但四个角找错的情况(常见于翻开的护照, AI 把对面那页也圈了进来):
+    照着这个四边形硬拉, 页面会被拉成歪斜变形的样子。
+    """
+    iou = _quad_iou(mask, quad)
+    if iou < MIN_QUAD_IOU:
+        return True, f'四边形与掩码贴合度只有 {iou:.2f}'
+    dev = _max_corner_deviation(quad)
+    if dev > MAX_CORNER_DEVIATION:
+        return True, f'四边形内角偏离直角 {dev:.0f}°，四角疑似找错'
+    return False, ''
+
+
+def _upright_rect(bgr, cnt, reason):
+    """退化方案: 用最小外接矩形把纸张转正裁出来(只旋转不拉扯), 整块作为前景。
+
+    透视校正失败时用它 —— 旋转矩形不会产生错误的形变, 最多是多留一点背景。
+    """
+    import numpy as np
+    import cv2
+    logger.info('抠图改用旋转矩形裁剪(不做透视校正): %s', reason)
+    r = order_pts(cv2.boxPoints(cv2.minAreaRect(cnt)).astype("float32"))
+    (tl, tr, br, bl) = r
+    W = int(max(np.hypot(*(br - bl)), np.hypot(*(tr - tl))))
+    H = int(max(np.hypot(*(tr - br)), np.hypot(*(tl - bl))))
+    if W < 2 or H < 2:
+        return _whole_image(bgr, '外接矩形异常')
+    M = cv2.getPerspectiveTransform(
+        r, np.array([[0, 0], [W - 1, 0], [W - 1, H - 1], [0, H - 1]], "float32"))
+    rect = cv2.warpPerspective(bgr, M, (W, H), flags=cv2.INTER_CUBIC)
+    return cv2.cvtColor(rect, cv2.COLOR_BGR2RGB), np.full((H, W), 255, np.uint8)
+
+
+def _whole_image(bgr, reason):
+    """兜底: 整图原样输出(前景为整幅), 不做透视裁剪。"""
+    import numpy as np
+    import cv2
+    logger.info('抠图跳过裁剪, 直接用整图: %s', reason)
+    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB), np.full(bgr.shape[:2], 255, np.uint8)
+
+
 # ---------------- 两种处理模式 ----------------
 def process_card(bgr, model):
     """证件/卡片：用最小外接矩形把卡片透视拉正并补成完整矩形。
@@ -142,6 +255,9 @@ def process_card(bgr, model):
     mask = ai_mask(bgr, model)
     cnt = max(cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0],
               key=cv2.contourArea)
+    bad, reason = mask_is_unreliable(cnt, bgr.shape[1], bgr.shape[0])
+    if bad:
+        return _whole_image(bgr, reason)
     box = cv2.boxPoints(cv2.minAreaRect(cnt)).astype("float32")
     r = order_pts(box)
     ctr = r.mean(0)
@@ -167,6 +283,9 @@ def process_page(bgr, model):
     mask = ai_mask(bgr, model)
     cnt = max(cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0],
               key=cv2.contourArea)
+    bad, reason = mask_is_unreliable(cnt, bgr.shape[1], bgr.shape[0])
+    if bad:
+        return _whole_image(bgr, reason)
     peri = cv2.arcLength(cnt, True)
     quad = None
     for e in (.02, .03, .04, .05, .06, .08):
@@ -175,8 +294,12 @@ def process_page(bgr, model):
             quad = ap.reshape(4, 2).astype("float32")
             break
     if quad is None:
-        quad = cv2.boxPoints(cv2.minAreaRect(cnt))
-    r = order_pts(quad)
+        return _upright_rect(bgr, cnt, '没找到四个角')
+    quad = order_pts(quad)
+    bad, reason = quad_is_unreliable(quad, mask)
+    if bad:
+        return _upright_rect(bgr, cnt, reason)
+    r = quad
     ctr = r.mean(0)
     r = (ctr + (r - ctr) * 0.985).astype("float32")  # 内缩去细边
     (tl, tr, br, bl) = r
@@ -245,20 +368,108 @@ def merge_images(items, layout, width, gap, margin, transparent):
 
 
 # ---------------- PDF (A4, 300dpi, 自动横竖) ----------------
-def to_pdf_bytes(pil_img, dpi=300):
-    """把 PIL Image 排版到 A4 页面，返回 PDF 字节流 (BytesIO)。"""
-    img = pil_img.convert("RGB")
+def flatten_white(pil_img):
+    """带透明通道的图贴到白底上。
+
+    直接 convert("RGB") 会把透明区域变成黑色, PDF 里就是一块黑底,
+    所以透明底图必须先用 alpha 作蒙版贴到白底。
+    """
+    if pil_img.mode in ("RGBA", "LA") or (pil_img.mode == "P" and "transparency" in pil_img.info):
+        src = pil_img.convert("RGBA")
+        canvas = Image.new("RGB", src.size, "white")
+        canvas.paste(src, mask=src.split()[-1])
+        return canvas
+    return pil_img.convert("RGB")
+
+
+# A4 宽度(英寸), 统一页宽时用它作基准
+A4_WIDTH_INCH = 8.27
+
+
+def _a4_size(orientation, dpi=300):
+    """返回 A4 页面像素尺寸。orientation: portrait(竖) | landscape(横)。"""
+    if orientation == "landscape":
+        return int(11.69 * dpi), int(8.27 * dpi)
+    return int(8.27 * dpi), int(11.69 * dpi)
+
+
+def pick_orientation(pil_images):
+    """按多数图片的长宽比，给整本 PDF 定一个统一方向。
+
+    横图(宽>高)多则整本用横向, 否则用竖向; 平票按竖向(A4 文件的常规方向)。
+    """
+    landscape = sum(1 for im in pil_images if im.size[0] > im.size[1])
+    portrait = len(pil_images) - landscape
+    return "landscape" if landscape > portrait else "portrait"
+
+
+def _a4_page(pil_img, dpi=300, orientation="auto"):
+    """把单张图居中排到一张 A4 页面上, 返回 PIL Image。
+
+    orientation: auto=按图片自身长宽定横竖 | portrait=强制竖 | landscape=强制横。
+    图片内容不旋转(保持正向可读), 只按页面可用区域等比缩放居中。
+    """
+    img = flatten_white(pil_img)
     iw, ih = img.size
-    if iw >= ih:
-        pw, ph = int(11.69 * dpi), int(8.27 * dpi)   # A4 横
-    else:
-        pw, ph = int(8.27 * dpi), int(11.69 * dpi)   # A4 竖
+    if orientation not in ("portrait", "landscape"):
+        orientation = "landscape" if iw >= ih else "portrait"
+    pw, ph = _a4_size(orientation, dpi)
     sc = min((pw * 0.92) / iw, (ph * 0.92) / ih)
-    nw, nh = int(iw * sc), int(ih * sc)
+    nw, nh = max(1, int(iw * sc)), max(1, int(ih * sc))
     page = Image.new("RGB", (pw, ph), "white")
     page.paste(img.resize((nw, nh), Image.LANCZOS), ((pw - nw) // 2, (ph - nh) // 2))
+    return page
+
+
+def to_pdf_bytes(pil_img, dpi=300, orientation="auto"):
+    """把 PIL Image 排版到 A4 页面，返回 PDF 字节流 (BytesIO)。"""
     buf = BytesIO()
-    page.save(buf, "PDF", resolution=dpi)
+    _a4_page(pil_img, dpi, orientation).save(buf, "PDF", resolution=dpi)
+    buf.seek(0)
+    return buf
+
+
+def to_pdf_bytes_uniform_width(pil_images, page_width_inch=A4_WIDTH_INCH):
+    """把多张图排成多页 PDF, 每页宽度一律是 A4 宽, 高度按各自比例。
+
+    不缩放像素: 每张图单独存一页 PDF, 各自用 分辨率 = 像素宽 / 页宽英寸,
+    再把这些单页拼起来 —— 页宽一致而画质无损(Pillow 存多页时分辨率是全局的,
+    所以不能一次存完, 必须一页一页来)。
+    """
+    from pypdf import PdfWriter
+
+    if not pil_images:
+        raise ValueError("没有可导出的图片")
+
+    writer = PdfWriter()
+    for img in pil_images:
+        img = flatten_white(img)
+        one = BytesIO()
+        img.save(one, "PDF", resolution=img.width / float(page_width_inch))
+        one.seek(0)
+        writer.append(one)
+
+    buf = BytesIO()
+    writer.write(buf)
+    writer.close()
+    buf.seek(0)
+    return buf
+
+
+def to_pdf_bytes_multi(pil_images, dpi=300, orientation="auto"):
+    """把多张图按顺序排成一个多页 PDF(每张一页 A4), 返回 PDF 字节流 (BytesIO)。
+
+    orientation="auto" 时会先按多数图片的方向定下**整本统一**的横竖,
+    不再每页各自判断 —— 否则一份 PDF 里会横竖混排, 打印和翻页都别扭。
+    """
+    if not pil_images:
+        raise ValueError("没有可导出的图片")
+    if orientation not in ("portrait", "landscape"):
+        orientation = pick_orientation(pil_images)
+    pages = [_a4_page(img, dpi, orientation) for img in pil_images]
+    buf = BytesIO()
+    pages[0].save(buf, "PDF", resolution=dpi,
+                  save_all=True, append_images=pages[1:])
     buf.seek(0)
     return buf
 
