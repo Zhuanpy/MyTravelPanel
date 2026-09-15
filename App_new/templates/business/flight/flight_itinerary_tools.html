@@ -538,11 +538,11 @@
     <div class="itinerary-tools-container">
     <!-- 工具切换按钮 -->
     <div class="tool-switch-container">
-        <button id="parseBtn" class="tool-switch-btn{% if active_tab == 'parse' %} active{% endif %}" onclick="switchTool('parse')">
-            <i class="fas fa-magic"></i> 航班解析
-        </button>
         <button id="itineraryBtn" class="tool-switch-btn{% if active_tab == 'itinerary' %} active{% endif %}" onclick="switchTool('itinerary')">
             <i class="fas fa-exchange-alt"></i> 机票行程转换
+        </button>
+        <button id="parseBtn" class="tool-switch-btn{% if active_tab == 'parse' %} active{% endif %}" onclick="switchTool('parse')">
+            <i class="fas fa-magic"></i> 航班解析
         </button>
         <button id="booking_codeBtn" class="tool-switch-btn{% if active_tab == 'booking_code' %} active{% endif %}" onclick="switchTool('booking_code')">
             <i class="fas fa-code"></i> 订位代码生成
@@ -1243,9 +1243,9 @@
 
     // 页面加载时初始化：优先用后端根据 ?tab= 渲染的标签，非法值回退 parse
     document.addEventListener('DOMContentLoaded', function() {
-        const validTabs = ['parse', 'itinerary', 'booking_code'];
+        const validTabs = ['itinerary', 'parse', 'booking_code'];
         const initialTab = "{{ active_tab }}";
-        switchTool(validTabs.includes(initialTab) ? initialTab : 'parse');
+        switchTool(validTabs.includes(initialTab) ? initialTab : 'itinerary');
 
         // 初始化记忆列表
         renderItineraryMemory();

@@ -218,8 +218,8 @@ def booking_code_simple():
     """简化的订位代码页面"""
     return render_template('business/flight/flight_booking_code.html')
 
-# 页面内三个工具标签：parse=航班解析 / itinerary=机票行程转换 / booking_code=订位代码生成
-_CONVERSION_TABS = ('parse', 'itinerary', 'booking_code')
+# 页面内三个工具标签：itinerary=机票行程转换 / parse=航班解析 / booking_code=订位代码生成
+_CONVERSION_TABS = ('itinerary', 'parse', 'booking_code')
 
 # 旧标签值兼容：原来这个标签叫 athina，存过书签的链接不能直接失效
 _LEGACY_TABS = {'athina': 'booking_code'}
@@ -232,12 +232,12 @@ def conversion():
     """机票工具整合页面
 
     通过 ?tab= 参数区分当前激活的标签页，便于刷新/收藏/分享时保留标签状态。
-    非法或缺省值一律回退到 parse。
+    非法或缺省值一律回退到 itinerary（第一个标签）。
     """
-    tab = request.args.get('tab', 'parse')
+    tab = request.args.get('tab', 'itinerary')
     tab = _LEGACY_TABS.get(tab, tab)
     if tab not in _CONVERSION_TABS:
-        tab = 'parse'
+        tab = 'itinerary'
     return render_template('business/flight/flight_itinerary_tools.html',
                            output_text="", active_tab=tab)
 
