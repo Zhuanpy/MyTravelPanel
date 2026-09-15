@@ -373,6 +373,21 @@ function applyPriceLock() {
     }
 }
 
+// 姓名自动转大写：REF 乘客姓名输入框
+// 用事件委托监听 input，动态新增的输入框也能生效；
+// 重设 value 会把光标弹到末尾，所以改完要把光标位置还原。
+document.addEventListener('input', function (e) {
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('.passenger-name-input')) return;
+    if (el.readOnly || el.disabled) return;
+    const upper = (el.value || '').toUpperCase();
+    if (upper === el.value) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    el.value = upper;
+    try { el.setSelectionRange(start, end); } catch (err) { /* 部分输入框不支持选区，忽略 */ }
+});
+
 // 等待所有必要的脚本加载完成
 document.addEventListener('DOMContentLoaded', function() {
     // 确保jQuery和Select2都已加载
