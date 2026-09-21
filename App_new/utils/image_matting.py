@@ -13,6 +13,7 @@
       未安装时由路由层捕获 ImportError 并返回友好提示。
 """
 import logging
+import os
 from io import BytesIO
 
 from PIL import Image
@@ -101,10 +102,32 @@ def rotate_keep(img, ang, border, fl=None):
 # ---------------- AI 抠图 ----------------
 _SESSION = {}
 
+# onnxruntime 默认按核心数开线程, 一个抠图请求就能把整机 CPU 吃满 ——
+# 推理跑在 gunicorn worker 里, 同一时刻的登录/查询全被饿死(实测登录从几十毫秒涨到 9 秒)。
+# rembg.new_session 会读 OMP_NUM_THREADS 并据此设 inter/intra_op_num_threads,
+# 所以建会话前先把它钉住, 给其它 worker 留出核心。
+# 可用环境变量 MATTING_THREADS 覆盖; 留空则按 "核数 / gunicorn worker 数" 估算。
+GUNICORN_WORKERS = 3          # 与 deploy/mytravelpanel.service 保持一致
+MAX_MATTING_THREADS = 4       # 再多也换不来多少速度, 只会加剧抢占
+
+
+def _matting_threads():
+    """算出单次抠图推理最多用几个线程, 至少 1 个。"""
+    env = os.environ.get('MATTING_THREADS')
+    if env and env.isdigit() and int(env) > 0:
+        return int(env)
+    cores = os.cpu_count() or 2
+    return max(1, min(MAX_MATTING_THREADS, cores // GUNICORN_WORKERS))
+
 
 def get_session(model):
     from rembg import new_session
     if model not in _SESSION:
+        threads = _matting_threads()
+        # new_session 只在创建时读这个变量, 所以必须赶在它前面设
+        os.environ['OMP_NUM_THREADS'] = str(threads)
+        logger.info('创建抠图会话: 模型=%s 推理线程=%d (本机 %s 核)',
+                    model, threads, os.cpu_count())
         _SESSION[model] = new_session(model)
     return _SESSION[model]
 
