@@ -109,6 +109,34 @@ def _register_sa_events(query_logger: logging.Logger, slow_query_ms: int):
             )
 
 
+def _register_commit_events(_unused=None):
+    """给 COMMIT 单独计时。
+
+    COMMIT 不经过 cursor_execute，上面那对钩子完全抓不到它 —— 于是锁等待、fsync
+    这些时间既不进 query_total 也不进慢 SQL 日志，日志上只会表现为
+    「elapsed 18 秒但 query_total 才 430ms」，让人误以为时间花在了 Python 里。
+    """
+    from sqlalchemy import event as sa_event
+    from sqlalchemy.orm import Session as _Session
+
+    @sa_event.listens_for(_Session, 'before_commit')
+    def _before_commit(session):
+        session.info['_monitor_commit_start'] = time.perf_counter()
+
+    @sa_event.listens_for(_Session, 'after_commit')
+    def _after_commit(session):
+        start = session.info.pop('_monitor_commit_start', None)
+        if start is None:
+            return
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        try:
+            if hasattr(g, '_monitor_commit_ms'):
+                g._monitor_commit_ms += elapsed_ms
+                g._monitor_commit_count += 1
+        except RuntimeError:
+            pass          # 后台任务不在请求上下文里
+
+
 def _register_request_hooks(app, request_logger: logging.Logger, slow_request_ms: int):
     """注册 Flask 请求生命周期钩子"""
 
@@ -120,6 +148,8 @@ def _register_request_hooks(app, request_logger: logging.Logger, slow_request_ms
         g._monitor_query_count = 0
         g._monitor_query_total_ms = 0.0
         g._monitor_slow_queries = []
+        g._monitor_commit_ms = 0.0
+        g._monitor_commit_count = 0
 
     @app.after_request
     def _monitor_after(response):
@@ -129,12 +159,19 @@ def _register_request_hooks(app, request_logger: logging.Logger, slow_request_ms
         elapsed_ms = (time.perf_counter() - g._monitor_start_time) * 1000
 
         if elapsed_ms >= slow_request_ms:
+            commit_ms = getattr(g, '_monitor_commit_ms', 0.0)
+            # 剩下的才是真正花在 Python 里的时间(模板渲染/计算/外部调用)，
+            # 之前没减 COMMIT，这块被高估过。
+            other_ms = elapsed_ms - g._monitor_query_total_ms - commit_ms
             request_logger.info(
                 f"slow_request method={request.method} path={request.path} "
                 f"endpoint={request.endpoint} status={response.status_code} "
                 f"elapsed={elapsed_ms:.1f}ms "
                 f"query_count={g._monitor_query_count} "
                 f"query_total={g._monitor_query_total_ms:.1f}ms "
+                f"commit_count={getattr(g, '_monitor_commit_count', 0)} "
+                f"commit_total={commit_ms:.1f}ms "
+                f"other={other_ms:.1f}ms "
                 f"slow_query_count={len(g._monitor_slow_queries)} "
                 f"{_get_user_info()}"
             )
@@ -166,6 +203,7 @@ def init_monitoring(app):
     global _sa_events_registered
     if not _sa_events_registered:
         _register_sa_events(query_logger, slow_query_ms)
+        _register_commit_events(None)
         _sa_events_registered = True
 
     # 请求钩子按 app 注册
