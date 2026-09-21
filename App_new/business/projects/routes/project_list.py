@@ -583,53 +583,6 @@ def list_projects():
                 db.func.cast(db.func.substr(ProjectHeader.hid, 2), db.Integer).desc()
             )
 
-        # 在分页前计算整个筛选结果的总计
-        # 获取筛选后的所有项目ID（用于总计计算）
-        all_filtered_ids_query = base_query.with_entities(ProjectHeader.id)
-        all_filtered_ids = [r.id for r in all_filtered_ids_query.all()]
-
-        # 计算整个筛选结果的总计
-        summary_stats = {'total_cost': 0, 'total_profit': 0, 'total_balance': 0, 'total_selling': 0}
-        if all_filtered_ids:
-            try:
-                from App_new.business.projects.models.invoice import ProjectInvoice
-
-                # 汇总所有筛选项目的销售和成本
-                all_refs_totals = db.session.query(
-                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling'),
-                    db.func.coalesce(db.func.sum(ProjectRef.cost_price), 0).label('total_cost')
-                ).filter(ProjectRef.header_id.in_(all_filtered_ids)).first()
-
-                total_selling_all = float(all_refs_totals.total_selling or 0)
-                total_cost_all = float(all_refs_totals.total_cost or 0)
-
-                # 未收款合计 = 未作废发票的未收合计，跟表格每一行的 balance 同一个口径。
-                #
-                # 原来这里是「REF售价 − 已收款」，行里早就改成发票口径了（见下面
-                # unpaid_dict 那段的注释），合计没跟着改，于是出现了「每行都是 0、
-                # 合计却有六位数」的情况：H169（董事借款 90,000）、H160（股东往来
-                # 19,967）这类根本不是销售、也从没开过票的单，REF 上挂着售价、
-                # 没有收款，就被算成了应收 —— 线上 FY2025 那段一共虚增 109,967。
-                # 这两笔在总账里已经按往来款调整过了，账是对的，虚的只是这个合计。
-                total_balance_result = db.session.query(
-                    db.func.coalesce(db.func.sum(db.func.greatest(
-                        ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0)
-                ).filter(
-                    ProjectInvoice.header_id.in_(all_filtered_ids),
-                    ProjectInvoice.status != 'cancelled'
-                ).scalar() or 0
-
-                summary_stats = {
-                    'total_selling': total_selling_all,
-                    'total_cost': total_cost_all,
-                    'total_profit': total_selling_all - total_cost_all,
-                    'total_balance': float(total_balance_result)
-                }
-            except Exception as e:
-                print(f"计算总计时出错: {e}")
-                import traceback
-                traceback.print_exc()
-
         # 分页
         page = request.args.get('page', 1, type=int)
         per_page = 30  # 增加每页显示数量
@@ -909,18 +862,8 @@ def list_projects():
                     }
 
         # 注意：付款状态筛选已在数据库层面完成，无需在此二次筛选
-        
-        # 获取总体统计（简化版本，只获取基本计数）
-        total_stats = {
-            'total_projects': ProjectHeader.query.count(),
-            'active_projects': ProjectHeader.query.filter(ProjectHeader.status.in_(['active', 'draft'])).count(),
-            'completed_projects': ProjectHeader.query.filter_by(status='completed').count(),
-            'completed_this_month': ProjectHeader.query.filter(
-                ProjectHeader.status == 'completed',
-                ProjectHeader.updated_at >= datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            ).count()
-        }
-        
+        # 顶部的总项目/进行中/本月完成统计挪到所有筛选之后再算（见下方"顶部统计"）
+
         # 应用金额筛选（在数据库层面进行，提高效率）
         if selling_min or selling_max or profit_min or profit_max or balance_min or balance_max or profit_status:
             try:
@@ -1196,6 +1139,77 @@ def list_projects():
                 print(f"应用金额筛选时出错: {e}")
                 # 如果筛选失败，继续使用原始查询结果
                 pass
+
+        # ---------- 筛选结果的金额合计 ----------
+        # 和顶部统计一样, 必须等所有筛选(含金额/利润/余额那几条)都加进 base_query
+        # 之后再算。原来这段在分页前就跑了, 那时金额类筛选还没加, 于是按"利润 > X"
+        # 筛完, 列表只剩几行, 下面的"筛选销售额/筛选利润"却还是筛之前的总数。
+        all_filtered_ids = [
+            r.id for r in base_query.order_by(None).with_entities(ProjectHeader.id).all()
+        ]
+
+        # 计算整个筛选结果的总计
+        summary_stats = {'total_cost': 0, 'total_profit': 0, 'total_balance': 0, 'total_selling': 0}
+        if all_filtered_ids:
+            try:
+                from App_new.business.projects.models.invoice import ProjectInvoice
+
+                # 汇总所有筛选项目的销售和成本
+                all_refs_totals = db.session.query(
+                    db.func.coalesce(db.func.sum(ProjectRef.selling_price), 0).label('total_selling'),
+                    db.func.coalesce(db.func.sum(ProjectRef.cost_price), 0).label('total_cost')
+                ).filter(ProjectRef.header_id.in_(all_filtered_ids)).first()
+
+                total_selling_all = float(all_refs_totals.total_selling or 0)
+                total_cost_all = float(all_refs_totals.total_cost or 0)
+
+                # 未收款合计 = 未作废发票的未收合计，跟表格每一行的 balance 同一个口径。
+                #
+                # 原来这里是「REF售价 − 已收款」，行里早就改成发票口径了（见下面
+                # unpaid_dict 那段的注释），合计没跟着改，于是出现了「每行都是 0、
+                # 合计却有六位数」的情况：H169（董事借款 90,000）、H160（股东往来
+                # 19,967）这类根本不是销售、也从没开过票的单，REF 上挂着售价、
+                # 没有收款，就被算成了应收 —— 线上 FY2025 那段一共虚增 109,967。
+                # 这两笔在总账里已经按往来款调整过了，账是对的，虚的只是这个合计。
+                total_balance_result = db.session.query(
+                    db.func.coalesce(db.func.sum(db.func.greatest(
+                        ProjectInvoice.amount - ProjectInvoice.paid_amount, 0)), 0)
+                ).filter(
+                    ProjectInvoice.header_id.in_(all_filtered_ids),
+                    ProjectInvoice.status != 'cancelled'
+                ).scalar() or 0
+
+                summary_stats = {
+                    'total_selling': total_selling_all,
+                    'total_cost': total_cost_all,
+                    'total_profit': total_selling_all - total_cost_all,
+                    'total_balance': float(total_balance_result)
+                }
+            except Exception as e:
+                print(f"计算总计时出错: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # ---------- 顶部统计 ----------
+        # 必须放在这里：金额/利润/余额筛选是在上面那段才加进 base_query 的，
+        # 算早了就漏掉它们。
+        #
+        # 原来这里写的是 ProjectHeader.query.count() —— 从头起一条全新查询，
+        # 跟拼了几百行的 base_query 毫无关系，所以筛完日期数字纹丝不动；
+        # 它同时绕过了 1 级员工"只看自己项目"的权限过滤，普通员工看到的是全公司数字。
+        counted_query = base_query.order_by(None)     # 统计不需要排序，去掉能省一层
+        month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        total_stats = {
+            'total_projects': len(all_filtered_ids),   # 上面已查出筛选结果, 不必再 COUNT 一次
+            'active_projects': counted_query.filter(
+                ProjectHeader.status.in_(['active', 'draft'])).count(),
+            'completed_projects': counted_query.filter(
+                ProjectHeader.status == 'completed').count(),
+            'completed_this_month': counted_query.filter(
+                ProjectHeader.status == 'completed',
+                ProjectHeader.updated_at >= month_start
+            ).count()
+        }
 
         # 提供客户公司列表用于前端下拉选择
         companies = CustomerCompany.query.order_by(CustomerCompany.company_name).all()
