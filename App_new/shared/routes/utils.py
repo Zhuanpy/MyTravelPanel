@@ -376,7 +376,8 @@ MATTING_MODES = {
         'label': '证件 / 卡片',
         'desc': '保留圆角 + 自动摆正，适合身份证、银行卡、各类证件卡片',
         'icon': 'fas fa-id-card',
-        'default_pdf': 'none',      # 卡片多数是拿 PNG 去排版
+        'default_pdf': 'none',      # 卡片多数是拿图去排版
+        'default_quality': 'small', # 卡片贴表单/发邮件, 百来KB 就够
     },
     'passport': {
         'mode': 'page',
@@ -384,6 +385,7 @@ MATTING_MODES = {
         'desc': '透视校正，拉平成矩形，适合护照资料页、整页文件',
         'icon': 'fas fa-passport',
         'default_pdf': 'merged',    # 护照页多数是多张合成一个 PDF 交件
+        'default_quality': 'normal',# 资料页要能看清 MRZ, 不压得太狠
     },
 }
 
@@ -432,7 +434,8 @@ def image_matting_process():
         from PIL import Image as _PILImage
         try:
             from App_new.utils.image_matting import (
-                matting, to_pdf_bytes, to_pdf_bytes_multi, pick_orientation)
+                matting, to_pdf_bytes, to_pdf_bytes_multi, pick_orientation,
+                to_image_bytes, get_quality_preset, DEFAULT_QUALITY, QUALITY_PRESETS)
         except ImportError as imp_err:
             return jsonify({
                 'success': False,
@@ -466,6 +469,13 @@ def image_matting_process():
             mode = 'page'
         if mode not in ('card', 'page'):
             mode = 'card'
+        # 输出画质: small=压到百来KB | normal=折中 | high=不压缩
+        # 不传时按模式给默认: 卡片求小, 护照资料页要留得住 MRZ
+        out_quality = request.form.get('out_quality') or (
+            'normal' if mode == 'page' else DEFAULT_QUALITY)
+        if out_quality not in QUALITY_PRESETS:
+            out_quality = DEFAULT_QUALITY
+        pdf_dpi, pdf_q = get_quality_preset(out_quality)[2:]
         if bg not in ('white', 'transparent'):
             bg = 'white'
         if merge not in ('none', 'vertical', 'horizontal', 'grid'):
@@ -489,7 +499,7 @@ def image_matting_process():
 
         current_app.logger.info(
             f'抠图处理开始: 数量={len(pil_images)} 模式={mode} 背景={bg} '
-            f'合并={merge} pdf={pdf_mode} 页面方向={page_orient}')
+            f'合并={merge} pdf={pdf_mode} 页面方向={page_orient} 画质={out_quality}')
 
         result = matting(pil_images, mode=mode, bg=bg, merge=merge)
 
@@ -497,33 +507,32 @@ def image_matting_process():
         if merge != 'none':
             merged = result['merged']
             if want_pdf:
-                buf = to_pdf_bytes(merged, orientation=page_orient)
+                buf = to_pdf_bytes(merged, dpi=pdf_dpi, orientation=page_orient,
+                                   jpeg_quality=pdf_q)
                 return send_file(buf, mimetype='application/pdf',
                                  as_attachment=True, download_name='抠图合并结果.pdf')
-            buf = BytesIO()
-            merged.save(buf, 'PNG')
-            buf.seek(0)
+            buf, ext, mime = to_image_bytes(merged, transparent, out_quality)
             suffix = '_透明底' if transparent else ''
-            return send_file(buf, mimetype='image/png',
-                             as_attachment=True, download_name=f'抠图合并结果{suffix}.png')
+            return send_file(buf, mimetype=mime,
+                             as_attachment=True, download_name=f'抠图合并结果{suffix}.{ext}')
 
         # ---------- 不合并模式 ----------
         singles = result['singles']
         # 单张直接返回
         if len(singles) == 1:
             if want_pdf:
-                buf = to_pdf_bytes(singles[0], orientation=page_orient)
+                buf = to_pdf_bytes(singles[0], dpi=pdf_dpi, orientation=page_orient,
+                                   jpeg_quality=pdf_q)
                 return send_file(buf, mimetype='application/pdf',
                                  as_attachment=True, download_name=f'{names[0]}_nobg.pdf')
-            buf = BytesIO()
-            singles[0].save(buf, 'PNG')
-            buf.seek(0)
-            return send_file(buf, mimetype='image/png',
-                             as_attachment=True, download_name=f'{names[0]}_nobg.png')
+            buf, ext, mime = to_image_bytes(singles[0], transparent, out_quality)
+            return send_file(buf, mimetype=mime,
+                             as_attachment=True, download_name=f'{names[0]}_nobg.{ext}')
 
         # 多张 + 合成 PDF: 每张一页, 返回一个多页 PDF
         if pdf_mode == 'merged':
-            buf = to_pdf_bytes_multi(singles, orientation=page_orient)
+            buf = to_pdf_bytes_multi(singles, dpi=pdf_dpi, orientation=page_orient,
+                                     jpeg_quality=pdf_q)
             return send_file(buf, mimetype='application/pdf',
                              as_attachment=True, download_name='抠图结果.pdf')
 
@@ -536,13 +545,13 @@ def image_matting_process():
         zip_buf = BytesIO()
         with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
             for img, name in zip(singles, names):
-                item = BytesIO()
                 if want_pdf:
-                    item = to_pdf_bytes(img, orientation=zip_orient)
+                    item = to_pdf_bytes(img, dpi=pdf_dpi, orientation=zip_orient,
+                                        jpeg_quality=pdf_q)
                     zf.writestr(f'{name}_nobg.pdf', item.getvalue())
                 else:
-                    img.save(item, 'PNG')
-                    zf.writestr(f'{name}_nobg.png', item.getvalue())
+                    item, ext, _ = to_image_bytes(img, transparent, out_quality)
+                    zf.writestr(f'{name}_nobg.{ext}', item.getvalue())
         zip_buf.seek(0)
         return send_file(zip_buf, mimetype='application/zip',
                          as_attachment=True, download_name='抠图结果.zip')

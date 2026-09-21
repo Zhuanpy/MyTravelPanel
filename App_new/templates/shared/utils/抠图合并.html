@@ -61,9 +61,20 @@
                 <div class="visa-form-group">
                     <label for="bg" class="visa-form-label">输出背景</label>
                     <select id="bg" name="bg" class="visa-form-control">
-                        <option value="white">白底 PNG</option>
+                        <option value="white">白底（可压成小文件）</option>
                         <option value="transparent">透明底 PNG（用于叠加排版）</option>
                     </select>
+                </div>
+
+                <!-- 输出画质 / 文件大小 -->
+                <div class="visa-form-group">
+                    <label for="out_quality" class="visa-form-label">输出画质</label>
+                    <select id="out_quality" name="out_quality" class="visa-form-control">
+                        <option value="small" {% if current_mode.default_quality == 'small' %}selected{% endif %}>小文件（约 150KB，长边 1400，够贴表单和发邮件）</option>
+                        <option value="normal" {% if current_mode.default_quality == 'normal' %}selected{% endif %}>标准（约 400KB，长边 2000，护照 MRZ 看得清）</option>
+                        <option value="high">原图不压缩（PNG / 300dpi PDF，文件可达数 MB）</option>
+                    </select>
+                    <small id="qualityHint" class="tw-text-gray-500"></small>
                 </div>
 
                 <!-- 合并方式 -->
@@ -255,21 +266,44 @@ function updatePdfHint() {
             ? '多张已先拼成一张，只会得到一个 PDF。'
             : '每张一个 PDF，多张打包成 ZIP 下载。';
     } else {
-        text = merged ? '输出一张合并后的 PNG。' : '每张一个 PNG，多张打包成 ZIP 下载。';
+        // 白底 + 压缩走 JPG(体积小得多), 透明底只能留 PNG
+        const qSel = document.getElementById('out_quality');
+        const bg = document.getElementById('bg');
+        const png = (bg && bg.value === 'transparent') || (qSel && qSel.value === 'high');
+        const ext = png ? 'PNG' : 'JPG';
+        text = merged ? ('输出一张合并后的 ' + ext + '。')
+                      : ('每张一个 ' + ext + '，多张打包成 ZIP 下载。');
     }
     const bgSel = document.getElementById('bg');
     if (pdf !== 'none' && bgSel && bgSel.value === 'transparent') {
         text += ' PDF 不支持透明，会按白底输出。';
     }
     hint.textContent = text;
+    updateQualityHint();
 
     const orientGroup = document.getElementById('orientGroup');
     if (orientGroup) orientGroup.style.display = (pdf === 'none') ? 'none' : '';
 }
 
+// 提示当前画质选项会带来多大的文件
+function updateQualityHint() {
+    const qSel = document.getElementById('out_quality');
+    const bgSel = document.getElementById('bg');
+    const pdfSel = document.getElementById('pdf_mode');
+    const hint = document.getElementById('qualityHint');
+    if (!qSel || !hint) return;
+    if (qSel.value === 'high') {
+        hint.textContent = '不做任何压缩，证件图常有 1~3MB。只在需要留原始底稿时选。';
+    } else if (bgSel && bgSel.value === 'transparent' && (!pdfSel || pdfSel.value === 'none')) {
+        hint.textContent = '透明底只能存 PNG，压不下去，这里只会限制尺寸。要小文件请改成白底。';
+    } else {
+        hint.textContent = '自动降画质直到压进目标体积，证件文字仍然清楚。';
+    }
+}
+
 // 拖拽上传支持
 document.addEventListener('DOMContentLoaded', function() {
-    ['merge', 'pdf_mode', 'bg'].forEach(function(id) {
+    ['merge', 'pdf_mode', 'bg', 'out_quality'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', updatePdfHint);
     });

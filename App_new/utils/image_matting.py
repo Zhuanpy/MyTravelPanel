@@ -367,7 +367,82 @@ def merge_images(items, layout, width, gap, margin, transparent):
     return Image.fromarray(canvas, mode)
 
 
-# ---------------- PDF (A4, 300dpi, 自动横竖) ----------------
+# ---------------- 输出体积控制 ----------------
+# 证件/卡片下载下来多数是贴到表单或发邮件, PNG 存照片类内容几乎不压缩,
+# 一张 2000px 的卡片动辄 1~3MB。这里按"目标体积"编码成 JPEG:
+# 先限长边, 再从高到低试画质, 第一个落进目标体积的就用它。
+QUALITY_PRESETS = {
+    # 名称:   (长边上限, 目标KB, PDF dpi, PDF 内图片的 JPEG 画质)
+    'small':  (1400, 180, 150, 68),
+    'normal': (2000, 400, 200, 78),
+    'high':   (None, None, 300, 90),   # 不压缩: 图走 PNG 原图, PDF 走 300dpi
+}
+DEFAULT_QUALITY = 'small'
+# 试到哪个画质就停, 从高到低
+JPEG_QUALITY_STEPS = (88, 82, 76, 70, 64, 58, 52)
+# 最低画质仍超目标时, 按这个比例再缩一轮, 最多缩 MAX_SHRINK_ROUNDS 次
+SHRINK_RATIO = 0.8
+MAX_SHRINK_ROUNDS = 3
+
+
+def get_quality_preset(name):
+    """取画质预设 (长边上限, 目标KB, PDF dpi, PDF JPEG 画质), 名称非法时回落到默认。"""
+    return QUALITY_PRESETS.get(name, QUALITY_PRESETS[DEFAULT_QUALITY])
+
+
+def _limit_side(pil_img, max_side):
+    """长边超过 max_side 就等比缩小, 否则原样返回。"""
+    if not max_side:
+        return pil_img
+    w, h = pil_img.size
+    if max(w, h) <= max_side:
+        return pil_img
+    scale = max_side / float(max(w, h))
+    return pil_img.resize((max(1, int(round(w * scale))), max(1, int(round(h * scale)))),
+                          Image.LANCZOS)
+
+
+def to_jpeg_bytes(pil_img, target_kb=None, max_side=None):
+    """把图编码成 JPEG, 尽量压到 target_kb 以内, 返回 BytesIO。
+
+    透明底会先贴白底(JPEG 没有 alpha 通道)。target_kb 为空则只按最高画质存一次。
+    """
+    img = _limit_side(flatten_white(pil_img), max_side)
+    target = target_kb * 1024 if target_kb else None
+    best = None
+    for _ in range(MAX_SHRINK_ROUNDS + 1):
+        for q in JPEG_QUALITY_STEPS:
+            buf = BytesIO()
+            img.save(buf, 'JPEG', quality=q, optimize=True, progressive=True)
+            best = buf
+            if target is None or buf.tell() <= target:
+                buf.seek(0)
+                return buf
+        # 最低画质还是超标: 再缩一轮尺寸重试(证件看清字即可, 不必保留大像素)
+        w, h = img.size
+        nw, nh = max(1, int(w * SHRINK_RATIO)), max(1, int(h * SHRINK_RATIO))
+        if nw < 600:                       # 再缩就影响辨识了, 到此为止
+            break
+        img = img.resize((nw, nh), Image.LANCZOS)
+    best.seek(0)
+    return best
+
+
+def to_image_bytes(pil_img, transparent=False, quality=DEFAULT_QUALITY):
+    """把结果图编码成可下载的字节流, 返回 (BytesIO, 扩展名, mimetype)。
+
+    透明底必须留 PNG(JPEG 没有 alpha); 白底且选了压缩就走 JPEG。
+    """
+    max_side, target_kb = get_quality_preset(quality)[:2]
+    if transparent or target_kb is None:
+        buf = BytesIO()
+        _limit_side(pil_img, max_side).save(buf, 'PNG', optimize=True)
+        buf.seek(0)
+        return buf, 'png', 'image/png'
+    return to_jpeg_bytes(pil_img, target_kb, max_side), 'jpg', 'image/jpeg'
+
+
+# ---------------- PDF (A4, 自动横竖) ----------------
 def flatten_white(pil_img):
     """带透明通道的图贴到白底上。
 
@@ -421,10 +496,18 @@ def _a4_page(pil_img, dpi=300, orientation="auto"):
     return page
 
 
-def to_pdf_bytes(pil_img, dpi=300, orientation="auto"):
-    """把 PIL Image 排版到 A4 页面，返回 PDF 字节流 (BytesIO)。"""
+# PDF 里的图 Pillow 是按 JPEG(DCTDecode) 存的, 画质可以直接透传给编码器
+PDF_JPEG_QUALITY = 75
+
+
+def to_pdf_bytes(pil_img, dpi=300, orientation="auto", jpeg_quality=PDF_JPEG_QUALITY):
+    """把 PIL Image 排版到 A4 页面，返回 PDF 字节流 (BytesIO)。
+
+    dpi 既决定页面像素也决定文件大小: 证件 150dpi 打印已足够清楚, 300dpi 体积是它的四倍。
+    """
     buf = BytesIO()
-    _a4_page(pil_img, dpi, orientation).save(buf, "PDF", resolution=dpi)
+    _a4_page(pil_img, dpi, orientation).save(
+        buf, "PDF", resolution=dpi, quality=jpeg_quality)
     buf.seek(0)
     return buf
 
@@ -456,7 +539,8 @@ def to_pdf_bytes_uniform_width(pil_images, page_width_inch=A4_WIDTH_INCH):
     return buf
 
 
-def to_pdf_bytes_multi(pil_images, dpi=300, orientation="auto"):
+def to_pdf_bytes_multi(pil_images, dpi=300, orientation="auto",
+                       jpeg_quality=PDF_JPEG_QUALITY):
     """把多张图按顺序排成一个多页 PDF(每张一页 A4), 返回 PDF 字节流 (BytesIO)。
 
     orientation="auto" 时会先按多数图片的方向定下**整本统一**的横竖,
@@ -468,7 +552,7 @@ def to_pdf_bytes_multi(pil_images, dpi=300, orientation="auto"):
         orientation = pick_orientation(pil_images)
     pages = [_a4_page(img, dpi, orientation) for img in pil_images]
     buf = BytesIO()
-    pages[0].save(buf, "PDF", resolution=dpi,
+    pages[0].save(buf, "PDF", resolution=dpi, quality=jpeg_quality,
                   save_all=True, append_images=pages[1:])
     buf.seek(0)
     return buf
