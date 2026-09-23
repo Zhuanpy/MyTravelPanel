@@ -131,7 +131,8 @@ def edit_header(header_id):
             header.desc = desc_value
 
             header.limit = form.limit.data
-            header.contact = form.contact.data
+            # 联系人存前去掉首尾空格，否则筛选时同一个人会被当成两个
+            header.contact = (form.contact.data or '').strip() or None
             header.dept = form.dept.data
             header.staff_id = form.staff_id.data if form.staff_id.data else None
             # staff_name 由模型事件自动同步
@@ -556,7 +557,7 @@ def update_header_contact():
     """更新项目联系人"""
     data = request.get_json()
     header_id = data.get('header_id')
-    contact = data.get('contact')
+    contact = (data.get('contact') or '').strip() or None
     if not header_id:
         return jsonify({'success': False, 'message': '参数错误'})
     header = ProjectHeader.query.get(header_id)

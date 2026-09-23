@@ -1292,9 +1292,10 @@ def invoice_list():
         # 集团筛选（按项目所属公司的集团标签）
         if group:
             filters.append(CustomerCompany.group_name == group)
-        # 联系人筛选
+        # 联系人筛选：用模糊匹配，和项目列表保持一致
+        # （contact 是自由文本，同一个人常有大小写/空格/后缀差异，精确匹配会漏单）
         if contact:
-            filters.append(ProjectHeader.contact == contact)
+            filters.append(ProjectHeader.contact.ilike(f'%{contact}%'))
         if payment_status:
             if payment_status == 'outstanding':
                 # 未结清 = 未付款 + 部分付款，一次筛出所有还欠钱的发票
@@ -1608,7 +1609,7 @@ def invoice_list_all_ids():
         if group:
             filters.append(CustomerCompany.group_name == group)
         if contact:
-            filters.append(ProjectHeader.contact == contact)
+            filters.append(ProjectHeader.contact.ilike(f'%{contact}%'))
         if payment_status:
             # outstanding 是组合值（未付 + 部分付），跨页全选要跟列表口径一致
             if payment_status == 'outstanding':
