@@ -214,7 +214,7 @@
                     </datalist>
                 </div>
                 <div class="col-auto">
-                    <select name="payment_status" class="form-select form-select-sm" style="width: 110px;" title="付款状态">
+                    <select name="payment_status" class="form-select form-select-sm" style="width: 145px;" title="付款状态">
                         {% for value, label in payment_statuses %}
                         <option value="{{ value }}" {% if current_filters.payment_status == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}

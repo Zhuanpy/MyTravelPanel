@@ -1296,11 +1296,16 @@ def invoice_list():
         if contact:
             filters.append(ProjectHeader.contact == contact)
         if payment_status:
-            filters.append(ProjectInvoice.payment_status == payment_status)
-            # 兜底：unpaid 时排除零额壳子发票（amount=0 不应该出现在"待收款"清单里，
-            # 即便历史 payment_status 没被同步到 paid，列表也保持干净）
-            if payment_status == 'unpaid':
+            if payment_status == 'outstanding':
+                # 未结清 = 未付款 + 部分付款，一次筛出所有还欠钱的发票
+                filters.append(ProjectInvoice.payment_status.in_(['unpaid', 'partial_paid']))
                 filters.append(ProjectInvoice.amount > 0)
+            else:
+                filters.append(ProjectInvoice.payment_status == payment_status)
+                # 兜底：unpaid 时排除零额壳子发票（amount=0 不应该出现在"待收款"清单里，
+                # 即便历史 payment_status 没被同步到 paid，列表也保持干净）
+                if payment_status == 'unpaid':
+                    filters.append(ProjectInvoice.amount > 0)
         if invoice_type:
             filters.append(ProjectInvoice.invoice_type == invoice_type)
         if currency:
@@ -1434,6 +1439,7 @@ def invoice_list():
         # 付款状态选项
         payment_statuses = [
             ('', 'All'),
+            ('outstanding', 'Unpaid + Partial'),
             ('unpaid', 'Unpaid'),
             ('partial_paid', 'Partial Paid'),
             ('paid', 'Paid')
@@ -1604,7 +1610,12 @@ def invoice_list_all_ids():
         if contact:
             filters.append(ProjectHeader.contact == contact)
         if payment_status:
-            filters.append(ProjectInvoice.payment_status == payment_status)
+            # outstanding 是组合值（未付 + 部分付），跨页全选要跟列表口径一致
+            if payment_status == 'outstanding':
+                filters.append(ProjectInvoice.payment_status.in_(['unpaid', 'partial_paid']))
+                filters.append(ProjectInvoice.amount > 0)
+            else:
+                filters.append(ProjectInvoice.payment_status == payment_status)
         if invoice_type:
             filters.append(ProjectInvoice.invoice_type == invoice_type)
         if currency:
