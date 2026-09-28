@@ -83,6 +83,11 @@
             <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
             <button type="button" class="visa-btn visa-btn-sm visa-btn-success" onclick="saveAsTemplate()"><i class="fas fa-save"></i> 将当前表存为模板</button>
             <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
+            {% if '日本' in (project.visa_type or '') %}
+            <input type="file" id="importPdfFile" accept=".pdf" style="display:none;" onchange="importFromPdf(this)">
+            <button type="button" class="visa-btn visa-btn-sm visa-btn-primary" onclick="document.getElementById('importPdfFile').click()" title="选以前生成/填好的 Application Form.pdf，把内容带进来再改"><i class="fas fa-file-import"></i> 从 PDF 导入</button>
+            <span style="width:1px; height:20px; background:#e5e7eb; margin:0 0.2rem;"></span>
+            {% endif %}
             <input type="file" id="masterFile" style="display:none;" onchange="uploadMaster(this)">
             <button type="button" class="visa-btn visa-btn-sm visa-btn-secondary" onclick="document.getElementById('masterFile').click()" title="上传本签证类型的填表母版（共用，覆盖旧母版）"><i class="fas fa-file-upload"></i> 上传母版</button>
             <span style="color:#9ca3af; font-size:0.78rem;">应用后按需改申请人专属字段（姓名/护照等）再保存</span>
@@ -123,6 +128,7 @@ const FORM_DATA_URL = "{{ url_for('visa_project.get_project_form_data', project_
 const TPL_URL = "{{ url_for('visa_project.list_form_templates') }}";  // GET列表 / POST保存
 const VISA_CATEGORY = "{{ 'japan' if '日本' in project.visa_type else ('korea' if '韩国' in project.visa_type else '') }}";
 const MASTER_UPLOAD_URL = "{{ url_for('visa_project.upload_master_template', project_id=project.id) }}";
+const IMPORT_PDF_URL = "{{ url_for('visa_project.import_form_pdf', project_id=project.id) }}";
 const GENERATE_URL = "{{ url_for('visa_project.generate_form_for_project', project_id=project.id) }}";
 const DOWNLOAD_URL = "{{ url_for('visa_project.download_form', project_id=project.id) }}";
 const MASTER_ACCEPT = VISA_CATEGORY === 'japan' ? '.pdf' : (VISA_CATEGORY === 'korea' ? '.xls,.xlsx' : '');
@@ -158,6 +164,34 @@ function uploadMaster(input) {
         loadFillForm();  // 重新读取母版字段
     })
     .catch(err => setStatus(err.message || '母版上传失败', false))
+    .finally(() => { input.value = ''; });
+}
+
+// 从以前填好的申请表 PDF 导入：先清空可编辑字段再套用，避免新旧内容混在一起；不自动保存
+function importFromPdf(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const hasData = Object.values(gatherFormValues()).some(v => String(v || '').trim());
+    if (hasData && !confirm('导入会覆盖当前表单已填的内容，确定继续？')) { input.value = ''; return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    setStatus('读取 PDF 中...');
+    fetch(IMPORT_PDF_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.message || '导入失败');
+        document.querySelectorAll('#fillFormBody .fill-field').forEach(el => {
+            if (el.disabled || el.readOnly) return;
+            if (el.type === 'radio') el.checked = false; else el.value = '';
+        });
+        applyValues(data.values || {});
+        setStatus(`已从 PDF 导入 ${data.count} 项，请修改后点「保存」`, true);
+    })
+    .catch(err => setStatus(err.message || '导入失败', false))
     .finally(() => { input.value = ''; });
 }
 

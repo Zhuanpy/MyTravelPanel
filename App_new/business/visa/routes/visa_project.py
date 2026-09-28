@@ -1019,6 +1019,80 @@ def upload_master_template(project_id):
         return jsonify({'success': False, 'message': f'上传失败: {e}'}), 500
 
 
+def _strip_pdf_field_path(name):
+    """去掉 #area[n] 容器层，得到「页.短名」，用于字段全名对不上时的兜底匹配。"""
+    parts = [p for p in str(name).split('.') if not p.startswith('#area')]
+    return '.'.join(parts[-2:])
+
+
+@visa_project.route('/<int:project_id>/import-form-pdf', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def import_form_pdf(project_id):
+    """导入以前填好的申请表 PDF，读出字段值返回给前端预填（不入库，用户核对后再保存）。
+
+    仅日本签证：母版是可填 PDF，生成的 PDF 保留了 AcroForm 字段值；
+    韩国生成的是图片拼接 PDF，没有字段可读。
+    """
+    project = VisaProject.query.get_or_404(project_id)
+    if '日本' not in (project.visa_type or ''):
+        return jsonify({'success': False, 'message': '目前仅日本签证支持从 PDF 导入（韩国表格是图片，无法读取）'}), 400
+
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'message': '请上传 PDF 文件'}), 400
+
+    try:
+        from pypdf import PdfReader
+        pdf_fields = PdfReader(file.stream).get_fields() or {}
+    except ImportError as e:
+        return jsonify({'success': False, 'message': f'缺少依赖: {e}（需 pypdf）'}), 500
+    except Exception as e:
+        current_app.logger.warning(f'导入表格 PDF 解析失败({project_id}): {e}')
+        return jsonify({'success': False, 'message': f'PDF 解析失败: {e}'}), 400
+
+    if not pdf_fields:
+        return jsonify({'success': False, 'message': '这个 PDF 没有可填字段，可能是扫描件或打印出来的 PDF'}), 400
+
+    try:
+        fields = _project_template_fields(project)
+    except FileNotFoundError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+    # 全名优先；对不上（别的工具另存过、容器层变了）再按「页.短名」兜底
+    ctype_by_seq = {f['seq']: f.get('ctype') for f in fields}
+    seq_by_short = {}
+    for f in fields:
+        seq_by_short.setdefault(_strip_pdf_field_path(f['seq']), f['seq'])
+
+    values = {}
+    for name, f in pdf_fields.items():
+        seq = name if name in ctype_by_seq else seq_by_short.get(_strip_pdf_field_path(name))
+        if not seq:
+            continue
+        v = f.get('/V')
+        if v is None:
+            continue
+        if isinstance(v, list):  # 多选列表框，取第一个
+            v = v[0] if v else ''
+        v = str(v).strip()
+        if ctype_by_seq.get(seq) == 'radio':
+            v = v.lstrip('/')
+            if v == 'Off':  # 单选未选中
+                continue
+        if v:
+            values[seq] = v
+
+    if not values:
+        return jsonify({'success': False, 'message': 'PDF 里没有读到已填内容，或不是本签证的申请表'}), 400
+
+    current_app.logger.info(f'项目{project_id} 从 PDF 导入 {len(values)} 项填表值: {file.filename}')
+    return jsonify({'success': True, 'values': values, 'count': len(values)})
+
+
 @visa_project.route('/<int:project_id>/fill-form', methods=['GET'])
 @login_required
 @staff_only
