@@ -4,30 +4,33 @@
 
 {% block content %}
 <!-- 筛选区域 -->
-<section class="py-3 bg-light border-bottom">
+<section class="list-header">
     <div class="container">
-        <form method="GET" action="{{ url_for('public.attractions') }}" id="searchForm">
-            <div class="d-flex flex-wrap align-items-center justify-content-center gap-2" style="--filter-h: 38px;">
-                <select id="countryFilter" name="country" class="form-select" style="width: auto; min-width: 150px; height: var(--filter-h);" onchange="this.form.submit()">
+        <div class="list-header-top">
+            <h1 class="list-title">景点门票</h1>
+            {% if pagination %}<span class="list-count">共 <strong>{{ pagination.total }}</strong> 个景点</span>{% endif %}
+        </div>
+        <form method="GET" action="{{ url_for('public.attractions') }}" class="search-bar" id="searchForm">
+            <div class="search-field search-field-keyword">
+                <i class="fas fa-search"></i>
+                <input type="text" name="keyword" value="{{ keyword }}" placeholder="搜索景点名称...">
+            </div>
+            <div class="search-field">
+                <i class="fas fa-map-marker-alt"></i>
+                <select id="countryFilter" name="country" onchange="this.form.submit()">
                     <option value="">全部目的地</option>
                     {% for c in countries %}
                     <option value="{{ c }}" {% if country == c %}selected{% endif %}>{{ c }}</option>
                     {% endfor %}
                 </select>
-                <div class="input-group" style="width: auto; min-width: 260px;">
-                    <input type="text" name="keyword" class="form-control" placeholder="搜索景点名称..."
-                           value="{{ keyword }}" style="height: var(--filter-h);">
-                    <button type="submit" class="btn btn-custom" style="height: var(--filter-h);">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-                {% if keyword or country %}
-                <a href="{{ url_for('public.attractions') }}" class="btn btn-outline-secondary" style="height: var(--filter-h); line-height: calc(var(--filter-h) - 2px);">
-                    <i class="fas fa-times me-1"></i>清除
-                </a>
-                {% endif %}
             </div>
+            <button type="submit" class="search-btn">搜索</button>
         </form>
+        {% if keyword or country %}
+        <div class="search-meta">
+            <a href="{{ url_for('public.attractions') }}" class="search-clear"><i class="fas fa-times me-1"></i>清除筛选</a>
+        </div>
+        {% endif %}
     </div>
 </section>
 

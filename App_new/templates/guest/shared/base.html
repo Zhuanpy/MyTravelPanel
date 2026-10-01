@@ -152,6 +152,165 @@
             padding: 0.5rem 1rem;
         }
 
+        /* ========== 列表页统一头部：标题 + 搜索栏 + 快捷标签 ========== */
+        .list-header {
+            background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1.75rem 0 1.25rem;
+            margin-top: -20px;  /* 抵消导航栏 margin-bottom，头部紧贴导航 */
+        }
+
+        .list-header-top {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .list-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .list-count {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .list-count strong {
+            color: #059669;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: stretch;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(15,23,42,0.06);
+            padding: 6px;
+            gap: 4px;
+        }
+
+        .search-field {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0 0.9rem;
+            min-width: 0;
+            border-left: 1px solid #f1f5f9;
+        }
+
+        .search-field:first-child {
+            border-left: none;
+        }
+
+        .search-field-keyword {
+            flex: 1 1 auto;
+        }
+
+        .search-field > i {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        .search-field input,
+        .search-field select {
+            border: none;
+            outline: none;
+            background: transparent;
+            height: 44px;
+            font-size: 0.95rem;
+            color: #1e293b;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .search-field select {
+            min-width: 130px;
+            cursor: pointer;
+        }
+
+        .search-btn {
+            border: none;
+            border-radius: 10px;
+            background: #10b981;
+            color: #fff;
+            font-weight: 600;
+            padding: 0 1.5rem;
+            white-space: nowrap;
+            transition: background 0.2s ease;
+        }
+
+        .search-btn:hover {
+            background: #059669;
+        }
+
+        .search-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.9rem;
+        }
+
+        .quick-tag {
+            display: inline-block;
+            padding: 4px 14px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: #475569;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .quick-tag:hover {
+            border-color: #10b981;
+            color: #059669;
+        }
+
+        .quick-tag.active {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .search-clear {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-decoration: none;
+            margin-left: auto;
+        }
+
+        .search-clear:hover {
+            color: #dc2626;
+        }
+
+        @media (max-width: 767px) {
+            .search-bar {
+                flex-wrap: wrap;
+            }
+
+            .search-field {
+                flex: 1 1 40%;
+                border-left: none;
+            }
+
+            .search-field.search-field-keyword {
+                flex-basis: 100%;
+                border-bottom: 1px solid #f1f5f9;
+            }
+
+            .search-btn {
+                flex-basis: 100%;
+                height: 42px;
+            }
+        }
+
         /* 特色卡片样式 */
         .feature-card {
             background: white;

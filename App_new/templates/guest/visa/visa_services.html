@@ -4,52 +4,36 @@
 
 {% block content %}
 <!-- 筛选区域 -->
-<section class="py-3 bg-light">
+<section class="list-header">
     <div class="container">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <h4 class="fw-bold mb-0">签证服务</h4>
-            <form method="GET" action="{{ url_for('public.visa_services') }}" class="d-flex gap-2 align-items-center">
-                <input type="text" class="form-control form-control-sm" id="search" name="search"
-                       value="{{ search_query }}" placeholder="搜索国家..." style="min-width: 150px;">
-
-                <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="fas fa-search"></i>
-                </button>
-
-                {% if search_query or region_filter %}
-                <a href="{{ url_for('public.visa_services') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-times"></i>
-                </a>
-                {% endif %}
-            </form>
+        <div class="list-header-top">
+            <h1 class="list-title">签证服务</h1>
+            <span class="list-count">共 <strong>{{ visa_services|length if visa_services else 0 }}</strong> 个国家</span>
         </div>
-
-        <!-- 地区筛选标签 -->
-        <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+        <form method="GET" action="{{ url_for('public.visa_services') }}" class="search-bar">
+            <div class="search-field search-field-keyword">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search" name="search" value="{{ search_query }}" placeholder="搜索国家（中文或英文）...">
+            </div>
+            {% if region_filter %}<input type="hidden" name="region" value="{{ region_filter }}">{% endif %}
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <div class="search-meta">
             <a href="{{ url_for('public.visa_services') }}"
-               class="quick-tag {% if not region_filter and not search_query %}active{% endif %}">
-                全部
-            </a>
+               class="quick-tag {% if not region_filter and not search_query %}active{% endif %}">全部</a>
             <a href="{{ url_for('public.visa_services', region='asia') }}"
-               class="quick-tag {% if region_filter == 'asia' %}active{% endif %}">
-                亚洲
-            </a>
+               class="quick-tag {% if region_filter == 'asia' %}active{% endif %}">亚洲</a>
             <a href="{{ url_for('public.visa_services', region='europe') }}"
-               class="quick-tag {% if region_filter == 'europe' %}active{% endif %}">
-                欧洲
-            </a>
+               class="quick-tag {% if region_filter == 'europe' %}active{% endif %}">欧洲</a>
             <a href="{{ url_for('public.visa_services', region='america') }}"
-               class="quick-tag {% if region_filter == 'america' %}active{% endif %}">
-                美洲
-            </a>
+               class="quick-tag {% if region_filter == 'america' %}active{% endif %}">美洲</a>
             <a href="{{ url_for('public.visa_services', region='oceania') }}"
-               class="quick-tag {% if region_filter == 'oceania' %}active{% endif %}">
-                大洋洲
-            </a>
+               class="quick-tag {% if region_filter == 'oceania' %}active{% endif %}">大洋洲</a>
             <a href="{{ url_for('public.visa_services', search='申根') }}"
-               class="quick-tag {% if search_query == '申根' %}active{% endif %}">
-                <i class="fas fa-star me-1" style="font-size: 0.6rem;"></i>申根签证
-            </a>
+               class="quick-tag {% if search_query == '申根' %}active{% endif %}">申根签证</a>
+            {% if search_query or region_filter %}
+            <a href="{{ url_for('public.visa_services') }}" class="search-clear"><i class="fas fa-times me-1"></i>清除筛选</a>
+            {% endif %}
         </div>
     </div>
 </section>
@@ -58,18 +42,15 @@
 <section class="py-3">
     <div class="container">
         {% if visa_services %}
-        <div class="mb-3 d-flex justify-content-between align-items-center">
-            <div>
-                {% if search_query or region_filter %}
-                    <small class="text-muted">
-                        搜索结果
-                        {% if search_query %}"{{ search_query }}"{% endif %}
-                        {% if region_filter %}- {{ region_options.get(region_filter, '') }}{% endif %}
-                    </small>
-                {% endif %}
-            </div>
-            <small class="text-muted">{{ visa_services|length }} 个国家</small>
+        {% if search_query or region_filter %}
+        <div class="mb-3">
+            <small class="text-muted">
+                搜索结果
+                {% if search_query %}"{{ search_query }}"{% endif %}
+                {% if region_filter %}- {{ region_options.get(region_filter, '') }}{% endif %}
+            </small>
         </div>
+        {% endif %}
         {% endif %}
 
         {% if visa_services %}
@@ -285,31 +266,6 @@
         font-size: 3rem;
         margin-bottom: 1rem;
         opacity: 0.5;
-    }
-
-    /* 快速筛选标签 */
-    .quick-tag {
-        display: inline-block;
-        padding: 4px 12px;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        font-size: 0.8rem;
-        color: #64748b;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-
-    .quick-tag:hover {
-        background: #f1f5f9;
-        color: #334155;
-        border-color: #cbd5e1;
-    }
-
-    .quick-tag.active {
-        background: var(--primary-color, #0d6efd);
-        border-color: var(--primary-color, #0d6efd);
-        color: #fff;
     }
 
     /* 响应式 */

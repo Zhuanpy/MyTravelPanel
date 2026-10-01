@@ -546,10 +546,11 @@ def tour_packages():
         if city:
             query = query.filter(Product.city_name == city)
         
-        # 目的地筛选（关键词搜索，如果国家或城市已选择，则作为补充搜索）
+        # 关键词搜索：线路名称或目的地（如果国家或城市已选择，则作为补充搜索）
         if destination:
             query = query.filter(
                 or_(
+                    Product.product_name.like(f'%{destination}%'),
                     Product.city_name.like(f'%{destination}%'),
                     Product.destination_city.like(f'%{destination}%')
                 )
