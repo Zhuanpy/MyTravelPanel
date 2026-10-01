@@ -19,6 +19,13 @@ def is_mobile_device():
     mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone']
     return any(keyword in user_agent for keyword in mobile_keywords)
 
+def _clean_text(value):
+    """清洗文本字段：历史数据里存了字符串 'None' / 'nan'，按空值处理"""
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value if value and value not in ('None', 'nan') else None
+
 # 地区到国家的映射
 REGION_COUNTRIES = {
     'southeast_asia': ['新加坡', '马来西亚', '泰国', '印尼', '印度尼西亚', '越南', '菲律宾', '柬埔寨', '老挝', '缅甸', '文莱'],
@@ -62,23 +69,22 @@ def index():
     
     # 获取精选旅游产品（最多6个）
     today = date.today()
-    tour_packages_query = Product.query.filter(
-        or_(
-            Product.product_status == 'active',
-            Product.product_status.is_(None),
-            Product.product_status == ''
-        )
-    ).order_by(Product.is_featured.desc(), Product.created_at.desc()).limit(6)
+    active_product_filter = or_(
+        Product.product_status == 'active',
+        Product.product_status.is_(None),
+        Product.product_status == ''
+    )
+    tour_packages_query = Product.query.filter(active_product_filter).order_by(Product.is_featured.desc(), Product.created_at.desc()).limit(6)
     
     tour_packages_raw = tour_packages_query.all()
     
     # 转换为模板需要的格式
     tour_packages = []
     for product in tour_packages_raw:
-        # 格式化价格
-        price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
-        if product.currency and product.currency != 'SGD':
-            price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+        # 格式化价格；无价格时为 None，模板显示"价格详询"且不拼"/人起"
+        price_display = None
+        if product.base_price:
+            price_display = f"{product.currency or 'SGD'} {product.base_price:,.0f}"
         
         # 格式化天数
         duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
@@ -159,7 +165,7 @@ def index():
             'country': p.country,
             'city': p.city,
             'cover_image': p.cover_image,
-            'venue_name': ext.venue_name if ext else None,
+            'venue_name': _clean_text(ext.venue_name) if ext else None,
             'min_price': min_price,
             'currency': p.currency or 'SGD',
             'is_featured': p.is_featured,
@@ -169,13 +175,27 @@ def index():
     # 获取首页轮播图
     banners = HomeBanner.get_active_banners()
 
+    # Hero 区统计：真实总数（不是上面 limit 截断后的条数）
+    stats = {
+        'tour_packages': Product.query.filter(active_product_filter).count(),
+        'attractions': ProductsUnified.query.filter(
+            ProductsUnified.product_category == 'ticket',
+            ProductsUnified.parent_id.is_(None),
+            ProductsUnified.product_status == 'active',
+        ).count(),
+        'visa_countries': db.session.query(db.func.count(db.distinct(VisaTypes.country_id))).filter(
+            VisaTypes.is_active == True
+        ).scalar() or 0,
+    }
+
     return render_template('guest/main/index.html',
                           company=company_info,
                           tour_packages=tour_packages,
                           destinations=destinations,
                           visa_countries=visa_countries,
                           attractions=attractions,
-                          banners=banners)
+                          banners=banners,
+                          stats=stats)
 
 @public.route('/visa-services')
 def visa_services():
@@ -1177,7 +1197,7 @@ def attractions():
             'city': p.city,
             'cover_image': p.cover_image,
             'description': p.description,
-            'venue_name': ext.venue_name if ext else None,
+            'venue_name': _clean_text(ext.venue_name) if ext else None,
             'ticket_type': ext.ticket_type if ext else None,
             'variant_count': len(variants),
             'variants': [{'name': v.variant_name, 'price': float(v.adult_selling_price) if v.adult_selling_price else None} for v in variants if v.is_active],
