@@ -10,6 +10,7 @@
     .itin-wrap {
         background: #f4f6f5;
         padding: 24px 16px 56px;
+        margin-top: -20px;  /* 抵消导航栏 margin-bottom，灰底紧贴导航 */
     }
     .itin-card {
         max-width: 900px;
@@ -21,9 +22,7 @@
     }
 
     /* 面包屑 */
-    .itin-crumb { font-size: .82rem; color: #94a3b8; margin-bottom: 18px; }
-    .itin-crumb a { color: #94a3b8; text-decoration: none; }
-    .itin-crumb a:hover { color: var(--brand); }
+    .itin-crumb { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9; }
 
     /* 头部 */
     .itin-code {
@@ -183,11 +182,13 @@
     <div class="itin-card">
 
         <!-- 面包屑 -->
-        <div class="itin-crumb">
-            <a href="{{ url_for('public.index') }}">首页</a> /
-            <a href="{{ url_for('public.tour_packages') }}">旅游配套</a> /
-            <span>详情</span>
-        </div>
+        <nav aria-label="breadcrumb" class="itin-crumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('public.index') }}"><i class="fas fa-home"></i>首页</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('public.tour_packages') }}">旅游配套</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ package.name }}</li>
+            </ol>
+        </nav>
 
         <!-- 头部 -->
         {% if package.code %}<span class="itin-code"><i class="fas fa-tag"></i> {{ package.code }}</span>{% endif %}

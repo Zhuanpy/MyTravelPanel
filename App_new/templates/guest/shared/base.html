@@ -152,6 +152,49 @@
             padding: 0.5rem 1rem;
         }
 
+        /* ========== 详情页统一面包屑 ========== */
+        .breadcrumb {
+            --bs-breadcrumb-divider: '›';
+            align-items: center;
+            font-size: 0.92rem;
+            margin-bottom: 0;
+        }
+
+        .breadcrumb-item + .breadcrumb-item {
+            padding-left: 0.6rem;
+        }
+
+        .breadcrumb-item + .breadcrumb-item::before {
+            color: #94a3b8 !important;
+            padding-right: 0.6rem;
+            font-weight: 600;
+        }
+
+        .breadcrumb-item a {
+            color: #475569 !important;
+            font-weight: 500;
+            text-decoration: none !important;
+            transition: color 0.2s ease;
+        }
+
+        .breadcrumb-item a:hover {
+            color: #059669 !important;
+        }
+
+        .breadcrumb-item a .fa-home {
+            color: #10b981;
+            margin-right: 0.3rem;
+        }
+
+        .breadcrumb-item.active {
+            color: #1e293b !important;
+            font-weight: 600;
+            max-width: 32em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* ========== 列表页统一头部：标题 + 搜索栏 + 快捷标签 ========== */
         .list-header {
             background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);

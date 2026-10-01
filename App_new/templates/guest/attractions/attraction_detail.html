@@ -8,10 +8,10 @@
     <div class="container">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="{{ url_for('public.index') }}" class="text-dark">首页</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('public.attractions') }}" class="text-dark">景点门票</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('public.index') }}"><i class="fas fa-home"></i>首页</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('public.attractions') }}">景点门票</a></li>
                 {% if product.country %}
-                <li class="breadcrumb-item"><a href="{{ url_for('public.attractions', country=product.country) }}" class="text-dark">{{ product.country }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('public.attractions', country=product.country) }}">{{ product.country }}</a></li>
                 {% endif %}
                 <li class="breadcrumb-item active" aria-current="page">{{ product.product_name }}</li>
             </ol>
@@ -545,15 +545,6 @@
         color: #6c757d;
         font-size: 0.88rem;
         margin: 0;
-    }
-
-    /* 面包屑 */
-    .breadcrumb-item a {
-        text-decoration: none;
-    }
-
-    .breadcrumb-item a:hover {
-        color: var(--primary-dark) !important;
     }
 
     /* 响应式 */

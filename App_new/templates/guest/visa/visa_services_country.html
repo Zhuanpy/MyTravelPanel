@@ -9,7 +9,7 @@
         <nav aria-label="breadcrumb" class="mb-3">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
-                    <a href="{{ url_for('public.index') }}">首页</a>
+                    <a href="{{ url_for('public.index') }}"><i class="fas fa-home"></i>首页</a>
                 </li>
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('public.visa_services') }}">签证服务</a>
@@ -95,10 +95,6 @@
 
 {% block extra_css %}
 <style>
-    .breadcrumb-item + .breadcrumb-item::before {
-        color: rgba(255,255,255,0.5);
-    }
-    
     /* 签证服务列表样式 */
     .visa-services-list {
         display: flex;

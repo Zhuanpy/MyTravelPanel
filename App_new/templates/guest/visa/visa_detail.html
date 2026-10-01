@@ -9,15 +9,15 @@
         <nav aria-label="breadcrumb" class="mb-3">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
-                    <a href="{{ url_for('public.index') }}" class="text-dark">首页</a>
+                    <a href="{{ url_for('public.index') }}"><i class="fas fa-home"></i>首页</a>
                 </li>
                 <li class="breadcrumb-item">
-                    <a href="{{ url_for('public.visa_services') }}" class="text-dark">签证服务</a>
+                    <a href="{{ url_for('public.visa_services') }}">签证服务</a>
                 </li>
                 <li class="breadcrumb-item">
-                    <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}" class="text-dark">{{ visa_type.country.country_name_CN }}</a>
+                    <a href="{{ url_for('public.visa_services_by_country', country_name=visa_type.country.country_name_CN) }}">{{ visa_type.country.country_name_CN }}</a>
                 </li>
-                <li class="breadcrumb-item active text-dark" aria-current="page">{{ visa_type.visa_type }}</li>
+                <li class="breadcrumb-item active" aria-current="page">{{ visa_type.visa_type }}</li>
             </ol>
         </nav>
     </div>
@@ -440,25 +440,6 @@
     .detail-value {
         color: #2c3e50;
         font-size: 0.9rem;
-    }
-    
-    /* 面包屑导航样式 */
-    .breadcrumb-item + .breadcrumb-item::before {
-        color: rgba(0,0,0,0.5);
-    }
-    
-    .breadcrumb-item a {
-        color: #333 !important;
-        text-decoration: none;
-    }
-    
-    .breadcrumb-item a:hover {
-        color: #007bff !important;
-        text-decoration: underline;
-    }
-    
-    .breadcrumb-item.active {
-        color: #333 !important;
     }
     
     /* 确保内容居中 */
