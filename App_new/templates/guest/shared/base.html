@@ -13,10 +13,10 @@
     
     <style>
         :root {
-            --primary-color: #7ecf8e;   /* 浅绿色 */
+            --primary-color: #10b981;   /* 主绿色（与导航、搜索按钮一致） */
             --secondary-color: #ffa45b; /* 橘色 */
             --accent-color: #ff7f50;    /* 珊瑚橘，作为强调色 */
-            --primary-dark: #48b968;    /* 主色加深，用于渐变 */
+            --primary-dark: #059669;    /* 主色加深，用于渐变和悬停 */
             --text-dark: #333;
             --text-light: #666;
             --bg-light: #f8f9fa;
@@ -468,11 +468,32 @@
 
         .btn-custom:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(72,185,104,0.35);
+            box-shadow: 0 5px 15px rgba(16,185,129,0.35);
             color: white;
         }
 
-        /* Bootstrap 主题色覆盖为浅绿色 */
+        /* Bootstrap 主题色覆盖为主绿色 */
+        .page-link {
+            color: var(--primary-dark);
+        }
+        .page-link:hover,
+        .page-link:focus {
+            color: var(--primary-dark);
+            box-shadow: none;
+        }
+        .page-item.active .page-link {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+        .btn-outline-primary {
+            color: var(--primary-dark) !important;
+            border-color: var(--primary-color) !important;
+        }
+        .btn-outline-primary:hover {
+            color: #fff !important;
+            background-color: var(--primary-color) !important;
+        }
         .bg-primary { background-color: var(--primary-color) !important; }
         .text-primary { color: var(--primary-color) !important; }
         .btn-primary {

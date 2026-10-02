@@ -648,9 +648,9 @@ def tour_packages():
                     includes = [i.strip() for i in product.included_services.split(',') if i.strip()]
             
             # 格式化价格
-            price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
+            price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格详询"
             if product.currency and product.currency != 'SGD':
-                price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
+                price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格详询"
             
             # 格式化天数
             duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
@@ -798,11 +798,11 @@ def tour_package_detail(package_id):
             except:
                 notes = [n.strip() for n in product.important_notes.split('\n') if n.strip()]
 
-        # 格式化价格
-        price_display = f"SGD {product.base_price:,.0f}" if product.base_price else "价格面议"
-        if product.currency and product.currency != 'SGD':
-            price_display = f"{product.currency} {product.base_price:,.0f}" if product.base_price else "价格面议"
-        
+        # 格式化价格；无价格时为 None，详情页不显示"参考价 / 人起"
+        price_display = None
+        if product.base_price:
+            price_display = f"{product.currency or 'SGD'} {product.base_price:,.0f}"
+
         # 格式化天数
         duration_display = f"{product.duration_days}天{product.duration_days-1 if product.duration_days else 0}夜" if product.duration_days else "天数待定"
         

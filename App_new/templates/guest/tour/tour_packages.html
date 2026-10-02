@@ -55,12 +55,12 @@
                         <!-- 产品图片 -->
                         {% if package.image %}
                         <img src="{{ url_for('static', filename=package.image) }}" alt="{{ package.name }}" class="w-100" style="height: 180px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div style="height: 180px; background: linear-gradient(45deg, #667eea, #764ba2); display: none; align-items: center; justify-content: center;">
-                            <i class="fas fa-image text-white" style="font-size: 3rem; opacity: 0.7;"></i>
+                        <div style="height: 180px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); display: none; align-items: center; justify-content: center;">
+                            <i class="fas fa-image" style="font-size: 3rem; color: #10b981; opacity: 0.35;"></i>
                         </div>
                         {% else %}
-                        <div style="height: 180px; background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-image text-white" style="font-size: 3rem; opacity: 0.7;"></i>
+                        <div style="height: 180px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-image" style="font-size: 3rem; color: #10b981; opacity: 0.35;"></i>
                         </div>
                         {% endif %}
                         <!-- 价格标签 -->
