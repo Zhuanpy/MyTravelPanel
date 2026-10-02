@@ -188,6 +188,20 @@ def header_invoices(header_id):
                          total_selling=total_selling)
 
 
+@project_invoice.route('/goto')
+@login_required
+@staff_only
+def goto_invoice():
+    """按发票编号跳转到发票详情（详情页的"输入发票号"切换框用）"""
+    invoice_number = (request.args.get('no') or '').strip()
+    if invoice_number:
+        invoice = ProjectInvoice.query.filter_by(invoice_number=invoice_number).first()
+        if invoice:
+            return redirect(url_for('business_projects.project_invoice.invoice_detail', invoice_id=invoice.id))
+        flash(f'未找到发票 {invoice_number}', 'warning')
+    return redirect(request.referrer or url_for('business_projects.project_invoice.invoice_list'))
+
+
 @project_invoice.route('/<int:invoice_id>')
 @login_required
 @staff_only
