@@ -63,6 +63,14 @@ _CATALOG = {
                  'desc': '★一步到位：网页原文或航段→格式化中/英文行程单。text 不是航段格式时'
                          '自动先解析（不必先调 parse_flights）；返回含 format_detected/warning，'
                          '识别不出航班返回 400 而非空串'},
+                {'method': 'POST', 'path': '/flights_itinerary/api/image_to_itinerary',
+                 'input': 'multipart image(+language,luggage,price) 或 JSON {image(base64), language?, luggage?, price?}',
+                 'desc': '★截图一步到位（WhatsApp 发来的行程截图）：OCR→航段→中/英文行程单。'
+                         '返回 output_text/segments/format_detected/ocr_text；400=入参问题，'
+                         '422=认不出文字或航班（带 ocr_text 原文，可人工修正后调 convert_itinerary）'},
+                {'method': 'POST', 'path': '/flights_itinerary/api/ocr_image',
+                 'input': 'multipart image 或 JSON {image(base64)}',
+                 'desc': '截图→航段（只要航段、不要行程单时用）'},
                 {'method': 'POST', 'path': '/flights_itinerary/generate_booking_code',
                  'input': 'JSON [{flightNumber, flightDate}]',
                  'desc': '生成 GDS 订位指令串（航班需已在本地时刻表；非真实预订）'},

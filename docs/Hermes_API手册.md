@@ -320,6 +320,41 @@ POST /projects/ref/flight/<rid>/ticketing
 | `/flights_usbangla/parse_mu_pdf` `/parse_tongcheng_pdf` `/parse_text_itinerary` | POST | files/JSON | 东航/同程/文本行程解析 |
 | `/ocr_flight_info` | POST | files `file` | 航班信息图片 OCR |
 
+### 3.1 行程截图 → 行程单（WhatsApp 发来的图片，**2026-10-05 新增**）
+
+`POST /flights_itinerary/api/image_to_itinerary` —— **★一步到位**：截图 → OCR → 航段 → 格式化中/英文行程单。
+等同于 conversion 页「机票行程转换」标签里的「截图识别」。
+
+入参二选一：
+- **multipart**（推荐，WhatsApp 下载的文件直接传）：文件字段 `image`，可选表单字段 `language`（`chinese`|`english`，默认 chinese）、`luggage`、`price`
+- **JSON**：`{"image": "<base64，带不带 data:image/...;base64, 前缀都行>", "language": "...", "luggage": "...", "price": "..."}`
+
+```bash
+curl -X POST https://joyesc.com/flights_itinerary/api/image_to_itinerary \
+  -H "X-API-Key: <token>" \
+  -F "image=@whatsapp_screenshot.jpg" -F "language=english" -F "luggage=23kg" -F "price=SGD 520"
+```
+
+成功 `200`：
+```json
+{"success": true,
+ "output_text": " 1.SINGAPORE - SHANGHAIPUDONG, Flight No: MU 544,\n 01NOV, Departure: 00:25 - Arrival: 05:45\n ...",
+ "segments": "1. MU  544 Y  01NOV SINPVG HK1  0025   0545  O        E SU\n...",
+ "format_detected": "App截图(Trip.com等)", "warning": null, "language": "english",
+ "ocr_text": "<OCR 识别出的原文>"}
+```
+
+| 状态码 | 含义 | Hermes 该怎么做 |
+|---|---|---|
+| 200 | 成功 | 把 `output_text` 发回给客户/同事 |
+| 400 | 入参问题：没传图、不是图片、base64 无效、超过 10 MB | 检查上传方式后重试 |
+| 422 | 图片里没认出文字，或认出文字但不是能识别的航班版面 | **不要重试同一张图**。`ocr_text` 有内容时，可把原文整理成「手动输入」格式后调 `/api/convert_itinerary`；否则请对方发更清晰的截图或直接发文字 |
+
+- 日期不带年份时按「今天或以后」推断（允许往前 30 天补录），多段行程保证按时间顺序（跨年自动顺延）。
+- 当前能识别的截图版面：**Trip.com App「Select fare」** 这类「日期行 → 起飞时间+三字码 → 航班号 → 到达时间+三字码」结构；
+  其它 App 版面认不出会返回 422，把样图交给开发补解析规则。
+- 只要航段不要行程单：`POST /flights_itinerary/api/ocr_image`（入参同上，返回 `segments`）。
+
 > ⚠️ itinerary/usbangla/booking 里**没有真实自动预订**能力，只有查询/解析/生成订位串。
 > ⚠️ `/flights_itinerary/conversion?tab=parse|itinerary|booking_code` 是**页面路由**（渲染工具页 HTML），
 > 不要当 API 调；三个标签的实际能力就是上表对应的三个 POST 接口。

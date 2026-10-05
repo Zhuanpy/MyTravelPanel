@@ -982,6 +982,107 @@ def parse_format_sq_itinerary(text, year=None):
     return flights
 
 
+# Trip.com App 等手机截图（OCR 后）的行结构：
+#   Depart Sun, Nov1 | 5h20m          ← 日期标题（OCR 常把 "Nov 1" 粘成 "Nov1"）
+#   00:25 SIN Singapore Changi T3      ← 起飞时间 + 三字码
+#   China Eastern Airlines MU544       ← 航班号在行尾
+#   05:45 PVG Shanghai Pudong Intl. T1 ← 到达时间 + 三字码（可能带 +1）
+_APP_DATE_EN_RE = re.compile(
+    r'\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\.?,?\s*'
+    r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*(\d{1,2})\b', re.IGNORECASE)
+_APP_DATE_CN_RE = re.compile(r'(\d{1,2})月(\d{1,2})日')
+_APP_TIME_AIRPORT_RE = re.compile(r'^\W*(\d{1,2}):(\d{2})\s*(\+\s*\d)?\s+([A-Z]{3})\b')
+_APP_FLIGHT_NO_RE = re.compile(r'\b([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{1,4})\s*[|Il]?\s*$')
+
+
+def parse_format_app_screenshot(text, year=None):
+    """解析订票 App 截图 OCR 出来的文本（Trip.com App「Select fare」等）
+
+    按顺序扫描：日期标题定当天日期，航班号前最近的「时间+三字码」是起飞，之后第一个是到达。
+    同一程里的中转航班沿用该程日期；前一段跨天到达或起飞早于前一段到达时顺延一天。
+    """
+    flights = []
+    leg_dt = None          # 推断年份后的当前程日期
+    day_offset = 0         # 本程内因跨天累计的偏移
+    prev_leg_dt = None
+    last_time = None       # 最近一个「时间+三字码」行
+    pending = None         # 已有起飞+航班号，等到达
+    last_arr_minutes = None
+
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+
+        # 日期标题行：开始新的一程
+        leg_date = None
+        dm = _APP_DATE_EN_RE.search(line)
+        if dm:
+            leg_date = (_EN_MONTH_MAP[dm.group(1)[:3].upper()], int(dm.group(2)))
+        elif not _APP_TIME_AIRPORT_RE.match(line):
+            cm = _APP_DATE_CN_RE.search(line)
+            if cm:
+                leg_date = (int(cm.group(1)), int(cm.group(2)))
+        if leg_date:
+            month, day = leg_date
+            y = infer_flight_year(month, day, min_date=prev_leg_dt) if year is None else year
+            try:
+                leg_dt = date(y, month, day)
+            except ValueError:
+                leg_dt = None
+            prev_leg_dt = leg_dt
+            day_offset = 0
+            last_time = None
+            pending = None
+            last_arr_minutes = None
+            continue
+
+        tm = _APP_TIME_AIRPORT_RE.match(line)
+        if tm:
+            entry = {
+                'time': f'{int(tm.group(1)):02d}{tm.group(2)}',
+                'plus': int(re.sub(r'\D', '', tm.group(3))) if tm.group(3) else 0,
+                'code': tm.group(4),
+            }
+            if pending:
+                dep, flight_no = pending
+                dep_minutes = int(dep['time'][:2]) * 60 + int(dep['time'][2:])
+                arr_minutes = int(entry['time'][:2]) * 60 + int(entry['time'][2:])
+                next_day = bool(entry['plus']) or arr_minutes < dep_minutes
+                dep_dt = leg_dt + timedelta(days=dep['offset'])
+                flights.append({
+                    'airline': flight_no[0],
+                    'number': flight_no[1],
+                    'dep_code': dep['code'],
+                    'arr_code': entry['code'],
+                    'dep_time': dep['time'],
+                    'arr_time': entry['time'],
+                    'dep_date': dep_dt.strftime('%d%b').upper(),
+                    'dep_day': DAY_ABBR[dep_dt.weekday()],
+                    'next_day': next_day,
+                })
+                if next_day:
+                    day_offset = dep['offset'] + 1
+                last_arr_minutes = arr_minutes
+                pending = None
+                last_time = None
+            else:
+                last_time = entry
+            continue
+
+        fm = _APP_FLIGHT_NO_RE.search(line)
+        if fm and last_time and leg_dt and not pending:
+            dep_minutes = int(last_time['time'][:2]) * 60 + int(last_time['time'][2:])
+            offset = day_offset + last_time['plus']
+            # 同程中转：起飞早于上一段到达，说明已过零点
+            if last_arr_minutes is not None and dep_minutes < last_arr_minutes and not last_time['plus']:
+                offset = max(offset, day_offset + 1)
+            last_time['offset'] = offset
+            pending = (last_time, (fm.group(1), fm.group(2)))
+
+    return flights
+
+
 def resolve_airport_codes(flights, lookup_fn):
     """将航班中的城市/机场名称解析为IATA代码
 
@@ -1049,6 +1150,7 @@ def parse_flights(text):
         (parse_format_scoot, "Scoot/酷航"),
         (parse_format_airline_web, "航空公司官网"),
         (parse_format_google, "Google Flights"),
+        (parse_format_app_screenshot, "App截图(Trip.com等)"),
         (parse_format_manual, "手动输入"),
     ]:
         flights = parser(text)

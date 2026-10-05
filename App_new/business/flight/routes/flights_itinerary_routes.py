@@ -1,5 +1,5 @@
 import re
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from ..models.models import FlightSchedule, AirportData
 # 使用轻量 simple_cache 避免未初始化的 Cache.app 错误
@@ -399,6 +399,130 @@ def generate_booking_code():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+_OCR_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+
+
+class _ImageInputError(ValueError):
+    """图片入参问题（缺图、格式不对、过大），返回 400"""
+
+
+def _read_request_image():
+    """从请求里取图片：multipart 文件字段 image，或 JSON image（base64，带不带 data: 前缀都行）
+
+    :return: (PIL.Image, options dict)  options 为 language/luggage/price 等其余参数
+    """
+    import base64
+    import io
+    from PIL import Image, UnidentifiedImageError
+
+    file = request.files.get('image')
+    if file and file.filename:
+        raw = file.read()
+        options = request.form
+    else:
+        data = request.get_json(silent=True) or {}
+        image_b64 = (data.get('image') or '').strip()
+        if not image_b64:
+            raise _ImageInputError('请提供图片：multipart 文件字段 image，或 JSON {"image": "<base64>"}')
+        if ',' in image_b64 and image_b64.startswith('data:'):
+            image_b64 = image_b64.split(',', 1)[1]
+        try:
+            raw = base64.b64decode(image_b64, validate=False)
+        except Exception:
+            raise _ImageInputError('image 不是有效的 base64')
+        options = data
+
+    if len(raw) > _OCR_IMAGE_MAX_BYTES:
+        raise _ImageInputError(f'图片过大（{len(raw) // 1024} KB），请压缩到 10 MB 以内')
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+    except (UnidentifiedImageError, OSError):
+        raise _ImageInputError('无法识别的图片格式，请用 PNG/JPG/WEBP')
+    return img, options
+
+
+def _ocr_to_segments(img):
+    """OCR → 航段。返回 (result_dict, status)；失败时 result 里带 ocr_text 方便人工修改"""
+    from App_new.utils.ocr_flight_extract import ocr_image
+
+    ocr_text = ocr_image(img)
+    if not ocr_text.strip():
+        return {'success': False, 'error': '图片里没有识别到文字，请换一张更清晰的截图', 'ocr_text': ''}, 422
+
+    segments, detected, warning = parse_text_to_segments(ocr_text)
+    if not segments:
+        return {'success': False,
+                'error': '识别到文字，但认不出航班信息（ocr_text 为识别原文，可人工修改后调 convert_itinerary）',
+                'ocr_text': ocr_text}, 422
+
+    return {'success': True, 'segments': segments, 'format_detected': detected,
+            'warning': warning, 'ocr_text': ocr_text}, 200
+
+
+@flights_itinerary.route('/api/ocr_image', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def ocr_image_to_segments():
+    """截图识别：图片 → OCR 文字 → 航段（订位系统格式）。页面「截图识别」用
+
+    入参：multipart 文件 image，或 JSON {"image": "<base64 / data URL>"}
+    返回：
+        {"success": true, "segments": "...", "format_detected": "...", "warning": null, "ocr_text": "..."}
+        {"success": false, "error": "...", "ocr_text": "..."}   ← 识别出文字但认不出航班时也带回原文，方便手改
+    """
+    try:
+        img, _ = _read_request_image()
+        result, status = _ocr_to_segments(img)
+    except _ImageInputError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception('截图识别失败')
+        return jsonify({'success': False, 'error': f'图片识别失败：{str(e)}'}), 500
+    return jsonify(result), status
+
+
+@flights_itinerary.route('/api/image_to_itinerary', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def api_image_to_itinerary():
+    """★一步到位（给 Hermes）：行程截图 → OCR → 航段 → 格式化中/英文行程单
+
+    入参（二选一）：
+        multipart：image=<文件>，可选表单字段 language/luggage/price
+        JSON：{"image": "<base64 或 data URL>", "language": "chinese|english", "luggage": "", "price": ""}
+    返回：
+        200 {"success": true, "output_text": "...", "segments": "...", "format_detected": "...",
+             "warning": null, "ocr_text": "...", "language": "chinese"}
+        400 入参问题（缺图/非图片/过大）
+        422 图片识别不出文字或航班（带 ocr_text 原文）
+    """
+    try:
+        img, options = _read_request_image()
+        result, status = _ocr_to_segments(img)
+    except _ImageInputError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception('截图转行程失败')
+        return jsonify({'success': False, 'error': f'图片识别失败：{str(e)}'}), 500
+    if not result['success']:
+        return jsonify(result), status
+
+    language = (options.get('language') or 'chinese').strip().lower()
+    try:
+        output_text, _, _ = convert_text_to_itinerary(
+            result['segments'], language=language,
+            luggage=options.get('luggage') or '', price=options.get('price') or '')
+    except ValueError as e:
+        result.update(success=False, error=str(e))
+        return jsonify(result), 422
+
+    result.update(output_text=output_text, language=language)
+    return jsonify(result)
 
 
 @flights_itinerary.route('/parse_flights', methods=['POST'])

@@ -530,6 +530,17 @@
             gap: 0.75rem;
         }
     }
+    /* 截图识别区 */
+    .itin-ocr-zone {
+        display: flex; align-items: center; gap: 0.6rem;
+        padding: 0.6rem 0.9rem; margin-bottom: 0.6rem;
+        border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;
+        color: #475569; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+    }
+    .itin-ocr-zone:hover, .itin-ocr-zone.dragover { border-color: #10b981; background: #ecfdf5; color: #065f46; }
+    .itin-ocr-zone i { font-size: 1.1rem; color: #10b981; }
+    .itin-ocr-zone.busy { cursor: progress; opacity: 0.8; }
+    .itin-ocr-zone.error { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
 </style>
 {% endblock %}
 
@@ -589,6 +600,12 @@
                                             网页原文直接粘进来即可，会自动识别，不必先走「航班解析」
                                         </span>
                                     </label>
+                                <!-- 截图识别：图片 → OCR → 航段，填入下方输入框后自动转换 -->
+                                <div id="itinOcrZone" class="itin-ocr-zone" title="点击选择图片，或把截图拖进来，或直接 Ctrl+V 粘贴">
+                                    <input type="file" id="itinOcrFile" accept="image/*" style="display:none;">
+                                    <i class="fas fa-camera"></i>
+                                    <span id="itinOcrText">截图识别：点击选择 / 拖入图片 / <b>Ctrl+V</b> 粘贴截图（Trip.com App 等），自动识别成航段并转换</span>
+                                </div>
                                 <textarea id="input_text" name="input_text" class="visa-form-textarea" placeholder="直接粘贴以下任意一种，点「开始转换」即可：&#10;• 订票网页原文：Trip.com / 携程 / Google Flights / 酷航 / 新航 / 航司官网&#10;• 手动输入：1.SINGAPORE - DHAKA, Flight No: BS 310, 22APR, Departure: 15:25 - Arrival: 17:35&#10;• 订位系统航段：1. MU  568 S  05AUG SINPVG HK1  1635   2205  O*  E SA" style="min-height: 250px; font-family: 'Consolas', 'Monaco', monospace;">{{ request.form.get('input_text', '') }}</textarea>
                                 </div>
                                 
@@ -2127,5 +2144,80 @@
     document.addEventListener('DOMContentLoaded', function() {
         renderParseMemory();
     });
+
+    // ==================== 截图识别（机票行程转换） ====================
+    (function() {
+        const zone = document.getElementById('itinOcrZone');
+        const fileInput = document.getElementById('itinOcrFile');
+        if (!zone || !fileInput) return;
+        const hint = document.getElementById('itinOcrText');
+        const defaultHint = hint.innerHTML;
+        let busy = false;
+
+        function setState(cls, html) {
+            zone.classList.remove('busy', 'error');
+            if (cls) zone.classList.add(cls);
+            hint.innerHTML = html;
+        }
+
+        function handleImage(file) {
+            if (!file || !file.type.startsWith('image/') || busy) return;
+            const reader = new FileReader();
+            reader.onload = e => recognize(e.target.result);
+            reader.readAsDataURL(file);
+        }
+
+        function recognize(dataUrl) {
+            busy = true;
+            setState('busy', '<i class="fas fa-spinner fa-spin"></i> 正在识别图片...');
+            fetch("{{ url_for('flights_itinerary.ocr_image_to_segments') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataUrl })
+            })
+            .then(r => r.json())
+            .then(data => {
+                const input = document.getElementById('input_text');
+                if (data.success) {
+                    input.value = data.segments;
+                    let msg = `<i class="fas fa-check-circle"></i> 已识别（${data.format_detected}）并自动转换；再传一张可重新识别`;
+                    if (data.warning) msg += ' ⚠️ ' + data.warning;
+                    setState('', msg);
+                    const form = document.getElementById('conversionForm');
+                    if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true }));
+                } else {
+                    // 认不出航班时把 OCR 原文放进输入框，方便手改
+                    if (data.ocr_text) input.value = data.ocr_text;
+                    setState('error', '<i class="fas fa-exclamation-triangle"></i> ' + (data.error || '识别失败'));
+                }
+            })
+            .catch(err => setState('error', '<i class="fas fa-exclamation-triangle"></i> 识别失败：' + err.message))
+            .finally(() => { busy = false; fileInput.value = ''; });
+        }
+
+        zone.addEventListener('click', () => { if (!busy) fileInput.click(); });
+        fileInput.addEventListener('change', e => handleImage(e.target.files[0]));
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            handleImage(e.dataTransfer.files[0]);
+        });
+
+        // Ctrl+V：只在「机票行程转换」标签可见、且剪贴板里是图片时接管，粘贴文字不受影响
+        document.addEventListener('paste', e => {
+            const tool = document.getElementById('itineraryTool');
+            if (!tool || !tool.classList.contains('active')) return;
+            const items = (e.clipboardData && e.clipboardData.items) || [];
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    handleImage(item.getAsFile());
+                    return;
+                }
+            }
+        });
+    })();
 </script>
 {% endblock %}
