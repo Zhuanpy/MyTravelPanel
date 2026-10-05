@@ -77,7 +77,8 @@ def organize_text(texts):
     return lis
 
 
-def format_flight_info(city_language, texts: str, language='CN', luggage=None, price=None):
+def format_flight_info(city_language, texts: str, language='CN', luggage=None, price=None,
+                       keep_blank_fare_luggage=False):
     """
     根据给定的航班信息，翻译成中文或英文，并根据不同语言生成格式化的航班信息。
     :param city_language: 一个函数，用于根据机场代码返回对应城市名称的中文或英文名称。
@@ -85,6 +86,7 @@ def format_flight_info(city_language, texts: str, language='CN', luggage=None, p
     :param language: 'CN' 表示中文，'EN' 表示英文，默认为中文。
     :param luggage: 行李信息，用于输出时添加至最终行程信息中。
     :param price: 票价信息，用于输出时添加至最终行程信息中。
+    :param keep_blank_fare_luggage: 为 True 时票价/行李没填也输出空行（截图识别用，留给人手动补）。
     :return: 格式化的航班信息字符串。
     """
 
@@ -164,11 +166,11 @@ def format_flight_info(city_language, texts: str, language='CN', luggage=None, p
     itn = ''.join(itinerary_list)
 
     # 添加票价和行李信息
-    if price:
-        itn += f"{'票价' if language == 'CN' else 'Fare'}: {price}; "
+    if price or keep_blank_fare_luggage:
+        itn += f"{'票价' if language == 'CN' else 'Fare'}: {price or ''}; "
 
-    if luggage:
-        itn += f"\n{'行李' if language == 'CN' else 'Luggage'}: {luggage};"
+    if luggage or keep_blank_fare_luggage:
+        itn += f"\n{'行李' if language == 'CN' else 'Luggage'}: {luggage or ''};"
 
     return itn
 

@@ -66,6 +66,9 @@ _CATALOG = {
                 {'method': 'POST', 'path': '/flights_itinerary/api/image_to_itinerary',
                  'input': 'multipart image(+language,luggage,price) 或 JSON {image(base64), language?, luggage?, price?}',
                  'desc': '★截图一步到位（WhatsApp 发来的行程截图）：OCR→航段→中/英文行程单。'
+                         '成功时把 output_text 一字不改原样回复（不要用 ocr_text 自己拼、不要加航站楼；'
+                         '末尾空的 Fare/Luggage 行原样保留给人补）。'
+                         '用户说英文→language=english，说中文或没说→chinese；给了价格/行李就传 price/luggage。'
                          '返回 output_text/segments/format_detected/ocr_text；400=入参问题，'
                          '422=认不出文字或航班（带 ocr_text 原文，可人工修正后调 convert_itinerary）'},
                 {'method': 'POST', 'path': '/flights_itinerary/api/ocr_image',

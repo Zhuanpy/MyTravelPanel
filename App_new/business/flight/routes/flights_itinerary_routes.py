@@ -164,7 +164,8 @@ def parse_text_to_segments(input_text):
     return result['segments'], result['format_detected'], warning
 
 
-def convert_text_to_itinerary(input_text, language='chinese', luggage='', price=''):
+def convert_text_to_itinerary(input_text, language='chinese', luggage='', price='',
+                              keep_blank_fare_luggage=False):
     """一步到位：网页原文 / 航段 → 行程文案
 
     原来必须先在「航班解析」标签解析成航段、再发到「机票行程转换」。
@@ -199,7 +200,8 @@ def convert_text_to_itinerary(input_text, language='chinese', luggage='', price=
     output_text = format_flight_info(
         city_language, texts=segments,
         language='EN' if (language or '').lower() == 'english' else 'CN',
-        luggage=luggage, price=price
+        luggage=luggage, price=price,
+        keep_blank_fare_luggage=keep_blank_fare_luggage
     )
     return output_text, detected, warning
 
@@ -516,7 +518,8 @@ def api_image_to_itinerary():
     try:
         output_text, _, _ = convert_text_to_itinerary(
             result['segments'], language=language,
-            luggage=options.get('luggage') or '', price=options.get('price') or '')
+            luggage=options.get('luggage') or '', price=options.get('price') or '',
+            keep_blank_fare_luggage=True)  # 截图里没有票价/行李，留空行给人手动补
     except ValueError as e:
         result.update(success=False, error=str(e))
         return jsonify(result), 422

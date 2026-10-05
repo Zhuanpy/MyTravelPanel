@@ -344,9 +344,25 @@ curl -X POST https://joyesc.com/flights_itinerary/api/image_to_itinerary \
  "ocr_text": "<OCR 识别出的原文>"}
 ```
 
+> **回复规则（必须遵守）**：成功时把 `output_text` **一字不改原样发回**。
+> - **不要**自己根据 `ocr_text` / `segments` 重新拼行程，**不要**加航站楼（T1/T3）、机型、时长等截图里的其它信息。
+> - 截图里没有价格/行李时，`output_text` 末尾会是空的 `Fare: ;` / `Luggage: ;`（中文为 `票价: ;` / `行李: ;`），
+>   **原样保留**，由同事手动补；不要删掉，也不要自己编价格。
+> - 用户给了价格/行李就传 `price` / `luggage`，会直接填进这两行。
+> - **语言跟着用户说的走**：用户说「英文 / English / 英文行程」→ `language=english`；
+>   说「中文 / 中文行程」→ `language=chinese`；没说就用默认中文。同一张图要两种语言就调两次。
+> - 示例（英文，无价格行李）：
+>   ```
+>    1.SINGAPORE - HONGKONG, Flight No: SQ 882,
+>    13APR, Departure: 08:40 - Arrival: 12:40
+>
+>    Fare: ;
+>   Luggage: ;
+>   ```
+
 | 状态码 | 含义 | Hermes 该怎么做 |
 |---|---|---|
-| 200 | 成功 | 把 `output_text` 发回给客户/同事 |
+| 200 | 成功 | 把 `output_text` **原样**发回给客户/同事（见上方回复规则） |
 | 400 | 入参问题：没传图、不是图片、base64 无效、超过 10 MB | 检查上传方式后重试 |
 | 422 | 图片里没认出文字，或认出文字但不是能识别的航班版面 | **不要重试同一张图**。`ocr_text` 有内容时，可把原文整理成「手动输入」格式后调 `/api/convert_itinerary`；否则请对方发更清晰的截图或直接发文字 |
 
