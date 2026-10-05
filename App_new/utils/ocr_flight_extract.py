@@ -62,9 +62,7 @@ def ocr_image(img: Image.Image) -> str:
 
 
 def _parse_date_str(date_str: str, year: int = None) -> str:
-    """将 '22Apr' 格式转为 '2026-04-22' ISO格式"""
-    if year is None:
-        year = datetime.now().year
+    """将 '22Apr' 格式转为 '2026-04-22' ISO格式（未给年份时按"今天或以后"推断）"""
     m = re.match(r'(\d{1,2})\s*([A-Za-z]{3})', date_str.strip())
     if not m:
         return ''
@@ -73,6 +71,9 @@ def _parse_date_str(date_str: str, year: int = None) -> str:
     month = MONTH_MAP.get(month_str)
     if not month:
         return ''
+    if year is None:
+        from App_new.utils.parse_flights import infer_flight_year
+        year = infer_flight_year(int(month), day)
     return f'{year}-{month}-{day:02d}'
 
 

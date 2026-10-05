@@ -237,6 +237,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/flight_date_infer.js') }}"></script>
 <!-- 添加必要的JavaScript -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
@@ -590,6 +591,9 @@ $('#orderForm').on('submit', function(e) {
 });
 
 // 解析航段信息
+// GDS / 订位系统航段行（与新建机票REF页一致）
+const GDS_SEGMENT_RE = /(\w{2})\s*(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{2}:?\d{2})\s+(#?\d{2}:?\d{2})/;
+
 function parseFlightSegments() {
     const text = document.getElementById('flightParser').value.trim();
     if (!text) {
@@ -606,11 +610,12 @@ function parseFlightSegments() {
 
     let successCount = 0;
 
+    let prevDepDate = null;  // 上一航段出发日期，用于跨年推断
     lines.forEach((line, index) => {
         const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
         if (!cleanLine) return;
 
-        const match = cleanLine.match(/(\w+)\s+(\d+)\s+(\w)\s+(\d{2}\w{3})\s+(\w{6})\s+\w+\s+(\d{4})\s+(#?\d{4})/);
+        const match = cleanLine.match(GDS_SEGMENT_RE);
 
         if (!match) return;
 
@@ -619,13 +624,17 @@ function parseFlightSegments() {
             const departureAirport = route.substring(0, 3);
             const arrivalAirport = route.substring(3);
             const isNextDay = arrivalTime.startsWith('#');
-            const cleanArrivalTime = arrivalTime.replace('#', '');
+            // 移除 # 前缀和冒号，统一为4位数字格式
+            const cleanArrivalTime = arrivalTime.replace('#', '').replace(':', '');
+            const cleanDepartureTime = departureTime.replace(':', '');
 
-            const year = new Date().getFullYear();
             const month = getMonthFromString(date.substring(2, 5));
             const day = parseInt(date.substring(0, 2));
+            // 粘贴的航段不带年份：按"今天或以后"推断，且不早于上一航段
+            const year = inferFlightYear(month, day, prevDepDate);
+            prevDepDate = new Date(year, month - 1, day);
 
-            const departureDateTime = formatDateTime(year, month, day, departureTime);
+            const departureDateTime = formatDateTime(year, month, day, cleanDepartureTime);
             const arrivalDateTime = formatDateTime(year, month, day, cleanArrivalTime, isNextDay);
 
             const segmentData = {
@@ -681,15 +690,70 @@ function closeFlightParserModal() {
     document.getElementById('flightParserModal').style.display = 'none';
 }
 
-function parseFlightSegmentsFromModal() {
+function probeGdsSegmentCount(text) {
+    const lines = text.split(/[\n\r>]+/).filter(line => {
+        const trimmed = line.trim();
+        return trimmed && !trimmed.startsWith('>');
+    });
+    let count = 0;
+    lines.forEach(line => {
+        const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
+        if (cleanLine && GDS_SEGMENT_RE.test(cleanLine)) count++;
+    });
+    return count;
+}
+
+async function parseFlightSegmentsFromModal() {
     const parserText = document.getElementById('modalFlightParser').value;
     if (!parserText.trim()) {
         alert('请先粘贴航段信息');
         return;
     }
-    document.getElementById('flightParser').value = parserText;
+
+    // 1) 优先按 GDS / 订位系统格式直接解析
+    if (probeGdsSegmentCount(parserText) > 0) {
+        document.getElementById('flightParser').value = parserText;
+        parseFlightSegments();
+        closeFlightParserModal();
+        return;
+    }
+
+    // 2) 认不出时调用后端 parse_flights（与新建机票REF页相同）
+    let result;
+    try {
+        const response = await fetch("{{ url_for('flights_itinerary.parse_flights_api') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': $('input[name="csrf_token"]').val() || ''
+            },
+            body: JSON.stringify({ text: parserText })
+        });
+        result = await response.json();
+    } catch (error) {
+        alert('解析失败：网络错误 - ' + error.message);
+        return;
+    }
+
+    if (result.error) {
+        alert('解析失败：' + result.error);
+        return;
+    }
+    if (!result.segments || probeGdsSegmentCount(result.segments) === 0) {
+        alert('未能识别航班信息，请检查输入格式');
+        return;
+    }
+
+    // 3) 后端返回 GDS 格式，交给现有解析器
+    document.getElementById('flightParser').value = result.segments;
     parseFlightSegments();
     closeFlightParserModal();
+
+    let msg = `已解析 ${result.flight_count} 个航段（格式: ${result.format_detected}）`;
+    if (result.warning) {
+        msg += '\n\n⚠️ ' + result.warning;
+    }
+    alert(msg);
 }
 
 function clearModalParser() {

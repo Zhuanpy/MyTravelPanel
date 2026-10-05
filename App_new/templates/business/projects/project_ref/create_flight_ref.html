@@ -274,6 +274,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/flight_date_infer.js') }}"></script>
 <!-- 添加必要的JavaScript -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
@@ -1597,6 +1598,7 @@ function parseFlightSegments() {
     let successCount = 0;
     
     // 解析每一行
+    let prevDepDate = null;  // 上一航段出发日期，用于跨年推断
     lines.forEach((line, index) => {
         // 移除行号和多余空格
         const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
@@ -1622,9 +1624,11 @@ function parseFlightSegments() {
             const cleanDepartureTime = departureTime.replace(':', '');
 
             // 创建日期对象
-            const year = new Date().getFullYear();
             const month = getMonthFromString(date.substring(2, 5));
             const day = parseInt(date.substring(0, 2));
+            // 粘贴的航段不带年份：按"今天或以后"推断，且不早于上一航段
+            const year = inferFlightYear(month, day, prevDepDate);
+            prevDepDate = new Date(year, month - 1, day);
 
             console.log('解析日期信息:', {
                 original: date,

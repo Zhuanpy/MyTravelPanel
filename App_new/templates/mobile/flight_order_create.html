@@ -131,6 +131,8 @@ CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1"></textarea>
 {% endblock %}
 
 {% block extra_css %}
+{# 航段年份推断：extra_js 在 base 的 <script> 内，外链脚本只能放这里 #}
+<script src="{{ url_for('static', filename='js/flight_date_infer.js') }}"></script>
 <style>
     .mobile-select {
         width: 100%;
@@ -644,6 +646,7 @@ CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1"></textarea>
 
         let successCount = 0;
 
+        let prevDepDate = null;  // 上一航段出发日期，用于跨年推断
         lines.forEach(line => {
             const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
             if (!cleanLine) return;
@@ -664,9 +667,11 @@ CX 714 O 30JUN SINHKG HS1 0150 0550 O E MO 1"></textarea>
                 const cleanArrivalTime = arrivalTime.replace('#', '');
 
                 // 解析日期
-                const year = new Date().getFullYear();
                 const month = getMonthFromString(date.substring(2, 5));
                 const day = parseInt(date.substring(0, 2));
+                // 粘贴的航段不带年份：按"今天或以后"推断，且不早于上一航段
+                const year = inferFlightYear(month, day, prevDepDate);
+                prevDepDate = new Date(year, month - 1, day);
 
                 // 格式化日期时间
                 const depDateTime = formatDateTime(year, month, day, departureTime);

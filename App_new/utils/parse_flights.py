@@ -9,9 +9,49 @@
 - 手动输入格式（中英文）
 """
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 DAY_ABBR = {0: "MO", 1: "TU", 2: "WE", 3: "TH", 4: "FR", 5: "SA", 6: "SU"}
+
+# 粘贴的航段通常没有年份。机票一般是今天或以后的日期，
+# 允许往前 30 天（出发后补录 REF 的情况）；与前端 static/js/flight_date_infer.js 保持一致
+FLIGHT_YEAR_GRACE_DAYS = 30
+
+
+def infer_flight_year(month, day, min_date=None, today=None):
+    """推断不带年份的航班日期属于哪一年
+
+    取「不早于 今天-宽限天数」且「不早于 min_date（上一航段日期）」的最早那个日期的年份。
+    例：今天 2026-10-05，13APR → 2027；28DEC 之后的 03JAN → 次年。
+    """
+    today = today or date.today()
+    cutoff = today - timedelta(days=FLIGHT_YEAR_GRACE_DAYS)
+    for year in range(today.year - 1, today.year + 3):
+        try:
+            candidate = date(year, int(month), int(day))
+        except ValueError:
+            continue  # 2月29日遇到非闰年
+        if candidate < cutoff:
+            continue
+        if min_date and candidate < min_date:
+            continue
+        return year
+    return today.year
+
+
+def _apply_inferred_years(flights, today=None):
+    """按推断出的年份重算各航段的星期（dep_date 形如 13APR，本身不带年份）"""
+    prev = None
+    for f in flights:
+        m = re.match(r'(\d{1,2})([A-Z]{3})$', f.get('dep_date') or '')
+        if not m or m.group(2) not in _EN_MONTH_MAP:
+            continue
+        month, day = _EN_MONTH_MAP[m.group(2)], int(m.group(1))
+        year = infer_flight_year(month, day, min_date=prev, today=today)
+        dt = date(year, month, day)
+        f['dep_day'] = DAY_ABBR[dt.weekday()]
+        prev = dt
+    return flights
 
 
 def _find_iata_near(block, airport_name):
@@ -1013,6 +1053,7 @@ def parse_flights(text):
     ]:
         flights = parser(text)
         if flights:
+            _apply_inferred_years(flights)
             segments = format_segments(flights)
             return {
                 'success': True,
