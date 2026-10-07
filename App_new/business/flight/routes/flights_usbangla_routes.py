@@ -6,6 +6,7 @@ from flask_login import login_required
 from App_new.utils.decorators import staff_only
 from io import BytesIO
 import os
+import platform
 import re
 import tempfile
 import shutil
@@ -977,6 +978,72 @@ _INDIGO_KEEP_KEYWORDS = [
 ]
 
 
+def _indigo_ocr_lines(page, dpi=150):
+    """无文字层页面（如 Microsoft Print to PDF 把字转成矢量路径）用 OCR 取行，返回 [(text, y0, y1)]，坐标为 PDF 点"""
+    import pytesseract
+    from PIL import Image
+    if platform.system() == 'Windows' and not shutil.which('tesseract'):
+        win_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+        if os.path.exists(win_path):
+            pytesseract.pytesseract.tesseract_cmd = win_path
+    pix = page.get_pixmap(dpi=dpi)
+    img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+    data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+    scale = 72 / dpi
+    grouped = {}
+    for i, word in enumerate(data['text']):
+        if not word.strip():
+            continue
+        key = (data['block_num'][i], data['par_num'][i], data['line_num'][i])
+        grouped.setdefault(key, []).append(i)
+    lines = []
+    for ids in grouped.values():
+        text = ' '.join(data['text'][i] for i in ids)
+        y0 = min(data['top'][i] for i in ids) * scale
+        y1 = max(data['top'][i] + data['height'][i] for i in ids) * scale
+        lines.append((text, y0, y1))
+    return lines
+
+
+def _indigo_ocr_match(kw, line_text):
+    """OCR 文本匹配：忽略大小写和空格（OCR 常把 "Check-in:" 识别成 "Check-in :"）"""
+    return kw.upper().replace(' ', '') in line_text.upper().replace(' ', '')
+
+
+def _indigo_ocr_find_price_top(lines):
+    best_y = None
+    matched_kw = None
+    for kw in _INDIGO_PRICE_KEYWORDS:
+        for text, y0, _ in lines:
+            if _indigo_ocr_match(kw, text) and (best_y is None or y0 < best_y):
+                best_y = y0
+                matched_kw = kw
+    return best_y, matched_kw
+
+
+def _indigo_redact_price_area(page, price_y, keep_bottom, ocr_lines=None):
+    """从价格区上方涂白到页底"""
+    import fitz
+    redact_y = price_y - 15
+    if ocr_lines is not None:
+        # 矢量字形页：价格标题以上、且明显不属于价格区的行都保留
+        above = [y1 for _, _, y1 in ocr_lines if y1 < redact_y]
+        if above:
+            keep_bottom = max(keep_bottom, max(above))
+    if keep_bottom > 0:
+        redact_y = max(redact_y, keep_bottom + 5)
+    for drawing in page.get_drawings():
+        rect = drawing["rect"]
+        # 矢量字形页每个字都是一个 drawing，只认宽的边框线，避免把字当成框
+        if ocr_lines is not None and rect.width < 100:
+            continue
+        if keep_bottom < rect.y0 < price_y:
+            redact_y = min(redact_y, rect.y0 - 2)
+    redact_rect = fitz.Rect(0, redact_y, page.rect.width, page.rect.height)
+    page.add_redact_annot(redact_rect, fill=(1, 1, 1))
+    page.apply_redactions()
+
+
 def _indigo_find_price_top(page):
     """在页面中查找价格区域的最高 y 坐标"""
     best_y = None
@@ -1023,47 +1090,37 @@ def process_indigo_pdf(file_stream):
         price_found = False
         pages_to_delete = []
 
+        def try_clean_page(page):
+            """找到价格区就涂白并返回 True；无文字层时走 OCR"""
+            if page.get_text().strip():
+                price_y, _ = _indigo_find_price_top(page)
+                if price_y is None:
+                    return False
+                _indigo_redact_price_area(page, price_y, _indigo_find_keep_bottom(page))
+                return True
+            ocr_lines = _indigo_ocr_lines(page)
+            price_y, _ = _indigo_ocr_find_price_top(ocr_lines)
+            if price_y is None:
+                return False
+            keep_bottom = 0
+            for text, _, y1 in ocr_lines:
+                if y1 < price_y and any(_indigo_ocr_match(kw, text) for kw in _INDIGO_KEEP_KEYWORDS):
+                    keep_bottom = max(keep_bottom, y1)
+            _indigo_redact_price_area(page, price_y, keep_bottom, ocr_lines)
+            return True
+
         # 扫描第 2 页起
         for page_idx in range(1, total_pages):
-            page = doc[page_idx]
-            price_y, matched_kw = _indigo_find_price_top(page)
-            if price_y is None:
+            if not try_clean_page(doc[page_idx]):
                 continue
             price_found = True
-            keep_bottom = _indigo_find_keep_bottom(page)
-            redact_y = price_y - 15
-            if keep_bottom > 0:
-                redact_y = max(redact_y, keep_bottom + 5)
-            for drawing in page.get_drawings():
-                rect = drawing["rect"]
-                if keep_bottom < rect.y0 < price_y:
-                    redact_y = min(redact_y, rect.y0 - 2)
-            redact_rect = fitz.Rect(0, redact_y, page.rect.width, page.rect.height)
-            page.add_redact_annot(redact_rect, fill=(1, 1, 1))
-            page.apply_redactions()
-            for later_idx in range(page_idx + 1, total_pages):
-                if later_idx not in pages_to_delete:
-                    pages_to_delete.append(later_idx)
+            pages_to_delete = list(range(page_idx + 1, total_pages))
             break
 
-        if not price_found:
+        if not price_found and try_clean_page(doc[0]):
             # 第 1 页也搜索
-            page = doc[0]
-            price_y, matched_kw = _indigo_find_price_top(page)
-            if price_y is not None:
-                price_found = True
-                keep_bottom = _indigo_find_keep_bottom(page)
-                redact_y = price_y - 15
-                if keep_bottom > 0:
-                    redact_y = max(redact_y, keep_bottom + 5)
-                for drawing in page.get_drawings():
-                    rect = drawing["rect"]
-                    if keep_bottom < rect.y0 < price_y:
-                        redact_y = min(redact_y, rect.y0 - 2)
-                redact_rect = fitz.Rect(0, redact_y, page.rect.width, page.rect.height)
-                page.add_redact_annot(redact_rect, fill=(1, 1, 1))
-                page.apply_redactions()
-                pages_to_delete = list(range(1, total_pages))
+            price_found = True
+            pages_to_delete = list(range(1, total_pages))
 
         # 从后往前删除多余页面
         for idx in sorted(pages_to_delete, reverse=True):
