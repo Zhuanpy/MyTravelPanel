@@ -1335,6 +1335,51 @@ _PATCH_FLOAT_FIELDS = {'base_price', 'child_price', 'infant_price', 'single_room
 _PATCH_DATE_FIELDS = {'valid_from', 'valid_until'}
 
 
+def _apply_product_fields(product, data):
+    """按白名单把 data 中出现的字段写到 product 上，返回实际写入的字段名列表（patch / upsert 共用）"""
+    updated = []
+    for key, value in data.items():
+        if key in _PATCH_STR_FIELDS:
+            setattr(product, key, value if value not in (None, '') else None)
+        elif key in _PATCH_INT_FIELDS:
+            setattr(product, key, int(value) if value not in (None, '') else None)
+        elif key in _PATCH_FLOAT_FIELDS:
+            setattr(product, key, float(value) if value not in (None, '') else None)
+        elif key in _PATCH_DATE_FIELDS:
+            setattr(product, key,
+                    datetime.strptime(value, '%Y-%m-%d').date() if value else None)
+        elif key == 'is_featured':
+            setattr(product, key,
+                    value.strip() in ('1', 'true', 'True') if isinstance(value, str)
+                    else bool(value))
+        elif key == 'tags':
+            if isinstance(value, list):
+                tags_list = [str(t).strip() for t in value if str(t).strip()]
+            else:
+                tags_list = [t.strip() for t in str(value).split(',') if t.strip()]
+            product.tags = json.dumps(tags_list, ensure_ascii=False)
+        elif key == 'city_name':
+            from App_new.business.tour.models.Packagemodels import ProductCity
+            city_name = (value or '').strip()
+            if city_name:
+                city = ProductCity.query.filter_by(city_name=city_name).first()
+                if not city:
+                    country_name = data.get('country_name') or '未知'
+                    city = ProductCity(city_name=city_name, display_name=city_name,
+                                       country_name=country_name)
+                    db.session.add(city)
+                    db.session.flush()
+                product.city_id = city.id
+                product.city_name = city_name
+            else:
+                product.city_id = None
+                product.city_name = None
+        else:
+            continue  # 非白名单字段忽略（country_name 仅配合 city_name；图片/文件走各自专用接口）
+        updated.append(key)
+    return updated
+
+
 @tour_products_bp.route('/<int:product_id>/patch', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -1352,49 +1397,8 @@ def patch_product(product_id):
     if not isinstance(data, dict) or not data:
         return jsonify({'success': False, 'message': '请求体需为非空 JSON 对象'}), 400
 
-    updated = []
     try:
-        for key, value in data.items():
-            if key in _PATCH_STR_FIELDS:
-                setattr(product, key, value if value not in (None, '') else None)
-            elif key in _PATCH_INT_FIELDS:
-                setattr(product, key, int(value) if value not in (None, '') else None)
-            elif key in _PATCH_FLOAT_FIELDS:
-                setattr(product, key, float(value) if value not in (None, '') else None)
-            elif key in _PATCH_DATE_FIELDS:
-                setattr(product, key,
-                        datetime.strptime(value, '%Y-%m-%d').date() if value else None)
-            elif key == 'is_featured':
-                setattr(product, key,
-                        value.strip() in ('1', 'true', 'True') if isinstance(value, str)
-                        else bool(value))
-            elif key == 'tags':
-                if isinstance(value, list):
-                    tags_list = [str(t).strip() for t in value if str(t).strip()]
-                else:
-                    tags_list = [t.strip() for t in str(value).split(',') if t.strip()]
-                product.tags = json.dumps(tags_list, ensure_ascii=False)
-            elif key == 'city_name':
-                from App_new.business.tour.models.Packagemodels import ProductCity
-                city_name = (value or '').strip()
-                if city_name:
-                    city = ProductCity.query.filter_by(city_name=city_name).first()
-                    if not city:
-                        country_name = data.get('country_name') or '未知'
-                        city = ProductCity(city_name=city_name, display_name=city_name,
-                                           country_name=country_name)
-                        db.session.add(city)
-                        db.session.flush()
-                    product.city_id = city.id
-                    product.city_name = city_name
-                else:
-                    product.city_id = None
-                    product.city_name = None
-            elif key == 'country_name':
-                continue  # 仅配合 city_name 使用
-            else:
-                continue  # 非白名单字段忽略（图片/文件走各自专用接口）
-            updated.append(key)
+        updated = _apply_product_fields(product, data)
 
         if not updated:
             return jsonify({'success': False, 'message': '没有可更新的有效字段'}), 400
@@ -2455,40 +2459,7 @@ def bulk_itinerary(product_id):
         days = data.get('days')
         if not isinstance(days, list) or not days:
             return jsonify({'success': False, 'message': 'days 需为非空数组'}), 400
-        replace = data.get('replace', True)
-
-        created = updated = deleted = 0
-        if replace:
-            deleted = ProductItinerary.query.filter_by(product_id=product_id).delete()
-
-        for d in days:
-            if not isinstance(d, dict):
-                continue
-            try:
-                day_number = d.get('day_number')
-                if day_number in (None, ''):
-                    continue
-                day_number = int(day_number)
-            except (ValueError, TypeError):
-                continue
-            day_title = (str(d.get('day_title')).strip() if d.get('day_title') else None)
-            content = d.get('content')
-            content = content.strip() if isinstance(content, str) else content
-
-            it = None
-            if not replace:
-                it = ProductItinerary.query.filter_by(product_id=product_id, day_number=day_number).first()
-            if it:
-                it.day_title = day_title
-                it.content = content
-                it.updated_at = datetime.utcnow()
-                updated += 1
-            else:
-                db.session.add(ProductItinerary(
-                    product_id=product_id, day_number=day_number,
-                    day_title=day_title, content=content))
-                created += 1
-
+        created, updated, deleted = _write_itinerary_days(product_id, days, data.get('replace', True))
         db.session.commit()
         return jsonify({'success': True, 'created': created, 'updated': updated, 'deleted': deleted})
     except Exception as e:
@@ -2496,6 +2467,185 @@ def bulk_itinerary(product_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def _write_itinerary_days(product_id, days, replace=True):
+    """写入逐日行程（不提交），返回 (created, updated, deleted)；bulk / upsert 共用"""
+    created = updated = deleted = 0
+    if replace:
+        deleted = ProductItinerary.query.filter_by(product_id=product_id).delete()
+
+    for d in days:
+        if not isinstance(d, dict):
+            continue
+        try:
+            day_number = d.get('day_number')
+            if day_number in (None, ''):
+                continue
+            day_number = int(day_number)
+        except (ValueError, TypeError):
+            continue
+        day_title = (str(d.get('day_title')).strip() if d.get('day_title') else None)
+        content = d.get('content')
+        content = content.strip() if isinstance(content, str) else content
+
+        it = None
+        if not replace:
+            it = ProductItinerary.query.filter_by(product_id=product_id, day_number=day_number).first()
+        if it:
+            it.day_title = day_title
+            it.content = content
+            it.updated_at = datetime.utcnow()
+            updated += 1
+        else:
+            db.session.add(ProductItinerary(
+                product_id=product_id, day_number=day_number,
+                day_title=day_title, content=content))
+            created += 1
+    return created, updated, deleted
+
+
+_PV_FLOAT_FIELDS = (
+    'single_price', 'twin_price', 'third_pax_price', 'child_no_bed_price',
+    'adult_price', 'child_price', 'infant_price', 'single_room_supplement',
+    'cost_single_price', 'cost_twin_price', 'cost_third_pax_price', 'cost_child_no_bed_price',
+    'profit_per_person',
+)
+
+
+def _build_price_variant(product_id, v, default_currency):
+    """由 JSON 字典构造价格方案；variant_name 必填"""
+    name = (v.get('variant_name') or '').strip()
+    if not name:
+        raise ValueError('price_variants 每项都需要 variant_name')
+    variant = ProductPriceVariant(
+        product_id=product_id,
+        variant_name=name,
+        start_date=datetime.strptime(v['start_date'], '%Y-%m-%d').date() if v.get('start_date') else None,
+        end_date=datetime.strptime(v['end_date'], '%Y-%m-%d').date() if v.get('end_date') else None,
+        min_pax=int(v['min_pax']) if v.get('min_pax') not in (None, '') else None,
+        max_pax=int(v['max_pax']) if v.get('max_pax') not in (None, '') else None,
+        currency=v.get('currency') or default_currency or 'SGD',
+        is_primary=bool(v.get('is_primary', False)),
+        is_active=bool(v.get('is_active', True)),
+    )
+    for f in _PV_FLOAT_FIELDS:
+        if v.get(f) not in (None, ''):
+            setattr(variant, f, float(v[f]))
+    return variant
+
+
+@tour_products_bp.route('/api/upsert', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def upsert_product():
+    """一次调用建/更新整个旅游产品（供 Hermes 把 txt 整理成 JSON 后上传）
+
+    匹配顺序：product_id → product_code；都没命中则新建（新建默认 draft）。
+    body: 主体字段（同 /patch 白名单）+ supplier_name（按公司名精确匹配供应商）
+          + days（整份替换逐日行程）+ price_variants（整份替换价格方案）
+    整个请求一个事务，任何一步失败都不落库。
+    返回 {success, action, product_id, product_code, product_status, itinerary_count,
+          price_variant_count, warnings, edit_url, public_url}
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not data:
+        return jsonify({'success': False, 'message': '请求体需为非空 JSON 对象'}), 400
+
+    days = data.get('days')
+    variants = data.get('price_variants')
+    if days is not None and not isinstance(days, list):
+        return jsonify({'success': False, 'message': 'days 需为数组'}), 400
+    if variants is not None and not isinstance(variants, list):
+        return jsonify({'success': False, 'message': 'price_variants 需为数组'}), 400
+
+    warnings = []
+    try:
+        product = None
+        if data.get('product_id'):
+            product = Product.query.get(int(data['product_id']))
+            if not product:
+                return jsonify({'success': False, 'message': f"product_id={data['product_id']} 不存在"}), 404
+        code = (data.get('product_code') or '').strip()
+        if not product and code:
+            product = Product.query.filter_by(product_code=code).first()
+
+        username = getattr(current_user, 'username', 'api')
+        if product:
+            action = 'updated'
+        else:
+            if not (data.get('product_name') or '').strip():
+                return jsonify({'success': False, 'message': '新建产品需要 product_name'}), 400
+            from App_new.shared.models.business_types import generate_product_code
+            product = Product(
+                product_name=data['product_name'].strip(),
+                product_code=code or generate_product_code('tour'),
+                product_status='draft',
+                currency='SGD',
+                created_by=username,
+            )
+            db.session.add(product)
+            action = 'created'
+
+        # 供应商：按公司名精确匹配，找不到不报错只提示
+        supplier_name = (data.get('supplier_name') or '').strip()
+        if supplier_name and not data.get('supplier_id'):
+            supplier = CustomerCompany.query.filter_by(company_name=supplier_name).first()
+            if supplier:
+                product.supplier_id = supplier.id
+            else:
+                warnings.append(f'供应商 "{supplier_name}" 不存在，未关联')
+
+        _apply_product_fields(product, data)
+        db.session.flush()  # 拿 product.id
+
+        itinerary_count = None
+        if days is not None:
+            _write_itinerary_days(product.id, days, replace=True)
+            itinerary_count = len([d for d in days if isinstance(d, dict) and d.get('day_number') not in (None, '')])
+
+        price_variant_count = None
+        if variants is not None:
+            ProductPriceVariant.query.filter_by(product_id=product.id).delete()
+            built = [_build_price_variant(product.id, v, product.currency) for v in variants if isinstance(v, dict)]
+            if built and not any(v.is_primary for v in built):
+                built[0].is_primary = True
+            db.session.add_all(built)
+            price_variant_count = len(built)
+
+        if not product.base_price and not variants:
+            warnings.append('没有 base_price 也没有 price_variants，公开页不显示价格')
+        if not product.cover_image:
+            warnings.append('没有封面图，用 /tour/products/<pid>/upload-image (kind=cover) 上传')
+        if product.valid_until and product.valid_until < datetime.now().date():
+            warnings.append('valid_until 已过期，公开页会 404')
+
+        product.updated_at = datetime.utcnow()
+        from App_new.business.products.sync_helper import sync_tour_product_to_unified
+        sync_tour_product_to_unified(product, created_by=username)
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'action': action,
+            'product_id': product.id,
+            'product_code': product.product_code,
+            'product_status': product.product_status,
+            'itinerary_count': itinerary_count,
+            'price_variant_count': price_variant_count,
+            'warnings': warnings,
+            'edit_url': url_for('tour_products.edit_product', product_id=product.id),
+            'public_url': url_for('public.tour_package_detail', package_id=product.id),
+        })
+    except (ValueError, TypeError, KeyError) as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'字段值错误：{str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'保存失败：{str(e)}'}), 500
 
 
 @tour_products_bp.route('/lookup')

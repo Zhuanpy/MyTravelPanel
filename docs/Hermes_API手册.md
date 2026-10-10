@@ -742,6 +742,7 @@ POST /tour/products/<pid>/patch          // Content-Type: application/json
 
 | 用途 | 方法 & URL | 说明 |
 |---|---|---|
+| **★一次建/更新整个配套** | `POST /tour/products/api/upsert` | JSON：主体字段（同 `/patch` 白名单）+ `supplier_name` + `days[]` + `price_variants[]`。按 `product_id`→`product_code` 匹配，没命中新建（默认 `draft`）；`days`/`price_variants` 传了就整份替换。返回 `{action, product_id, product_code, warnings, edit_url, public_url}`。**上架规则与 txt→JSON 对照见 `docs/旅游配套上架_Hermes.md`** |
 | **查产品**（文件名→id） | `GET /tour/products/lookup?supplier_id=<id>` | 该公司全部产品；也支持 `?code=<产品编号>` 精确、`?q=<关键词>` 名称模糊。返回 `{products:[{id, product_code, product_name, supplier_id, supplier_name, city_name, country, itinerary_count}]}` |
 | **按公司导出** | `GET /tour/products/export/excel?supplier_id=<id>` | 导出该公司全部产品的 xlsx（也支持 `?ids=1,2,3`）。含 3 个 sheet |
 | **批量导入/更新** | `POST /tour/products/import/excel` | multipart：`file`=xlsx，可选 `supplier_id`（供应商列空/没匹配时兜底赋给该公司），`format=json`。返回 `{imported, updated, price_imported, price_updated, itinerary_imported, itinerary_updated, errors}` |

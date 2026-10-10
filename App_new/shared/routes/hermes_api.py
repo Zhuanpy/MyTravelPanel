@@ -182,6 +182,27 @@ _CATALOG = {
             ],
         },
         {
+            'name': '旅游产品库（配套上架）',
+            'note': '整理规则见 docs/旅游配套上架_Hermes.md：txt→JSON 一次 upsert，新建默认 draft，人工审核后再 patch 成 active',
+            'endpoints': [
+                {'method': 'GET', 'path': '/tour/products/lookup',
+                 'input': 'query code | q | supplier_id',
+                 'desc': '查重：按产品编号精确 / 名称模糊 / 供应商列出'},
+                {'method': 'POST', 'path': '/tour/products/api/upsert',
+                 'input': 'JSON {product_code?, product_name, supplier_name?, city_name, country_name, '
+                          'duration_days, base_price?, included_services, excluded_services, days[], price_variants[]?}',
+                 'desc': '★一次建/更新整个配套：按 product_id→product_code 匹配，没命中就新建(draft)；'
+                         'days / price_variants 传了就整份替换；返回 product_id + warnings'},
+                {'method': 'POST', 'path': '/tour/products/<pid>/upload-image',
+                 'input': 'multipart kind=cover|gallery, image=<file>(gallery 可多个)',
+                 'desc': '封面 / 图库上传（gallery 追加去重）'},
+                {'method': 'GET', 'path': '/tour/products/<pid>/json',
+                 'input': '-', 'desc': '读回产品全量 + 逐日行程，验收用'},
+                {'method': 'POST', 'path': '/tour/products/<pid>/patch',
+                 'input': 'JSON 局部字段', 'desc': '改单个字段；审核通过后 {"product_status":"active"} 上架'},
+            ],
+        },
+        {
             'name': '打印 / PDF（HTML 页 + Chrome printToPDF）',
             'note': '这些是打印用 HTML 页，不是 JSON 接口。用你的 Chrome 带 X-API-Key 导航过去，'
                     '再调 CDP Page.printToPDF 即得 PDF 字节（打印 CSS 已隔离，只输出单据本身）。',
