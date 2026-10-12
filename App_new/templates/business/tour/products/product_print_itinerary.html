@@ -471,22 +471,36 @@
                 color: #333 !important;
                 text-align: left !important;
             }
+            /* 长的一天允许跨页（整块不拆会被推到下一页，第一页只剩抬头）；
+               短的一天（keep-together）仍整块不拆 */
             .itinerary-day {
-                page-break-inside: avoid;
-                break-inside: avoid;
+                -webkit-box-decoration-break: clone;
+                box-decoration-break: clone;
                 border: 1px solid #ccc !important;
                 background: white !important;
                 box-shadow: none !important;
                 padding: 12px !important;
                 margin-bottom: 15px !important;
             }
+            .itinerary-day.keep-together {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
             .day-header {
                 font-size: 11pt !important;
                 font-weight: bold !important;
+                page-break-after: avoid;
+                break-after: avoid;
             }
             .day-content {
                 font-size: 9pt !important;
                 font-weight: normal !important;
+                orphans: 3;
+                widows: 3;
+            }
+            .day-images {
+                page-break-inside: avoid;
+                break-inside: avoid;
             }
             .day-content *,
             .day-content b,
@@ -591,7 +605,8 @@
 
 {% if itineraries and itineraries|length > 0 %}
     {% for day in itineraries %}
-        <div class="itinerary-day">
+        {# 内容短的一天整块不拆页；长的允许跨页，避免整块被推走留下大片空白 #}
+        <div class="itinerary-day{% if (day.content or '')|length < 600 %} keep-together{% endif %}">
             <div class="day-header">
                 <span class="day-number">{{ day.day_number }}</span>
                 {{ day.day_title or '第' ~ day.day_number ~ '天' }}
