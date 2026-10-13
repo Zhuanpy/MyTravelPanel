@@ -6,6 +6,37 @@
 // 账号管理系统 API 测试脚本
 console.log('测试脚本已加载 - 版本 20250414-1');
 
+// ------------------- 分类英文显示 -------------------
+// 分类值仍存中文（不动数据），下拉里显示 "English · 中文"，按英文首字母可快速定位
+const CATEGORY_EN = {
+    '机票': 'Air Ticket', '酒店': 'Hotel', '签证': 'Visa', '配套': 'Tour Package',
+    '地接': 'Ground Operator', '门票': 'Attraction Ticket', '票务': 'Ticketing',
+    '邮轮': 'Cruise', '保险': 'Insurance', '邮箱': 'Email', '财务': 'Finance',
+    '交通': 'Transport', '租车': 'Car Rental', '火车': 'Train', '船票': 'Ferry',
+    '其它': 'Other', '其他': 'Other'
+};
+
+function categoryLabel(category) {
+    const en = CATEGORY_EN[category];
+    return en ? `${en} · ${category}` : category;
+}
+
+// 生成分类 <option>，按显示文字（英文）排序，"Other" 放最后
+function categoryOptions(categories) {
+    const sorted = [...categories].sort((a, b) => {
+        const la = categoryLabel(a), lb = categoryLabel(b);
+        const oa = la.startsWith('Other'), ob = lb.startsWith('Other');
+        if (oa !== ob) return oa ? 1 : -1;
+        return la.localeCompare(lb, 'en', { sensitivity: 'base' });
+    });
+    return sorted.map(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = categoryLabel(category);
+        return option;
+    });
+}
+
 // ------------------- MODAL.JS -------------------
 // 通用的模态框功能
 function initModalFunctionality() {
@@ -119,12 +150,7 @@ function initializeFilters(accounts) {
     const owners = [...new Set(accounts.map(acc => acc.owner).filter(Boolean))];
 
     // 更新类别选项
-    categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        categorySelect.appendChild(option);
-    });
+    categoryOptions(categories).forEach(option => categorySelect.appendChild(option));
 
     // 更新国家选项
     countries.forEach(country => {
@@ -415,22 +441,45 @@ async function loadCategories() {
         
         if (categorySelect) {
             categorySelect.innerHTML = '<option value="">全部类别</option>';
-            categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category;
-                option.textContent = category;
-                categorySelect.appendChild(option);
-            });
+            categoryOptions(categories).forEach(option => categorySelect.appendChild(option));
         }
         
         if (editCategory) {
             editCategory.innerHTML = '<option value="">请选择类别</option>';
-            categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category;
-                option.textContent = category;
-                editCategory.appendChild(option);
-            });
+            categoryOptions(categories).forEach(option => editCategory.appendChild(option));
+        }
+
+        // 添加账号弹窗的分类下拉：已有分类 + 末尾「新分类」入口
+        const addCategory = document.getElementById('category');
+        if (addCategory && addCategory.tagName === 'SELECT') {
+            const current = addCategory.value;
+            addCategory.innerHTML = '<option value="">请选择分类</option>';
+            categoryOptions(categories).forEach(option => addCategory.appendChild(option));
+            const newOption = document.createElement('option');
+            newOption.value = '__new__';
+            newOption.textContent = '+ 新分类…';
+            addCategory.appendChild(newOption);
+            if (current && categories.includes(current)) addCategory.value = current;
+
+            if (!addCategory.dataset.newHandlerBound) {
+                addCategory.dataset.newHandlerBound = '1';
+                addCategory.addEventListener('change', function() {
+                    if (this.value !== '__new__') return;
+                    const name = (prompt('输入新分类名称') || '').trim();
+                    if (!name) {
+                        this.value = '';
+                        return;
+                    }
+                    let opt = Array.from(this.options).find(o => o.value === name);
+                    if (!opt) {
+                        opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = categoryLabel(name);
+                        this.insertBefore(opt, this.querySelector('option[value="__new__"]'));
+                    }
+                    this.value = name;
+                });
+            }
         }
 
         return categories;
@@ -1275,7 +1324,7 @@ async function editAccount(id) {
                 // 如果没有匹配的选项但账号有类别，添加一个新选项
                 const newOption = document.createElement('option');
                 newOption.value = account.category;
-                newOption.textContent = account.category;
+                newOption.textContent = categoryLabel(account.category);
                 newOption.selected = true;
                 editCategory.appendChild(newOption);
             }

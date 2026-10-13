@@ -399,7 +399,7 @@
     </div>
 
     <!-- 编辑账号模态框 -->
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal fade" id="editModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -498,7 +498,7 @@
     </div>
 
     <!-- 添加账号模态框 -->
-    <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addAccountModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="addAccountModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -520,10 +520,10 @@
                             </div>
                             <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="category" class="visa-form-label">分类 <span class="text-danger">*</span></label>
-                                <input type="text" class="visa-form-control" id="category" name="category" list="categoryList" required>
-                                <datalist id="categoryList">
-                                    <!-- 分类选项将通过 JavaScript 动态加载 -->
-                                </datalist>
+                                <select class="visa-form-control" id="category" name="category" required>
+                                    <option value="">请选择分类</option>
+                                    <!-- 分类选项由 loadCategories() 从 /account/api/categories 加载 -->
+                                </select>
                             </div>
                             <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                                 <label for="owner" class="visa-form-label">所有者</label>
@@ -594,7 +594,7 @@
     </div>
 
     <!-- 批量导入模态框 -->
-    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal fade" id="importModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="importModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -870,6 +870,8 @@
                         // 重新加载账号列表
                         if (typeof loadAccounts === 'function') {
                             await loadAccounts();
+                            // 可能新增了分类，刷新各分类下拉
+                            if (typeof loadCategories === 'function') loadCategories();
                         } else {
                         setTimeout(() => window.location.reload(), 1000);
                         }
