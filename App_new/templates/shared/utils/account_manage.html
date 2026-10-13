@@ -165,6 +165,45 @@
     background: #218838;
 }
 
+/* 添加 / 编辑账号弹窗：分组标题 + 密码按钮横排 */
+#addAccountModal .form-section-title,
+#editModal .form-section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--visa-text-secondary, #6c757d);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--visa-border, #e5e7eb);
+}
+
+#addAccountModal .password-actions,
+#editModal .password-actions {
+    flex-direction: row;
+    max-width: none;
+}
+
+#addAccountModal .password-actions .btn-sm,
+#editModal .password-actions .btn-sm {
+    width: auto;
+}
+
+/* 供应商下拉和 + 按钮同一行 */
+#addAccountModal .input-group > .visa-form-control,
+#editModal .input-group > .visa-form-control {
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+}
+
+/* 文本框按 rows 显示高度，不被全局 min-height 撑高 */
+#addAccountModal textarea.visa-form-control,
+#editModal textarea.visa-form-control {
+    min-height: 0;
+    height: auto;
+}
+
 /* 供应商输入组 */
 .input-group .btn-outline-primary {
     border-color: var(--visa-primary);
@@ -410,27 +449,24 @@
                     <form id="editAccountForm">
                         <input type="hidden" id="editId">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="row g-3">
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editPlatform" class="visa-form-label">平台/网址 <span class="text-danger">*</span></label>
+                        <!-- 平台信息：这个账号是什么 -->
+                        <div class="form-section-title">平台信息</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="editPlatform" class="visa-form-label">平台名称 <span class="text-danger">*</span></label>
                                 <input type="text" class="visa-form-control" id="editPlatform" name="platform" required>
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editWebsiteUrl" class="visa-form-label">网站链接</label>
-                                <input type="url" class="visa-form-control" id="editWebsiteUrl" name="website_url">
-                            </div>
-                        
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editCategory" class="visa-form-label">类别 <span class="text-danger">*</span></label>
+                            <div class="col-md-6">
+                                <label for="editCategory" class="visa-form-label">分类 <span class="text-danger">*</span></label>
                                 <select class="visa-form-control" id="editCategory" name="category" required>
                                     <option value="">请选择类别</option>
                                 </select>
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editOwner" class="visa-form-label">所有者</label>
-                                <input type="text" class="visa-form-control" id="editOwner" name="owner">
+                            <div class="col-12">
+                                <label for="editWebsiteUrl" class="visa-form-label">网站链接</label>
+                                <input type="url" class="visa-form-control" id="editWebsiteUrl" name="website_url" placeholder="https://">
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="col-md-6">
                                 <label for="editSupplier" class="visa-form-label">关联供应商</label>
                                 <div class="input-group">
                                     <select class="visa-form-control" id="editSupplier" name="supplier_id">
@@ -441,9 +477,44 @@
                                         <i class="fas fa-plus"></i>
                                     </a>
                                 </div>
-                                <small class="text-muted">没有供应商？<a href="/supplier/add" target="_blank">点击添加</a></small>
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="col-md-3 col-6">
+                                <label for="editCountry" class="visa-form-label">国家</label>
+                                <select class="visa-form-control" id="editCountry" name="country"><option value=""></option></select>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label for="editRegion" class="visa-form-label">地区</label>
+                                <select class="visa-form-control" id="editRegion" name="region"><option value=""></option></select>
+                            </div>
+                        </div>
+
+                        <!-- 登录信息 -->
+                        <div class="form-section-title">登录信息</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="editUsername" class="visa-form-label">用户名 <span class="text-danger">*</span></label>
+                                <input type="text" class="visa-form-control" id="editUsername" name="username" required autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editPassword" class="visa-form-label">密码</label>
+                                <div class="password-container">
+                                    <input type="password" class="visa-form-control" id="editPassword" name="password" autocomplete="new-password">
+                                    <div class="password-actions mt-2">
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditPassword()"><i class="fas fa-eye-slash"></i> 显示密码</button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyEditPassword()"><i class="fas fa-copy"></i> 复制密码</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 归属与权限：谁的账号、谁能看 -->
+                        <div class="form-section-title">归属与权限</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="editOwner" class="visa-form-label">所有者</label>
+                                <select class="visa-form-control" id="editOwner" name="owner"><option value=""></option></select>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="editAccessLevel" class="visa-form-label">访问权限</label>
                                 <select class="visa-form-control" id="editAccessLevel" name="access_level">
                                     <option value="private">仅自己可见</option>
@@ -451,41 +522,18 @@
                                     <option value="level_2">2级员工可见</option>
                                     <option value="public">所有员工可见</option>
                                 </select>
-                                <small class="text-muted">设置谁可以查看此账号信息</small>
-                            </div>
-                        
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editUsername" class="visa-form-label">用户名 <span class="text-danger">*</span></label>
-                                <input type="text" class="visa-form-control" id="editUsername" name="username" required>
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editPassword" class="visa-form-label">密码</label>
-                                <div class="password-container">
-                                    <input type="password" class="visa-form-control" id="editPassword" name="password">
-                                    <div class="password-actions mt-2">
-                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditPassword()"><i class="fas fa-eye-slash"></i> 显示密码</button>
-                                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyEditPassword()"><i class="fas fa-copy"></i> 复制密码</button>
-                                    </div>
-                                    <small class="text-muted">如果不修改密码，请留空</small>
-                                </div>
-                            </div>
-                        
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editCountry" class="visa-form-label">国家</label>
-                                <input type="text" class="visa-form-control" id="editCountry" name="country">
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="editRegion" class="visa-form-label">地区</label>
-                                <input type="text" class="visa-form-control" id="editRegion" name="region">
                             </div>
                         </div>
+
+                        <!-- 说明 -->
+                        <div class="form-section-title">说明</div>
                         <div class="mb-3">
                             <label for="editDescription" class="visa-form-label">描述</label>
                             <textarea class="visa-form-control" id="editDescription" name="description" rows="2"></textarea>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-1">
                             <label for="editNotes" class="visa-form-label">备注</label>
-                            <textarea class="visa-form-control" id="editNotes" name="notes" rows="4"></textarea>
+                            <textarea class="visa-form-control" id="editNotes" name="notes" rows="3"></textarea>
                         </div>
                     </form>
                 </div>
@@ -508,28 +556,25 @@
                 <div class="modal-body">
                     <form id="addAccountForm">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <!-- 合并为一个 row，避免右侧空白，保证自动顶上填充 -->
-                        <div class="row g-3">
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="platform" class="visa-form-label">平台/网址 <span class="text-danger">*</span></label>
+                        <!-- 平台信息：这个账号是什么 -->
+                        <div class="form-section-title">平台信息</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="platform" class="visa-form-label">平台名称 <span class="text-danger">*</span></label>
                                 <input type="text" class="visa-form-control" id="platform" name="platform" required>
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="website_url" class="visa-form-label">网站链接</label>
-                                <input type="url" class="visa-form-control" id="website_url" name="website_url">
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="col-md-6">
                                 <label for="category" class="visa-form-label">分类 <span class="text-danger">*</span></label>
                                 <select class="visa-form-control" id="category" name="category" required>
                                     <option value="">请选择分类</option>
                                     <!-- 分类选项由 loadCategories() 从 /account/api/categories 加载 -->
                                 </select>
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="owner" class="visa-form-label">所有者</label>
-                                <input type="text" class="visa-form-control" id="owner" name="owner">
+                            <div class="col-12">
+                                <label for="website_url" class="visa-form-label">网站链接</label>
+                                <input type="url" class="visa-form-control" id="website_url" name="website_url" placeholder="https://">
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="col-md-6">
                                 <label for="supplier" class="visa-form-label">关联供应商</label>
                                 <div class="input-group">
                                     <select class="visa-form-control" id="supplier" name="supplier_id">
@@ -540,9 +585,44 @@
                                         <i class="fas fa-plus"></i>
                                     </a>
                                 </div>
-                                <small class="text-muted">没有供应商？<a href="/supplier/add" target="_blank">点击添加</a></small>
                             </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="col-md-3 col-6">
+                                <label for="country" class="visa-form-label">国家</label>
+                                <select class="visa-form-control" id="country" name="country"><option value=""></option></select>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label for="region" class="visa-form-label">地区</label>
+                                <select class="visa-form-control" id="region" name="region"><option value=""></option></select>
+                            </div>
+                        </div>
+
+                        <!-- 登录信息 -->
+                        <div class="form-section-title">登录信息</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="username" class="visa-form-label">用户名 <span class="text-danger">*</span></label>
+                                <input type="text" class="visa-form-control" id="username" name="username" required autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="password" class="visa-form-label">密码 <span class="text-danger">*</span></label>
+                                <div class="password-container">
+                                    <input type="password" class="visa-form-control" id="password" name="password" required autocomplete="new-password">
+                                    <div class="password-actions mt-2">
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAddPassword()"><i class="fas fa-eye-slash"></i> 显示密码</button>
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyAddPassword()"><i class="fas fa-copy"></i> 复制密码</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 归属与权限：谁的账号、谁能看 -->
+                        <div class="form-section-title">归属与权限</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="owner" class="visa-form-label">所有者</label>
+                                <select class="visa-form-control" id="owner" name="owner"><option value=""></option></select>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="access_level" class="visa-form-label">访问权限</label>
                                 <select class="visa-form-control" id="access_level" name="access_level">
                                     <option value="private" selected>仅自己可见</option>
@@ -550,38 +630,18 @@
                                     <option value="level_2">2级员工可见</option>
                                     <option value="public">所有员工可见</option>
                                 </select>
-                                <small class="text-muted">设置谁可以查看此账号信息</small>
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="username" class="visa-form-label">用户名 <span class="text-danger">*</span></label>
-                                <input type="text" class="visa-form-control" id="username" name="username" required>
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="password" class="visa-form-label">密码 <span class="text-danger">*</span></label>
-                                <div class="password-container">
-                                    <input type="password" class="visa-form-control" id="password" name="password" required>
-                                    <div class="password-actions mt-2">
-                                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAddPassword()"><i class="fas fa-eye-slash"></i> 显示密码</button>
-                                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyAddPassword()"><i class="fas fa-copy"></i> 复制密码</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="country" class="visa-form-label">国家</label>
-                                <input type="text" class="visa-form-control" id="country" name="country">
-                            </div>
-                            <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                <label for="region" class="visa-form-label">地区</label>
-                                <input type="text" class="visa-form-control" id="region" name="region">
                             </div>
                         </div>
+
+                        <!-- 说明 -->
+                        <div class="form-section-title">说明</div>
                         <div class="mb-3">
                             <label for="description" class="visa-form-label">描述</label>
                             <textarea class="visa-form-control" id="description" name="description" rows="2"></textarea>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-1">
                             <label for="notes" class="visa-form-label">备注</label>
-                            <textarea class="visa-form-control" id="notes" name="notes" rows="4"></textarea>
+                            <textarea class="visa-form-control" id="notes" name="notes" rows="3"></textarea>
                         </div>
                     </form>
                 </div>

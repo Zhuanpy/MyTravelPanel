@@ -22,18 +22,105 @@ function categoryLabel(category) {
 }
 
 // 生成分类 <option>，按显示文字（英文）排序，"Other" 放最后
-function categoryOptions(categories) {
-    const sorted = [...categories].sort((a, b) => {
+function sortCategories(categories) {
+    return [...categories].sort((a, b) => {
         const la = categoryLabel(a), lb = categoryLabel(b);
         const oa = la.startsWith('Other'), ob = lb.startsWith('Other');
         if (oa !== ob) return oa ? 1 : -1;
         return la.localeCompare(lb, 'en', { sensitivity: 'base' });
     });
-    return sorted.map(category => {
+}
+
+function categoryOptions(categories) {
+    return sortCategories(categories).map(category => {
         const option = document.createElement('option');
         option.value = category;
         option.textContent = categoryLabel(category);
         return option;
+    });
+}
+
+// ------------------- 表单下拉（已有值 + 新建入口） -------------------
+const NEW_OPTION_VALUE = '__new__';
+
+// 用已有值填充下拉：placeholder + 选项 + 末尾「新建」入口；保留当前选中值
+function fillValueSelect(select, values, { placeholder = '', newText = '+ 新增…', label = v => v, sort = null } = {}) {
+    if (!select || select.tagName !== 'SELECT') return;
+    const current = select.value;
+    select.innerHTML = '';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = placeholder;
+    select.appendChild(empty);
+    const list = sort ? sort(values) : [...values].sort((a, b) => String(a).localeCompare(String(b)));
+    list.forEach(v => {
+        const option = document.createElement('option');
+        option.value = v;
+        option.textContent = label(v);
+        select.appendChild(option);
+    });
+    const newOption = document.createElement('option');
+    newOption.value = NEW_OPTION_VALUE;
+    newOption.textContent = newText;
+    select.appendChild(newOption);
+    select.dataset.labelKind = label === categoryLabel ? 'category' : '';
+    if (current && current !== NEW_OPTION_VALUE) setSelectValue(select, current);
+    bindNewOption(select, newText.replace(/^\+\s*/, '').replace(/…$/, ''));
+}
+
+// 选中某值；选项里没有就补一个（编辑回填时避免旧值丢失）
+function setSelectValue(select, value) {
+    if (!select) return;
+    value = value || '';
+    if (select.tagName !== 'SELECT' || !value) {
+        select.value = value;
+        return;
+    }
+    let opt = Array.from(select.options).find(o => o.value === value);
+    if (!opt) {
+        opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = select.dataset.labelKind === 'category' ? categoryLabel(value) : value;
+        const newOpt = select.querySelector(`option[value="${NEW_OPTION_VALUE}"]`);
+        select.insertBefore(opt, newOpt);
+    }
+    select.value = value;
+}
+
+// 选到「新建」时弹框输入，加入选项并选中
+function bindNewOption(select, promptName) {
+    if (select.dataset.newHandlerBound) return;
+    select.dataset.newHandlerBound = '1';
+    // 记住选「新建」前的值，取消输入时恢复
+    let previous = select.value;
+    select.addEventListener('focus', function() { previous = this.value; });
+    select.addEventListener('change', function() {
+        if (this.value !== NEW_OPTION_VALUE) {
+            previous = this.value;
+            return;
+        }
+        const name = (prompt(`输入${promptName}名称`) || '').trim();
+        if (!name) {
+            this.value = previous === NEW_OPTION_VALUE ? '' : previous;
+            return;
+        }
+        setSelectValue(this, name);
+        previous = name;
+    });
+}
+
+// 添加 / 编辑弹窗里由账号数据派生的下拉（所有者、国家、地区）
+const ACCOUNT_VALUE_SELECTS = [
+    { field: 'owner', ids: ['owner', 'editOwner'], placeholder: '请选择所有者', newText: '+ 新所有者…' },
+    { field: 'country', ids: ['country', 'editCountry'], placeholder: '请选择国家', newText: '+ 新国家…' },
+    { field: 'region', ids: ['region', 'editRegion'], placeholder: '请选择地区', newText: '+ 新地区…' },
+];
+
+function refreshAccountFormSelects(accountList) {
+    if (!Array.isArray(accountList)) return;
+    ACCOUNT_VALUE_SELECTS.forEach(cfg => {
+        const values = [...new Set(accountList.map(a => (a[cfg.field] || '').trim()).filter(Boolean))];
+        cfg.ids.forEach(id => fillValueSelect(document.getElementById(id), values, cfg));
     });
 }
 
@@ -445,42 +532,13 @@ async function loadCategories() {
         }
         
         if (editCategory) {
-            editCategory.innerHTML = '<option value="">请选择类别</option>';
-            categoryOptions(categories).forEach(option => editCategory.appendChild(option));
+            fillValueSelect(editCategory, categories,
+                { placeholder: '请选择类别', newText: '+ 新分类…', label: categoryLabel, sort: sortCategories });
         }
 
         // 添加账号弹窗的分类下拉：已有分类 + 末尾「新分类」入口
-        const addCategory = document.getElementById('category');
-        if (addCategory && addCategory.tagName === 'SELECT') {
-            const current = addCategory.value;
-            addCategory.innerHTML = '<option value="">请选择分类</option>';
-            categoryOptions(categories).forEach(option => addCategory.appendChild(option));
-            const newOption = document.createElement('option');
-            newOption.value = '__new__';
-            newOption.textContent = '+ 新分类…';
-            addCategory.appendChild(newOption);
-            if (current && categories.includes(current)) addCategory.value = current;
-
-            if (!addCategory.dataset.newHandlerBound) {
-                addCategory.dataset.newHandlerBound = '1';
-                addCategory.addEventListener('change', function() {
-                    if (this.value !== '__new__') return;
-                    const name = (prompt('输入新分类名称') || '').trim();
-                    if (!name) {
-                        this.value = '';
-                        return;
-                    }
-                    let opt = Array.from(this.options).find(o => o.value === name);
-                    if (!opt) {
-                        opt = document.createElement('option');
-                        opt.value = name;
-                        opt.textContent = categoryLabel(name);
-                        this.insertBefore(opt, this.querySelector('option[value="__new__"]'));
-                    }
-                    this.value = name;
-                });
-            }
-        }
+        fillValueSelect(document.getElementById('category'), categories,
+            { placeholder: '请选择分类', newText: '+ 新分类…', label: categoryLabel, sort: sortCategories });
 
         return categories;
     } catch (error) {
@@ -493,6 +551,7 @@ async function loadCategories() {
 // 更新筛选器
 async function updateFilters(accounts) {
     initializeFilters(accounts);
+    refreshAccountFormSelects(accounts);
 }
 
 // 加载热门网站
@@ -1293,11 +1352,11 @@ async function editAccount(id) {
         document.getElementById('editUsername').value = account.username || '';
         const passwordValue = account.encrypted_password || account.password || '';
         document.getElementById('editPassword').value = passwordValue; // 自动填充密码
-        document.getElementById('editCountry').value = account.country || '';
-        document.getElementById('editRegion').value = account.region || '';
+        setSelectValue(document.getElementById('editCountry'), account.country);
+        setSelectValue(document.getElementById('editRegion'), account.region);
         document.getElementById('editDescription').value = account.description || '';
         document.getElementById('editNotes').value = account.notes || '';
-        document.getElementById('editOwner').value = account.owner || '';
+        setSelectValue(document.getElementById('editOwner'), account.owner);
         
         // 设置供应商
         const editSupplier = document.getElementById('editSupplier');
@@ -1311,25 +1370,9 @@ async function editAccount(id) {
             editAccessLevel.value = account.access_level || 'private';
         }
         
-        // 设置类别选择器
-        const editCategory = document.getElementById('editCategory');
-        if (editCategory) {
-            // 尝试找到匹配的选项
-            const options = Array.from(editCategory.options);
-            const matchingOption = options.find(option => option.value === account.category);
-            
-            if (matchingOption) {
-                matchingOption.selected = true;
-            } else if (account.category) {
-                // 如果没有匹配的选项但账号有类别，添加一个新选项
-                const newOption = document.createElement('option');
-                newOption.value = account.category;
-                newOption.textContent = categoryLabel(account.category);
-                newOption.selected = true;
-                editCategory.appendChild(newOption);
-            }
-        }
-        
+        // 设置类别选择器（选项里没有就补上）
+        setSelectValue(document.getElementById('editCategory'), account.category);
+
         // 显示编辑模态框
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
         editModal.show();
