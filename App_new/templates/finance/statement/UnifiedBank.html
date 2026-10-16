@@ -740,12 +740,26 @@ document.addEventListener('DOMContentLoaded', function() {
             
             return finalUrl;
         };
+        // 把当前筛选条件同步到地址栏（去掉空值和 partial），刷新/分享链接都能还原筛选
+        const syncAddressBar = (fetchUrl) => {
+            const src = new URL(fetchUrl, window.location.origin).searchParams;
+            const params = new URLSearchParams();
+            src.forEach((v, k) => {
+                if (k === 'partial' || v === '') return;
+                if (k === 'sort' && v === 'date_desc') return;
+                if (k === 'page' && v === '1') return;
+                params.set(k, v);
+            });
+            const qs = params.toString();
+            history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+        };
         const loadTable = async () => {
             try {
                 const url = buildUrl();
                 const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                 const html = await res.text();
                 container.innerHTML = html;
+                syncAddressBar(url);
             } catch (err) {
                 console.warn('筛选加载失败');
             }
@@ -786,6 +800,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const res = await fetch(newUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                             const html = await res.text();
                             container.innerHTML = html;
+                            syncAddressBar(newUrl);
                         } catch (err) {
                             console.warn('分页加载失败');
                         }
