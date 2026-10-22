@@ -155,8 +155,41 @@
                 <button type="button" onclick="exportSelectedProducts()" class="visa-btn visa-btn-success">
                     <i class="fas fa-file-excel"></i> 导出
                 </button>
+                <button type="button" onclick="showPackageModal()" class="visa-btn visa-btn-primary">
+                    <i class="fas fa-file-archive"></i> 导入产品包
+                </button>
             </div>
         </form>
+
+        <!-- 导入产品包弹窗 -->
+        <div id="packageModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9998; justify-content:center; align-items:center;">
+            <div style="background:white; border-radius:12px; padding:2rem; max-width:520px; width:90%; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                    <h3 style="margin:0; font-size:1.15rem;"><i class="fas fa-file-archive" style="color:#3b82f6;"></i> 导入产品包</h3>
+                    <button onclick="closePackageModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#9ca3af; line-height:1;">&times;</button>
+                </div>
+                <div style="background:#f0f9ff; border-left:4px solid #0ea5e9; padding:0.75rem 1rem; border-radius:4px; margin-bottom:1rem; font-size:0.85rem; color:#0c4a6e;">
+                    上传产品编辑页「打包下载」得到的 zip，文字、行程、价格方案和图片一起还原：<br>
+                    • 已有<strong>编号和名称都相同</strong>的产品 → 覆盖更新（保留上架状态）<br>
+                    • 否则新建为<strong>草稿</strong>，确认后再上架
+                </div>
+                <form action="{{ url_for('tour_products.import_product_package') }}" method="POST" enctype="multipart/form-data" id="packageUploadForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="border:2px dashed #d1d5db; border-radius:8px; padding:1.5rem; text-align:center; margin-bottom:1rem; cursor:pointer;" onclick="document.getElementById('packageUpload').click()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2rem; color:#9ca3af; margin-bottom:0.5rem; display:block;"></i>
+                        <p style="margin:0; color:#6b7280;" id="packageLabel">点击选择产品包（.zip）</p>
+                        <p style="margin:0.25rem 0 0; font-size:0.8rem; color:#9ca3af;">单个包不超过 16MB</p>
+                        <input type="file" id="packageUpload" name="file" accept=".zip" style="display:none;" onchange="onPackageSelected(this)">
+                    </div>
+                </form>
+                <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+                    <button type="button" onclick="closePackageModal()" class="visa-btn visa-btn-secondary" style="font-size:0.85rem;">取消</button>
+                    <button type="button" id="packageSubmitBtn" onclick="submitPackage()" class="visa-btn visa-btn-primary" style="font-size:0.85rem;" disabled>
+                        <i class="fas fa-upload"></i> 开始导入
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- 导入弹窗 -->
         <div id="importModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9998; justify-content:center; align-items:center;">
@@ -675,6 +708,46 @@ function exportSelectedProducts() {
     }
     const ids = Array.from(selectedCheckboxes).map(cb => cb.dataset.productId).join(',');
     window.location.href = `{{ url_for('tour_products.export_excel') }}?ids=${ids}`;
+}
+
+// 导入产品包弹窗
+function showPackageModal() {
+    document.getElementById('packageUpload').value = '';
+    document.getElementById('packageLabel').textContent = '点击选择产品包（.zip）';
+    document.getElementById('packageSubmitBtn').disabled = true;
+    document.getElementById('packageModal').style.display = 'flex';
+}
+
+function closePackageModal() {
+    document.getElementById('packageModal').style.display = 'none';
+}
+
+function onPackageSelected(input) {
+    const file = input.files[0];
+    const label = document.getElementById('packageLabel');
+    const btn = document.getElementById('packageSubmitBtn');
+    if (!file || !file.name.toLowerCase().endsWith('.zip')) {
+        if (file) alert('请选择 .zip 产品包');
+        input.value = '';
+        label.textContent = '点击选择产品包（.zip）';
+        btn.disabled = true;
+        return;
+    }
+    if (file.size > 16 * 1024 * 1024) {
+        alert('产品包超过 16MB，服务器会拒收。请先在产品里删掉部分图片或压缩供应商文件后重新打包');
+        input.value = '';
+        btn.disabled = true;
+        return;
+    }
+    label.innerHTML = `<i class="fas fa-file-archive" style="color:#3b82f6;"></i> ${file.name}`;
+    btn.disabled = false;
+}
+
+function submitPackage() {
+    const btn = document.getElementById('packageSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导入中...';
+    document.getElementById('packageUploadForm').submit();
 }
 
 // 导入弹窗

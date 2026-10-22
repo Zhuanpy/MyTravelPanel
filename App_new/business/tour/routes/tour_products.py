@@ -4,10 +4,11 @@
 包含产品的CRUD操作
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import os
+import re
 import json
 from datetime import datetime, timedelta
 import pandas as pd
@@ -212,10 +213,11 @@ def save_document_file(file, upload_folder='uploads/tour_documents'):
     """保存上传的文档文件，返回相对路径"""
     if file and allowed_doc_file(file.filename):
         original_filename = file.filename
-        filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        name, ext = os.path.splitext(filename)
-        filename = f"{name}_{timestamp}{ext}"
+        # 扩展名从原文件名取：secure_filename 会把纯中文名连同点号吃掉（"壮见崇左.docx" → "docx"），扩展名随之丢失
+        name, ext = os.path.splitext(original_filename)
+        name = secure_filename(name) or 'document'
+        filename = f"{name}_{timestamp}{ext.lower()}"
 
         upload_path = os.path.join('App_new/static', upload_folder)
         os.makedirs(upload_path, exist_ok=True)
@@ -2791,3 +2793,256 @@ def download_template():
     except Exception as e:
         flash(f'下载模板失败：{str(e)}', 'danger')
         return redirect(url_for('tour_products.product_list'))
+
+
+# ============================================================================
+# 产品包：一键打包下载 / 上传导入
+#
+# 用途：本地整理好的产品（文字 + 行程 + 价格方案 + 全部图片 + 供应商文件）
+# 打成一个 zip，到服务器的产品列表页上传即可还原，不用逐张传图。
+# zip 结构：product.json + files/<文件>；product.json 里的图片字段存的是 files/ 下的文件名。
+# ============================================================================
+
+PRODUCT_PACKAGE_FORMAT = 'joyesc-tour-product'
+PRODUCT_PACKAGE_VERSION = 1
+
+# 产品主体中随包导出的字段（图片、供应商、城市单独处理）
+_PACKAGE_PRODUCT_FIELDS = (
+    'product_code', 'product_name', 'departure_city', 'destination_city', 'product_type',
+    'duration_days', 'min_pax', 'max_pax', 'suitable_season', 'difficulty_level',
+    'base_price', 'child_price', 'infant_price', 'single_room_supplement', 'currency',
+    'product_description', 'included_services', 'excluded_services', 'important_notes',
+    'is_featured', 'valid_from', 'valid_until',
+)
+_PACKAGE_VARIANT_FIELDS = ('variant_name', 'min_pax', 'max_pax', 'currency', 'is_primary', 'is_active') + _PV_FLOAT_FIELDS
+
+
+def _json_value(value):
+    """日期转字符串，其余原样"""
+    if hasattr(value, 'strftime'):
+        return value.strftime('%Y-%m-%d')
+    return value
+
+
+@tour_products_bp.route('/<int:product_id>/package')
+@login_required
+@staff_only
+def export_product_package(product_id):
+    """把产品打包成 zip 下载（product.json + files/）"""
+    import zipfile
+
+    product = Product.query.get_or_404(product_id)
+    static_root = current_app.static_folder
+    zip_buffer = BytesIO()
+    packed = {}       # 静态相对路径 -> zip 内文件名（同一文件只打一次）
+    missing = []
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+
+        def pack(rel_path):
+            """把一个静态文件放进 zip，返回包内文件名；文件不存在返回 None"""
+            if not rel_path:
+                return None
+            if rel_path in packed:
+                return packed[rel_path]
+            full = os.path.join(static_root, rel_path)
+            if not os.path.isfile(full):
+                missing.append(rel_path)
+                return None
+            name = f'{len(packed) + 1:02d}_{os.path.basename(rel_path)}'
+            zf.write(full, 'files/' + name)
+            packed[rel_path] = name
+            return name
+
+        data = {f: _json_value(getattr(product, f)) for f in _PACKAGE_PRODUCT_FIELDS}
+        try:
+            data['tags'] = json.loads(product.tags) if product.tags else []
+        except (ValueError, TypeError):
+            data['tags'] = []
+        data['city_name'] = product.city_name
+        data['country_name'] = product.city.country_name if product.city else None
+        data['supplier_name'] = product.supplier.company_name if product.supplier else None
+
+        data['cover_image'] = pack(product.cover_image)
+        try:
+            gallery = json.loads(product.gallery_images) if product.gallery_images else []
+        except (ValueError, TypeError):
+            gallery = []
+        data['gallery_images'] = [n for n in (pack(p) for p in gallery) if n]
+        data['supplier_document'] = pack(product.supplier_document)
+        data['supplier_document_name'] = product.supplier_document_name
+
+        data['days'] = [{
+            'day_number': it.day_number,
+            'day_title': it.day_title,
+            'content': it.content,
+            'images': [n for n in (pack(it.image1), pack(it.image2), pack(it.image3)) if n],
+        } for it in ProductItinerary.query.filter_by(product_id=product.id).order_by(ProductItinerary.day_number)]
+
+        data['price_variants'] = [
+            dict({f: getattr(v, f) for f in _PACKAGE_VARIANT_FIELDS},
+                 start_date=_json_value(v.start_date), end_date=_json_value(v.end_date))
+            for v in ProductPriceVariant.query.filter_by(product_id=product.id).order_by(ProductPriceVariant.id)
+        ]
+
+        manifest = {
+            'format': PRODUCT_PACKAGE_FORMAT,
+            'version': PRODUCT_PACKAGE_VERSION,
+            'exported_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'source_product_id': product.id,
+            'missing_files': missing,
+            'product': data,
+        }
+        zf.writestr('product.json', json.dumps(manifest, ensure_ascii=False, indent=1))
+
+    zip_buffer.seek(0)
+    safe_name = ''.join(ch for ch in product.product_name if ch not in '\\/:*?"<>|').strip()[:60]
+    return send_file(zip_buffer, mimetype='application/zip', as_attachment=True,
+                     download_name=f'{product.product_code or product.id}_{safe_name}.zip')
+
+
+@tour_products_bp.route('/import-package', methods=['POST'])
+@csrf.exempt
+@login_required
+@staff_only
+def import_product_package():
+    """上传产品包还原产品
+
+    匹配规则：本库已有「产品编号 + 产品名称」都相同的产品 → 覆盖更新（保留其上架状态）；
+    否则新建为 draft（编号已被其它产品占用时自动生成新编号）。
+    """
+    import zipfile
+    import uuid
+
+    wants_json = 'application/json' in (request.headers.get('Accept') or '')
+
+    def fail(msg, status=400):
+        if wants_json:
+            return jsonify({'success': False, 'message': msg}), status
+        flash(msg, 'danger')
+        return redirect(url_for('tour_products.product_list'))
+
+    upload = request.files.get('file')
+    if not upload or not upload.filename:
+        return fail('请选择产品包（.zip）')
+    try:
+        # 先读进内存：Python 3.10 的 SpooledTemporaryFile 没有 seekable，zipfile 直接读会报错（包上限 16MB）
+        zf = zipfile.ZipFile(BytesIO(upload.read()))
+        manifest = json.loads(zf.read('product.json').decode('utf-8'))
+    except (zipfile.BadZipFile, KeyError, ValueError):
+        return fail('不是有效的产品包：缺少 product.json 或文件已损坏')
+    if manifest.get('format') != PRODUCT_PACKAGE_FORMAT:
+        return fail('不是本系统导出的产品包')
+    data = manifest.get('product') or {}
+    if not (data.get('product_name') or '').strip():
+        return fail('产品包缺少产品名称')
+
+    static_root = current_app.static_folder
+    zip_names = set(zf.namelist())
+    written = []      # 本次写入的文件，失败时删除
+    restored = {}     # 包内文件名 -> 新的静态相对路径
+
+    def restore(name, folder, allowed):
+        """把包内 files/<name> 写到静态目录，返回相对路径；不存在或类型不允许返回 None"""
+        if not name:
+            return None
+        if name in restored:
+            return restored[name]
+        member = 'files/' + name
+        stem, ext = os.path.splitext(os.path.basename(name))
+        if member not in zip_names or ext.lower().lstrip('.') not in allowed:
+            return None
+        # 去掉包内序号前缀和上次上传留下的 _时间戳_随机码 后缀，避免来回导入文件名越滚越长
+        stem = re.sub(r'^\d{2}_', '', stem)
+        stem = re.sub(r'(_\d{8}_\d{6}(_[0-9a-f]{8})?)+$', '', stem)
+        stem = secure_filename(stem) or 'file'
+        filename = f"{stem[:60]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}{ext.lower()}"
+        os.makedirs(os.path.join(static_root, folder), exist_ok=True)
+        full = os.path.join(static_root, folder, filename)
+        with open(full, 'wb') as f:
+            f.write(zf.read(member))
+        written.append(full)
+        restored[name] = f'{folder}/{filename}'
+        return restored[name]
+
+    def image(name):
+        return restore(name, 'uploads/tour_products', ALLOWED_EXTENSIONS)
+
+    try:
+        code = (data.get('product_code') or '').strip()
+        name = data['product_name'].strip()
+        product = Product.query.filter_by(product_code=code, product_name=name).first() if code else None
+        username = getattr(current_user, 'username', 'import')
+        if product:
+            action = 'updated'
+        else:
+            from App_new.shared.models.business_types import generate_product_code
+            if not code or Product.query.filter_by(product_code=code).first():
+                code = generate_product_code('tour')
+            product = Product(product_name=name, product_code=code, product_status='draft',
+                              currency='SGD', created_by=username)
+            db.session.add(product)
+            action = 'created'
+
+        fields = {k: data.get(k) for k in _PACKAGE_PRODUCT_FIELDS if k in data and k != 'product_code'}
+        fields['tags'] = data.get('tags') or []
+        if data.get('city_name'):
+            fields['city_name'] = data['city_name']
+            fields['country_name'] = data.get('country_name')
+        _apply_product_fields(product, fields)
+
+        warnings = []
+        supplier_name = (data.get('supplier_name') or '').strip()
+        if supplier_name:
+            supplier = CustomerCompany.query.filter_by(company_name=supplier_name).first()
+            if supplier:
+                product.supplier_id = supplier.id
+            else:
+                warnings.append(f'供应商「{supplier_name}」在本系统不存在，未关联')
+
+        product.cover_image = image(data.get('cover_image'))
+        product.gallery_images = json.dumps([p for p in (image(n) for n in data.get('gallery_images') or []) if p])
+        product.supplier_document = restore(data.get('supplier_document'), 'uploads/tour_documents', ALLOWED_DOC_EXTENSIONS)
+        product.supplier_document_name = data.get('supplier_document_name') if product.supplier_document else None
+        db.session.flush()
+
+        # 行程、价格方案整份替换
+        ProductItinerary.query.filter_by(product_id=product.id).delete()
+        for d in data.get('days') or []:
+            imgs = [p for p in (image(n) for n in d.get('images') or []) if p] + [None] * 3
+            db.session.add(ProductItinerary(
+                product_id=product.id, day_number=int(d['day_number']),
+                day_title=d.get('day_title'), content=d.get('content'),
+                image1=imgs[0], image2=imgs[1], image3=imgs[2]))
+        ProductPriceVariant.query.filter_by(product_id=product.id).delete()
+        for v in data.get('price_variants') or []:
+            db.session.add(_build_price_variant(product.id, v, product.currency))
+
+        if manifest.get('missing_files'):
+            warnings.append(f"导出时有 {len(manifest['missing_files'])} 个文件在源服务器上已丢失，未包含在包内")
+
+        product.updated_at = datetime.utcnow()
+        from App_new.business.products.sync_helper import sync_tour_product_to_unified
+        sync_tour_product_to_unified(product, created_by=username)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        for full in written:
+            try:
+                os.remove(full)
+            except OSError:
+                pass
+        current_app.logger.error(f'import_product_package failed: {e}')
+        return fail(f'导入失败：{e}', 500)
+
+    msg = (f"产品包已导入（{'覆盖更新' if action == 'updated' else '新建草稿'}）："
+           f"{product.product_code} {product.product_name}，图片/文件 {len(restored)} 个")
+    if wants_json:
+        return jsonify({'success': True, 'action': action, 'product_id': product.id,
+                        'product_code': product.product_code, 'product_status': product.product_status,
+                        'files': len(restored), 'warnings': warnings,
+                        'edit_url': url_for('tour_products.edit_product', product_id=product.id)})
+    flash(msg, 'success')
+    for w in warnings:
+        flash(w, 'warning')
+    return redirect(url_for('tour_products.edit_product', product_id=product.id))
