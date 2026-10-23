@@ -1048,12 +1048,9 @@ function renderAccountRow(account) {
     const actionsCell = document.createElement('td');
     actionsCell.className = 'actions-cell';
     
-    // 根据权限显示按钮
+    // 根据权限显示按钮（「查看详情」已去掉：列表里信息已经齐全）
     let actionButtons = `
-        <div class="btn-group">
-            <button class="btn btn-sm btn-info" onclick="viewAccountDetail(${account.id})" title="查看详情">
-                <i class="fas fa-eye"></i>
-            </button>`;
+        <div class="btn-group">`;
     
     // 只有有编辑权限时才显示编辑按钮（明确检查为true）
     if (account.can_edit === true) {
