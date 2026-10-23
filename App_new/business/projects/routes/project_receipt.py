@@ -417,6 +417,51 @@ def ref_receipts(ref_id):
                           total_received=total_received,
                           unpaid_amount=unpaid_amount)
 
+def build_receipt_modal_context(header):
+    """新增项目收款弹窗需要的上下文（收款管理页和项目详情页共用）"""
+    # 未收款金额：只统计已开票的REF（未开票不形成应收款）
+    unpaid_amount = header.total_unpaid_amount
+
+    # 准备新增收款弹窗的表单数据
+    form = ProjectLevelReceiptForm()
+    receipt_number = ProjectReceipt.generate_receipt_number()
+
+    # 检查是否有发票
+    from App_new.business.projects.models.invoice import ProjectInvoice
+    invoice_count = ProjectInvoice.query.filter_by(header_id=header.id).filter(
+        ProjectInvoice.status != 'cancelled'
+    ).count()
+
+    # 获取未付款发票列表
+    unpaid_invoices = []
+    if invoice_count > 0:
+        invoices = ProjectInvoice.query.filter_by(header_id=header.id).filter(
+            ProjectInvoice.status.in_(['confirmed', 'partial'])
+        ).order_by(ProjectInvoice.invoice_date).all()
+        for invoice in invoices:
+            inv_unpaid = invoice.unpaid_amount
+            if inv_unpaid > 0:
+                unpaid_invoices.append((
+                    invoice.id,
+                    f"{invoice.invoice_number} - {invoice.customer_name or '客户'} (未收款: {invoice.currency or 'SGD'} {inv_unpaid:.2f})"
+                ))
+    form.selected_invoices.choices = unpaid_invoices if unpaid_invoices else [(0, "暂无未付款的发票")]
+
+    # 是否可以创建收款
+    # 原来要求「有发票且还有未收款」才放行，但预收款是「先收钱、后开票」，
+    # 收钱那一刻本来就没有发票 —— 一律拦住的话这个功能根本用不了。
+    # 所以：有未收发票 -> 可以做发票回款；任何时候 -> 都可以做预收款。
+    can_create_receipt = invoice_count > 0 and unpaid_amount > 0
+    can_create_advance = True
+
+    return dict(form=form,
+                receipt_number=receipt_number,
+                unpaid_amount=unpaid_amount,
+                invoice_count=invoice_count,
+                can_create_receipt=can_create_receipt,
+                can_create_advance=can_create_advance)
+
+
 @project_receipt.route('/header/<int:header_id>/receipts')
 @login_required
 @staff_only
@@ -489,40 +534,8 @@ def header_receipts(header_id):
     for ref in header.refs:
         if ref.selling_price:
             total_received += ProjectReceipt.get_ref_total_received(ref.id, header_id)
-    # 未收款金额：只统计已开票的REF（未开票不形成应收款）
-    unpaid_amount = header.total_unpaid_amount
-
-    # 准备新增收款弹窗的表单数据
-    form = ProjectLevelReceiptForm()
-    receipt_number = ProjectReceipt.generate_receipt_number()
-
-    # 检查是否有发票
-    from App_new.business.projects.models.invoice import ProjectInvoice
-    invoice_count = ProjectInvoice.query.filter_by(header_id=header_id).filter(
-        ProjectInvoice.status != 'cancelled'
-    ).count()
-
-    # 获取未付款发票列表
-    unpaid_invoices = []
-    if invoice_count > 0:
-        invoices = ProjectInvoice.query.filter_by(header_id=header_id).filter(
-            ProjectInvoice.status.in_(['confirmed', 'partial'])
-        ).order_by(ProjectInvoice.invoice_date).all()
-        for invoice in invoices:
-            inv_unpaid = invoice.unpaid_amount
-            if inv_unpaid > 0:
-                unpaid_invoices.append((
-                    invoice.id,
-                    f"{invoice.invoice_number} - {invoice.customer_name or '客户'} (未收款: {invoice.currency or 'SGD'} {inv_unpaid:.2f})"
-                ))
-    form.selected_invoices.choices = unpaid_invoices if unpaid_invoices else [(0, "暂无未付款的发票")]
-
-    # 是否可以创建收款
-    # 原来要求「有发票且还有未收款」才放行，但预收款是「先收钱、后开票」，
-    # 收钱那一刻本来就没有发票 —— 一律拦住的话这个功能根本用不了。
-    # 所以：有未收发票 -> 可以做发票回款；任何时候 -> 都可以做预收款。
-    can_create_receipt = invoice_count > 0 and unpaid_amount > 0
-    can_create_advance = True
+    # 新增收款弹窗的表单数据（项目详情页也用同一套）
+    modal_ctx = build_receipt_modal_context(header)
 
     # 该项目当前的客户预收余额（收进来还没被发票抵扣掉的部分）
     from App_new.business.projects.services.advance_offset import (
@@ -535,12 +548,7 @@ def header_receipts(header_id):
                          all_receipts=all_receipts,
                          payment_history=payment_history,
                          total_received=total_received,
-                         unpaid_amount=unpaid_amount,
-                         form=form,
-                         receipt_number=receipt_number,
-                         invoice_count=invoice_count,
-                         can_create_receipt=can_create_receipt,
-                         can_create_advance=can_create_advance,
+                         **modal_ctx,
                          advance_balance=advance_balance,
                          advance_receipts=advance_receipts)
 
@@ -842,6 +850,9 @@ def create_header_receipt(header_id):
             db.session.commit()
 
             flash(f'收款记录 {receipt_number} 创建成功：{form.currency.data} {amount:.2f}', 'success')
+            # 从项目详情页弹窗提交的，存完回详情页（只认固定值，不接受任意 URL）
+            if request.form.get('return_to') == 'detail':
+                return redirect(url_for('business_projects.detail.project_detail', project_id=header.id))
             return redirect(url_for('business_projects.project_receipt.header_receipts', header_id=header.id))
 
         except Exception as e:

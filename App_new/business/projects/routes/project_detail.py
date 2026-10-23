@@ -158,7 +158,16 @@ def project_detail(project_id):
         advance_balance = get_advance_balance(header.id)
         advance_receipts = available_advances(header.id)
 
+        # REF明细列表上方的「收款」按钮直接在本页弹出新增项目收款，不用先进收款管理页。
+        # 已结算项目不能再动钱，不准备弹窗。
+        receipt_modal_ctx = {}
+        if not header.is_settled:
+            from App_new.business.projects.routes.project_receipt import build_receipt_modal_context
+            receipt_modal_ctx = build_receipt_modal_context(header)
+
         return render_template('business/projects/project_detail.html',
+                               **receipt_modal_ctx,
+                               receipt_return_to='detail',
                                advance_balance=advance_balance,
                                advance_receipts=advance_receipts,
                                header=header,

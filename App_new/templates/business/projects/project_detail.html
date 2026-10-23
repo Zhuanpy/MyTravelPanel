@@ -275,6 +275,11 @@
                 {# 已结算的项目不能再动钱：收款和退款都会改变余额，
                    而余额是结算条件之一，改了会让已发出的分成对不上 #}
                 {% if not header.is_settled %}
+                {% if can_create_receipt or can_create_advance %}
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createReceiptModal" title="直接新增项目收款，不用先进收款管理">
+                    <i class="fas fa-hand-holding-usd"></i> 收款
+                </button>
+                {% endif %}
                 <a href="{{ url_for('business_projects.project_receipt.header_receipts', header_id=header.id) }}" class="btn btn-info btn-sm">
                     <i class="fas fa-money-bill-wave"></i> 收款管理
                 </a>
@@ -561,6 +566,11 @@
         </div>
     </div>
 </div>
+
+{# REF明细列表上方「收款」按钮弹出的新增项目收款弹窗 #}
+{% if not header.is_settled %}
+{% include 'business/projects/project_receipt/_create_receipt_modal.html' %}
+{% endif %}
 
 <!-- 键盘导航提示 -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1000;">
