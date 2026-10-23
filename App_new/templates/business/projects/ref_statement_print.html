@@ -56,6 +56,42 @@
             background: #6b7280;
             color: white;
         }
+        /* 选择要打印的REF */
+        .ref-picker {
+            max-width: 800px;
+            margin: 12px auto 0;
+            text-align: left;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+        }
+        .ref-picker .picker-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+            color: #374151;
+        }
+        .ref-picker .picker-head a { color: #2563eb; cursor: pointer; text-decoration: none; }
+        .ref-picker .picker-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 4px 12px;
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+        .ref-picker label {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ref-picker label span.desc { color: #6b7280; overflow: hidden; text-overflow: ellipsis; }
 
         .print-invoice {
             background: white;
@@ -118,6 +154,29 @@
     <div class="no-print">
         <button class="btn-print" onclick="window.print()"><b>🖨 打印 / Print</b></button>
         <button class="btn-back" onclick="window.close()"><b>✕ 关闭</b></button>
+
+        {% if all_refs|length > 1 %}
+        <!-- 选择要打印哪些REF：勾选即时刷新下方价格单（总额由后端重算） -->
+        <div class="ref-picker">
+            <div class="picker-head">
+                <b>选择打印的REF</b>
+                <span id="refPickCount">已选 {{ selected_ids|length }} / {{ all_refs|length }}</span>
+                <a onclick="pickAllRefs(true)">全选</a>
+                <a onclick="pickAllRefs(false)">全不选</a>
+                <span id="refPickStatus" style="margin-left:auto;color:#6b7280;"></span>
+            </div>
+            <div class="picker-list">
+                {% for r in all_refs %}
+                <label title="{{ r.ref_number }} {{ r.description or '' }}">
+                    <input type="checkbox" class="ref-pick" value="{{ r.id }}" {% if r.id in selected_ids %}checked{% endif %} onchange="applyRefPick()">
+                    <b>{{ r.ref_number }}</b>
+                    <span class="desc">{{ r.description or '' }}</span>
+                    <span style="margin-left:auto;">{{ r.currency or '' }} {{ "%.2f"|format(r.selling_price or 0) }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     {% set company = get_company_info() %}
@@ -374,6 +433,58 @@
     </div>
 
     <script>
+        // 选择打印的REF
+        function pickedRefIds() {
+            return Array.from(document.querySelectorAll('.ref-pick:checked')).map(function (el) { return el.value; });
+        }
+        function updateRefPickCount() {
+            var el = document.getElementById('refPickCount');
+            if (el) el.textContent = '已选 ' + pickedRefIds().length + ' / ' + document.querySelectorAll('.ref-pick').length;
+        }
+        function pickAllRefs(on) {
+            document.querySelectorAll('.ref-pick').forEach(function (el) { el.checked = on; });
+            applyRefPick();
+        }
+        // 勾选变化即时刷新：后台取一份按新选择生成的价格单，只替换下方单据部分（总额、大写金额都由后端重算）
+        var refPickSeq = 0;
+        function applyRefPick() {
+            updateRefPickCount();
+            var ids = pickedRefIds();
+            var status = document.getElementById('refPickStatus');
+            if (!ids.length) {
+                // 一个都不选后端会退回打印全部，容易误会；提示一下，单据保持不动
+                status.textContent = '请至少选择一个REF';
+                status.style.color = '#dc2626';
+                return;
+            }
+            var url = new URL(window.location.href);
+            url.searchParams.delete('print');
+            if (ids.length === document.querySelectorAll('.ref-pick').length) {
+                url.searchParams.delete('refs');
+            } else {
+                url.searchParams.set('refs', ids.join(','));
+            }
+            history.replaceState(null, '', url.toString());
+            status.textContent = '更新中…';
+            status.style.color = '#6b7280';
+            var seq = ++refPickSeq;
+            fetch(url.toString(), { credentials: 'same-origin' })
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                    if (seq !== refPickSeq) return;  // 连点时只用最后一次的结果
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var fresh = doc.getElementById('printStatement');
+                    if (!fresh) throw new Error('no statement');
+                    document.getElementById('printStatement').innerHTML = fresh.innerHTML;
+                    status.textContent = '';
+                })
+                .catch(function () {
+                    if (seq !== refPickSeq) return;
+                    status.textContent = '更新失败，请刷新页面';
+                    status.style.color = '#dc2626';
+                });
+        }
+
         // 自动打印（如果URL带?print=1参数）
         var urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('print') === '1') {

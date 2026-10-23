@@ -496,7 +496,12 @@ def print_statement(project_id):
             return redirect(url_for('business_projects.list.list_projects'))
 
         # 加载REF数据
-        refs = ProjectRef.query.filter_by(header_id=project_id).all()
+        all_refs = ProjectRef.query.filter_by(header_id=project_id).all()
+
+        # ?refs=1,2,3 只打印选中的REF；不带参数（或一个都没匹配上）就打印全部
+        selected_ids = {int(x) for x in request.args.get('refs', '').split(',') if x.strip().isdigit()}
+        refs = [r for r in all_refs if r.id in selected_ids] or all_refs
+        selected_ids = {r.id for r in refs}
 
         # 为每个REF构建extra_data（复用invoice的逻辑）
         def build_ref_extra_data(ref):
@@ -563,6 +568,8 @@ def print_statement(project_id):
         return render_template('business/projects/ref_statement_print.html',
                                header=header,
                                refs=refs,
+                               all_refs=all_refs,
+                               selected_ids=selected_ids,
                                leader_name=leader_name,
                                customer_company_display=customer_company_display,
                                customer_company_address=customer_company_address,
