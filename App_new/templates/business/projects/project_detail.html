@@ -34,6 +34,10 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
+<style>
+/* REF明细列表按钮栏的功能分组竖线 */
+.add-ref-buttons .btn-group-sep { color: #9ca3af; font-size: 1.3rem; font-weight: 300; margin: 0 2px; user-select: none; }
+</style>
 <link href="{{ url_for('static', filename='css/project_detail.css') }}" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 {% endblock %}
@@ -265,16 +269,18 @@
                 <a href="{{ url_for('business_projects.detail.export_refs', project_id=header.id) }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-file-excel"></i> 导出Excel
                 </a>
-                <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
+                <span class="btn-group-sep">|</span>
                 {% endif %}
                 {% if not header.is_settled %}
                 <button type="button" class="btn btn-primary btn-sm" onclick="openInvoiceModal()">
                     <i class="fas fa-file-invoice"></i> 生成发票
                 </button>
                 {% endif %}
+                {# 按功能分组：打印导出 | 发票 | 收款退款 | 复制 | 新增REF #}
                 {# 已结算的项目不能再动钱：收款和退款都会改变余额，
                    而余额是结算条件之一，改了会让已发出的分成对不上 #}
                 {% if not header.is_settled %}
+                <span class="btn-group-sep">|</span>
                 {% if can_create_receipt or can_create_advance %}
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createReceiptModal" title="直接新增项目收款，不用先进收款管理">
                     <i class="fas fa-hand-holding-usd"></i> 收款
@@ -288,10 +294,11 @@
                 </a>
                 {% endif %}
                 {% if not header.is_settled %}
-                <span style="color:#9ca3af;font-size:1.3rem;font-weight:300;margin:0 2px;">|</span>
+                <span class="btn-group-sep">|</span>
                 <button type="button" class="btn btn-warning btn-sm" onclick="copyRefFromOther()" title="按REF编号从其他订单复制一条REF到当前项目">
                     <i class="fas fa-copy"></i> 从其他订单复制
                 </button>
+                <span class="btn-group-sep">|</span>
                 <a href="{{ url_for('business_projects.project_ref.create_flight_ref', header_id=header.id) }}" class="btn btn-success btn-sm">
                     <i class="fas fa-plane"></i> 机票
                 </a>
