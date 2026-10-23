@@ -360,6 +360,10 @@
             padding-bottom: 4px;
         }
 
+        /* 图片少时居中；用 auto margin 而非 justify-content，超出可横滑时不会把第一张裁掉 */
+        .itinerary-images > .itinerary-img:first-child { margin-left: auto; }
+        .itinerary-images > .itinerary-img:last-child { margin-right: auto; }
+
         .itinerary-images::-webkit-scrollbar {
             display: none;
         }
