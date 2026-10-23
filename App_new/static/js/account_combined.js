@@ -277,11 +277,13 @@ function applyFilters() {
     const accountRows = document.querySelectorAll('#accountList tr');
     
     accountRows.forEach(row => {
-        const category = row.querySelector('td:nth-child(2)')?.textContent || '';
-        const country = row.querySelector('td:nth-child(6)')?.textContent || '';
-        const owner = row.querySelector('td:nth-child(3)')?.textContent || '';
-        const platform = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
-        const username = row.querySelector('td:nth-child(4)')?.textContent.toLowerCase() || '';
+        // 读 renderAccountRow 挂在行上的原始值（原来按 nth-child 取列，加列后会错位）
+        if (row.dataset.platform === undefined) return;  // 「没有找到」提示行
+        const category = row.dataset.category || '';
+        const country = row.dataset.country || '';
+        const owner = row.dataset.owner || '';
+        const platform = row.dataset.platform || '';
+        const username = row.dataset.username || '';
 
         const matchesCategory = !selectedCategory || category === selectedCategory;
         const matchesCountry = !selectedCountry || country === selectedCountry;
@@ -865,7 +867,7 @@ function renderAccounts() {
     if (paginatedAccounts.length === 0) {
         accountListElement.innerHTML = `
             <tr>
-                <td colspan="10" class="text-center">没有找到匹配的账号</td>
+                <td colspan="11" class="text-center">没有找到匹配的账号</td>
             </tr>
         `;
     } else {
@@ -887,6 +889,12 @@ function renderAccounts() {
 // 渲染账号行
 function renderAccountRow(account) {
     const row = document.createElement('tr');
+    // 筛选用的原始值挂在行上，applyFilters 按它判断，不依赖列的位置
+    row.dataset.category = account.category || '';
+    row.dataset.country = account.country || '';
+    row.dataset.owner = account.owner || '';
+    row.dataset.platform = (account.platform || '').toLowerCase();
+    row.dataset.username = (account.username || '').toLowerCase();
     
     // 平台/网址
     const platformCell = document.createElement('td');
@@ -942,15 +950,29 @@ function renderAccountRow(account) {
     supplierCell.title = supplierText; // 鼠标悬停显示完整内容
     row.appendChild(supplierCell);
     
-    // 访问权限字段已隐藏，不再显示
-    
+    // 创建人
+    const creatorCell = document.createElement('td');
+    creatorCell.className = 'creator-cell';
+    creatorCell.textContent = account.creator_name || '-';
+    row.appendChild(creatorCell);
+
+    // 访问权限：仅自己可见的标灰，公开的标绿，一眼分清谁能看到
+    const accessCell = document.createElement('td');
+    accessCell.className = 'access-level-cell';
+    const accessBadge = document.createElement('span');
+    const accessColors = { private: 'bg-secondary', level_1: 'bg-info text-dark', level_2: 'bg-primary', public: 'bg-success' };
+    accessBadge.className = 'badge ' + (accessColors[account.access_level] || 'bg-secondary');
+    accessBadge.textContent = account.access_level_display || '仅自己可见';
+    accessCell.appendChild(accessBadge);
+    row.appendChild(accessCell);
+
     // 用户名
     const usernameCell = document.createElement('td');
     usernameCell.className = 'username-cell';
     const usernameValue = account.username || '';
     usernameCell.innerHTML = `
         <div class="username-field">
-            <span class="username-text">${usernameValue}</span>
+            <span class="username-text" title="${usernameValue}">${usernameValue}</span>
             <button class="btn btn-sm btn-copy" onclick="copyUsername('${usernameValue}')" title="复制用户名">
                 <i class="fas fa-copy"></i>
             </button>
@@ -1368,6 +1390,10 @@ async function editAccount(id) {
         const editAccessLevel = document.getElementById('editAccessLevel');
         if (editAccessLevel) {
             editAccessLevel.value = account.access_level || 'private';
+            // 访问权限只有创建人能改，其他人看得到但不能改（后端同样会拦）
+            const canChange = account.can_change_access !== false;
+            editAccessLevel.disabled = !canChange;
+            editAccessLevel.title = canChange ? '' : '只有创建人可以修改访问权限';
         }
         
         // 设置类别选择器（选项里没有就补上）
@@ -1436,9 +1462,9 @@ async function submitEditForm() {
             },
             body: JSON.stringify(formData)
         });
-        if (!response.ok) throw new Error(`HTTP错误: ${response.status}`);
-        const result = await response.json();
-        if (!result.success) throw new Error(result.message || '更新账号失败');
+        // 403 时后端会说明原因（如「只有创建人可以修改访问权限」），先读消息再判断
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.message || `更新账号失败（HTTP ${response.status}）`);
         const editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
         if (editModal) editModal.hide();
         showAlert('账号更新成功', true);
@@ -1545,7 +1571,9 @@ async function deleteAccount(id) {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
+            // 403 时显示后端给的原因（只有创建人可以删除）
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || `HTTP错误: ${response.status}`);
         }
         
         const result = await response.json();

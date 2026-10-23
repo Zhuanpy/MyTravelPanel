@@ -67,7 +67,7 @@
     background: var(--visa-bg-card);
     border-radius: var(--visa-radius-md);
     box-shadow: var(--visa-shadow-md);
-    overflow: hidden;
+    overflow-x: auto;  /* 列多时横向滚动，不再把「操作」列裁掉 */
 }
 
 .account-table {
@@ -94,6 +94,34 @@
 
 .account-table tbody tr {
     transition: background-color 0.2s;
+}
+
+/* 表头和短列不换行（原来窄屏下会一字一行）；长的用户名/供应商截断，悬停看全称 */
+.account-table th,
+.account-table td.creator-cell,
+.account-table td.access-level-cell,
+.account-table td.updated-at-cell,
+.account-table td.actions-cell {
+    white-space: nowrap;
+}
+.account-table td:nth-child(2),
+.account-table td:nth-child(3),
+.account-table td:nth-child(9) {
+    white-space: nowrap;
+}
+.account-table td.supplier-cell {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.account-table td.username-cell .username-text {
+    display: inline-block;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .account-table tbody tr:hover {
@@ -409,6 +437,8 @@
                         <th>类别</th>
                         <th>账户归属</th>
                         <th style="width: 150px;">关联供应商</th>
+                        <th>创建人</th>
+                        <th>访问权限</th>
                         <th style="width: 150px;">用户名</th>
                         <th>密码</th>
                         <th>国家/地区</th>

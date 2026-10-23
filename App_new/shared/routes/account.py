@@ -67,36 +67,24 @@ def check_account_permissions(account, user):
     """
     检查用户对账号的编辑和删除权限
     返回: (can_edit, can_delete)
+
+    规则：
+    - 编辑：能看到这个账号的人（按访问权限 can_access）都能编辑
+    - 删除：只有创建人能删除；没记录创建人的老数据交给管理员处理，否则就没人删得掉
     """
-    # 管理员可以编辑和删除所有账号
-    is_admin = user.role and user.role.name in ['admin', 'super_admin']
-    if is_admin:
-        return True, True
-    
-    # 获取用户的员工等级
-    staff_level = 1  # 默认等级
-    if user.profile:
-        staff_level = user.profile.staff_level or 1
-    
-    # 检查是否是账号的创建者或所有者
-    is_owner = (account.created_by == user.id) or (account.owner == user.username)
-    
-    # 权限检查：
-    # 1. 2级员工（最高权限）可以编辑和删除所有账号
-    # 2. 1级员工只能编辑和删除自己创建的账号
-    can_edit = False
-    can_delete = False
-    
-    if staff_level == 2:
-        # 2级员工可以编辑和删除所有账号
-        can_edit = True
-        can_delete = True
-    elif is_owner:
-        # 1级员工只能编辑和删除自己的账号
-        can_edit = True
-        can_delete = True
-    
+    can_edit = account.can_access(user)
+    if account.created_by:
+        can_delete = account.created_by == user.id
+    else:
+        can_delete = bool(user.role and user.role.name in ['admin', 'super_admin'])
     return can_edit, can_delete
+
+def can_change_access_level(account, user):
+    """访问权限决定谁能看到账号，只允许创建人改（无创建人的老数据由管理员改），
+    否则有编辑权的人可以把别人的账号开放给所有人"""
+    if account.created_by:
+        return account.created_by == user.id
+    return bool(user.role and user.role.name in ['admin', 'super_admin'])
 
 @account_routes.route('/accounts')
 @login_required
@@ -279,6 +267,15 @@ def get_accounts():
             suppliers = CustomerCompany.query.filter(CustomerCompany.id.in_(supplier_ids)).all()
             supplier_names = {s.id: s.company_name for s in suppliers}
 
+        # 批量查创建人显示名（有姓名用姓名，否则用户名），避免逐条 creator 查询
+        creator_ids = {acc.created_by for acc in accounts if acc.created_by}
+        creator_names = {}
+        if creator_ids:
+            from App_new.auth.models.auth import AuthUser
+            for u in AuthUser.query.filter(AuthUser.id.in_(creator_ids)).all():
+                full_name = u.profile.get_full_name() if u.profile else None
+                creator_names[u.id] = full_name if full_name and full_name != '未设置姓名' else u.username
+
         accounts_data = []
         for account in accounts:
             # 检查编辑和删除权限
@@ -310,6 +307,9 @@ def get_accounts():
             'supplier_name': supplier_name,
             'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
                 'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
+                'created_by': account.created_by,
+                'creator_name': creator_names.get(account.created_by),
+                'can_change_access': can_change_access_level(account, current_user),
                 'can_edit': can_edit,
                 'can_delete': can_delete
             })
@@ -365,6 +365,7 @@ def get_account(account_id):
                 'supplier_name': account.supplier.company_name if account.supplier else None,
                 'access_level': account.access_level or ACCESS_LEVEL_PRIVATE,
                 'access_level_display': dict(ACCESS_LEVEL_CHOICES).get(account.access_level, '仅自己可见'),
+                'can_change_access': can_change_access_level(account, current_user),
                 'can_edit': can_edit,
                 'can_delete': can_delete
             }
@@ -484,36 +485,12 @@ def update_account(account_id):
                 'message': '您没有权限访问此账户'
             }), 403
 
-        # 检查编辑权限：最高权限员工（2级）可以编辑所有账号，或者只能编辑自己的账号
-        # 管理员可以编辑所有账号
-        is_admin = current_user.role and current_user.role.name in ['admin', 'super_admin']
-        
-        # 获取用户的员工等级
-        staff_level = 1  # 默认等级
-        if current_user.profile:
-            staff_level = current_user.profile.staff_level or 1
-        
-        # 检查是否是账号的创建者或所有者
-        is_owner = (account.created_by == current_user.id) or (account.owner == current_user.username)
-        
-        # 编辑权限检查：
-        # 1. 管理员可以编辑所有账号
-        # 2. 2级员工（最高权限）可以编辑所有账号
-        # 3. 1级员工只能编辑自己创建的账号
-        can_edit = False
-        if is_admin:
-            can_edit = True
-        elif staff_level == 2:
-            # 2级员工可以编辑所有账号
-            can_edit = True
-        elif is_owner:
-            # 1级员工只能编辑自己的账号
-            can_edit = True
-        
+        # 有访问权限即可编辑（上面 can_access 已校验），规则见 check_account_permissions
+        can_edit, _ = check_account_permissions(account, current_user)
         if not can_edit:
             return jsonify({
                 'success': False,
-                'message': '您没有权限编辑此账户。只有最高权限员工（2级）可以编辑所有账户，或者您只能编辑自己创建的账户。'
+                'message': '您没有权限编辑此账户：只有能访问该账户的人可以编辑。'
             }), 403
 
         data = request.get_json()
@@ -554,8 +531,14 @@ def update_account(account_id):
         account.notes = data.get('notes', account.notes)
         
         # 更新访问权限
-        if 'access_level' in data:
+        if 'access_level' in data and data.get('access_level') != (account.access_level or ACCESS_LEVEL_PRIVATE):
             access_level = data.get('access_level')
+            if not can_change_access_level(account, current_user):
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'message': '只有创建人可以修改访问权限'
+                }), 403
             if access_level in [ACCESS_LEVEL_PRIVATE, ACCESS_LEVEL_LEVEL_1, ACCESS_LEVEL_LEVEL_2, ACCESS_LEVEL_PUBLIC]:
                 account.access_level = access_level
                 logger.info(f"Updated access_level to: {access_level}")
@@ -599,38 +582,14 @@ def delete_account(account_id):
                 'message': '您没有权限访问此账户'
             }), 403
         
-        # 检查删除权限：最高权限员工（2级）可以删除所有账号，或者只能删除自己的账号
-        # 管理员可以删除所有账号
-        is_admin = current_user.role and current_user.role.name in ['admin', 'super_admin']
-        
-        # 获取用户的员工等级
-        staff_level = 1  # 默认等级
-        if current_user.profile:
-            staff_level = current_user.profile.staff_level or 1
-        
-        # 检查是否是账号的创建者或所有者
-        is_owner = (account.created_by == current_user.id) or (account.owner == current_user.username)
-        
-        # 删除权限检查：
-        # 1. 管理员可以删除所有账号
-        # 2. 2级员工（最高权限）可以删除所有账号
-        # 3. 1级员工只能删除自己创建的账号
-        can_delete = False
-        if is_admin:
-            can_delete = True
-        elif staff_level == 2:
-            # 2级员工可以删除所有账号
-            can_delete = True
-        elif is_owner:
-            # 1级员工只能删除自己的账号
-            can_delete = True
-        
+        # 只有创建人能删除，规则见 check_account_permissions
+        _, can_delete = check_account_permissions(account, current_user)
         if not can_delete:
             return jsonify({
                 'success': False,
-                'message': '您没有权限删除此账户。只有最高权限员工（2级）可以删除所有账户，或者您只能删除自己创建的账户。'
+                'message': '您没有权限删除此账户：只有创建人可以删除。'
             }), 403
-        
+
         # 记录要删除的账号信息
         logger.info(f"Found account: {account.platform} - {account.username}")
         
