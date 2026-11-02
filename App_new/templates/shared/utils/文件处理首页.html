@@ -78,7 +78,7 @@
                     将多个PDF文件合并成一个文档，方便整合相关内容，提高文档管理效率。
                 </p>
                 <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.file_processing') }}" class="visa-btn visa-btn-warning visa-btn-sm">
+                    <a href="{{ url_for('utils_process.file_processing_tool', tool='pdf') }}" class="visa-btn visa-btn-warning visa-btn-sm">
                         <i class="fas fa-arrow-right"></i> 前往处理
                     </a>
                     <span class="resource-card-stats">
@@ -190,7 +190,7 @@
                     将Word文档(.docx, .doc)转换为PDF格式，保持格式不变，便于文档分享和存档。
                 </p>
                 <div class="resource-card-footer">
-                    <a href="{{ url_for('utils_process.file_processing') }}" class="visa-btn visa-btn-info visa-btn-sm">
+                    <a href="{{ url_for('utils_process.file_processing_tool', tool='word') }}" class="visa-btn visa-btn-info visa-btn-sm">
                         <i class="fas fa-arrow-right"></i> 前往处理
                     </a>
                     <span class="resource-card-stats">

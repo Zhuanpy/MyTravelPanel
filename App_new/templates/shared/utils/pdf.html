@@ -1,48 +1,57 @@
 ﻿{% extends "staff_base.html" %}
 
-{% block title %}文件处理 - MyTravelPanel{% endblock %}
+{% block title %}{{ current_tool.label }} - 文件处理 - MyTravelPanel{% endblock %}
 
 {% block page_title %}文件处理{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/staff_common.css') }}">
 <style>
-    /* 卡片进网格后间距交给 gap，去掉卡片自带的下外边距；
-       再让同一行卡片等高、按钮统一贴底，否则内容长短不一会参差不齐 */
-    .fp-grid .visa-card { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
-    .fp-grid .visa-card-body { flex: 1; display: flex; flex-direction: column; }
-    .fp-grid form { flex: 1; display: flex; flex-direction: column; }
-    .fp-grid form > button[type="submit"] { margin-top: auto; align-self: flex-start; }
-
-    /* 分区标题：比卡片标题重，但不必单独占一张卡 */
-    .fp-section {
+    /* 功能标签：每个标签是一个独立路由，窄屏时自动换行 */
+    .fp-tabs {
         display: flex;
-        align-items: baseline;
         flex-wrap: wrap;
-        gap: 0.25rem 0.75rem;
-        margin: 2rem 0 1rem;
-        padding-bottom: 0.5rem;
+        gap: 0.25rem;
+        margin-bottom: 1rem;
         border-bottom: 1px solid #e2e8f0;
     }
-    .fp-section:first-of-type { margin-top: 0.5rem; }
-    .fp-section h2 { margin: 0; font-size: 1.05rem; font-weight: 600; color: #334155; }
-    .fp-section .fp-hint { font-size: 0.8rem; color: #94a3b8; }
+    .fp-tab {
+        padding: 0.6rem 1rem;
+        margin-bottom: -1px;
+        border-bottom: 2px solid transparent;
+        color: #64748b;
+        font-size: 0.9rem;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .fp-tab:hover { color: #334155; }
+    .fp-tab.active { border-bottom-color: #059669; color: #059669; font-weight: 600; }
+    .fp-tab-desc { margin-bottom: 1rem; font-size: 0.85rem; color: #64748b; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="successMessage" class="visa-flash" style="display: none;"></div>
 
-<div class="visa-container">
+<div class="visa-container-sm">
     <!-- 页面标题由 staff_base.html 的 page_title 块统一渲染，这里不要再写一个 h1 -->
 
-    <!-- ==================== 上传处理：选文件 → 处理 → 自动下载 ==================== -->
-    <div class="fp-section">
-        <h2><i class="fas fa-cloud-upload-alt tw-text-green-600"></i> 上传处理</h2>
-        <span class="fp-hint">在自己电脑上选文件，处理完直接下载，不需要服务器路径</span>
-    </div>
+    <!-- 功能标签: 直接走不同路由 -->
+    <nav class="fp-tabs">
+        {% for key, item in file_tools.items() %}
+        <a href="{{ url_for('utils_process.file_processing_tool', tool=key) }}"
+           class="fp-tab {% if key == tool %}active{% endif %}">
+            <i class="{{ item.icon }}"></i> {{ item.label }}
+        </a>
+        {% endfor %}
+    </nav>
+    <p class="fp-tab-desc">
+        {{ current_tool.desc }}
+        {% if current_tool.server %}（路径填的是<strong>运行本系统那台机器</strong>上的目录，生成的文件也留在那台机器上）{% endif %}
+    </p>
 
-    <div class="visa-grid-2 fp-grid">
+    <div class="fp-panel">
+        {% if tool == 'images' %}
         <!-- 上传图片合并为PDF -->
         <div class="visa-card">
             <div class="visa-card-header" style="background: #ecfdf5;">
@@ -83,6 +92,7 @@
             </div>
         </div>
 
+        {% elif tool == 'pdf' %}
         <!-- 上传PDF合并 -->
         <div class="visa-card">
             <div class="visa-card-header" style="background: #eff6ff;">
@@ -114,19 +124,11 @@
                 </form>
             </div>
         </div>
-    </div>
-
-    <!-- ==================== 服务器本地路径 ==================== -->
-    <div class="fp-section">
-        <h2><i class="fas fa-server tw-text-gray-400"></i> 服务器本地路径</h2>
-        <span class="fp-hint">填的是<strong>运行本系统那台机器</strong>上的目录，生成的文件也留在那台机器上</span>
-    </div>
-
-    <div class="visa-grid-3 fp-grid">
+        {% elif tool == 'pdf_folder' %}
         <!-- 多个PDF合并（本地路径） -->
         <div class="visa-card">
             <div class="visa-card-header">
-                <h2><i class="fas fa-object-group"></i> 多个PDF合并</h2>
+                <h2><i class="fas fa-object-group"></i> 文件夹PDF合并</h2>
             </div>
             <div class="visa-card-body">
                 <form id="pdfForm" method="post" action="{{url_for('utils_process.merge_pdf_to_pdf')}}" onsubmit="return handleSubmit(this, event)">
@@ -144,6 +146,7 @@
             </div>
         </div>
 
+        {% elif tool == 'word' %}
         <!-- Word转换PDF -->
         <div class="visa-card">
             <div class="visa-card-header">
@@ -165,6 +168,7 @@
             </div>
         </div>
 
+        {% elif tool == 'screenshot' %}
         <!-- 长截图切分打印 -->
         <div class="visa-card">
             <div class="visa-card-header">
@@ -189,6 +193,7 @@
                 </form>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

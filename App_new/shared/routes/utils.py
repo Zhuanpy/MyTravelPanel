@@ -25,11 +25,63 @@ def _natural_key(name):
             for part in re.split(r'(\d+)', name or '')]
 
 
+# 文件处理工具: URL 参数 -> 标签显示信息
+# server=True 的工具读写的是服务器本地目录, 页面上要提示路径含义
+FILE_TOOLS = {
+    'images': {
+        'label': '图片合并为PDF',
+        'desc': '在自己电脑上选图片，合并成一个PDF后直接下载',
+        'icon': 'fas fa-images',
+        'server': False,
+    },
+    'pdf': {
+        'label': '多个PDF合并',
+        'desc': '在自己电脑上选多个PDF，合并成一个后直接下载',
+        'icon': 'fas fa-file-pdf',
+        'server': False,
+    },
+    'pdf_folder': {
+        'label': '文件夹PDF合并',
+        'desc': '合并服务器目录内全部PDF，结果输出到同一目录',
+        'icon': 'fas fa-object-group',
+        'server': True,
+    },
+    'word': {
+        'label': 'Word转PDF',
+        'desc': '转换服务器目录内全部 .doc / .docx',
+        'icon': 'fas fa-file-word',
+        'server': True,
+    },
+    'screenshot': {
+        'label': '长截图切分打印',
+        'desc': '把服务器目录内的长截图切分成多页PDF',
+        'icon': 'fas fa-cut',
+        'server': True,
+    },
+}
+
+
 @utils_process.route('/file_processing')
 @login_required
 @staff_only
 def file_processing():
-    return render_template('shared/utils/pdf.html')
+    """不带参数访问时跳到默认工具(图片合并为PDF)"""
+    return redirect(url_for('utils_process.file_processing_tool', tool='images'))
+
+
+@utils_process.route('/file_processing/<tool>')
+@login_required
+@staff_only
+def file_processing_tool(tool):
+    """文件处理工具页面, 当前工具由 URL 参数指定"""
+    if tool not in FILE_TOOLS:
+        abort(404)
+    return render_template(
+        'shared/utils/pdf.html',
+        tool=tool,
+        file_tools=FILE_TOOLS,
+        current_tool=FILE_TOOLS[tool],
+    )
 
 
 @csrf.exempt
