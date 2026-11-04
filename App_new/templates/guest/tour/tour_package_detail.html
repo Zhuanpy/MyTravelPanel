@@ -100,12 +100,17 @@
     .day-body { color: #374151; line-height: 1.7; font-size: .95rem; white-space: pre-wrap; word-wrap: break-word; }
     .day-body p { margin: 0 0 6px; }
     .day-body ul, .day-body ol { margin: 0 0 6px; padding-left: 20px; }
-    .day-imgs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+    /* 行程图片：按张数等分铺满整行，避免固定宽度居中后左右留白 */
+    .day-imgs { display: grid; gap: 10px; margin-top: 12px; grid-template-columns: repeat(3, 1fr); }
+    .day-imgs.n-1 { grid-template-columns: 1fr; }
+    .day-imgs.n-2 { grid-template-columns: repeat(2, 1fr); }
     .day-imgs img {
-        width: 168px; height: 118px; object-fit: cover;
+        width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
         border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer;
         transition: transform .15s;
     }
+    .day-imgs.n-1 img { aspect-ratio: 16 / 9; max-height: 380px; }
+    .day-imgs.n-2 img { aspect-ratio: 3 / 2; }
     .day-imgs img:hover { transform: scale(1.03); }
 
     /* 包含 / 不含 / 注意事项 */
@@ -171,7 +176,7 @@
     @media (max-width: 640px) {
         .itin-card { padding: 20px; }
         .itin-title { font-size: 1.4rem; }
-        .day-imgs img { width: calc(50% - 4px); height: 96px; }
+        .day-imgs { gap: 6px; }
         .contact-bar .price-tag { margin-right: 0; width: 100%; text-align: center; margin-bottom: 6px; }
     }
 </style>
@@ -235,7 +240,7 @@
                 <div class="day-body">{{ day.activities | join('、') }}</div>
                 {% endif %}
                 {% if day.images %}
-                <div class="day-imgs">
+                <div class="day-imgs n-{{ day.images[:3] | length }}">
                     {% for img in day.images[:3] %}
                     <img src="{{ url_for('static', filename=img) }}" alt="行程图片" onclick="viewImage(this.src)">
                     {% endfor %}
