@@ -202,7 +202,7 @@ function handleUploadSubmit(event, btn) {
         const contentType = response.headers.get('content-type') || '';
         const isFile = response.ok && (
             contentType.indexOf('application/pdf') !== -1 ||
-            contentType.indexOf('image/png') !== -1 ||
+            contentType.indexOf('image/') !== -1 ||   // 白底+压缩画质输出 JPG, 透明/高画质输出 PNG
             contentType.indexOf('application/zip') !== -1
         );
         if (isFile) {
