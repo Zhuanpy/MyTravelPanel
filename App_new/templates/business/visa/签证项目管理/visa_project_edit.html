@@ -59,8 +59,16 @@
 
                     <div class="visa-form-group">
                         <label class="visa-form-label">签证类型 *</label>
-                        <input type="text" class="visa-form-control" id="visa_type" name="visa_type" 
-                               placeholder="如：商务签证、旅游签证等" required value="{{ project.visa_type or '' }}">
+                        <select class="visa-form-select" id="visa_type" name="visa_type" required>
+                            <option value="">请选择签证类型</option>
+                            {# 老项目的类型若已不在 visa_types 表中，保留为选项，避免保存时被清空 #}
+                            {% if project.visa_type and project.visa_type not in visa_type_names %}
+                            <option value="{{ project.visa_type }}" selected>{{ project.visa_type }}（已不在类型表）</option>
+                            {% endif %}
+                            {% for name in visa_type_names %}
+                            <option value="{{ name }}" {% if name == project.visa_type %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
                         <div id="visa_type_error" style="display: none; color: var(--visa-danger); font-size: 0.875rem; margin-top: 0.25rem;">签证类型不能为空</div>
                     </div>
 

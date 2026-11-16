@@ -380,7 +380,10 @@ def update_current_project(project_id):
 def edit_project(project_id):
     """显示签证项目编辑页面"""
     project = VisaProject.query.get_or_404(project_id)
-    return render_template('business/visa/签证项目管理/visa_project_edit.html', project=project)
+    # 签证类型下拉：从 visa_types 表加载，不让手填
+    visa_type_names = [vt.visa_type for vt in VisaTypes.query.order_by(VisaTypes.visa_type).all()]
+    return render_template('business/visa/签证项目管理/visa_project_edit.html',
+                           project=project, visa_type_names=visa_type_names)
 
 
 # ============ 韩国签证「填写表格」：字段模板 + 项目填表值 ============
