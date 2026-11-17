@@ -559,6 +559,7 @@ def parse_format_ctrip_detail(text, year=None):
             except ValueError:
                 pass
 
+    prev_arr_date = None  # 上一段到达日期，用于校正后续航段出发日
     for fn_idx in fn_indices:
         m = re.match(r'^([A-Z\d]{2})(\d{2,5})$', lines[fn_idx])
         airline = m.group(1)
@@ -567,6 +568,7 @@ def parse_format_ctrip_detail(text, year=None):
         # 向上查找出发时间和出发机场（在航班号行之前）
         dep_time = None
         dep_code = None
+        dep_time_idx = None
         for j in range(fn_idx - 1, max(fn_idx - 8, -1), -1):
             line = lines[j]
             # 机场行: "SIN Singapore ChangiT4" — 以IATA代码开头
@@ -580,6 +582,7 @@ def parse_format_ctrip_detail(text, year=None):
                 tm = re.match(r'^(\d{2}:\d{2})$', line)
                 if tm:
                     dep_time = tm.group(1)
+                    dep_time_idx = j
                     break
 
         # 向下查找到达日期、时间和机场（在航班号行之后）
@@ -624,8 +627,20 @@ def parse_format_ctrip_detail(text, year=None):
         if arr_date_str:
             arr_dt = datetime.strptime(f'{arr_date_str} {year}', '%b %d %Y')
 
-        # 向上查找出发日期: "...Fri, Apr 17Duration..." 或 "Apr 19"
+        # 出发时间正上方紧挨着的独立日期行（如中转后次日出发: "Nov 19" / "11:10"）优先。
+        # 只认紧挨的那一行：页面顶部摘要里也有 "Nov 19 / 12:55"，往上乱找会把第一段带偏
+        if dep_time_idx is not None and dep_time_idx > 0:
+            dm = re.match(r'^(\w{3})\s+(\d{1,2})$', lines[dep_time_idx - 1])
+            if dm:
+                try:
+                    dep_dt = datetime.strptime(f'{dm.group(1)} {dm.group(2)} {year}', '%b %d %Y')
+                except ValueError:
+                    pass
+
+        # 向上查找出发日期: "...Fri, Apr 17Duration..."
         for j in range(fn_idx - 1, -1, -1):
+            if dep_dt is not None:
+                break
             line = lines[j]
             dm = re.search(r'(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(\w{3})\s+(\d{1,2})', line)
             if dm:
@@ -652,6 +667,10 @@ def parse_format_ctrip_detail(text, year=None):
         if dep_dt is None:
             continue
 
+        # 兜底：后一段不可能早于上一段到达日出发（头部日期只代表第一段）
+        if prev_arr_date and dep_dt.date() < prev_arr_date:
+            dep_dt = datetime.combine(prev_arr_date, datetime.min.time())
+
         if arr_dt:
             next_day = arr_dt.date() > dep_dt.date()
         else:
@@ -671,6 +690,8 @@ def parse_format_ctrip_detail(text, year=None):
             'dep_day': DAY_ABBR[dep_dt.weekday()],
             'next_day': next_day,
         })
+        prev_arr_date = arr_dt.date() if arr_dt else (
+            dep_dt.date() + timedelta(days=1) if next_day else dep_dt.date())
 
     return flights
 
