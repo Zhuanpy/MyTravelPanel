@@ -32,6 +32,15 @@
 .rte-editor { border-radius: 0 0 6px 6px; max-height: 45vh; overflow-y: auto; outline: none; }
 .rte-editor:focus { border-color: var(--visa-primary, #6366f1); }
 .rte-editor:empty:before { content: attr(data-placeholder); color: var(--visa-text-muted, #9ca3af); }
+
+/* 详情页标签切换 */
+.visa-detail-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.75rem; border-bottom: 2px solid var(--visa-border, #e5e7eb); }
+.visa-detail-tab { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; margin-bottom: -2px; border: none; border-bottom: 2px solid transparent; background: transparent; color: var(--visa-text-secondary, #6b7280); font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.visa-detail-tab:hover { color: var(--visa-primary, #6366f1); }
+.visa-detail-tab.active { color: var(--visa-primary, #6366f1); border-bottom-color: var(--visa-primary, #6366f1); font-weight: 600; }
+.visa-tab-count { display: inline-block; min-width: 1.4em; padding: 0 0.4em; border-radius: 999px; background: var(--visa-bg-light, #eef2ff); color: inherit; font-size: 0.72rem; line-height: 1.5; text-align: center; }
+.visa-tab-pane { display: none; }
+.visa-tab-pane.active { display: block; }
 </style>
 {% endblock %}
 
@@ -125,7 +134,27 @@
         </div>
     </div>
 
-    {% if '韩国' in project.visa_type or '日本' in project.visa_type %}
+{% set has_visa_form = ('韩国' in project.visa_type or '日本' in project.visa_type) %}
+    <!-- 标签切换：基本信息常驻，其余内容按标签分组显示 -->
+    <div class="visa-detail-tabs" role="tablist">
+        <button type="button" class="visa-detail-tab" data-tab="remarks"><i class="fas fa-comment"></i> 备注信息</button>
+        <button type="button" class="visa-detail-tab" data-tab="documents"><i class="fas fa-file-alt"></i> 所需资料
+            {% if document_statuses %}<span class="visa-tab-count">{{ document_statuses.values()|selectattr('is_ready')|list|length }}/{{ document_statuses|length }}</span>{% endif %}
+        </button>
+        <button type="button" class="visa-detail-tab" data-tab="uploads"><i class="fas fa-cloud-upload-alt"></i> 上传资料</button>
+        {% if has_visa_form %}
+        <button type="button" class="visa-detail-tab" data-tab="form"><i class="fas fa-file-lines"></i> 签证表格</button>
+        {% endif %}
+        <button type="button" class="visa-detail-tab" data-tab="links"><i class="fas fa-link"></i> 相关链接
+            {% if links %}<span class="visa-tab-count">{{ links|length }}</span>{% endif %}
+        </button>
+        <button type="button" class="visa-detail-tab" data-tab="templates"><i class="fas fa-file-download"></i> 模板文件
+            {% if template_files %}<span class="visa-tab-count">{{ template_files|length }}</span>{% endif %}
+        </button>
+    </div>
+
+    {% if has_visa_form %}
+    <div class="visa-tab-pane" data-pane="form">
     <!-- 签证表格：填写 / 生成 (坐标管理仅韩国) 单独成组 -->
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
@@ -151,9 +180,11 @@
             </div>
         </div>
     </div>
+    </div>
     {% endif %}
 
     <!-- 备注信息 -->
+    <div class="visa-tab-pane" data-pane="remarks">
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-comment"></i> 备注信息</h2>
@@ -165,8 +196,10 @@
             <div id="remarksDisplay" style="white-space: pre-wrap; color: var(--visa-text-secondary); font-size: 0.875rem; min-height: 180px;">{% if project.remarks %}{{ project.remarks | safe }}{% else %}暂无备注信息{% endif %}</div>
         </div>
     </div>
+    </div>
 
     <!-- 所需文件资料 -->
+    <div class="visa-tab-pane" data-pane="documents">
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header">
             <h2><i class="fas fa-file-alt"></i> 所需文件资料</h2>
@@ -269,8 +302,10 @@
             </div>
         </div>
     </div>
+    </div>
 
     <!-- 上传资料文件 -->
+    <div class="visa-tab-pane" data-pane="uploads">
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="padding: 0.5rem 1rem;">
             <h2 style="font-size: 0.9rem;"><i class="fas fa-cloud-upload-alt"></i> 上传资料</h2>
@@ -321,8 +356,10 @@
             </div>
         </div>
     </div>
+    </div>
 
     <!-- 相关链接 & HID/Ref -->
+    <div class="visa-tab-pane" data-pane="links">
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
             <h2><i class="fas fa-link"></i> 相关链接</h2>
@@ -349,8 +386,10 @@
         </div>
         {% endif %}
     </div>
+    </div>
 
     <!-- 模板文件下载 -->
+    <div class="visa-tab-pane" data-pane="templates">
     <div class="visa-card visa-mb-3">
         <div class="visa-card-header" style="flex-wrap: wrap; gap: 0.5rem;">
             <h2><i class="fas fa-file-download"></i> 模板文件</h2>
@@ -387,6 +426,7 @@
             </div>
             {% endif %}
         </div>
+    </div>
     </div>
 
     <!-- 提醒事件 - 右下角悬浮 -->
@@ -660,6 +700,31 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// 详情页标签切换：支持 URL hash（#tab=documents）并记住上次选中的标签
+(function () {
+    var tabs = document.querySelectorAll('.visa-detail-tab');
+    var panes = document.querySelectorAll('.visa-tab-pane');
+    if (!tabs.length) return;
+    var storage_key = 'visaDetailActiveTab';
+    function activate(name, update_hash) {
+        var found = false;
+        tabs.forEach(function (t) { if (t.dataset.tab === name) found = true; });
+        if (!found) name = tabs[0].dataset.tab;
+        tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === name); });
+        panes.forEach(function (p) { p.classList.toggle('active', p.dataset.pane === name); });
+        try { localStorage.setItem(storage_key, name); } catch (e) {}
+        if (update_hash) history.replaceState(null, '', '#tab=' + name);
+    }
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () { activate(t.dataset.tab, true); });
+    });
+    var m = location.hash.match(/tab=([\w-]+)/);
+    var saved = null;
+    try { saved = localStorage.getItem(storage_key); } catch (e) {}
+    activate(m ? m[1] : (saved || tabs[0].dataset.tab), false);
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 // ==================== 全局变量（从data属性读取） ====================
