@@ -10,6 +10,7 @@ from wtforms.validators import DataRequired, Length, Email, Optional, Validation
 from App_new.business.projects.models.project import ProjectHeader
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Length, Optional
+from sqlalchemy import or_
 from App_new.business.projects.models.project import CustomerCompany
 
 class ProjectCreateForm(FlaskForm):
@@ -265,9 +266,11 @@ class ProjectHeaderForm(FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super(ProjectHeaderForm, self).__init__(*args, **kwargs)
-        # 动态加载公司选项，包含 active 和 inactive 状态（排除 suspended）
+        # 动态加载公司选项，只排除 suspended；status 为 NULL/空串的老数据也要显示
+        # （SQL 里 NULL != 'suspended' 结果是 NULL，必须单独 OR is_(None)）
         companies = CustomerCompany.query.filter(
-            CustomerCompany.status.in_(['active', 'inactive'])
+            or_(CustomerCompany.status.is_(None),
+                   CustomerCompany.status != 'suspended')
         ).order_by(CustomerCompany.company_name).all()
         self.company_id.choices = [(-1, '请选择公司')] + [(0, '个人')] + [(c.id, c.company_name) for c in companies]
 
