@@ -131,7 +131,24 @@ def _lookup_iata(name):
         if airport:
             return airport.airport_IATA
 
+        # 括号内容(多为城市名)之前，先拆机场名里的关键词逐个模糊匹配机场名：
+        # "Kansai International (Osaka)" → "Kansai" 命中 KANSAIAPT=KIX；
+        # 直接按城市 "Osaka" 查会落到 ITM/OSA，不准
+        if search_name == clean_name and ' ' in clean_name:
+            for word in clean_name.split():
+                if len(word) < 4 or word.upper() in _GENERIC_AIRPORT_WORDS:
+                    continue
+                airport = AirportData.query.filter(
+                    AirportData.airport_name_en.ilike(f'%{word}%')
+                ).first()
+                if airport:
+                    return airport.airport_IATA
+
     return None
+
+
+# 机场英文名里的通用词，拆词匹配时跳过
+_GENERIC_AIRPORT_WORDS = {'INTERNATIONAL', 'INTL', 'INTL.', 'AIRPORT', 'APT', 'TERMINAL'}
 
 
 def parse_text_to_segments(input_text):
@@ -160,6 +177,25 @@ def parse_text_to_segments(input_text):
                 unknown.append(f.get('_original_arr', f['arr_code']))
         if unknown:
             warning = f'以下城市/机场未找到IATA代码: {", ".join(set(unknown))}，显示为???'
+    else:
+        # 网页原文里三字码不一定都有（如 Trip.com/Skyscanner 到达机场只给
+        # "Kansai International (Osaka)"），解析器给 ???，这里按机场名回查机场表
+        unknown = []
+        changed = False
+        for f in result['flights']:
+            for side in ('dep', 'arr'):
+                name = f.get(f'{side}_airport_name')
+                if f.get(f'{side}_code') == '???' and name:
+                    code = _lookup_iata(name)
+                    if code:
+                        f[f'{side}_code'] = code
+                        changed = True
+                    else:
+                        unknown.append(name)
+        if changed:
+            result['segments'] = format_segments(result['flights'])
+        if unknown:
+            warning = f'以下机场未找到IATA代码: {", ".join(set(unknown))}，显示为???'
 
     return result['segments'], result['format_detected'], warning
 
