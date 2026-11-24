@@ -220,7 +220,8 @@
             defaultDate: "",
             allowInput: false,
             disableMobile: true,
-            position: "below",
+            // 不要强制 below：输入框靠近窗口底部时日历会落到可视区外，看起来像没弹出
+            position: "auto",
             static: false,
             onChange: function(selectedDates, dateStr, instance) {
                 if (!dateStr) {
@@ -232,15 +233,6 @@
         fp.config.onOpen.push(function() {
             fp.clear();
         });
-        // 添加清除按钮
-        const clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.className = 'flatpickr-clear';
-        clearBtn.innerHTML = '<i class="fas fa-times"></i>';
-        clearBtn.addEventListener('click', function() {
-            fp.clear();
-        });
-        document.querySelector('.visa-project-form-group').appendChild(clearBtn);
         // 表单字段动态更新
         document.getElementById('hid_or_serial').addEventListener('input', updateProjectName);
         document.getElementById('visa_type').addEventListener('input', updateProjectName);
