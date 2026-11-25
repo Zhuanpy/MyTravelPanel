@@ -702,7 +702,7 @@
                             {% if item.ref %}<br>Pax : {{ item.quantity }}.{% endif %}
                         {% endif %}
                     </td>
-                    <td class="text-right" style="vertical-align: top;">{{ "%.2f"|format(item.total_price) }}</td>
+                    <td class="text-right" style="vertical-align: top;">{{ "{:,.2f}".format((item.total_price)|float) }}</td>
                 </tr>
                 {% endfor %}
             {% else %}
@@ -853,7 +853,7 @@
                             </table>
                         {% endif %}
                     </td>
-                    <td class="text-right" style="vertical-align: top;">{{ "%.2f"|format(ref.selling_price or 0) }}</td>
+                    <td class="text-right" style="vertical-align: top;">{{ "{:,.2f}".format((ref.selling_price or 0)|float) }}</td>
                 </tr>
                 {% endfor %}
                 {# 如果 related_refs 也为空，使用 invoice.items_list (CSV导入的数据) #}
@@ -900,7 +900,7 @@
                             </tr>
                         </table>
                     </td>
-                    <td class="text-right" style="vertical-align: top;">{{ "%.2f"|format(item_data.amount|default(0)) }}</td>
+                    <td class="text-right" style="vertical-align: top;">{{ "{:,.2f}".format((item_data.amount|default(0))|float) }}</td>
                 </tr>
                 {% endfor %}
                 {% endif %}
@@ -911,16 +911,12 @@
     <!-- 金额汇总 -->
     <div class="total-section">
         <table style="width: 100%; margin-top: 0;">
+            {# 不再单列 Sub Total：发票没有折扣/税等调整项，Sub Total 与 Total Amount 永远相同 #}
             <tr>
                 <td style="width: 75%;"></td>
-                <td style="text-align: right; padding: 5px;">Sub Total :</td>
-                <td style="text-align: right; width: 100px; padding: 5px;">{{ "%.2f"|format(invoice.amount) }}</td>
-            </tr>
-            <tr>
-                <td></td>
                 {# 关键金额用字号区分层级（不再靠 Arial Black） #}
                 <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 13px;">Total Amount ({{ invoice.currency }}) :</td>
-                <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 14px;"><strong>{{ "%.2f"|format(invoice.amount) }}</strong></td>
+                <td style="text-align: right; width: 100px; padding: 5px; white-space: nowrap; font-size: 14px;"><strong>{{ "{:,.2f}".format((invoice.amount)|float) }}</strong></td>
             </tr>
             {% if payments and payments|length > 0 %}
             <tr>
@@ -931,21 +927,24 @@
             <tr>
                 <td style="font-size: 10px; color: #666;">{{ payment.date }}</td>
                 <td style="text-align: right; padding: 5px; font-size: 10px; white-space: nowrap;">{{ payment.ref_number or 'Payment' }}{% if payment.method %} ({{ payment.method }}){% endif %}</td>
-                <td style="text-align: right; padding: 5px; color: #666; font-size: 10px;">-{{ "%.2f"|format(payment.amount) }}</td>
+                <td style="text-align: right; padding: 5px; color: #666; font-size: 10px;">-{{ "{:,.2f}".format((payment.amount)|float) }}</td>
             </tr>
             {% endfor %}
+            {# 只有一笔付款时 Total Paid 就是那一笔，重复；多笔才汇总。符号与付款行一致用负数 #}
+            {% if payments|length > 1 %}
             <tr>
                 <td></td>
                 <td style="text-align: right; padding: 5px; white-space: nowrap;">Total Paid :</td>
-                <td style="text-align: right; padding: 5px;">{{ "%.2f"|format(total_paid) }}</td>
+                <td style="text-align: right; padding: 5px;">-{{ "{:,.2f}".format((total_paid)|float) }}</td>
             </tr>
+            {% endif %}
             <tr>
                 <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
             </tr>
             <tr>
                 <td></td>
                 <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 13px;"><strong>Balance Due ({{ invoice.currency }}) :</strong></td>
-                <td style="text-align: right; padding: 5px; font-size: 14px;"><strong>{{ "%.2f"|format(balance) }}</strong></td>
+                <td style="text-align: right; padding: 5px; font-size: 14px;"><strong>{{ "{:,.2f}".format((balance)|float) }}</strong></td>
             </tr>
             {% endif %}
         </table>

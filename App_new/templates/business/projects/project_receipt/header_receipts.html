@@ -68,6 +68,8 @@
         color: #333;
         font-weight: bold;
     }
+    /* 全局已是 bold；不锁住的话 strong 会变 bolder(900)，Windows 上落到 Arial Black，字体忽宽忽窄（同发票） */
+    .print-receipt strong, .print-receipt b { font-weight: bold; }
     /* 页眉与发票统一（方案A）：左 invoice 专用横版 logo，右公司英文信息，
        下方橙/绿/蓝三色分隔线，标题加字距、深蓝色 */
     .print-receipt .receipt-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; }
@@ -90,8 +92,11 @@
     .print-receipt .payer-info { width: 55%; }
     .print-receipt .receipt-meta { width: 40%; }
     .print-receipt .receipt-meta table { width: 100%; }
-    .print-receipt .receipt-meta td { padding: 2px 5px; }
-    .print-receipt .receipt-meta td:first-child { width: 100px; white-space: nowrap; }
+    /* 与发票元信息同样收紧行距，冒号单独一列对齐 */
+    .print-receipt .receipt-meta table { border-collapse: collapse; }
+    .print-receipt .receipt-meta td { padding: 0; line-height: 1.35; vertical-align: top; }
+    .print-receipt .receipt-meta td:first-child { width: 104px; white-space: nowrap; }
+    .print-receipt .receipt-meta td:nth-child(2) { width: 10px; padding-right: 4px; }
     .print-receipt .detail-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
     .print-receipt .detail-table th {
         border-top: 2px solid #333; border-bottom: 1px solid #333;
@@ -458,11 +463,12 @@
                         <div id="print-payer-contact" style="font-size: 11px;"></div>
                     </td>
                 </tr>
-                <tr><td colspan="3" style="height: 8px;"></td></tr>
-                <tr>
+                {# 客户与付款方同名（含个人客户）时由 JS 隐藏此两行，避免重复 #}
+                <tr class="print-customer-row"><td colspan="3" style="height: 6px;"></td></tr>
+                <tr class="print-customer-row">
                     <td><strong>Customer</strong></td>
                     <td>:</td>
-                    <td>{{ header.company.company_name if header.company else '-' }}</td>
+                    <td id="print-customer-name">{{ header.company.company_name if header.company else '-' }}</td>
                 </tr>
             </table>
         </div>
@@ -483,7 +489,7 @@
         <thead>
             <tr>
                 <th>Description</th>
-                <th style="width: 120px;" class="text-right">Amount</th>
+                <th style="width: 120px;" class="text-right">Amount (<span class="print-cur"></span>)</th>
             </tr>
         </thead>
         <tbody>
@@ -500,7 +506,7 @@
             <tbody>
                 <tr>
                     <td style="width: 90px;"></td>
-                    <td style="text-align: right; padding: 5px;">Total Invoice Amount :</td>
+                    <td style="text-align: right; padding: 5px;">Total Invoice Amount (<span class="print-cur"></span>) :</td>
                     <td style="text-align: right; width: 140px; padding: 5px;" id="print-invoice-amount"></td>
                 </tr>
             </tbody>
@@ -511,9 +517,10 @@
                     <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
                 </tr>
                 <tr>
-                    <td><strong id="print-currency"></strong></td>
-                    <td style="text-align: right; padding: 5px;"><strong>Balance Due :</strong></td>
-                    <td style="text-align: right; padding: 5px;"><strong id="print-balance"></strong></td>
+                    <td></td>
+                    {# 关键金额用字号区分层级（同发票） #}
+                    <td style="text-align: right; padding: 5px; font-size: 13px;"><strong>Balance Due (<span class="print-cur"></span>) :</strong></td>
+                    <td style="text-align: right; padding: 5px; font-size: 14px;"><strong id="print-balance"></strong></td>
                 </tr>
             </tbody>
         </table>
@@ -643,6 +650,11 @@ function numberToWords(num, currency) {
 // 付款历史（用于台账逐笔显示）
 const PAYMENT_HISTORY = {{ payment_history|tojson }};
 
+// 金额格式：千分位 + 两位小数（1,140.00），与发票一致
+function fmtMoney(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function printReceipt(data) {
     const {
         id, receiptNumber, currency, amount, paymentMethod, paymentDate,
@@ -685,14 +697,24 @@ function printReceipt(data) {
         document.getElementById('print-transaction-row').style.display = 'none';
     }
 
-    // 金额信息
-    document.getElementById('print-currency').textContent = currency;
-    document.getElementById('print-amount').textContent = currency + ' ' + amount.toFixed(2);
+    // 客户与付款方同名时不重复显示 Customer 行
+    const _shownPayer = (_payerCompany || _payerName).toUpperCase();
+    const _customer = (document.getElementById('print-customer-name').textContent || '').trim().toUpperCase();
+    // 个人客户的占位公司（个人/cash/现金，与发票路由同口径）不印在收据上
+    const _placeholder = ['个人', 'CASH', '现金'].indexOf(_customer) >= 0;
+    const _hideCustomer = !_customer || _customer === '-' || _placeholder || _customer === _shownPayer;
+    document.querySelectorAll('#printReceipt .print-customer-row').forEach(function(tr) {
+        tr.style.display = _hideCustomer ? 'none' : '';
+    });
+
+    // 金额信息：币种只出现在标签里（Amount (SGD) / Balance Due (SGD)），数值不再重复带币种
+    document.querySelectorAll('#printReceipt .print-cur').forEach(function(el) { el.textContent = currency; });
+    document.getElementById('print-amount').textContent = fmtMoney(amount);
     document.getElementById('print-amount-words').textContent = numberToWords(amount, currency);
     // print-description 由服务端渲染为项目信息（HID + 描述），此处不覆盖
 
     // 发票总额
-    document.getElementById('print-invoice-amount').textContent = currency + ' ' + totalSelling.toFixed(2);
+    document.getElementById('print-invoice-amount').textContent = fmtMoney(totalSelling);
 
     // 逐笔付款台账：每笔显示 日期 + -金额；当前打印的这笔加粗标注 This Payment
     const rowsEl = document.getElementById('print-payment-rows');
@@ -708,18 +730,21 @@ function printReceipt(data) {
         if (p.number) parts.push(p.number);
         if (isCurrent) parts.push('This Payment');
         const desc = parts.join(' · ');
-        const amountText = '-' + p.currency + ' ' + p.amount.toFixed(2);
+        // 币种不同于本收据时才带币种，否则与标签重复
+        const amountText = '-' + (p.currency && p.currency !== currency ? p.currency + ' ' : '') + fmtMoney(p.amount);
         const tr = document.createElement('tr');
+        // 付款台账用小一号灰字（同发票的付款行），当前这笔保持黑色突出
+        const rowStyle = 'padding: 5px; font-size: 11px;' + (isCurrent ? '' : ' color: #666;');
         tr.innerHTML =
-            '<td style="text-align: left; padding: 5px; white-space: nowrap;">' + (p.date || '') + '</td>' +
-            '<td style="text-align: left; padding: 5px;">' + desc + '</td>' +
-            '<td style="text-align: right; padding: 5px; white-space: nowrap;">' + amountText + '</td>';
+            '<td style="text-align: left; white-space: nowrap; ' + rowStyle + '">' + (p.date || '') + '</td>' +
+            '<td style="text-align: left; ' + rowStyle + '">' + desc + '</td>' +
+            '<td style="text-align: right; white-space: nowrap; ' + rowStyle + '">' + amountText + '</td>';
         rowsEl.appendChild(tr);
     });
 
     // 余额 = 发票总额 - 已付总和
     const balance = totalSelling - paidSum;
-    document.getElementById('print-balance').textContent = currency + ' ' + balance.toFixed(2);
+    document.getElementById('print-balance').textContent = fmtMoney(balance);
 
     // 备注
     if (remarks && remarks.trim()) {

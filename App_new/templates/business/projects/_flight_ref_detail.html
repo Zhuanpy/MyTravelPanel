@@ -35,7 +35,7 @@
                     <tr>
                         <td style="border: none; padding: 1px 0;">{{ loop.index }}. {{ pax.name }}</td>
                         <td style="border: none; text-align: right; width: 80px; padding: 1px 0;">Airfare :</td>
-                        <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(pax.selling_price or 0) }}</td>
+                        <td style="border: none; text-align: right; width: 72px; padding: 1px 0;">{{ "{:,.2f}".format((pax.selling_price or 0)|float) }}</td>
                     </tr>
                     {% if pax.ticket_number %}
                     <tr>
