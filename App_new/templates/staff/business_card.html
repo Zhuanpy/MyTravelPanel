@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ user.profile.get_full_name() if user.profile else user.username }} - Business Card</title>
-    <link rel="icon" href="{{ url_for('static', filename='logo.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ url_for('static', filename='logo.ico') }}?v=20261125" type="image/x-icon">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
