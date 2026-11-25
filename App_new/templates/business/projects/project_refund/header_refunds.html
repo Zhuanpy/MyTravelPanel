@@ -24,6 +24,9 @@
                     <a href="{{ url_for('business_projects.project_refund.create_refund', header_id=header.id) }}" class="btn btn-danger">
                         <i class="fas fa-plus"></i> 退款处理
                     </a>
+                    <a href="{{ url_for('business_projects.project_refund.refund_list') }}" class="btn btn-outline-primary" title="查看全部项目的退款">
+                        <i class="fas fa-list"></i> 退款列表
+                    </a>
                     <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> 返回项目详情
                     </a>
