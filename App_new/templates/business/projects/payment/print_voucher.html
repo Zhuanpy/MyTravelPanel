@@ -85,6 +85,9 @@
             color: #1F3A5F;
         }
 
+        /* 全局已是 bold；不锁住的话 strong 会变 bolder(900)，Windows 上落到 Arial Black（同发票） */
+        .print-voucher strong, .print-voucher b { font-weight: bold; }
+
         .print-voucher .voucher-info-section {
             display: flex;
             justify-content: space-between;
@@ -99,17 +102,11 @@
             width: 40%;
         }
 
-        .print-voucher .voucher-meta table {
-            width: 100%;
-        }
-
-        .print-voucher .voucher-meta td {
-            padding: 2px 5px;
-        }
-
-        .print-voucher .voucher-meta td:first-child {
-            width: 100px;
-        }
+        /* 同发票：收紧行距，标签/冒号各占一列对齐 */
+        .print-voucher .voucher-meta table { width: 100%; border-collapse: collapse; }
+        .print-voucher .voucher-meta td { padding: 0; line-height: 1.35; vertical-align: top; }
+        .print-voucher .voucher-meta td:first-child { width: 84px; white-space: nowrap; }
+        .print-voucher .voucher-meta td:nth-child(2) { width: 10px; padding-right: 4px; }
 
         .print-voucher .detail-table {
             width: 100%;
@@ -139,6 +136,9 @@
         .print-voucher .detail-table .text-right {
             text-align: right;
         }
+
+        /* 列标题带币种后不换行 */
+        .print-voucher .detail-table th { white-space: nowrap; }
 
         .print-voucher .detail-table .text-center {
             text-align: center;
@@ -270,11 +270,13 @@
                             <strong>{{ payment.supplier.company_name if payment.supplier else '-' }}</strong>
                         </td>
                     </tr>
-                    <tr><td colspan="3" style="height: 10px;"></td></tr>
+                    <tr><td colspan="3" style="height: 6px;"></td></tr>
                     <tr>
                         <td><strong>Method</strong></td>
                         <td>:</td>
-                        <td>{{ payment.payment_source_display }}</td>
+                        {# 打印单据用英文（模型的 payment_source_display 是中文，供系统界面用） #}
+                        {% set _method_en = {'bank': 'Bank Transfer', 'prepayment': 'Prepayment', 'mixed': 'Bank Transfer + Prepayment'} %}
+                        <td>{{ _method_en.get(payment.payment_source, payment.payment_source or '-') }}</td>
                     </tr>
                     {% if payment.remarks %}
                     <tr>
@@ -298,14 +300,9 @@
                         <td>{{ payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-' }}</td>
                     </tr>
                     <tr>
-                        <td>Currency</td>
-                        <td>:</td>
-                        <td>{{ payment.currency }}</td>
-                    </tr>
-                    <tr>
                         <td>Prepared By</td>
                         <td>:</td>
-                        <td>{{ payment.created_by or '-' }}</td>
+                        <td>{{ (payment.created_by or '-') | upper }}</td>
                     </tr>
                 </table>
             </div>
@@ -320,8 +317,8 @@
                     <th style="width: 12%;">REF</th>
                     <th style="width: 10%;">HID</th>
                     <th style="width: 33%;">Description</th>
-                    <th style="width: 12%;" class="text-right">Cost</th>
-                    <th style="width: 13%;" class="text-right">Pay Amount</th>
+                    <th style="width: 12%;" class="text-right">Cost ({{ payment.currency }})</th>
+                    <th style="width: 13%;" class="text-right">Pay Amount ({{ payment.currency }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -332,8 +329,8 @@
                     <td>{{ eo.ref.ref_number if eo.ref else '-' }}</td>
                     <td>{{ eo.ref.header.hid if eo.ref and eo.ref.header else '-' }}</td>
                     <td>{{ eo.ref.detailed_description or eo.ref.description if eo.ref else '-' }}</td>
-                    <td class="text-right">{{ "%.2f"|format(eo.ref.cost_price) if eo.ref and eo.ref.cost_price else '-' }}</td>
-                    <td class="text-right">{{ "%.2f"|format(eo.pay_amount) if eo.pay_amount else '-' }}</td>
+                    <td class="text-right">{{ "{:,.2f}".format((eo.ref.cost_price)|float) if eo.ref and eo.ref.cost_price else '-' }}</td>
+                    <td class="text-right">{{ "{:,.2f}".format((eo.pay_amount)|float) if eo.pay_amount else '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -342,23 +339,28 @@
         <!-- 金额汇总 -->
         <div class="total-section">
             <table style="width: 100%; margin-top: 0;">
+                {# Total Cost = 各 EO 成本合计；与实付总额相同时（全额付款）不重复显示，部分付款时才列出对照 #}
+                {% if (total_cost - (payment.total_amount or 0)|float)|abs > 0.005 %}
                 <tr>
-                    <td style="width: 75%;"></td>
-                    <td style="text-align: right; padding: 5px;">Sub Total :</td>
-                    <td style="text-align: right; width: 100px; padding: 5px;">{{ "%.2f"|format(total_cost) }}</td>
+                    <td style="width: 70%;"></td>
+                    <td style="text-align: right; padding: 5px;">Total Cost :</td>
+                    <td style="text-align: right; width: 110px; padding: 5px;">{{ "{:,.2f}".format((total_cost)|float) }}</td>
                 </tr>
+                {% endif %}
+                {# 币种并入标签，关键金额用字号区分（同发票） #}
+                <tr>
+                    <td style="width: 70%;"></td>
+                    <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 13px;"><strong>Total Amount ({{ payment.currency }}) :</strong></td>
+                    <td style="text-align: right; width: 110px; padding: 5px; white-space: nowrap; font-size: 14px;"><strong>{{ "{:,.2f}".format((payment.total_amount)|float) }}</strong></td>
+                </tr>
+                {# 预付账款抵用：是实付总额的资金来源说明，不是扣减项，放在合计下方小字 #}
                 {% if payment.prepayment_amount and payment.prepayment_amount > 0 %}
                 <tr>
                     <td></td>
-                    <td style="text-align: right; padding: 5px;">Prepayment Used :</td>
-                    <td style="text-align: right; padding: 5px;">{{ "%.2f"|format(payment.prepayment_amount) }}</td>
+                    <td style="text-align: right; padding: 5px; font-size: 11px; color: #666;">of which paid from Prepayment :</td>
+                    <td style="text-align: right; padding: 5px; font-size: 11px; color: #666;">{{ "{:,.2f}".format((payment.prepayment_amount)|float) }}</td>
                 </tr>
                 {% endif %}
-                <tr>
-                    <td><strong>{{ payment.currency }}</strong></td>
-                    <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>Total Amount :</strong></td>
-                    <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>{{ "%.2f"|format(payment.total_amount) }}</strong></td>
-                </tr>
             </table>
             <div style="border-bottom: 2px solid #333; margin-bottom: 5px;"></div>
         </div>
@@ -384,7 +386,7 @@
         <!-- 底部说明 -->
         <div class="footer-note">
             <p>THIS IS A COMPUTER-GENERATED DOCUMENT. NO SIGNATURE IS REQUIRED.</p>
-            <p style="margin-top: 10px;"><strong>E. & O.E</strong></p>
+            <p style="margin-top: 10px;"><strong>E. & O.E.</strong></p>
         </div>
     </div>
 </body>
