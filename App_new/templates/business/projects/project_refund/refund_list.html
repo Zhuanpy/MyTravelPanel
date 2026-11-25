@@ -10,6 +10,18 @@
 @media (max-width: 767.98px) {
     .refund-filter > div { width: 100% !important; max-width: none !important; flex: 1 1 100% !important; }
 }
+/* 可点击元素着色：表格里的链接做成色块，一眼能看出可点 */
+.rf-link { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 600; text-decoration: none; border: 1px solid transparent; transition: background 0.15s, color 0.15s; }
+.rf-link-refund { color: #4338ca; background: #eef2ff; border-color: #c7d2fe; }
+.rf-link-refund:hover { color: #fff; background: #4f46e5; border-color: #4f46e5; }
+.rf-link-hid { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
+.rf-link-hid:hover { color: #fff; background: #16a34a; border-color: #16a34a; }
+/* 顶部待办统计卡片：可点筛选 */
+.rf-stat { border-left: 4px solid var(--rf-c) !important; background: var(--rf-bg); transition: transform 0.15s, box-shadow 0.15s; }
+.rf-stat:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,0.08); }
+.rf-stat-supplier { --rf-c: #f59e0b; --rf-bg: #fffbeb; }
+.rf-stat-customer { --rf-c: #ef4444; --rf-bg: #fef2f2; }
+.rf-stat-go { font-size: 0.75rem; color: var(--rf-c); margin-left: 0.5rem; white-space: nowrap; }
 </style>
 <div class="container-fluid">
     <div class="row justify-content-center">
@@ -37,25 +49,27 @@
             {% if stats %}
             <div class="row g-2 mb-3">
                 <div class="col-6 col-lg-3">
-                    <a class="card text-decoration-none h-100 {% if filters.supplier_status in ['pending','partial'] %}border-warning{% endif %}"
+                    <a class="card text-decoration-none h-100 rf-stat rf-stat-supplier {% if filters.supplier_status in ['pending','partial'] %}border-warning{% endif %}"
                        href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, customer_status=filters.customer_status, supplier_status='pending') }}"
                        title="只看未收到供应商退款的记录">
                         <div class="card-body py-2 d-flex justify-content-between align-items-center">
                             <span class="text-muted small"><i class="fas fa-arrow-down text-warning"></i> 待收供应商退款</span>
                             <span><strong class="text-warning">{{ stats.supplier_pending.count }}</strong> 笔
                                 <span class="text-muted small ms-2">约 {{ "%.2f"|format(stats.supplier_pending.amount) }}</span>
+                                <span class="rf-stat-go">筛选 <i class="fas fa-chevron-right"></i></span>
                             </span>
                         </div>
                     </a>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <a class="card text-decoration-none h-100 {% if filters.customer_status in ['pending','partial'] %}border-danger{% endif %}"
+                    <a class="card text-decoration-none h-100 rf-stat rf-stat-customer {% if filters.customer_status in ['pending','partial'] %}border-danger{% endif %}"
                        href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, supplier_status=filters.supplier_status, customer_status='pending') }}"
                        title="只看还没退给客户的记录">
                         <div class="card-body py-2 d-flex justify-content-between align-items-center">
                             <span class="text-muted small"><i class="fas fa-arrow-up text-danger"></i> 待退客户</span>
                             <span><strong class="text-danger">{{ stats.customer_pending.count }}</strong> 笔
                                 <span class="text-muted small ms-2">约 {{ "%.2f"|format(stats.customer_pending.amount) }}</span>
+                                <span class="rf-stat-go">筛选 <i class="fas fa-chevron-right"></i></span>
                             </span>
                         </div>
                     </a>
@@ -155,11 +169,12 @@
                             {% for row in refunds %}
                             {% set r = row.refund %}
                             <tr>
-                                <td><strong>{{ r.refund_number }}</strong></td>
+                                <td><a href="{{ url_for('business_projects.project_refund.header_refunds', header_id=r.header_id) }}"
+                                       class="rf-link rf-link-refund" title="进入该项目的退款管理">{{ r.refund_number }}</a></td>
                                 <td>{{ r.refund_date.strftime('%Y-%m-%d') if r.refund_date else '-' }}</td>
                                 <td>
-                                    <a href="{{ url_for('business_projects.project_refund.header_refunds', header_id=r.header_id) }}"
-                                       title="查看该项目退款">{{ row.project_hid or ('#' ~ r.header_id) }}</a>
+                                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.header_id) }}"
+                                       class="rf-link rf-link-hid" title="打开项目详情">{{ row.project_hid or ('#' ~ r.header_id) }}</a>
                                 </td>
                                 <td class="small text-truncate" style="max-width:180px;" title="{{ row.project_name or '' }}">{{ row.project_name or '-' }}</td>
                                 <td class="small text-truncate" style="max-width:160px;" title="{{ row.company_name or '' }}">{{ row.company_name or '-' }}</td>
