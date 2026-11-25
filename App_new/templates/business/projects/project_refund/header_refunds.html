@@ -16,7 +16,7 @@
                         退款管理
                     </h2>
                     <p class="text-muted mb-0">
-                        项目: <strong>{{ header.hid }}</strong> | {{ header.desc or '' }}
+                        项目: <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="fw-bold text-decoration-none" title="打开项目详情">{{ header.hid }}</a> | {{ header.desc or '' }}
                         | 已退款合计: <strong class="text-danger">{{ "%.2f"|format(total_refund) }}</strong>
                     </p>
                 </div>
@@ -89,8 +89,9 @@
                                         {{ adj.ref_number }}
                                     </a>
                                     {% if r.adjustment_header_id != r.header_id %}
-                                    <span class="badge bg-warning text-dark ms-1"
-                                          title="原单已结算，调整单开在另一张项目上">{{ r.adjustment_header.hid if r.adjustment_header else '' }}</span>
+                                    <a href="{{ url_for('business_projects.detail.project_detail', project_id=r.adjustment_header_id) }}"
+                                       class="badge bg-warning text-dark ms-1 text-decoration-none"
+                                       title="原单已结算，调整单开在另一张项目上，点击打开">{{ r.adjustment_header.hid if r.adjustment_header else '' }}</a>
                                     {% endif %}
                                     <br>
                                     <span class="{{ 'text-success' if adj_profit >= 0 else 'text-danger' }}">
