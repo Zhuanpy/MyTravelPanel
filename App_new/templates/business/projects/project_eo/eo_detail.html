@@ -1,354 +1,308 @@
 {% extends "shared/staff_base.html" %}
 {% block title %}EO详情 - {{ eo.eo_number }}{% endblock %}
 
-{% block page_title %}EO详情{% endblock %}
+{% block breadcrumb %}
+{%- set header = eo.ref.header if eo.ref else None -%}
+{% if header %}
+<li class="breadcrumb-item"><a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}">项目 {{ header.hid }}</a></li>
+{% endif %}
+<li class="breadcrumb-item active" aria-current="page">EO {{ eo.eo_number }}</li>
+{% endblock %}
+
+{% block page_title %}
+{%- set is_paid = eo.pay_amount is not none -%}
+EO {{ eo.eo_number }}
+{% if eo.status == 'void' %}
+<span class="eo-status eo-status-void">已作废</span>
+{% elif eo.status == 'cancelled' %}
+<span class="eo-status eo-status-cancelled">已取消</span>
+{% elif is_paid %}
+<span class="eo-status eo-status-paid">已付款</span>
+{% else %}
+<span class="eo-status eo-status-unpaid">待付款</span>
+{% endif %}
+{% endblock %}
+
+{# 操作按钮放在内容区工具栏，与发票详情页一致 #}
+{% block page_actions %}{% endblock %}
+
 {% block content %}
+{%- set ref = eo.ref -%}
+{%- set header = ref.header if ref else None -%}
+{%- set currency = ref.currency if ref and ref.currency else 'SGD' -%}
+{%- set cost_amount = (ref.cost_price if ref and ref.cost_price else 0)|float -%}
+{%- set is_paid = eo.pay_amount is not none -%}
+{%- set paid_amount = (eo.pay_amount or 0)|float -%}
+{%- set unpaid_amount = cost_amount - paid_amount -%}
+{%- set is_closed = eo.status in ['void', 'cancelled'] -%}
 <style>
-    .eo-page { max-width: 900px; margin: 0 auto; }
+/* 与发票详情页（invoice_detail.html）同一套视觉：状态胶囊 / 汇总栏 / 卡片色条 */
+.eo-status { display: inline-block; vertical-align: middle; margin-left: 0.5rem; padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+.eo-status-paid { background: #dcfce7; color: #15803d; }
+.eo-status-unpaid { background: #fef3c7; color: #b45309; }
+.eo-status-void { background: #fee2e2; color: #b91c1c; text-decoration: line-through; }
+.eo-status-cancelled { background: #e2e8f0; color: #475569; text-decoration: line-through; }
 
-    /* 顶部 */
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #e5e7eb;
-    }
-    .page-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #1f2937;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .status-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: 50px;
-        font-weight: 500;
-    }
-    .status-draft { background: #f3f4f6; color: #6b7280; }
-    .status-confirmed { background: #dbeafe; color: #1d4ed8; }
-    .status-paid { background: #dcfce7; color: #16a34a; }
-    .status-void { background: #fee2e2; color: #dc2626; }
-    .status-cancelled { background: #fef3c7; color: #d97706; }
+/* 上一张/下一张 */
+.eo-nav .btn { font-weight: 500; }
+.eo-nav-no { color: #94a3b8; font-size: 0.8rem; }
+.eo-nav .eo-nav-prev { color: #0369a1; background: #e0f2fe; border: 1px solid #7dd3fc; }
+.eo-nav .eo-nav-prev:hover { color: #fff; background: #0284c7; border-color: #0284c7; }
+.eo-nav .eo-nav-next { color: #4338ca; background: #e0e7ff; border: 1px solid #a5b4fc; }
+.eo-nav .eo-nav-next:hover { color: #fff; background: #4f46e5; border-color: #4f46e5; }
+.eo-nav .eo-nav-prev .eo-nav-no, .eo-nav .eo-nav-next .eo-nav-no { color: inherit; opacity: 0.75; }
+.eo-goto { width: 180px; }
 
-    /* 面板 */
-    .panel {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        margin-bottom: 0.75rem;
-    }
-    .panel-title {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #6b7280;
-        padding: 0.5rem 0.75rem;
-        background: #f9fafb;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .panel-title i { font-size: 0.75rem; }
-    .panel-body { padding: 0.75rem; }
+/* 汇总栏 */
+.eo-summary { display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 1px 3px rgba(15,23,42,0.05); overflow: hidden; }
+.eo-summary-item { padding: 0.85rem 1.1rem; border-left: 1px solid #f1f5f9; border-top: 3px solid transparent; }
+.eo-summary-item:first-child { border-left: none; }
+.eo-summary-label { font-size: 0.78rem; color: #64748b; margin-bottom: 0.2rem; }
+.eo-summary-value { font-size: 1.25rem; font-weight: 700; color: #1e293b; font-variant-numeric: tabular-nums; }
+.eo-summary-meta { font-size: 0.95rem; color: #1e293b; padding-top: 0.25rem; }
+.eo-tile-amount  { background: #eff6ff; border-top-color: #3b82f6; }
+.eo-tile-amount .eo-summary-value { color: #1d4ed8; }
+.eo-tile-paid    { background: #f0fdf4; border-top-color: #22c55e; }
+.eo-tile-due     { background: #fef2f2; border-top-color: #ef4444; }
+.eo-tile-settled { background: #f8fafc; border-top-color: #cbd5e1; }
+.eo-tile-meta    { background: #faf5ff; border-top-color: #a855f7; }
 
-    /* 字段组 */
-    .field-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem 1.5rem;
-        margin-bottom: 0.5rem;
-    }
-    .field-row:last-child { margin-bottom: 0; }
-    .field {
-        min-width: 120px;
-        flex: 1;
-    }
-    .field.w-full { flex: 100%; min-width: 100%; }
-    .field.w-half { flex: 0 0 calc(50% - 0.75rem); min-width: calc(50% - 0.75rem); }
-    .field-label {
-        font-size: 0.7rem;
-        color: #9ca3af;
-        margin-bottom: 0.15rem;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
-    }
-    .field-value {
-        font-size: 0.9rem;
-        color: #1f2937;
-        font-weight: 500;
-    }
-    .field-value.muted { color: #9ca3af; }
-    .field-value.primary { color: #2563eb; font-weight: 600; }
-    .field-value.success { color: #16a34a; font-weight: 600; }
-    .field-value.large { font-size: 1.1rem; font-weight: 700; }
+/* 卡片：左侧色条 + 标题同色 */
+.eo-card-title { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.6rem; }
+.eo-card-title i { margin-right: 0.3rem; }
+.eo-accent { border-left: 4px solid var(--eo-accent, #cbd5e1) !important; }
+.eo-accent .eo-card-title, .eo-accent .eo-card-title i { color: var(--eo-accent-text, #64748b); }
+.eo-accent-supplier { --eo-accent: #3b82f6; --eo-accent-text: #1d4ed8; }
+.eo-accent-payment  { --eo-accent: #22c55e; --eo-accent-text: #15803d; }
+.eo-accent-info     { --eo-accent: #6366f1; --eo-accent-text: #4338ca; }
+.eo-accent-external { --eo-accent: #14b8a6; --eo-accent-text: #0f766e; }
+.eo-accent-remarks  { --eo-accent: #f59e0b; --eo-accent-text: #b45309; }
 
-    /* 标签 */
-    .tag {
-        display: inline-block;
-        padding: 0.15rem 0.4rem;
-        border-radius: 3px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    .tag-blue { background: #dbeafe; color: #1d4ed8; }
-    .tag-green { background: #dcfce7; color: #16a34a; }
-    .tag-yellow { background: #fef3c7; color: #d97706; }
-    .tag-gray { background: #f3f4f6; color: #6b7280; }
+.eo-contact li { color: #475569; margin-bottom: 0.2rem; word-break: break-all; }
+.eo-contact i { width: 1.1rem; color: #94a3b8; }
 
-    /* 链接 */
-    .link {
-        color: #2563eb;
-        text-decoration: none;
-        font-weight: 500;
-    }
-    .link:hover { text-decoration: underline; }
+/* 字段网格 */
+.eo-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem 1.25rem; }
+.eo-fields .full { grid-column: 1 / -1; }
+.eo-field-label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.1rem; }
+.eo-field-value { font-size: 0.92rem; color: #1e293b; font-weight: 500; font-variant-numeric: tabular-nums; word-break: break-word; }
+.eo-field-value.muted { color: #cbd5e1; font-weight: 400; }
+.eo-field-value a { color: #15803d; font-weight: 600; text-decoration: none; }
+.eo-field-value a:hover { text-decoration: underline; }
+.eo-pay-table { font-size: 13px; }
+.eo-pay-table td { font-variant-numeric: tabular-nums; }
+.eo-remarks { background: #fffbeb; padding: 0.5rem 0.65rem; border-radius: 6px; font-size: 0.85rem; color: #4b5563; line-height: 1.5; white-space: pre-wrap; }
 
-    /* 快捷导航 */
-    .quick-nav {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-        flex-wrap: wrap;
-    }
-    .quick-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.4rem 0.6rem;
-        background: #f3f4f6;
-        border: 1px solid transparent;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        color: #374151;
-        text-decoration: none;
-    }
-    .quick-nav-item i { color: #6b7280; font-size: 0.75rem; }
-    .quick-nav-item strong { font-weight: 600; }
-    /* 可点击项用蓝色，和不可点的灰色标签区分开 */
-    a.quick-nav-item {
-        background: #eff6ff;
-        border-color: #bfdbfe;
-        color: #1d4ed8;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
-    }
-    a.quick-nav-item i { color: #3b82f6; }
-    a.quick-nav-item:hover {
-        background: #dbeafe;
-        border-color: #60a5fa;
-        color: #1e3a8a;
-        text-decoration: underline;
-    }
-    a.quick-nav-item:hover i { color: #1e3a8a; }
-
-    /* 备注 */
-    .remarks {
-        background: #f9fafb;
-        padding: 0.5rem;
-        border-radius: 4px;
-        font-size: 0.85rem;
-        color: #4b5563;
-        line-height: 1.5;
-        white-space: pre-wrap;
-    }
-
-    @media (max-width: 640px) {
-        .field { min-width: 100%; flex: 100%; }
-        .field.w-half { flex: 100%; min-width: 100%; }
-        .page-header { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
-    }
+@media (max-width: 768px) {
+    .eo-summary, .eo-fields { grid-template-columns: repeat(2, 1fr); }
+    .eo-summary-item:nth-child(3) { border-left: none; }
+}
 </style>
 
-<div class="eo-page">
-    <!-- 标题栏 -->
-    <div class="page-header">
-        <h1 class="page-title">
-            {{ eo.eo_number }}
-            {% if eo.status == 'void' %}
-            <span class="status-badge status-void">已作废</span>
-            {% elif eo.status == 'cancelled' %}
-            <span class="status-badge status-cancelled">已取消</span>
-            {% elif eo.status == 'paid' or eo.pay_amount is not none %}
-            <span class="status-badge status-paid">已付款</span>
-            {% elif eo.status == 'confirmed' %}
-            <span class="status-badge status-confirmed">已确认</span>
-            {% else %}
-            <span class="status-badge status-draft">草稿</span>
-            {% endif %}
-        </h1>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('business_projects.project_eo.print_eo', eo_id=eo.id) }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-print"></i> 打印
+<div class="container mt-4" style="max-width: 1000px;">
+
+    <!-- 工具栏：上一张/下一张 + 跳转 + 操作按钮 -->
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <div class="eo-nav btn-group btn-group-sm" role="group" aria-label="EO导航">
+            {% if prev_eo %}
+            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=prev_eo.id) }}"
+               class="btn eo-nav-prev" title="上一张（更新）：{{ prev_eo.eo_number }}">
+                <i class="fas fa-chevron-left me-1"></i>上一张 <span class="eo-nav-no">{{ prev_eo.eo_number }}</span>
             </a>
-            {% if eo.status != 'void' and eo.status != 'cancelled' and eo.pay_amount is none %}
-            <a href="{{ url_for('business_projects.project_eo.batch_pay', supplier=eo.ref.supplier_id if eo.ref and eo.ref.supplier_id else '') }}" class="btn btn-success btn-sm">
+            {% else %}
+            <button class="btn btn-outline-secondary" disabled title="已是第一张"><i class="fas fa-chevron-left me-1"></i>上一张</button>
+            {% endif %}
+            {% if next_eo %}
+            <a href="{{ url_for('business_projects.project_eo.eo_detail', eo_id=next_eo.id) }}"
+               class="btn eo-nav-next" title="下一张（更早）：{{ next_eo.eo_number }}">
+                <span class="eo-nav-no">{{ next_eo.eo_number }}</span> 下一张<i class="fas fa-chevron-right ms-1"></i>
+            </a>
+            {% else %}
+            <button class="btn btn-outline-secondary" disabled title="已是最后一张">下一张<i class="fas fa-chevron-right ms-1"></i></button>
+            {% endif %}
+        </div>
+        <form method="GET" action="{{ url_for('business_projects.project_eo.goto_eo') }}" class="eo-goto input-group input-group-sm">
+            <input type="text" name="no" class="form-control" placeholder="输入EO号" aria-label="输入EO号跳转" autocomplete="off" required>
+            <button type="submit" class="btn btn-outline-secondary" title="跳转到该EO">跳转</button>
+        </form>
+        <div class="d-flex flex-wrap gap-2 ms-auto">
+            {% if not is_closed and not is_paid %}
+            <a href="{{ url_for('business_projects.project_eo.batch_pay', supplier=ref.supplier_id if ref and ref.supplier_id else '') }}" class="btn btn-success btn-sm">
                 <i class="fas fa-money-check-alt"></i> 去付款
             </a>
-            <button class="btn btn-outline-danger btn-sm" onclick="voidEO()">
+            {% endif %}
+            <a href="{{ url_for('business_projects.project_eo.print_eo', eo_id=eo.id) }}" target="_blank" class="btn btn-primary btn-sm">
+                <i class="fas fa-print"></i> 打印EO
+            </a>
+            {% if not is_closed and not is_paid %}
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="voidEO()">
                 <i class="fas fa-ban"></i> 作废
             </button>
             {% endif %}
+            {% if header %}
+            <a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> 返回项目
+            </a>
+            {% endif %}
         </div>
     </div>
 
-    <!-- 快捷导航 -->
-    <div class="quick-nav">
-        {% if eo.ref and eo.ref.header %}
-        <a href="{{ url_for('business_projects.detail.project_detail', project_id=eo.ref.header.id) }}" class="quick-nav-item">
-            <i class="fas fa-folder"></i> HID <strong>{{ eo.ref.header.id }}</strong>
-        </a>
-        {% endif %}
-        {% if eo.ref %}
-        <a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=eo.ref_id) }}" class="quick-nav-item" title="编辑REF">
-            <i class="fas fa-file-alt"></i> REF <strong>{{ eo.ref.ref_number }}</strong>
-        </a>
-        {% endif %}
-        {% if eo.ref and eo.ref.supplier %}
-        <a href="{{ url_for('corporate.company_detail', company_id=eo.ref.supplier.id) }}" class="quick-nav-item" title="查看供应商详情">
-            <i class="fas fa-building"></i> {{ eo.ref.supplier.company_name }}
-        </a>
-        {% endif %}
-        {% if eo.ref and eo.ref.ref_type %}
-        <span class="quick-nav-item"><span class="tag tag-blue">{{ eo.ref.ref_type.name }}</span></span>
-        {% endif %}
+    <!-- 汇总栏：成本 / 已付 / 未付 / 日期类型 -->
+    <div class="eo-summary mb-3">
+        <div class="eo-summary-item eo-tile-amount">
+            <div class="eo-summary-label">成本金额</div>
+            <div class="eo-summary-value">{{ currency }} {{ "{:,.2f}".format(cost_amount) }}</div>
+        </div>
+        <div class="eo-summary-item eo-tile-paid">
+            <div class="eo-summary-label">已付</div>
+            <div class="eo-summary-value text-success">{{ currency }} {{ "{:,.2f}".format(paid_amount) }}</div>
+        </div>
+        <div class="eo-summary-item {{ 'eo-tile-due' if unpaid_amount > 0.01 and not is_closed else 'eo-tile-settled' }}">
+            <div class="eo-summary-label">未付</div>
+            <div class="eo-summary-value {{ 'text-danger' if unpaid_amount > 0.01 and not is_closed else 'text-muted' }}">{{ currency }} {{ "{:,.2f}".format(unpaid_amount) }}</div>
+            {% if is_closed %}<div class="small text-muted">EO已作废，不计应付</div>{% endif %}
+        </div>
+        <div class="eo-summary-item eo-tile-meta">
+            <div class="eo-summary-label">EO日期 · 类型</div>
+            <div class="eo-summary-meta">
+                {% set eo_day = eo.eo_date or (eo.created_at.date() if eo.created_at else None) %}
+                {{ eo_day.strftime('%Y-%m-%d') if eo_day else '-' }}
+                {% if ref and ref.ref_type %}<span class="badge bg-light text-dark border ms-1">{{ ref.ref_type.name }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <!-- 供应商：公司名为主，联系人为辅 -->
+        <div class="col-md-5">
+            <div class="card shadow-sm h-100 eo-accent eo-accent-supplier">
+                <div class="card-body">
+                    <div class="eo-card-title"><i class="fas fa-building"></i> 供应商</div>
+                    {% if ref and ref.supplier %}
+                    {% set sup = ref.supplier %}
+                    <div class="fw-semibold">
+                        <a href="{{ url_for('corporate.company_detail', company_id=sup.id) }}" class="text-decoration-none" title="查看供应商详情">{{ sup.company_name }}</a>
+                    </div>
+                    {% if sup.contact_person %}
+                    <div class="text-muted small"><i class="fas fa-user"></i> {{ sup.contact_person }}</div>
+                    {% endif %}
+                    {% if sup.contact_email or sup.contact_phone or sup.address %}
+                    <ul class="eo-contact list-unstyled small mb-0 mt-2">
+                        {% if sup.contact_email %}<li><i class="fas fa-envelope"></i><a href="mailto:{{ sup.contact_email }}">{{ sup.contact_email }}</a></li>{% endif %}
+                        {% if sup.contact_phone %}<li><i class="fas fa-phone"></i>{{ sup.contact_phone }}</li>{% endif %}
+                        {% if sup.address %}<li><i class="fas fa-map-marker-alt"></i>{{ sup.address }}</li>{% endif %}
+                    </ul>
+                    {% else %}
+                    <div class="text-muted small mt-2">无联系方式</div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-muted">未指定供应商</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 付款记录 -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100 eo-accent eo-accent-payment">
+                <div class="card-body">
+                    <div class="eo-card-title"><i class="fas fa-hand-holding-usd"></i> 付款记录</div>
+                    {% if is_paid %}
+                    <table class="table table-sm mb-0 eo-pay-table">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted" style="width: 90px;">{{ eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '-' }}</td>
+                                <td>
+                                    {{ eo.payment_no or 'Payment' }}
+                                    {% if eo.payment_voucher_no %}<span class="text-muted small">· 凭证 {{ eo.payment_voucher_no }}</span>{% endif %}
+                                </td>
+                                <td class="text-end fw-semibold">{{ "{:,.2f}".format(paid_amount) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    {% if eo.payment_remarks %}
+                    <div class="eo-remarks mt-2">{{ eo.payment_remarks }}</div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-muted small">暂无付款</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 基本信息 -->
-    <div class="panel">
-        <div class="panel-title"><i class="fas fa-info-circle"></i> 基本信息</div>
-        <div class="panel-body">
-            <div class="field-row">
-                <div class="field">
-                    <div class="field-label">EO编号</div>
-                    <div class="field-value">{{ eo.eo_number }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">创建日期</div>
-                    <div class="field-value">{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">确认码</div>
-                    <div class="field-value {% if not eo.conf_code %}muted{% endif %}">{{ eo.conf_code or '-' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">出行人</div>
-                    <div class="field-value {% if not (eo.ref and eo.ref.header and eo.ref.header.leader_name) %}muted{% endif %}">
-                        {{ eo.ref.header.leader_name if eo.ref and eo.ref.header else '-' }}
+    <div class="card shadow-sm mb-3 eo-accent eo-accent-info">
+        <div class="card-body">
+            <div class="eo-card-title"><i class="fas fa-info-circle"></i> 基本信息</div>
+            <div class="eo-fields">
+                <div>
+                    <div class="eo-field-label">REF</div>
+                    <div class="eo-field-value">
+                        {% if ref %}<a href="{{ url_for('business_projects.project_ref.edit_ref', ref_id=eo.ref_id) }}" title="编辑REF">{{ ref.ref_number }}</a>{% else %}-{% endif %}
                     </div>
                 </div>
-            </div>
-            {% if eo.ref and eo.ref.description %}
-            <div class="field-row">
-                <div class="field w-full">
-                    <div class="field-label">描述</div>
-                    <div class="field-value">{{ eo.ref.description }}</div>
+                <div>
+                    <div class="eo-field-label">项目 HID</div>
+                    <div class="eo-field-value">
+                        {% if header %}<a href="{{ url_for('business_projects.detail.project_detail', project_id=header.id) }}" title="打开项目详情">{{ header.hid }}</a>{% else %}-{% endif %}
+                    </div>
                 </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- 金额 & 付款 -->
-    <div class="panel">
-        <div class="panel-title">
-            <i class="fas fa-dollar-sign"></i> 金额 & 付款
-            <span class="ms-auto">
-                {% if eo.pay_amount is not none %}
-                <span class="tag tag-green">已付款</span>
-                {% else %}
-                <span class="tag tag-yellow">待付款</span>
+                <div>
+                    <div class="eo-field-label">确认码</div>
+                    <div class="eo-field-value {% if not eo.conf_code %}muted{% endif %}">{{ eo.conf_code or '-' }}</div>
+                </div>
+                <div>
+                    <div class="eo-field-label">出行人</div>
+                    <div class="eo-field-value {% if not (header and header.leader_name) %}muted{% endif %}">{{ header.leader_name if header and header.leader_name else '-' }}</div>
+                </div>
+                <div>
+                    <div class="eo-field-label">售价金额</div>
+                    <div class="eo-field-value">{{ currency }} {{ "{:,.2f}".format((ref.selling_price if ref and ref.selling_price else 0)|float) }}</div>
+                </div>
+                <div>
+                    <div class="eo-field-label">折扣</div>
+                    <div class="eo-field-value {% if not (eo.discount and eo.discount > 0) %}muted{% endif %}">
+                        {% if eo.discount and eo.discount > 0 %}-{{ "{:,.2f}".format(eo.discount|float) }}{% else %}-{% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="eo-field-label">税费</div>
+                    <div class="eo-field-value {% if not (eo.tax and eo.tax > 0) %}muted{% endif %}">
+                        {% if eo.tax and eo.tax > 0 %}+{{ "{:,.2f}".format(eo.tax|float) }}{% else %}-{% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="eo-field-label">创建日期</div>
+                    <div class="eo-field-value">{{ eo.created_at.strftime('%Y-%m-%d') if eo.created_at else '-' }}</div>
+                </div>
+                {% if ref and ref.description %}
+                <div class="full">
+                    <div class="eo-field-label">描述</div>
+                    <div class="eo-field-value">{{ ref.description }}</div>
+                </div>
                 {% endif %}
-            </span>
-        </div>
-        <div class="panel-body">
-            <div class="field-row">
-                <div class="field">
-                    <div class="field-label">成本金额</div>
-                    <div class="field-value large primary">
-                        {{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }}
-                        {{ "%.2f"|format((eo.ref.cost_price if eo.ref and eo.ref.cost_price else 0)|float) }}
-                    </div>
-                </div>
-                <div class="field">
-                    <div class="field-label">售价金额</div>
-                    <div class="field-value">
-                        {{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }}
-                        {{ "%.2f"|format((eo.ref.selling_price if eo.ref and eo.ref.selling_price else 0)|float) }}
-                    </div>
-                </div>
-                <div class="field">
-                    <div class="field-label">折扣</div>
-                    <div class="field-value {% if not (eo.discount and eo.discount > 0) %}muted{% endif %}">
-                        {% if eo.discount and eo.discount > 0 %}-{{ "%.2f"|format(eo.discount|float) }}{% else %}-{% endif %}
-                    </div>
-                </div>
-                <div class="field">
-                    <div class="field-label">税费</div>
-                    <div class="field-value {% if not (eo.tax and eo.tax > 0) %}muted{% endif %}">
-                        {% if eo.tax and eo.tax > 0 %}+{{ "%.2f"|format(eo.tax|float) }}{% else %}-{% endif %}
-                    </div>
-                </div>
             </div>
-            <hr style="margin: 0.5rem 0; border-color: #e5e7eb;">
-            <div class="field-row">
-                <div class="field">
-                    <div class="field-label">付款编号</div>
-                    <div class="field-value {% if not eo.payment_no %}muted{% endif %}">{{ eo.payment_no or '-' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">付款凭证号</div>
-                    <div class="field-value {% if not eo.payment_voucher_no %}muted{% endif %}">{{ eo.payment_voucher_no or '-' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">付款日期</div>
-                    <div class="field-value {% if not eo.paid_date %}muted{% endif %}">
-                        {{ eo.paid_date.strftime('%Y-%m-%d') if eo.paid_date else '-' }}
-                    </div>
-                </div>
-                <div class="field">
-                    <div class="field-label">付款金额</div>
-                    <div class="field-value {% if eo.pay_amount %}success{% else %}muted{% endif %}">
-                        {% if eo.pay_amount %}
-                        {{ eo.ref.currency if eo.ref and eo.ref.currency else 'SGD' }} {{ "%.2f"|format(eo.pay_amount|float) }}
-                        {% else %}-{% endif %}
-                    </div>
-                </div>
-            </div>
-            {% if eo.payment_remarks %}
-            <div class="field-row" style="margin-top: 0.5rem;">
-                <div class="field w-full">
-                    <div class="field-label">付款备注</div>
-                    <div class="remarks">{{ eo.payment_remarks }}</div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 
     <!-- 外部系统 -->
     {% if eo.external_system or eo.external_status or eo.external_reference %}
-    <div class="panel">
-        <div class="panel-title"><i class="fas fa-cloud"></i> 外部系统</div>
-        <div class="panel-body">
-            <div class="field-row">
-                <div class="field">
-                    <div class="field-label">系统名称</div>
-                    <div class="field-value">{{ eo.external_system or '-' }}</div>
+    <div class="card shadow-sm mb-3 eo-accent eo-accent-external">
+        <div class="card-body">
+            <div class="eo-card-title"><i class="fas fa-cloud"></i> 外部系统</div>
+            <div class="eo-fields">
+                <div>
+                    <div class="eo-field-label">系统名称</div>
+                    <div class="eo-field-value">{{ eo.external_system or '-' }}</div>
                 </div>
-                <div class="field">
-                    <div class="field-label">系统状态</div>
-                    <div class="field-value">{{ eo.external_status or '-' }}</div>
+                <div>
+                    <div class="eo-field-label">系统状态</div>
+                    <div class="eo-field-value">{{ eo.external_status or '-' }}</div>
                 </div>
-                <div class="field">
-                    <div class="field-label">参考号</div>
-                    <div class="field-value">{{ eo.external_reference or '-' }}</div>
+                <div>
+                    <div class="eo-field-label">参考号</div>
+                    <div class="eo-field-value">{{ eo.external_reference or '-' }}</div>
                 </div>
             </div>
         </div>
@@ -356,25 +310,17 @@
     {% endif %}
 
     <!-- 备注 -->
-    {% if (eo.ref and eo.ref.remarks) or (eo.ref and eo.ref.detailed_description) %}
-    <div class="panel">
-        <div class="panel-title"><i class="fas fa-sticky-note"></i> 备注</div>
-        <div class="panel-body">
-            {% if eo.ref and eo.ref.detailed_description %}
-            <div class="field-row">
-                <div class="field w-full">
-                    <div class="field-label">详细描述</div>
-                    <div class="remarks">{{ eo.ref.detailed_description }}</div>
-                </div>
-            </div>
+    {% if ref and (ref.remarks or ref.detailed_description) %}
+    <div class="card shadow-sm mb-3 eo-accent eo-accent-remarks">
+        <div class="card-body">
+            <div class="eo-card-title"><i class="fas fa-sticky-note"></i> 备注</div>
+            {% if ref.detailed_description %}
+            <div class="eo-field-label">详细描述</div>
+            <div class="eo-remarks">{{ ref.detailed_description }}</div>
             {% endif %}
-            {% if eo.ref and eo.ref.remarks %}
-            <div class="field-row" {% if eo.ref.detailed_description %}style="margin-top: 0.5rem;"{% endif %}>
-                <div class="field w-full">
-                    <div class="field-label">REF备注</div>
-                    <div class="remarks">{{ eo.ref.remarks }}</div>
-                </div>
-            </div>
+            {% if ref.remarks %}
+            <div class="eo-field-label {% if ref.detailed_description %}mt-2{% endif %}">REF备注</div>
+            <div class="eo-remarks">{{ ref.remarks }}</div>
             {% endif %}
         </div>
     </div>

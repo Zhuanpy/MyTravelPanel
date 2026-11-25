@@ -88,7 +88,27 @@ def eo_detail(eo_id):
     if header and not can_access_project(header, current_user):
         flash('您没有权限访问此项目', 'error')
         return redirect(url_for('business_projects.project_eo.eo_list'))
-    return render_template('business/projects/project_eo/eo_detail.html', eo=eo)
+
+    # 上一个 / 下一个 EO 导航：与 EO 列表默认排序一致（创建时间倒序，用 id 近似），排除已作废
+    # "上一个" = 列表中位于当前条目上方（更新的那条），"下一个" = 更老的那条
+    prev_eo = ProjectEO.query.filter(ProjectEO.status != 'void', ProjectEO.id > eo.id)         .order_by(ProjectEO.id.asc()).first()
+    next_eo = ProjectEO.query.filter(ProjectEO.status != 'void', ProjectEO.id < eo.id)         .order_by(ProjectEO.id.desc()).first()
+    return render_template('business/projects/project_eo/eo_detail.html', eo=eo,
+                           prev_eo=prev_eo, next_eo=next_eo)
+
+
+@project_eo.route('/goto')
+@login_required
+@staff_only
+def goto_eo():
+    """按 EO 编号跳转到 EO 详情（详情页的"输入EO号"切换框用）"""
+    eo_number = (request.args.get('no') or '').strip()
+    if eo_number:
+        eo = ProjectEO.query.filter_by(eo_number=eo_number).first()
+        if eo:
+            return redirect(url_for('business_projects.project_eo.eo_detail', eo_id=eo.id))
+        flash(f'未找到EO {eo_number}', 'warning')
+    return redirect(request.referrer or url_for('business_projects.project_eo.eo_list'))
 
 
 @project_eo.route('/<int:eo_id>/print')

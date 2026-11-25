@@ -128,9 +128,33 @@
 .inv-items tfoot th { background: #f8fafc; font-size: 14px; border-bottom: none; }
 .inv-subtext { font-size: 12px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
 .inv-row-warn { background: #fffbeb; }
+/* 配色区分：汇总格按含义着色，卡片左侧色条 + 标题图标同色 */
+.inv-summary { overflow: hidden; }
+.inv-summary-item { border-top: 3px solid transparent; }
+.inv-tile-amount  { background: #eff6ff; border-top-color: #3b82f6; }
+.inv-tile-amount .inv-summary-value { color: #1d4ed8; }
+.inv-tile-paid    { background: #f0fdf4; border-top-color: #22c55e; }
+.inv-tile-due     { background: #fef2f2; border-top-color: #ef4444; }
+.inv-tile-settled { background: #f8fafc; border-top-color: #cbd5e1; }
+.inv-tile-meta    { background: #faf5ff; border-top-color: #a855f7; }
+.inv-accent { border-left: 4px solid var(--inv-accent, #cbd5e1) !important; }
+.inv-accent .inv-card-title, .inv-accent .inv-card-title i { color: var(--inv-accent-text, #64748b); }
+.inv-accent-customer { --inv-accent: #3b82f6; --inv-accent-text: #1d4ed8; }
+.inv-accent-payment  { --inv-accent: #22c55e; --inv-accent-text: #15803d; }
+.inv-accent-items    { --inv-accent: #6366f1; --inv-accent-text: #4338ca; }
+.inv-accent-files    { --inv-accent: #14b8a6; --inv-accent-text: #0f766e; }
+.inv-accent-items .inv-items thead th { background: #eef2ff; color: #4338ca; }
+.inv-accent-items .inv-items tfoot th { background: #eef2ff; color: #312e81; }
 /* 上一张/下一张 */
 .inv-nav .btn { font-weight: 500; }
 .inv-nav-no { color: #94a3b8; font-size: 0.8rem; }
+/* 上一张/下一张：分别着色，可点时有底色，悬停加深；禁用保持灰色 */
+.inv-nav .inv-nav-prev, .inv-nav .inv-nav-next { border-width: 1px; }
+.inv-nav .inv-nav-prev { color: #0369a1; background: #e0f2fe; border-color: #7dd3fc; }
+.inv-nav .inv-nav-prev:hover { color: #fff; background: #0284c7; border-color: #0284c7; }
+.inv-nav .inv-nav-next { color: #4338ca; background: #e0e7ff; border-color: #a5b4fc; }
+.inv-nav .inv-nav-next:hover { color: #fff; background: #4f46e5; border-color: #4f46e5; }
+.inv-nav .inv-nav-prev .inv-nav-no, .inv-nav .inv-nav-next .inv-nav-no { color: inherit; opacity: 0.75; }
 .inv-goto { width: 180px; }
 .inv-items a { color: #15803d; font-weight: 600; text-decoration: none; }
 .inv-items a:hover { text-decoration: underline; }
@@ -165,17 +189,8 @@
 {% endif %}
 {% endblock %}
 
-{% block page_actions %}
-<button type="button" onclick="showEmailModal()" class="btn btn-outline-primary btn-sm" title="向客户发送此发票相关邮件">
-    <i class="fas fa-envelope"></i> 发送邮件
-</button>
-<button type="button" onclick="printInvoice()" class="btn btn-primary btn-sm">
-    <i class="fas fa-print"></i> 打印发票
-</button>
-<a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}" class="btn btn-outline-secondary btn-sm">
-    <i class="fas fa-arrow-left"></i> 返回项目
-</a>
-{% endblock %}
+{# 操作按钮已移到内容区工具栏（与「同步REF信息」并排） #}
+{% block page_actions %}{% endblock %}
 
 {% block content %}
 {%- set paid_total = (invoice.amount|float) - balance -%}
@@ -199,7 +214,7 @@
     <div class="inv-nav btn-group btn-group-sm" role="group" aria-label="发票导航">
         {% if prev_invoice %}
         <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=prev_invoice.id) }}"
-           class="btn btn-outline-secondary" title="上一张（更新）：{{ prev_invoice.invoice_number }}">
+           class="btn inv-nav-prev" title="上一张（更新）：{{ prev_invoice.invoice_number }}">
             <i class="fas fa-chevron-left me-1"></i>上一张 <span class="inv-nav-no">{{ prev_invoice.invoice_number }}</span>
         </a>
         {% else %}
@@ -207,7 +222,7 @@
         {% endif %}
         {% if next_invoice %}
         <a href="{{ url_for('business_projects.project_invoice.invoice_detail', invoice_id=next_invoice.id) }}"
-           class="btn btn-outline-secondary" title="下一张（更早）：{{ next_invoice.invoice_number }}">
+           class="btn inv-nav-next" title="下一张（更早）：{{ next_invoice.invoice_number }}">
             <span class="inv-nav-no">{{ next_invoice.invoice_number }}</span> 下一张<i class="fas fa-chevron-right ms-1"></i>
         </a>
         {% else %}
@@ -219,28 +234,40 @@
         <input type="text" name="no" class="form-control" placeholder="输入发票号" aria-label="输入发票号跳转" autocomplete="off" required>
         <button type="submit" class="btn btn-outline-secondary" title="跳转到该发票">跳转</button>
     </form>
-    <button type="button" onclick="syncRefPrices()" class="btn btn-outline-warning btn-sm ms-auto" title="从REF同步最新价格和描述信息">
-        <i class="fas fa-sync-alt"></i> 同步REF信息
-    </button>
+    <!-- 操作按钮：同步 / 邮件 / 打印 / 返回 -->
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+        <button type="button" onclick="syncRefPrices()" class="btn btn-outline-warning btn-sm" title="从REF同步最新价格和描述信息">
+            <i class="fas fa-sync-alt"></i> 同步REF信息
+        </button>
+        <button type="button" onclick="showEmailModal()" class="btn btn-outline-primary btn-sm" title="向客户发送此发票相关邮件">
+            <i class="fas fa-envelope"></i> 发送邮件
+        </button>
+        <button type="button" onclick="printInvoice()" class="btn btn-primary btn-sm">
+            <i class="fas fa-print"></i> 打印发票
+        </button>
+        <a href="{{ url_for('business_projects.detail.project_detail', project_id=invoice.header_id) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> 返回项目
+        </a>
+    </div>
     </div>
 
 
     <!-- 汇总栏：金额 / 已收 / 未收 / 日期类型 -->
     <div class="inv-summary mb-3">
-        <div class="inv-summary-item">
+        <div class="inv-summary-item inv-tile-amount">
             <div class="inv-summary-label">发票金额</div>
             <div class="inv-summary-value">{{ invoice.currency }} {{ "{:,.2f}".format(invoice.amount|float) }}</div>
         </div>
-        <div class="inv-summary-item">
+        <div class="inv-summary-item inv-tile-paid">
             <div class="inv-summary-label">已收</div>
             <div class="inv-summary-value text-success">{{ invoice.currency }} {{ "{:,.2f}".format(paid_total) }}</div>
         </div>
-        <div class="inv-summary-item">
+        <div class="inv-summary-item {{ 'inv-tile-due' if balance > 0.01 and invoice.status != 'cancelled' else 'inv-tile-settled' }}">
             <div class="inv-summary-label">未收</div>
             <div class="inv-summary-value {{ 'text-danger' if balance > 0.01 and invoice.status != 'cancelled' else 'text-muted' }}">{{ invoice.currency }} {{ "{:,.2f}".format(balance) }}</div>
             {% if invoice.status == 'cancelled' %}<div class="small text-muted">发票已取消，不计应收</div>{% endif %}
         </div>
-        <div class="inv-summary-item">
+        <div class="inv-summary-item inv-tile-meta">
             <div class="inv-summary-label">发票日期 · 类型</div>
             <div class="inv-summary-meta">
                 {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}
@@ -258,12 +285,13 @@
     <div class="row g-3 mb-3">
         <!-- 客户：只显示有值的字段 -->
         <div class="col-md-5">
-            <div class="card shadow-sm h-100">
+            <div class="card shadow-sm h-100 inv-accent inv-accent-customer">
                 <div class="card-body">
-                    <div class="inv-card-title"><i class="fas fa-user"></i> 客户</div>
-                    <div class="fw-semibold">{{ customer_name or customer_company or '-' }}</div>
-                    {% if customer_company and customer_company != customer_name %}
-                    <div class="text-muted small">{{ customer_company }}</div>
+                    <div class="inv-card-title"><i class="fas fa-building"></i> 客户</div>
+                    {# 公司名为主，联系人为辅 #}
+                    <div class="fw-semibold">{{ customer_company or customer_name or '-' }}</div>
+                    {% if customer_company and customer_name and customer_name != customer_company %}
+                    <div class="text-muted small"><i class="fas fa-user"></i> {{ customer_name }}</div>
                     {% endif %}
                     {% if customer_email or customer_phone or customer_address %}
                     <ul class="inv-contact list-unstyled small mb-0 mt-2">
@@ -280,7 +308,7 @@
 
         <!-- 收款记录 -->
         <div class="col-md-7">
-            <div class="card shadow-sm h-100">
+            <div class="card shadow-sm h-100 inv-accent inv-accent-payment">
                 <div class="card-body">
                     <div class="inv-card-title"><i class="fas fa-hand-holding-usd"></i> 收款记录</div>
                     {% if payments %}
@@ -304,7 +332,7 @@
     </div>
 
     <!-- 明细（REF 编号直接链接到 REF 详情，取代原"关联REF"表） -->
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3 inv-accent inv-accent-items">
         <div class="card-body p-0">
             <div class="inv-card-title px-3 pt-3"><i class="fas fa-list"></i> 明细</div>
             {% if mismatch.count > 0 %}
@@ -376,7 +404,7 @@
     </div>
 
     <!-- 文件命名助手（默认展开，可收起） -->
-    <details class="card shadow-sm mb-3 no-print inv-filenames" open>
+    <details class="card shadow-sm mb-3 no-print inv-filenames inv-accent inv-accent-files" open>
         <summary class="card-body py-2"><i class="fas fa-file-signature text-success me-1"></i> 文件命名助手</summary>
         <div class="card-body pt-0 pb-3">
             <div class="row g-2">
