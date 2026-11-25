@@ -50,25 +50,36 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
+        /* 全局已是 bold；不锁住的话 strong 会变 bolder(900)，Windows 上落到 Arial Black（同发票） */
+        .print-voucher strong, .print-voucher b { font-weight: bold; }
+
+        /* 页眉与发票/收据/EO/付款凭证统一（方案A）：左 invoice 专用横版 logo，右公司英文信息，
+           下方橙/绿/蓝三色分隔线，标题加字距、深蓝色 */
         .print-voucher .voucher-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            align-items: center;
+            padding-bottom: 10px;
         }
+        .print-voucher .company-logo img { height: 64px; width: auto; display: block; }
+        .print-voucher .company-info { text-align: right; font-size: 11px; line-height: 1.55; font-weight: normal; color: #333; }
+        .print-voucher .company-name-en { font-size: 14px; font-weight: bold; color: #1F3A5F; letter-spacing: 0.3px; margin-bottom: 2px; }
+        /* 三色线用 border 而非背景色：打印默认不出背景色，border 始终会打印 */
+        .print-voucher .brand-rule { display: flex; }
+        .print-voucher .brand-rule span { flex: 1; border-top: 3px solid; }
+        .print-voucher .brand-rule .c1 { border-color: #EE9420; }
+        .print-voucher .brand-rule .c2 { border-color: #5C9D33; }
+        .print-voucher .brand-rule .c3 { border-color: #1573B5; }
 
-        .print-voucher .company-logo { text-align: center; }
-        .print-voucher .company-logo img { height: 60px; display: block; margin: 0 auto; }
-        .print-voucher .company-info { text-align: right; font-size: 11px; }
-        .print-voucher .company-name-cn { font-size: 18px; font-weight: bold; }
-        .print-voucher .company-name-en { font-size: 16px; font-weight: bold; }
-
-        .print-voucher .voucher-title { text-align: center; margin: 20px 0; }
+        .print-voucher .voucher-title { text-align: center; margin: 18px 0 20px; }
         .print-voucher .voucher-title span {
             display: inline-block;
-            padding: 5px 0;
+            padding: 0;
             font-size: 18px;
             font-weight: bold;
             text-transform: uppercase;
+            letter-spacing: 5px;
+            color: #1F3A5F;
         }
 
         .print-voucher .voucher-info-section {
@@ -78,9 +89,11 @@
         }
         .print-voucher .payee-info { width: 55%; }
         .print-voucher .voucher-meta { width: 40%; }
-        .print-voucher .voucher-meta table { width: 100%; }
-        .print-voucher .voucher-meta td { padding: 2px 5px; }
-        .print-voucher .voucher-meta td:first-child { width: 100px; }
+        /* 同发票：收紧行距，标签/冒号各占一列对齐 */
+        .print-voucher .voucher-meta table { width: 100%; border-collapse: collapse; }
+        .print-voucher .voucher-meta td { padding: 0; line-height: 1.35; vertical-align: top; }
+        .print-voucher .voucher-meta td:first-child { width: 84px; white-space: nowrap; }
+        .print-voucher .voucher-meta td:nth-child(2) { width: 10px; padding-right: 4px; }
 
         .print-voucher .detail-table {
             width: 100%;
@@ -102,6 +115,8 @@
         }
         .print-voucher .detail-table tbody tr:last-child td { border-bottom: 1px solid #333; }
         .print-voucher .detail-table .text-right { text-align: right; }
+        /* 列标题带币种后不换行 */
+        .print-voucher .detail-table th { white-space: nowrap; }
         .print-voucher .detail-table .text-center { text-align: center; }
 
         .print-voucher .total-section { margin: 5px 0; }
@@ -166,23 +181,22 @@
         <!-- 头部 -->
         <div class="voucher-header">
             <div class="company-logo">
-                {% if company and company.logo_path %}
-                <img src="{{ url_for('static', filename=company.logo_path) }}"
-                     alt="{{ company.company_name }}"
-                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
-                {% else %}
-                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
-                {% endif %}
-                <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name if company and company.company_short_name is not none else '' }}</div>
+                {# logo 兜底链：invoice 专用横版图 → 公司设置里的 logo → JE/LOGO.jpg（与发票等单据一致） #}
+                <img src="{{ url_for('static', filename='JE/logo_invoice.png') }}" alt="{{ company.company_name if company else 'Company Logo' }}"
+                     data-fallback="{{ url_for('static', filename=company.logo_path) if company and company.logo_path else '' }}"
+                     data-fallback2="{{ url_for('static', filename='JE/LOGO.jpg') }}"
+                     onerror="if (this.dataset.fallback) { this.src = this.dataset.fallback; this.dataset.fallback = ''; } else { this.onerror = null; this.src = this.dataset.fallback2; }">
             </div>
             <div class="company-info">
-                <div class="company-name-cn">{{ company.company_name_cn if company and company.company_name_cn is not none else '' }}</div>
                 <div class="company-name-en">{{ company.company_name if company else 'Company Name' }}</div>
                 <div>TA License No.: {{ company.ta_license if company and company.ta_license is not none else '' }}</div>
                 <div>Email: {{ company.email if company and company.email is not none else '' }}</div>
                 {% if company and company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
             </div>
         </div>
+
+        <!-- 品牌三色分隔线 -->
+        <div class="brand-rule"><span class="c1"></span><span class="c2"></span><span class="c3"></span></div>
 
         <!-- 标题 -->
         <div class="voucher-title">
@@ -200,7 +214,7 @@
                             <strong>{{ payee_display or '-' }}</strong>
                         </td>
                     </tr>
-                    <tr><td colspan="3" style="height: 8px;"></td></tr>
+                    <tr><td colspan="3" style="height: 6px;"></td></tr>
                     <tr>
                         <td><strong>Method</strong></td>
                         <td>:</td>
@@ -240,14 +254,9 @@
                         <td>{{ header.hid if header else '-' }}</td>
                     </tr>
                     <tr>
-                        <td>Currency</td>
-                        <td>:</td>
-                        <td>{{ refund.currency }}</td>
-                    </tr>
-                    <tr>
                         <td>Prepared By</td>
                         <td>:</td>
-                        <td>{{ refund.created_by or '-' }}</td>
+                        <td>{{ (refund.created_by or '-') | upper }}</td>
                     </tr>
                 </table>
             </div>
@@ -261,9 +270,9 @@
                     <th style="width: 13%;">Invoice No.</th>
                     <th style="width: 27%;">Description</th>
                     <th style="width: 12%;">Date</th>
-                    <th style="width: 15%;" class="text-right">Invoice Amount</th>
+                    <th style="width: 15%;" class="text-right">Invoice Amt ({{ refund.currency }})</th>
                     <th style="width: 14%;" class="text-right">Deduction</th>
-                    <th style="width: 15%;" class="text-right">Refund Amount</th>
+                    <th style="width: 15%;" class="text-right">Refund ({{ refund.currency }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -275,9 +284,9 @@
                     <td>{{ item.invoice.invoice_number if item.invoice else '-' }}</td>
                     <td>{{ descriptions.get(item.id) or '-' }}</td>
                     <td>{{ item.invoice.invoice_date.strftime('%d/%m/%Y') if (item.invoice and item.invoice.invoice_date) else '-' }}</td>
-                    <td class="text-right">{{ "%.2f"|format(inv_amount) if item.invoice else '-' }}</td>
-                    <td class="text-right">{{ "%.2f"|format(deduction) if item.invoice else '-' }}</td>
-                    <td class="text-right">{{ "%.2f"|format(item.amount) }}</td>
+                    <td class="text-right">{{ "{:,.2f}".format((inv_amount)|float) if item.invoice else '-' }}</td>
+                    <td class="text-right">{{ "{:,.2f}".format((deduction)|float) if item.invoice else '-' }}</td>
+                    <td class="text-right">{{ "{:,.2f}".format((item.amount)|float) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -286,10 +295,11 @@
         <!-- 金额汇总 -->
         <div class="total-section">
             <table style="width: 100%; margin-top: 0;">
+                {# 币种并入标签，关键金额用字号区分（同发票） #}
                 <tr>
-                    <td><strong>{{ refund.currency }}</strong></td>
-                    <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>Total Refund :</strong></td>
-                    <td style="text-align: right; padding: 5px; width: 100px; white-space: nowrap;"><strong>{{ "%.2f"|format(refund.amount) }}</strong></td>
+                    <td style="width: 70%;"></td>
+                    <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 13px;"><strong>Total Refund ({{ refund.currency }}) :</strong></td>
+                    <td style="text-align: right; padding: 5px; width: 110px; white-space: nowrap; font-size: 14px;"><strong>{{ "{:,.2f}".format((refund.amount)|float) }}</strong></td>
                 </tr>
             </table>
             <div style="border-bottom: 2px solid #333; margin-bottom: 5px;"></div>
@@ -316,7 +326,7 @@
         <!-- 底部说明 -->
         <div class="footer-note">
             <p>THIS IS A COMPUTER-GENERATED DOCUMENT. NO SIGNATURE IS REQUIRED.</p>
-            <p style="margin-top: 10px;"><strong>E. & O.E</strong></p>
+            <p style="margin-top: 10px;"><strong>E. & O.E.</strong></p>
         </div>
     </div>
 </body>
