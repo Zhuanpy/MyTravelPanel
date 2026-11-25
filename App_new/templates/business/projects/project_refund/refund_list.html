@@ -22,6 +22,11 @@
 .rf-stat-supplier { --rf-c: #f59e0b; --rf-bg: #fffbeb; }
 .rf-stat-customer { --rf-c: #ef4444; --rf-bg: #fef2f2; }
 .rf-stat-go { font-size: 0.75rem; color: var(--rf-c); margin-left: 0.5rem; white-space: nowrap; }
+/* 已选中：边框整圈着色，提示文字改为"取消筛选" */
+.rf-stat-active { border: 2px solid var(--rf-c) !important; border-left-width: 4px !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--rf-c) 18%, transparent); }
+.rf-stat .rf-go-off { display: none; }
+.rf-stat-active .rf-go-on { display: none; }
+.rf-stat-active .rf-go-off { display: inline; }
 </style>
 <div class="container-fluid">
     <div class="row justify-content-center">
@@ -49,27 +54,27 @@
             {% if stats %}
             <div class="row g-2 mb-3">
                 <div class="col-6 col-lg-3">
-                    <a class="card text-decoration-none h-100 rf-stat rf-stat-supplier {% if filters.supplier_status in ['pending','partial'] %}border-warning{% endif %}"
-                       href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, customer_status=filters.customer_status, supplier_status='pending') }}"
+                    <a class="card text-decoration-none h-100 rf-stat rf-stat-supplier {% if filters.supplier_status == 'open' %}rf-stat-active{% endif %}"
+                       href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, supplier_status=('' if filters.supplier_status == 'open' else 'open')) }}"
                        title="只看未收到供应商退款的记录">
                         <div class="card-body py-2 d-flex justify-content-between align-items-center">
                             <span class="text-muted small"><i class="fas fa-arrow-down text-warning"></i> 待收供应商退款</span>
                             <span><strong class="text-warning">{{ stats.supplier_pending.count }}</strong> 笔
                                 <span class="text-muted small ms-2">约 {{ "%.2f"|format(stats.supplier_pending.amount) }}</span>
-                                <span class="rf-stat-go">筛选 <i class="fas fa-chevron-right"></i></span>
+                                <span class="rf-stat-go"><span class="rf-go-on">筛选 <i class="fas fa-chevron-right"></i></span><span class="rf-go-off"><i class="fas fa-times"></i> 取消筛选</span></span>
                             </span>
                         </div>
                     </a>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <a class="card text-decoration-none h-100 rf-stat rf-stat-customer {% if filters.customer_status in ['pending','partial'] %}border-danger{% endif %}"
-                       href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, supplier_status=filters.supplier_status, customer_status='pending') }}"
+                    <a class="card text-decoration-none h-100 rf-stat rf-stat-customer {% if filters.customer_status == 'open' %}rf-stat-active{% endif %}"
+                       href="{{ url_for('business_projects.project_refund.refund_list', keyword=filters.keyword, status=filters.status, currency=filters.currency, start_date=filters.start_date, end_date=filters.end_date, customer_status=('' if filters.customer_status == 'open' else 'open')) }}"
                        title="只看还没退给客户的记录">
                         <div class="card-body py-2 d-flex justify-content-between align-items-center">
                             <span class="text-muted small"><i class="fas fa-arrow-up text-danger"></i> 待退客户</span>
                             <span><strong class="text-danger">{{ stats.customer_pending.count }}</strong> 笔
                                 <span class="text-muted small ms-2">约 {{ "%.2f"|format(stats.customer_pending.amount) }}</span>
-                                <span class="rf-stat-go">筛选 <i class="fas fa-chevron-right"></i></span>
+                                <span class="rf-stat-go"><span class="rf-go-on">筛选 <i class="fas fa-chevron-right"></i></span><span class="rf-go-off"><i class="fas fa-times"></i> 取消筛选</span></span>
                             </span>
                         </div>
                     </a>
@@ -115,6 +120,7 @@
                             <label class="form-label mb-1 small text-muted">供应商退款</label>
                             <select name="supplier_status" class="form-select form-select-sm">
                                 <option value="">全部</option>
+                                <option value="open" {% if filters.supplier_status == 'open' %}selected{% endif %}>待处理（未收+部分）</option>
                                 <option value="pending" {% if filters.supplier_status == 'pending' %}selected{% endif %}>未收到</option>
                                 <option value="partial" {% if filters.supplier_status == 'partial' %}selected{% endif %}>部分收到</option>
                                 <option value="received" {% if filters.supplier_status == 'received' %}selected{% endif %}>已收到</option>
@@ -125,6 +131,7 @@
                             <label class="form-label mb-1 small text-muted">退客户</label>
                             <select name="customer_status" class="form-select form-select-sm">
                                 <option value="">全部</option>
+                                <option value="open" {% if filters.customer_status == 'open' %}selected{% endif %}>待处理（未退+部分）</option>
                                 <option value="pending" {% if filters.customer_status == 'pending' %}selected{% endif %}>未退款</option>
                                 <option value="partial" {% if filters.customer_status == 'partial' %}selected{% endif %}>部分退款</option>
                                 <option value="paid" {% if filters.customer_status == 'paid' %}selected{% endif %}>已退款</option>

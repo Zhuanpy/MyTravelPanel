@@ -230,10 +230,17 @@ def refund_list():
         filters.append(ProjectRefund.status == status)
     if currency:
         filters.append(ProjectRefund.currency == currency)
-    if supplier_status:
-        filters.append(ProjectRefund.supplier_refund_status == supplier_status)
-    if customer_status:
-        filters.append(ProjectRefund.customer_refund_status == customer_status)
+    # 收退款状态筛选单独放：顶部两张待办卡片的统计不能受它们影响（否则点了一张，另一张数字也变）
+    # 'open' = 待处理（未收/未退 + 部分），与卡片统计口径一致
+    track_filters = []
+    if supplier_status == 'open':
+        track_filters.append(ProjectRefund.supplier_refund_status.in_(['pending', 'partial']))
+    elif supplier_status:
+        track_filters.append(ProjectRefund.supplier_refund_status == supplier_status)
+    if customer_status == 'open':
+        track_filters.append(ProjectRefund.customer_refund_status.in_(['pending', 'partial']))
+    elif customer_status:
+        track_filters.append(ProjectRefund.customer_refund_status == customer_status)
     if start_date:
         try:
             filters.append(ProjectRefund.refund_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
@@ -255,6 +262,9 @@ def refund_list():
             CustomerCompany.company_name.ilike(kw),
         ))
 
+    # base_filters：不含收退款状态，供待办卡片统计；filters：列表/合计用的完整条件
+    base_filters = list(filters)
+    filters = filters + track_filters
     if filters:
         base = base.filter(and_(*filters))
 
@@ -279,14 +289,14 @@ def refund_list():
     totals = [(cur or 'SGD', float(amt or 0)) for cur, amt in totals_q.all() if (amt or 0)]
 
     def _pending_stat(*extra_filters):
-        """当前筛选条件下某种待办的笔数与金额（仅统计已确认退款）"""
+        """当前筛选条件（不含收退款状态）下某种待办的笔数与金额（仅统计已确认退款）"""
         q = db.session.query(
             func.count(ProjectRefund.id), func.sum(ProjectRefund.amount)
         ).join(
             ProjectHeader, ProjectRefund.header_id == ProjectHeader.id, isouter=True
         ).join(
             CustomerCompany, ProjectHeader.company_id == CustomerCompany.id, isouter=True
-        ).filter(and_(*(filters + [ProjectRefund.status == 'confirmed'] + list(extra_filters))))
+        ).filter(and_(*(base_filters + [ProjectRefund.status == 'confirmed'] + list(extra_filters))))
         cnt, amt = q.one()
         return {'count': int(cnt or 0), 'amount': float(amt or 0)}
 
