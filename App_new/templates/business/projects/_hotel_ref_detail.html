@@ -60,7 +60,7 @@
             <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
             <td style="border: none; padding: 1px 0;">
                 {# 小计右对齐，与景点/其他的 Rate 行排版一致 #}
-                <table style="width: 100%; border: none; line-height: 1.2;">
+                <table style="width: 100%; border: none; line-height: 1.2; border-collapse: collapse;">
                     <tr>
                         <td style="border: none; padding: 1px 0;">{{ nights }} Night{{ 's' if nights > 1 else '' }}{% if room_qty > 1 %} x {{ room_qty }} Rooms{% endif %} x {{ "%.2f"|format(per_night) }} / night</td>
                         <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(nights * room_qty * per_night) }}</td>

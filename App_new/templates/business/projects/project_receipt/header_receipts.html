@@ -68,16 +68,23 @@
         color: #333;
         font-weight: bold;
     }
-    .print-receipt .receipt-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-    .print-receipt .company-logo { text-align: center; }
-    .print-receipt .company-logo img { height: 60px; display: block; margin: 0 auto; }
-    .print-receipt .company-info { text-align: right; font-size: 11px; }
-    .print-receipt .company-name-cn { font-size: 18px; font-weight: bold; }
-    .print-receipt .company-name-en { font-size: 16px; font-weight: bold; }
-    .print-receipt .receipt-title { text-align: center; margin: 20px 0; }
+    /* 页眉与发票统一（方案A）：左 invoice 专用横版 logo，右公司英文信息，
+       下方橙/绿/蓝三色分隔线，标题加字距、深蓝色 */
+    .print-receipt .receipt-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; }
+    .print-receipt .company-logo img { height: 64px; width: auto; display: block; }
+    .print-receipt .company-info { text-align: right; font-size: 11px; line-height: 1.55; font-weight: normal; color: #333; }
+    .print-receipt .company-name-en { font-size: 14px; font-weight: bold; color: #1F3A5F; letter-spacing: 0.3px; margin-bottom: 2px; }
+    /* 三色线用 border 而非背景色：打印默认不出背景色，border 始终会打印 */
+    .print-receipt .brand-rule { display: flex; }
+    .print-receipt .brand-rule span { flex: 1; border-top: 3px solid; }
+    .print-receipt .brand-rule .c1 { border-color: #EE9420; }
+    .print-receipt .brand-rule .c2 { border-color: #5C9D33; }
+    .print-receipt .brand-rule .c3 { border-color: #1573B5; }
+    .print-receipt .receipt-title { text-align: center; margin: 18px 0 20px; }
     .print-receipt .receipt-title span {
-        display: inline-block; padding: 5px 0;
+        display: inline-block; padding: 0;
         font-size: 18px; font-weight: bold; text-transform: uppercase;
+        letter-spacing: 5px; color: #1F3A5F;
     }
     .print-receipt .receipt-info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
     .print-receipt .payer-info { width: 55%; }
@@ -418,25 +425,20 @@
     <!-- 收据头部 -->
     <div class="receipt-header">
         <div class="company-logo">
-            {% if '192.168' in request.host or 'localhost' in request.host %}
-                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
-            {% elif company and company.logo_path %}
-                <img src="{{ url_for('static', filename=company.logo_path) }}"
-                     alt="{{ company.company_name }}"
-                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
-            {% else %}
-                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
-            {% endif %}
-            <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name or '' }}</div>
+            {# 与发票同一张 invoice 专用横版 logo，中文名已在 logo 里，右侧不再重复 #}
+            <img src="{{ url_for('static', filename='JE/logo_invoice.png') }}" alt="{{ company.company_name if company else 'Company Logo' }}"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
         </div>
         <div class="company-info">
-            <div class="company-name-cn">{{ company.company_name_cn }}</div>
             <div class="company-name-en">{{ company.company_name }}</div>
             <div>TA License No.: {{ company.ta_license or '' }}</div>
             <div>Email: {{ company.email or '' }}</div>
             {% if company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
         </div>
     </div>
+
+    <!-- 品牌三色分隔线 -->
+    <div class="brand-rule"><span class="c1"></span><span class="c2"></span><span class="c3"></span></div>
 
     <!-- 收据标题 -->
     <div class="receipt-title">

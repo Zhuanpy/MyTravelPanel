@@ -55,16 +55,24 @@
     color: #333;
     font-weight: bold;
 }
-.print-invoice .invoice-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-.print-invoice .company-logo { text-align: center; }
-.print-invoice .company-logo img { height: 60px; display: block; margin: 0 auto; }
-.print-invoice .company-info { text-align: right; font-size: 11px; }
-.print-invoice .company-name-cn { font-size: 18px; font-weight: bold; }
-.print-invoice .company-name-en { font-size: 16px; font-weight: bold; }
-.print-invoice .invoice-title { text-align: center; margin: 20px 0; }
+/* 页眉（方案A）：左 invoice 专用横版 logo（含中英文名），右公司英文信息，
+   下方橙/绿/蓝三色分隔线（取自 logo 配色），标题 INVOICE 加字距、深蓝色 */
+.print-invoice strong, .print-invoice b { font-weight: bold; } /* 全局已是 bold；不锁住的话 strong 会变 bolder(900)，Windows 上落到 Arial Black，字体忽宽忽窄 */
+.print-invoice .invoice-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; }
+.print-invoice .company-logo img { height: 64px; width: auto; display: block; }
+.print-invoice .company-info { text-align: right; font-size: 11px; line-height: 1.55; font-weight: normal; color: #333; }
+.print-invoice .company-name-en { font-size: 14px; font-weight: bold; color: #1F3A5F; letter-spacing: 0.3px; margin-bottom: 2px; }
+/* 三色线用 border 而非背景色：打印默认不出背景色，border 始终会打印 */
+.print-invoice .brand-rule { display: flex; }
+.print-invoice .brand-rule span { flex: 1; border-top: 3px solid; }
+.print-invoice .brand-rule .c1 { border-color: #EE9420; }
+.print-invoice .brand-rule .c2 { border-color: #5C9D33; }
+.print-invoice .brand-rule .c3 { border-color: #1573B5; }
+.print-invoice .invoice-title { text-align: center; margin: 18px 0 20px; }
 .print-invoice .invoice-title span { 
-    display: inline-block; padding: 5px 0; 
+    display: inline-block; padding: 0; 
     font-size: 18px; font-weight: bold; text-transform: uppercase;
+    letter-spacing: 5px; color: #1F3A5F;
 }
 .print-invoice .invoice-info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
 .print-invoice .customer-info { width: 55%; }
@@ -74,7 +82,7 @@
 .print-invoice .invoice-meta { width: 40%; }
 .print-invoice .invoice-meta table { width: 100%; border-collapse: collapse; }
 .print-invoice .invoice-meta td { padding: 0; line-height: 1.35; vertical-align: top; }
-.print-invoice .invoice-meta td:first-child { width: 66px; }
+.print-invoice .invoice-meta td:first-child { width: 76px; white-space: nowrap; }
 .print-invoice .invoice-meta td:nth-child(2) { width: 10px; padding-right: 4px; }
 .print-invoice .detail-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
 .print-invoice .detail-table th { 
@@ -474,27 +482,20 @@
     <!-- 发票头部 -->
     <div class="invoice-header">
         <div class="company-logo">
-            {% if '192.168' in request.host or 'localhost' in request.host %}
-                <!-- 本地开发环境：使用默认静态文件 -->
-                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
-            {% elif company and company.logo_path %}
-                <!-- 服务器环境：使用数据库中的logo -->
-                <img src="{{ url_for('static', filename=company.logo_path) }}" 
-                     alt="{{ company.company_name }}" 
-                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
-            {% else %}
-                <img src="{{ url_for('static', filename='JE/LOGO.jpg') }}" alt="Company Logo">
-            {% endif %}
-            <div style="font-size: 11px; margin-top: 5px;">{{ company.company_short_name or '' }}</div>
+            {# invoice 专用横版 logo（图形 + 悦行假期 + JOYFUL ESCAPES），中文名已在 logo 里，右侧不再重复 #}
+            <img src="{{ url_for('static', filename='JE/logo_invoice.png') }}" alt="{{ company.company_name if company else 'Company Logo' }}"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
         </div>
         <div class="company-info">
-            <div class="company-name-cn">{{ company.company_name_cn }}</div>
             <div class="company-name-en">{{ company.company_name }}</div>
             <div>TA License No.: {{ company.ta_license or '' }}</div>
             <div>Email: {{ company.email or '' }}</div>
             {% if company.website %}<div>Website: {{ company.website | replace('https://', '') | replace('http://', '') | trim('/') }}</div>{% endif %}
         </div>
     </div>
+
+    <!-- 品牌三色分隔线 -->
+    <div class="brand-rule"><span class="c1"></span><span class="c2"></span><span class="c3"></span></div>
 
     <!-- 发票标题 -->
     <div class="invoice-title">
@@ -514,21 +515,24 @@
                         {% if customer_company_phone %}<br>Tel: {{ customer_company_phone }}{% endif %}
                     </td>
                 </tr>
-                <tr><td colspan="3" style="height: 10px;"></td></tr>
+                {# 收件人与客户是同一人（个人客户）时不重复显示 Attn #}
+                {%- set _to_name = customer_company_display or invoice.customer_company or invoice.customer_name or '' -%}
+                {%- set _attn_name = project_contact or invoice.customer_name or '' -%}
+                {% if _attn_name and _attn_name|trim|upper != _to_name|trim|upper %}
+                <tr><td colspan="3" style="height: 6px;"></td></tr>
                 <tr>
                     <td><strong>Attn</strong></td>
                     <td>:</td>
-                    <td>
-                        {{ project_contact or invoice.customer_name or '-' }}
-                    </td>
+                    <td>{{ _attn_name }}</td>
                 </tr>
+                {% endif %}
             </table>
         </div>
         <div class="invoice-meta">
             <table>
                 <tr><td>Invoice</td><td>:</td><td><strong>{{ invoice.invoice_number }}</strong></td></tr>
                 <tr><td>Date</td><td>:</td><td>{{ invoice.invoice_date.strftime('%d/%m/%Y') if invoice.invoice_date else '-' }}</td></tr>
-                <tr><td>Consultant</td><td>:</td><td>{{ invoice.created_by or '-' }}</td></tr>
+                <tr><td>Consultant</td><td>:</td><td>{{ (invoice.created_by or '-') | upper }}</td></tr>
                 <tr><td>Hd Id</td><td>:</td><td>{{ invoice.header.hid if invoice.header else '-' }}</td></tr>
                 <tr><td>Due Date</td><td>:</td><td>{{ invoice.due_date.strftime('%d/%m/%Y') if invoice.due_date else invoice.invoice_date.strftime('%d/%m/%Y') if invoice.invoice_date else '-' }}</td></tr>
             </table>
@@ -913,9 +917,10 @@
                 <td style="text-align: right; width: 100px; padding: 5px;">{{ "%.2f"|format(invoice.amount) }}</td>
             </tr>
             <tr>
-                <td><strong>{{ invoice.currency }}</strong></td>
-                <td style="text-align: right; padding: 5px; white-space: nowrap;">Total Amount :</td>
-                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>{{ "%.2f"|format(invoice.amount) }}</strong></td>
+                <td></td>
+                {# 关键金额用字号区分层级（不再靠 Arial Black） #}
+                <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 13px;">Total Amount ({{ invoice.currency }}) :</td>
+                <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 14px;"><strong>{{ "%.2f"|format(invoice.amount) }}</strong></td>
             </tr>
             {% if payments and payments|length > 0 %}
             <tr>
@@ -938,9 +943,9 @@
                 <td colspan="3" style="border-bottom: 1px solid #999; padding: 0;"></td>
             </tr>
             <tr>
-                <td><strong>{{ invoice.currency }}</strong></td>
-                <td style="text-align: right; padding: 5px; white-space: nowrap;"><strong>Balance Due :</strong></td>
-                <td style="text-align: right; padding: 5px;"><strong>{{ "%.2f"|format(balance) }}</strong></td>
+                <td></td>
+                <td style="text-align: right; padding: 5px; white-space: nowrap; font-size: 13px;"><strong>Balance Due ({{ invoice.currency }}) :</strong></td>
+                <td style="text-align: right; padding: 5px; font-size: 14px;"><strong>{{ "%.2f"|format(balance) }}</strong></td>
             </tr>
             {% endif %}
         </table>
@@ -1006,7 +1011,7 @@
     <!-- 底部说明 -->
     <div class="footer-note">
         <p>THIS IS A COMPUTER-GENERATED DOCUMENT. NO SIGNATURE IS REQUIRED.</p>
-        <p style="margin-top: 10px;"><strong>E. & O.E</strong></p>
+        <p style="margin-top: 10px;"><strong>E. & O.E.</strong></p>
     </div>
 </div>
 

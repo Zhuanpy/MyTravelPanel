@@ -34,11 +34,15 @@
         <td style="border: none; vertical-align: top; padding: 1px 0;">Rate</td>
         <td style="border: none; vertical-align: top; padding: 1px 0;">:</td>
         <td style="border: none; padding: 1px 0;">
-            <table style="width: 100%; border: none; line-height: 1.2;">
+            {# border-collapse 去掉内嵌表默认 2px 单元格间距，否则 Rate 值比左边的标签/冒号低几像素 #}
+            <table style="width: 100%; border: none; line-height: 1.2; border-collapse: collapse;">
                 {% for one, many, qty, price in fares %}
                 <tr>
                     <td style="border: none; padding: 1px 0;">{{ qty }} {{ many if qty > 1 else one }} x {{ "%.2f"|format(price) }}</td>
+                    {# 只有一种人群时小计 = 行合计，重复显示没意义；多人群（大人+小孩）才列各自小计 #}
+                    {% if fares | length > 1 %}
                     <td style="border: none; text-align: right; width: 60px; padding: 1px 0;">{{ "%.2f"|format(qty * price) }}</td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </table>
