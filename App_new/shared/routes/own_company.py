@@ -1,5 +1,7 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
+from flask_login import login_required
 from App_new.exts import db, csrf
+from App_new.utils.decorators import staff_only
 from App_new.business.tour.models.Packagemodels import CompanyInfo
 import os
 
@@ -62,6 +64,8 @@ def get_company_info_api():
     return jsonify({}), 404
 
 @own_company.route('/api/company_info', methods=['POST'])
+@login_required
+@staff_only
 def create_company_info():
     """创建公司信息API"""
     data = request.get_json()
@@ -92,6 +96,8 @@ def create_company_info():
     })
 
 @own_company.route('/api/company_info/<int:company_id>', methods=['PUT'])
+@login_required
+@staff_only
 def update_company_info_api(company_id):
     """更新公司信息API"""
     company = CompanyInfo.query.get_or_404(company_id)
@@ -140,8 +146,10 @@ def company_info():
 
     return render_template('shared/own_company/own_company_info.html', company=company, payment_config=payment_config)
 
+# 公司名称、银行收款信息、logo 都会印到发票上：必须登录的员工才能改，且不再豁免 CSRF
 @own_company.route('/company/edit', methods=['GET', 'POST'])
-@csrf.exempt  # 暂时豁免CSRF，后续可以改进
+@login_required
+@staff_only
 def edit_company_info():
     """编辑公司信息"""
     from App_new.shared.models.system_config import SystemConfig
@@ -180,102 +188,50 @@ def edit_company_info():
             company.ta_license = request.form.get('ta_license', '')
             company.uen = request.form.get('uen', '')
 
-            # 处理logo上传
-            if 'logo' in request.files:
-                logo = request.files['logo']
-                if logo and logo.filename != '':
-                    # 确保文件名安全
-                    from werkzeug.utils import secure_filename
-                    
-                    # 获取文件扩展名
-                    filename = secure_filename(logo.filename)
-                    name, ext = os.path.splitext(filename)
-                    
-                    # 使用固定的文件名（确保本地和服务器路径一致）
-                    # 如果已有logo，保持原有的文件名；否则使用 company_logo + 扩展名
-                    if company.logo_path:
-                        # 使用现有的文件名
-                        existing_filename = os.path.basename(company.logo_path)
-                        # 如果扩展名不同，更新扩展名
-                        existing_name, existing_ext = os.path.splitext(existing_filename)
-                        if existing_ext.lower() != ext.lower():
-                            new_filename = f'{existing_name}{ext}'
-                        else:
-                            new_filename = existing_filename
-                    else:
-                        # 首次上传，使用固定文件名
-                        new_filename = f'company_logo{ext}'
-                    
-                    # 构建保存路径（相对于 App_new/static）
-                    logo_relative_path = os.path.join('company', new_filename).replace('\\', '/')
-                    
-                    # 构建完整的文件系统路径
-                    full_path = os.path.join('App_new', 'static', 'company', new_filename)
-                    
-                    # 确保目录存在
-                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                    
-                    # 如果文件已存在，删除旧文件
-                    if os.path.exists(full_path):
-                        os.remove(full_path)
-                        print(f"🗑️ 删除旧Logo: {full_path}")
-                    
-                    # 保存文件
-                    logo.save(full_path)
-                    
-                    # 保存相对路径到数据库（不包含App_new/static前缀）
-                    company.logo_path = logo_relative_path
-                    
-                    print(f"✅ Logo保存成功: {full_path}")
-                    print(f"✅ 数据库路径: {logo_relative_path}")
-            
-            # 处理电子章上传
-            if 'stamp' in request.files:
-                stamp = request.files['stamp']
-                if stamp and stamp.filename != '':
-                    from werkzeug.utils import secure_filename
-                    
-                    filename = secure_filename(stamp.filename)
-                    name, ext = os.path.splitext(filename)
-                    
-                    if company.stamp_path:
-                        existing_filename = os.path.basename(company.stamp_path)
-                        existing_name, existing_ext = os.path.splitext(existing_filename)
-                        if existing_ext.lower() != ext.lower():
-                            new_filename = f'{existing_name}{ext}'
-                        else:
-                            new_filename = existing_filename
-                    else:
-                        new_filename = f'company_stamp{ext}'
-                    
-                    stamp_relative_path = os.path.join('company', new_filename).replace('\\', '/')
-                    full_path = os.path.join('App_new', 'static', 'company', new_filename)
-                    
-                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                    
-                    if os.path.exists(full_path):
-                        os.remove(full_path)
-                        print(f"🗑️ 删除旧电子章: {full_path}")
-                    
-                    stamp.save(full_path)
-                    company.stamp_path = stamp_relative_path
-                    
-                    print(f"✅ 电子章保存成功: {full_path}")
-                    print(f"✅ 数据库路径: {stamp_relative_path}")
-            
+            # 处理 logo / 电子章上传
+            # 每次上传用新文件名（带时间戳）：静态图片被 nginx 设了 30 天缓存，
+            # 沿用旧文件名的话 URL 不变，浏览器一直显示缓存里的旧图，看起来像"没保存成功"。
+            # 保存到 current_app.static_folder，不依赖 gunicorn 的工作目录。
+            # 旧图片文件保留不删（体积很小；删了无法恢复）。
+            from flask import current_app
+            from datetime import datetime as _dt
+
+            def _save_company_image(field, prefix):
+                """保存上传的图片到 static/company/，返回新的相对路径；没上传返回 None"""
+                f = request.files.get(field)
+                if not f or not f.filename:
+                    return None
+                ext = os.path.splitext(f.filename)[1].lower() or '.png'
+                if ext not in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'):
+                    raise ValueError(f'不支持的图片格式: {ext}')
+                new_filename = f"{prefix}_{_dt.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+                save_dir = os.path.join(current_app.static_folder, 'company')
+                os.makedirs(save_dir, exist_ok=True)
+                f.save(os.path.join(save_dir, new_filename))
+                return f'company/{new_filename}'
+
+            new_logo = _save_company_image('logo', 'company_logo')
+            if new_logo:
+                company.logo_path = new_logo
+                current_app.logger.info(f"公司logo已更新: {new_logo}")
+
+            new_stamp = _save_company_image('stamp', 'company_stamp')
+            if new_stamp:
+                company.stamp_path = new_stamp
+                current_app.logger.info(f"公司电子章已更新: {new_stamp}")
+
             if company.id is None:
                 db.session.add(company)
             
             db.session.commit()
-            
+
             flash('公司信息更新成功！', 'success')
             return redirect(url_for('own_company.company_info'))
             
         except Exception as e:
             db.session.rollback()
-            print(f"❌ 更新失败: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            # 用 logger 而不是带 emoji 的 print：Windows 中文控制台(GBK)打印 emoji 会抛错，把保存本身搞失败
+            current_app.logger.exception(f"公司信息更新失败: {e}")
             flash(f'更新失败：{str(e)}', 'error')
     
     # 如果是现有记录，确保显示时路径格式正确

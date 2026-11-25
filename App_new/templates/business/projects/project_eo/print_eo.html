@@ -199,8 +199,11 @@
         <div class="eo-header">
             <div class="company-logo">
                 {# 与发票/收据同一张 invoice 专用横版 logo，中文名已在 logo 里，右侧不再重复 #}
+                {# logo 兜底链：invoice 专用横版图（静态文件，需手动上传服务器）→ 公司设置里的 logo（服务器上一定有）→ JE/LOGO.jpg #}
                 <img src="{{ url_for('static', filename='JE/logo_invoice.png') }}" alt="{{ company.company_name if company else 'Company Logo' }}"
-                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='JE/LOGO.jpg') }}';">
+                     data-fallback="{{ url_for('static', filename=company.logo_path) if company and company.logo_path else '' }}"
+                     data-fallback2="{{ url_for('static', filename='JE/LOGO.jpg') }}"
+                     onerror="if (this.dataset.fallback) { this.src = this.dataset.fallback; this.dataset.fallback = ''; } else { this.onerror = null; this.src = this.dataset.fallback2; }">
             </div>
             <div class="company-info">
                 <div class="company-name-en">{{ company.company_name if company else 'Company Name' }}</div>

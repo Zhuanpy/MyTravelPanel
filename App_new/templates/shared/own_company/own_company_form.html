@@ -17,6 +17,7 @@
         </div>
         <div class="visa-card-body">
             <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="visa-form-group">
                     <label for="company_name" class="visa-form-label">
                         <i class="fas fa-building"></i> 公司英文名/全称 <span style="color: red;">*</span>
