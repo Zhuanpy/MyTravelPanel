@@ -12,6 +12,7 @@ from ...utils.device_detector import mobile_redirect
 from werkzeug.utils import secure_filename
 import json
 import os
+import re
 
 # 创建员工蓝图
 # 注意：此文件位于 App_new/staff/routes/ 下，而模板位于 App_new/staff/templates/
@@ -782,6 +783,30 @@ def create_quote():
     return render_template('staff/create_quote.html')
 
 # ==================== 文件管理 ====================
+# 文件管理：允许上传的扩展名，及列表页的类型分组（与模板的分类标签一一对应）
+STAFF_FILE_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'rar', '7z'}
+_STAFF_FILE_TYPE_MAP = {
+    'pdf': 'pdf',
+    'doc': 'word', 'docx': 'word',
+    'xls': 'excel', 'xlsx': 'excel',
+    'jpg': 'image', 'jpeg': 'image', 'png': 'image', 'gif': 'image',
+    'zip': 'archive', 'rar': 'archive', '7z': 'archive',
+}
+
+
+def _staff_file_type(filename):
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    return _STAFF_FILE_TYPE_MAP.get(ext, 'other')
+
+
+def _safe_upload_name(name):
+    """清理上传文件名：去掉路径部分和 Windows/Linux 非法字符，防止 ../ 写到上传目录外。
+    不用 secure_filename：它会把中文全部删掉（"资料.zip" 变成 "zip"）。"""
+    name = (name or '').replace('\\', '/').split('/')[-1]
+    name = re.sub(r'[\x00-\x1f<>:"|?*]', '_', name)
+    return name.strip().strip('.').strip()
+
+
 @staff.route('/files')
 @login_required
 @staff_only
@@ -793,6 +818,20 @@ def files():
         search = request.args.get('search', '')
         page = request.args.get('page', 1, type=int)
         per_page = 20
+        # 按上传时间筛选（YYYY-MM-DD，含首尾两天）；格式不对就忽略
+        start_date = (request.args.get('start_date') or '').strip()
+        end_date = (request.args.get('end_date') or '').strip()
+
+        def _parse_day(v):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date() if v else None
+            except ValueError:
+                return None
+        start_day, end_day = _parse_day(start_date), _parse_day(end_date)
+        if not start_day:
+            start_date = ''
+        if not end_day:
+            end_date = ''
         
         # 获取实际上传的文件
         upload_folder = current_app.config['UPLOAD_FOLDER']
@@ -806,20 +845,8 @@ def files():
                     file_stat = os.stat(file_path)
                     file_size = file_stat.st_size
                     
-                    # 确定文件类型
-                    file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-                    if file_ext in ['pdf']:
-                        file_type_display = 'pdf'
-                    elif file_ext in ['doc', 'docx']:
-                        file_type_display = 'document'
-                    elif file_ext in ['xls', 'xlsx']:
-                        file_type_display = 'excel'
-                    elif file_ext in ['jpg', 'jpeg', 'png', 'gif']:
-                        file_type_display = 'image'
-                    elif file_ext in ['zip', 'rar']:
-                        file_type_display = 'archive'
-                    else:
-                        file_type_display = 'document'
+                    # 确定文件类型（pdf/word/excel/image/archive/other，与列表页分类标签一致）
+                    file_type_display = _staff_file_type(filename)
                     
                     # 格式化文件大小
                     if file_size < 1024:
@@ -843,6 +870,17 @@ def files():
         # 按上传时间倒序排列
         all_files.sort(key=lambda x: x['uploaded_at'], reverse=True)
         
+        # 时间筛选先做：分类标签的数字跟着时间范围变（"这周上传了几个压缩包"）
+        if start_day:
+            all_files = [f for f in all_files if f['uploaded_at'].date() >= start_day]
+        if end_day:
+            all_files = [f for f in all_files if f['uploaded_at'].date() <= end_day]
+
+        # 各分类计数（在时间范围内统计，不受类型/搜索筛选影响）
+        type_counts = {}
+        for f in all_files:
+            type_counts[f['file_type']] = type_counts.get(f['file_type'], 0) + 1
+
         # 应用筛选
         filtered_files = all_files
         
@@ -866,14 +904,27 @@ def files():
                              total_pages=(total + per_page - 1) // per_page,
                              total=total,
                              file_type=file_type,
-                             search=search)
+                             search=search,
+                             start_date=start_date,
+                             end_date=end_date,
+                             today=datetime.now().date(),
+                             timedelta=timedelta,
+                             all_count=len(all_files),
+                             pdf_count=type_counts.get('pdf', 0),
+                             word_count=type_counts.get('word', 0),
+                             excel_count=type_counts.get('excel', 0),
+                             image_count=type_counts.get('image', 0),
+                             archive_count=type_counts.get('archive', 0),
+                             other_count=type_counts.get('other', 0))
     except Exception as e:
         flash(f'加载文件列表失败：{str(e)}', 'error')
         return render_template('staff/staff_files.html',
                              files=[],
                              current_page=1,
                              total_pages=1,
-                             total=0)
+                             total=0,
+                             today=datetime.now().date(),
+                             timedelta=timedelta)
 
 @staff.route('/upload_file', methods=['GET', 'POST'])
 @login_required
@@ -905,8 +956,7 @@ def upload_file():
                 return render_template('staff/staff_upload.html')
             
             # 检查文件类型
-            allowed_extensions = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'rar'}
-            if not allowed_file(file.filename, allowed_extensions):
+            if not allowed_file(file.filename, STAFF_FILE_EXTENSIONS):
                 flash('不支持的文件类型', 'error')
                 return render_template('staff/staff_upload.html')
             
@@ -915,17 +965,14 @@ def upload_file():
             if not os.path.exists(upload_folder):
                 os.makedirs(upload_folder)
             
-            # 保存文件
-            if filename:
-                # 使用用户指定的文件名，但需要添加扩展名
-                file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-                if file_ext:
-                    filename = f"{filename}.{file_ext}"
-                else:
-                    filename = filename
-            else:
-                # 使用原始文件名
-                filename = secure_filename(file.filename)
+            # 文件名：优先用页面上填的名字，否则用原始文件名；都要清理（防 ../ 越出上传目录，保留中文）
+            file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+            filename = _safe_upload_name(filename) or _safe_upload_name(file.filename)
+            if not filename:
+                filename = f"file_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # 页面会把原文件名（含扩展名）自动填进名字框，已带扩展名就不再追加，避免 "资料.zip.zip"
+            if file_ext and not filename.lower().endswith('.' + file_ext):
+                filename = f"{filename}.{file_ext}"
             
             # 确保文件名唯一
             file_path = os.path.join(upload_folder, filename)

@@ -172,6 +172,7 @@
 .file-name i.fa-file-word { color: #3498db; }
 .file-name i.fa-file-image { color: #9b59b6; }
 .file-name i.fa-file { color: #95a5a6; }
+.file-name i.fa-file-archive { color: #d68910; }
 .badge-type {
     padding: 4px 10px;
     border-radius: 20px;
@@ -183,6 +184,7 @@
 .badge-word { background: #ebf5fb; color: #3498db; }
 .badge-image { background: #f5eef8; color: #9b59b6; }
 .badge-other { background: #f4f6f7; color: #7f8c8d; }
+.badge-archive { background: #fef5e7; color: #d68910; }
 .badge-category {
     padding: 4px 10px;
     border-radius: 20px;
@@ -257,38 +259,49 @@
 <div class="file-container">
     <!-- 统计栏 -->
     <div class="cat-bar">
-        <a href="{{ url_for('staff.files') }}" class="cat-bar-item {% if not file_type %}active{% endif %}">
-            <i class="fas fa-folder" style="color:#3498db;"></i> 全部 <span class="cat-count">{{ total }}</span>
+        <a href="{{ url_for('staff.files', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if not file_type %}active{% endif %}">
+            <i class="fas fa-folder" style="color:#3498db;"></i> 全部 <span class="cat-count">{{ all_count|default(total) }}</span>
         </a>
-        <a href="{{ url_for('staff.files', type='pdf') }}" class="cat-bar-item {% if file_type == 'pdf' %}active{% endif %}">
+        <a href="{{ url_for('staff.files', type='pdf', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if file_type == 'pdf' %}active{% endif %}">
             <i class="fas fa-file-pdf" style="color:#e74c3c;"></i> PDF <span class="cat-count">{{ pdf_count|default(0) }}</span>
         </a>
-        <a href="{{ url_for('staff.files', type='excel') }}" class="cat-bar-item {% if file_type == 'excel' %}active{% endif %}">
+        <a href="{{ url_for('staff.files', type='excel', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if file_type == 'excel' %}active{% endif %}">
             <i class="fas fa-file-excel" style="color:#27ae60;"></i> Excel <span class="cat-count">{{ excel_count|default(0) }}</span>
         </a>
-        <a href="{{ url_for('staff.files', type='word') }}" class="cat-bar-item {% if file_type == 'word' %}active{% endif %}">
+        <a href="{{ url_for('staff.files', type='word', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if file_type == 'word' %}active{% endif %}">
             <i class="fas fa-file-word" style="color:#3498db;"></i> Word <span class="cat-count">{{ word_count|default(0) }}</span>
         </a>
-        <a href="{{ url_for('staff.files', type='image') }}" class="cat-bar-item {% if file_type == 'image' %}active{% endif %}">
+        <a href="{{ url_for('staff.files', type='image', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if file_type == 'image' %}active{% endif %}">
             <i class="fas fa-file-image" style="color:#9b59b6;"></i> 图片 <span class="cat-count">{{ image_count|default(0) }}</span>
         </a>
-        <a href="{{ url_for('staff.files', type='other') }}" class="cat-bar-item {% if file_type == 'other' %}active{% endif %}">
+        <a href="{{ url_for('staff.files', type='archive', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if file_type == 'archive' %}active{% endif %}">
+            <i class="fas fa-file-archive" style="color:#d68910;"></i> 压缩包 <span class="cat-count">{{ archive_count|default(0) }}</span>
+        </a>
+        <a href="{{ url_for('staff.files', type='other', search=search or None, start_date=start_date or None, end_date=end_date or None) }}" class="cat-bar-item {% if file_type == 'other' %}active{% endif %}">
             <i class="fas fa-file-alt" style="color:#95a5a6;"></i> 其他 <span class="cat-count">{{ other_count|default(0) }}</span>
         </a>
     </div>
 
     <!-- 筛选搜索栏 -->
     <div style="margin-bottom: 1rem;">
-        <form method="GET" class="d-flex gap-2" style="max-width: 600px;">
+        <form method="GET" class="d-flex flex-wrap gap-2 align-items-center">
             <select name="type" class="form-select form-select-sm" style="max-width: 140px;">
                 <option value="">全部类型</option>
                 <option value="pdf" {% if file_type == 'pdf' %}selected{% endif %}>PDF文档</option>
                 <option value="excel" {% if file_type == 'excel' %}selected{% endif %}>Excel表格</option>
                 <option value="word" {% if file_type == 'word' %}selected{% endif %}>Word文档</option>
                 <option value="image" {% if file_type == 'image' %}selected{% endif %}>图片文件</option>
+                <option value="archive" {% if file_type == 'archive' %}selected{% endif %}>压缩包</option>
                 <option value="other" {% if file_type == 'other' %}selected{% endif %}>其他文件</option>
             </select>
-            <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="搜索文件名...">
+            <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="搜索文件名..." style="max-width: 220px;">
+            <!-- 上传时间范围 -->
+            <div class="d-flex align-items-center gap-1" title="按上传时间筛选">
+                <span class="text-muted small" style="white-space:nowrap;">上传时间</span>
+                <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm" style="width: 140px;">
+                <span class="text-muted small">至</span>
+                <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm" style="width: 140px;">
+            </div>
             <button type="submit" class="btn btn-sm btn-primary" style="white-space:nowrap;">
                 <i class="fas fa-search"></i> 搜索
             </button>
@@ -296,6 +309,21 @@
                 <i class="fas fa-redo me-1"></i> 重置
             </a>
         </form>
+        {# 快捷时间：保留类型和搜索条件 #}
+        {% set _today = today.strftime('%Y-%m-%d') %}
+        {% set _quick = [('今天', _today), ('近7天', (today - timedelta(days=6)).strftime('%Y-%m-%d')), ('近30天', (today - timedelta(days=29)).strftime('%Y-%m-%d'))] %}
+        <div class="d-flex flex-wrap gap-1 mt-2 align-items-center">
+            <span class="text-muted small me-1">快捷：</span>
+            {% for label, d in _quick %}
+            {% set _active = (start_date == d and end_date == _today) %}
+            <a href="{{ url_for('staff.files', type=file_type or None, search=search or None, start_date=d, end_date=_today) }}"
+               class="btn btn-sm {{ 'btn-primary' if _active else 'btn-outline-primary' }}" style="padding: 0.1rem 0.6rem; font-size: 0.8rem;">{{ label }}</a>
+            {% endfor %}
+            {% if start_date or end_date %}
+            <a href="{{ url_for('staff.files', type=file_type or None, search=search or None) }}"
+               class="btn btn-sm btn-outline-secondary" style="padding: 0.1rem 0.6rem; font-size: 0.8rem;"><i class="fas fa-times"></i> 清除时间</a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- 文件列表 -->
@@ -328,6 +356,8 @@
                                         <i class="fas fa-file-word"></i>
                                     {% elif file.file_type == 'image' %}
                                         <i class="fas fa-file-image"></i>
+                                    {% elif file.file_type == 'archive' %}
+                                        <i class="fas fa-file-archive"></i>
                                     {% else %}
                                         <i class="fas fa-file"></i>
                                     {% endif %}
@@ -343,6 +373,8 @@
                                     <span class="badge-type badge-word">Word</span>
                                 {% elif file.file_type == 'image' %}
                                     <span class="badge-type badge-image">图片</span>
+                                {% elif file.file_type == 'archive' %}
+                                    <span class="badge-type badge-archive">压缩包</span>
                                 {% else %}
                                     <span class="badge-type badge-other">{{ file.file_type|upper }}</span>
                                 {% endif %}
@@ -385,7 +417,7 @@
                 <ul class="pagination">
                     {% if current_page > 1 %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('staff.files', page=current_page-1, type=file_type, search=search) }}">
+                        <a class="page-link" href="{{ url_for('staff.files', page=current_page-1, type=file_type, search=search, start_date=start_date or None, end_date=end_date or None) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -398,7 +430,7 @@
                         </li>
                         {% elif page_num <= current_page + 2 and page_num >= current_page - 2 %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('staff.files', page=page_num, type=file_type, search=search) }}">
+                            <a class="page-link" href="{{ url_for('staff.files', page=page_num, type=file_type, search=search, start_date=start_date or None, end_date=end_date or None) }}">
                                 {{ page_num }}
                             </a>
                         </li>
@@ -407,7 +439,7 @@
 
                     {% if current_page < total_pages %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('staff.files', page=current_page+1, type=file_type, search=search) }}">
+                        <a class="page-link" href="{{ url_for('staff.files', page=current_page+1, type=file_type, search=search, start_date=start_date or None, end_date=end_date or None) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
@@ -446,8 +478,8 @@
                     <div class="mb-2">
                         <label for="file" class="form-label mb-1" style="font-size:0.82rem; font-weight:500;">选择文件 <span class="text-danger">*</span></label>
                         <input type="file" class="form-control form-control-sm" id="upload_file_input" name="file" required
-                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
-                        <small class="text-muted" style="font-size:0.75rem;">PDF / Word / Excel / 图片，最大 16MB</small>
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar,.7z">
+                        <small class="text-muted" style="font-size:0.75rem;">PDF / Word / Excel / 图片 / 压缩包（zip、rar、7z），最大 16MB</small>
                     </div>
 
                     <!-- 文件预览 -->
